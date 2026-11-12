@@ -105,12 +105,12 @@ struct PlanEditorView: View {
         case .led: return "Tap along the LED run, then Finish"
         case .wire: return "Tap a device, the path, then a closet"
         case .stair: return "Tap the bottom and top of the stair"
-        case .calibrate: return "Tap both ends of a known dimension"
+        case .calibrate: return model.draft.isEmpty ? "Press and drag to aim at one end of a known dimension" : "Now aim at the other end · pinch to zoom"
         case .measure:
             if model.draft.count == 4, let s = model.activeSheet, let ft = Geometry.polylineFt(model.draft, sheet: s) {
                 return "\(Geometry.formatFeetInches(ft)) (\(ft.clean) ft) · tap to measure again"
             }
-            return model.activeSheet?.pxPerFt == nil ? "Set the scale first to measure" : "Tap two points to measure"
+            return model.activeSheet?.pxPerFt == nil ? "Set the scale first to measure" : "Press and drag to aim · release to place"
         }
     }
 

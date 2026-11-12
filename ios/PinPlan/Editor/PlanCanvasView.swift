@@ -15,6 +15,8 @@ struct PlanCanvasView: View {
     @State private var fittedKey = ""
     @State private var appliedFocus = 0
     @State private var detail: DetailTile?
+    /// Finger position while aiming in precision mode (scale line / measure).
+    @State private var aim: CGPoint?
     @State private var detailTask: Task<Void, Never>?
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var hSize
@@ -121,6 +123,17 @@ struct PlanCanvasView: View {
                     .accessibilityAddTraits(.isButton)
                     .gesture(itemDrag(id: m.id) { r in model.edit { $0.updateMarker(m.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
                 }
+
+                // Precision mode for the scale line and measuring: drag to aim with a magnifier, release to place.
+                if precisionMode {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                            .onChanged { v in aim = v.location }
+                            .onEnded { v in aim = nil; handleTap(v.location) })
+                        .simultaneousGesture(magnifyGesture)
+                    if let aim, let image { Loupe(image: image, point: aim, sheetSize: CGSize(width: W, height: H), scale: scale, offset: offset, bounds: size) }
+                }
             }
             .coordinateSpace(.named(Self.space))
             .clipped()
@@ -165,6 +178,13 @@ struct PlanCanvasView: View {
         Divider()
         Button(role: .destructive) { model.edit { $0.deleteMarker(m.id) }; if model.selection == .marker(m.id) { model.selection = nil } } label: {
             Label("Delete", systemImage: "trash")
+        }
+    }
+
+    private var precisionMode: Bool {
+        switch model.tool {
+        case .calibrate, .measure: return true
+        default: return false
         }
     }
 
@@ -421,5 +441,48 @@ struct ClosetBadge: View {
                 .padding(.horizontal, 3).background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 3))
         }
         .offset(y: 8)
+    }
+}
+
+/// 3× magnifier with a crosshair, shown above the finger so the exact point stays visible.
+private struct Loupe: View {
+    let image: UIImage
+    let point: CGPoint
+    let sheetSize: CGSize
+    let scale: CGFloat
+    let offset: CGSize
+    let bounds: CGSize
+    private let d: CGFloat = 130
+    private let zoom: CGFloat = 3
+
+    var body: some View {
+        let s = scale * zoom
+        // Position of the aimed point inside the magnified image.
+        let px = (point.x - offset.width) * zoom
+        let py = (point.y - offset.height) * zoom
+        let center = CGPoint(x: min(max(point.x, d / 2 + 4), bounds.width - d / 2 - 4),
+                             y: point.y - d * 0.9 < d / 2 + 4 ? point.y + d * 0.9 : point.y - d * 0.9)
+        ZStack {
+            Color.white
+            Image(uiImage: image)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: sheetSize.width * s, height: sheetSize.height * s)
+                .offset(x: d / 2 - px, y: d / 2 - py)
+                .frame(width: d, height: d, alignment: .topLeading)
+            Path { p in
+                p.move(to: CGPoint(x: d / 2, y: d / 2 - 14)); p.addLine(to: CGPoint(x: d / 2, y: d / 2 + 14))
+                p.move(to: CGPoint(x: d / 2 - 14, y: d / 2)); p.addLine(to: CGPoint(x: d / 2 + 14, y: d / 2))
+            }
+            .stroke(Color.orange, lineWidth: 1.5)
+            Circle().stroke(Color.orange, lineWidth: 1).frame(width: 6, height: 6)
+        }
+        .frame(width: d, height: d)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(Color.white, lineWidth: 4))
+        .overlay(Circle().stroke(Color.black.opacity(0.25), lineWidth: 1))
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+        .position(center)
+        .allowsHitTesting(false)
     }
 }
