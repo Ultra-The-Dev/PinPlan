@@ -338,7 +338,8 @@ struct StatTile: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value).font(.title3.bold()).monospacedDigit()
-            if let sub { Text(sub).font(.caption2).foregroundStyle(.secondary) }
+            // Always reserve the subtitle line so tiles in a grid line up.
+            Text(sub ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)

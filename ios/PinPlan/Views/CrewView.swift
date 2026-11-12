@@ -36,7 +36,7 @@ struct CrewView: View {
             if !tot.wireFt.isEmpty {
                 Section("Cable") {
                     ForEach(tot.wireFt.keys.sorted(), id: \.self) { w in
-                        LabeledContent(w, value: "\((tot.wireFt[w] ?? 0).clean) ft · \(tot.wireRuns[w] ?? 0) runs")
+                        LabeledContent(w, value: "\((tot.wireFt[w] ?? 0).clean) ft · \(tot.wireRuns[w] ?? 0) run\((tot.wireRuns[w] ?? 0) == 1 ? "" : "s")")
                     }
                 }
             }

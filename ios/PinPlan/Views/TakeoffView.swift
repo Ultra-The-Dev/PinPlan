@@ -13,12 +13,17 @@ struct TakeoffView: View {
         let tot = t.total
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .top) {
-                    Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.").font(.subheadline).foregroundStyle(.secondary)
-                    Spacer()
-                    Button { csv() } label: { Label("CSV", systemImage: "tablecells") }.buttonStyle(.bordered)
-                    Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext") }
-                        .buttonStyle(.borderedProminent).disabled(busy || model.sheets.isEmpty)
+                // Buttons beside the note on wide screens; note under the buttons on a phone.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top) {
+                        countedNote.frame(maxWidth: 420, alignment: .leading)
+                        Spacer()
+                        exportButtons
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack { exportButtons }
+                        countedNote
+                    }
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                     StatTile(label: "Cameras", value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: "\(tot.counts["cam-outdoor"] ?? 0) outdoor")
@@ -110,6 +115,17 @@ struct TakeoffView: View {
             let v = b.counts[d.id] ?? 0, tn = b.tentative[d.id] ?? 0
             Text(v == 0 ? "—" : "\(v)" + (tn > 0 ? " (\(tn)?)" : "")).foregroundStyle(v == 0 ? .tertiary : .primary)
         }
+    }
+
+    private var countedNote: some View {
+        Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.")
+            .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var exportButtons: some View {
+        Button { csv() } label: { Label("CSV", systemImage: "tablecells").lineLimit(1) }.buttonStyle(.bordered)
+        Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext").lineLimit(1) }
+            .buttonStyle(.borderedProminent).disabled(busy || model.sheets.isEmpty)
     }
 
     private func csv() {
