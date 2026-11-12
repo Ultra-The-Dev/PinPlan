@@ -1,13 +1,25 @@
 "use client";
+import { apiFetch } from "@/lib/api";
+import { getSupabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "@/lib/db";
 import type { AppSettings } from "@/lib/types";
 
 interface Status {
   configured: boolean;
-  source: "env" | "file" | null;
+  source: "env" | "file" | "database" | null;
   keyHint: string | null;
   encryptionKeySet?: boolean;
+  storage?: "database" | "file";
+  /** Set when the server refused the request (access code / sign-in needed). */
+  locked?: string;
+}
+
+async function loadStatus(): Promise<Status> {
+  const r = await apiFetch("/api/billdu/credentials", { cache: "no-store" });
+  const j = await r.json();
+  if (r.status === 401) return { configured: false, source: null, keyHint: null, locked: j.error ?? "Sign in first." };
+  return j as Status;
 }
 
 export default function BillduSettings() {
@@ -20,8 +32,7 @@ export default function BillduSettings() {
 
   async function refresh() {
     try {
-      const r = await fetch("/api/billdu/credentials", { cache: "no-store" });
-      setStatus(await r.json());
+      setStatus(await loadStatus());
     } catch {
       setStatus(null);
       setMsg({ ok: false, text: "Can't reach the server (offline?)." });
@@ -29,13 +40,18 @@ export default function BillduSettings() {
   }
   useEffect(() => {
     let alive = true;
-    fetch("/api/billdu/credentials", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j: Status) => alive && setStatus(j))
-      .catch(() => alive && setMsg({ ok: false, text: "Can't reach the server (offline?)." }));
+    const load = () =>
+      loadStatus()
+        .then((j) => alive && setStatus(j))
+        .catch(() => alive && setMsg({ ok: false, text: "Can't reach the server (offline?)." }));
+    load();
+    window.addEventListener("pinplan:auth-changed", load);
+    const sub = getSupabase()?.auth.onAuthStateChange(() => load());
     getSettings().then((s) => alive && setSettings(s));
     return () => {
       alive = false;
+      window.removeEventListener("pinplan:auth-changed", load);
+      sub?.data.subscription.unsubscribe();
     };
   }, []);
 
@@ -44,7 +60,7 @@ export default function BillduSettings() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch("/api/billdu/credentials", {
+      const r = await apiFetch("/api/billdu/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey, apiSecret }),
@@ -64,7 +80,7 @@ export default function BillduSettings() {
 
   async function disconnect() {
     if (!confirm("Remove the stored Billdu credentials from the server?")) return;
-    await fetch("/api/billdu/credentials", { method: "DELETE" });
+    await apiFetch("/api/billdu/credentials", { method: "DELETE" });
     setMsg({ ok: true, text: "Removed." });
     refresh();
   }
@@ -73,7 +89,7 @@ export default function BillduSettings() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch("/api/billdu/test", { method: "POST" });
+      const r = await apiFetch("/api/billdu/test", { method: "POST" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Connection failed");
       setMsg({ ok: true, text: j.canRead ? "Connected. Reading data back from Billdu works." : "Connected, but Billdu returned no readable data." });
@@ -105,7 +121,8 @@ export default function BillduSettings() {
           <span className="text-slate-600">Not connected</span>
         )}
       </div>
-      {status && !status.encryptionKeySet && status.source !== "env" && (
+      {status?.locked && <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700 ring-1 ring-slate-200">🔒 {status.locked}</p>}
+      {status && !status.locked && !status.encryptionKeySet && status.source !== "env" && (
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           The server has no <code>PINPLAN_ENCRYPTION_KEY</code>. Set it (any long random string) so the key and secret can be stored encrypted, or set <code>BILLDU_API_KEY</code> / <code>BILLDU_API_SECRET</code> directly.
         </p>
@@ -126,7 +143,7 @@ export default function BillduSettings() {
           <button type="button" onClick={test} disabled={busy || !status?.configured} className="btn">
             Test connection
           </button>
-          {status?.source === "file" && (
+          {(status?.source === "file" || status?.source === "database") && (
             <button type="button" onClick={disconnect} className="btn btn-danger">
               Disconnect
             </button>

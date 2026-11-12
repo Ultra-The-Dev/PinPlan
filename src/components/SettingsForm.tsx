@@ -5,6 +5,7 @@ import { toast } from "@/lib/toast";
 import { WIRE_TYPES } from "@/lib/catalog";
 import { getSettings, saveSettings } from "@/lib/db";
 import type { AppSettings } from "@/lib/types";
+import AccessCodePanel from "./AccessCodePanel";
 import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
 
@@ -161,7 +162,8 @@ export default function SettingsForm() {
           </div>
         </form>
 
-        <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">
+        <AccessCodePanel />
+      <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">
           <div>
             <h2 className="text-lg font-semibold">Billdu</h2>
             <p className="text-sm text-slate-500">Send estimates, orders and invoices straight from a project.</p>

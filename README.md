@@ -38,7 +38,14 @@ Try it with `samples/demo-plan-set.pdf` (a synthetic 4-sheet demo — not the re
 | `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`) | AI scan assist. |
 | `PINPLAN_ENCRYPTION_KEY` | Encrypts Billdu credentials saved from Settings. |
 | `PINPLAN_DATA_DIR` | Where the encrypted credentials file lives (default `.data/`). |
-| `BILLDU_API_KEY`, `BILLDU_API_SECRET` (`BILLDU_HOST`) | Alternative to saving credentials in Settings. **Use these on Vercel** — its filesystem is not persistent. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only. Stores the encrypted Billdu credentials in Supabase (`app_secrets`) — use this on Vercel, whose filesystem isn't persistent. |
+| `BILLDU_API_KEY`, `BILLDU_API_SECRET` (`BILLDU_HOST`) | Alternative to saving credentials in Settings. |
+| `PINPLAN_ACCESS_CODE` | Team access code protecting the Billdu and AI-scan routes when Supabase accounts aren't used. |
+
+## Security
+The server routes that talk to Billdu and Claude require a signed-in Supabase user when Supabase is configured, or the
+`PINPLAN_ACCESS_CODE` otherwise. **Don't deploy publicly with neither set** — anyone with the URL could create Billdu documents.
+Billdu credentials are encrypted with `PINPLAN_ENCRYPTION_KEY` and never sent to the browser.
 
 ## Deploy
 Vercel: import the repo, set the variables above, deploy. On the iPad, open the site in Safari → Share → Add to Home Screen.

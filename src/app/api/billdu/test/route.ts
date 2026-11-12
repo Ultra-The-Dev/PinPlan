@@ -1,7 +1,10 @@
+import { requireUser } from "@/lib/server/auth";
 import { getClientOrError, handleError } from "@/lib/billdu/route-helpers";
 
 /** Checks the credentials by reading back one page of clients (the FAQ calls the API one-way; this tests reads). */
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (!auth.ok) return auth.response;
   const client = await getClientOrError();
   if (client instanceof Response) return client;
   try {

@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/server/auth";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import { billduUnit } from "@/lib/billdu/mapping";
 
@@ -12,6 +13,8 @@ interface ProductIn {
 
 /** Create Billdu Products for catalog device types that don't have one yet. Returns {deviceTypeId: billduProductId}. */
 export async function POST(req: Request) {
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
   let body: { deviceTypes?: ProductIn[]; taxPct?: number; laborMode?: "combined" | "separate"; markupPct?: number };
   try {
     body = await req.json();

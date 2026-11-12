@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api";
 import { CircleExclamationPoint, Download, FileText, Package, Plus, RefreshCw, RotateCcw, Send, Settings, Trash } from "lucide-react";
 import { nanoid } from "nanoid";
 import Link from "next/link";
@@ -131,7 +132,7 @@ export default function EstimateTab() {
     setError(null);
     setNotice(null);
     try {
-      const r = await fetch("/api/billdu/send", {
+      const r = await apiFetch("/api/billdu/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -183,7 +184,7 @@ export default function EstimateTab() {
     setNotice(null);
     try {
       const live = catalog.filter((d) => !d.archived);
-      const r = await fetch("/api/billdu/products", {
+      const r = await apiFetch("/api/billdu/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deviceTypes: live, taxPct: pricing!.taxPct, laborMode: pricing!.laborMode, markupPct: pricing!.markupPct }),

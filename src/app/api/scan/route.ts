@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/server/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildScanPrompt, parseScanResult, SCAN_SCHEMA, TITLE_SCHEMA, type ScanCatalogEntry } from "@/lib/scanParse";
 
@@ -12,6 +13,8 @@ type ImageMime = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 const MIMES: ImageMime[] = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (!auth.ok) return auth.response;
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json(
       { error: "AI scan is not configured: set ANTHROPIC_API_KEY on the server (e.g. in .env.local or the Vercel project settings)." },

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/api";
 import { db } from "./db";
 import type { ScanResult } from "./scanParse";
 import type { DeviceType, Sheet } from "./types";
@@ -42,7 +43,7 @@ export async function scanSheet(
     "catalog",
     JSON.stringify(catalog.filter((d) => !d.archived).map((d) => ({ id: d.id, name: d.name, symbol: d.symbol, category: d.category }))),
   );
-  const res = await fetch("/api/scan", { method: "POST", body: form, signal });
+  const res = await apiFetch("/api/scan", { method: "POST", body: form, signal });
   const data = await res.json().catch(() => ({ error: `Scan failed (${res.status})` }));
   if (!res.ok) throw new Error(data.error || `Scan failed (${res.status})`);
   return data as ScanResult;
