@@ -130,7 +130,16 @@ struct PlanCanvasView: View {
                 // A focus request made before this sheet's canvas existed (e.g. "find device" on another floor).
                 if let f = model.focus, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) }
             }
-            .onChange(of: geo.size) { _, s in size = s; fitIfNeeded(force: false) }
+            .onChange(of: geo.size) { old, new in
+                // Panels opening/closing: keep the zoom and the point at the centre instead of re-fitting.
+                if fittedKey.hasPrefix(sheet.id), old.width > 0, new.width > 0 {
+                    offset = CGSize(width: offset.width + (new.width - old.width) / 2, height: offset.height + (new.height - old.height) / 2)
+                    size = new
+                } else {
+                    size = new
+                    fitIfNeeded(force: false)
+                }
+            }
             .onChange(of: sheet.id) { _, _ in fitIfNeeded(force: true) }
             .onChange(of: model.fitRequest) { _, _ in fitIfNeeded(force: true) }
             .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) } }
