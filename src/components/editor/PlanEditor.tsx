@@ -1,5 +1,22 @@
 "use client";
+import {
+  Cable,
+  Hand,
+  Layers,
+  ListChecks,
+  Maximize,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Redo2,
+  Ruler,
+  Sparkles,
+  Tag,
+  Undo2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "@/lib/toast";
+import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { CLOSET_KINDS, LAYERS } from "@/lib/catalog";
 import { parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
@@ -41,20 +58,14 @@ export default function PlanEditor() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
+  const wide = useMedia(WIDE_EDITOR);
   const [paletteOpen, setPaletteOpen] = useState(true);
-  const [panel, setPanel] = useState<"counts" | "scan" | null>("counts");
+  const [panel, setPanel] = useState<"counts" | "scan" | null>(() => (typeof window !== "undefined" && window.matchMedia(WIDE_EDITOR).matches ? "counts" : null));
   const [layersOpen, setLayersOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSheetId && sheets[0]) setActiveSheet(sheets[0].id);
   }, [activeSheetId, sheets, setActiveSheet]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   // Keyboard shortcuts (laptop).
   useEffect(() => {
@@ -81,6 +92,14 @@ export default function PlanEditor() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // On narrow screens the device menu overlays the plan: close it once a tool is picked.
+  const toolKey = JSON.stringify(tool);
+  const [lastToolKey, setLastToolKey] = useState(toolKey);
+  if (toolKey !== lastToolKey) {
+    setLastToolKey(toolKey);
+    if (!wide && tool.kind !== "select" && paletteOpen) setPaletteOpen(false);
+  }
 
   const takeoff = useMemo(() => computeTakeoff({ sheets: st.sheets, markers: st.markers, runs: st.runs, closets: st.closets }), [st.sheets, st.markers, st.runs, st.closets]);
   const floor = takeoff.floors.find((f) => f.sheetId === sheet?.id);
@@ -149,7 +168,7 @@ export default function PlanEditor() {
     const pts = dedupe(points);
     const s = useEditor.getState();
     if (pts.length < 4) {
-      if (tool.kind === "led" || tool.kind === "wire") setToast("Tap at least two points");
+      if (tool.kind === "led" || tool.kind === "wire") toast("Tap at least two points", "info");
       return;
     }
     if (tool.kind === "led") {
@@ -168,7 +187,7 @@ export default function PlanEditor() {
       if (marker && snap.closetId && marker.closetId !== snap.closetId) await s.updateMarker(marker.id, { closetId: snap.closetId });
       setDraft([]);
       setDraftSnap(() => ({}));
-      if (r) setToast(`Wire run added${r.measuredFt != null ? ` · ${r.measuredFt.toFixed(1)} ft` : ""}`);
+      if (r) toast(`Wire run added${r.measuredFt != null ? ` · ${r.measuredFt.toFixed(1)} ft` : ""}`);
     }
   }
 
@@ -191,7 +210,7 @@ export default function PlanEditor() {
         if (!ft) return "Enter a length like 12'6\" or 12.5";
         await st.updateSheet(sheet.id, { pxPerFt: px / ft, scaleLabel: `line ${v.len.trim()}` });
         setTool({ kind: "select" });
-        setToast(`Scale set: ${(px / ft).toFixed(1)} px/ft`);
+        toast(`Scale set: ${(px / ft).toFixed(1)} px/ft`);
       },
     };
   } else if (pending?.kind === "scale") {
@@ -209,7 +228,7 @@ export default function PlanEditor() {
         const inPerFt = parseScale(v.scale ?? "");
         if (!inPerFt) return `Enter a scale like 1/4" = 1'-0" or 1:48`;
         await st.updateSheet(sheet.id, { pxPerFt: inPerFt * sheet.pxPerInch, scaleLabel: v.scale.trim() });
-        setToast("Scale set");
+        toast("Scale set");
       },
     };
   } else if (pending?.kind === "led") {
@@ -226,7 +245,7 @@ export default function PlanEditor() {
         const typed = v.lf.trim() ? parseFeet(v.lf) : null;
         if (v.lf.trim() && typed == null) return "LF must be a number";
         const r = await st.addRun({ kind: "led", deviceTypeId: pending.deviceTypeId, points: pending.points, typedFt: typed, zone: v.zone.trim(), switchLabel: v.switch.trim() });
-        if (r) setToast(`LED zone ${v.zone} added`);
+        if (r) toast(`LED zone ${v.zone} added`);
       },
     };
   } else if (pending?.kind === "stair") {
@@ -244,7 +263,7 @@ export default function PlanEditor() {
         const per = parseFeet(v.lfPerStep);
         if (!steps || !per) return "Enter the steps and LF per step";
         await st.addRun({ kind: "stair", deviceTypeId: "led-stair", points: pending.points, steps, lfPerStep: per, zone: v.zone.trim(), switchLabel: v.switch.trim() });
-        setToast(`Stair LED: ${steps} × ${per} = ${(steps * per).toFixed(1)} LF`);
+        toast(`Stair LED: ${steps} × ${per} = ${(steps * per).toFixed(1)} LF`);
       },
     };
   }
@@ -252,176 +271,228 @@ export default function PlanEditor() {
   const drawing = tool.kind === "led" || tool.kind === "wire" || tool.kind === "stair" || tool.kind === "calibrate";
   const hint =
     tool.kind === "place"
-      ? `Tap the plan to place: ${typesById.get(tool.deviceTypeId)?.name}`
+      ? `Tap to place ${typesById.get(tool.deviceTypeId)?.name}`
       : tool.kind === "closet"
         ? `Tap to place the ${CLOSET_KINDS.find((c) => c.id === tool.closetKind)?.name.toLowerCase()}`
         : tool.kind === "led"
-          ? "Tap points along the LED run, then Finish (or double-tap)"
+          ? "Tap along the LED run · double-tap or Finish"
           : tool.kind === "wire"
-            ? "Tap a device, then the path, then a closet"
+            ? "Tap a device, the path, then a closet"
             : tool.kind === "stair"
               ? "Tap the bottom and top of the stair"
               : tool.kind === "calibrate"
                 ? "Tap both ends of a known dimension"
                 : null;
 
+  const floorCounts = floor ? Object.entries(floor.counts) : [];
+  const rightPanel = selection ? "inspect" : panel;
+
   return (
-    <div className="flex h-full">
-      {/* Palette */}
-      <aside className={`${paletteOpen ? "w-60" : "w-0"} shrink-0 overflow-y-auto border-r border-slate-200 bg-white transition-all`}>
-        {paletteOpen && <Palette />}
+    <div className="relative flex h-full bg-slate-100">
+      {/* Device menu */}
+      {!wide && paletteOpen && <div className="absolute inset-0 z-20 bg-slate-900/20" onClick={() => setPaletteOpen(false)} />}
+      <aside
+        className={`${paletteOpen ? "w-64" : "w-0"} shrink-0 overflow-hidden border-r border-slate-200 bg-white transition-[width] duration-200 ${
+          wide ? "" : "absolute inset-y-0 left-0 z-30 shadow-pop"
+        }`}
+      >
+        <div className="h-full w-64">
+          <Palette />
+        </div>
       </aside>
 
       <div className="relative flex min-w-0 flex-1 flex-col">
-        {/* Sheet tabs + toolbar */}
-        <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
-          <button className="btn btn-sm" onClick={() => setPaletteOpen((o) => !o)} aria-label="Toggle device menu">
-            {paletteOpen ? "◧" : "☰ Devices"}
+        {/* Toolbar */}
+        <div className="flex h-12 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-2">
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPaletteOpen((o) => !o)} title={paletteOpen ? "Hide device menu" : "Show device menu"}>
+            {paletteOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
           </button>
-          <div className="flex gap-1 overflow-x-auto">
-            {sheets.map((s) => (
-              <button key={s.id} className={`tab whitespace-nowrap ${s.id === sheet.id ? "tab-active" : ""}`} onClick={() => setActiveSheet(s.id)}>
-                {s.name}
-              </button>
-            ))}
-          </div>
+          <div className="min-w-0 truncate pl-1 text-sm font-semibold text-slate-800">{sheet.name}</div>
           <div className="flex-1" />
-          <button className={`btn btn-sm ${tool.kind === "select" ? "ring-2 ring-sky-500" : ""}`} onClick={() => setTool({ kind: "select" })}>
-            ✋ Select
+          <button className={`btn btn-sm ${tool.kind === "select" ? "btn-on" : ""}`} onClick={() => setTool({ kind: "select" })} title="Select / move (Esc)">
+            <Hand />
+            <span className="hidden xl:inline">Select</span>
           </button>
-          <button className="btn btn-sm" disabled={!past.length} onClick={undo} aria-label="Undo">
-            ↶
+          <button className="btn btn-sm btn-icon" disabled={!past.length} onClick={undo} title="Undo (⌘Z)" aria-label="Undo">
+            <Undo2 />
           </button>
-          <button className="btn btn-sm" disabled={!future.length} onClick={redo} aria-label="Redo">
-            ↷
+          <button className="btn btn-sm btn-icon" disabled={!future.length} onClick={redo} title="Redo (⇧⌘Z)" aria-label="Redo">
+            <Redo2 />
           </button>
-          <button className="btn btn-sm" onClick={() => setPending({ kind: "scale" })}>
-            📏 Scale
-          </button>
-          <button className={`btn btn-sm ${tool.kind === "calibrate" ? "ring-2 ring-sky-500" : ""}`} onClick={() => setTool({ kind: "calibrate" })}>
-            Draw scale line
+          <span className="toolbar-sep" />
+          <button className={`btn btn-sm ${tool.kind === "calibrate" ? "btn-on" : sheet.pxPerFt ? "" : "border-amber-300 bg-amber-50 text-amber-800"}`} onClick={() => setPending({ kind: "scale" })} title="Set the sheet scale">
+            <Ruler />
+            <span className="hidden xl:inline">{sheet.pxPerFt ? "Scale" : "Set scale"}</span>
           </button>
           <div className="relative">
-            <button className="btn btn-sm" onClick={() => setLayersOpen((o) => !o)}>
-              Layers{hiddenLayers.length ? ` (${LAYERS.length - hiddenLayers.length})` : ""}
+            <button className={`btn btn-sm ${hiddenLayers.length ? "btn-on" : ""}`} onClick={() => setLayersOpen((o) => !o)} title="Show / hide trades">
+              <Layers />
+              <span className="hidden xl:inline">Layers</span>
+              {hiddenLayers.length ? <span className="text-[11px]">{LAYERS.length - hiddenLayers.length}/{LAYERS.length}</span> : null}
             </button>
             {layersOpen && (
-              <div className="card absolute right-0 top-9 z-20 w-56 space-y-1 p-2">
-                {LAYERS.map((l) => (
-                  <div key={l.id} className="flex items-center gap-2 text-sm">
-                    <label className="flex flex-1 items-center gap-2">
-                      <input type="checkbox" checked={!hiddenLayers.includes(l.id)} onChange={() => toggleLayer(l.id)} />
-                      {l.name}
-                    </label>
-                    <button className="text-xs text-sky-700" onClick={() => setOnlyLayer(l.id)}>
-                      only
-                    </button>
-                  </div>
-                ))}
-                <button className="btn btn-sm w-full" onClick={() => setOnlyLayer(null)}>
-                  Show all
-                </button>
-              </div>
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setLayersOpen(false)} />
+                <div className="card animate-in absolute top-10 right-0 z-30 w-60 p-2 shadow-pop">
+                  <div className="section-title px-2 pt-1 pb-2">Layers</div>
+                  {LAYERS.map((l) => (
+                    <div key={l.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
+                      <label className="flex flex-1 cursor-pointer items-center gap-2">
+                        <input type="checkbox" className="accent-brand-600" checked={!hiddenLayers.includes(l.id)} onChange={() => toggleLayer(l.id)} />
+                        {l.name}
+                      </label>
+                      <button className="text-xs font-medium text-brand-600 hover:underline" onClick={() => setOnlyLayer(l.id)}>
+                        Only
+                      </button>
+                    </div>
+                  ))}
+                  <button className="btn btn-sm mt-1 w-full" onClick={() => setOnlyLayer(null)}>
+                    Show all
+                  </button>
+                </div>
+              </>
             )}
           </div>
-          <button className={`btn btn-sm ${showLabels ? "ring-2 ring-sky-500" : ""}`} onClick={() => setShowLabels((v) => !v)}>
-            Labels
+          <button className={`btn btn-sm btn-icon ${showLabels ? "btn-on" : ""}`} onClick={() => setShowLabels((v) => !v)} title="Show device labels" aria-label="Labels">
+            <Tag />
           </button>
-          <button className="btn btn-sm" onClick={() => setFitKey((k) => k + 1)}>
-            Fit
+          <button className="btn btn-sm btn-icon" onClick={() => setFitKey((k) => k + 1)} title="Fit sheet to screen" aria-label="Fit">
+            <Maximize />
           </button>
+          <span className="toolbar-sep" />
           <button
             className="btn btn-sm"
+            title="Draw home runs from every device on this sheet to its closet"
             onClick={async () => {
               const n = await useEditor.getState().autoHomeRuns(sheet.id);
-              setToast(n ? `Drew ${n} home runs` : useEditor.getState().closets.length ? "No wired devices on this sheet" : "Place an equipment closet first");
+              toast(n ? `Drew ${n} home runs` : useEditor.getState().closets.length ? "No wired devices on this sheet" : "Place an equipment closet first", n ? "success" : "info");
             }}
           >
-            Auto home runs
+            <Cable />
+            <span className="hidden xl:inline">Home runs</span>
           </button>
-          <button className={`btn btn-sm ${panel === "scan" ? "ring-2 ring-sky-500" : ""}`} onClick={() => setPanel(panel === "scan" ? "counts" : "scan")}>
-            ✨ AI scan
+          <button className={`btn btn-sm ${panel === "counts" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "counts" ? null : "counts")} title="Floor counts">
+            <ListChecks />
+            <span className="hidden xl:inline">Counts</span>
+          </button>
+          <button className={`btn btn-sm ${panel === "scan" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "scan" ? null : "scan")} title="AI scan assist">
+            <Sparkles />
+            <span className="hidden xl:inline">AI scan</span>
           </button>
         </div>
 
         <div className="relative min-h-0 flex-1">
           <PlanCanvas sheet={sheet} draft={draft} fitKey={fitKey} showLabels={showLabels} onTapImage={onTapImage} onDoubleTap={() => drawing && finishDraft()} />
+          {sheets.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 z-10 flex max-w-[calc(100%-200px)] -translate-x-1/2 overflow-x-auto rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
+              {sheets.map((s, i) => (
+                <button
+                  key={s.id}
+                  className={`tab h-8 px-3 text-[13px] ${s.id === sheet.id ? "bg-ink text-white shadow-sm hover:bg-ink hover:text-white" : ""}`}
+                  onClick={() => setActiveSheet(s.id)}
+                  title={`Floor ${i + 1}`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
           {hint && (
-            <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/85 px-3 py-1 text-sm text-white shadow">
+            <div className="pointer-events-none absolute top-12 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-2 truncate rounded-full bg-ink/90 px-3.5 py-1.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
               {hint}
             </div>
           )}
-          {(tool.kind === "led" || tool.kind === "wire") && (
-            <div className="absolute left-1/2 top-11 flex -translate-x-1/2 gap-2">
-              <button className="btn btn-sm" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
-                Undo point
+          {tool.kind !== "select" && !drawing && (
+            <button className="btn btn-sm absolute top-3 right-3 shadow-soft" onClick={() => setTool({ kind: "select" })}>
+              <X /> Done
+            </button>
+          )}
+          {(tool.kind === "led" || tool.kind === "wire" || tool.kind === "stair" || tool.kind === "calibrate") && (
+            <div className="absolute top-[88px] left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
+              <button className="btn btn-sm btn-ghost" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
+                <Undo2 /> Point
               </button>
-              <button className="btn btn-sm btn-primary" onClick={() => finishDraft()} disabled={draft.length < 4}>
-                Finish
-              </button>
-              <button className="btn btn-sm" onClick={() => setDraft([])}>
-                Cancel
+              {(tool.kind === "led" || tool.kind === "wire") && (
+                <button className="btn btn-sm btn-brand" onClick={() => finishDraft()} disabled={draft.length < 4}>
+                  Finish
+                </button>
+              )}
+              <button className="btn btn-sm btn-ghost" onClick={() => (draft.length ? setDraft([]) : setTool({ kind: "select" }))}>
+                <X /> Cancel
               </button>
             </div>
           )}
-          {toast && <div className="absolute bottom-12 left-1/2 -translate-x-1/2 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm text-white shadow">{toast}</div>}
         </div>
       </div>
 
       {/* Right panel */}
-      {(selection || panel) && (
-        <aside className="w-72 shrink-0 overflow-y-auto border-l border-slate-200 bg-white">
-          {selection ? (
+      {rightPanel && (
+        <aside className={`scroll-thin w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white ${wide ? "" : "animate-in absolute inset-y-0 right-0 z-30 shadow-pop"}`}>
+          {rightPanel === "inspect" ? (
             <Inspector />
-          ) : panel === "scan" ? (
-            <ScanPanel sheetId={sheet.id} />
+          ) : rightPanel === "scan" ? (
+            <div className="p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <div className="section-title">AI scan assist</div>
+                    <h3 className="text-base leading-tight font-semibold">{sheet.name}</h3>
+                  </div>
+                </div>
+                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label="Close">
+                  <X />
+                </button>
+              </div>
+              <ScanPanel sheetId={sheet.id} />
+            </div>
           ) : (
             floor && (
-              <div className="p-3 text-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="font-semibold">{floor.name} — counts</h3>
-                  <button className="text-xs text-slate-500" onClick={() => setPanel(null)}>
-                    hide
+              <div className="p-4 text-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <div className="section-title">Floor count</div>
+                    <h3 className="text-base font-semibold">{floor.name}</h3>
+                  </div>
+                  <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label="Close">
+                    <X />
                   </button>
                 </div>
-                <table className="tbl">
-                  <tbody>
-                    {Object.entries(floor.counts).map(([id, n]) => (
-                      <tr key={id}>
-                        <td>{typesById.get(id)?.name ?? id}</td>
-                        <td className="text-right font-semibold">
-                          {n}
-                          {floor.tentative[id] ? <span className="ml-1 text-xs font-normal text-amber-700">({floor.tentative[id]}?)</span> : null}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td>LED zones</td>
-                      <td className="text-right font-semibold">{floor.ledZones}</td>
-                    </tr>
-                    <tr>
-                      <td>LED total</td>
-                      <td className="text-right font-semibold">{floor.ledTotalFt} LF</td>
-                    </tr>
-                    {Object.entries(floor.wireFt).map(([w, ft]) => (
-                      <tr key={w}>
-                        <td>{w} cable</td>
-                        <td className="text-right">{ft} ft</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {floor.unmeasuredRuns > 0 && <p className="mt-2 text-xs text-amber-700">{floor.unmeasuredRuns} run(s) have no length yet — set the scale or type LF.</p>}
-                {!Object.keys(floor.counts).length && <p className="mt-2 text-slate-500">Pick a device on the left, then tap the plan.</p>}
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <Stat label="Devices" value={floorCounts.reduce((n, [, v]) => n + v, 0)} />
+                  <Stat label="LED" value={`${floor.ledTotalFt} LF`} sub={`${floor.ledZones} zones`} />
+                </div>
+                <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  {floorCounts.map(([id, n]) => {
+                    const t = typesById.get(id);
+                    return (
+                      <li key={id} className="flex items-center gap-2 px-3 py-2">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: t?.color }} />
+                        <span className="min-w-0 flex-1 truncate">{t?.name ?? id}</span>
+                        {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{floor.tentative[id]}?</span> : null}
+                        <span className="font-semibold tabular-nums">{n}</span>
+                      </li>
+                    );
+                  })}
+                  {Object.entries(floor.wireFt).map(([w, ft]) => (
+                    <li key={w} className="flex items-center gap-2 px-3 py-2 text-slate-600">
+                      <Cable className="h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate">{w}</span>
+                      <span className="tabular-nums">{ft} ft</span>
+                    </li>
+                  ))}
+                  {!floorCounts.length && !Object.keys(floor.wireFt).length && <li className="px-3 py-6 text-center text-slate-500">Pick a device on the left, then tap the plan.</li>}
+                </ul>
+                {floor.unmeasuredRuns > 0 && (
+                  <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">{floor.unmeasuredRuns} run(s) have no length yet — set the scale or type LF.</p>
+                )}
               </div>
             )
           )}
         </aside>
-      )}
-      {!selection && !panel && (
-        <button className="btn btn-sm absolute right-2 top-28 z-10" onClick={() => setPanel("counts")}>
-          Counts
-        </button>
       )}
 
       {dialog && (
@@ -431,6 +502,7 @@ export default function PlanEditor() {
           fields={dialog.fields}
           error={dialogError}
           submitLabel={pending?.kind === "scale" && !sheet.pxPerInch ? "Draw a line" : "Save"}
+          secondary={pending?.kind === "scale" && sheet.pxPerInch ? { label: "Draw a line instead", onClick: () => { setPending(null); setTool({ kind: "calibrate" }); } } : undefined}
           onCancel={() => {
             setPending(null);
             setDialogError(null);
@@ -445,6 +517,16 @@ export default function PlanEditor() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+      <div className="text-[11px] font-medium text-slate-500">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      {sub && <div className="text-[11px] text-slate-500">{sub}</div>}
     </div>
   );
 }

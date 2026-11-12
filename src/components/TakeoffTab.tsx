@@ -1,10 +1,12 @@
 "use client";
+import { Cable, Camera, Download, FileText, Lightbulb, Speaker, Tv, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
 import { useEditor } from "@/lib/store";
-import { computeTakeoff, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
+import { computeTakeoff, countOf, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
+import { toast } from "@/lib/toast";
 
 export default function TakeoffTab() {
   const st = useEditor();
@@ -34,7 +36,7 @@ export default function TakeoffTab() {
     try {
       await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", onProgress: setBusy });
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
       setBusy(null);
     }
@@ -42,17 +44,27 @@ export default function TakeoffTab() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-6xl p-4 sm:p-6">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold">Takeoff</h2>
-          <p className="text-sm text-slate-500">Counted only from placed markers and runs. (n?) = tentative, listed separately.</p>
-          <div className="flex-1" />
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="mb-5 flex flex-wrap items-end gap-3">
+          <div className="mr-auto">
+            <h2 className="page-title">Takeoff</h2>
+            <p className="mt-1 text-sm text-slate-500">Counted only from placed markers and runs. <span className="chip bg-amber-50 text-amber-700">n?</span> = tentative, listed separately.</p>
+          </div>
           <button className="btn" onClick={() => downloadText(takeoffCsv(takeoff, catalog), `${slug(project.address)}-takeoff.csv`)}>
-            Download CSV
+            <Download /> CSV
           </button>
-          <button className="btn btn-primary" disabled={!!busy || !sheets.length} onClick={pdf}>
-            {busy ?? "Marked-up plans PDF"}
+          <button className="btn btn-brand" disabled={!!busy || !sheets.length} onClick={pdf}>
+            <FileText /> {busy ?? "Marked-up plans PDF"}
           </button>
+        </div>
+
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <SummaryCard icon={Camera} label="Cameras" value={countOf(takeoff.total, ["cam-indoor", "cam-outdoor"])} sub={`${takeoff.total.counts["cam-outdoor"] ?? 0} outdoor`} color="text-red-600 bg-red-50" />
+          <SummaryCard icon={Wifi} label="Wi-Fi APs" value={takeoff.total.counts["wap"] ?? 0} color="text-blue-600 bg-blue-50" />
+          <SummaryCard icon={Speaker} label="Speakers" value={takeoff.total.counts["speaker"] ?? 0} sub={takeoff.total.tentative["speaker"] ? `${takeoff.total.tentative["speaker"]} tentative` : undefined} color="text-violet-600 bg-violet-50" />
+          <SummaryCard icon={Tv} label="TVs" value={takeoff.total.counts["tv"] ?? 0} color="text-cyan-600 bg-cyan-50" />
+          <SummaryCard icon={Lightbulb} label="LED" value={`${takeoff.total.ledTotalFt}`} unit="LF" sub={`${takeoff.total.ledZones} zones`} color="text-amber-600 bg-amber-50" />
+          <SummaryCard icon={Cable} label="Cable" value={`${Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0))}`} unit="ft" sub={`${Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0)} home runs`} color="text-slate-600 bg-slate-100" />
         </div>
 
         <div className="card overflow-x-auto">
@@ -200,6 +212,24 @@ export default function TakeoffTab() {
           <p className="text-sm text-slate-500">None. Mark a device as tentative (?) in its editor.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value, unit, sub, color }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; unit?: string; sub?: string; color: string }) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+      </div>
+      <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+        {value}
+        {unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
+      </div>
+      <div className="h-4 text-xs text-slate-500">{sub}</div>
     </div>
   );
 }

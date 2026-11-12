@@ -82,64 +82,64 @@ export default function ScanPanel({ sheetId }: { sheetId: string }) {
     }
   }
 
-  const btn = "rounded-md px-3 py-2 text-sm font-medium disabled:opacity-40";
+  const btn = "btn btn-sm";
   return (
     <div className="flex flex-col gap-3 text-sm">
       <div className="flex flex-wrap gap-2">
-        <button className={`${btn} bg-indigo-600 text-white`} disabled={!!busy} onClick={runScan}>
+        <button className={`${btn} btn-brand`} disabled={!!busy} onClick={runScan}>
           {busy === "scan" ? "Scanning…" : "Scan this sheet"}
         </button>
-        <button className={`${btn} border border-gray-300`} disabled={!!busy} onClick={detectName}>
+        <button className={`${btn}`} disabled={!!busy} onClick={detectName}>
           {busy === "title" ? "Reading…" : "Detect sheet name"}
         </button>
         {busy === "scan" && (
-          <button className={`${btn} text-gray-600`} onClick={() => abort.current?.abort()}>
+          <button className={`${btn} btn-ghost`} onClick={() => abort.current?.abort()}>
             Cancel
           </button>
         )}
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-slate-500">
         AI suggestions appear as dashed ghosts. They are not counted in the takeoff, estimate or Billdu until you accept them. Drag a
         ghost to fix its position; tap to select it.
       </p>
-      {error && <p className="rounded-md bg-red-50 p-2 text-red-700">{error}</p>}
-      {info && <p className="rounded-md bg-emerald-50 p-2 text-emerald-800">{info}</p>}
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">{error}</p>}
+      {info && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-800">{info}</p>}
 
       {mine.length > 0 && (
         <>
           <div className="flex items-center gap-2">
-            <label className="whitespace-nowrap text-xs text-gray-600">Confidence ≥ {Math.round(threshold * 100)}%</label>
+            <label className="whitespace-nowrap text-xs text-slate-600">Confidence ≥ {Math.round(threshold * 100)}%</label>
             <input type="range" min={0} max={1} step={0.05} value={threshold} onChange={(e) => setThreshold(+e.target.value)} className="flex-1" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className={`${btn} bg-emerald-600 text-white`} disabled={!!busy || !aboveThreshold.length} onClick={() => accept(aboveThreshold.map((i) => i.id))}>
+            <button className={`${btn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white`} disabled={!!busy || !aboveThreshold.length} onClick={() => accept(aboveThreshold.map((i) => i.id))}>
               Accept {aboveThreshold.length} ≥ threshold
             </button>
-            <button className={`${btn} bg-emerald-50 text-emerald-800`} disabled={!!busy || !selected.length} onClick={() => accept(selected.map((i) => i.id))}>
+            <button className={`${btn} border-emerald-200 bg-emerald-50 text-emerald-800`} disabled={!!busy || !selected.length} onClick={() => accept(selected.map((i) => i.id))}>
               Accept selected ({selected.length})
             </button>
-            <button className={`${btn} bg-red-50 text-red-700`} disabled={!!busy || !selected.length} onClick={() => useSuggestions.getState().reject(selected.map((i) => i.id))}>
+            <button className={`${btn} btn-danger`} disabled={!!busy || !selected.length} onClick={() => useSuggestions.getState().reject(selected.map((i) => i.id))}>
               Reject selected
             </button>
             <button
-              className={`${btn} text-red-700`}
+              className={`${btn} btn-ghost text-red-700`}
               disabled={!!busy}
               onClick={() => confirm(`Reject all ${mine.length} suggestions on this sheet?`) && useSuggestions.getState().reject(mine.map((i) => i.id))}
             >
               Reject all
             </button>
             <button
-              className={`${btn} text-gray-600`}
+              className={`${btn} btn-ghost`}
               onClick={() => useSuggestions.getState().setSelected(selected.length === mine.length ? [] : mine.map((i) => i.id))}
             >
               {selected.length === mine.length ? "Select none" : "Select all"}
             </button>
           </div>
-          <ul className="max-h-80 divide-y divide-gray-100 overflow-auto rounded-md border border-gray-200">
+          <ul className="max-h-80 divide-y divide-slate-100 overflow-auto rounded-md border border-slate-200">
             {mine.map((s) => (
-              <li key={s.id} className={`flex items-center gap-2 px-2 py-1.5 ${selectedIds.includes(s.id) ? "bg-blue-50" : ""}`}>
+              <li key={s.id} className={`flex items-center gap-2 px-2 py-1.5 ${selectedIds.includes(s.id) ? "bg-brand-50" : ""}`}>
                 <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => useSuggestions.getState().toggleSelect(s.id)} />
-                <span className="w-10 text-right tabular-nums text-xs text-gray-500">{Math.round(s.confidence * 100)}%</span>
+                <span className="w-10 text-right tabular-nums text-xs text-slate-500">{Math.round(s.confidence * 100)}%</span>
                 {s.kind === "led" ? (
                   <span className="flex-1">
                     LED zone {s.zone || "?"} · {s.lf != null ? `${s.lf} LF` : "LF ?"}
@@ -147,9 +147,9 @@ export default function ScanPanel({ sheetId }: { sheetId: string }) {
                   </span>
                 ) : (
                   <>
-                    <span className="w-8 font-mono text-xs text-gray-500">{s.symbolText || "—"}</span>
+                    <span className="w-8 font-mono text-xs text-slate-500">{s.symbolText || "—"}</span>
                     <select
-                      className="min-w-0 flex-1 rounded border border-gray-200 bg-white px-1 py-0.5 text-xs"
+                      className="min-w-0 flex-1 rounded border border-slate-200 bg-white px-1 py-0.5 text-xs"
                       value={s.deviceTypeId ?? ""}
                       onChange={(e) => setSuggestionType(s.id, e.target.value)}
                       title={typeName(s.deviceTypeId)}

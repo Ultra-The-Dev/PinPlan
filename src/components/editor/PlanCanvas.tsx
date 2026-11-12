@@ -1,5 +1,6 @@
 "use client";
 import type Konva from "konva";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { CLOSET_KINDS, categoryOf } from "@/lib/catalog";
@@ -154,7 +155,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const toPx = (pts: number[]) => pts.map((v, i) => (i % 2 === 0 ? v * W : v * H));
 
   return (
-    <div ref={wrapRef} className="absolute inset-0 touch-none bg-slate-200" style={{ cursor: selectMode ? "grab" : "crosshair" }}>
+    <div ref={wrapRef} className="absolute inset-0 touch-none bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-slate-100 [background-size:20px_20px]" style={{ cursor: selectMode ? "grab" : "crosshair" }}>
       <Stage
         ref={stageRef}
         width={size.w}
@@ -176,7 +177,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
         onDblTap={onDoubleTap}
       >
         <Layer listening={true}>
-          <Rect x={0} y={0} width={W} height={H} fill="#fff" shadowColor="#000" shadowOpacity={0.15} shadowBlur={20 * inv} listening={false} />
+          <Rect x={0} y={0} width={W} height={H} fill="#fff" shadowColor="#0f172a" shadowOpacity={0.18} shadowBlur={24 * inv} shadowOffsetY={4 * inv} listening={false} />
           {image && <KImage name="plan-image" image={image.img} width={W} height={H} perfectDrawEnabled={false} />}
         </Layer>
         <Layer>
@@ -241,15 +242,18 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
           )}
         </Layer>
       </Stage>
-      <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/80 px-2 py-0.5 text-xs text-slate-600">
-        {Math.round(scale * 100)}% · {sheet.pxPerFt ? `scale ${sheet.scaleLabel ?? `${sheet.pxPerFt.toFixed(1)} px/ft`}` : "no scale set"}
+      <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs text-slate-600 shadow-soft ring-1 ring-slate-200 backdrop-blur">
+        <span className="font-semibold tabular-nums text-slate-900">{Math.round(scale * 100)}%</span>
+        <span className="h-3 w-px bg-slate-200" />
+        {sheet.pxPerFt ? <span>Scale {sheet.scaleLabel ?? `${sheet.pxPerFt.toFixed(1)} px/ft`}</span> : <span className="text-amber-700">No scale set</span>}
       </div>
-      <div className="absolute bottom-2 right-2 flex flex-col gap-1">
-        <button className="btn btn-sm w-9" onClick={() => zoomAt({ x: size.w / 2, y: size.h / 2 }, 1.4)} aria-label="Zoom in">
-          +
+      <div className="absolute right-3 bottom-3 flex flex-col overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-slate-200">
+        <button className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50" onClick={() => zoomAt({ x: size.w / 2, y: size.h / 2 }, 1.4)} aria-label="Zoom in">
+          <ZoomIn className="h-4 w-4" />
         </button>
-        <button className="btn btn-sm w-9" onClick={() => zoomAt({ x: size.w / 2, y: size.h / 2 }, 1 / 1.4)} aria-label="Zoom out">
-          −
+        <span className="h-px bg-slate-200" />
+        <button className="flex h-10 w-10 items-center justify-center text-slate-600 hover:bg-slate-50" onClick={() => zoomAt({ x: size.w / 2, y: size.h / 2 }, 1 / 1.4)} aria-label="Zoom out">
+          <ZoomOut className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -301,7 +305,7 @@ function MarkerShape(props: {
         props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
       }}
     >
-      {props.selected && <Circle radius={R + 7} stroke="#0ea5e9" strokeWidth={3} />}
+      {props.selected && <Circle radius={R + 7} fill="rgba(99,102,241,0.15)" stroke="#6366f1" strokeWidth={2.5} />}
       <Shape
         sceneFunc={(ctx, s) => {
           symbolPath(ctx, shape, R);
@@ -380,7 +384,7 @@ function ClosetShape(props: {
         props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
       }}
     >
-      {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#0ea5e9" strokeWidth={3} cornerRadius={8} />}
+      {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#6366f1" strokeWidth={3} cornerRadius={8} />}
       <Rect x={-s} y={-s} width={2 * s} height={2 * s} cornerRadius={6} fill={meta.color} shadowColor="#000" shadowOpacity={0.3} shadowBlur={4} />
       <Text text={meta.abbrev} width={2 * s} height={2 * s} offsetX={s} offsetY={s} align="center" verticalAlign="middle" fontStyle="bold" fontSize={13} fill="#fff" listening={false} />
       <Text text={c.name} y={s + 3} width={140} offsetX={70} align="center" fontSize={11} fontStyle="bold" fill={meta.color} listening={false} />
@@ -416,7 +420,7 @@ function RunShape(props: {
   };
   return (
     <Group>
-      {props.selected && <Line points={pts} stroke="#0ea5e9" strokeWidth={(width + 8) * inv} opacity={0.35} lineCap="round" lineJoin="round" listening={false} />}
+      {props.selected && <Line points={pts} stroke="#6366f1" strokeWidth={(width + 8) * inv} opacity={0.35} lineCap="round" lineJoin="round" listening={false} />}
       <Line
         points={pts}
         stroke={color}
@@ -444,7 +448,7 @@ function RunShape(props: {
             y={pts[i * 2 + 1]}
             radius={8 * inv}
             fill="#fff"
-            stroke="#0ea5e9"
+            stroke="#6366f1"
             strokeWidth={2 * inv}
             draggable
             onDragEnd={(e) => {

@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { ensureSeeded } from "@/lib/db";
 import { startSync } from "@/lib/sync";
+import Toaster from "./ui/Toaster";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -13,5 +14,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     navigator.storage?.persist?.().catch(() => undefined);
     return startSync();
   }, []);
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <Toaster />
+    </>
+  );
 }

@@ -91,7 +91,7 @@ export default function BillduSettings() {
     await saveSettings(next);
   }
 
-  const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";
+  const input = "input";
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -112,22 +112,22 @@ export default function BillduSettings() {
       )}
       <form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">
-          <span className="mb-1 block text-slate-600">API key</span>
+          <span className="label">API key</span>
           <input className={input} value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" placeholder="Billdu → Settings → API" />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-slate-600">API secret</span>
+          <span className="label">API secret</span>
           <input className={input} type="password" value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} autoComplete="off" />
         </label>
         <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <button disabled={busy || !apiKey || !apiSecret} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+          <button disabled={busy || !apiKey || !apiSecret} className="btn btn-brand">
             Save credentials
           </button>
-          <button type="button" onClick={test} disabled={busy || !status?.configured} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40">
+          <button type="button" onClick={test} disabled={busy || !status?.configured} className="btn">
             Test connection
           </button>
           {status?.source === "file" && (
-            <button type="button" onClick={disconnect} className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700">
+            <button type="button" onClick={disconnect} className="btn btn-danger">
               Disconnect
             </button>
           )}
@@ -135,7 +135,7 @@ export default function BillduSettings() {
       </form>
       {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
       <label className="block text-sm">
-        <span className="mb-1 block text-slate-600">First Billdu document for a new project</span>
+        <span className="label">First Billdu document for a new project</span>
         <select className={input + " max-w-xs"} value={settings?.billduDocType ?? "estimate"} onChange={(e) => setDocType(e.target.value as AppSettings["billduDocType"])}>
           <option value="estimate">Estimate</option>
           <option value="order">Order</option>

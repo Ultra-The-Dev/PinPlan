@@ -59,10 +59,10 @@ export default function AccountPanel() {
             )}
           </dl>
           <div className="flex gap-2">
-            <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50" disabled={s.syncing || !s.online} onClick={() => s.syncNow()}>
+            <button className="btn btn-primary" disabled={s.syncing || !s.online} onClick={() => s.syncNow()}>
               {s.syncing ? "Syncing…" : "Sync now"}
             </button>
-            <button className="rounded-lg border px-4 py-2 text-sm" onClick={() => sb?.auth.signOut()}>
+            <button className="btn" onClick={() => sb?.auth.signOut()}>
               Sign out
             </button>
           </div>
@@ -76,19 +76,19 @@ export default function AccountPanel() {
           }}
         >
           <p className="text-sm text-slate-600">Sign in to sync plans across devices and share them with your crew.</p>
-          <input className="w-full rounded-lg border px-3 py-2" type="email" required placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="w-full rounded-lg border px-3 py-2" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="input" type="email" required placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="input" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy || !password} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <button type="submit" disabled={busy || !password} className="btn btn-primary">
               Sign in
             </button>
-            <button type="button" disabled={busy || !password} className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50" onClick={() => run(() => sb!.auth.signUp({ email, password }), "Account created. Check your email to confirm.")}>
+            <button type="button" disabled={busy || !password} className="btn" onClick={() => run(() => sb!.auth.signUp({ email, password }), "Account created. Check your email to confirm.")}>
               Create account
             </button>
             <button
               type="button"
               disabled={busy || !email}
-              className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50"
+              className="btn"
               onClick={() => run(() => sb!.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/settings` } }), "Magic link sent — check your email.")}
             >
               Email me a link

@@ -1,10 +1,12 @@
 "use client";
+import { Camera, Copy, Trash, X } from "lucide-react";
 import { useState } from "react";
 import { CLOSET_KINDS, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
 import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
 import { useSheetImage } from "@/lib/useImage";
+import SymbolIcon from "./SymbolIcon";
 import type { ClosetKind, Mount } from "@/lib/types";
 
 /** Text/number field that commits on blur or Enter (so typing doesn't flood undo history). */
@@ -43,20 +45,36 @@ export default function Inspector() {
   if (!selection) return null;
   const key = `${selection.table}:${selection.id}`;
   return (
-    <div className="space-y-3 p-3" key={key}>
-      {selection.table === "markers" && <MarkerInspector id={selection.id} />}
-      {selection.table === "runs" && <RunInspector id={selection.id} />}
-      {selection.table === "closets" && <ClosetInspector id={selection.id} />}
-      <button className="btn w-full" onClick={() => select(null)}>
-        Done
-      </button>
+    <div key={key}>
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur">
+        <span className="section-title">{selection.table === "markers" ? "Device" : selection.table === "runs" ? "Run" : "Closet"}</span>
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label="Close">
+          <X />
+        </button>
+      </div>
+      <div className="space-y-3.5 p-4">
+        {selection.table === "markers" && <MarkerInspector id={selection.id} />}
+        {selection.table === "runs" && <RunInspector id={selection.id} />}
+        {selection.table === "closets" && <ClosetInspector id={selection.id} />}
+      </div>
     </div>
   );
 }
 
 function MarkerInspector({ id }: { id: string }) {
-  const { markers, catalog, closets, sheets, runs, updateMarker, deleteEntity, autoHomeRuns } = useEditor();
+  const { markers, catalog, closets, sheets, runs, updateMarker, deleteEntity, autoHomeRuns, addMarker, select } = useEditor();
   const m = markers.find((x) => x.id === id);
+  const duplicate = async () => {
+    if (!m) return;
+    const copy = await addMarker(m.deviceTypeId, Math.min(1, m.x + 0.015), Math.min(1, m.y + 0.015), {
+      room: m.room,
+      mount: m.mount,
+      wireType: m.wireType,
+      closetId: m.closetId,
+      tentative: m.tentative,
+    });
+    if (copy) select({ table: "markers", id: copy.id });
+  };
   const photo = useSheetImage(m?.photoId);
   if (!m) return null;
   const type = catalog.find((d) => d.id === m.deviceTypeId);
@@ -64,9 +82,15 @@ function MarkerInspector({ id }: { id: string }) {
   const sheetName = (sid: string) => sheets.find((s) => s.id === sid)?.name ?? "";
   return (
     <>
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full" style={{ background: type?.color }} />
-        <h3 className="font-semibold">{m.label}</h3>
+      <div className="flex items-center gap-3">
+        {type && <SymbolIcon shape={type.shape} color={type.color} symbol={type.symbol} size={40} tentative={m.tentative} />}
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold">{m.label}</h3>
+          <p className="truncate text-xs text-slate-500">
+            {type?.name}
+            {m.room ? ` · ${m.room}` : ""}
+          </p>
+        </div>
       </div>
       <div>
         <label className="label">Device</label>
@@ -80,9 +104,12 @@ function MarkerInspector({ id }: { id: string }) {
             ))}
         </select>
       </div>
-      <label className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-        <input type="checkbox" checked={m.tentative} onChange={(e) => updateMarker(m.id, { tentative: e.target.checked })} />
-        Tentative (?) — listed separately, optional on the estimate
+      <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 transition ${m.tentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
+        <input type="checkbox" className="mt-0.5 accent-amber-600" checked={m.tentative} onChange={(e) => updateMarker(m.id, { tentative: e.target.checked })} />
+        <span>
+          <span className="font-medium">Tentative (?)</span>
+          <span className="block text-xs text-slate-500">Listed separately; optional on the estimate</span>
+        </span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Label" value={m.label} onCommit={(v) => updateMarker(m.id, { label: v })} />
@@ -136,6 +163,7 @@ function MarkerInspector({ id }: { id: string }) {
           <img src={photo.url} alt="Device location" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
         )}
         <label className="btn btn-sm cursor-pointer">
+          <Camera />
           {photo ? "Replace photo" : "Add photo"}
           <input
             type="file"
@@ -158,9 +186,14 @@ function MarkerInspector({ id }: { id: string }) {
           />
         </label>
       </div>
-      <button className="btn btn-danger w-full" onClick={() => deleteEntity("markers", m.id)}>
-        Delete device
-      </button>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <button className="btn" onClick={() => duplicate()}>
+          <Copy /> Duplicate
+        </button>
+        <button className="btn btn-danger" onClick={() => deleteEntity("markers", m.id)}>
+          <Trash /> Delete
+        </button>
+      </div>
     </>
   );
 }
@@ -249,7 +282,7 @@ function RunInspector({ id }: { id: string }) {
       </div>
       <p className="text-xs text-slate-500">Drag the white handles to reshape the run.</p>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("runs", r.id)}>
-        Delete run
+        <Trash /> Delete run
       </button>
     </>
   );
@@ -280,7 +313,7 @@ function ClosetInspector({ id }: { id: string }) {
         <NotesField value={c.notes ?? ""} onCommit={(v) => updateCloset(c.id, { notes: v })} />
       </div>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("closets", c.id)}>
-        Delete closet
+        <Trash /> Delete closet
       </button>
     </>
   );

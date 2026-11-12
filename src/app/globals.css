@@ -5,51 +5,134 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-ink: #0b1220;
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -4px rgb(15 23 42 / 0.08);
+  --shadow-pop: 0 10px 40px -10px rgb(15 23 42 / 0.35), 0 2px 6px rgb(15 23 42 / 0.08);
+}
+
 html,
 body {
   overscroll-behavior: none;
 }
 
 body {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: var(--color-brand-100);
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 select-none;
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium whitespace-nowrap text-slate-700 shadow-[0_1px_1px_rgb(15_23_42/0.04)] transition select-none hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45;
+  }
+  .btn svg {
+    @apply h-4 w-4 shrink-0;
   }
   .btn-primary {
-    @apply border-slate-900 bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-700;
+    @apply border-ink bg-ink text-white shadow-sm hover:border-slate-800 hover:bg-slate-800 hover:text-white;
+  }
+  .btn-brand {
+    @apply border-brand-600 bg-brand-600 text-white shadow-sm hover:border-brand-700 hover:bg-brand-700 hover:text-white;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent shadow-none hover:border-transparent hover:bg-slate-100;
   }
   .btn-danger {
-    @apply border-red-300 text-red-700 hover:bg-red-50;
+    @apply border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700;
   }
   .btn-sm {
-    @apply px-2 py-1 text-xs;
+    @apply h-8 gap-1 rounded-md px-2.5 text-xs;
+  }
+  .btn-sm svg {
+    @apply h-3.5 w-3.5;
+  }
+  .btn-icon {
+    @apply w-9 px-0;
+  }
+  .btn-sm.btn-icon {
+    @apply w-8;
+  }
+  .btn-on {
+    @apply border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-300 hover:bg-brand-100 hover:text-brand-700;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200;
+    @apply h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-[0_1px_1px_rgb(15_23_42/0.03)] outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
+  }
+  textarea.input {
+    @apply h-auto py-2;
   }
   .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500;
+    @apply mb-1.5 block text-xs font-medium text-slate-500;
   }
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-soft;
   }
   .tab {
-    @apply rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100;
+    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-slate-500 transition hover:bg-slate-100 hover:text-slate-900;
+  }
+  .tab svg {
+    @apply h-4 w-4;
   }
   .tab-active {
-    @apply bg-slate-900 text-white hover:bg-slate-900;
+    @apply bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 hover:bg-white;
+  }
+  .seg {
+    @apply inline-flex items-center gap-0.5 rounded-xl bg-slate-100 p-1;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
   }
   .tbl {
     @apply w-full text-sm;
   }
   .tbl th {
-    @apply border-b border-slate-200 px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply border-b border-slate-200 bg-slate-50/60 px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-slate-500 uppercase;
   }
   .tbl td {
-    @apply border-b border-slate-100 px-2 py-1.5;
+    @apply border-b border-slate-100 px-3 py-2;
   }
+  .tbl tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .section-title {
+    @apply text-[11px] font-semibold tracking-wider text-slate-400 uppercase;
+  }
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-900;
+  }
+  .toolbar-sep {
+    @apply mx-1 h-6 w-px shrink-0 bg-slate-200;
+  }
+}
+
+/* Thin scrollbars inside panels */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
+@keyframes pp-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: pp-in 160ms ease-out;
 }

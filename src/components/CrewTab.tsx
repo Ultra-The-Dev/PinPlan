@@ -1,5 +1,7 @@
 "use client";
+import { Cable, Download, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "@/lib/toast";
 import { LAYERS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
@@ -39,7 +41,7 @@ export default function CrewTab() {
     try {
       await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "crew", layers: oneLayer ? [oneLayer, "infrastructure", "wiring"] : layers, onProgress: setBusy });
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
       setBusy(null);
     }
@@ -47,24 +49,25 @@ export default function CrewTab() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-xl font-semibold">Crew wiring sheets</h2>
-          <p className="text-sm text-slate-500">Where each wire goes and which type — no prices.</p>
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
+        <div>
+          <h2 className="page-title">Crew wiring sheets</h2>
+          <p className="mt-1 text-sm text-slate-500">Where each wire goes and which type — no prices. Share the PDF with the crew pulling wire.</p>
         </div>
 
         <div className="card space-y-3 p-4">
-          <div className="flex flex-wrap gap-3">
+          <div className="section-title">Layers in the PDF</div>
+          <div className="flex flex-wrap gap-2">
             {LAYERS.map((l) => (
-              <label key={l.id} className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" checked={layers.includes(l.id)} onChange={() => setLayers((ls) => (ls.includes(l.id) ? ls.filter((x) => x !== l.id) : [...ls, l.id]))} />
+              <label key={l.id} className={`chip cursor-pointer px-3 py-1.5 text-sm ring-1 ${layers.includes(l.id) ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-slate-500 ring-slate-200"}`}>
+                <input type="checkbox" className="sr-only" checked={layers.includes(l.id)} onChange={() => setLayers((ls) => (ls.includes(l.id) ? ls.filter((x) => x !== l.id) : [...ls, l.id]))} />
                 {l.name}
               </label>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-primary" disabled={!!busy || !sheets.length} onClick={() => pdf()}>
-              {busy ?? "Wiring PDF (selected layers)"}
+              <FileText /> {busy ?? "Wiring PDF (selected layers)"}
             </button>
             {(["security", "network", "audio", "video", "lighting", "shades"] as Layer[]).map((l) => (
               <button key={l} className="btn" disabled={!!busy || !sheets.length} onClick={() => pdf(l)}>
@@ -72,10 +75,16 @@ export default function CrewTab() {
               </button>
             ))}
             <button className="btn" onClick={csv}>
-              Home-run CSV
+              <Download /> Home-run CSV
             </button>
-            <button className="btn" onClick={() => autoHomeRuns()}>
-              Auto-draw all home runs
+            <button
+              className="btn"
+              onClick={async () => {
+                const n = await autoHomeRuns();
+                toast(n ? `Drew ${n} home runs` : "Place an equipment closet first", n ? "success" : "info");
+              }}
+            >
+              <Cable /> Auto-draw all home runs
             </button>
           </div>
           {noCloset > 0 && <p className="text-sm text-amber-700">{noCloset} device(s) have no home-run closet assigned.</p>}
@@ -83,9 +92,12 @@ export default function CrewTab() {
 
         <div className="grid gap-3 sm:grid-cols-3">
           {Object.entries(takeoff.total.wireFt).map(([w, ft]) => (
-            <div key={w} className="card p-3">
-              <div className="text-xs uppercase text-slate-500">{w}</div>
-              <div className="text-2xl font-semibold">{ft} ft</div>
+            <div key={w} className="card p-4">
+              <div className="text-xs font-medium text-slate-500">{w}</div>
+              <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                {ft}
+                <span className="ml-1 text-sm font-medium text-slate-400">ft</span>
+              </div>
               <div className="text-xs text-slate-500">{takeoff.total.wireRuns[w]} home runs</div>
             </div>
           ))}

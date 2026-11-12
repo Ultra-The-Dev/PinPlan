@@ -38,9 +38,9 @@ export default function SyncBadge() {
     cls = "bg-emerald-100 text-emerald-700";
   }
   return (
-    <Link href="/settings#account" title={error ?? undefined} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+    <Link href="/settings#account" title={error ?? text} aria-label={`Sync: ${text}`} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${syncing ? "animate-pulse" : ""}`} />
-      {text}
+      <span className="hidden sm:inline">{text}</span>
     </Link>
   );
 }

@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useEditor } from "@/lib/store";
 import type { ProjectStatus } from "@/lib/types";
-import AppHeader from "./AppHeader";
+import { FileText, HardHat, Info, ListChecks, MapPin, Receipt } from "lucide-react";
+import AppHeader, { Logo } from "./AppHeader";
+import SyncBadge from "./SyncBadge";
 import SheetsTab from "./SheetsTab";
 import TakeoffTab from "./TakeoffTab";
 import EstimateTab from "./EstimateTab";
@@ -16,13 +18,19 @@ import ProjectInfo from "./ProjectInfo";
 const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">Loading plan…</div> });
 
 const TABS = [
-  { id: "plan", label: "Plan" },
-  { id: "sheets", label: "Sheets" },
-  { id: "takeoff", label: "Takeoff" },
-  { id: "estimate", label: "Estimate" },
-  { id: "crew", label: "Crew" },
-  { id: "info", label: "Job" },
+  { id: "plan", label: "Plan", icon: MapPin },
+  { id: "sheets", label: "Sheets", icon: FileText },
+  { id: "takeoff", label: "Takeoff", icon: ListChecks },
+  { id: "estimate", label: "Estimate", icon: Receipt },
+  { id: "crew", label: "Crew", icon: HardHat },
+  { id: "info", label: "Job", icon: Info },
 ] as const;
+
+const STATUS_STYLE: Record<ProjectStatus, string> = {
+  estimate: "bg-amber-50 text-amber-800 ring-amber-200",
+  approved: "bg-brand-50 text-brand-700 ring-brand-200",
+  installed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+};
 
 export default function ProjectView() {
   const params = useSearchParams();
@@ -61,43 +69,52 @@ export default function ProjectView() {
 
   return (
     <>
-      <AppHeader>
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4">
+        <Logo compact />
         <div className="flex min-w-0 items-center gap-2">
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-tight">{project.address || "Untitled job"}</div>
-            <div className="truncate text-xs text-slate-500">{project.clientName}</div>
+            <div className="truncate text-sm leading-tight font-semibold text-slate-900">{project.address || "Untitled job"}</div>
+            <div className="truncate text-xs text-slate-500">{project.clientName || "No client"}</div>
           </div>
           <select
-            className="rounded-md border border-slate-300 bg-white px-1.5 py-1 text-xs"
+            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-full px-2 text-xs font-medium capitalize ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
             aria-label="Project status"
           >
-            <option value="estimate">estimate</option>
-            <option value="approved">approved</option>
-            <option value="installed">installed</option>
+            <option value="estimate">Estimate</option>
+            <option value="approved">Approved</option>
+            <option value="installed">Installed</option>
           </select>
         </div>
-      </AppHeader>
-      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2 py-1.5">
-        {TABS.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? "tab-active" : ""}`} onClick={() => setTab(t.id)}>
-            {t.label}
-            {t.id === "sheets" && ` (${sheets.length})`}
-          </button>
-        ))}
-      </div>
+        <div className="flex-1" />
+        <nav className="seg max-w-[60vw] overflow-x-auto">
+          {TABS.map((t) => (
+            <button key={t.id} className={`tab ${tab === t.id ? "tab-active" : ""}`} onClick={() => setTab(t.id)} title={t.label} aria-label={t.label}>
+              <t.icon />
+              <span className="hidden lg:inline">{t.label}</span>
+              {t.id === "sheets" && sheets.length > 0 && <span className="hidden text-xs text-slate-400 lg:inline">{sheets.length}</span>}
+            </button>
+          ))}
+        </nav>
+        <SyncBadge />
+      </header>
       <main className="relative min-h-0 flex-1 overflow-hidden">
         {tab === "plan" &&
           (sheets.length ? (
             <PlanEditor />
           ) : (
-            <div className="p-10 text-center">
-              <p className="text-lg font-medium">No plan sheets yet</p>
-              <p className="text-slate-500">Upload the plan set (PDF or photos) to start placing devices.</p>
-              <button className="btn btn-primary mt-4" onClick={() => setTab("sheets")}>
-                Upload plans
-              </button>
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="card max-w-md p-8 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <p className="text-lg font-semibold">No plan sheets yet</p>
+                <p className="mt-1 text-sm text-slate-500">Upload the plan set (PDF or phone photos) to start placing devices.</p>
+                <button className="btn btn-brand mt-5" onClick={() => setTab("sheets")}>
+                  Upload plans
+                </button>
+              </div>
             </div>
           ))}
         {tab === "sheets" && <SheetsTab onOpenSheet={() => setTab("plan")} />}

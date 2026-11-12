@@ -75,6 +75,8 @@ interface EditorState {
   deleteSelected(): Promise<void>;
   deleteEntity(table: "markers" | "runs" | "closets", id: string): Promise<void>;
   updateSheet(id: string, patch: Partial<Sheet>): Promise<void>;
+  /** Swap in a 90°-clockwise-rotated image and rotate everything drawn on the sheet with it. */
+  rotateSheetCW(id: string, imageId: string, width: number, height: number): Promise<void>;
   updateProject(patch: Partial<Project>): Promise<void>;
   upsertEstimateLine(key: string, patch: Partial<EstimateLine>): Promise<void>;
   removeEstimateOverride(key: string): Promise<void>;
@@ -339,6 +341,26 @@ export const useEditor = create<EditorState>((set, get) => ({
           changes.push({ table: "runs", before: r, after: { ...r, measuredFt: est ?? measuredFt } });
         } else changes.push({ table: "runs", before: r, after: { ...r, measuredFt } });
       }
+    }
+    await get().commit(changes);
+  },
+  async rotateSheetCW(id, imageId, width, height) {
+    const before = get().sheets.find((s) => s.id === id);
+    if (!before) return;
+    const rot = (x: number, y: number): [number, number] => [1 - y, x];
+    const changes: Change[] = [{ table: "sheets", before, after: { ...before, imageId, width, height, imageUrl: null } }];
+    for (const m of get().markers.filter((mm) => mm.sheetId === id)) {
+      const [x, y] = rot(m.x, m.y);
+      changes.push({ table: "markers", before: m, after: { ...m, x, y } });
+    }
+    for (const c of get().closets.filter((cc) => cc.sheetId === id)) {
+      const [x, y] = rot(c.x, c.y);
+      changes.push({ table: "closets", before: c, after: { ...c, x, y } });
+    }
+    for (const r of get().runs.filter((rr) => rr.sheetId === id)) {
+      const points: number[] = [];
+      for (let i = 0; i + 1 < r.points.length; i += 2) points.push(...rot(r.points[i], r.points[i + 1]));
+      changes.push({ table: "runs", before: r, after: { ...r, points } });
     }
     await get().commit(changes);
   },
