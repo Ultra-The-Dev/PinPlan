@@ -38,7 +38,7 @@ jobs:
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               xcrun simctl terminate "$UDID" com.pinplan.app || true
               xcrun simctl launch "$UDID" com.pinplan.app $ARGS
-              sleep 6
+              sleep 9
               xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done
             xcrun simctl shutdown "$UDID"

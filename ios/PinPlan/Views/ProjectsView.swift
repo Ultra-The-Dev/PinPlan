@@ -14,6 +14,10 @@ struct ProjectsView: View {
     @State private var message: String?
     @State private var toDelete: ProjectBundle?
 
+    private func openDemo() {
+        Task { path.append(await app.createDemo().project.id) }
+    }
+
     private var filtered: [ProjectBundle] {
         app.projects.filter { b in
             (status == nil || b.project.status == status) &&
@@ -25,7 +29,7 @@ struct ProjectsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 if app.projects.isEmpty {
-                    EmptyProjects(onNew: { showNew = true }, onDemo: { path.append(app.createDemo().project.id) }).padding(.top, 60)
+                    EmptyProjects(onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
                     VStack(alignment: .leading, spacing: 16) {
                         Picker("Status", selection: $status) {
@@ -59,7 +63,7 @@ struct ProjectsView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
                         Button { showRestore = true } label: { Label("Restore backup…", systemImage: "square.and.arrow.down") }
-                        Button { path.append(app.createDemo().project.id) } label: { Label("Create demo job", systemImage: "wand.and.stars") }
+                        Button(action: openDemo) { Label("Create demo job", systemImage: "wand.and.stars") }
                     } label: { Label("More", systemImage: "ellipsis.circle") }
                     Button { showNew = true } label: { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent)
                 }
@@ -82,11 +86,21 @@ struct ProjectsView: View {
                 // Screenshot/automation hook: `--demo` opens (creating if needed) the demo job.
                 let args = ProcessInfo.processInfo.arguments
                 if args.contains("--demo"), path.isEmpty {
-                    let demo = app.projects.first { $0.project.address.hasPrefix("Demo") } ?? app.createDemo()
-                    path.append(demo.project.id)
+                    if let demo = app.projects.first(where: { $0.project.address.hasPrefix("Demo") }) { path.append(demo.project.id) }
+                    else { path.append(await app.createDemo().project.id) }
                 }
                 if args.contains("--settings") { showSettings = true }
                 if args.contains("--catalog") { showCatalog = true }
+            }
+            .overlay {
+                if app.creatingDemo {
+                    VStack(spacing: 12) {
+                        ProgressView().controlSize(.large)
+                        Text("Drawing the demo job…").font(.headline)
+                    }
+                    .padding(28)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+                }
             }
             .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("OK") {} }
             .confirmationDialog("Delete this project and its sheets?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {

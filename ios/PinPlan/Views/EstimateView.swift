@@ -4,6 +4,7 @@ import PinPlanCore
 struct EstimateView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
+    @Environment(\.exportPlacement) private var exportPlacement
     @State private var share: SharedFile?
     @State private var editing: ComputedLine?
     @State private var docType = ""
@@ -96,10 +97,10 @@ struct EstimateView: View {
             }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button { csv(e) } label: { Label("CSV", systemImage: "tablecells") }
+            ToolbarItemGroup(placement: exportPlacement) {
+                Button { csv(e) } label: { Label("CSV", systemImage: "tablecells") }.labelStyle(.titleAndIcon)
                 Spacer()
-                Button { pdf(e) } label: { Label("Client estimate PDF", systemImage: "doc.richtext") }
+                Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext") }.labelStyle(.titleAndIcon)
             }
         }
         .sheet(item: $editing) { l in LineEditor(model: model, line: l) }

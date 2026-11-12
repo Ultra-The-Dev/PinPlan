@@ -27,24 +27,37 @@ struct ProjectView: View {
     var body: some View {
         Group {
             if let model {
-                content(model)
-                    .navigationTitle(model.bundle.project.address.isEmpty ? "Untitled job" : model.bundle.project.address)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .principal) {
-                            Picker("Section", selection: $tab) {
-                                ForEach(ProjectTab.allCases) { t in
-                                    if hSize == .compact { Image(systemName: t.icon).tag(t) } else { Label(t.title, systemImage: t.icon).tag(t) }
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(maxWidth: hSize == .compact ? 300 : 620)
+                if hSize == .compact {
+                    // iPhone: native bottom tab bar.
+                    TabView(selection: $tab) {
+                        ForEach(ProjectTab.allCases) { t in
+                            content(model, t)
+                                .tabItem { Label(t.title, systemImage: t.icon) }
+                                .tag(t)
                         }
                     }
+                    .navigationTitle(model.bundle.project.address.isEmpty ? "Untitled job" : model.bundle.project.address)
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // iPad: section picker in the navigation bar.
+                    content(model, tab)
+                        .navigationTitle(model.bundle.project.address.isEmpty ? "Untitled job" : model.bundle.project.address)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .principal) {
+                                Picker("Section", selection: $tab) {
+                                    ForEach(ProjectTab.allCases) { t in Label(t.title, systemImage: t.icon).tag(t) }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(maxWidth: 620)
+                            }
+                        }
+                }
             } else {
                 ProgressView()
             }
         }
+        .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
         .onAppear {
             if model == nil {
                 let m = EditorModel(bundle: bundle, app: app)
@@ -61,7 +74,7 @@ struct ProjectView: View {
     }
 
     @ViewBuilder
-    private func content(_ model: EditorModel) -> some View {
+    private func content(_ model: EditorModel, _ tab: ProjectTab) -> some View {
         switch tab {
         case .plan:
             if model.sheets.isEmpty {
@@ -70,16 +83,28 @@ struct ProjectView: View {
                 } description: {
                     Text("Import the plan set (PDF, photos or a scan) to start placing devices.")
                 } actions: {
-                    Button("Import plans") { tab = .sheets }.buttonStyle(.borderedProminent)
+                    Button("Import plans") { self.tab = .sheets }.buttonStyle(.borderedProminent)
                 }
             } else {
                 PlanEditorView(model: model)
             }
-        case .sheets: SheetsView(model: model) { tab = .plan }
+        case .sheets: SheetsView(model: model) { self.tab = .plan }
         case .takeoff: TakeoffView(model: model)
         case .estimate: EstimateView(model: model)
         case .crew: CrewView(model: model)
         case .job: JobView(model: model)
         }
+    }
+}
+
+private struct ExportPlacementKey: EnvironmentKey {
+    static let defaultValue: ToolbarItemPlacement = .bottomBar
+}
+
+extension EnvironmentValues {
+    /// Where export buttons go: bottom bar on iPad, top bar on iPhone (the tab bar owns the bottom).
+    var exportPlacement: ToolbarItemPlacement {
+        get { self[ExportPlacementKey.self] }
+        set { self[ExportPlacementKey.self] = newValue }
     }
 }

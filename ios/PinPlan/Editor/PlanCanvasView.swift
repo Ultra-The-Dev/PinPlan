@@ -13,8 +13,14 @@ struct PlanCanvasView: View {
     @State private var dragging: [String: CGPoint] = [:]   // live drag positions (relative) by item id
     @State private var size: CGSize = .zero
     @State private var fittedKey = ""
+    @State private var appliedFocus = 0
 
-    private let symbolSize: CGFloat = 30
+    /// Symbols stay readable: full size when zoomed in, a little smaller at overview zoom.
+    private var symbolSize: CGFloat {
+        let fit = fitScale()
+        guard fit > 0 else { return 30 }
+        return min(30, max(18, 30 * (scale / (fit * 1.6)).squareRoot()))
+    }
     static let space = "plan-canvas"
 
     private var W: CGFloat { sheet.width }
@@ -102,11 +108,16 @@ struct PlanCanvasView: View {
             }
             .coordinateSpace(.named(Self.space))
             .clipped()
-            .onAppear { size = geo.size; fitIfNeeded(force: false) }
+            .onAppear {
+                size = geo.size
+                fitIfNeeded(force: false)
+                // A focus request made before this sheet's canvas existed (e.g. "find device" on another floor).
+                if let f = model.focus, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) }
+            }
             .onChange(of: geo.size) { _, s in size = s; fitIfNeeded(force: false) }
             .onChange(of: sheet.id) { _, _ in fitIfNeeded(force: true) }
             .onChange(of: model.fitRequest) { _, _ in fitIfNeeded(force: true) }
-            .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id { center(on: f) } }
+            .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) } }
             .overlay(alignment: .bottomTrailing) { zoomControls }
             .overlay(alignment: .topLeading) { scaleChip }
         }
@@ -154,6 +165,7 @@ struct PlanCanvasView: View {
     }
 
     private func center(on f: FocusRequest) {
+        appliedFocus = f.n
         let s = max(scale, fitScale() * 2.5)
         withAnimation(.easeInOut(duration: 0.3)) {
             scale = s

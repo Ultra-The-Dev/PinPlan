@@ -30,9 +30,14 @@ final class AppModel {
         return b
     }
 
-    /// A ready-made demo job to explore every feature.
-    func createDemo() -> ProjectBundle {
-        let b = DemoProject.make(store: store, catalog: catalog, pricing: pricing)
+    var creatingDemo = false
+
+    /// A ready-made demo job to explore every feature (plans are drawn off the main thread).
+    func createDemo() async -> ProjectBundle {
+        creatingDemo = true
+        defer { creatingDemo = false }
+        let store = store, catalog = catalog, pricing = pricing
+        let b = await Task.detached(priority: .userInitiated) { DemoProject.make(store: store, catalog: catalog, pricing: pricing) }.value
         store.save(b)
         projects.insert(b, at: 0)
         return b

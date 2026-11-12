@@ -4,6 +4,7 @@ import PinPlanCore
 struct TakeoffView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
+    @Environment(\.exportPlacement) private var exportPlacement
     @State private var share: SharedFile?
     @State private var busy = false
 
@@ -92,10 +93,10 @@ struct TakeoffView: View {
         }
         .background(Color(.systemGroupedBackground))
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button { csv() } label: { Label("CSV", systemImage: "tablecells") }
+            ToolbarItemGroup(placement: exportPlacement) {
+                Button { csv() } label: { Label("CSV", systemImage: "tablecells") }.labelStyle(.titleAndIcon)
                 Spacer()
-                Button { pdf() } label: { Label(busy ? "Building…" : "Marked-up plans PDF", systemImage: "doc.richtext") }.disabled(busy || model.sheets.isEmpty)
+                Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext") }.labelStyle(.titleAndIcon).disabled(busy || model.sheets.isEmpty)
             }
         }
         .shareSheet($share)

@@ -7,7 +7,7 @@ enum DemoProject {
     static func make(store: Store, catalog: [DeviceType], pricing: PricingSettings) -> ProjectBundle {
         var b = ProjectBundle(project: Project(clientName: "Demo client", address: "Demo — 20 Hilltop Dr E"))
         let floors = ["Attic", "1st Fl", "2nd Fl", "Cellar"]
-        let size = CGSize(width: 3200, height: 2200)
+        let size = CGSize(width: 3200, height: 2200)  // drawn once; ~1 MB JPEG per floor
         for (i, name) in floors.enumerated() {
             let img = drawPlan(name: name, size: size, cellar: name == "Cellar")
             guard let id = store.saveImage(img, quality: 0.85) else { continue }
@@ -17,13 +17,17 @@ enum DemoProject {
             b.sheets[b.sheets.count - 1].scaleLabel = "1/8\" = 1'-0\""
         }
         func t(_ id: String) -> DeviceType? { catalog.first { $0.id == id } }
-        let cellar = b.sheets[3].id, first = b.sheets[1].id
+        let attic = b.sheets[0].id, cellar = b.sheets[3].id, first = b.sheets[1].id, second = b.sheets[2].id
         b.addCloset(kind: .equipment, sheetId: cellar, x: 0.3, y: 0.72)
         let placements: [(String, String, Double, Double, String)] = [
             (first, "cam-indoor", 0.22, 0.25, "Living"), (first, "cam-indoor", 0.62, 0.25, "Kitchen"),
             (first, "cam-outdoor", 0.06, 0.08, "Exterior"), (first, "cam-outdoor", 0.94, 0.08, "Exterior"),
             (first, "wap", 0.45, 0.45, "Hall"), (first, "speaker", 0.2, 0.4, "Living"), (first, "speaker", 0.33, 0.4, "Living"),
             (first, "tv", 0.15, 0.3, "Living"), (first, "sh", 0.5, 0.65, "Hall"),
+            (attic, "cam-indoor", 0.3, 0.3, "Storage"), (attic, "wap", 0.5, 0.45, "Attic"), (attic, "tv", 0.25, 0.6, "Gym"),
+            (second, "cam-indoor", 0.2, 0.3, "Primary"), (second, "speaker", 0.4, 0.3, "Primary"), (second, "shade", 0.1, 0.2, "Primary"),
+            (second, "vs", 0.55, 0.65, "Hall"), (cellar, "cam-indoor", 0.6, 0.3, "Wine room"), (cellar, "tv", 0.7, 0.5, "Theater"),
+            (cellar, "net-switch", 0.32, 0.65, "AV Equipment"),
         ]
         for (sheet, type, x, y, room) in placements {
             if let dt = t(type) { b.addMarker(type: dt, sheetId: sheet, x: x, y: y, room: room) }
@@ -32,6 +36,10 @@ enum DemoProject {
                      points: [0.1, 0.12, 0.42, 0.12, 0.42, 0.5], zone: "1", switchLabel: "S21"))
         b.addRun(Run(projectId: b.project.id, sheetId: first, kind: .stair, deviceTypeId: "led-stair",
                      points: [0.8, 0.55, 0.8, 0.85], zone: "2", switchLabel: "S5", steps: 14, lfPerStep: 3.5))
+        b.addRun(Run(projectId: b.project.id, sheetId: attic, kind: .led, deviceTypeId: "led-ceiling",
+                     points: [0.08, 0.1, 0.62, 0.1], typedFt: 24, zone: "1", switchLabel: "S21"))
+        // Two marked "?" on the plan: kept optional on the estimate.
+        if let spk = t("speaker") { b.addMarker(type: spk, sheetId: first, x: 0.62, y: 0.4, room: "Kitchen", tentative: true) }
         b.autoHomeRuns(catalog: catalog, pricing: pricing)
         return b
     }
