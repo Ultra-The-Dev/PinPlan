@@ -31,7 +31,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
-  const [viewState, setViewState] = useState({ key: "", scale: 0.2, x: 0, y: 0 });
+  const [viewState, setViewState] = useState<{ key: string; scale: number; x: number; y: number; focusN?: number }>({ key: "", scale: 0.2, x: 0, y: 0 });
   const image = useSheetImage(sheet.imageId);
   const W = sheet.width;
   const H = sheet.height;
@@ -52,15 +52,21 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
 
   // Fit the sheet on load / sheet change / resize / explicit fit (derived, no effect needed).
   const fitKeyStr = `${sheet.id}|${W}|${H}|${size.w}|${size.h}|${fitKey}`;
+  const focus = useEditor((s) => s.focus);
+  const fitScale = Math.min(size.w / W, size.h / H) * 0.96;
+  const baseView =
+    viewState.key === fitKeyStr ? viewState : { key: fitKeyStr, scale: fitScale, x: (size.w - W * fitScale) / 2, y: (size.h - H * fitScale) / 2, focusN: viewState.focusN };
+  // "Find device": centre the requested point once per request (focus.n), keeping at least a readable zoom.
   const view =
-    viewState.key === fitKeyStr
-      ? viewState
-      : (() => {
-          const sc = Math.min(size.w / W, size.h / H) * 0.96;
-          return { key: fitKeyStr, scale: sc, x: (size.w - W * sc) / 2, y: (size.h - H * sc) / 2 };
-        })();
+    focus && focus.sheetId === sheet.id && focus.n !== baseView.focusN
+      ? (() => {
+          const sc = Math.max(baseView.scale, fitScale * 2.5);
+          return { key: fitKeyStr, scale: sc, x: size.w / 2 - focus.x * W * sc, y: size.h / 2 - focus.y * H * sc, focusN: focus.n };
+        })()
+      : baseView;
+  if (view !== viewState && view.focusN !== viewState.focusN) setViewState(view);
   const setView = (u: (v: { scale: number; x: number; y: number }) => { scale: number; x: number; y: number }) =>
-    setViewState((prev) => ({ ...u(prev.key === fitKeyStr ? prev : view), key: fitKeyStr }));
+    setViewState((prev) => ({ ...u(prev.key === fitKeyStr ? prev : view), key: fitKeyStr, focusN: view.focusN }));
 
   const scale = view.scale;
   const inv = 1 / scale;

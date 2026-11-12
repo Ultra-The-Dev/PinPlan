@@ -1,6 +1,7 @@
 "use client";
 import {
   Cable,
+  ChevronDown,
   Hand,
   Layers,
   ListChecks,
@@ -9,6 +10,8 @@ import {
   PanelLeftOpen,
   Redo2,
   Ruler,
+  RulerDimensionLine,
+  Search,
   Sparkles,
   Tag,
   Undo2,
@@ -19,6 +22,16 @@ import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { CLOSET_KINDS, LAYERS } from "@/lib/catalog";
 import { parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
+
+function formatFeetInches(ft: number) {
+  let f = Math.floor(ft);
+  let i = Math.round((ft - f) * 12);
+  if (i === 12) {
+    f += 1;
+    i = 0;
+  }
+  return `${f}'-${i}" (${ft.toFixed(1)} ft)`;
+}
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import Dialog, { type DialogField } from "../Dialog";
@@ -62,6 +75,8 @@ export default function PlanEditor() {
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [panel, setPanel] = useState<"counts" | "scan" | null>(() => (typeof window !== "undefined" && window.matchMedia(WIDE_EDITOR).matches ? "counts" : null));
   const [layersOpen, setLayersOpen] = useState(false);
+  const [find, setFind] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeSheetId && sheets[0]) setActiveSheet(sheets[0].id);
@@ -86,6 +101,8 @@ export default function PlanEditor() {
         setTool({ kind: "select" });
       } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "f") {
         setFitKey((k) => k + 1);
+      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "m") {
+        setTool({ kind: "measure" });
       } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "l") {
         setShowLabels((v) => !v);
       } else if (e.key === "Enter") {
@@ -146,6 +163,16 @@ export default function PlanEditor() {
           return;
         }
         setDraft((d) => [...d, px, py]);
+        break;
+      }
+      case "measure": {
+        const pts = draft.length >= 4 ? [x, y] : [...draft, x, y];
+        setDraft(pts);
+        if (pts.length === 4) {
+          const ft = polylineFt(pts, sheet);
+          if (ft == null) toast("Set the sheet scale to measure distances", "info");
+          else toast(`Distance: ${formatFeetInches(ft)}`, "info");
+        }
         break;
       }
       case "stair":
@@ -288,9 +315,17 @@ export default function PlanEditor() {
               ? "Tap the bottom and top of the stair"
               : tool.kind === "calibrate"
                 ? "Tap both ends of a known dimension"
-                : null;
+                : tool.kind === "measure"
+                  ? draft.length === 4 && polylineFt(draft, sheet) != null
+                    ? `${formatFeetInches(polylineFt(draft, sheet)!)} · tap to measure again`
+                    : sheet.pxPerFt
+                      ? "Tap two points to measure"
+                      : "Set the scale first to measure"
+                  : null;
 
   const floorCounts = floor ? Object.entries(floor.counts) : [];
+  const q = find.trim().toLowerCase();
+  const findResults = q ? st.markers.filter((m) => m.label.toLowerCase().includes(q) || m.room.toLowerCase().includes(q)).slice(0, 50) : [];
   const rightPanel = selection ? "inspect" : panel;
 
   return (
@@ -317,7 +352,7 @@ export default function PlanEditor() {
           <div className="flex-1" />
           <button className={`btn btn-sm ${tool.kind === "select" ? "btn-on" : ""}`} onClick={() => setTool({ kind: "select" })} title="Select / move (V or Esc)">
             <Hand />
-            <span className="hidden xl:inline">Select</span>
+            <span className="hidden 2xl:inline">Select</span>
           </button>
           <button className="btn btn-sm btn-icon" disabled={!past.length} onClick={undo} title="Undo (⌘Z)" aria-label="Undo">
             <Undo2 />
@@ -328,12 +363,15 @@ export default function PlanEditor() {
           <span className="toolbar-sep" />
           <button className={`btn btn-sm ${tool.kind === "calibrate" ? "btn-on" : sheet.pxPerFt ? "" : "border-amber-300 bg-amber-50 text-amber-800"}`} onClick={() => setPending({ kind: "scale" })} title="Set the sheet scale">
             <Ruler />
-            <span className="hidden xl:inline">{sheet.pxPerFt ? "Scale" : "Set scale"}</span>
+            <span className="hidden 2xl:inline">{sheet.pxPerFt ? "Scale" : "Set scale"}</span>
+          </button>
+          <button className={`btn btn-sm btn-icon ${tool.kind === "measure" ? "btn-on" : ""}`} onClick={() => setTool(tool.kind === "measure" ? { kind: "select" } : { kind: "measure" })} title="Measure a distance (M)" aria-label="Measure">
+            <RulerDimensionLine />
           </button>
           <div className="relative">
             <button className={`btn btn-sm ${hiddenLayers.length ? "btn-on" : ""}`} onClick={() => setLayersOpen((o) => !o)} title="Show / hide trades">
               <Layers />
-              <span className="hidden xl:inline">Layers</span>
+              <span className="hidden 2xl:inline">Layers</span>
               {hiddenLayers.length ? <span className="text-[11px]">{LAYERS.length - hiddenLayers.length}/{LAYERS.length}</span> : null}
             </button>
             {layersOpen && (
@@ -375,15 +413,15 @@ export default function PlanEditor() {
             }}
           >
             <Cable />
-            <span className="hidden xl:inline">Home runs</span>
+            <span className="hidden 2xl:inline">Home runs</span>
           </button>
           <button className={`btn btn-sm ${panel === "counts" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "counts" ? null : "counts")} title="Floor counts">
             <ListChecks />
-            <span className="hidden xl:inline">Counts</span>
+            <span className="hidden 2xl:inline">Counts</span>
           </button>
           <button className={`btn btn-sm ${panel === "scan" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "scan" ? null : "scan")} title="AI scan assist">
             <Sparkles />
-            <span className="hidden xl:inline">AI scan</span>
+            <span className="hidden 2xl:inline">AI scan</span>
           </button>
         </div>
 
@@ -471,15 +509,56 @@ export default function PlanEditor() {
                   <Stat label="Devices" value={floorCounts.reduce((n, [, v]) => n + v, 0)} />
                   <Stat label="LED" value={`${floor.ledTotalFt} LF`} sub={`${floor.ledZones} zones`} />
                 </div>
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input className="input h-9 pl-8" placeholder="Find device (label or room)" value={find} onChange={(e) => setFind(e.target.value)} aria-label="Find device" />
+                </div>
+                {find.trim() && (
+                  <ul className="mb-3 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
+                    {findResults.map((m) => (
+                      <li key={m.id}>
+                        <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => st.focusOn("markers", m.id)}>
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: typesById.get(m.deviceTypeId)?.color }} />
+                          <span className="font-medium">{m.label}</span>
+                          <span className="min-w-0 flex-1 truncate text-xs text-slate-500">{m.room}</span>
+                          <span className="text-xs text-slate-400">{sheets.find((x) => x.id === m.sheetId)?.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {!findResults.length && <li className="px-3 py-3 text-center text-slate-500">No match</li>}
+                  </ul>
+                )}
                 <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {floorCounts.map(([id, n]) => {
                     const t = typesById.get(id);
+                    const open = expanded === id;
                     return (
-                      <li key={id} className="flex items-center gap-2 px-3 py-2">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: t?.color }} />
-                        <span className="min-w-0 flex-1 truncate">{t?.name ?? id}</span>
-                        {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{floor.tentative[id]}?</span> : null}
-                        <span className="font-semibold tabular-nums">{n}</span>
+                      <li key={id}>
+                        <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => setExpanded(open ? null : id)} aria-expanded={open}>
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: t?.color }} />
+                          <span className="min-w-0 flex-1 truncate">{t?.name ?? id}</span>
+                          {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{floor.tentative[id]}?</span> : null}
+                          <span className="font-semibold tabular-nums">{n}</span>
+                          <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition ${open ? "" : "-rotate-90"}`} />
+                        </button>
+                        {open && (
+                          <div className="flex flex-wrap gap-1 px-3 pb-2.5">
+                            {st.markers
+                              .filter((m) => m.sheetId === sheet.id && m.deviceTypeId === id)
+                              .sort((a, b) => a.label.localeCompare(b.label))
+                              .map((m) => (
+                                <button
+                                  key={m.id}
+                                  className={`chip ring-1 hover:bg-brand-50 hover:text-brand-700 ${m.tentative ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-white text-slate-700 ring-slate-200"}`}
+                                  onClick={() => st.focusOn("markers", m.id)}
+                                  title={m.room || undefined}
+                                >
+                                  {m.label}
+                                  {m.tentative ? " ?" : ""}
+                                </button>
+                              ))}
+                          </div>
+                        )}
                       </li>
                     );
                   })}

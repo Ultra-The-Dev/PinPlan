@@ -24,7 +24,8 @@ export type Tool =
   | { kind: "stair" }
   | { kind: "wire" }
   | { kind: "closet"; closetKind: ClosetKind }
-  | { kind: "calibrate" };
+  | { kind: "calibrate" }
+  | { kind: "measure" };
 
 export type Selection = { table: "markers" | "runs" | "closets"; id: string } | null;
 
@@ -52,6 +53,8 @@ interface EditorState {
   hiddenLayers: Layer[];
   /** Room applied to newly placed devices. */
   room: string;
+  /** Request to centre the plan on a point ("find device"); n increments per request. */
+  focus: { sheetId: string; x: number; y: number; n: number } | null;
   past: Change[][];
   future: Change[][];
 
@@ -62,6 +65,8 @@ interface EditorState {
   select(s: Selection): void;
   toggleLayer(l: Layer): void;
   setRoom(room: string): void;
+  /** Switch to the device's floor, select it and centre the plan on it. */
+  focusOn(table: "markers" | "runs" | "closets", id: string): void;
   setOnlyLayer(l: Layer | null): void;
 
   commit(changes: Change[], record?: boolean): Promise<void>;
@@ -122,6 +127,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   selection: null,
   hiddenLayers: [],
   room: "",
+  focus: null,
   past: [],
   future: [],
 
@@ -156,6 +162,18 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
   setRoom(room) {
     set({ room });
+  },
+  focusOn(table, id) {
+    const s = get();
+    const row = (s[table] as (Marker | Run | Closet)[]).find((r) => r.id === id);
+    if (!row) return;
+    const [x, y] = "points" in row ? [row.points[0] ?? 0.5, row.points[1] ?? 0.5] : [row.x, row.y];
+    set({
+      activeSheetId: row.sheetId,
+      selection: { table, id },
+      tool: { kind: "select" },
+      focus: { sheetId: row.sheetId, x, y, n: (s.focus?.n ?? 0) + 1 },
+    });
   },
   toggleLayer(l) {
     const h = get().hiddenLayers;

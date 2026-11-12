@@ -10,7 +10,8 @@ to Billdu as an estimate, order or invoice. Spec: [PLAN.md](PLAN.md).
 - **Markup** — searchable device menu by category with a “room for new devices” field, tap to place, drag to move, tap/long-press to edit (room, auto label `CAM-1-03`,
   mount, wire type, home-run closet, notes, photo, tentative `?`). LED runs (zone, switch, LF measured or typed), stair LED
   (steps × LF/step), closets (equipment / switch / rack), wire runs and one-tap auto home runs. Layers, undo/redo, pinch-zoom,
-  duplicate device, rotate a sheet with its markup, keyboard shortcuts on a laptop (V select, F fit, L labels, ⌘Z / ⇧⌘Z, Delete).
+  duplicate device, rotate a sheet with its markup, measure tool (feet-inches from the scale), find any device by label or room
+  (jumps to its floor and centres it), keyboard shortcuts on a laptop (V select, M measure, F fit, L labels, ⌘Z / ⇧⌘Z, Delete).
 - **Scale** — type the plan scale (PDF sheets) or draw a line over a known dimension.
 - **Takeoff** — per floor and whole house, tentative items listed separately; CSV and marked-up plan PDF with legend and
   per-floor count box.
