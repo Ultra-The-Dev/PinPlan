@@ -1,0 +1,41 @@
+name: iOS app
+
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: PinPlanCore tests
+        working-directory: ios/PinPlanCore
+        run: swift test
+
+  build-app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project PinPlan.xcodeproj -scheme PinPlan \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | grep -E "error:|warning: .*(deprecated|will never)|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios/build.log

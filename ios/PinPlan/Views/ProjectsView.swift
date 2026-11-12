@@ -1,0 +1,193 @@
+import SwiftUI
+import UniformTypeIdentifiers
+import PinPlanCore
+
+struct ProjectsView: View {
+    @Environment(AppModel.self) private var app
+    @State private var search = ""
+    @State private var status: ProjectStatus?
+    @State private var showNew = false
+    @State private var showSettings = false
+    @State private var showCatalog = false
+    @State private var showRestore = false
+    @State private var path: [String] = []
+    @State private var message: String?
+    @State private var toDelete: ProjectBundle?
+
+    private var filtered: [ProjectBundle] {
+        app.projects.filter { b in
+            (status == nil || b.project.status == status) &&
+            (search.isEmpty || "\(b.project.address) \(b.project.clientName)".localizedCaseInsensitiveContains(search))
+        }
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            ScrollView {
+                if app.projects.isEmpty {
+                    EmptyProjects { showNew = true }.padding(.top, 60)
+                } else {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Picker("Status", selection: $status) {
+                            Text("All").tag(ProjectStatus?.none)
+                            ForEach(ProjectStatus.allCases, id: \.self) { s in Text(s.rawValue.capitalized).tag(Optional(s)) }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 480)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 16)], spacing: 16) {
+                            ForEach(filtered, id: \.project.id) { b in
+                                NavigationLink(value: b.project.id) { ProjectCard(bundle: b) }
+                                    .buttonStyle(.plain)
+                                    .contextMenu {
+                                        Button(role: .destructive) { toDelete = b } label: { Label("Delete", systemImage: "trash") }
+                                    }
+                            }
+                        }
+                        if filtered.isEmpty { Text("No projects match.").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(40) }
+                    }
+                    .padding()
+                }
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Projects")
+            .searchable(text: $search, prompt: "Client or address")
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Button { showCatalog = true } label: { Label("Catalog", systemImage: "shippingbox") }
+                    Button { showSettings = true } label: { Label("Settings", systemImage: "gearshape") }
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showRestore = true } label: { Label("Restore backup", systemImage: "square.and.arrow.down") }
+                    Button { showNew = true } label: { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                }
+            }
+            .navigationDestination(for: String.self) { id in
+                if let b = app.projects.first(where: { $0.project.id == id }) { ProjectView(bundle: b) }
+            }
+            .sheet(isPresented: $showNew) {
+                NewProjectSheet { b in path.append(b.project.id) }
+            }
+            .sheet(isPresented: $showSettings) { NavigationStack { SettingsView() } }
+            .sheet(isPresented: $showCatalog) { NavigationStack { CatalogView() } }
+            .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
+                do {
+                    let n = try app.restore(from: result.get())
+                    message = "Restored \(n) project\(n == 1 ? "" : "s")"
+                } catch { message = error.localizedDescription }
+            }
+            .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("OK") {} }
+            .confirmationDialog("Delete this project and its sheets?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
+                Button("Delete", role: .destructive) { if let b = toDelete { app.delete(b) }; toDelete = nil }
+            }
+        }
+    }
+}
+
+private struct EmptyProjects: View {
+    let onNew: () -> Void
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "mappin.and.ellipse").font(.system(size: 44)).foregroundStyle(Color.brand)
+                .frame(width: 84, height: 84).background(Color.brand.opacity(0.1), in: RoundedRectangle(cornerRadius: 22))
+            Text("Start your first job").font(.title2.bold())
+            Text("Create a project, import the plan set (PDF, photos or the document scanner), then tap to place cameras, Wi-Fi, speakers, TVs, LED runs and closets.")
+                .multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: 420)
+            Button(action: onNew) { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct StatusChip: View {
+    let status: ProjectStatus
+    var body: some View {
+        Chip(text: status.rawValue.capitalized, tint: status == .estimate ? .orange : status == .approved ? .brand : .green)
+    }
+}
+
+private struct ProjectCard: View {
+    @Environment(AppModel.self) private var app
+    let bundle: ProjectBundle
+
+    var body: some View {
+        let p = bundle.project
+        let led = TakeoffCalculator.compute(bundle).total.ledTotalFt
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                Group {
+                    if let id = bundle.liveSheets.first?.imageId, let img = app.store.image(id) {
+                        Image(uiImage: img).resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "doc.richtext").font(.largeTitle).foregroundStyle(.tertiary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(height: 150).frame(maxWidth: .infinity).clipped().background(Color(.secondarySystemBackground))
+                StatusChip(status: p.status).background(.thinMaterial, in: Capsule()).padding(10)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(p.address.isEmpty ? "Untitled job" : p.address).font(.headline).lineLimit(1)
+                Text(p.clientName.isEmpty ? "No client" : p.clientName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 8) {
+                    Stat(value: "\(bundle.liveSheets.count)", label: "Sheets")
+                    Stat(value: "\(bundle.liveMarkers.count)", label: "Devices")
+                    Stat(value: led.clean, label: "LED LF")
+                }
+                .padding(.top, 8)
+            }
+            .padding(14)
+        }
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(.separator).opacity(0.4)))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.05), radius: 8, y: 3)
+    }
+
+    private struct Stat: View {
+        let value: String, label: String
+        var body: some View {
+            VStack(spacing: 1) {
+                Text(value).font(.subheadline.bold()).monospacedDigit()
+                Text(label.uppercased()).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 6).background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+struct NewProjectSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let onCreate: (ProjectBundle) -> Void
+    @State private var address = ""
+    @State private var client = ""
+    @State private var email = ""
+    @State private var phone = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Job") { TextField("Job address", text: $address, prompt: Text("20 Hilltop Dr E")) }
+                Section("Client") {
+                    TextField("Client name", text: $client)
+                    TextField("Email", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never)
+                    TextField("Phone", text: $phone).keyboardType(.phonePad)
+                }
+            }
+            .navigationTitle("New project")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        let b = app.createProject(address: address.trimmingCharacters(in: .whitespaces), client: client.trimmingCharacters(in: .whitespaces), email: email, phone: phone)
+                        dismiss()
+                        onCreate(b)
+                    }
+                    .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty && client.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
