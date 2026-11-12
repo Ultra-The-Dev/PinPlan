@@ -50,6 +50,8 @@ interface EditorState {
   tool: Tool;
   selection: Selection;
   hiddenLayers: Layer[];
+  /** Room applied to newly placed devices. */
+  room: string;
   past: Change[][];
   future: Change[][];
 
@@ -59,6 +61,7 @@ interface EditorState {
   setTool(t: Tool): void;
   select(s: Selection): void;
   toggleLayer(l: Layer): void;
+  setRoom(room: string): void;
   setOnlyLayer(l: Layer | null): void;
 
   commit(changes: Change[], record?: boolean): Promise<void>;
@@ -118,6 +121,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   tool: { kind: "select" },
   selection: null,
   hiddenLayers: [],
+  room: "",
   past: [],
   future: [],
 
@@ -149,6 +153,9 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
   select(selection) {
     set({ selection });
+  },
+  setRoom(room) {
+    set({ room });
   },
   toggleLayer(l) {
     const h = get().hiddenLayers;
@@ -217,7 +224,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       x,
       y,
       label: nextLabel(type, sheet, sheets, markers),
-      room: "",
+      room: get().room.trim(),
       mount: type.defaultMount,
       wireType: type.defaultWire,
       closetId: eq?.id ?? null,

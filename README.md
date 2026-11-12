@@ -7,19 +7,21 @@ to Billdu as an estimate, order or invoice. Spec: [PLAN.md](PLAN.md).
 ## Features
 - **Plan import** — multi-page PDF (each page → a sheet, floor name guessed from the title block), phone photos (JPG/PNG/HEIC)
   with auto page-edge detection (OpenCV.js) and manual 4-corner straightening. Rename/reorder sheets.
-- **Markup** — device palette by category, tap to place, drag to move, tap/long-press to edit (room, auto label `CAM-1-03`,
+- **Markup** — searchable device menu by category with a “room for new devices” field, tap to place, drag to move, tap/long-press to edit (room, auto label `CAM-1-03`,
   mount, wire type, home-run closet, notes, photo, tentative `?`). LED runs (zone, switch, LF measured or typed), stair LED
-  (steps × LF/step), closets (equipment / switch / rack), wire runs and one-tap auto home runs. Layers, undo/redo, pinch-zoom.
+  (steps × LF/step), closets (equipment / switch / rack), wire runs and one-tap auto home runs. Layers, undo/redo, pinch-zoom,
+  duplicate device, rotate a sheet with its markup, keyboard shortcuts on a laptop (V select, F fit, L labels, ⌘Z / ⇧⌘Z, Delete).
 - **Scale** — type the plan scale (PDF sheets) or draw a line over a known dimension.
 - **Takeoff** — per floor and whole house, tentative items listed separately; CSV and marked-up plan PDF with legend and
   per-floor count box.
 - **Crew** — wiring-only sheets by layer (no prices) with a home-run schedule; CSV.
 - **Estimate** — catalog prices, markup, labor (combined or separate), wire $/ft, tax; override/remove/add lines; optional
-  tentative lines; client PDF and CSV.
+  tentative lines; branded client PDF (number, validity date, job scope, signature block) and CSV.
 - **Billdu** — encrypted server-side credentials, connection test, catalog → products, find/create client, create or update
   an estimate/order/invoice, deposit invoices by %, billed-vs-estimate tracking, CSV/PDF fallback.
 - **AI scan assist** — Claude vision suggests sheet names, LED callouts and hand-drawn symbols as ghost markers you accept,
   move or reject. Counts never change until you accept.
+- **Backup** — one-file project backup (plans, markup, estimate edits, photos) and restore on any device.
 - **Offline** — data in IndexedDB, app shell cached by a service worker; optional Supabase sync, accounts and team sharing.
 
 ## Run

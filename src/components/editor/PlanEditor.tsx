@@ -82,6 +82,12 @@ export default function PlanEditor() {
       } else if (e.key === "Escape") {
         if (draft.length) setDraft([]);
         else setTool({ kind: "select" });
+      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "v") {
+        setTool({ kind: "select" });
+      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "f") {
+        setFitKey((k) => k + 1);
+      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "l") {
+        setShowLabels((v) => !v);
       } else if (e.key === "Enter") {
         finishDraft();
       } else if ((e.key === "Delete" || e.key === "Backspace") && useEditor.getState().selection) {
@@ -271,7 +277,7 @@ export default function PlanEditor() {
   const drawing = tool.kind === "led" || tool.kind === "wire" || tool.kind === "stair" || tool.kind === "calibrate";
   const hint =
     tool.kind === "place"
-      ? `Tap to place ${typesById.get(tool.deviceTypeId)?.name}`
+      ? `Tap to place ${typesById.get(tool.deviceTypeId)?.name}${st.room.trim() ? ` · ${st.room.trim()}` : ""}`
       : tool.kind === "closet"
         ? `Tap to place the ${CLOSET_KINDS.find((c) => c.id === tool.closetKind)?.name.toLowerCase()}`
         : tool.kind === "led"
@@ -309,7 +315,7 @@ export default function PlanEditor() {
           </button>
           <div className="min-w-0 truncate pl-1 text-sm font-semibold text-slate-800">{sheet.name}</div>
           <div className="flex-1" />
-          <button className={`btn btn-sm ${tool.kind === "select" ? "btn-on" : ""}`} onClick={() => setTool({ kind: "select" })} title="Select / move (Esc)">
+          <button className={`btn btn-sm ${tool.kind === "select" ? "btn-on" : ""}`} onClick={() => setTool({ kind: "select" })} title="Select / move (V or Esc)">
             <Hand />
             <span className="hidden xl:inline">Select</span>
           </button>
@@ -353,10 +359,10 @@ export default function PlanEditor() {
               </>
             )}
           </div>
-          <button className={`btn btn-sm btn-icon ${showLabels ? "btn-on" : ""}`} onClick={() => setShowLabels((v) => !v)} title="Show device labels" aria-label="Labels">
+          <button className={`btn btn-sm btn-icon ${showLabels ? "btn-on" : ""}`} onClick={() => setShowLabels((v) => !v)} title="Show device labels (L)" aria-label="Labels">
             <Tag />
           </button>
-          <button className="btn btn-sm btn-icon" onClick={() => setFitKey((k) => k + 1)} title="Fit sheet to screen" aria-label="Fit">
+          <button className="btn btn-sm btn-icon" onClick={() => setFitKey((k) => k + 1)} title="Fit sheet to screen (F)" aria-label="Fit">
             <Maximize />
           </button>
           <span className="toolbar-sep" />

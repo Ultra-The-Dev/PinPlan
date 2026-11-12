@@ -1,12 +1,13 @@
 "use client";
-import { ChevronDown, Search, Spline, X } from "lucide-react";
+import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
 import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
 import { useEditor, type Tool } from "@/lib/store";
 import SymbolIcon from "./SymbolIcon";
 
 export default function Palette() {
-  const { catalog, tool, setTool, markers, runs, activeSheetId } = useEditor();
+  const { catalog, tool, setTool, markers, runs, activeSheetId, room, setRoom } = useEditor();
+  const rooms = Array.from(new Set(markers.filter((m) => m.sheetId === activeSheetId && m.room).map((m) => m.room))).sort();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const active = (t: Tool) => JSON.stringify(t) === JSON.stringify(tool);
@@ -33,7 +34,28 @@ export default function Palette() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-slate-100 p-2.5">
+      <div className="space-y-2 border-b border-slate-100 p-2.5">
+        <div className="relative">
+          <DoorOpen className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            className={`input h-9 pl-8 ${room ? "border-brand-300 bg-brand-50/50" : ""}`}
+            placeholder="Room for new devices"
+            list="pinplan-rooms"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            aria-label="Room for new devices"
+          />
+          <datalist id="pinplan-rooms">
+            {rooms.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+          {room && (
+            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setRoom("")} aria-label="Clear room">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input className="input h-9 pl-8" placeholder="Find a device…" value={q} onChange={(e) => setQ(e.target.value)} />
