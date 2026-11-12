@@ -225,22 +225,32 @@ export default function EstimateTab() {
       </div>
 
       {unpriced.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <CircleExclamationPoint className="h-4 w-4 shrink-0" />
-          <span className="flex-1">
-            {unpriced.length} line{unpriced.length === 1 ? " has" : "s have"} no price yet ({unpriced.slice(0, 3).map((l) => l.description.replace(" — installed", "")).join(", ")}
-            {unpriced.length > 3 ? "…" : ""}). Set device prices in the catalog and wire prices in settings, or type a price here.
-          </span>
-          <Link href="/catalog" className="btn btn-sm">
-            <Package /> Catalog
-          </Link>
-          <Link href="/settings" className="btn btn-sm">
-            <Settings /> Wire prices
-          </Link>
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-start gap-2.5">
+            <CircleExclamationPoint className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <strong className="font-semibold">
+                {unpriced.length} line{unpriced.length === 1 ? " has" : "s have"} no price yet
+              </strong>{" "}
+              — {unpriced
+                .slice(0, 3)
+                .map((l) => l.description.replace(" — installed", "").replace(/ \(home runs: \d+\)/, ""))
+                .join(", ")}
+              {unpriced.length > 3 ? ` and ${unpriced.length - 3} more` : ""}. Set prices in the catalog and settings, or type them here.
+            </span>
+          </div>
+          <div className="flex gap-2 pl-6 sm:pl-0">
+            <Link href="/catalog" className="btn btn-sm">
+              <Package /> Catalog
+            </Link>
+            <Link href="/settings#wire" className="btn btn-sm">
+              <Settings /> Wire prices
+            </Link>
+          </div>
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
           <div className="card flex flex-wrap items-end gap-4 p-4">
             <label className="text-sm">
@@ -253,7 +263,7 @@ export default function EstimateTab() {
             </label>
             <label className="text-sm">
               <span className="label">Labor</span>
-              <select className="input w-auto" value={pricing.laborMode} onChange={(e) => setPricing({ laborMode: e.target.value as PricingSettings["laborMode"] })}>
+              <select className="input w-full sm:w-auto" value={pricing.laborMode} onChange={(e) => setPricing({ laborMode: e.target.value as PricingSettings["laborMode"] })}>
                 <option value="combined">Combined (installed price)</option>
                 <option value="separate">Separate labor lines</option>
               </select>

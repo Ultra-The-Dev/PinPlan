@@ -27,7 +27,7 @@ export default function ProjectInfo() {
   );
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto grid max-w-5xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_320px]">
+      <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <form
           className="card space-y-4 p-6"
           onSubmit={async (e) => {

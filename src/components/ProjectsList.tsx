@@ -125,7 +125,7 @@ export default function ProjectsList() {
               </button>
             ))}
           </div>
-          <div className="relative ml-auto w-full max-w-xs">
+          <div className="relative w-full sm:ml-auto sm:max-w-xs">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input className="input pl-9" placeholder="Search client or address" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
