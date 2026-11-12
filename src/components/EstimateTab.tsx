@@ -103,7 +103,14 @@ export default function EstimateTab() {
     setBusy("pdf");
     try {
       const { renderEstimatePdf } = await import("./EstimatePdf");
-      const blob = await renderEstimatePdf({ project: project!, business: settings!.business, estimate: estimate!, currency: cur, taxPct: pricing!.taxPct });
+      const t = takeoff.total;
+      const devices = Object.entries(t.counts).reduce((n, [, v]) => n + v, 0) - Object.values(t.tentative).reduce((a, b) => a + b, 0);
+      const scope = [
+        { label: "Floors", value: String(sheets.length) },
+        { label: "Devices", value: String(devices) },
+        ...(t.ledTotalFt ? [{ label: "LED", value: `${t.ledTotalFt} LF` }] : []),
+      ];
+      const blob = await renderEstimatePdf({ project: project!, business: settings!.business, estimate: estimate!, currency: cur, taxPct: pricing!.taxPct, scope });
       downloadBlob(blob, `${fileBase}.pdf`);
     } catch (e) {
       setError(`PDF failed: ${(e as Error).message}`);
