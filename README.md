@@ -29,9 +29,21 @@ to Billdu as an estimate, order or invoice. Spec: [PLAN.md](PLAN.md).
 npm install
 cp .env.example .env.local   # all optional; without values the app runs local-only
 npm run dev                  # http://localhost:3000
-npm test                     # takeoff/estimate (20 Hilltop counts), geometry, Billdu signing, scan parsing, sync mapping
+npm test                     # unit + route tests (see below)
+PGHOST=… npm run test:db     # applies supabase/migrations to a scratch Postgres and checks the RLS policies
 ```
 Try it with `samples/demo-plan-set.pdf` (a synthetic 4-sheet demo — not the real 20 Hilltop drawings).
+
+## What the tests cover
+- **Takeoff & estimate** — the 20 Hilltop Dr E hand counts per floor (from PLAN.md), tentative items, LED zones/LF, pricing, overrides.
+- **Billdu route** — against a fake Billdu API that verifies every request's HMAC signature: client create/reuse, estimate,
+  50% deposit invoice, update instead of duplicate, rejected credentials.
+- **AI scan route** — with the Claude API mocked at the HTTP layer: request shape (image + JSON schema), validation/clamping
+  of the model's JSON, refusal, missing key, bad image type.
+- **API auth** — open / access-code / Supabase-session modes.
+- **Sync ↔ schema contract** — every synced field maps to an existing column and every required column is sent.
+- **Database** (`npm run test:db`) — migrations apply on Postgres 16; owners, members and outsiders see exactly what they
+  should (projects, markers, plan images in storage, per-owner catalog), and the secret store is service-role only.
 
 ## Configuration
 | Variable | Purpose |
