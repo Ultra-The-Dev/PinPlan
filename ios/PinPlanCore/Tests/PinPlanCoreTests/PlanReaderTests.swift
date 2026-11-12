@@ -141,6 +141,16 @@ final class RoomScheduleTests: XCTestCase {
         XCTAssertEqual(d.filter { $0.kind == .dimension }.map(\.text), ["3' - 5\""])
     }
 
+    func testCombinedNameAreaCellHeaderAndGrandTotal() {
+        var items = [PlanTextItem(text: "LIVKITALL ROOM", x: 0.3, y: 0.55)]
+        items += row(0.20, ["Number", "Name", "Area", "Perimeter Base Finish Ceiling Finish", "Floor Finish", "Level", "Volume"])
+        items += row(0.21, ["100", "LIVKITALL ROOM 535 SF", "140' - 10\"", "WHITE", "8' - 0\"", "4283.44 CF"])
+        items += row(0.23, ["Grand total: 12 1121 SF", "444' - 6\"", "8965.89 CF"])
+        let d = PlanReader.classify(items)
+        XCTAssertEqual(d.filter { $0.kind == .room }.map(\.text), ["Livkitall Room · 535 SF"])
+        XCTAssertTrue(d.filter { $0.kind == .dimension || $0.kind == .note }.isEmpty, "\(d.map(\.text))")
+    }
+
     func testDimensionStringRowIsNotASchedule() {
         let items = (0..<8).map { PlanTextItem(text: "2'-\($0)\"", x: 0.2 + Double($0) * 0.05, y: 0.1) }
         XCTAssertEqual(PlanReader.classify(items).filter { $0.kind == .dimension }.count, 8)

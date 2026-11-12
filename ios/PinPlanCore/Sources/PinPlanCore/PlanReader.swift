@@ -65,7 +65,8 @@ public enum PlanReader {
     /// Room schedule rows (Revit/AutoCAD tables): a row of 4+ cells on one line with an area ("118 SF").
     /// Returns the indices of items in such rows and, per room name, its scheduled area.
     static func scheduleRows(_ items: [PlanTextItem]) -> (inRows: Set<Int>, areas: [String: String]) {
-        let areaRe = #"^\d{1,6}(\.\d+)?\s*(SF|S\.F\.|SQ\.?\s*FT\.?)$"#
+        let areaRe = #"\b\d{1,6}(\.\d+)?\s*(SF|S\.F\.|SQ\.?\s*FT\.?)$"#
+        let headerWords: Set<String> = ["NUMBER", "NAME", "AREA", "PERIMETER", "FINISH", "LEVEL", "VOLUME", "COMMENTS", "HEIGHT", "OCCUPANCY"]
         var inRows = Set<Int>()
         var areas: [String: String] = [:]
         let order = items.indices.sorted { items[$0].y < items[$1].y }
@@ -74,16 +75,22 @@ public enum PlanReader {
             var row = [order[i]]
             var j = i + 1
             while j < order.count, items[order[j]].y - items[order[i]].y < 0.0025 { row.append(order[j]); j += 1 }
-            let area = row.first { items[$0].text.uppercased().trimmingCharacters(in: .whitespaces).range(of: areaRe, options: .regularExpression) != nil }
-            if row.count >= 4, let a = area {
-                inRows.formUnion(row)
-                // The room name: the cell left of the area that reads like a room.
-                let cells = row.sorted { items[$0].x < items[$1].x }
-                if let name = cells.last(where: { items[$0].x < items[a].x && isRoomName(items[$0].text) }) {
-                    areas[normalizedName(items[name].text)] = items[a].text.uppercased().replacingOccurrences(of: "  ", with: " ")
-                }
-            }
             i = j
+            let upper = row.map { items[$0].text.uppercased().trimmingCharacters(in: .whitespaces) }
+            // Header row of a schedule ("Number Name Area Perimeter Base Finish …").
+            let headerHits = Set(upper.flatMap { $0.split(separator: " ").map(String.init) }).intersection(headerWords).count
+            if row.count >= 3, headerHits >= 3 { inRows.formUnion(row); continue }
+            guard row.count >= 3, let a = row.indices.first(where: { upper[$0].range(of: areaRe, options: .regularExpression) != nil }) else { continue }
+            inRows.formUnion(row)
+            let areaCell = upper[a]
+            let area = areaCell.range(of: areaRe, options: .regularExpression).map { String(areaCell[$0]) } ?? areaCell
+            // The room name: in the same cell before the area ("LIVKITALL ROOM 535 SF") or the cell to its left.
+            let before = areaCell.replacingOccurrences(of: area, with: "").trimmingCharacters(in: .whitespaces)
+            let cells = row.sorted { items[$0].x < items[$1].x }
+            let nameText: String?
+            if isRoomName(before) { nameText = before }
+            else { nameText = cells.last(where: { items[$0].x < items[row[a]].x && isRoomName(items[$0].text) }).map { items[$0].text } }
+            if let n = nameText { areas[normalizedName(n)] = area }
         }
         return (inRows, areas)
     }
@@ -138,11 +145,11 @@ public enum PlanReader {
                 let key = normalizedName(out[i].text.components(separatedBy: " · ")[0])
                 if let a = schedule.areas[key] { out[i].text += " · \(a)"; used.insert(key) }
             }
-            for (index, item) in items.enumerated() where schedule.inRows.contains(index) && isRoomName(item.text) {
-                let key = normalizedName(item.text)
-                guard !used.contains(key), let a = schedule.areas[key] else { continue }
+            for (index, item) in items.enumerated() where schedule.inRows.contains(index) {
+                guard let key = schedule.areas.keys.first(where: { normalizedName(item.text).hasPrefix($0) }), !used.contains(key),
+                      let a = schedule.areas[key] else { continue }
                 used.insert(key)
-                out.append(PlanDetail(kind: .room, text: "\(item.text.capitalized) · \(a) (schedule)", x: item.x, y: item.y))
+                out.append(PlanDetail(kind: .room, text: "\(key.capitalized) · \(a) (schedule)", x: item.x, y: item.y))
             }
         }
         // Room size printed on the line under the name ("GREAT ROOM" / 18'-6" x 22'-0").
