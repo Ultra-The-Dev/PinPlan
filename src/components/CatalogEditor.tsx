@@ -1,8 +1,11 @@
 "use client";
-import { Archive, ArchiveArrowUp, Pencil, Plus, Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Archive, ArchiveArrowUp, Download, Pencil, Plus, Search, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { applyPriceList, catalogToCsv, type PriceImportResult } from "@/lib/catalogCsv";
+import { downloadText } from "@/lib/download";
+import { formatMoney } from "@/lib/estimate";
 import { CATEGORIES, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
-import { getCatalog, newId, nowIso, put } from "@/lib/db";
+import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
 import { toast } from "@/lib/toast";
 import type { Category, DeviceType, Mount, Shape, Unit } from "@/lib/types";
 import SymbolIcon from "./editor/SymbolIcon";
@@ -38,6 +41,8 @@ export default function CatalogEditor() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<DeviceType | null>(null);
   const [q, setQ] = useState("");
+  const [preview, setPreview] = useState<PriceImportResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     getCatalog().then(setTypes);
   }, []);
@@ -70,6 +75,22 @@ export default function CatalogEditor() {
     });
   }
 
+  async function onPriceFile(file: File | undefined) {
+    if (!file || !types) return;
+    const res = applyPriceList(await file.text(), types, { createMissing: true, newId });
+    setPreview(res);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function applyPreview() {
+    if (!preview) return;
+    const rows = [...preview.updated, ...preview.created];
+    if (rows.length) await putMany("deviceTypes", rows);
+    setTypes(await getCatalog());
+    toast(`Price list applied: ${preview.updated.length} updated, ${preview.created.length} added`);
+    setPreview(null);
+  }
+
   if (!types) return <p className="p-6 text-slate-500">Loading…</p>;
   const unpriced = types.filter((t) => !t.archived && t.unitPrice === 0).length;
   return (
@@ -83,6 +104,13 @@ export default function CatalogEditor() {
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input className="input pl-9" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => onPriceFile(e.target.files?.[0])} />
+        <button className="btn" onClick={() => downloadText(catalogToCsv(types), "pinplan-price-list.csv")} title="Download the catalog as a CSV price list">
+          <Download /> Price list
+        </button>
+        <button className="btn" onClick={() => fileRef.current?.click()} title="Import prices from a CSV (id or name, price, labor)">
+          <Upload /> Import prices
+        </button>
         <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived
         </label>
@@ -155,6 +183,7 @@ export default function CatalogEditor() {
           </section>
         );
       })}
+      {preview && <ImportPreview res={preview} onApply={applyPreview} onCancel={() => setPreview(null)} />}
       {editing && (
         <EditDialog
           t={editing}
@@ -273,6 +302,67 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onApply: () => void; onCancel: () => void }) {
+  const n = res.updated.length + res.created.length;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onCancel}>
+      <div className="card animate-in w-full max-w-lg space-y-4 p-6 shadow-pop" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Import prices">
+        <div className="flex items-start">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold">Import prices</h2>
+            <p className="text-sm text-slate-500">Review the changes before applying them.</p>
+          </div>
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
+            <X />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            ["Updated", res.updated.length, "text-brand-700"],
+            ["New types", res.created.length, "text-emerald-700"],
+            ["Skipped", res.unmatched.length + res.errors.length, "text-amber-700"],
+          ].map(([label, v, cls]) => (
+            <div key={label as string} className="rounded-xl bg-slate-50 py-2 ring-1 ring-slate-100">
+              <div className={`text-xl font-semibold tabular-nums ${cls}`}>{v}</div>
+              <div className="text-[11px] text-slate-500">{label}</div>
+            </div>
+          ))}
+        </div>
+        {n > 0 && (
+          <ul className="scroll-thin max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 text-sm">
+            {[...res.updated, ...res.created].map((t) => (
+              <li key={t.id} className="flex items-center gap-2 px-3 py-1.5">
+                <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                {res.created.includes(t) && <span className="chip bg-emerald-50 text-emerald-700">new</span>}
+                <span className="tabular-nums text-slate-600">
+                  {formatMoney(t.unitPrice)} + {formatMoney(t.laborPrice)} labor
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(res.errors.length > 0 || res.unmatched.length > 0) && (
+          <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200">
+            {res.errors.map((e) => (
+              <div key={e}>{e}</div>
+            ))}
+            {res.unmatched.length > 0 && <div>Not matched (add a valid category to create them): {res.unmatched.join(", ")}</div>}
+          </div>
+        )}
+        <p className="text-xs text-slate-400">Columns: id or name, price, labor (optional: category, unit, default_wire). Download the price list for a ready-made template.</p>
+        <div className="flex justify-end gap-2">
+          <button className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn btn-brand" disabled={!n} onClick={onApply}>
+            Apply {n} change{n === 1 ? "" : "s"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

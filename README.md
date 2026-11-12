@@ -21,6 +21,7 @@ to Billdu as an estimate, order or invoice. Spec: [PLAN.md](PLAN.md).
   an estimate/order/invoice, deposit invoices by %, billed-vs-estimate tracking, CSV/PDF fallback.
 - **AI scan assist** — Claude vision suggests sheet names, LED callouts and hand-drawn symbols as ghost markers you accept,
   move or reject. Counts never change until you accept.
+- **Price list** — export the catalog as CSV, fill prices in a spreadsheet, import it back with a preview of every change.
 - **Backup** — one-file project backup (plans, markup, estimate edits, photos) and restore on any device.
 - **Offline** — data in IndexedDB, app shell cached by a service worker; optional Supabase sync, accounts and team sharing.
 
