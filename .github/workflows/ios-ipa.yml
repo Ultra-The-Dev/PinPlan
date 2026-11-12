@@ -1,0 +1,43 @@
+name: iOS IPA (sideload)
+
+# Builds an unsigned PinPlan.ipa for real iPhones/iPads. Sideloadly or AltStore re-sign it with your own Apple ID
+# when they install it (free Apple ID: the app runs 7 days, then re-install). Download it from the run's
+# "PinPlan-ipa" artifact.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["ios/**", ".github/workflows/ios-ipa.yml"]
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Build for device (unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodegen generate
+          xcodebuild -project PinPlan.xcodeproj -scheme PinPlan -sdk iphoneos -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee build.log \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Package IPA
+        working-directory: ios
+        run: |
+          mkdir -p ipa/Payload
+          cp -R build/Build/Products/Release-iphoneos/PinPlan.app ipa/Payload/
+          cd ipa && zip -qry ../PinPlan.ipa Payload && cd ..
+          ls -la PinPlan.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PinPlan-ipa
+          path: ios/PinPlan.ipa
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ipa-build-log
+          path: ios/build.log

@@ -3,6 +3,15 @@
 Native app for installers on site: import the plan set, tap to place devices, draw LED and wire runs, get the takeoff,
 price the estimate and send it to Billdu. Works fully offline; data is stored on the device.
 
+## Sideload the IPA (no Mac needed)
+1. GitHub → Actions → **iOS IPA (sideload)** → latest green run → download the **PinPlan-ipa** artifact and unzip it to get `PinPlan.ipa`.
+2. On a Windows PC or Mac, install **Sideloadly** (sideloadly.io) and iTunes/Apple Devices if it asks. Plug in the iPad.
+3. Drag `PinPlan.ipa` into Sideloadly, enter your Apple ID, press **Start**. It signs the app with your Apple ID and installs it.
+4. On the iPad: **Settings → General → VPN & Device Management** → trust your Apple ID; turn on **Developer Mode**
+   (Settings → Privacy & Security) if iOS asks, then restart and open PinPlan.
+
+With a free Apple ID the app works for 7 days; run Sideloadly again to refresh it (your projects stay on the iPad).
+
 ## Get it on your iPhone / iPad (about 15 minutes, needs a Mac)
 1. On the Mac, install **Xcode** from the App Store (free) and open it once so it finishes setting up.
 2. In Terminal: `brew install xcodegen` (install Homebrew from brew.sh first if you don't have it), then
