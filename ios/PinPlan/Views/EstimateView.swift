@@ -44,13 +44,15 @@ struct EstimateView: View {
                         if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
                     }
                     // One row when it fits (iPad); on a phone, Send gets its own full-width row.
-                    if hSize == .compact {
-                        VStack(spacing: 10) {
-                            sendButton(e)
-                            HStack { csvButton(e); pdfButton(e) }
+                    Group {
+                        if hSize == .compact {
+                            VStack(spacing: 10) {
+                                sendButton(e)
+                                HStack { csvButton(e); pdfButton(e) }
+                            }
+                        } else {
+                            HStack { csvButton(e); pdfButton(e); sendButton(e) }
                         }
-                    } else {
-                        HStack { csvButton(e); pdfButton(e); sendButton(e) }
                     }
                     .controlSize(.large)
                 }
