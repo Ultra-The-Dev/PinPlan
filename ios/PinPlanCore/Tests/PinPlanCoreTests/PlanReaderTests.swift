@@ -89,3 +89,28 @@ final class RoomSizeTests: XCTestCase {
         XCTAssertEqual(d.first { $0.kind == .room }?.text, "Office")
     }
 }
+
+final class FloorNameTests: XCTestCase {
+    func testTitleBeatsMentionInNotes() {
+        let text = """
+        GENERAL NOTES
+        1. ALL LOW VOLTAGE CABLING TO HOME RUN TO THE AV RACK. PROVIDE 2" CONDUIT FROM RACK TO ATTIC.
+        SAMPLE RESIDENCE
+        FIRST FLOOR PLAN
+        SCALE: 1/4" = 1'-0"
+        """
+        XCTAssertEqual(PlanReader.floorName(in: text), "1st Fl")
+    }
+
+    func testStandaloneLabel() {
+        XCTAssertEqual(PlanReader.floorName(in: "LIVING\nKITCHEN\nPINPLAN DEMO\nATTIC\nSCALE: 1/8\" = 1'-0\""), "Attic")
+        XCTAssertEqual(PlanReader.floorName(in: "CELLAR"), "Cellar")
+        XCTAssertEqual(PlanReader.floorName(in: "2nd Fl"), "2nd Fl")
+    }
+
+    func testOtherNamesAndNone() {
+        XCTAssertEqual(PlanReader.floorName(in: "A-102\nMAIN LEVEL PLAN"), "1st Fl")
+        XCTAssertEqual(PlanReader.floorName(in: "BASEMENT PLAN"), "Basement")
+        XCTAssertNil(PlanReader.floorName(in: "ELECTRICAL LEGEND"))
+    }
+}

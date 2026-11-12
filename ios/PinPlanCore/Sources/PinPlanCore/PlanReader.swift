@@ -162,3 +162,34 @@ public extension PlanReader {
         return sameSize && alignedLeft && below && (unclosed || longLine)
     }
 }
+
+public extension PlanReader {
+    private static let floorPatterns: [(String, String)] = [
+        (#"\b(1ST|FIRST)\.?\s*(FL|FLR|FLOOR)\b|\bMAIN\s*(FL|FLR|FLOOR|LEVEL)\b"#, "1st Fl"),
+        (#"\b(2ND|SECOND)\.?\s*(FL|FLR|FLOOR)\b|\bUPPER\s*(FL|FLR|FLOOR|LEVEL)\b"#, "2nd Fl"),
+        (#"\b(3RD|THIRD)\.?\s*(FL|FLR|FLOOR)\b"#, "3rd Fl"), (#"\bGROUND\s*(FL|FLR|FLOOR)\b"#, "Ground Fl"),
+        (#"\bLOWER\s*(FL|FLR|FLOOR|LEVEL)\b"#, "Lower Fl"),
+        (#"\bATTIC\b"#, "Attic"), (#"\bCELLAR\b"#, "Cellar"), (#"\bBASEMENT\b"#, "Basement"), (#"\bROOF\b"#, "Roof"),
+    ]
+
+    /// The floor a sheet shows, from its text. A sheet title ("FIRST FLOOR PLAN", "ATTIC PLAN") wins, then a short
+    /// standalone label ("ATTIC"), then any mention. Words inside notes ("…CONDUIT FROM RACK TO ATTIC.") only count last.
+    static func floorName(in text: String) -> String? {
+        let lines = text.uppercased().components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        func match(_ line: String) -> String? {
+            floorPatterns.first { line.range(of: $0.0, options: .regularExpression) != nil }?.1
+        }
+        // 1. Titles: the line names a plan.
+        for line in lines where line.range(of: #"\bPLAN\b"#, options: .regularExpression) != nil && line.count <= 40 {
+            if let m = match(line) { return m }
+        }
+        // 2. Short labels (title-block floor name).
+        for line in lines where line.split(separator: " ").count <= 3 {
+            if let m = match(line) { return m }
+        }
+        // 3. Floor numbers anywhere beat attic/cellar mentions in notes; then anything.
+        for (re, name) in floorPatterns where text.uppercased().range(of: re, options: .regularExpression) != nil { return name }
+        return nil
+    }
+}

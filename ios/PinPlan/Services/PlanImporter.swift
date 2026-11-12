@@ -65,14 +65,7 @@ enum PlanImporter {
     }
 
     static func guessFloorName(_ text: String, fallback: String) -> String {
-        let t = text.uppercased()
-        let patterns: [(String, String)] = [
-            (#"\bATTIC\b"#, "Attic"), (#"\bCELLAR\b"#, "Cellar"), (#"\bBASEMENT\b"#, "Basement"),
-            (#"\b(1ST|FIRST)\.?\s*(FL|FLOOR)\b"#, "1st Fl"), (#"\b(2ND|SECOND)\.?\s*(FL|FLOOR)\b"#, "2nd Fl"),
-            (#"\b(3RD|THIRD)\.?\s*(FL|FLOOR)\b"#, "3rd Fl"), (#"\bGROUND\s*(FL|FLOOR)\b"#, "Ground Fl"), (#"\bROOF\b"#, "Roof"),
-        ]
-        for (re, name) in patterns where t.range(of: re, options: .regularExpression) != nil { return name }
-        return fallback
+        PlanReader.floorName(in: text) ?? fallback
     }
 
     /// Downscale a photo/scan to the sheet size limits.
