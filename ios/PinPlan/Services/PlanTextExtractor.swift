@@ -41,9 +41,15 @@ enum PlanTextExtractor {
         for i in 0..<ns.length {
             let ch = ns.substring(with: NSRange(location: i, length: 1))
             if ch == "\n" || ch == "\r" { flush(); continue }
-            let b = page.characterBounds(at: i)
-            if ch.trimmingCharacters(in: .whitespaces).isEmpty || b.width <= 0 || b.height <= 0 {
+            if ch.trimmingCharacters(in: .whitespaces).isEmpty {
                 if !text.isEmpty { text += " " }
+                continue
+            }
+            // A one-character selection shares page.string's indexing (characterBounds(at:) can drift on
+            // synthesized spaces and return empty boxes for some glyphs).
+            let b = page.selection(for: NSRange(location: i, length: 1))?.bounds(for: page) ?? .null
+            if b.isNull || b.width <= 0 || b.height <= 0 {
+                text += ch   // keep the letter; position comes from its neighbours
                 continue
             }
             if !last.isNull {

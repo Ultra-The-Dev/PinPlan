@@ -150,7 +150,12 @@ struct PlanCanvasView: View {
             }
             .onChange(of: geo.size) { old, new in
                 // Panels opening/closing: keep the zoom and the point at the centre instead of re-fitting.
-                if fittedKey.hasPrefix(sheet.id), old.width > 0, new.width > 0 {
+                // Still showing the whole sheet (not zoomed by the user yet): re-fit to the new space instead.
+                let oldFit = old.width > 0 ? min(old.width / W, old.height / H) * 0.95 : 0
+                if oldFit > 0, abs(scale - oldFit) < oldFit * 0.01 {
+                    size = new
+                    fitIfNeeded(force: true)
+                } else if fittedKey.hasPrefix(sheet.id), old.width > 0, new.width > 0 {
                     offset = CGSize(width: offset.width + (new.width - old.width) / 2, height: offset.height + (new.height - old.height) / 2)
                     size = new
                 } else {
