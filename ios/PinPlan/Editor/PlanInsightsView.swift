@@ -7,6 +7,7 @@ struct PlanInsightsView: View {
     @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
     let sheet: Sheet
+    var inSheet = false
     let onClose: () -> Void
 
     enum Mode: String, CaseIterable { case plan = "On the plan", ai = "AI reader" }
@@ -20,7 +21,7 @@ struct PlanInsightsView: View {
     private var details: [PlanDetail] { model.planDetails[sheet.id] ?? [] }
 
     var body: some View {
-        NavigationStack {
+        PanelContainer(title: "Read \(sheet.name)", inSheet: inSheet, onClose: onClose) {
             List {
                 Section {
                     Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
@@ -30,9 +31,6 @@ struct PlanInsightsView: View {
                 }
                 if mode == .plan { planSections } else { aiSections }
             }
-            .navigationTitle("Read \(sheet.name)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button { onClose() } label: { Image(systemName: "xmark") } } }
             .task(id: sheet.id) { await loadDetails() }
         }
     }

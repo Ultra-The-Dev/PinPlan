@@ -51,3 +51,36 @@ struct LabeledField<Content: View>: View {
         LabeledContent(label) { content.multilineTextAlignment(.trailing) }
     }
 }
+
+/// Side panel (iPad, embedded in the editor) or sheet (iPhone) chrome.
+/// A NavigationStack is only used in a sheet: nesting one inside the app's navigation stack would reset it.
+struct PanelContainer<Content: View>: View {
+    let title: String
+    let inSheet: Bool
+    let onClose: () -> Void
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if inSheet {
+            NavigationStack {
+                content
+                    .navigationTitle(title)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button { onClose() } label: { Image(systemName: "xmark") } } }
+            }
+        } else {
+            VStack(spacing: 0) {
+                HStack {
+                    Text(title).font(.headline).lineLimit(1)
+                    Spacer()
+                    Button { onClose() } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
+                        .accessibilityLabel("Close")
+                }
+                .padding(.horizontal).padding(.vertical, 10)
+                Divider()
+                content
+            }
+            .background(Color(.systemGroupedBackground))
+        }
+    }
+}

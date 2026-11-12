@@ -93,11 +93,11 @@ struct PlanEditorView: View {
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(get: { !regular && showCounts }, set: { showCounts = $0 })) {
-            CountsPanel(model: model) { showCounts = false }.presentationDetents([.medium, .large])
+            CountsPanel(model: model, inSheet: true) { showCounts = false }.presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(get: { !regular && showReader }, set: { showReader = $0 })) {
             if let sheet = model.activeSheet {
-                PlanInsightsView(model: model, sheet: sheet) { showReader = false }
+                PlanInsightsView(model: model, sheet: sheet, inSheet: true) { showReader = false }
                     .presentationDetents([.medium, .large])
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
@@ -271,13 +271,14 @@ private struct HintCapsule: View {
 struct CountsPanel: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
+    var inSheet = false
     let onClose: () -> Void
     @State private var find = ""
 
     var body: some View {
         let sheet = model.activeSheet
         let floor = model.takeoff.floors.first { $0.sheetId == sheet?.id }?.bucket ?? TakeoffBucket()
-        NavigationStack {
+        PanelContainer(title: "Floor count", inSheet: inSheet, onClose: onClose) {
             List {
                 Section {
                     TextField("Find device (label or room)", text: $find)
@@ -325,9 +326,6 @@ struct CountsPanel: View {
                     if floor.unmeasuredRuns > 0 { Text("\(floor.unmeasuredRuns) run(s) have no length yet — set the scale or type LF.").font(.caption).foregroundStyle(.orange) }
                 }
             }
-            .navigationTitle("Floor count")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button { onClose() } label: { Image(systemName: "xmark") } } }
         }
     }
 }
