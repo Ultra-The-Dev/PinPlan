@@ -3,6 +3,25 @@
 Native app for installers on site: import the plan set, tap to place devices, draw LED and wire runs, get the takeoff,
 price the estimate and send it to Billdu. Works fully offline; data is stored on the device.
 
+## Get it on your iPhone / iPad (about 15 minutes, needs a Mac)
+1. On the Mac, install **Xcode** from the App Store (free) and open it once so it finishes setting up.
+2. In Terminal: `brew install xcodegen` (install Homebrew from brew.sh first if you don't have it), then
+   `git clone` this repo, check out this branch, `cd ios && xcodegen && open PinPlan.xcodeproj`.
+3. In Xcode: **Settings → Accounts → +** and sign in with your Apple ID.
+4. Click the **PinPlan** project → **Signing & Capabilities** → choose your team (your Apple ID). If Xcode says the
+   bundle identifier is taken, change it to something unique, e.g. `com.yourcompany.pinplan`.
+5. Plug in the iPhone or iPad (or pick it over Wi-Fi), select it at the top of Xcode and press **Run ▶**.
+6. First launch on the device: **Settings → General → VPN & Device Management** → trust your developer profile.
+   Turn on **Developer Mode** if iOS asks (Settings → Privacy & Security), then open PinPlan.
+
+With a free Apple ID the app must be re-installed from Xcode every 7 days. With an Apple Developer account
+($99/yr) archive once (Product → Archive → Distribute → TestFlight) and install it on every device from TestFlight.
+
+**On site:** New project → **Sheets** → *Scan paper plans* (camera finds and flattens the page) or *Digital plans*
+(PDF) → **Plan** tab: tap a device type, tap the plan to place it; draw LED runs; set the scale by drawing a line over a
+known dimension (or it's read automatically from PDFs) → **Takeoff** and **Estimate** fill in by themselves.
+Everything works offline; Billdu and the AI reader need the PinPlan server address in Settings.
+
 ## Build & run
 Requirements: a Mac with Xcode 16+ (iOS 17+ deployment target).
 
@@ -54,4 +73,8 @@ set its address (and the team access code, if used) in **Settings → PinPlan se
 else works, and you can share the estimate PDF/CSV instead.
 
 ## CI
-`.github/workflows/ios.yml` builds the app for the iOS Simulator and runs the core tests on every change under `ios/`.
+- `.github/workflows/ios.yml` builds the app for the iOS Simulator and runs the core tests on every change under `ios/`.
+- `ios-screenshots.yml` screenshots every screen on an iPhone and an iPad simulator (demo job + a generated architect sheet).
+- `ios-real-plans.yml` downloads real plans from the internet (Revit-exported architect PDFs, a Library of Congress scan of
+  a hand-drawn sheet, and a simulated phone photo of it from `scripts/make_plan_photo.py`) and runs them through the
+  app's import, scan cleanup and plan reader on both simulators.

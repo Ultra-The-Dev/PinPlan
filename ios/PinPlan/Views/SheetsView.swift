@@ -309,10 +309,11 @@ private struct ImportPanel: View {
 
     @ViewBuilder
     private var options: some View {
-        OptionButton(icon: "doc.richtext", title: "Digital plans", subtitle: "PDF from the architect — sharpest, scale read automatically", prominent: true, action: onFiles)
+        // Paper sets are the most common on site, so the camera scan comes first where there is a camera.
         if scannerAvailable {
-            OptionButton(icon: "doc.viewfinder", title: "Scan paper plans", subtitle: "Camera finds the edges, straightens and cleans each page", prominent: false, action: onScan)
+            OptionButton(icon: "doc.viewfinder", title: "Scan paper plans", subtitle: "Camera finds the edges, straightens and cleans each page", prominent: true, action: onScan)
         }
+        OptionButton(icon: "doc.richtext", title: "Digital plans", subtitle: "PDF from the architect — sharpest, scale read automatically", prominent: !scannerAvailable, action: onFiles)
         PhotosPicker(selection: $photos, maxSelectionCount: 30, matching: .images) {
             OptionLabel(icon: "photo.on.rectangle.angled", title: "Photos", subtitle: "Plan photos — edges detected, shadows removed", prominent: false)
         }
