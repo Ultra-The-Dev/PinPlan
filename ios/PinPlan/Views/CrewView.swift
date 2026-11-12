@@ -23,7 +23,7 @@ struct CrewView: View {
                             Button { if on { layers.remove(l) } else { layers.insert(l) } } label: {
                                 Text(Catalog.layerNames[l] ?? l.rawValue).font(.subheadline)
                                     .padding(.horizontal, 12).padding(.vertical, 6)
-                                    .background(on ? Color.brand.opacity(0.14) : Color(.tertiarySystemFill), in: Capsule())
+                                    .background(on ? Color.brand.opacity(0.14) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                                     .foregroundStyle(on ? Color.brand : .secondary)
                             }
                             .buttonStyle(.plain)

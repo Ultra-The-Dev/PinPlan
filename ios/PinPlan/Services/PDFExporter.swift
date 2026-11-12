@@ -180,7 +180,7 @@ enum PDFExporter {
 
     static func estimate(bundle: ProjectBundle, estimate: Estimate, business: BusinessSettings, pricing: PricingSettings) -> Data {
         let page = CGRect(x: 0, y: 0, width: 8.5 * 72, height: 11 * 72)
-        let brand = UIColor(red: 0.31, green: 0.275, blue: 0.898, alpha: 1)
+        let brand = UIColor(red: 0.761, green: 0.255, blue: 0.047, alpha: 1)
         let p = bundle.project
         let df = DateFormatter(); df.dateStyle = .medium
         let now = Date()

@@ -11,8 +11,8 @@ extension Color {
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
     }
 
-    static let brand = Color(red: 0.31, green: 0.275, blue: 0.898)
-    static let ink = Color(red: 0.043, green: 0.071, blue: 0.125)
+    static let brand = Color(red: 0.761, green: 0.255, blue: 0.047)   // safety orange #C2410C
+    static let ink = Color(red: 0.086, green: 0.086, blue: 0.086)     // charcoal #161616
 }
 
 extension UIColor {
@@ -101,7 +101,7 @@ struct Chip: View {
     var tint: Color = .secondary
     var body: some View {
         Text(text).font(.caption2.weight(.semibold)).padding(.horizontal, 7).padding(.vertical, 3)
-            .background(tint.opacity(0.12), in: Capsule()).foregroundStyle(tint)
+            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 5, style: .continuous)).foregroundStyle(tint)
     }
 }
 

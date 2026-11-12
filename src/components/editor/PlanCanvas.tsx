@@ -311,7 +311,7 @@ function MarkerShape(props: {
         props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
       }}
     >
-      {props.selected && <Circle radius={R + 7} fill="rgba(99,102,241,0.15)" stroke="#6366f1" strokeWidth={2.5} />}
+      {props.selected && <Circle radius={R + 7} fill="rgba(234,88,12,0.15)" stroke="#ea580c" strokeWidth={2.5} />}
       <Shape
         sceneFunc={(ctx, s) => {
           symbolPath(ctx, shape, R);
@@ -390,7 +390,7 @@ function ClosetShape(props: {
         props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
       }}
     >
-      {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#6366f1" strokeWidth={3} cornerRadius={8} />}
+      {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#ea580c" strokeWidth={3} cornerRadius={8} />}
       <Rect x={-s} y={-s} width={2 * s} height={2 * s} cornerRadius={6} fill={meta.color} shadowColor="#000" shadowOpacity={0.3} shadowBlur={4} />
       <Text text={meta.abbrev} width={2 * s} height={2 * s} offsetX={s} offsetY={s} align="center" verticalAlign="middle" fontStyle="bold" fontSize={13} fill="#fff" listening={false} />
       <Text text={c.name} y={s + 3} width={140} offsetX={70} align="center" fontSize={11} fontStyle="bold" fill={meta.color} listening={false} />
@@ -426,7 +426,7 @@ function RunShape(props: {
   };
   return (
     <Group>
-      {props.selected && <Line points={pts} stroke="#6366f1" strokeWidth={(width + 8) * inv} opacity={0.35} lineCap="round" lineJoin="round" listening={false} />}
+      {props.selected && <Line points={pts} stroke="#ea580c" strokeWidth={(width + 8) * inv} opacity={0.35} lineCap="round" lineJoin="round" listening={false} />}
       <Line
         points={pts}
         stroke={color}
@@ -454,7 +454,7 @@ function RunShape(props: {
             y={pts[i * 2 + 1]}
             radius={8 * inv}
             fill="#fff"
-            stroke="#6366f1"
+            stroke="#ea580c"
             strokeWidth={2 * inv}
             draggable
             onDragEnd={(e) => {

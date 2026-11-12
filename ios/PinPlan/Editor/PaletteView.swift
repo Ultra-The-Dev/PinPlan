@@ -79,7 +79,7 @@ struct PaletteView: View {
                     if let subtitle { Text(subtitle).font(.caption2).foregroundStyle(.secondary) }
                 }
                 Spacer()
-                if count > 0 { Text("\(count)").font(.caption.bold()).monospacedDigit().padding(.horizontal, 6).padding(.vertical, 2).background(Color(.tertiarySystemFill), in: Capsule()) }
+                if count > 0 { Text("\(count)").font(.caption.bold()).monospacedDigit().padding(.horizontal, 6).padding(.vertical, 2).background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 5, style: .continuous)) }
             }
             .contentShape(Rectangle())
         }

@@ -250,7 +250,7 @@ private struct SheetCard: View {
                         if let img = app.store.image(sheet.imageId) { Image(uiImage: img).resizable().scaledToFit() } else { Color(.secondarySystemBackground) }
                     }
                     .frame(height: 170).frame(maxWidth: .infinity).padding(8).background(Color(.secondarySystemBackground))
-                    Chip(text: "Floor \(index + 1)", tint: .secondary).background(.thinMaterial, in: Capsule()).padding(10)
+                    Chip(text: "Floor \(index + 1)", tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
                 }
             }
             .buttonStyle(.plain)

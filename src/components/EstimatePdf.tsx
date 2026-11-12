@@ -5,8 +5,8 @@ import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
 import type { BusinessSettings, Project } from "@/lib/types";
 
-const INK = "#0b1220";
-const BRAND = "#4f46e5";
+const INK = "#161616";
+const BRAND = "#c2410c";
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 

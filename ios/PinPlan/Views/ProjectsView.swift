@@ -171,7 +171,7 @@ private struct ProjectCard: View {
                     }
                 }
                 .frame(height: 150).frame(maxWidth: .infinity).clipped().background(Color(.secondarySystemBackground))
-                StatusChip(status: p.status).background(.thinMaterial, in: Capsule()).padding(10)
+                StatusChip(status: p.status).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.address.isEmpty ? "Untitled job" : p.address).font(.headline).lineLimit(1)
@@ -196,7 +196,7 @@ private struct ProjectCard: View {
         var body: some View {
             VStack(spacing: 1) {
                 Text(value).font(.subheadline.bold()).monospacedDigit()
-                Text(label.uppercased()).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+                Text(label).font(.caption2).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 6).background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
         }
