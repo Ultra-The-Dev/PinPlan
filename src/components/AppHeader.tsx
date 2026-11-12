@@ -6,7 +6,7 @@ import SyncBadge from "./SyncBadge";
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold tracking-tight text-slate-900" aria-label="PinPlan home">
+    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label="PinPlan home">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
       {!compact && <span className="hidden text-[15px] sm:inline">PinPlan</span>}

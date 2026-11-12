@@ -161,7 +161,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const toPx = (pts: number[]) => pts.map((v, i) => (i % 2 === 0 ? v * W : v * H));
 
   return (
-    <div ref={wrapRef} className="absolute inset-0 touch-none bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-slate-100 [background-size:20px_20px]" style={{ cursor: selectMode ? "grab" : "crosshair" }}>
+    <div ref={wrapRef} className="absolute inset-0 touch-none bg-slate-100" style={{ cursor: selectMode ? "grab" : "crosshair" }}>
       <Stage
         ref={stageRef}
         width={size.w}
@@ -248,7 +248,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
           )}
         </Layer>
       </Stage>
-      <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs text-slate-600 shadow-soft ring-1 ring-slate-200 backdrop-blur">
+      <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-md bg-white/90 px-3 py-1 text-xs text-slate-600 shadow-soft ring-1 ring-slate-200 backdrop-blur">
         <span className="font-semibold tabular-nums text-slate-900">{Math.round(scale * 100)}%</span>
         <span className="h-3 w-px bg-slate-200" />
         {sheet.pxPerFt ? <span>Scale {sheet.scaleLabel ?? `${sheet.pxPerFt.toFixed(1)} px/ft`}</span> : <span className="text-amber-700">No scale set</span>}

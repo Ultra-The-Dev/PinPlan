@@ -153,7 +153,7 @@ export default function SettingsForm() {
           </section>
 
           <div
-            className={`sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-2xl px-4 py-3 transition ${dirty ? "bg-ink/95 shadow-pop backdrop-blur" : ""}`}
+            className={`sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-xl px-4 py-3 transition ${dirty ? "bg-ink/95 shadow-pop backdrop-blur" : ""}`}
           >
             {dirty && <span className="mr-auto text-sm text-white/80">You have unsaved changes</span>}
             <button className={`btn ${dirty ? "btn-brand" : ""}`} disabled={!dirty}>

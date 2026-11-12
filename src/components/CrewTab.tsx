@@ -94,7 +94,7 @@ export default function CrewTab() {
           {Object.entries(takeoff.total.wireFt).map(([w, ft]) => (
             <div key={w} className="card p-4">
               <div className="text-xs font-medium text-slate-500">{w}</div>
-              <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
                 {ft}
                 <span className="ml-1 text-sm font-medium text-slate-400">ft</span>
               </div>
@@ -104,7 +104,7 @@ export default function CrewTab() {
         </div>
 
         <div className="card overflow-x-auto">
-          <table className="tbl">
+          <table className="tbl min-w-[640px] whitespace-nowrap">
             <thead>
               <tr>
                 <th>Floor</th>

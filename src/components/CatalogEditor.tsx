@@ -136,7 +136,7 @@ export default function CatalogEditor() {
               </button>
             </div>
             <div className="card divide-y divide-slate-100">
-              <div className="hidden grid-cols-[40px_1fr_70px_120px_120px_140px_80px] items-center gap-3 px-4 py-2 text-[11px] font-semibold tracking-wide text-slate-400 uppercase sm:grid">
+              <div className="hidden grid-cols-[40px_1fr_70px_120px_120px_140px_80px] items-center gap-3 px-4 py-2 text-[11px] font-semibold text-slate-400 sm:grid">
                 <span />
                 <span>Device</span>
                 <span>Unit</span>
@@ -213,7 +213,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         }}
       >
         <div className="flex items-center gap-3 sm:col-span-2">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
             {d.kind === "led" ? <span className="block h-2 w-9 rounded" style={{ background: d.color }} /> : <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol || "?"} size={44} />}
           </div>
           <div className="flex-1">

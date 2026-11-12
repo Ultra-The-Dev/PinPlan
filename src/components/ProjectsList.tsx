@@ -180,7 +180,7 @@ export default function ProjectsList() {
         </div>
       ) : rows.length === 0 ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
             <MapPin className="h-7 w-7" />
           </div>
           <h2 className="text-xl font-semibold">Start your first job</h2>
@@ -258,7 +258,7 @@ function Mini({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg bg-slate-50 py-1.5">
       <div className="text-sm font-semibold tabular-nums text-slate-900">{value}</div>
-      <div className="text-[10px] font-medium tracking-wide text-slate-400 uppercase">{label}</div>
+      <div className="text-[10px] font-medium text-slate-400">{label}</div>
     </div>
   );
 }

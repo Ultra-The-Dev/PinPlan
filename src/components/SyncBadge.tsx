@@ -12,7 +12,7 @@ export default function SyncBadge() {
     () => true,
     () => false,
   );
-  if (!hydrated) return <span className="inline-block h-6 w-20 rounded-full bg-slate-100" aria-hidden />;
+  if (!hydrated) return <span className="inline-block h-6 w-20 rounded-md bg-slate-100" aria-hidden />;
   let text: string;
   let cls: string;
   if (!online) {
@@ -38,7 +38,7 @@ export default function SyncBadge() {
     cls = "bg-emerald-100 text-emerald-700";
   }
   return (
-    <Link href="/settings#account" title={error ?? text} aria-label={`Sync: ${text}`} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${cls}`}>
+    <Link href="/settings#account" title={error ?? text} aria-label={`Sync: ${text}`} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${syncing ? "animate-pulse" : ""}`} />
       <span className="hidden sm:inline">{text}</span>
     </Link>

@@ -8,6 +8,7 @@ import {
   Maximize,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Redo2,
   Ruler,
   RulerDimensionLine,
@@ -72,7 +73,8 @@ export default function PlanEditor() {
   const [fitKey, setFitKey] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
   const wide = useMedia(WIDE_EDITOR);
-  const [paletteOpen, setPaletteOpen] = useState(true);
+  // Phones and narrow tablets open on the plan; the device menu slides in from the Devices button.
+  const [paletteOpen, setPaletteOpen] = useState(() => window.matchMedia(WIDE_EDITOR).matches);
   const [panel, setPanel] = useState<"counts" | "scan" | null>(() => (typeof window !== "undefined" && window.matchMedia(WIDE_EDITOR).matches ? "counts" : null));
   const [layersOpen, setLayersOpen] = useState(false);
   const [find, setFind] = useState("");
@@ -427,6 +429,15 @@ export default function PlanEditor() {
 
         <div className="relative min-h-0 flex-1">
           <PlanCanvas sheet={sheet} draft={draft} fitKey={fitKey} showLabels={showLabels} onTapImage={onTapImage} onDoubleTap={() => drawing && finishDraft()} />
+          {!wide && !paletteOpen && (
+            <button
+              className={`btn btn-brand absolute left-3 z-10 h-11 px-4 text-sm shadow-pop ${sheets.length > 1 ? "bottom-16" : "bottom-3"}`}
+              onClick={() => setPaletteOpen(true)}
+            >
+              <Plus />
+              Devices
+            </button>
+          )}
           {sheets.length > 1 && (
             <div className="absolute bottom-3 left-1/2 z-10 flex max-w-[calc(100%-200px)] -translate-x-1/2 overflow-x-auto rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
               {sheets.map((s, i) => (
@@ -442,7 +453,7 @@ export default function PlanEditor() {
             </div>
           )}
           {hint && (
-            <div className="pointer-events-none absolute top-12 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-2 truncate rounded-full bg-ink/90 px-3.5 py-1.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur">
+            <div className="pointer-events-none absolute top-12 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-2 truncate rounded-md bg-ink/90 px-3.5 py-1.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
               {hint}
             </div>

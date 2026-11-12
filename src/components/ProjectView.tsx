@@ -77,7 +77,7 @@ export default function ProjectView() {
             <div className="truncate text-xs text-slate-500">{project.clientName || "No client"}</div>
           </div>
           <select
-            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-full px-2 text-xs font-medium capitalize ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
+            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium capitalize ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
             aria-label="Project status"
@@ -106,7 +106,7 @@ export default function ProjectView() {
           ) : (
             <div className="flex h-full items-center justify-center p-6">
               <div className="card max-w-md p-8 text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                   <FileText className="h-6 w-6" />
                 </div>
                 <p className="text-lg font-semibold">No plan sheets yet</p>

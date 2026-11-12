@@ -155,7 +155,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             setDragOver(false);
             onFiles(e.dataTransfer.files);
           }}
-          className={`mb-6 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 text-center transition ${
+          className={`mb-6 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 text-center transition ${
             sheets.length ? "py-6" : "py-14"
           } ${dragOver ? "border-brand-500 bg-brand-50" : "border-slate-300 bg-white/60 hover:border-slate-400 hover:bg-white"}`}
         >

@@ -28,7 +28,7 @@ export default function Palette() {
         <span className="block truncate font-medium">{name}</span>
         {hint && <span className="block truncate text-[11px] text-slate-400">{hint}</span>}
       </span>
-      {badge ? <span className={`rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums ${active(t) ? "bg-brand-100" : "bg-slate-100 text-slate-500"}`}>{badge}</span> : null}
+      {badge ? <span className={`rounded-md px-1.5 py-px text-[11px] font-semibold tabular-nums ${active(t) ? "bg-brand-100" : "bg-slate-100 text-slate-500"}`}>{badge}</span> : null}
     </button>
   );
 

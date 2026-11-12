@@ -225,7 +225,7 @@ export default function EstimateTab() {
       </div>
 
       {unpriced.length > 0 && (
-        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
           <div className="flex flex-1 items-start gap-2.5">
             <CircleExclamationPoint className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
@@ -275,10 +275,63 @@ export default function EstimateTab() {
             <span className="ml-auto self-center text-xs text-slate-400">Applies to this project only</span>
           </div>
 
-          <div className="card overflow-x-auto">
+          {/* Phones: one stacked block per line (description, then qty × price = total), all still editable. */}
+          <div className="card divide-y divide-slate-100 sm:hidden">
+            {groups.map(({ g, lines }) => (
+              <div key={g} className="px-4 pt-3 pb-1">
+                <div className="section-title pb-1">{GROUP_NAMES[g]}</div>
+                {lines.map((l) => (
+                  <div key={l.key} className={`py-2.5 ${l.included ? "" : "text-slate-400"}`}>
+                    <div className="flex items-center gap-2">
+                      {l.optional && (
+                        <input type="checkbox" className="accent-brand-600" title="Include in total" checked={l.included} onChange={(e) => upsert(l.key, { include: e.target.checked })} />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <Cell value={l.description} onCommit={(v) => upsert(l.key, { description: v || null })} />
+                      </div>
+                      <button className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label="Remove line" onClick={() => upsert(l.key, { removed: true })}>
+                        <Trash />
+                      </button>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+                      <div className="w-16">
+                        <Cell numeric value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
+                      </div>
+                      <span>{l.unit} ×</span>
+                      <div className="w-24">
+                        <Cell numeric value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
+                      </div>
+                      <span className="ml-auto font-medium text-slate-900 tabular-nums">{formatMoney(l.total, cur)}</span>
+                    </div>
+                    {(l.optional || (l.overridden && !l.key.startsWith("custom:"))) && (
+                      <div className="mt-1 flex gap-3 text-xs">
+                        {l.optional && <span className="text-amber-700">Optional, marked ?</span>}
+                        {l.overridden && !l.key.startsWith("custom:") && (
+                          <button className="text-brand-600" onClick={() => removeOverride(l.key)}>
+                            Edited · reset
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div className="px-4 py-2.5">
+              <button
+                className="btn btn-sm btn-ghost text-brand-600"
+                onClick={() => upsert(`custom:${nanoid(8)}`, { description: "Custom item", qty: 1, unit: "each", unitPrice: 0, sort: Date.now() })}
+              >
+                <Plus /> Add custom line
+              </button>
+            </div>
+            {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the estimate.</p>}
+          </div>
+
+          <div className="card hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[680px] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/60 text-left text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
+                <tr className="border-b border-slate-200 bg-slate-50/60 text-left text-[11px] font-semibold text-slate-500">
                   <th className="w-10 px-3 py-2.5"></th>
                   <th className="px-3 py-2.5">Description</th>
                   <th className="w-24 px-3 py-2.5 text-right">Qty</th>
@@ -291,7 +344,7 @@ export default function EstimateTab() {
               {groups.map(({ g, lines }) => (
                 <tbody key={g}>
                   <tr>
-                    <td colSpan={7} className="px-3 pt-4 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+                    <td colSpan={7} className="px-3 pt-4 pb-1.5 text-[11px] font-semibold text-slate-400">
                       {GROUP_NAMES[g]}
                     </td>
                   </tr>
@@ -372,7 +425,7 @@ export default function EstimateTab() {
               </div>
               <div className="flex items-baseline justify-between border-t border-slate-200 pt-3">
                 <dt className="font-semibold">Total</dt>
-                <dd className="text-2xl font-semibold tracking-tight tabular-nums">{formatMoney(estimate.total, cur)}</dd>
+                <dd className="text-2xl font-semibold tabular-nums">{formatMoney(estimate.total, cur)}</dd>
               </div>
               {estimate.optionalTotal > 0 && (
                 <div className="flex justify-between text-xs text-slate-500">

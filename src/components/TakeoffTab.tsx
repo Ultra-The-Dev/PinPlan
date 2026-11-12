@@ -85,7 +85,7 @@ export default function TakeoffTab() {
                 if (!rows.length) return null;
                 return [
                   <tr key={cat.id}>
-                    <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide" style={{ color: cat.color }}>
+                    <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold" style={{ color: cat.color }}>
                       {cat.name}
                     </td>
                   </tr>,
@@ -102,7 +102,7 @@ export default function TakeoffTab() {
                 ];
               })}
               <tr>
-                <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-amber-700">
                   LED
                 </td>
               </tr>
@@ -142,7 +142,7 @@ export default function TakeoffTab() {
               </tr>
               {wireTypes.length > 0 && (
                 <tr>
-                  <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-blue-700">
                     Wire (home runs)
                   </td>
                 </tr>
@@ -158,7 +158,7 @@ export default function TakeoffTab() {
                 </tr>
               ))}
               <tr>
-                <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-green-700">
+                <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-green-700">
                   Infrastructure
                 </td>
               </tr>
@@ -225,7 +225,7 @@ function SummaryCard({ icon: Icon, label, value, unit, sub, color }: { icon: Rea
         </span>
         <span className="text-xs font-medium text-slate-500">{label}</span>
       </div>
-      <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+      <div className="mt-3 text-2xl font-semibold tabular-nums">
         {value}
         {unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
       </div>
