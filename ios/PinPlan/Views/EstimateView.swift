@@ -2,6 +2,7 @@ import SwiftUI
 import PinPlanCore
 
 struct EstimateView: View {
+    @Environment(\.horizontalSizeClass) private var hSize
     @Environment(AppModel.self) private var app
     let model: EditorModel
     @Environment(\.exportPlacement) private var exportPlacement
@@ -43,12 +44,13 @@ struct EstimateView: View {
                         if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
                     }
                     // One row when it fits (iPad); on a phone, Send gets its own full-width row.
-                    ViewThatFits(in: .horizontal) {
-                        HStack { csvButton(e); pdfButton(e); sendButton(e) }
+                    if hSize == .compact {
                         VStack(spacing: 10) {
                             sendButton(e)
                             HStack { csvButton(e); pdfButton(e) }
                         }
+                    } else {
+                        HStack { csvButton(e); pdfButton(e); sendButton(e) }
                     }
                     .controlSize(.large)
                 }
@@ -186,18 +188,23 @@ struct EstimateView: View {
         }
     }
 
+    private func iconLabel(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 6) { Image(systemName: icon); Text(title).lineLimit(1).minimumScaleFactor(0.8) }
+            .frame(maxWidth: .infinity)
+    }
+
     private func csvButton(_ e: Estimate) -> some View {
-        Button { csv(e) } label: { Label("CSV", systemImage: "tablecells").lineLimit(1).frame(maxWidth: .infinity) }
+        Button { csv(e) } label: { iconLabel("CSV", "tablecells") }
             .buttonStyle(.bordered)
     }
 
     private func pdfButton(_ e: Estimate) -> some View {
-        Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext").lineLimit(1).frame(maxWidth: .infinity) }
+        Button { pdf(e) } label: { iconLabel("Estimate PDF", "doc.richtext") }
             .buttonStyle(.bordered)
     }
 
     private func sendButton(_ e: Estimate) -> some View {
-        Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill").lineLimit(1).frame(maxWidth: .infinity) }
+        Button { trySend(e) } label: { iconLabel(sending ? "Sending…" : "Send to Billdu", "paperplane.fill") }
             .buttonStyle(.borderedProminent)
             .disabled(sending || e.subtotal <= 0)
     }
