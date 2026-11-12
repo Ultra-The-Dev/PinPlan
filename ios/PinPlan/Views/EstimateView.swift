@@ -42,14 +42,13 @@ struct EstimateView: View {
                         miniStat("Lines", "\(e.lines.filter(\.included).count)")
                         if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
                     }
-                    HStack {
-                        Button { csv(e) } label: { Label("CSV", systemImage: "tablecells") }
-                            .buttonStyle(.bordered)
-                        Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext").frame(maxWidth: .infinity) }
-                            .buttonStyle(.bordered)
-                        Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill").frame(maxWidth: .infinity) }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(sending || e.subtotal <= 0)
+                    // One row when it fits (iPad); on a phone, Send gets its own full-width row.
+                    ViewThatFits(in: .horizontal) {
+                        HStack { csvButton(e); pdfButton(e); sendButton(e) }
+                        VStack(spacing: 10) {
+                            sendButton(e)
+                            HStack { csvButton(e); pdfButton(e) }
+                        }
                     }
                     .controlSize(.large)
                 }
@@ -185,6 +184,22 @@ struct EstimateView: View {
             }
             sending = false
         }
+    }
+
+    private func csvButton(_ e: Estimate) -> some View {
+        Button { csv(e) } label: { Label("CSV", systemImage: "tablecells").lineLimit(1).frame(maxWidth: .infinity) }
+            .buttonStyle(.bordered)
+    }
+
+    private func pdfButton(_ e: Estimate) -> some View {
+        Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext").lineLimit(1).frame(maxWidth: .infinity) }
+            .buttonStyle(.bordered)
+    }
+
+    private func sendButton(_ e: Estimate) -> some View {
+        Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill").lineLimit(1).frame(maxWidth: .infinity) }
+            .buttonStyle(.borderedProminent)
+            .disabled(sending || e.subtotal <= 0)
     }
 
     private func csv(_ e: Estimate) {

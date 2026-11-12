@@ -50,6 +50,22 @@ enum DemoProject {
         // Two marked "?" on the plan: kept optional on the estimate.
         if let spk = t("speaker") { b.addMarker(type: spk, sheetId: first, x: 0.62, y: 0.4, room: "Kitchen", tentative: true) }
         b.autoHomeRuns(catalog: catalog, pricing: pricing)
+        // Sample installed prices on this demo job only (your catalog stays unpriced until you set real prices),
+        // so the estimate, PDF and Billdu flow show real numbers.
+        let samplePrices: [String: Double] = [
+            "cam-indoor": 325, "cam-outdoor": 450, "vs": 600, "wap": 395, "net-switch": 850, "data-drop": 145, "speaker": 285,
+            "tv": 225, "sh": 180, "keypad": 260, "led-ceiling": 28, "led-furniture": 32, "led-cabinet": 30, "led-bench": 30,
+            "led-bed": 34, "led-stair": 32, "led-spot-ceiling": 95, "led-driver": 240, "shade": 1150,
+        ]
+        let estimate = EstimateBuilder.build(takeoff: TakeoffCalculator.compute(b), catalog: catalog, pricing: pricing)
+        for line in estimate.lines where line.unitPrice == 0 {
+            let price: Double?
+            if let id = line.deviceTypeId { price = samplePrices[id] }
+            else if line.key.hasPrefix("wire:") { price = 0.65 }
+            else if line.key.hasPrefix("closet:") { price = 1200 }
+            else { price = nil }
+            if let price { b.upsertEstimateLine(key: line.key) { $0.unitPrice = price } }
+        }
         return b
     }
 
