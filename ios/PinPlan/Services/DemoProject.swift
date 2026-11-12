@@ -20,20 +20,9 @@ enum DemoProject {
         }
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("pinplan-demo.pdf")
         try? pdf.write(to: tmp)
-        let pdfId = store.savePDF(from: tmp)
-        let pages = (try? PlanImporter.renderPDF(at: pdfId.map { store.pdfURL($0) } ?? tmp)) ?? []
-        for p in pages {
-            guard let id = store.saveImage(p.image, quality: 0.92) else { continue }
-            let px = p.image.pixelSize
-            var sheet = Sheet(projectId: b.project.id, name: PlanImporter.guessFloorName(p.text, fallback: floors[p.pageNumber - 1]),
-                              pageNumber: p.pageNumber, order: p.pageNumber - 1, imageId: id, width: px.width, height: px.height, pxPerInch: p.pxPerInch)
-            sheet.sourcePdfId = pdfId
-            sheet.sourcePage = p.pageNumber - 1
-            if let found = Geometry.findScale(in: p.text) {
-                sheet.pxPerFt = found.inchesPerFoot * p.pxPerInch
-                sheet.scaleLabel = found.label
-            }
-            b.sheets.append(sheet)
+        if let r = try? PlanImporter.sheets(fromPDF: tmp, store: store, projectId: b.project.id, startOrder: 0,
+                                            fallbackName: { floors[min($0, floors.count - 1)] }) {
+            b.sheets = r.sheets
         }
         guard b.sheets.count == 4 else { return b }
         func t(_ id: String) -> DeviceType? { catalog.first { $0.id == id } }

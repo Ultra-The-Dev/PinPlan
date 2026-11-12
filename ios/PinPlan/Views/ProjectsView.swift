@@ -89,6 +89,10 @@ struct ProjectsView: View {
                     if let demo = app.projects.first(where: { $0.project.address.hasPrefix("Demo") }) { path.append(demo.project.id) }
                     else { path.append(await app.createDemo().project.id) }
                 }
+                if args.contains("--arch-sample"), path.isEmpty {
+                    if let s = app.projects.first(where: { $0.project.address.hasPrefix("Sample — architect") }) { path.append(s.project.id) }
+                    else { path.append(await app.createArchitectSample().project.id) }
+                }
                 if args.contains("--settings") { showSettings = true }
                 if args.contains("--catalog") { showCatalog = true }
             }

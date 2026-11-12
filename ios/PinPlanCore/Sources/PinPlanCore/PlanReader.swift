@@ -43,6 +43,7 @@ public enum PlanReader {
         "WINE", "STORAGE", "MECH", "MECHANICAL", "UTILITY", "PRIMARY", "MASTER", "GUEST", "POWDER", "DEN", "LIBRARY", "PLAYROOM",
         "NURSERY", "ATTIC", "PORCH", "DECK", "PATIO", "TERRACE", "BALCONY", "LOFT", "BONUS", "GREAT", "SUITE", "WIC", "W.I.C.",
         "EQUIPMENT", "AV", "LOUNGE", "BAR", "SPA", "SAUNA", "POOL", "BREAKFAST", "NOOK", "ELEV", "ELEVATOR", "CELLAR", "BASEMENT",
+        "ROOM", "MUD", "BDRM", "BEDRM", "REC", "RECREATION", "CRAFT", "LAV", "WC", "VESTIBULE", "GALLERY", "SITTING", "FLEX",
     ]
 
     /// Every feet-inches dimension in a string (12'-6", 12' 6", 3'-4 1/2", 10'), as (matched text, feet).
@@ -89,6 +90,18 @@ public enum PlanReader {
             }
             if !isRoom {
                 for (dt, ft) in dims { out.append(PlanDetail(kind: .dimension, text: dt, x: item.x, y: item.y, feet: ft)) }
+            }
+        }
+        // Room size printed on the line under the name ("GREAT ROOM" / 18'-6" x 22'-0").
+        for i in out.indices where out[i].kind == .room && !out[i].text.contains(" · ") {
+            let r = out[i]
+            let below = items.filter { it in
+                let dy = it.y - r.y, dx = abs(it.x - r.x)
+                return dy > 0 && dy < 0.035 && dx < 0.06 && dimensions(in: it.text).count >= 2
+            }.min { $0.y < $1.y }
+            if let b = below {
+                let d = dimensions(in: b.text)
+                out[i].text = "\(r.text) · \(d[0].0) × \(d[1].0)"
             }
         }
         return out

@@ -35,6 +35,35 @@ enum PlanImporter {
     }
 
     /// Guess the floor from the title block text, e.g. "ATTIC", "1ST. FL", "CELLAR".
+    /// Imports every page of a PDF as sheets: keeps the vector original (for zoom detail and the text layer),
+    /// renders each page, names the floor and reads the printed scale from the page text.
+    static func sheets(fromPDF url: URL, store: Store, projectId: String, startOrder: Int,
+                       fallbackName: (Int) -> String, progress: @escaping (Int, Int) -> Void = { _, _ in }) throws -> (sheets: [Sheet], scaled: Int) {
+        let pdfId = store.savePDF(from: url)
+        let source = pdfId.map { store.pdfURL($0) } ?? url
+        let pages = try renderPDF(at: source, progress: progress)
+        var out: [Sheet] = []
+        var scaled = 0
+        var order = startOrder
+        for p in pages {
+            guard let imageId = store.saveImage(p.image, quality: 0.92) else { continue }
+            let px = p.image.pixelSize
+            var sheet = Sheet(projectId: projectId, name: guessFloorName(p.text, fallback: fallbackName(order)),
+                              pageNumber: p.pageNumber, order: order, imageId: imageId, width: px.width, height: px.height, pxPerInch: p.pxPerInch)
+            sheet.sourcePdfId = pdfId
+            sheet.sourcePage = p.pageNumber - 1
+            // Printed scale on the sheet → exact scale (paper size is known for PDFs).
+            if let found = Geometry.findScale(in: p.text) {
+                sheet.pxPerFt = found.inchesPerFoot * p.pxPerInch
+                sheet.scaleLabel = found.label
+                scaled += 1
+            }
+            out.append(sheet)
+            order += 1
+        }
+        return (out, scaled)
+    }
+
     static func guessFloorName(_ text: String, fallback: String) -> String {
         let t = text.uppercased()
         let patterns: [(String, String)] = [

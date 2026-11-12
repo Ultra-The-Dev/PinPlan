@@ -67,3 +67,25 @@ final class WrappedLineTests: XCTestCase {
         XCTAssertEqual(out.count, 3)
     }
 }
+
+final class RoomSizeTests: XCTestCase {
+    func testAttachesSizeFromLineBelow() {
+        let d = PlanReader.classify([
+            PlanTextItem(text: "GREAT ROOM", x: 0.30, y: 0.40),
+            PlanTextItem(text: "18'-6\" x 22'-0\"", x: 0.30, y: 0.42),
+            PlanTextItem(text: "MUD ROOM", x: 0.70, y: 0.40),
+        ])
+        let rooms = d.filter { $0.kind == .room }.map(\.text)
+        XCTAssertEqual(rooms, ["Great Room · 18'-6\" × 22'-0\"", "Mud Room"])
+        // The size line still lists as dimensions.
+        XCTAssertEqual(d.filter { $0.kind == .dimension }.count, 2)
+    }
+
+    func testDoesNotStealFarAwaySize() {
+        let d = PlanReader.classify([
+            PlanTextItem(text: "OFFICE", x: 0.2, y: 0.2),
+            PlanTextItem(text: "12'-0\" x 10'-0\"", x: 0.6, y: 0.21),
+        ])
+        XCTAssertEqual(d.first { $0.kind == .room }?.text, "Office")
+    }
+}

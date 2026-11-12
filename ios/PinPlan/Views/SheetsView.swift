@@ -110,28 +110,13 @@ struct SheetsView: View {
                 var newSheets: [Sheet] = []
                 var scaled = 0
                 for url in urls {
-                    // Keep the original vector PDF for crisp zoom detail; render from our copy.
-                    let pdfId = store.savePDF(from: url)
-                    let source = pdfId.map { store.pdfURL($0) } ?? url
-                    let pages = try PlanImporter.renderPDF(at: source) { done, total in
+                    let r = try PlanImporter.sheets(fromPDF: url, store: store, projectId: projectId, startOrder: order,
+                                                    fallbackName: { "Sheet \($0 + 1)" }) { done, total in
                         Task { @MainActor in busy = "Rendering page \(done) of \(total)…" }
                     }
-                    for p in pages {
-                        guard let imageId = store.saveImage(p.image, quality: 0.92) else { continue }
-                        let px = p.image.pixelSize
-                        var sheet = Sheet(projectId: projectId, name: PlanImporter.guessFloorName(p.text, fallback: "Sheet \(order + 1)"),
-                                          pageNumber: p.pageNumber, order: order, imageId: imageId, width: px.width, height: px.height, pxPerInch: p.pxPerInch)
-                        sheet.sourcePdfId = pdfId
-                        sheet.sourcePage = p.pageNumber - 1
-                        // Printed scale on the sheet → exact scale (paper size is known for PDFs).
-                        if let found = Geometry.findScale(in: p.text) {
-                            sheet.pxPerFt = found.inchesPerFoot * p.pxPerInch
-                            sheet.scaleLabel = found.label
-                            scaled += 1
-                        }
-                        newSheets.append(sheet)
-                        order += 1
-                    }
+                    newSheets += r.sheets
+                    scaled += r.scaled
+                    order += r.sheets.count
                 }
                 let added = newSheets
                 let scaledCount = scaled
