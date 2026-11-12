@@ -101,3 +101,51 @@ public enum PlanReader {
         return abs(m - printedFeet) / printedFeet
     }
 }
+
+/// A run of text on a page with its box (page units, y grows downward), before it becomes a `PlanTextItem`.
+public struct TextSegment: Sendable, Hashable {
+    public var text: String
+    public var minX: Double, minY: Double, maxX: Double, maxY: Double
+    /// Height of one line (stays the single-line height after wrapped lines are joined).
+    public var lineHeight: Double
+    public init(text: String, minX: Double, minY: Double, maxX: Double, maxY: Double) {
+        self.text = text; self.minX = minX; self.minY = minY; self.maxX = maxX; self.maxY = maxY
+        self.lineHeight = maxY - minY
+    }
+    public var height: Double { maxY - minY }
+}
+
+public extension PlanReader {
+    /// Joins wrapped lines of the same note: the next line starts at the same left edge, sits right below,
+    /// has the same text size, and the line above is long or has an unclosed bracket.
+    /// Short stacked labels (a room name over its size) are left separate.
+    static func joinWrappedLines(_ segments: [TextSegment]) -> [TextSegment] {
+        var out: [TextSegment] = []
+        for s in segments {
+            if let i = out.indices.last(where: { continues(out[$0], with: s) }) {
+                var p = out[i]
+                p.text += " " + s.text
+                p.minX = min(p.minX, s.minX); p.minY = min(p.minY, s.minY)
+                p.maxX = max(p.maxX, s.maxX); p.maxY = max(p.maxY, s.maxY)
+                out[i] = p
+            } else {
+                out.append(s)
+            }
+        }
+        return out
+    }
+
+    private static func continues(_ p: TextSegment, with s: TextSegment) -> Bool {
+        let lineH = s.height
+        guard lineH > 0 else { return false }
+        // The last line of p (its bottom), compared with s.
+        let lastLineTop = p.maxY - p.lineHeight
+        let sameSize = abs(p.lineHeight - lineH) < 0.25 * lineH
+        let alignedLeft = abs(p.minX - s.minX) <= 0.6 * lineH
+        let gap = s.minY - p.maxY
+        let below = gap >= -0.3 * lineH && gap <= 0.8 * lineH && s.minY > lastLineTop
+        let unclosed = p.text.filter { $0 == "(" }.count > p.text.filter { $0 == ")" }.count
+        let longLine = p.text.count >= 20 && !p.text.hasSuffix(".") && !p.text.hasSuffix(":")
+        return sameSize && alignedLeft && below && (unclosed || longLine)
+    }
+}

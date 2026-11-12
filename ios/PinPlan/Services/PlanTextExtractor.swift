@@ -24,17 +24,16 @@ enum PlanTextExtractor {
         let ns = string as NSString
         let turns = ((page.rotation % 360) + 360) % 360 / 90 + extraRotation
 
-        var out: [PlanTextItem] = []
         var text = ""
         var rect = CGRect.null
         var last = CGRect.null
+        var segments: [TextSegment] = []
         func flush() {
-            let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let t = text.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
             if !t.isEmpty, !rect.isNull {
-                var x = Double((rect.midX - box.minX) / box.width)
-                var y = Double(1 - (rect.midY - box.minY) / box.height)
-                for _ in 0..<(turns % 4) { (x, y) = (1 - y, x) }   // quarter turns clockwise
-                out.append(PlanTextItem(text: t, x: x, y: y))
+                // Page space has y up; segments use y down so "below" reads naturally.
+                segments.append(TextSegment(text: t, minX: rect.minX, minY: box.maxY - rect.maxY,
+                                            maxX: rect.maxX, maxY: box.maxY - rect.minY))
             }
             text = ""; rect = .null; last = .null
         }
@@ -67,8 +66,12 @@ enum PlanTextExtractor {
             last = b
         }
         flush()
-        // Collapse runs of spaces left by wide letter spacing.
-        return out.map { PlanTextItem(text: $0.text.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " "), x: $0.x, y: $0.y) }
+        return PlanReader.joinWrappedLines(segments).map { seg in
+            var x = ((seg.minX + seg.maxX) / 2 - Double(box.minX)) / Double(box.width)
+            var y = ((seg.minY + seg.maxY) / 2) / Double(box.height)   // segment y is already measured down from the top
+            for _ in 0..<(turns % 4) { (x, y) = (1 - y, x) }   // quarter turns clockwise
+            return PlanTextItem(text: seg.text, x: x, y: y)
+        }
     }
 
     /// On-device text recognition for scans and photos.

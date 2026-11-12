@@ -32,3 +32,38 @@ final class PlanReaderTests: XCTestCase {
         XCTAssertNil(PlanReader.scaleError(printedFeet: 12.5, measuredFeet: nil))
     }
 }
+
+final class WrappedLineTests: XCTestCase {
+    func seg(_ t: String, _ x: Double, _ y: Double, w: Double = 200, h: Double = 10) -> TextSegment {
+        TextSegment(text: t, minX: x, minY: y, maxX: x + w, maxY: y + h)
+    }
+
+    func testJoinsWrappedTitleBlockLine() {
+        let out = PlanReader.joinWrappedLines([
+            seg("PINPLAN DEMO", 100, 100, w: 80), seg("LED BACKLIT STRIPS (AMBIENT", 100, 112), seg("LIGHT)", 100, 124, w: 40),
+        ])
+        XCTAssertEqual(out.map(\.text), ["PINPLAN DEMO", "LED BACKLIT STRIPS (AMBIENT LIGHT)"])
+    }
+
+    func testJoinsThreeLineNote() {
+        let out = PlanReader.joinWrappedLines([
+            seg("Provide blocking for all TV mounts and", 0, 0), seg("speaker brackets before drywall; coordinate", 0, 12),
+            seg("with GC.", 0, 24, w: 50),
+        ])
+        XCTAssertEqual(out.count, 1)
+        XCTAssertTrue(out[0].text.hasSuffix("coordinate with GC."))
+    }
+
+    func testKeepsStackedRoomLabelsSeparate() {
+        let out = PlanReader.joinWrappedLines([seg("BEDROOM 2", 0, 0, w: 60), seg("12'-0\" x 14'-6\"", 0, 12, w: 70)])
+        XCTAssertEqual(out.count, 2)
+    }
+
+    func testKeepsDistantOrDifferentSizeLinesSeparate() {
+        let out = PlanReader.joinWrappedLines([
+            seg("GENERAL NOTES FOR LOW VOLTAGE WORK", 0, 0, h: 20), seg("All cable home-runs to the AV rack", 0, 22),
+            seg("Separate note elsewhere on the page", 0, 200),
+        ])
+        XCTAssertEqual(out.count, 3)
+    }
+}
