@@ -1,8 +1,11 @@
 import SwiftUI
+import TipKit
 
 @main
 struct PinPlanApp: App {
     @State private var app = AppModel()
+
+    init() { TipsSetup.configure() }
 
     var body: some Scene {
         WindowGroup {

@@ -37,7 +37,7 @@ jobs:
                           "settings:--settings" "catalog:--catalog"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               xcrun simctl terminate "$UDID" com.pinplan.app || true
-              xcrun simctl launch "$UDID" com.pinplan.app $ARGS
+              xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
               sleep 9
               xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done

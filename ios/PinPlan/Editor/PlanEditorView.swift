@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import PinPlanCore
 
 struct PlanEditorView: View {
@@ -24,6 +25,10 @@ struct PlanEditorView: View {
                 }
                 VStack(spacing: 8) {
                     if let hint { HintCapsule(text: hint) }
+                    if model.tool == .select {
+                        if model.activeSheet?.pxPerFt == nil { TipView(ScaleTip()).frame(maxWidth: 420).padding(.horizontal) }
+                        else if !model.bundle.liveMarkers.isEmpty { TipView(LongPressTip()).frame(maxWidth: 420).padding(.horizontal) }
+                    }
                     if model.tool.isDrawing && model.tool != .measure { drawingBar }
                     Spacer()
                     if !model.tool.isDrawing { QuickDock(model: model) }

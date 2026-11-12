@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import PinPlanCore
 
 /// Device menu grouped by category, with search and the "room for new devices" field.
@@ -10,6 +11,7 @@ struct PaletteView: View {
 
     var body: some View {
         List {
+            TipView(PlaceDeviceTip()).listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             Section {
                 Label {
                     TextField("Room for new devices", text: $model.room)

@@ -25,6 +25,34 @@ struct EstimateView: View {
         let cur = pricing.currency
         let unpriced = e.lines.filter { $0.included && $0.unitPrice == 0 && $0.qty > 0 }
         List {
+            Section {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Estimate total").font(.subheadline).foregroundStyle(.secondary)
+                            Text(Money.format(e.total, currency: cur)).font(.system(size: 38, weight: .bold, design: .rounded)).monospacedDigit()
+                                .contentTransition(.numericText())
+                        }
+                        Spacer()
+                        StatusChip(status: model.bundle.project.status)
+                    }
+                    HStack(spacing: 18) {
+                        miniStat("Subtotal", Money.format(e.subtotal, currency: cur))
+                        miniStat("Tax", Money.format(e.tax, currency: cur))
+                        miniStat("Lines", "\(e.lines.filter(\.included).count)")
+                        if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
+                    }
+                    HStack {
+                        Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext").frame(maxWidth: .infinity) }
+                            .buttonStyle(.bordered)
+                        Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill").frame(maxWidth: .infinity) }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(sending || e.subtotal <= 0)
+                    }
+                    .controlSize(.large)
+                }
+                .padding(.vertical, 6)
+            }
             if !unpriced.isEmpty {
                 Section {
                     Label("\(unpriced.count) line\(unpriced.count == 1 ? " has" : "s have") no price yet. Set prices in the Catalog and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
@@ -111,6 +139,13 @@ struct EstimateView: View {
                 Button("Create a new one") { send(e, existing: nil) }
             }
         } message: { Text("This project already has a Billdu \(confirmUpdate?.doc.type ?? "document"). Update it with the current lines, or create a new one?") }
+    }
+
+    private func miniStat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label.uppercased()).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+            Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
+        }
     }
 
     private func numberField(_ v: Double, commit: @escaping (Double) -> Void) -> some View {
