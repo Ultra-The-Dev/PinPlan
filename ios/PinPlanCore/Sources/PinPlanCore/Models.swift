@@ -112,6 +112,15 @@ public struct DeviceType: Codable, Hashable, Identifiable, Sendable {
     public var sort: Int
     public var archived: Bool?
     public var updatedAt: String
+
+    public init(id: String, name: String, category: Category, symbol: String, abbrev: String, shape: MarkerShape, color: String,
+                unit: MeasureUnit, unitPrice: Double, laborPrice: Double, defaultWire: String, defaultMount: Mount, kind: DeviceKind,
+                billduProductId: Int?, sort: Int, archived: Bool?, updatedAt: String) {
+        self.id = id; self.name = name; self.category = category; self.symbol = symbol; self.abbrev = abbrev; self.shape = shape
+        self.color = color; self.unit = unit; self.unitPrice = unitPrice; self.laborPrice = laborPrice; self.defaultWire = defaultWire
+        self.defaultMount = defaultMount; self.kind = kind; self.billduProductId = billduProductId; self.sort = sort
+        self.archived = archived; self.updatedAt = updatedAt
+    }
 }
 
 public struct Marker: Codable, Hashable, Identifiable, Sendable {
