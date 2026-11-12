@@ -5,3 +5,4 @@ DerivedData/
 build.log
 *.xcuserstate
 xcuserdata/
+PinPlan/Info.plist

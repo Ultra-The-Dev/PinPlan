@@ -108,3 +108,29 @@ export function estimateHomeRunFt(
 export function homeRunPoints(marker: Pick<Marker, "x" | "y">, closet: Pick<Closet, "x" | "y">): number[] {
   return [marker.x, marker.y, closet.x, marker.y, closet.x, closet.y];
 }
+
+/**
+ * Find a printed architectural scale in a page's text, e.g. `SCALE: 1/4" = 1'-0"`, `1/8"=1'`, `1 1/2" = 1'-0"`, `1:48`.
+ * Prefers the scale that follows the word SCALE. Returns null for "NTS" sheets or when none is found.
+ */
+export function findScale(text: string): { label: string; inchesPerFoot: number } | null {
+  const t = text.replace(/[’′]/g, "'").replace(/[”″]/g, '"');
+  if (/SCALE\s*:?\s*(N\.?T\.?S|NOT)/i.test(t)) return null;
+  const candidates: { label: string; inchesPerFoot: number; index: number }[] = [];
+  const re = /(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)\s*(?:"|IN\b|INCH)\s*=\s*(\d+)\s*'\s*(?:-?\s*(\d+)\s*"?)?/gi;
+  for (const m of t.matchAll(re)) {
+    const paper = parseInchesFraction(m[1]);
+    const real = parseInt(m[2], 10) + (m[3] ? parseInt(m[3], 10) / 12 : 0);
+    if (paper && real > 0) candidates.push({ label: m[0].trim(), inchesPerFoot: paper / real, index: m.index ?? 0 });
+  }
+  if (!candidates.length) {
+    for (const m of t.matchAll(/\b1\s*:\s*(\d{2,4})\b/g)) {
+      const d = parseInt(m[1], 10);
+      if (d >= 12 && d <= 1200) candidates.push({ label: m[0], inchesPerFoot: 12 / d, index: m.index ?? 0 });
+    }
+  }
+  if (!candidates.length) return null;
+  const at = t.search(/SCALE/i);
+  const best = (at >= 0 && candidates.find((c) => c.index > at)) || candidates[0];
+  return { label: best.label, inchesPerFoot: best.inchesPerFoot };
+}

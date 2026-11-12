@@ -122,3 +122,32 @@ final class BackupTests: XCTestCase {
         XCTAssertThrowsError(try BackupFile.decode(Data("{\"hello\":1}".utf8)))
     }
 }
+
+final class ScaleDetectionTests: XCTestCase {
+    func testFindsPrintedScales() {
+        XCTAssertEqual(Geometry.findScale(in: "A-101 SCALE: 1/4\" = 1'-0\" FLOOR PLAN")!.inchesPerFoot, 0.25, accuracy: 1e-9)
+        XCTAssertEqual(Geometry.findScale(in: "ATTIC  SCALE 1/8\"=1'")!.inchesPerFoot, 0.125, accuracy: 1e-9)
+        XCTAssertEqual(Geometry.findScale(in: "Scale: 3/16\" = 1'-0\"")!.inchesPerFoot, 0.1875, accuracy: 1e-9)
+        XCTAssertEqual(Geometry.findScale(in: "SCALE 1 1/2\" = 1'-0\" DETAIL")!.inchesPerFoot, 1.5, accuracy: 1e-9)
+        XCTAssertEqual(Geometry.findScale(in: "PLAN 1:48")!.inchesPerFoot, 0.25, accuracy: 1e-9)
+        XCTAssertEqual(Geometry.findScale(in: "SCALE 1/4 IN = 1'-0\"")!.inchesPerFoot, 0.25, accuracy: 1e-9)
+    }
+
+    func testPrefersTheScaleAfterTheWordScale() {
+        let text = "DETAIL 3/4\" = 1'-0\" (see sheet A5)  ... SCALE: 1/4\" = 1'-0\""
+        XCTAssertEqual(Geometry.findScale(in: text)!.inchesPerFoot, 0.25, accuracy: 1e-9)
+    }
+
+    func testIgnoresNotToScaleAndPlainText() {
+        XCTAssertNil(Geometry.findScale(in: "SCALE: NTS"))
+        XCTAssertNil(Geometry.findScale(in: "LED BACKLIT STRIPS 24 LF S21,22,23"))
+    }
+
+    func testRotationIsTrackedForTheSourcePDF() {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        b.sheets = [Sheet(id: "s", projectId: "p", name: "A", pageNumber: 1, order: 0, imageId: "i", width: 10, height: 20)]
+        b.rotateSheetClockwise("s", newImageId: "j", width: 20, height: 10)
+        b.rotateSheetClockwise("s", newImageId: "k", width: 10, height: 20)
+        XCTAssertEqual(b.sheets[0].sourceRotation, 2)
+    }
+}

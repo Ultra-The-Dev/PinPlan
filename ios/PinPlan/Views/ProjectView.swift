@@ -63,6 +63,7 @@ struct ProjectView: View {
                 let m = EditorModel(bundle: bundle, app: app)
                 model = m
                 if m.sheets.isEmpty { tab = .sheets }
+                if app.pendingImport?.projectId == bundle.project.id { tab = .sheets }
                 // Screenshot/automation hook: `--tab estimate` etc.
                 let args = ProcessInfo.processInfo.arguments
                 if let i = args.firstIndex(of: "--tab"), args.indices.contains(i + 1), let t = ProjectTab(rawValue: args[i + 1]) { tab = t }

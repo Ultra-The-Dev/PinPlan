@@ -21,6 +21,22 @@ targets:
       - path: PinPlan
     dependencies:
       - package: PinPlanCore
+    info:
+      path: PinPlan/Info.plist
+      properties:
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF plan
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf]
+          - CFBundleTypeName: Plan image
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.jpeg, public.png, public.heic, public.tiff, public.image]
+          - CFBundleTypeName: PinPlan backup
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.json]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pinplan.app

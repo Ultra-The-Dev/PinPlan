@@ -59,6 +59,41 @@ public enum Geometry {
         return paper / real
     }
 
+    /// Find a printed architectural scale in a page's text, e.g. `SCALE: 1/4" = 1'-0"`, `1/8"=1'`, `3/16" = 1'-0"`, `1:48`.
+    /// Returns the matched label and paper inches per real foot. "NTS"/"not to scale" sheets return nil.
+    public static func findScale(in text: String) -> (label: String, inchesPerFoot: Double)? {
+        let t = text.replacingOccurrences(of: "’", with: "'").replacingOccurrences(of: "”", with: "\"").replacingOccurrences(of: "″", with: "\"")
+        if t.range(of: #"\b(N\.?T\.?S\.?|NOT\s+TO\s+SCALE)\b"#, options: [.regularExpression, .caseInsensitive]) != nil,
+           t.range(of: #"SCALE\s*:?\s*(N\.?T\.?S|NOT)"#, options: [.regularExpression, .caseInsensitive]) != nil { return nil }
+        let patterns = [
+            #"(\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?)\s*(?:"|IN\b|INCH)\s*=\s*(\d+)\s*'\s*(?:-?\s*(\d+)\s*"?)?"#,
+            #"\b1\s*:\s*(\d{2,4})\b"#,
+        ]
+        var candidates: [(String, Double)] = []
+        if let re = try? NSRegularExpression(pattern: patterns[0], options: [.caseInsensitive]) {
+            for m in re.matches(in: t, range: NSRange(t.startIndex..., in: t)) {
+                guard let r0 = Range(m.range, in: t), let r1 = Range(m.range(at: 1), in: t), let r2 = Range(m.range(at: 2), in: t),
+                      let paper = parseInchesFraction(String(t[r1])), let ft = Double(t[r2]) else { continue }
+                let inch = Range(m.range(at: 3), in: t).flatMap { Double(t[$0]) } ?? 0
+                let real = ft + inch / 12
+                guard real > 0, paper > 0 else { continue }
+                candidates.append((String(t[r0]).trimmingCharacters(in: .whitespaces), paper / real))
+            }
+        }
+        if candidates.isEmpty, let re = try? NSRegularExpression(pattern: patterns[1]) {
+            for m in re.matches(in: t, range: NSRange(t.startIndex..., in: t)) {
+                guard let r0 = Range(m.range, in: t), let r1 = Range(m.range(at: 1), in: t), let d = Double(t[r1]), d >= 12, d <= 1200 else { continue }
+                candidates.append((String(t[r0]), 12 / d))
+            }
+        }
+        // Prefer a scale that appears after the word SCALE; otherwise the first one found.
+        if let scaleWord = t.range(of: "SCALE", options: .caseInsensitive) {
+            let after = String(t[scaleWord.upperBound...])
+            if let c = candidates.first(where: { after.contains($0.0) }) { return (c.0, c.1) }
+        }
+        return candidates.first.map { ($0.0, $0.1) }
+    }
+
     private static func parseInchesFraction(_ raw: String) -> Double? {
         let s = raw.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "in", with: "").trimmingCharacters(in: .whitespaces)
         let parts = s.split(separator: " ")

@@ -23,6 +23,7 @@ final class Store: @unchecked Sendable {
     let root: URL
     private let projectsDir: URL
     private let imagesDir: URL
+    private let pdfsDir: URL
     private let encoder: JSONEncoder = { let e = JSONEncoder(); e.outputFormatting = [.sortedKeys]; return e }()
     private let queue = DispatchQueue(label: "pinplan.store")
     private let imageCache = NSCache<NSString, UIImage>()
@@ -32,7 +33,8 @@ final class Store: @unchecked Sendable {
         self.root = docs
         projectsDir = docs.appendingPathComponent("projects", isDirectory: true)
         imagesDir = docs.appendingPathComponent("images", isDirectory: true)
-        for d in [docs, projectsDir, imagesDir] { try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        pdfsDir = docs.appendingPathComponent("pdfs", isDirectory: true)
+        for d in [docs, projectsDir, imagesDir, pdfsDir] { try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
         imageCache.totalCostLimit = 300 * 1024 * 1024
     }
 
@@ -86,6 +88,19 @@ final class Store: @unchecked Sendable {
     }
 
     func imageData(_ id: String) -> Data? { try? Data(contentsOf: imagesDir.appendingPathComponent("\(id).jpg")) }
+
+    // MARK: source PDFs (kept for crisp vector detail when zooming)
+
+    func savePDF(from url: URL) -> String? {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        let id = newId()
+        do { try FileManager.default.copyItem(at: url, to: pdfURL(id)) } catch { return nil }
+        return id
+    }
+
+    func pdfURL(_ id: String) -> URL { pdfsDir.appendingPathComponent("\(id).pdf") }
+    func hasPDF(_ id: String) -> Bool { FileManager.default.fileExists(atPath: pdfURL(id).path) }
 
     // MARK: catalog & settings
 

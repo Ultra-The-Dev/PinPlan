@@ -16,27 +16,19 @@ enum PlanImporter {
         let text: String
     }
 
+    /// Render every page from its vector content (crop box + page rotation honoured) at up to ~16 MP.
     static func renderPDF(at url: URL, progress: @escaping (Int, Int) -> Void = { _, _ in }) throws -> [RenderedPage] {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
-        guard let doc = PDFDocument(url: url) else { throw ImportError.unreadablePDF }
+        guard let doc = PDFDocument(url: url), let cg = doc.documentRef else { throw ImportError.unreadablePDF }
+        if doc.isLocked { throw ImportError.locked }
         var pages: [RenderedPage] = []
         for i in 0..<doc.pageCount {
-            guard let page = doc.page(at: i) else { continue }
-            let box = page.bounds(for: .mediaBox)
-            let scale = min(maxSide / max(box.width, box.height), sqrt(maxPixels / (box.width * box.height)), 6)
-            let size = CGSize(width: floor(box.width * scale), height: floor(box.height * scale))
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            format.opaque = true
-            let img = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
-                UIColor.white.setFill()
-                ctx.fill(CGRect(origin: .zero, size: size))
-                ctx.cgContext.translateBy(x: 0, y: size.height)
-                ctx.cgContext.scaleBy(x: scale, y: -scale)
-                page.draw(with: .mediaBox, to: ctx.cgContext)
-            }
-            pages.append(RenderedPage(image: img, pageNumber: i + 1, pxPerInch: 72 * Double(scale), text: page.string ?? ""))
+            guard let page = cg.page(at: i + 1) else { continue }
+            let o = PDFRender.orientedSize(page)
+            let scale = min(maxSide / max(o.width, o.height), sqrt(maxPixels / (o.width * o.height)), 8)
+            let img = autoreleasepool { PDFRender.render(page, pixelSize: CGSize(width: floor(o.width * scale), height: floor(o.height * scale))) }
+            pages.append(RenderedPage(image: img, pageNumber: i + 1, pxPerInch: 72 * Double(scale), text: doc.page(at: i)?.string ?? ""))
             progress(i + 1, doc.pageCount)
         }
         return pages
@@ -77,8 +69,13 @@ enum PlanImporter {
     }
 
     enum ImportError: LocalizedError {
-        case unreadablePDF
-        var errorDescription: String? { "That PDF couldn't be opened." }
+        case unreadablePDF, locked
+        var errorDescription: String? {
+            switch self {
+            case .unreadablePDF: return "That PDF couldn't be opened."
+            case .locked: return "That PDF is password-protected. Unlock it and try again."
+            }
+        }
     }
 }
 

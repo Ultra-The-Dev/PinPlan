@@ -14,6 +14,12 @@ struct PlanCanvasView: View {
     @State private var size: CGSize = .zero
     @State private var fittedKey = ""
     @State private var appliedFocus = 0
+    @State private var detail: DetailTile?
+    @State private var detailTask: Task<Void, Never>?
+    @Environment(\.displayScale) private var displayScale
+
+    /// A crisp re-render of the visible part of the sheet from its vector PDF.
+    struct DetailTile { let image: UIImage; let rect: CGRect; let sheetId: String }
 
     /// Symbols stay readable: full size when zoomed in, a little smaller at overview zoom.
     private var symbolSize: CGFloat {
@@ -41,6 +47,15 @@ struct PlanCanvasView: View {
                         .background(Color.white)
                         .shadow(color: .black.opacity(0.15), radius: 12, y: 3)
                         .offset(offset)
+                        .allowsHitTesting(false)
+                }
+
+                // Vector detail for the visible area when zoomed past the raster's resolution
+                if let d = detail, d.sheetId == sheet.id {
+                    Image(uiImage: d.image)
+                        .resizable()
+                        .frame(width: d.rect.width * W * scale, height: d.rect.height * H * scale)
+                        .offset(x: offset.width + d.rect.minX * W * scale, y: offset.height + d.rect.minY * H * scale)
                         .allowsHitTesting(false)
                 }
 
@@ -118,6 +133,8 @@ struct PlanCanvasView: View {
             .onChange(of: sheet.id) { _, _ in fitIfNeeded(force: true) }
             .onChange(of: model.fitRequest) { _, _ in fitIfNeeded(force: true) }
             .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) } }
+            .onChange(of: scale) { _, _ in scheduleDetail() }
+            .onChange(of: offset) { _, _ in scheduleDetail() }
             .overlay(alignment: .bottomTrailing) { zoomControls }
             .overlay(alignment: .topLeading) { scaleChip }
         }
@@ -138,6 +155,44 @@ struct PlanCanvasView: View {
         Divider()
         Button(role: .destructive) { model.edit { $0.deleteMarker(m.id) }; if model.selection == .marker(m.id) { model.selection = nil } } label: {
             Label("Delete", systemImage: "trash")
+        }
+    }
+
+    // MARK: vector detail
+
+    private func scheduleDetail() {
+        detailTask?.cancel()
+        guard let pdfId = sheet.sourcePdfId, let pageIndex = sheet.sourcePage, size.width > 0 else { detail = nil; return }
+        // The raster already has enough pixels at this zoom.
+        if scale * displayScale <= 1.1 { detail = nil; return }
+        let visible = CGRect(x: -offset.width / (W * scale), y: -offset.height / (H * scale),
+                             width: size.width / (W * scale), height: size.height / (H * scale))
+            .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard !visible.isNull, visible.width > 0, visible.height > 0 else { return }
+        var px = CGSize(width: visible.width * W * scale * displayScale, height: visible.height * H * scale * displayScale)
+        let cap: CGFloat = 4096
+        if max(px.width, px.height) > cap { let k = cap / max(px.width, px.height); px = CGSize(width: px.width * k, height: px.height * k) }
+        let rotation = sheet.sourceRotation ?? 0
+        let url = app.store.pdfURL(pdfId)
+        let sheetId = sheet.id
+        detailTask = Task {
+            try? await Task.sleep(for: .milliseconds(220))   // wait for the gesture to settle
+            if Task.isCancelled { return }
+            let image: UIImage? = await Task.detached(priority: .userInitiated) {
+                guard let page = PDFCache.shared.page(pdfId: pdfId, index: pageIndex, url: url) else { return nil }
+                // Undo the sheet's extra quarter turns to find the region in the PDF's own orientation.
+                var r = visible
+                var outSize = px
+                for _ in 0..<rotation {
+                    r = CGRect(x: r.minY, y: 1 - r.maxX, width: r.height, height: r.width)
+                    outSize = CGSize(width: outSize.height, height: outSize.width)
+                }
+                var img = PDFRender.render(page, region: r, pixelSize: outSize)
+                for _ in 0..<rotation { img = PlanImporter.rotatedClockwise(img) }
+                return img
+            }.value
+            if Task.isCancelled { return }
+            if let image { detail = DetailTile(image: image, rect: visible, sheetId: sheetId) }
         }
     }
 

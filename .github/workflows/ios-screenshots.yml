@@ -33,7 +33,7 @@ jobs:
             xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
             xcrun simctl install "$UDID" "$APP"
             for screen in "home:" "plan:--demo --tab plan" "select:--demo --tab plan --select-first" "sheets:--demo --tab sheets" \
-                          "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
+                          "scan:--demo --tab sheets --scan-sample" "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
                           "settings:--settings" "catalog:--catalog"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               xcrun simctl terminate "$UDID" com.pinplan.app || true

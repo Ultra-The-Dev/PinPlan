@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, FileUp, MapPin, RotateCw, Ruler, Trash } from "luci
 import { useRef, useState } from "react";
 import { db, newId, nowIso, put, saveImage } from "@/lib/db";
 import { canvasToBlob, guessFloorName, loadPhoto, renderPdf } from "@/lib/importPlans";
+import { findScale } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import { useSheetImage } from "@/lib/useImage";
@@ -21,9 +22,15 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
   if (!project) return null;
   const nextOrder = () => (sheets.length ? Math.max(...sheets.map((s) => s.order)) + 1 : 0);
 
-  async function addSheet(blob: Blob, width: number, height: number, name: string, pageNumber: number, pxPerInch: number | null, order: number) {
+  async function addSheet(blob: Blob, width: number, height: number, name: string, pageNumber: number, pxPerInch: number | null, order: number, text = "") {
     const imageId = await saveImage(blob, width, height);
-    const sheet: Sheet = { id: newId(), projectId: project!.id, name, pageNumber, order, imageId, width, height, pxPerFt: null, pxPerInch, createdAt: nowIso(), updatedAt: nowIso() };
+    // A printed scale on a PDF page gives an exact scale (the paper size is known).
+    const found = pxPerInch ? findScale(text) : null;
+    const sheet: Sheet = {
+      id: newId(), projectId: project!.id, name, pageNumber, order, imageId, width, height,
+      pxPerFt: found ? found.inchesPerFoot * pxPerInch! : null, scaleLabel: found?.label ?? null,
+      pxPerInch, createdAt: nowIso(), updatedAt: nowIso(),
+    };
     await put("sheets", sheet);
   }
 
@@ -43,7 +50,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             setProgress(d / t);
           });
           for (const p of pages) {
-            await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++);
+            await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
             added++;
           }
         } else {

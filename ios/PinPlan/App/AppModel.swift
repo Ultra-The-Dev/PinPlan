@@ -32,6 +32,22 @@ final class AppModel {
 
     var creatingDemo = false
 
+    /// Files opened in PinPlan from other apps, waiting for the user to pick a project.
+    var incomingFiles: [URL] = []
+    /// Files to import once the chosen project's Sheets screen appears.
+    var pendingImport: (projectId: String, urls: [URL])?
+
+    /// Copy an opened file into our temp folder right away (inbox / security-scoped URLs can disappear).
+    func receive(_ url: URL) {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+        if (try? FileManager.default.copyItem(at: url, to: copy)) != nil {
+            if url.pathExtension.lowercased() == "json", let n = try? restore(from: copy), n > 0 { return }
+            incomingFiles.append(copy)
+        }
+    }
+
     /// A ready-made demo job to explore every feature (plans are drawn off the main thread).
     func createDemo() async -> ProjectBundle {
         creatingDemo = true

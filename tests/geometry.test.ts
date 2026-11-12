@@ -52,3 +52,19 @@ describe("geometry", () => {
     expect(nextLabel({ abbrev: "WAP" }, sheets[1], sheets, markers)).toBe("WAP-2-01");
   });
 });
+
+import { findScale } from "@/lib/geometry";
+
+describe("findScale", () => {
+  it("reads printed scales", () => {
+    expect(findScale(`A-101 SCALE: 1/4" = 1'-0" FLOOR PLAN`)!.inchesPerFoot).toBe(0.25);
+    expect(findScale(`ATTIC SCALE 1/8"=1'`)!.inchesPerFoot).toBe(0.125);
+    expect(findScale(`SCALE 1 1/2" = 1'-0" DETAIL`)!.inchesPerFoot).toBe(1.5);
+    expect(findScale(`PLAN 1:48`)!.inchesPerFoot).toBe(0.25);
+  });
+  it("prefers the scale after the word SCALE and ignores NTS", () => {
+    expect(findScale(`DETAIL 3/4" = 1'-0" ... SCALE: 1/4" = 1'-0"`)!.inchesPerFoot).toBe(0.25);
+    expect(findScale(`SCALE: NTS`)).toBeNull();
+    expect(findScale(`LED STRIPS 24 LF`)).toBeNull();
+  });
+});

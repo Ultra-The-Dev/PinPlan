@@ -83,6 +83,11 @@ public struct Sheet: Codable, Hashable, Identifiable, Sendable {
     public var pxPerFt: Double?
     public var pxPerInch: Double?
     public var scaleLabel: String?
+    /// Original vector PDF kept for crisp detail when zooming (file id in the app's storage) and its page index.
+    public var sourcePdfId: String?
+    public var sourcePage: Int?
+    /// Quarter turns clockwise applied to the sheet since import (so the PDF detail can be drawn rotated).
+    public var sourceRotation: Int?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?

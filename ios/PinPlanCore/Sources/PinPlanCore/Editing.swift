@@ -158,6 +158,7 @@ public extension ProjectBundle {
         sheets[si].width = width
         sheets[si].height = height
         sheets[si].imageUrl = nil
+        sheets[si].sourceRotation = ((sheets[si].sourceRotation ?? 0) + 1) % 4
         func rot(_ x: Double, _ y: Double) -> (Double, Double) { (1 - y, x) }
         for i in markers.indices where markers[i].sheetId == sheetId { (markers[i].x, markers[i].y) = rot(markers[i].x, markers[i].y) }
         for i in closets.indices where closets[i].sheetId == sheetId { (closets[i].x, closets[i].y) = rot(closets[i].x, closets[i].y) }

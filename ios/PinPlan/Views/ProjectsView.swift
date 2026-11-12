@@ -92,6 +92,13 @@ struct ProjectsView: View {
                 if args.contains("--settings") { showSettings = true }
                 if args.contains("--catalog") { showCatalog = true }
             }
+            .sheet(isPresented: Binding(get: { !app.incomingFiles.isEmpty }, set: { if !$0 { app.incomingFiles = [] } })) {
+                ImportTargetSheet { projectId in
+                    app.pendingImport = (projectId, app.incomingFiles)
+                    app.incomingFiles = []
+                    path = [projectId]
+                }
+            }
             .overlay {
                 if app.creatingDemo {
                     VStack(spacing: 12) {
@@ -221,5 +228,50 @@ struct NewProjectSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+
+/// Choose where plans opened from another app should go.
+private struct ImportTargetSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let onPick: (String) -> Void
+    @State private var newAddress = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Label("\(app.incomingFiles.count) file\(app.incomingFiles.count == 1 ? "" : "s"): \(app.incomingFiles.map { $0.lastPathComponent.split(separator: "-", maxSplits: 5).last.map(String.init) ?? "" }.joined(separator: ", "))",
+                          systemImage: "doc.richtext")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Section("New project") {
+                    TextField("Job address", text: $newAddress)
+                    Button("Create and import") {
+                        let b = app.createProject(address: newAddress.trimmingCharacters(in: .whitespaces), client: "", email: "", phone: "")
+                        dismiss()
+                        onPick(b.project.id)
+                    }
+                    .disabled(newAddress.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                if !app.projects.isEmpty {
+                    Section("Add to a project") {
+                        ForEach(app.projects, id: \.project.id) { b in
+                            Button { dismiss(); onPick(b.project.id) } label: {
+                                VStack(alignment: .leading) {
+                                    Text(b.project.address.isEmpty ? "Untitled job" : b.project.address).foregroundStyle(.primary)
+                                    Text("\(b.liveSheets.count) sheets · \(b.project.clientName)").font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Import plans")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { app.incomingFiles = []; dismiss() } } }
+        }
     }
 }

@@ -11,6 +11,7 @@ struct PinPlanApp: App {
         WindowGroup {
             ProjectsView()
                 .environment(app)
+                .onOpenURL { url in app.receive(url) }
                 .tint(.brand)
         }
     }
