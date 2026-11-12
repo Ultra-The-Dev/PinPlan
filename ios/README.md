@@ -26,9 +26,21 @@ For TestFlight / App Store: set your bundle id in `project.yml` (`PRODUCT_BUNDLE
   - `Views/` projects, sheets, takeoff, estimate, crew, job, settings, catalog
   - `Services/` PDF import (PDFKit), document scanner (VisionKit), PDF export, PinPlan server client
 
+## Plans: import, scanning and accuracy
+- **Digital plans (best):** PDFs from Files, iCloud Drive, Mail or AirDrop ("Open in PinPlan"), drag & drop on iPad.
+  Each page is rendered from its vector content (crop box and page rotation honoured), the **original PDF is kept**, and
+  when you zoom past the image resolution the visible area is **re-drawn from vector** — fine print stays crisp at any zoom.
+- **Automatic scale:** the printed scale on each PDF page (`SCALE: 1/4" = 1'-0"`, `1/8"=1'`, `1:48`…) is read and applied,
+  so LED runs and home runs are measured immediately. Floor names come from the title block. "NTS" sheets are left unscaled.
+- **Paper plans:** the document camera finds the page, straightens and crops it; then a review screen lets you pick
+  **Clean** (flattens shadows/uneven light to white paper, boosts contrast, sharpens lines, keeps red callouts),
+  **B&W** or **Original**, rotate, adjust corners, and confirms the floor name read by on-device text recognition.
+- **Photos & image files** (JPG, PNG, HEIC, TIFF): page edges detected automatically (Vision), perspective-corrected,
+  and cleaned the same way; drag the four corners to fine-tune.
+- **Precision:** set the scale by drawing a line over a known dimension with a **magnifier loupe** (drag to aim, release
+  to place); measure any distance the same way.
+
 ## Native features
-- **Document scanner** (VisionKit): photograph paper plans; edges are found, straightened and cropped automatically.
-- **PDF import** with PDFKit; floor names read from each page's title block; plan scale typed from the sheet.
 - **Plan canvas**: pinch-zoom around your fingers, pan, tap to place, long-press/tap to edit, drag to move,
   haptics; LED runs, stair LED (steps × LF), wire runs, closets, measure tool, find-device, layers, labels, undo/redo.
 - **iPad**: device menu and inspector as side panels. **iPhone**: the same panels as sheets.
