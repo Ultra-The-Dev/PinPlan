@@ -24,6 +24,7 @@ struct PlanEditorView: View {
                     PlanCanvasView(model: model, sheet: sheet).id(sheet.id)
                 }
                 VStack(spacing: 8) {
+                    if !regular { compactBar }
                     if let hint { HintCapsule(text: hint) }
                     if model.tool == .select {
                         if model.activeSheet?.pxPerFt == nil { TipView(ScaleTip()).frame(maxWidth: 420).padding(.horizontal) }
@@ -113,6 +114,48 @@ struct PlanEditorView: View {
         }
     }
 
+    /// iPhone: the editor's actions as a floating bar (the navigation bar belongs to the tab view).
+    private var compactBar: some View {
+        HStack(spacing: 2) {
+            Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)) }
+                .buttonStyle(.borderedProminent).controlSize(.small)
+            Spacer(minLength: 4)
+            Group {
+                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo)
+                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo)
+                toolsMenu
+                Button { showCounts = true } label: { Image(systemName: "list.number") }
+                Button { showScan = true } label: { Image(systemName: "sparkles") }
+            }
+            .frame(width: 38, height: 34)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
+        .padding(.horizontal, 12)
+    }
+
+    private var toolsMenu: some View {
+        Menu {
+            Button { scaleInput = true } label: { Label(model.activeSheet?.pxPerFt == nil ? "Set scale…" : "Change scale…", systemImage: "ruler") }
+            Button { model.use(.calibrate) } label: { Label("Draw a scale line", systemImage: "line.diagonal") }
+            Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
+            Divider()
+            Button { model.autoHomeRuns(sheetOnly: true) } label: { Label("Draw home runs (this floor)", systemImage: "cable.connector") }
+            Button { model.showLabels.toggle() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
+            Button { model.fitRequest += 1 } label: { Label("Fit sheet", systemImage: "arrow.up.left.and.arrow.down.right") }
+            Divider()
+            Menu {
+                ForEach(Layer.allCases) { l in
+                    Toggle(Catalog.layerNames[l] ?? l.rawValue, isOn: Binding(get: { !model.hiddenLayers.contains(l) }, set: { on in
+                        if on { model.hiddenLayers.remove(l) } else { model.hiddenLayers.insert(l) }
+                    }))
+                }
+                Button("Show all") { model.hiddenLayers = [] }
+            } label: { Label("Layers", systemImage: "square.3.layers.3d") }
+        } label: { Image(systemName: "ellipsis.circle") }
+    }
+
     private var drawingBar: some View {
         HStack(spacing: 8) {
             Button { if model.draft.count >= 2 { model.draft.removeLast(2) } } label: { Label("Point", systemImage: "arrow.uturn.backward") }
@@ -156,24 +199,7 @@ struct PlanEditorView: View {
                 .disabled(!model.canUndo).keyboardShortcut("z", modifiers: .command)
             Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                 .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
-            Menu {
-                Button { scaleInput = true } label: { Label(model.activeSheet?.pxPerFt == nil ? "Set scale…" : "Change scale…", systemImage: "ruler") }
-                Button { model.use(.calibrate) } label: { Label("Draw a scale line", systemImage: "line.diagonal") }
-                Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
-                Divider()
-                Button { model.autoHomeRuns(sheetOnly: true) } label: { Label("Draw home runs (this floor)", systemImage: "cable.connector") }
-                Button { model.showLabels.toggle() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
-                Button { model.fitRequest += 1 } label: { Label("Fit sheet", systemImage: "arrow.up.left.and.arrow.down.right") }
-                Divider()
-                Menu {
-                    ForEach(Layer.allCases) { l in
-                        Toggle(Catalog.layerNames[l] ?? l.rawValue, isOn: Binding(get: { !model.hiddenLayers.contains(l) }, set: { on in
-                            if on { model.hiddenLayers.remove(l) } else { model.hiddenLayers.insert(l) }
-                        }))
-                    }
-                    Button("Show all") { model.hiddenLayers = [] }
-                } label: { Label("Layers", systemImage: "square.3.layers.3d") }
-            } label: { Label("Tools", systemImage: "ellipsis.circle") }
+            toolsMenu
             Button { showCounts.toggle(); model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
             Button { showScan = true } label: { Label("AI scan", systemImage: "sparkles") }
         }

@@ -17,6 +17,7 @@ struct PlanCanvasView: View {
     @State private var detail: DetailTile?
     @State private var detailTask: Task<Void, Never>?
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.horizontalSizeClass) private var hSize
 
     /// A crisp re-render of the visible part of the sheet from its vector PDF.
     struct DetailTile { let image: UIImage; let rect: CGRect; let sheetId: String }
@@ -136,7 +137,7 @@ struct PlanCanvasView: View {
             .onChange(of: scale) { _, _ in scheduleDetail() }
             .onChange(of: offset) { _, _ in scheduleDetail() }
             .overlay(alignment: .bottomTrailing) { zoomControls }
-            .overlay(alignment: .topLeading) { scaleChip }
+            .overlay(alignment: hSize == .compact ? .bottomLeading : .topLeading) { scaleChip.padding(.bottom, hSize == .compact ? 120 : 0) }
         }
     }
 
@@ -217,6 +218,8 @@ struct PlanCanvasView: View {
         let s = fitScale()
         scale = s
         offset = CGSize(width: (size.width - W * s) / 2, height: (size.height - H * s) / 2)
+        // Apply a "find device" request that arrived before the canvas had its size.
+        if let f = model.focus, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) }
     }
 
     private func center(on f: FocusRequest) {

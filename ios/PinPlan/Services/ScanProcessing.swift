@@ -28,10 +28,20 @@ enum ScanProcessing {
 
     /// Find the paper sheet in a photo. nil when no confident page outline is found.
     static func detectPage(in image: UIImage) -> Quad? {
-        guard let cg = image.normalizedOrientation().cgImage else { return nil }
-        let request = VNDetectDocumentSegmentationRequest()
-        try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
-        guard let r = request.results?.first, r.confidence > 0.5 else { return nil }
+        guard let cg = image.normalizedOrientation().downscaled(maxSide: 1600).cgImage else { return nil }
+        let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+        // 1) Document segmentation (neural, best for paper on busy backgrounds).
+        let doc = VNDetectDocumentSegmentationRequest()
+        // 2) Classic rectangle detector as a fallback.
+        let rect = VNDetectRectanglesRequest()
+        rect.maximumObservations = 1
+        rect.minimumSize = 0.3
+        rect.minimumAspectRatio = 0.3
+        rect.quadratureTolerance = 30
+        rect.minimumConfidence = 0.5
+        try? handler.perform([doc, rect])
+        let found = (doc.results?.first.flatMap { $0.confidence > 0.5 ? $0 : nil }) ?? rect.results?.first
+        guard let r = found else { return nil }
         // Vision uses a bottom-left origin.
         return [r.topLeft, r.topRight, r.bottomRight, r.bottomLeft].map { CGPoint(x: $0.x, y: 1 - $0.y) }
     }
@@ -91,8 +101,9 @@ enum ScanProcessing {
         blur.radius = Float(max(12, extent.width / 80))
         let background = (blur.outputImage ?? input).cropped(to: extent)
         let divide = CIFilter.divideBlendMode()
-        divide.inputImage = input               // CIDivideBlendMode: source (input) ÷ background (paper estimate)
-        divide.backgroundImage = background
+        // CIDivideBlendMode computes backgroundImage ÷ inputImage (verified on device screenshots).
+        divide.inputImage = background
+        divide.backgroundImage = input
         var out = (divide.outputImage ?? input).cropped(to: extent)
         // 2) Contrast + sharpen lines.
         let controls = CIFilter.colorControls()

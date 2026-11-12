@@ -13,7 +13,13 @@ struct TakeoffView: View {
         let tot = t.total
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.").font(.subheadline).foregroundStyle(.secondary)
+                HStack(alignment: .top) {
+                    Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.").font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Button { csv() } label: { Label("CSV", systemImage: "tablecells") }.buttonStyle(.bordered)
+                    Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext") }
+                        .buttonStyle(.borderedProminent).disabled(busy || model.sheets.isEmpty)
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                     StatTile(label: "Cameras", value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: "\(tot.counts["cam-outdoor"] ?? 0) outdoor")
                     StatTile(label: "Wi-Fi APs", value: "\(tot.counts["wap"] ?? 0)")
@@ -92,13 +98,6 @@ struct TakeoffView: View {
             .padding()
         }
         .background(Color(.systemGroupedBackground))
-        .toolbar {
-            ToolbarItemGroup(placement: exportPlacement) {
-                Button { csv() } label: { Label("CSV", systemImage: "tablecells") }.labelStyle(.titleAndIcon)
-                Spacer()
-                Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext") }.labelStyle(.titleAndIcon).disabled(busy || model.sheets.isEmpty)
-            }
-        }
         .shareSheet($share)
     }
 

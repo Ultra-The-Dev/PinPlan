@@ -43,6 +43,8 @@ struct EstimateView: View {
                         if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
                     }
                     HStack {
+                        Button { csv(e) } label: { Label("CSV", systemImage: "tablecells") }
+                            .buttonStyle(.bordered)
                         Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext").frame(maxWidth: .infinity) }
                             .buttonStyle(.bordered)
                         Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill").frame(maxWidth: .infinity) }
@@ -122,13 +124,6 @@ struct EstimateView: View {
                 }
             } header: { Text("Billdu") } footer: {
                 Text(APIClient(settings: app.settings) == nil ? "Set your PinPlan server address in Settings to send to Billdu. You can always share the PDF or CSV instead." : "Sent through your PinPlan server; Billdu credentials never live on this device.")
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: exportPlacement) {
-                Button { csv(e) } label: { Label("CSV", systemImage: "tablecells") }.labelStyle(.titleAndIcon)
-                Spacer()
-                Button { pdf(e) } label: { Label("Estimate PDF", systemImage: "doc.richtext") }.labelStyle(.titleAndIcon)
             }
         }
         .sheet(item: $editing) { l in LineEditor(model: model, line: l) }
