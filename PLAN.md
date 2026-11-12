@@ -70,11 +70,16 @@ projects, sheets, device_types (catalog), markers (x,y 0–1 relative), runs (LE
 1. Setup (Next.js, Supabase, migrations, CLAUDE.md) · 2. Projects & plan import · 3. Catalog & markers · 4. LED runs, closets & wiring ·
 5. Takeoff totals & exports (+ automated test with the 20 Hilltop counts) · 6. Estimate & Billdu · 7. AI scan assist.
 
-## Open questions (still to answer)
-- What do SH, VS and the circled M (2nd Fl) stand for? (Assumed: SH = smart-home control point, VS = video screen for cameras; M = motorized shade.)
-- Should circled S marks count as speakers? (Cellar and 1st Fl have more circled S than the written totals.)
-- Is the Attic note "Setup LED 60" a 60 LF run?
-- Unit prices, labor rates and markup.
-- Billdu: first document Order/Estimate or straight to Invoice? Who owns the Billdu account?
-- iPad only or iPhone too? Simultaneous editing by several people?
-- Should the crew see prices? (Built: crew view has no prices.)
+## Decisions (answered Nov 12, 2026)
+- **SH / VS / circled M:** SH = smart-home control point, VS = video screen / iPad showing the cameras, circled M = motorized shade (2nd Fl has one).
+- **Circled S marks:** the written margin totals are the confirmed speaker counts; circled S marks beyond them are placed as
+  tentative (?) speakers, so they appear as optional lines on the client estimate instead of inflating the total.
+- **Attic "Setup LED 60":** placed as a tentative 60 LF LED run — the Attic stays 3 zones / 48 LF confirmed, with 60 LF optional.
+  Tentative LED runs don't count as LED zones.
+- **First Billdu document:** Estimate (Billdu's own estimate type); deposit/progress invoices are sent from the same screen.
+- **Crew view:** no prices (Crew tab and wiring PDFs).
+
+## Still open
+- Unit prices, labor rates and markup (set in Catalog and Settings).
+- Who owns the Billdu account (only the owner can create the API key)?
+- iPhone use and simultaneous editing: the app works on iPhone; edits by several people sync with last-write-wins per item.

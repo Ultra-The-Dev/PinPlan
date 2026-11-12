@@ -88,8 +88,8 @@ export function computeTakeoff({ sheets, markers, runs, closets }: TakeoffInput)
     }
     if (r.kind === "led" || r.kind === "stair") {
       const typeId = r.deviceTypeId ?? (r.kind === "stair" ? "led-stair" : "led-unassigned");
-      const zones = zoneSets.get(r.sheetId)!;
-      zones.add(r.zone?.trim() ? `z:${r.zone.trim()}` : `run:${r.id}`);
+      // Tentative (?) runs are optional: they don't count as confirmed LED zones.
+      if (!r.tentative) zoneSets.get(r.sheetId)!.add(r.zone?.trim() ? `z:${r.zone.trim()}` : `run:${r.id}`);
       if (len == null) continue;
       if (r.tentative) {
         add(f.ledTentativeFt, typeId, len);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { seedCatalog, DEFAULT_SETTINGS } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
 import { computeTakeoff, countOf, takeoffCsv } from "@/lib/takeoff";
-import { buildHilltop, HILLTOP_COUNTS } from "./fixtures/hilltop";
+import { ATTIC_SETUP_LED_LF, buildHilltop, EXTRA_S, HILLTOP_COUNTS } from "./fixtures/hilltop";
 
 describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
   const data = buildHilltop();
@@ -18,7 +18,10 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
       const f = takeoff.floors.find((x) => x.name === name)!;
       expect(f.counts[TYPE_IDS.indoorCam] ?? 0).toBe(expected.indoorCam);
       expect(f.counts[TYPE_IDS.outdoorCam] ?? 0).toBe(expected.outdoorCam);
-      expect(f.counts[TYPE_IDS.speakers] ?? 0).toBe(expected.speakers);
+      const extra = EXTRA_S[name as keyof typeof EXTRA_S] ?? 0;
+      // Written speaker totals; extra circled S marks are placed as tentative items on top.
+      expect((f.counts[TYPE_IDS.speakers] ?? 0) - extra).toBe(expected.speakers);
+      expect(f.counts[TYPE_IDS.shades] ?? 0).toBe("shades" in expected ? expected.shades : 0);
       expect(f.counts[TYPE_IDS.tvs] ?? 0).toBe(expected.tvs);
       expect(f.counts[TYPE_IDS.sh] ?? 0).toBe(expected.sh);
       expect(f.counts[TYPE_IDS.vs] ?? 0).toBe(expected.vs);
@@ -33,10 +36,20 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
     });
   }
 
-  it("lists the two 1st Fl '?' speakers as tentative", () => {
+  it("lists the two 1st Fl '?' speakers and the extra circled S marks as tentative", () => {
     const f = takeoff.floors.find((x) => x.name === "1st Fl")!;
-    expect(f.tentative[TYPE_IDS.speakers]).toBe(2);
+    expect(f.tentative[TYPE_IDS.speakers]).toBe(2 + (EXTRA_S["1st Fl"] ?? 0));
     expect(countOf(f, [TYPE_IDS.speakers], { confirmedOnly: true })).toBe(0);
+    const cellar = takeoff.floors.find((x) => x.name === "Cellar")!;
+    expect(countOf(cellar, [TYPE_IDS.speakers], { confirmedOnly: true })).toBe(0);
+    expect(cellar.tentative[TYPE_IDS.speakers]).toBe(EXTRA_S.Cellar);
+  });
+
+  it("keeps the Attic 'Setup LED 60' run optional: 3 zones / 48 LF confirmed, 60 LF tentative", () => {
+    const f = takeoff.floors.find((x) => x.name === "Attic")!;
+    expect(f.ledZones).toBe(3);
+    expect(f.ledTotalFt).toBe(48);
+    expect(f.ledTentativeFt["led-ceiling"]).toBe(ATTIC_SETUP_LED_LF);
   });
 
   it("totals the whole house", () => {
@@ -44,7 +57,9 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
     expect(t.counts[TYPE_IDS.indoorCam]).toBe(13);
     expect(t.counts[TYPE_IDS.outdoorCam]).toBe(9);
     expect(countOf(t, [TYPE_IDS.indoorCam, TYPE_IDS.outdoorCam])).toBe(22);
-    expect(t.counts[TYPE_IDS.speakers]).toBe(4);
+    expect(t.counts[TYPE_IDS.speakers] - (EXTRA_S["1st Fl"] ?? 0) - (EXTRA_S.Cellar ?? 0)).toBe(4);
+    expect(countOf(t, [TYPE_IDS.speakers], { confirmedOnly: true })).toBe(2);
+    expect(t.counts[TYPE_IDS.shades]).toBe(1);
     expect(t.counts[TYPE_IDS.tvs]).toBe(4);
     expect(t.counts[TYPE_IDS.sh]).toBe(3);
     expect(t.counts[TYPE_IDS.vs]).toBe(2);
@@ -78,16 +93,18 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
     expect(cam.qty).toBe(13);
     expect(cam.unitPrice).toBe(320); // 200 * 1.10 + 100 labor
     const spk = est.lines.find((l) => l.key === "dev:speaker")!;
-    expect(spk.qty).toBe(2); // 2nd Fl only; the 1st Fl pair is optional
+    expect(spk.qty).toBe(2); // 2nd Fl only; the 1st Fl pair and extra circled S marks are optional
     const opt = est.lines.find((l) => l.key === "opt:speaker")!;
-    expect(opt.qty).toBe(2);
+    const optSpk = 2 + (EXTRA_S["1st Fl"] ?? 0) + (EXTRA_S.Cellar ?? 0);
+    expect(opt.qty).toBe(optSpk);
     expect(opt.included).toBe(false);
     const led = est.lines.find((l) => l.key === "dev:led-ceiling")!;
     expect(led.qty).toBe(873);
     expect(led.unitPrice).toBe(11);
     expect(est.subtotal).toBe(13 * 320 + 2 * 165 + 873 * 11);
     expect(est.tax).toBe(Math.round(est.subtotal * 5) / 100);
-    expect(est.optionalTotal).toBe(2 * 165);
+    // Optional: tentative speakers + the Attic "Setup LED 60" run.
+    expect(est.optionalTotal).toBe(optSpk * 165 + ATTIC_SETUP_LED_LF * 11);
 
     const withOverride = buildEstimate(takeoff, catalog, pricing, [
       { id: "o1", projectId: "hilltop", key: "dev:cam-indoor", unitPrice: 300, updatedAt: "" },
