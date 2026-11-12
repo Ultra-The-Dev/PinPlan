@@ -42,6 +42,7 @@ struct PendingInputSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() } }
             }
             .onAppear {
+                if case .calibrate = pending, let hint = model.calibrationHint { a = hint; model.calibrationHint = nil }
                 if let sid = model.activeSheet?.id {
                     if case .led = pending { a = model.nextZone(on: sid) }
                     if case .stair = pending { c = model.nextZone(on: sid) }

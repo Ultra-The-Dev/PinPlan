@@ -56,6 +56,47 @@ struct APIClient {
         return try await post("api/billdu/send", body: body, as: SendResult.self)
     }
 
+    // MARK: Plan reader
+
+    struct Explanation: Decodable {
+        struct Room: Decodable, Hashable { let name: String; let size: String?; let x: Double; let y: Double }
+        struct Dimension: Decodable, Hashable { let text: String; let feet: Double?; let describes: String?; let x: Double; let y: Double }
+        struct Note: Decodable, Hashable { let text: String; let category: String; let x: Double; let y: Double }
+        let sheetTitle: String
+        let sheetType: String
+        let scale: String?
+        let summary: String
+        let rooms: [Room]
+        let dimensions: [Dimension]
+        let notes: [Note]
+        let verify: [String]
+    }
+
+    struct Answer: Decodable, Hashable {
+        struct Point: Decodable, Hashable { let label: String; let x: Double; let y: Double }
+        let answer: String
+        let points: [Point]
+    }
+
+    private func planImage(_ image: UIImage) throws -> String {
+        // A sharper image than the scan suggestions use: plan text must stay legible.
+        let small = image.downscaled(maxSide: 2400)
+        guard let jpeg = small.jpegData(compressionQuality: 0.88) else { throw APIError(message: "Couldn't encode the sheet image.") }
+        return jpeg.base64EncodedString()
+    }
+
+    func explain(image: UIImage, sheet: Sheet) async throws -> Explanation {
+        var body: [String: Any] = ["imageBase64": try planImage(image), "mime": "image/jpeg", "mode": "explain", "sheetName": sheet.name]
+        if let s = sheet.scaleLabel, sheet.pxPerFt != nil { body["knownScale"] = s }
+        return try await post("api/plan/read", body: body, as: Explanation.self)
+    }
+
+    func ask(_ question: String, image: UIImage, sheet: Sheet) async throws -> Answer {
+        var body: [String: Any] = ["imageBase64": try planImage(image), "mime": "image/jpeg", "mode": "ask", "question": question, "sheetName": sheet.name]
+        if let s = sheet.scaleLabel, sheet.pxPerFt != nil { body["knownScale"] = s }
+        return try await post("api/plan/read", body: body, as: Answer.self)
+    }
+
     // MARK: AI scan
 
     struct ScanResult: Decodable {

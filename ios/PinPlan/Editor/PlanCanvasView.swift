@@ -92,6 +92,11 @@ struct PlanCanvasView: View {
                     }
                 }
 
+                // Pulsing call-out for a point picked in the plan reader
+                if let h = model.highlight, h.sheetId == sheet.id {
+                    PulseRing().position(screen(h.x, h.y)).allowsHitTesting(false)
+                }
+
                 // Closets
                 if model.closetsVisible {
                     ForEach(model.bundle.liveClosets.filter { $0.sheetId == sheet.id }) { c in
@@ -484,5 +489,16 @@ private struct Loupe: View {
         .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
         .position(center)
         .allowsHitTesting(false)
+    }
+}
+
+private struct PulseRing: View {
+    @State private var on = false
+    var body: some View {
+        ZStack {
+            Circle().stroke(Color.orange, lineWidth: 3).frame(width: 34, height: 34)
+            Circle().stroke(Color.orange.opacity(on ? 0 : 0.8), lineWidth: 3).frame(width: on ? 90 : 34, height: on ? 90 : 34)
+        }
+        .onAppear { withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { on = true } }
     }
 }

@@ -10,6 +10,7 @@ struct PlanEditorView: View {
     @State private var showCounts = false
     @State private var showScan = false
     @State private var scaleInput = false
+    @State private var showReader = false
 
     private var regular: Bool { hSize == .regular }
 
@@ -59,6 +60,9 @@ struct PlanEditorView: View {
                 }
                 .frame(width: 340)
                 .background(Color(.systemGroupedBackground))
+            } else if regular && showReader, let sheet = model.activeSheet {
+                Divider()
+                PlanInsightsView(model: model, sheet: sheet) { showReader = false }.frame(width: 360)
             } else if regular && showCounts {
                 Divider()
                 CountsPanel(model: model) { showCounts = false }.frame(width: 320)
@@ -91,10 +95,20 @@ struct PlanEditorView: View {
         .sheet(isPresented: Binding(get: { !regular && showCounts }, set: { showCounts = $0 })) {
             CountsPanel(model: model) { showCounts = false }.presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: Binding(get: { !regular && showReader }, set: { showReader = $0 })) {
+            if let sheet = model.activeSheet {
+                PlanInsightsView(model: model, sheet: sheet) { showReader = false }
+                    .presentationDetents([.medium, .large])
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            }
+        }
         .sheet(item: $model.pending) { p in PendingInputSheet(model: model, pending: p) }
         .sheet(isPresented: $scaleInput) { if let s = model.activeSheet { ScaleSheet(model: model, sheet: s) } }
         .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
-        .onAppear { if !regular { showPalette = false } }
+        .onAppear {
+            if !regular { showPalette = false }
+            if ProcessInfo.processInfo.arguments.contains("--reader") { showReader = true; showPalette = regular }
+        }
     }
 
     private var hint: String? {
@@ -124,6 +138,7 @@ struct PlanEditorView: View {
                 Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo)
                 Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo)
                 toolsMenu
+                Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }
                 Button { showCounts = true } label: { Image(systemName: "list.number") }
                 Button { showScan = true } label: { Image(systemName: "sparkles") }
             }
@@ -200,7 +215,8 @@ struct PlanEditorView: View {
             Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                 .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
             toolsMenu
-            Button { showCounts.toggle(); model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
+            Button { showReader.toggle(); showCounts = false; model.selection = nil } label: { Label("Read plan", systemImage: "doc.text.magnifyingglass") }
+            Button { showCounts.toggle(); showReader = false; model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
             Button { showScan = true } label: { Label("AI scan", systemImage: "sparkles") }
         }
     }

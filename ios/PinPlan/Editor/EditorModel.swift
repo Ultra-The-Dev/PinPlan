@@ -65,6 +65,21 @@ final class EditorModel {
     /// Request to centre the plan on a point; n increments per request.
     var focus: FocusRequest?
     var fitRequest = 0
+    /// A point to call out on the plan (pulsing ring), e.g. a dimension tapped in the plan reader.
+    var highlight: FocusRequest?
+    /// Pre-filled real length for the next scale calibration (from a printed dimension).
+    var calibrationHint: String?
+    /// Plan reader results, per sheet.
+    var planDetails: [String: [PlanDetail]] = [:]
+    var planExplanations: [String: APIClient.Explanation] = [:]
+    var planQA: [String: [QAItem]] = [:]
+
+    struct QAItem: Identifiable {
+        let id = UUID()
+        let question: String
+        var answer: APIClient.Answer?
+        var error: String?
+    }
     /// Most recently used device types (for the quick dock), most recent first.
     var recentTypes: [String] = ["cam-indoor", "wap", "speaker", "tv"]
     var toast: String?
@@ -245,6 +260,27 @@ final class EditorModel {
         activeSheetId = target.0
         selection = s
         focus = FocusRequest(sheetId: target.0, x: target.1, y: target.2, n: (focus?.n ?? 0) + 1)
+    }
+
+    /// Jump to a point on a sheet and pulse a ring there.
+    func focusOnPoint(sheetId: String, x: Double, y: Double) {
+        use(.select)
+        selection = nil
+        activeSheetId = sheetId
+        let n = (focus?.n ?? 0) + 1
+        focus = FocusRequest(sheetId: sheetId, x: x, y: y, n: n)
+        highlight = FocusRequest(sheetId: sheetId, x: x, y: y, n: n)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            if self.highlight?.n == n { self.highlight = nil }
+        }
+    }
+
+    /// Start a scale line with the real length taken from a printed dimension.
+    func calibrate(from dimension: String) {
+        calibrationHint = dimension
+        use(.calibrate)
+        say("Draw a line over the \(dimension) dimension")
     }
 
     func deleteSelection() {
