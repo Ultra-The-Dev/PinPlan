@@ -77,6 +77,10 @@ struct SheetsView: View {
             if ProcessInfo.processInfo.arguments.contains("--scan-sample"), review == nil {
                 review = ReviewBatch(images: [DemoProject.samplePhoto()], source: .photos)
             }
+            // Automation: review a real photo/scan from the app's Documents folder.
+            if let url = FileProject.launchFile("scan-file"), review == nil, let img = UIImage(contentsOfFile: url.path) {
+                review = ReviewBatch(images: [img], source: .photos)
+            }
         }
         .onChange(of: photoItems) { _, items in
             guard !items.isEmpty else { return }

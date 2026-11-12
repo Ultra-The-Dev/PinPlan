@@ -68,6 +68,15 @@ final class AppModel {
         return b
     }
 
+    /// A project built from one plan file through the normal import paths (automation / real-plan tests).
+    func createProject(fromFile url: URL) async -> ProjectBundle {
+        let store = store
+        let b = await Task.detached(priority: .userInitiated) { FileProject.make(url: url, store: store) }.value
+        store.save(b)
+        projects.insert(b, at: 0)
+        return b
+    }
+
     /// Called by the editor whenever a project changes.
     func didSave(_ b: ProjectBundle) {
         if let i = projects.firstIndex(where: { $0.project.id == b.project.id }) { projects[i] = b } else { projects.insert(b, at: 0) }

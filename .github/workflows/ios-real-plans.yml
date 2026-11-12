@@ -1,0 +1,86 @@
+name: iOS real plans
+
+# Runs real plan files from the internet through the app's own import, scan and plan-reader code on the
+# iPhone and iPad simulators, and saves screenshots. Inputs:
+#  - johnson-a101.pdf: a Revit-exported architect sheet (vector PDF with text, room schedule, 1/2" scale)
+#  - reeves-a101.pdf: a two-plan architect sheet (vector PDF)
+#  - twin-scan.jpg: a scanned paper drawing (HABS, Library of Congress, public domain, hand lettering, 1/4" scale)
+#  - twin-photo.jpg: the same sheet as a phone photo (tilted on a table, uneven light) made by scripts/make_plan_photo.py
+on:
+  workflow_dispatch:
+  push:
+    paths: ["ios/PinPlan/**", "ios/PinPlanCore/Sources/**", "ios/scripts/**", ".github/workflows/ios-real-plans.yml"]
+
+jobs:
+  real-plans:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch real plans
+        working-directory: ios
+        run: |
+          set -e
+          mkdir -p real
+          UA="PinPlanTest/1.0 (CI plan-import test)"
+          curl -fsSL -A "$UA" -o real/johnson-a101.pdf "https://images.greenbuildingadvisor.com/app/uploads/2026/03/10121200/30869_1773159120_A101.pdf"
+          curl -fsSL -A "$UA" -o real/reeves-a101.pdf "https://greenbuildingadvisor.com/app/uploads/2024/10/59453_1729108679_REEVES_FP1FP2_09.28.24.pdf"
+          curl -fsSL -A "$UA" -o real/twin.tif "https://tile.loc.gov/storage-services/master/pnp/habshaer/in/in0000/in0071/sheet/00003a.tif"
+          python3 -m pip install --quiet --break-system-packages pillow numpy || python3 -m pip install --quiet pillow numpy
+          python3 - <<'PY'
+          from PIL import Image
+          Image.MAX_IMAGE_PIXELS = None
+          im = Image.open("real/twin.tif").convert("L")
+          im.thumbnail((4800, 4800))
+          im.save("real/twin-scan.jpg", quality=90)
+          PY
+          python3 scripts/make_plan_photo.py real/twin.tif real/twin-photo.jpg
+          rm real/twin.tif
+          ls -la real
+      - run: brew install xcodegen
+      - name: Build for simulator
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild -project PinPlan.xcodeproj -scheme PinPlan -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Import real plans on iPhone and iPad
+        working-directory: ios
+        run: |
+          set -x
+          APP=build/Build/Products/Debug-iphonesimulator/PinPlan.app
+          mkdir -p shots
+          shoot () {
+            DEV="$1"; NAME="$2"
+            UDID=$(xcrun simctl create "$NAME" "$DEV")
+            xcrun simctl boot "$UDID"
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+            xcrun simctl install "$UDID" "$APP"
+            DATA=$(xcrun simctl get_app_container "$UDID" com.pinplan.app data)
+            mkdir -p "$DATA/Documents"
+            cp real/* "$DATA/Documents/"
+            for screen in "photo-review:--demo --tab sheets --scan-file=twin-photo.jpg" \
+                          "photo-plan:--import-file=twin-photo.jpg --tab plan" \
+                          "photo-reader:--import-file=twin-photo.jpg --tab plan --reader" \
+                          "scan-reader:--import-file=twin-scan.jpg --tab plan --reader" \
+                          "johnson-plan:--import-file=johnson-a101.pdf --tab plan" \
+                          "johnson-reader:--import-file=johnson-a101.pdf --tab plan --reader" \
+                          "reeves-reader:--import-file=reeves-a101.pdf --tab plan --reader" \
+                          "johnson-sheets:--import-file=johnson-a101.pdf --tab sheets"; do
+              KEY="${screen%%:*}"; ARGS="${screen#*:}"
+              xcrun simctl terminate "$UDID" com.pinplan.app || true
+              xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
+              sleep 25
+              xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
+            done
+            xcrun simctl shutdown "$UDID"
+          }
+          shoot "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro" iphone
+          shoot "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB" ipad
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-real-plans
+          path: ios/shots

@@ -93,6 +93,11 @@ struct ProjectsView: View {
                     if let s = app.projects.first(where: { $0.project.address.hasPrefix("Sample — architect") }) { path.append(s.project.id) }
                     else { path.append(await app.createArchitectSample().project.id) }
                 }
+                if let url = FileProject.launchFile("import-file"), path.isEmpty {
+                    let address = "Test — \(url.deletingPathExtension().lastPathComponent)"
+                    if let p = app.projects.first(where: { $0.project.address == address }) { path.append(p.project.id) }
+                    else { path.append(await app.createProject(fromFile: url).project.id) }
+                }
                 if args.contains("--settings") { showSettings = true }
                 if args.contains("--catalog") { showCatalog = true }
             }

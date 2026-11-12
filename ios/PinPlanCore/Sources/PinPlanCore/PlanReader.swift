@@ -43,7 +43,7 @@ public enum PlanReader {
         "WINE", "STORAGE", "MECH", "MECHANICAL", "UTILITY", "PRIMARY", "MASTER", "GUEST", "POWDER", "DEN", "LIBRARY", "PLAYROOM",
         "NURSERY", "ATTIC", "PORCH", "DECK", "PATIO", "TERRACE", "BALCONY", "LOFT", "BONUS", "GREAT", "SUITE", "WIC", "W.I.C.",
         "EQUIPMENT", "AV", "LOUNGE", "BAR", "SPA", "SAUNA", "POOL", "BREAKFAST", "NOOK", "ELEV", "ELEVATOR", "CELLAR", "BASEMENT",
-        "ROOM", "MUD", "BDRM", "BEDRM", "REC", "RECREATION", "CRAFT", "LAV", "WC", "VESTIBULE", "GALLERY", "SITTING", "FLEX",
+        "ROOM", "MUD", "BDRM", "BEDRM", "REC", "RECREATION", "CRAFT", "LAV", "WC", "VESTIBULE", "GALLERY", "SITTING", "FLEX", "RM", "BR", "MBR", "KIT", "LIV", "DIN", "FAM",
     ]
 
     /// Every feet-inches dimension in a string (12'-6", 12' 6", 3'-4 1/2", 10'), as (matched text, feet).
@@ -62,9 +62,48 @@ public enum PlanReader {
         return out
     }
 
+    /// Room schedule rows (Revit/AutoCAD tables): a row of 4+ cells on one line with an area ("118 SF").
+    /// Returns the indices of items in such rows and, per room name, its scheduled area.
+    static func scheduleRows(_ items: [PlanTextItem]) -> (inRows: Set<Int>, areas: [String: String]) {
+        let areaRe = #"^\d{1,6}(\.\d+)?\s*(SF|S\.F\.|SQ\.?\s*FT\.?)$"#
+        var inRows = Set<Int>()
+        var areas: [String: String] = [:]
+        let order = items.indices.sorted { items[$0].y < items[$1].y }
+        var i = 0
+        while i < order.count {
+            var row = [order[i]]
+            var j = i + 1
+            while j < order.count, items[order[j]].y - items[order[i]].y < 0.0025 { row.append(order[j]); j += 1 }
+            let area = row.first { items[$0].text.uppercased().trimmingCharacters(in: .whitespaces).range(of: areaRe, options: .regularExpression) != nil }
+            if row.count >= 4, let a = area {
+                inRows.formUnion(row)
+                // The room name: the cell left of the area that reads like a room.
+                let cells = row.sorted { items[$0].x < items[$1].x }
+                if let name = cells.last(where: { items[$0].x < items[a].x && isRoomName(items[$0].text) }) {
+                    areas[normalizedName(items[name].text)] = items[a].text.uppercased().replacingOccurrences(of: "  ", with: " ")
+                }
+            }
+            i = j
+        }
+        return (inRows, areas)
+    }
+
+    static func normalizedName(_ s: String) -> String {
+        s.uppercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "#" }).joined(separator: " ")
+    }
+
+    static func isRoomName(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        let words = upper.split(whereSeparator: { !$0.isLetter && $0 != "." }).map(String.init).filter { $0.count > 1 }
+        let letters = text.filter(\.isLetter)
+        let mostlyUpper = !letters.isEmpty && Double(letters.filter(\.isUppercase).count) / Double(letters.count) > 0.8
+        return mostlyUpper && words.count <= 4 && words.contains { roomWords.contains($0) }
+    }
+
     public static func classify(_ items: [PlanTextItem]) -> [PlanDetail] {
         var out: [PlanDetail] = []
-        for item in items {
+        let schedule = scheduleRows(items)
+        for (index, item) in items.enumerated() where !schedule.inRows.contains(index) {
             let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard text.count >= 2 else { continue }
             if let s = Geometry.findScale(in: text) {
@@ -90,6 +129,20 @@ public enum PlanReader {
             }
             if !isRoom {
                 for (dt, ft) in dims { out.append(PlanDetail(kind: .dimension, text: dt, x: item.x, y: item.y, feet: ft)) }
+            }
+        }
+        // Areas from a room schedule: attach to the room on the plan with the same name; list unmatched ones.
+        if !schedule.areas.isEmpty {
+            var used = Set<String>()
+            for i in out.indices where out[i].kind == .room {
+                let key = normalizedName(out[i].text.components(separatedBy: " · ")[0])
+                if let a = schedule.areas[key] { out[i].text += " · \(a)"; used.insert(key) }
+            }
+            for (index, item) in items.enumerated() where schedule.inRows.contains(index) && isRoomName(item.text) {
+                let key = normalizedName(item.text)
+                guard !used.contains(key), let a = schedule.areas[key] else { continue }
+                used.insert(key)
+                out.append(PlanDetail(kind: .room, text: "\(item.text.capitalized) · \(a) (schedule)", x: item.x, y: item.y))
             }
         }
         // Room size printed on the line under the name ("GREAT ROOM" / 18'-6" x 22'-0").

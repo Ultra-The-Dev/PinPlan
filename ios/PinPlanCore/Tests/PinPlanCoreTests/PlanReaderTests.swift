@@ -114,3 +114,35 @@ final class FloorNameTests: XCTestCase {
         XCTAssertNil(PlanReader.floorName(in: "ELECTRICAL LEGEND"))
     }
 }
+
+/// Modeled on a real Revit sheet (room tags on the plan + a room schedule table).
+final class RoomScheduleTests: XCTestCase {
+    func row(_ y: Double, _ cells: [String]) -> [PlanTextItem] {
+        cells.enumerated().map { PlanTextItem(text: $1, x: 0.52 + Double($0) * 0.03, y: y) }
+    }
+
+    func testScheduleAreasAttachToPlanRoomsAndScheduleIsNotDuplicated() {
+        var items = [
+            PlanTextItem(text: "GUEST RM #2", x: 0.63, y: 0.44), PlanTextItem(text: "107", x: 0.63, y: 0.45),
+            PlanTextItem(text: "UTILITY", x: 0.49, y: 0.43), PlanTextItem(text: "1/2 BATH", x: 0.42, y: 0.51),
+            PlanTextItem(text: "3' - 5\"", x: 0.60, y: 0.37),
+        ]
+        items += row(0.21, ["107", "GUEST RM #2", "106 SF", "41' - 6\"", "WHITE", "FLAT WHITE", "8' - 0\"", "POLISHED CONCRETE"])
+        items += row(0.215, ["110", "UTILITY", "110 SF", "50' - 4\"", "WHITE", "FLAT WHITE", "8' - 0\""])
+        items += row(0.22, ["104", "MASTER BED", "118 SF", "43' - 6\"", "WHITE", "FLAT WHITE", "8' - 0\""])
+        let d = PlanReader.classify(items)
+        let rooms = d.filter { $0.kind == .room }.map(\.text)
+        XCTAssertTrue(rooms.contains("Guest Rm #2 · 106 SF"), "\(rooms)")
+        XCTAssertTrue(rooms.contains("Utility · 110 SF"), "\(rooms)")
+        XCTAssertTrue(rooms.contains("1/2 Bath"), "\(rooms)")
+        XCTAssertTrue(rooms.contains("Master Bed · 118 SF (schedule)"), "\(rooms)")
+        XCTAssertEqual(rooms.count, 4, "\(rooms)")
+        // Perimeters and ceiling heights from the table are not plan dimensions.
+        XCTAssertEqual(d.filter { $0.kind == .dimension }.map(\.text), ["3' - 5\""])
+    }
+
+    func testDimensionStringRowIsNotASchedule() {
+        let items = (0..<8).map { PlanTextItem(text: "2'-\($0)\"", x: 0.2 + Double($0) * 0.05, y: 0.1) }
+        XCTAssertEqual(PlanReader.classify(items).filter { $0.kind == .dimension }.count, 8)
+    }
+}
