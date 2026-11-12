@@ -45,3 +45,4 @@ next-env.d.ts
 /public/pdf.worker.min.mjs
 # local server-side secret store (dev)
 /.data
+/dist
