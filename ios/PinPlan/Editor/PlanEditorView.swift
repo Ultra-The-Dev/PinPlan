@@ -26,6 +26,7 @@ struct PlanEditorView: View {
                     if let hint { HintCapsule(text: hint) }
                     if model.tool.isDrawing && model.tool != .measure { drawingBar }
                     Spacer()
+                    if !model.tool.isDrawing { QuickDock(model: model) }
                     if model.sheets.count > 1 { floorSwitcher }
                 }
                 .padding(.top, 10).padding(.bottom, 12)
@@ -58,6 +59,17 @@ struct PlanEditorView: View {
             }
         }
         .animation(.snappy(duration: 0.2), value: model.selection)
+        .background {
+            // Hardware keyboard shortcuts (iPad): Esc = select tool, Delete = delete selection, M = measure, F = fit, L = labels.
+            Group {
+                Button("") { model.use(.select); model.selection = nil }.keyboardShortcut(.escape, modifiers: [])
+                Button("") { model.deleteSelection() }.keyboardShortcut(.delete, modifiers: [])
+                Button("") { model.use(.measure) }.keyboardShortcut("m", modifiers: [])
+                Button("") { model.fitRequest += 1 }.keyboardShortcut("f", modifiers: [])
+                Button("") { model.showLabels.toggle() }.keyboardShortcut("l", modifiers: [])
+            }
+            .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+        }
         .toolbar { toolbar }
         .sheet(isPresented: Binding(get: { !regular && model.selection != nil }, set: { if !$0 { model.selection = nil } })) {
             if let sel = model.selection {
@@ -135,8 +147,10 @@ struct PlanEditorView: View {
             Button { showPalette.toggle() } label: { Label("Devices", systemImage: regular ? "sidebar.left" : "plus.circle.fill") }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(!model.canUndo)
-            Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(!model.canRedo)
+            Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                .disabled(!model.canUndo).keyboardShortcut("z", modifiers: .command)
+            Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+                .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
             Menu {
                 Button { scaleInput = true } label: { Label(model.activeSheet?.pxPerFt == nil ? "Set scale…" : "Change scale…", systemImage: "ruler") }
                 Button { model.use(.calibrate) } label: { Label("Draw a scale line", systemImage: "line.diagonal") }
@@ -157,6 +171,37 @@ struct PlanEditorView: View {
             } label: { Label("Tools", systemImage: "ellipsis.circle") }
             Button { showCounts.toggle(); model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
             Button { showScan = true } label: { Label("AI scan", systemImage: "sparkles") }
+        }
+    }
+}
+
+/// One-tap access to recently used devices, right on the plan.
+private struct QuickDock: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+
+    var body: some View {
+        let types = model.recentTypes.compactMap { app.type($0) }.filter { $0.archived != true }
+        if !types.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(types) { t in
+                        let active = model.tool == .place(t.id)
+                        Button { model.use(active ? .select : .place(t.id)) } label: {
+                            DeviceSymbol(type: t, size: 30)
+                                .padding(7)
+                                .background(active ? Color.brand.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(active ? Color.brand : .clear, lineWidth: 2))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Place \(t.name)")
+                    }
+                }
+                .padding(5)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
         }
     }
 }
@@ -227,8 +272,8 @@ struct CountsPanel: View {
                             }
                         }
                     }
-                    ForEach(floor.wireFt.sorted(by: { $0.key < $1.key }), id: \.key) { w, ft in
-                        LabeledContent("\(w) cable", value: "\(ft.clean) ft")
+                    ForEach(floor.wireFt.keys.sorted(), id: \.self) { w in
+                        LabeledContent("\(w) cable", value: "\((floor.wireFt[w] ?? 0).clean) ft")
                     }
                     if floor.unmeasuredRuns > 0 { Text("\(floor.unmeasuredRuns) run(s) have no length yet — set the scale or type LF.").font(.caption).foregroundStyle(.orange) }
                 }

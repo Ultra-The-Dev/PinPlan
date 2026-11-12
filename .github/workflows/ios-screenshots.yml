@@ -1,0 +1,53 @@
+name: iOS screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["ios/PinPlan/**", ".github/workflows/ios-screenshots.yml"]
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Build for simulator
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild -project PinPlan.xcodeproj -scheme PinPlan -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Capture screens on iPhone and iPad
+        working-directory: ios
+        run: |
+          set -x
+          APP=build/Build/Products/Debug-iphonesimulator/PinPlan.app
+          mkdir -p shots
+          xcrun simctl list devicetypes | grep -E "iPhone 16 Pro|iPad Pro 13" || true
+          shoot () {
+            DEV="$1"; NAME="$2"
+            UDID=$(xcrun simctl create "$NAME" "$DEV")
+            xcrun simctl boot "$UDID"
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+            xcrun simctl install "$UDID" "$APP"
+            for screen in "home:" "plan:--demo --tab plan" "select:--demo --tab plan --select-first" "sheets:--demo --tab sheets" \
+                          "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
+                          "settings:--settings" "catalog:--catalog"; do
+              KEY="${screen%%:*}"; ARGS="${screen#*:}"
+              xcrun simctl terminate "$UDID" com.pinplan.app || true
+              xcrun simctl launch "$UDID" com.pinplan.app $ARGS
+              sleep 6
+              xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
+            done
+            xcrun simctl shutdown "$UDID"
+          }
+          shoot "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro" iphone
+          shoot "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB" ipad
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screenshots
+          path: ios/shots

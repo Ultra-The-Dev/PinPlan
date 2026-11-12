@@ -65,6 +65,8 @@ final class EditorModel {
     /// Request to centre the plan on a point; n increments per request.
     var focus: FocusRequest?
     var fitRequest = 0
+    /// Most recently used device types (for the quick dock), most recent first.
+    var recentTypes: [String] = ["cam-indoor", "wap", "speaker", "tv"]
     var toast: String?
 
     private var past: [ProjectBundle] = []
@@ -78,6 +80,7 @@ final class EditorModel {
 
     /// Switch tools (discarding any half-drawn run).
     func use(_ t: Tool) {
+        if case .place(let id) = t { recentTypes.removeAll { $0 == id }; recentTypes.insert(id, at: 0); recentTypes = Array(recentTypes.prefix(8)) }
         guard t != tool else { return }
         tool = t
         draft = []

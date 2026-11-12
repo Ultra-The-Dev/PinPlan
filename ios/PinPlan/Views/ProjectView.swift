@@ -50,6 +50,12 @@ struct ProjectView: View {
                 let m = EditorModel(bundle: bundle, app: app)
                 model = m
                 if m.sheets.isEmpty { tab = .sheets }
+                // Screenshot/automation hook: `--tab estimate` etc.
+                let args = ProcessInfo.processInfo.arguments
+                if let i = args.firstIndex(of: "--tab"), args.indices.contains(i + 1), let t = ProjectTab(rawValue: args[i + 1]) { tab = t }
+                if args.contains("--select-first"), let first = m.bundle.liveMarkers.first(where: { $0.sheetId == m.sheets.dropFirst().first?.id }) {
+                    m.focusOn(.marker(first.id))
+                }
             }
         }
     }

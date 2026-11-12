@@ -25,7 +25,7 @@ struct ProjectsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 if app.projects.isEmpty {
-                    EmptyProjects { showNew = true }.padding(.top, 60)
+                    EmptyProjects(onNew: { showNew = true }, onDemo: { path.append(app.createDemo().project.id) }).padding(.top, 60)
                 } else {
                     VStack(alignment: .leading, spacing: 16) {
                         Picker("Status", selection: $status) {
@@ -57,7 +57,10 @@ struct ProjectsView: View {
                     Button { showSettings = true } label: { Label("Settings", systemImage: "gearshape") }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { showRestore = true } label: { Label("Restore backup", systemImage: "square.and.arrow.down") }
+                    Menu {
+                        Button { showRestore = true } label: { Label("Restore backup…", systemImage: "square.and.arrow.down") }
+                        Button { path.append(app.createDemo().project.id) } label: { Label("Create demo job", systemImage: "wand.and.stars") }
+                    } label: { Label("More", systemImage: "ellipsis.circle") }
                     Button { showNew = true } label: { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent)
                 }
             }
@@ -75,6 +78,16 @@ struct ProjectsView: View {
                     message = "Restored \(n) project\(n == 1 ? "" : "s")"
                 } catch { message = error.localizedDescription }
             }
+            .task {
+                // Screenshot/automation hook: `--demo` opens (creating if needed) the demo job.
+                let args = ProcessInfo.processInfo.arguments
+                if args.contains("--demo"), path.isEmpty {
+                    let demo = app.projects.first { $0.project.address.hasPrefix("Demo") } ?? app.createDemo()
+                    path.append(demo.project.id)
+                }
+                if args.contains("--settings") { showSettings = true }
+                if args.contains("--catalog") { showCatalog = true }
+            }
             .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("OK") {} }
             .confirmationDialog("Delete this project and its sheets?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
                 Button("Delete", role: .destructive) { if let b = toDelete { app.delete(b) }; toDelete = nil }
@@ -85,6 +98,7 @@ struct ProjectsView: View {
 
 private struct EmptyProjects: View {
     let onNew: () -> Void
+    let onDemo: () -> Void
     var body: some View {
         VStack(spacing: 14) {
             Image(systemName: "mappin.and.ellipse").font(.system(size: 44)).foregroundStyle(Color.brand)
@@ -92,7 +106,11 @@ private struct EmptyProjects: View {
             Text("Start your first job").font(.title2.bold())
             Text("Create a project, import the plan set (PDF, photos or the document scanner), then tap to place cameras, Wi-Fi, speakers, TVs, LED runs and closets.")
                 .multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: 420)
-            Button(action: onNew) { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent).controlSize(.large)
+            HStack(spacing: 12) {
+                Button(action: onNew) { Label("New project", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                Button(action: onDemo) { Label("Try a demo job", systemImage: "wand.and.stars") }.buttonStyle(.bordered)
+            }
+            .controlSize(.large)
         }
         .padding()
         .frame(maxWidth: .infinity)

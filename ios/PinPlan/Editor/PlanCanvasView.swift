@@ -93,10 +93,10 @@ struct PlanCanvasView: View {
                     .position(x: screen(p.x, p.y).x, y: screen(p.x, p.y).y + (model.showLabels ? 7 : 0))
                     .allowsHitTesting(model.tool == .select)
                     .onTapGesture { model.selection = .marker(m.id) }
-                    .onLongPressGesture(minimumDuration: 0.4) {
-                        model.selection = .marker(m.id)
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    }
+                    .contextMenu { markerMenu(m) }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(app.type(m.deviceTypeId)?.name ?? "Device") \(m.label)\(m.tentative ? ", tentative" : "")")
+                    .accessibilityAddTraits(.isButton)
                     .gesture(itemDrag(id: m.id) { r in model.edit { $0.updateMarker(m.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
                 }
             }
@@ -109,6 +109,24 @@ struct PlanCanvasView: View {
             .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id { center(on: f) } }
             .overlay(alignment: .bottomTrailing) { zoomControls }
             .overlay(alignment: .topLeading) { scaleChip }
+        }
+    }
+
+    @ViewBuilder
+    private func markerMenu(_ m: Marker) -> some View {
+        Button { model.selection = .marker(m.id) } label: { Label("Edit", systemImage: "slider.horizontal.3") }
+        Button {
+            let pricing = model.pricing
+            model.edit { $0.updateMarker(m.id, pricing: pricing) { $0.tentative.toggle() } }
+        } label: { Label(m.tentative ? "Mark confirmed" : "Mark tentative (?)", systemImage: "questionmark.circle") }
+        Button {
+            guard let t = app.type(m.deviceTypeId) else { return }
+            model.edit { $0.addMarker(type: t, sheetId: m.sheetId, x: m.x + 0.015, y: m.y + 0.015, room: m.room, tentative: m.tentative) }
+        } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
+        Button { model.use(.place(m.deviceTypeId)) } label: { Label("Place more like this", systemImage: "hand.tap") }
+        Divider()
+        Button(role: .destructive) { model.edit { $0.deleteMarker(m.id) }; if model.selection == .marker(m.id) { model.selection = nil } } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
