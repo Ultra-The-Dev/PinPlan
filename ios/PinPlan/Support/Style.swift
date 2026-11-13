@@ -125,13 +125,13 @@ func wireColor(_ w: String?) -> Color {
 /// A Form whose section headers stay in sentence case (iOS grouped lists default to ALL CAPS).
 struct SentenceForm<Content: View>: View {
     @ViewBuilder var content: Content
-    var body: some View { Form { content }.textCase(nil) }
+    var body: some View { Form { content }.textCase(nil).headerProminence(.increased) }
 }
 
 /// A List whose section headers stay in sentence case.
 struct SentenceList<Content: View>: View {
     @ViewBuilder var content: Content
-    var body: some View { List { content }.textCase(nil) }
+    var body: some View { List { content }.textCase(nil).headerProminence(.increased) }
 }
 
 /// Section header text kept as written (grouped lists otherwise force ALL CAPS on the header).
