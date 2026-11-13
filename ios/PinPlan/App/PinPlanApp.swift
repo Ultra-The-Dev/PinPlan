@@ -13,6 +13,7 @@ struct PinPlanApp: App {
                 .environment(app)
                 .onOpenURL { url in app.receive(url) }
                 .tint(.brand)
+                .textCase(nil)   // section headers in sentence case, not ALL CAPS
         }
     }
 }

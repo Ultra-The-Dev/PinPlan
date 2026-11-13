@@ -34,7 +34,7 @@ jobs:
             xcrun simctl install "$UDID" "$APP"
             for screen in "home:" "plan:--demo --tab plan" "select:--demo --tab plan --select-first" "sheets:--demo --tab sheets" \
                           "reader:--demo --tab plan --reader" "arch:--arch-sample --tab plan --reader" "scan:--demo --tab sheets --scan-sample" "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
-                          "settings:--settings" "catalog:--catalog"; do
+                          "settings:--settings" "server:--server" "catalog:--catalog"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               xcrun simctl terminate "$UDID" com.pinplan.app || true
               xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS

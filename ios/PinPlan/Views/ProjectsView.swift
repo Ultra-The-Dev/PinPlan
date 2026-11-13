@@ -98,7 +98,7 @@ struct ProjectsView: View {
                     if let p = app.projects.first(where: { $0.project.address == address }) { path.append(p.project.id) }
                     else { path.append(await app.createProject(fromFile: url).project.id) }
                 }
-                if args.contains("--settings") { showSettings = true }
+                if args.contains("--settings") || args.contains("--server") { showSettings = true }
                 if args.contains("--catalog") { showCatalog = true }
             }
             .sheet(isPresented: Binding(get: { !app.incomingFiles.isEmpty }, set: { if !$0 { app.incomingFiles = [] } })) {
@@ -150,7 +150,11 @@ private struct EmptyProjects: View {
 struct StatusChip: View {
     let status: ProjectStatus
     var body: some View {
-        Chip(text: status.rawValue.capitalized, tint: status == .estimate ? .orange : status == .approved ? .brand : .green)
+        let tint: Color = status == .estimate ? .orange : status == .approved ? .brand : .green
+        HStack(spacing: 5) {
+            Circle().fill(tint).frame(width: 7, height: 7)
+            Text(status.rawValue.capitalized).font(.caption.weight(.medium)).foregroundStyle(.primary)
+        }
     }
 }
 
@@ -171,35 +175,26 @@ private struct ProjectCard: View {
                     }
                 }
                 .frame(height: 150).frame(maxWidth: .infinity).clipped().background(Color(.secondarySystemBackground))
-                StatusChip(status: p.status).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
+                StatusChip(status: p.status).padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.address.isEmpty ? "Untitled job" : p.address).font(.headline).lineLimit(1)
                 Text(p.clientName.isEmpty ? "No client" : p.clientName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                HStack(spacing: 8) {
-                    Stat(value: "\(bundle.liveSheets.count)", label: "Sheets")
-                    Stat(value: "\(bundle.liveMarkers.count)", label: "Devices")
-                    Stat(value: led.clean, label: "LED LF")
-                }
-                .padding(.top, 8)
+                Text(summary(sheets: bundle.liveSheets.count, devices: bundle.liveMarkers.count, led: led))
+                    .font(.footnote).foregroundStyle(.secondary).monospacedDigit().padding(.top, 6)
             }
             .padding(14)
         }
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(.separator).opacity(0.4)))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 3)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.07), radius: 10, y: 4)
     }
 
-    private struct Stat: View {
-        let value: String, label: String
-        var body: some View {
-            VStack(spacing: 1) {
-                Text(value).font(.subheadline.bold()).monospacedDigit()
-                Text(label).font(.caption2).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity).padding(.vertical, 6).background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
-        }
+    private func summary(sheets: Int, devices: Int, led: Double) -> String {
+        var parts = ["\(sheets) sheet\(sheets == 1 ? "" : "s")", "\(devices) device\(devices == 1 ? "" : "s")"]
+        if led > 0 { parts.append("\(led.clean) LF LED") }
+        return parts.joined(separator: " · ")
     }
 }
 

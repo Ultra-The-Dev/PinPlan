@@ -31,7 +31,7 @@ struct EstimateView: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Estimate total").font(.subheadline).foregroundStyle(.secondary)
-                            Text(Money.format(e.total, currency: cur)).font(.system(size: 38, weight: .bold, design: .rounded)).monospacedDigit()
+                            Text(Money.format(e.total, currency: cur)).font(.system(size: 38, weight: .bold)).monospacedDigit()
                                 .contentTransition(.numericText())
                         }
                         Spacer()
@@ -229,18 +229,22 @@ private struct LineRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(line.description).foregroundStyle(line.included ? .primary : .secondary)
-                    if line.optional { Chip(text: "optional", tint: .orange) }
-                    if line.overridden && !line.key.hasPrefix("custom:") { Chip(text: "edited", tint: .brand) }
-                }
-                Text("\(line.qty.clean) \(line.unit) × \(Money.format(line.unitPrice, currency: currency))")
+                Text(line.description).foregroundStyle(line.included ? .primary : .secondary)
+                Text(caption)
                     .font(.caption).foregroundStyle(line.unitPrice == 0 && line.included ? .orange : .secondary)
             }
             Spacer()
             Text(Money.format(line.total, currency: currency)).monospacedDigit().foregroundStyle(line.included ? .primary : .secondary)
         }
         .contentShape(Rectangle())
+    }
+
+    private var caption: String {
+        var s = "\(line.qty.clean) \(line.unit) × \(Money.format(line.unitPrice, currency: currency))"
+        if line.unitPrice == 0 { s += " · no price yet" }
+        if line.optional { s += " · optional" }
+        if line.overridden && !line.key.hasPrefix("custom:") { s += " · changed here" }
+        return s
     }
 }
 

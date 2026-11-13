@@ -95,13 +95,12 @@ struct DeviceSymbol: View {
     }
 }
 
-/// Small rounded chip label.
+/// Small inline label: plain coloured text, no pill or box around it.
 struct Chip: View {
     let text: String
     var tint: Color = .secondary
     var body: some View {
-        Text(text).font(.caption2.weight(.semibold)).padding(.horizontal, 7).padding(.vertical, 3)
-            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 5, style: .continuous)).foregroundStyle(tint)
+        Text(text).font(.caption.weight(.medium)).foregroundStyle(tint)
     }
 }
 

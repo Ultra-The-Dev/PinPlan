@@ -5,6 +5,8 @@ import PinPlanCore
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    // Screenshot/automation hook: `--server` opens the server page directly.
+    @State private var openServer = ProcessInfo.processInfo.arguments.contains("--server")
 
     var body: some View {
         @Bindable var app = app
@@ -39,6 +41,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .navigationDestination(isPresented: $openServer) { ServerSetupView() }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { app.saveSettings(); dismiss() } } }
         .onDisappear { app.saveSettings() }
     }

@@ -46,7 +46,7 @@ struct ProjectView: View {
                         .toolbar {
                             ToolbarItem(placement: .principal) {
                                 Picker("Section", selection: $tab) {
-                                    ForEach(ProjectTab.allCases) { t in Label(t.title, systemImage: t.icon).tag(t) }
+                                    ForEach(ProjectTab.allCases) { t in Text(t.title).tag(t) }   // words, not icon-only segments
                                 }
                                 .pickerStyle(.segmented)
                                 .frame(maxWidth: 620)
