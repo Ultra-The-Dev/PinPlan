@@ -30,6 +30,9 @@ export async function requireUser(request: Request): Promise<AuthResult> {
     const given = request.headers.get("x-pinplan-access") ?? "";
     return given && sameSecret(given, process.env.PINPLAN_ACCESS_CODE!) ? { ok: true, userId: null } : deny("Enter the team access code in Settings.", "access_code_required");
   }
+  // The native app signs in with the team access code; keep that working when Supabase accounts are also enabled.
+  const code = request.headers.get("x-pinplan-access");
+  if (code && process.env.PINPLAN_ACCESS_CODE && sameSecret(code, process.env.PINPLAN_ACCESS_CODE)) return { ok: true, userId: null };
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return deny("Sign in to use this feature.", "sign_in_required");
   try {

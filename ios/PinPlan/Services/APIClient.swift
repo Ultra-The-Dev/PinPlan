@@ -36,6 +36,30 @@ struct APIClient {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
+    // MARK: Connection check
+
+    /// What the server reports about itself; feature flags only arrive once the access code is accepted.
+    struct Health: Decodable {
+        let ok: Bool
+        let app: String?
+        let authMode: String?
+        let authorized: Bool
+        let ai: Bool?
+        let billdu: Bool?
+    }
+
+    func health() async throws -> Health {
+        var req = URLRequest(url: baseURL.appendingPathComponent("api/health"))
+        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        req.timeoutInterval = 20
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status), let h = try? JSONDecoder().decode(Health.self, from: data), h.app == "pinplan" else {
+            throw APIError(message: status == 404 ? "That address isn't a PinPlan server (or it needs the latest version deployed)." : "The server answered \(status). Check the address.")
+        }
+        return h
+    }
+
     // MARK: Billdu
 
     struct SendResult: Decodable {
