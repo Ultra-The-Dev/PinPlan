@@ -210,3 +210,22 @@ struct DoubleField: View {
         TextField("0", value: $value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(maxWidth: 120)
     }
 }
+
+/// Shown where a feature needs the server: says why, and opens the setup page right there.
+struct ServerSetupPrompt: View {
+    let feature: String
+    @State private var open = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(feature) needs your PinPlan server").font(.subheadline.weight(.medium))
+            Button("Set up server") { open = true }.buttonStyle(.bordered)
+        }
+        .padding(.vertical, 4)
+        .sheet(isPresented: $open) {
+            NavigationStack {
+                ServerSetupView()
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { open = false } } }
+            }
+        }
+    }
+}

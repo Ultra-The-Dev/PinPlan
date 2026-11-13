@@ -23,7 +23,7 @@ struct ScanSheet: View {
                     Button { run(titleOnly: false) } label: { Label(busy ? "Scanning…" : "Scan this sheet", systemImage: "sparkles") }.disabled(busy)
                     Button { run(titleOnly: true) } label: { Label("Detect sheet name", systemImage: "textformat") }.disabled(busy)
                     if APIClient(settings: app.settings) == nil {
-                        Text("Set your PinPlan server address in Settings to use AI scan.").font(.caption).foregroundStyle(.orange)
+                        ServerSetupPrompt(feature: "AI scan")
                     }
                     if let error { Text(error).foregroundStyle(.red) }
                 }

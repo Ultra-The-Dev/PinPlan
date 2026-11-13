@@ -125,8 +125,9 @@ struct EstimateView: View {
                 ForEach(model.bundle.project.billduDocs, id: \.id) { d in
                     LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
+                if APIClient(settings: app.settings) == nil { ServerSetupPrompt(feature: "Sending to Billdu") }
             } header: { Text("Billdu").textCase(nil) } footer: {
-                Text(APIClient(settings: app.settings) == nil ? "Set your PinPlan server address in Settings to send to Billdu. You can always share the PDF or CSV instead." : "Sent through your PinPlan server; Billdu credentials never live on this device.")
+                Text(APIClient(settings: app.settings) == nil ? "You can still share the PDF or CSV" : "Sent through your PinPlan server; Billdu keys never live on this device")
             }
         }
         .sheet(item: $editing) { l in LineEditor(model: model, line: l) }

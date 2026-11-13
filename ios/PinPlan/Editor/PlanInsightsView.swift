@@ -111,7 +111,7 @@ struct PlanInsightsView: View {
     @ViewBuilder
     private var aiSections: some View {
         if APIClient(settings: app.settings) == nil {
-            Section { Label("Set your PinPlan server in Settings to use the AI reader.", systemImage: "server.rack").foregroundStyle(.orange) }
+            Section { ServerSetupPrompt(feature: "The AI reader") }
         }
         if let e = model.planExplanations[sheet.id] {
             Section {

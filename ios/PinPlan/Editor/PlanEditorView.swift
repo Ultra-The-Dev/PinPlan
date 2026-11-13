@@ -133,16 +133,16 @@ struct PlanEditorView: View {
     /// iPhone: the editor's actions as a floating bar (the navigation bar belongs to the tab view).
     private var compactBar: some View {
         HStack(spacing: 2) {
-            Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)) }
+            Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)).lineLimit(1).fixedSize() }
                 .buttonStyle(.borderedProminent).controlSize(.small)
             Spacer(minLength: 4)
             Group {
-                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo)
-                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo)
+                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo).accessibilityLabel("Undo")
+                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo).accessibilityLabel("Redo")
                 toolsMenu
-                Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }
-                Button { showCounts = true } label: { Image(systemName: "list.number") }
-                Button { showScan = true } label: { Image(systemName: "sparkles") }
+                Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }.accessibilityLabel("Read the plan")
+                Button { showCounts = true } label: { Image(systemName: "list.number") }.accessibilityLabel("Floor counts")
+                Button { showScan = true } label: { Image(systemName: "sparkles") }.accessibilityLabel("AI scan")
             }
             .frame(width: 38, height: 34)
         }
