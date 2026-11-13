@@ -44,7 +44,8 @@ struct PlanEditorView: View {
                             .padding(.horizontal, 14).padding(.vertical, 9).background(Color.ink.opacity(0.92), in: Capsule())
                             .padding(.bottom, 70)
                     }
-                    .transition(.opacity)
+                    // Rises a little from the bottom as it appears; leaves a bit faster than it arrives.
+                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
                 }
             }
             if regular, let sel = model.selection {
@@ -68,7 +69,8 @@ struct PlanEditorView: View {
                 CountsPanel(model: model) { showCounts = false }.frame(width: 320)
             }
         }
-        .animation(.snappy(duration: 0.2), value: model.selection)
+        .animation(.easeOut(duration: 0.22), value: model.selection)
+        .animation(.easeOut(duration: 0.2), value: model.toast)
         .background {
             // Hardware keyboard shortcuts (iPad): Esc = select tool, Delete = delete selection, M = measure, F = fit, L = labels.
             Group {
