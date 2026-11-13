@@ -24,27 +24,33 @@ jobs:
           set -x
           APP=build/Build/Products/Debug-iphonesimulator/PinPlan.app
           mkdir -p shots
-          xcrun simctl list devicetypes | grep -E "iPhone 16 Pro|iPad Pro 13" || true
+                    # Every simulator command gets a time limit so one hang can't stall the whole run.
+          t () { local secs=$1; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@" || echo "warning: '$*' failed or timed out"; }
+          xcrun simctl list runtimes | tail -5
+          pick () { xcrun simctl list devicetypes | grep -E "$1" | grep -oE "com\.apple\.CoreSimulator\.SimDeviceType\.[A-Za-z0-9-]+" | tail -1; }
           shoot () {
             DEV="$1"; NAME="$2"
-            UDID=$(xcrun simctl create "$NAME" "$DEV")
-            xcrun simctl boot "$UDID"
-            xcrun simctl bootstatus "$UDID" -b
-            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
-            xcrun simctl install "$UDID" "$APP"
+            echo "== $NAME on $DEV"
+            UDID=$(xcrun simctl create "$NAME" "$DEV") || { echo "could not create $NAME"; return; }
+            t 120 xcrun simctl boot "$UDID"
+            t 300 xcrun simctl bootstatus "$UDID" -b
+            t 30 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+            t 180 xcrun simctl install "$UDID" "$APP"
             for screen in "home:" "plan:--demo --tab plan" "select:--demo --tab plan --select-first" "sheets:--demo --tab sheets" \
                           "reader:--demo --tab plan --reader" "arch:--arch-sample --tab plan --reader" "scan:--demo --tab sheets --scan-sample" "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
                           "settings:--settings" "server:--server" "catalog:--catalog"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
-              xcrun simctl terminate "$UDID" com.pinplan.app || true
-              xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
+              t 20 xcrun simctl terminate "$UDID" com.pinplan.app
+              t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
               sleep 9
-              xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
+              t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done
-            xcrun simctl shutdown "$UDID"
+            t 60 xcrun simctl shutdown "$UDID"
           }
-          shoot "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro" iphone
-          shoot "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB" ipad
+          IPHONE=$(pick "iPhone 1[0-9] Pro \(" ); IPAD=$(pick "iPad Pro \(?13")
+          echo "iPhone type: $IPHONE / iPad type: $IPAD"
+          shoot "${IPHONE:-com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro}" iphone
+          shoot "${IPAD:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}" ipad
           ls -la shots
       - uses: actions/upload-artifact@v4
         if: always()
