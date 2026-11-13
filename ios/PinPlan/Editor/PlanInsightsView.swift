@@ -53,7 +53,7 @@ struct PlanInsightsView: View {
         ForEach([PlanDetailKind.room, .dimension, .callout, .note, .scale], id: \.self) { kind in
             let items = details.filter { $0.kind == kind && (query.isEmpty || $0.text.localizedCaseInsensitiveContains(query)) }
             if !items.isEmpty {
-                Section("\(kind.title) (\(items.count))") {
+                Section(sentence: "\(kind.title) (\(items.count))") {
                     ForEach(items) { d in detailRow(d) }
                 }
             }
@@ -121,21 +121,21 @@ struct PlanInsightsView: View {
                     Text(e.summary).font(.callout).padding(.top, 4)
                 }
                 .padding(.vertical, 4)
-            } header: { Text("Summary") }
+            } header: { Text("Summary").textCase(nil) }
             if !e.verify.isEmpty {
-                Section("Check on site") {
+                Section(sentence: "Check on site") {
                     ForEach(e.verify, id: \.self) { v in Label(v, systemImage: "checklist").font(.callout) }
                 }
             }
             if !e.rooms.isEmpty {
-                Section("Rooms (\(e.rooms.count))") {
+                Section(sentence: "Rooms (\(e.rooms.count))") {
                     ForEach(e.rooms, id: \.self) { r in
                         Button { go(r.x, r.y) } label: { LabeledContent(r.name, value: r.size ?? "") }.foregroundStyle(.primary)
                     }
                 }
             }
             if !e.notes.isEmpty {
-                Section("Notes for your trade (\(e.notes.count))") {
+                Section(sentence: "Notes for your trade (\(e.notes.count))") {
                     ForEach(e.notes, id: \.self) { n in
                         Button { go(n.x, n.y) } label: {
                             HStack(alignment: .top) {
@@ -147,7 +147,7 @@ struct PlanInsightsView: View {
                 }
             }
             if !e.dimensions.isEmpty {
-                Section("Dimensions (\(e.dimensions.count))") {
+                Section(sentence: "Dimensions (\(e.dimensions.count))") {
                     ForEach(e.dimensions, id: \.self) { d in
                         Button { go(d.x, d.y) } label: {
                             LabeledContent(d.describes ?? d.text, value: d.describes == nil ? (d.feet.map { "\($0.clean) ft" } ?? "") : d.text)
@@ -166,7 +166,7 @@ struct PlanInsightsView: View {
             if let aiError { Text(aiError).foregroundStyle(.red).font(.callout) }
         } footer: { Text("Claude reads the sheet image and explains it for low-voltage work. Always confirm critical dimensions on the drawings.") }
 
-        Section("Ask about this plan") {
+        Section(sentence: "Ask about this plan") {
             ForEach(model.planQA[sheet.id] ?? []) { qa in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(qa.question).font(.callout.weight(.semibold))

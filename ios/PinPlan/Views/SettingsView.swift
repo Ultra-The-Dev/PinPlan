@@ -63,7 +63,7 @@ struct BusinessSettingsView: View {
                 TextField("Email", text: $app.settings.business.email).keyboardType(.emailAddress).textInputAutocapitalization(.never)
                 TextField("Website", text: $app.settings.business.website).textInputAutocapitalization(.never)
             } footer: { Text("Shown at the top of every client estimate") }
-            Section("Estimate terms") {
+            Section(sentence: "Estimate terms") {
                 TextField("Terms", text: $app.settings.business.estimateTerms, axis: .vertical).lineLimit(3...8)
             }
         }
@@ -108,7 +108,7 @@ struct WireSettingsView: View {
                 LabeledContent("Extra ft per home run") { DoubleField(value: $app.settings.pricing.wireDropFt) }
                 LabeledContent("Floor-to-floor height ft") { DoubleField(value: $app.settings.pricing.floorHeightFt) }
             } footer: { Text("Home-run length is the path to the closet, plus floor heights, slack and the extra per run") }
-            Section("Price per foot") {
+            Section(sentence: "Price per foot") {
                 ForEach(Catalog.wireTypes.filter { $0 != "None" }, id: \.self) { w in
                     LabeledContent(w) {
                         DoubleField(value: Binding(get: { app.settings.pricing.wirePrices[w] ?? 0 }, set: { app.settings.pricing.wirePrices[w] = $0 }))
@@ -135,7 +135,7 @@ struct ServerSetupView: View {
                 TextField("pinplan.vercel.app", text: $app.settings.serverURL)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 SecureField("Team access code", text: $app.settings.accessCode)
-            } header: { Text("Server") } footer: {
+            } header: { Text("Server").textCase(nil) } footer: {
                 Text("The web address of your PinPlan deployment and the access code you set on it")
             }
             Section {
@@ -164,7 +164,7 @@ struct ServerSetupView: View {
                 Picker("First document", selection: $app.settings.billduDocType) {
                     Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
                 }
-            } header: { Text("Billdu") } footer: { Text("What Send to Billdu creates the first time for a job") }
+            } header: { Text("Billdu").textCase(nil) } footer: { Text("What Send to Billdu creates the first time for a job") }
             Section {
                 Text("Keys stay on the server. This device only stores the address and access code.")
                     .font(.callout).foregroundStyle(.secondary)

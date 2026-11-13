@@ -64,7 +64,7 @@ struct EstimateView: View {
                         .font(.callout).foregroundStyle(.orange)
                 }
             }
-            Section("Pricing (this project)") {
+            Section(sentence: "Pricing (this project)") {
                 LabeledContent("Markup %") { numberField(pricing.markupPct) { v in setPricing { $0.markupPct = v } } }
                 LabeledContent("Tax %") { numberField(pricing.taxPct) { v in setPricing { $0.taxPct = v } } }
                 Picker("Labor", selection: Binding(get: { pricing.laborMode }, set: { v in setPricing { $0.laborMode = v } })) {
@@ -76,7 +76,7 @@ struct EstimateView: View {
             ForEach(LineGroup.allCases, id: \.self) { g in
                 let lines = e.lines.filter { $0.group == g }
                 if !lines.isEmpty {
-                    Section(g.title) {
+                    Section(sentence: g.title) {
                         ForEach(lines) { l in
                             Button { editing = l } label: { LineRow(line: l, currency: cur) }
                                 .buttonStyle(.plain)
@@ -101,7 +101,7 @@ struct EstimateView: View {
                     }
                 }
             }
-            Section("Summary") {
+            Section(sentence: "Summary") {
                 LabeledContent("Subtotal", value: Money.format(e.subtotal, currency: cur))
                 LabeledContent("Tax (\(pricing.taxPct.clean)%)", value: Money.format(e.tax, currency: cur))
                 LabeledContent { Text(Money.format(e.total, currency: cur)).font(.title3.bold()) } label: { Text("Total").bold() }
@@ -125,7 +125,7 @@ struct EstimateView: View {
                 ForEach(model.bundle.project.billduDocs, id: \.id) { d in
                     LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
-            } header: { Text("Billdu") } footer: {
+            } header: { Text("Billdu").textCase(nil) } footer: {
                 Text(APIClient(settings: app.settings) == nil ? "Set your PinPlan server address in Settings to send to Billdu. You can always share the PDF or CSV instead." : "Sent through your PinPlan server; Billdu credentials never live on this device.")
             }
         }

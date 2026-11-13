@@ -39,8 +39,13 @@ private struct MarkerForm: View {
                     Text([type?.name, marker.room.isEmpty ? nil : marker.room].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Picker("Device", selection: Binding(get: { marker.deviceTypeId }, set: { v in update { $0.deviceTypeId = v } })) {
-                ForEach(app.liveCatalog.filter { $0.kind == .device }) { Text($0.name).tag($0.id) }
+            // Label above, so long device names get the full row width (the iPad side panel is narrow).
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Device").font(.caption).foregroundStyle(.secondary)
+                Picker("Device", selection: Binding(get: { marker.deviceTypeId }, set: { v in update { $0.deviceTypeId = v } })) {
+                    ForEach(app.liveCatalog.filter { $0.kind == .device }) { Text($0.name).tag($0.id) }
+                }
+                .labelsHidden()
             }
             Toggle(isOn: Binding(get: { marker.tentative }, set: { v in update { $0.tentative = v } })) {
                 VStack(alignment: .leading) { Text("Tentative (?)"); Text("Listed separately; optional on the estimate").font(.caption).foregroundStyle(.secondary) }
@@ -57,10 +62,14 @@ private struct MarkerForm: View {
                 ForEach(Array(Set(Catalog.wireTypes + [marker.wireType])).sorted(), id: \.self) { Text($0).tag($0) }
             }
         }
-        Section("Home run") {
-            Picker("Closet", selection: Binding(get: { marker.closetId ?? "" }, set: { v in update { $0.closetId = v.isEmpty ? nil : v } })) {
-                Text("None").tag("")
-                ForEach(model.bundle.liveClosets) { c in Text("\(c.name) (\(model.sheets.first { $0.id == c.sheetId }?.name ?? ""))").tag(c.id) }
+        Section(sentence: "Home run") {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Closet").font(.caption).foregroundStyle(.secondary)
+                Picker("Closet", selection: Binding(get: { marker.closetId ?? "" }, set: { v in update { $0.closetId = v.isEmpty ? nil : v } })) {
+                    Text("None").tag("")
+                    ForEach(model.bundle.liveClosets) { c in Text("\(c.name) (\(model.sheets.first { $0.id == c.sheetId }?.name ?? ""))").tag(c.id) }
+                }
+                .labelsHidden()
             }
             if marker.closetId != nil {
                 let run = model.bundle.liveRuns.first { $0.kind == .wire && $0.markerId == marker.id }
@@ -71,10 +80,10 @@ private struct MarkerForm: View {
                 }
             }
         }
-        Section("Notes") {
+        Section(sentence: "Notes") {
             CommitField(title: "Notes", value: marker.notes, prompt: "Notes for the crew") { v in update { $0.notes = v } }
         }
-        Section("Photo") {
+        Section(sentence: "Photo") {
             if let id = marker.photoId, let img = app.store.image(id) {
                 Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 10))
             }

@@ -29,7 +29,7 @@ struct ScanSheet: View {
                 }
                 if let r = result {
                     if let name = r.floorName, !name.isEmpty {
-                        Section("Sheet name") {
+                        Section(sentence: "Sheet name") {
                             HStack {
                                 Text(name)
                                 Spacer()
@@ -56,11 +56,11 @@ struct ScanSheet: View {
                                     if s.tentative == true { Chip(text: "?", tint: .orange) }
                                 }
                             }
-                        } header: { Text("Devices (\(symbols.count))") }
+                        } header: { Text("Devices (\(symbols.count))").textCase(nil) }
                     }
                     let callouts = r.ledCallouts ?? []
                     if !callouts.isEmpty {
-                        Section("LED callouts (\(callouts.count))") {
+                        Section(sentence: "LED callouts (\(callouts.count))") {
                             ForEach(Array(callouts.enumerated()), id: \.offset) { i, c in
                                 let key = "led-\(i)"
                                 HStack {

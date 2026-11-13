@@ -34,7 +34,7 @@ struct CatalogView: View {
                             .buttonStyle(.plain)
                         }
                     } header: {
-                        HStack { Circle().fill(Color(hex: cat.color)).frame(width: 8, height: 8); Text(cat.name) }
+                        HStack { Circle().fill(Color(hex: cat.color)).frame(width: 8, height: 8); Text(cat.name) }.textCase(nil)
                     }
                 }
             }
@@ -79,17 +79,17 @@ private struct DeviceTypeEditor: View {
                         Text("Linear feet (draw a run)").tag(MeasureUnit.LF)
                     }
                 }
-                Section("Price") {
+                Section(sentence: "Price") {
                     LabeledContent(type.unit == .LF ? "Price per LF" : "Price each") { DoubleField(value: $type.unitPrice) }
                     LabeledContent(type.unit == .LF ? "Labor per LF" : "Labor each") { DoubleField(value: $type.laborPrice) }
                 }
-                Section("Symbol") {
+                Section(sentence: "Symbol") {
                     TextField("Symbol (1–3 letters)", text: Binding(get: { type.symbol }, set: { type.symbol = String($0.uppercased().prefix(3)) }))
                     TextField("Label prefix", text: Binding(get: { type.abbrev }, set: { type.abbrev = String($0.uppercased().prefix(6)) }))
                     Picker("Shape", selection: $type.shape) { ForEach(MarkerShape.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
                     ColorPicker("Color", selection: Binding(get: { Color(hex: type.color) }, set: { type.color = $0.hexString }))
                 }
-                Section("Defaults") {
+                Section(sentence: "Defaults") {
                     Picker("Wire", selection: $type.defaultWire) { ForEach(Catalog.wireTypes, id: \.self) { Text($0).tag($0) } }
                     Picker("Mount", selection: $type.defaultMount) { ForEach(Mount.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
                 }

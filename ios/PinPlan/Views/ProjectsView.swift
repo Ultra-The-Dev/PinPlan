@@ -210,8 +210,8 @@ struct NewProjectSheet: View {
     var body: some View {
         NavigationStack {
             SentenceForm {
-                Section("Job") { TextField("Job address", text: $address, prompt: Text("20 Hilltop Dr E")) }
-                Section("Client") {
+                Section(sentence: "Job") { TextField("Job address", text: $address, prompt: Text("20 Hilltop Dr E")) }
+                Section(sentence: "Client") {
                     TextField("Client name", text: $client)
                     TextField("Email", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never)
                     TextField("Phone", text: $phone).keyboardType(.phonePad)
@@ -251,7 +251,7 @@ private struct ImportTargetSheet: View {
                           systemImage: "doc.richtext")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                Section("New project") {
+                Section(sentence: "New project") {
                     TextField("Job address", text: $newAddress)
                     Button("Create and import") {
                         let b = app.createProject(address: newAddress.trimmingCharacters(in: .whitespaces), client: "", email: "", phone: "")
@@ -261,7 +261,7 @@ private struct ImportTargetSheet: View {
                     .disabled(newAddress.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if !app.projects.isEmpty {
-                    Section("Add to a project") {
+                    Section(sentence: "Add to a project") {
                         ForEach(app.projects, id: \.project.id) { b in
                             Button { dismiss(); onPick(b.project.id) } label: {
                                 VStack(alignment: .leading) {

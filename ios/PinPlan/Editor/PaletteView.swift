@@ -33,12 +33,12 @@ struct PaletteView: View {
                             }
                         }
                     } header: {
-                        HStack(spacing: 6) { Circle().fill(Color(hex: cat.color)).frame(width: 8, height: 8); Text(cat.name) }
+                        HStack(spacing: 6) { Circle().fill(Color(hex: cat.color)).frame(width: 8, height: 8); Text(cat.name) }.textCase(nil)
                     }
                 }
             }
             if query.isEmpty || "wire run".localizedCaseInsensitiveContains(query) {
-                Section("Wiring") {
+                Section(sentence: "Wiring") {
                     toolRow(.wire, title: "Wire run", subtitle: "device → closet", count: 0) {
                         Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(.blue).frame(width: 28, height: 28)
                     }

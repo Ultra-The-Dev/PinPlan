@@ -305,7 +305,7 @@ struct CountsPanel: View {
                     }
                     .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                 }
-                Section(sheet?.name ?? "") {
+                Section(sentence: sheet?.name ?? "") {
                     ForEach(app.liveCatalog.filter { (floor.counts[$0.id] ?? 0) > 0 }) { t in
                         DisclosureGroup {
                             let ms = model.bundle.liveMarkers.filter { $0.sheetId == sheet?.id && $0.deviceTypeId == t.id }.sorted { $0.label < $1.label }

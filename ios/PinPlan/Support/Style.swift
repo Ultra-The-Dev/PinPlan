@@ -133,3 +133,16 @@ struct SentenceList<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View { List { content }.textCase(nil) }
 }
+
+/// Section header text kept as written (grouped lists otherwise force ALL CAPS on the header).
+struct SentenceHeader: View {
+    let title: String
+    var body: some View { Text(title).textCase(nil) }
+}
+
+extension Section where Parent == SentenceHeader, Footer == EmptyView, Content: View {
+    /// `Section(sentence: "Home run") { … }`: a titled section whose header stays in sentence case.
+    init(sentence title: String, @ViewBuilder content: () -> Content) {
+        self.init(content: content, header: { SentenceHeader(title: title) })
+    }
+}

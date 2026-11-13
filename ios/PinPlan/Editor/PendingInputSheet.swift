@@ -98,7 +98,7 @@ struct ScaleSheet: View {
                 if sheet.pxPerInch != nil {
                     Section {
                         TextField("1/4\" = 1'-0\"", text: $text).keyboardType(.numbersAndPunctuation)
-                    } header: { Text("Plan scale") } footer: { Text("Type the scale printed on the sheet, e.g. 1/4\" = 1'-0\" or 1:48.") }
+                    } header: { Text("Plan scale").textCase(nil) } footer: { Text("Type the scale printed on the sheet, e.g. 1/4\" = 1'-0\" or 1:48.") }
                 } else {
                     Text("This sheet came from a photo or scan, so its paper size is unknown. Draw a line over a known dimension instead.")
                 }

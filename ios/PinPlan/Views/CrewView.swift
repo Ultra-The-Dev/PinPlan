@@ -34,13 +34,13 @@ struct CrewView: View {
                 Button { model.autoHomeRuns(sheetOnly: false) } label: { Label("Auto-draw all home runs", systemImage: "cable.connector") }
             } footer: { Text("Where each wire goes and which type — no prices.") }
             if !tot.wireFt.isEmpty {
-                Section("Cable") {
+                Section(sentence: "Cable") {
                     ForEach(tot.wireFt.keys.sorted(), id: \.self) { w in
                         LabeledContent(w, value: "\((tot.wireFt[w] ?? 0).clean) ft · \(tot.wireRuns[w] ?? 0) run\((tot.wireRuns[w] ?? 0) == 1 ? "" : "s")")
                     }
                 }
             }
-            Section("Home-run schedule") {
+            Section(sentence: "Home-run schedule") {
                 ForEach(rows) { m in
                     let run = model.bundle.liveRuns.first { $0.kind == .wire && $0.markerId == m.id }
                     Button { model.focusOn(.marker(m.id)) } label: {

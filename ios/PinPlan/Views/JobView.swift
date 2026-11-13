@@ -10,18 +10,18 @@ struct JobView: View {
     var body: some View {
         let p = model.bundle.project
         SentenceForm {
-            Section("Job") {
+            Section(sentence: "Job") {
                 LabeledContent("Address") { CommitField(title: "Address", value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
                 Picker("Status", selection: Binding(get: { p.status }, set: { v in model.editSilently { $0.project.status = v } })) {
                     ForEach(ProjectStatus.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
             }
-            Section("Client") {
+            Section(sentence: "Client") {
                 LabeledContent("Name") { CommitField(title: "Name", value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
                 LabeledContent("Email") { CommitField(title: "Email", value: p.clientEmail ?? "", keyboard: .emailAddress) { v in model.editSilently { $0.project.clientEmail = v } }.multilineTextAlignment(.trailing) }
                 LabeledContent("Phone") { CommitField(title: "Phone", value: p.clientPhone ?? "", keyboard: .phonePad) { v in model.editSilently { $0.project.clientPhone = v } }.multilineTextAlignment(.trailing) }
             }
-            Section("Notes") {
+            Section(sentence: "Notes") {
                 CommitField(title: "Notes", value: p.notes ?? "", prompt: "Gate code, site contact…") { v in model.editSilently { $0.project.notes = v } }
             }
             Section {
@@ -29,11 +29,11 @@ struct JobView: View {
                     do { share = SharedFile(url: try app.store.backup(of: [model.bundle], catalog: app.catalog)) } catch { self.error = error.localizedDescription }
                 } label: { Label("Share backup (.pinplan.json)", systemImage: "square.and.arrow.up") }
                 if let error { Text(error).foregroundStyle(.red) }
-            } header: { Text("Backup") } footer: {
+            } header: { Text("Backup").textCase(nil) } footer: {
                 Text("One file with every sheet, device, run, photo and estimate edit. It opens in this app or the PinPlan web app.")
             }
             if !p.billduDocs.isEmpty {
-                Section("Billdu") {
+                Section(sentence: "Billdu") {
                     ForEach(p.billduDocs, id: \.id) { d in
                         LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
                     }
