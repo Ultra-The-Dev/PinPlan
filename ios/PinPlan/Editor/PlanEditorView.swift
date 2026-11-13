@@ -279,7 +279,7 @@ struct CountsPanel: View {
         let sheet = model.activeSheet
         let floor = model.takeoff.floors.first { $0.sheetId == sheet?.id }?.bucket ?? TakeoffBucket()
         PanelContainer(title: "Floor count", inSheet: inSheet, onClose: onClose) {
-            List {
+            SentenceList {
                 Section {
                     TextField("Find device (label or room)", text: $find)
                     if !find.isEmpty {

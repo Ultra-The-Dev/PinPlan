@@ -25,7 +25,7 @@ struct EstimateView: View {
         let e = estimate
         let cur = pricing.currency
         let unpriced = e.lines.filter { $0.included && $0.unitPrice == 0 && $0.qty > 0 }
-        List {
+        SentenceList {
             Section {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .firstTextBaseline) {
@@ -260,7 +260,7 @@ private struct LineEditor: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            SentenceForm {
                 TextField("Description", text: $desc)
                 LabeledContent("Quantity") { TextField("", text: $qty).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
                 LabeledContent("Unit") { TextField("", text: $unit).multilineTextAlignment(.trailing) }

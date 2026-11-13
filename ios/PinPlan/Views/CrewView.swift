@@ -14,7 +14,7 @@ struct CrewView: View {
         let rows = model.bundle.liveMarkers.filter { app.type($0.deviceTypeId)?.kind == .device }
             .sorted { (order[$0.sheetId] ?? 0, $0.label) < (order[$1.sheetId] ?? 0, $1.label) }
         let tot = model.takeoff.total
-        List {
+        SentenceList {
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {

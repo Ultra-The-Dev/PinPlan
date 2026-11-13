@@ -10,7 +10,7 @@ struct PaletteView: View {
     @State private var query = ""
 
     var body: some View {
-        List {
+        SentenceList {
             TipView(PlaceDeviceTip()).listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             Section {
                 Label {

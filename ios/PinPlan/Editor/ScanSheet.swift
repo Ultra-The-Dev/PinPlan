@@ -16,7 +16,7 @@ struct ScanSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            SentenceList {
                 Section {
                     Text("Claude reads the sheet and suggests devices and LED callouts. Nothing is counted until you accept it.")
                         .font(.callout).foregroundStyle(.secondary)

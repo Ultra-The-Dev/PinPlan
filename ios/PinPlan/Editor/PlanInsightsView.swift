@@ -22,7 +22,7 @@ struct PlanInsightsView: View {
 
     var body: some View {
         PanelContainer(title: "Read \(sheet.name)", inSheet: inSheet, onClose: onClose) {
-            List {
+            SentenceList {
                 Section {
                     Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                         .pickerStyle(.segmented)

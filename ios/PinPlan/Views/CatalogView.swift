@@ -9,7 +9,7 @@ struct CatalogView: View {
     @State private var query = ""
 
     var body: some View {
-        List {
+        SentenceList {
             ForEach(Catalog.categories, id: \.id) { cat in
                 let types = app.catalog.filter { $0.category == cat.id && (showArchived || $0.archived != true) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
                     .sorted { $0.sort < $1.sort }
@@ -65,7 +65,7 @@ private struct DeviceTypeEditor: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            SentenceForm {
                 Section {
                     HStack {
                         Spacer()

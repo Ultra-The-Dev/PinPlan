@@ -121,3 +121,15 @@ func wireColor(_ w: String?) -> Color {
     default: return Color(hex: "#64748b")
     }
 }
+
+/// A Form whose section headers stay in sentence case (iOS grouped lists default to ALL CAPS).
+struct SentenceForm<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View { Form { content }.textCase(nil) }
+}
+
+/// A List whose section headers stay in sentence case.
+struct SentenceList<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View { List { content }.textCase(nil) }
+}

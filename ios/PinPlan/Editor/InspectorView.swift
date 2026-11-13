@@ -9,7 +9,7 @@ struct InspectorView: View {
     let selection: Selection
 
     var body: some View {
-        Form {
+        SentenceForm {
             switch selection {
             case .marker(let id): if let m = model.bundle.liveMarkers.first(where: { $0.id == id }) { MarkerForm(model: model, marker: m) }
             case .run(let id): if let r = model.bundle.liveRuns.first(where: { $0.id == id }) { RunForm(model: model, run: r) }

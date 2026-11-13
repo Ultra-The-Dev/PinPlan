@@ -10,7 +10,7 @@ struct SettingsView: View {
 
     var body: some View {
         @Bindable var app = app
-        Form {
+        SentenceForm {
             Section {
                 NavigationLink { ServerSetupView() } label: {
                     LabeledContent {
@@ -55,7 +55,7 @@ struct BusinessSettingsView: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         @Bindable var app = app
-        Form {
+        SentenceForm {
             Section {
                 TextField("Business name", text: $app.settings.business.name)
                 TextField("Address", text: $app.settings.business.address)
@@ -76,7 +76,7 @@ struct PricingSettingsView: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         @Bindable var app = app
-        Form {
+        SentenceForm {
             Section {
                 LabeledContent("Markup on materials %") { DoubleField(value: $app.settings.pricing.markupPct) }
                 LabeledContent("Sales tax %") { DoubleField(value: $app.settings.pricing.taxPct) }
@@ -102,7 +102,7 @@ struct WireSettingsView: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         @Bindable var app = app
-        Form {
+        SentenceForm {
             Section {
                 LabeledContent("Slack and service loop %") { DoubleField(value: $app.settings.pricing.wireSlackPct) }
                 LabeledContent("Extra ft per home run") { DoubleField(value: $app.settings.pricing.wireDropFt) }
@@ -130,7 +130,7 @@ struct ServerSetupView: View {
 
     var body: some View {
         @Bindable var app = app
-        Form {
+        SentenceForm {
             Section {
                 TextField("pinplan.vercel.app", text: $app.settings.serverURL)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()

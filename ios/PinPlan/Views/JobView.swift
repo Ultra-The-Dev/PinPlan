@@ -9,7 +9,7 @@ struct JobView: View {
 
     var body: some View {
         let p = model.bundle.project
-        Form {
+        SentenceForm {
             Section("Job") {
                 LabeledContent("Address") { CommitField(title: "Address", value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
                 Picker("Status", selection: Binding(get: { p.status }, set: { v in model.editSilently { $0.project.status = v } })) {

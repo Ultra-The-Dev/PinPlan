@@ -14,7 +14,7 @@ struct PendingInputSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            SentenceForm {
                 switch pending {
                 case .calibrate:
                     Section { TextField("Real length, e.g. 12'6\" or 12.5", text: $a).keyboardType(.numbersAndPunctuation) } footer: { Text("How long is the line you drew, in real life?") }
@@ -94,7 +94,7 @@ struct ScaleSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            SentenceForm {
                 if sheet.pxPerInch != nil {
                     Section {
                         TextField("1/4\" = 1'-0\"", text: $text).keyboardType(.numbersAndPunctuation)

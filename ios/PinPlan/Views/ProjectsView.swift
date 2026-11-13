@@ -209,7 +209,7 @@ struct NewProjectSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            SentenceForm {
                 Section("Job") { TextField("Job address", text: $address, prompt: Text("20 Hilltop Dr E")) }
                 Section("Client") {
                     TextField("Client name", text: $client)
@@ -245,7 +245,7 @@ private struct ImportTargetSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            SentenceList {
                 Section {
                     Label("\(app.incomingFiles.count) file\(app.incomingFiles.count == 1 ? "" : "s"): \(app.incomingFiles.map { $0.lastPathComponent.split(separator: "-", maxSplits: 5).last.map(String.init) ?? "" }.joined(separator: ", "))",
                           systemImage: "doc.richtext")
