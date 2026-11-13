@@ -6,10 +6,9 @@ name: iOS real plans
 #  - reeves-a101.pdf: a two-plan architect sheet (vector PDF)
 #  - twin-scan.jpg: a scanned paper drawing (HABS, Library of Congress, public domain, hand lettering, 1/4" scale)
 #  - twin-photo.jpg: the same sheet as a phone photo (tilted on a table, uneven light) made by scripts/make_plan_photo.py
+# Run on demand (Actions → iOS real plans → Run workflow); it is slow and shares the Mac runners with every push.
 on:
   workflow_dispatch:
-  push:
-    paths: ["ios/PinPlan/**", "ios/PinPlanCore/Sources/**", "ios/scripts/**", ".github/workflows/ios-real-plans.yml"]
 
 jobs:
   real-plans:
