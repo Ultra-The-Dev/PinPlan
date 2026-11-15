@@ -71,9 +71,11 @@ public enum TakeoffCalculator {
                     buckets[r.sheetId]!.stairSteps += r.steps ?? 0
                 }
             case .wire:
-                let wt = (r.wireType?.isEmpty == false ? r.wireType! : "Unspecified")
-                buckets[r.sheetId]!.wireRuns[wt, default: 0] += 1
-                if let len { buckets[r.sheetId]!.wireFt[wt, default: 0] += len }
+                // A run carrying a bundle counts its length once per cable.
+                for wt in r.cables {
+                    buckets[r.sheetId]!.wireRuns[wt, default: 0] += 1
+                    if let len { buckets[r.sheetId]!.wireFt[wt, default: 0] += len }
+                }
             }
         }
         for c in b.liveClosets where buckets[c.sheetId] != nil { buckets[c.sheetId]!.closets[c.kind, default: 0] += 1 }

@@ -246,8 +246,10 @@ final class EditorModel {
         let marker = bundle.liveMarkers.first { $0.id == draftMarkerId }
         let pts = draft
         edit { b in
-            let r = b.addRun(Run(projectId: b.project.id, sheetId: sheet.id, kind: .wire, points: pts, wireType: marker?.wireType ?? "Cat6",
-                                 markerId: marker?.id, closetId: closetId, tentative: marker?.tentative))
+            var newRun = Run(projectId: b.project.id, sheetId: sheet.id, kind: .wire, points: pts, wireType: marker?.cables.first ?? "Cat6",
+                             markerId: marker?.id, closetId: closetId, tentative: marker?.tentative)
+            if let cables = marker?.cables, cables.count > 1 { newRun.wireTypes = cables }
+            let r = b.addRun(newRun)
             if let m = marker, let closetId, m.closetId != closetId {
                 b.updateMarker(m.id, pricing: pricing) { $0.closetId = closetId }
             }

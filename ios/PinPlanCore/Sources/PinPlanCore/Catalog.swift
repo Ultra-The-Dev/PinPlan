@@ -21,7 +21,7 @@ public enum Catalog {
         .lighting: "Lighting", .shades: "Shades", .infrastructure: "Infrastructure", .wiring: "Wiring",
     ]
 
-    public static let wireTypes = ["Cat6", "16/4 speaker", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber", "None"]
+    public static let wireTypes = ["Cat6", "16/4 speaker", "HDMI", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber", "None"]
 
     public struct ClosetInfo: Sendable { public let id: ClosetKind; public let name: String; public let abbrev: String; public let color: String }
     public static let closetKinds: [ClosetInfo] = [

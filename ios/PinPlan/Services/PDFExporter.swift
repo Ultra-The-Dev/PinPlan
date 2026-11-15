@@ -67,10 +67,19 @@ enum PDFExporter {
             ctx.setLineCap(.round); ctx.setLineJoin(.round)
             if run.kind == .wire { ctx.setLineDash(phase: 0, lengths: [r * 0.6, r * 0.4]) }
             if run.kind == .stair { ctx.setLineDash(phase: 0, lengths: [r * 0.3, r * 0.3]) }
-            ctx.move(to: pt(run.points[0], run.points[1]))
-            var i = 2
-            while i + 1 < run.points.count { ctx.addLine(to: pt(run.points[i], run.points[i + 1])); i += 2 }
-            ctx.strokePath()
+            var linePts: [CGPoint] = []
+            var i = 0
+            while i + 1 < run.points.count { linePts.append(pt(run.points[i], run.points[i + 1])); i += 2 }
+            if run.kind == .wire && run.cables.count > 1 {
+                for (offset, cable) in zip(bundleOffsets(run.cables.count, spacing: r * 0.3), run.cables) {
+                    ctx.setStrokeColor(UIColor(wireColor(cable)).withAlphaComponent(run.tentative == true ? 0.5 : 1).cgColor)
+                    ctx.addLines(between: offsetPolyline(linePts, by: offset))
+                    ctx.strokePath()
+                }
+            } else {
+                ctx.addLines(between: linePts)
+                ctx.strokePath()
+            }
             ctx.restoreGState()
             if run.kind != .wire {
                 let len = Geometry.runLengthFt(run)
@@ -165,7 +174,7 @@ enum PDFExporter {
                         if cy > page.height - 40 { pdf.beginPage(); cy = 36 }
                         let run = bundle.liveRuns.first { $0.kind == .wire && $0.markerId == m.id }
                         let len = run.flatMap(Geometry.runLengthFt)
-                        let vals = [m.label + (m.tentative ? " ?" : ""), catalog.first { $0.id == m.deviceTypeId }?.name ?? "", m.room, m.mount.rawValue, m.wireType,
+                        let vals = [m.label + (m.tentative ? " ?" : ""), catalog.first { $0.id == m.deviceTypeId }?.name ?? "", m.room, m.mount.rawValue, Cables.summary(m.cables),
                                     bundle.liveClosets.first { $0.id == m.closetId }?.name ?? "—", len.map { "\($0.clean) ft" } ?? "", m.notes]
                         cx = 36
                         for (i, v) in vals.enumerated() { text(v, at: CGPoint(x: cx, y: cy), size: 8.5, width: cols[i].1 - 6); cx += cols[i].1 }

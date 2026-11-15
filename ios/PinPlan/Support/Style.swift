@@ -113,6 +113,8 @@ func wireColor(_ w: String?) -> Color {
     switch w ?? "" {
     case "Cat6": return Color(hex: "#2563eb")
     case "16/4 speaker": return Color(hex: "#7c3aed")
+    case "HDMI": return Color(hex: "#c026d3")
+    case "Coax": return Color(hex: "#ea580c")
     case "HDMI + Cat6": return Color(hex: "#0891b2")
     case "18/2": return Color(hex: "#ca8a04")
     case "LV per driver": return Color(hex: "#d97706")
@@ -145,4 +147,30 @@ extension Section where Parent == SentenceHeader, Footer == EmptyView, Content: 
     init(sentence title: String, @ViewBuilder content: () -> Content) {
         self.init(content: content, header: { SentenceHeader(title: title) })
     }
+}
+
+
+/// A polyline shifted sideways by `d` points (positive = left of travel). Used to draw several cables side by side.
+func offsetPolyline(_ pts: [CGPoint], by d: CGFloat) -> [CGPoint] {
+    guard pts.count >= 2, d != 0 else { return pts }
+    func normal(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+        let dx = b.x - a.x, dy = b.y - a.y, len = max(hypot(dx, dy), 0.0001)
+        return CGPoint(x: -dy / len, y: dx / len)
+    }
+    return pts.indices.map { i in
+        let n: CGPoint
+        if i == 0 { n = normal(pts[0], pts[1]) }
+        else if i == pts.count - 1 { n = normal(pts[i - 1], pts[i]) }
+        else {
+            let a = normal(pts[i - 1], pts[i]), b = normal(pts[i], pts[i + 1])
+            let m = CGPoint(x: a.x + b.x, y: a.y + b.y), len = max(hypot(m.x, m.y), 0.0001)
+            n = CGPoint(x: m.x / len, y: m.y / len)
+        }
+        return CGPoint(x: pts[i].x + n.x * d, y: pts[i].y + n.y * d)
+    }
+}
+
+/// Spacing between cables drawn side by side.
+func bundleOffsets(_ count: Int, spacing: CGFloat) -> [CGFloat] {
+    (0..<count).map { (CGFloat($0) - CGFloat(count - 1) / 2) * spacing }
 }

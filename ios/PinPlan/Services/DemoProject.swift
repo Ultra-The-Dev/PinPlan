@@ -49,6 +49,10 @@ enum DemoProject {
                      points: [0.08, 0.1, 0.62, 0.1], typedFt: 24, zone: "1", switchLabel: "S21"))
         // Two marked "?" on the plan: kept optional on the estimate.
         if let spk = t("speaker") { b.addMarker(type: spk, sheetId: first, x: 0.62, y: 0.4, room: "Kitchen", tentative: true) }
+        // TVs get a bundle: one HDMI and two Cat6 along the same home run.
+        for m in b.liveMarkers where m.deviceTypeId == "tv" {
+            b.updateMarker(m.id, pricing: pricing) { $0.setCables(["HDMI", "Cat6", "Cat6"]) }
+        }
         b.autoHomeRuns(catalog: catalog, pricing: pricing)
         // Sample installed prices on this demo job only (your catalog stays unpriced until you set real prices),
         // so the estimate, PDF and Billdu flow show real numbers.

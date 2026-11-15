@@ -59,9 +59,25 @@ private struct MarkerForm: View {
             Picker("Mount", selection: Binding(get: { marker.mount }, set: { v in update { $0.mount = v } })) {
                 ForEach(Mount.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
             }
-            Picker("Wire", selection: Binding(get: { marker.wireType }, set: { v in update { $0.wireType = v } })) {
-                ForEach(Array(Set(Catalog.wireTypes + [marker.wireType])).sorted(), id: \.self) { Text($0).tag($0) }
+        }
+        Section {
+            ForEach(Cables.counts(marker.cables)) { c in
+                Stepper(value: Binding(get: { c.count }, set: { n in update { $0.setCables(Cables.setting(c.type, count: n, in: $0.cables)) } }), in: 0...12) {
+                    HStack(spacing: 8) {
+                        Circle().fill(wireColor(c.type)).frame(width: 10, height: 10)
+                        Text(c.type)
+                        Spacer()
+                        Text("× \(c.count)").monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
             }
+            Menu {
+                ForEach(Catalog.wireTypes.filter { $0 != "None" && !marker.cables.contains($0) }, id: \.self) { w in
+                    Button(w) { update { $0.setCables($0.cables + [w]) } }
+                }
+            } label: { Label("Add cable", systemImage: "plus") }
+        } header: { Text("Cables").textCase(nil) } footer: {
+            Text(marker.cables.isEmpty ? "No cable to this device" : "\(Cables.summary(marker.cables)) share one home run; each is counted on the takeoff")
         }
         Section(sentence: "Home run") {
             VStack(alignment: .leading, spacing: 2) {
@@ -107,7 +123,7 @@ private struct MarkerForm: View {
                 if let t = app.type(m.deviceTypeId) {
                     model.edit { b in
                         newId = b.addMarker(type: t, sheetId: m.sheetId, x: m.x + 0.015, y: m.y + 0.015, room: m.room, tentative: m.tentative).id
-                        b.updateMarker(newId, pricing: model.pricing) { $0.mount = m.mount; $0.wireType = m.wireType; $0.closetId = m.closetId }
+                        b.updateMarker(newId, pricing: model.pricing) { $0.mount = m.mount; $0.wireType = m.wireType; $0.wires = m.wires; $0.closetId = m.closetId }
                     }
                     model.selection = .marker(newId)
                 }
@@ -146,7 +162,9 @@ private struct RunForm: View {
                 }
                 if let m = run.measuredFt { Text("\(run.kind == .wire ? "Estimated" : "Measured") \(m.clean) ft\(run.typedFt != nil ? " — typed value wins" : "")").font(.caption).foregroundStyle(.secondary) }
             }
-            if run.kind == .wire {
+            if run.kind == .wire && run.cables.count > 1 {
+                LabeledContent("Cables", value: Cables.summary(run.cables))
+            } else if run.kind == .wire {
                 Picker("Wire", selection: Binding(get: { run.wireType ?? "Cat6" }, set: { v in update { $0.wireType = v } })) {
                     ForEach(Catalog.wireTypes, id: \.self) { Text($0).tag($0) }
                 }

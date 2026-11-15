@@ -369,8 +369,30 @@ struct PlanCanvasView: View {
             let selected = model.selection == .run(r.id)
             if selected { ctx.stroke(path, with: .color(Color.brand.opacity(0.3)), style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round)) }
             let dash: [CGFloat] = r.kind == .wire ? [7, 5] : r.kind == .stair ? [3, 3] : []
-            ctx.stroke(path, with: .color(color.opacity(r.tentative == true ? 0.5 : 0.95)),
-                       style: StrokeStyle(lineWidth: r.kind == .wire ? 2.5 : 5, lineCap: .round, lineJoin: .round, dash: dash))
+            if r.kind == .wire && r.cables.count > 1 {
+                // A bundle: one line per cable, side by side, each in its cable's colour.
+                var screenPts: [CGPoint] = []
+                var k = 0
+                while k + 1 < pts.count { screenPts.append(screen(pts[k], pts[k + 1])); k += 2 }
+                for (offset, cable) in zip(bundleOffsets(r.cables.count, spacing: 3.6), r.cables) {
+                    let shifted = offsetPolyline(screenPts, by: offset)
+                    var p = Path()
+                    p.addLines(shifted)
+                    ctx.stroke(p, with: .color(wireColor(cable).opacity(r.tentative == true ? 0.5 : 0.95)),
+                               style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round, dash: dash))
+                }
+                if model.showLabels || selected, screenPts.count >= 2 {
+                    let mid = CGPoint(x: (screenPts[0].x + screenPts[screenPts.count - 1].x) / 2, y: (screenPts[0].y + screenPts[screenPts.count - 1].y) / 2)
+                    let resolved = ctx.resolve(Text(Cables.summary(r.cables)).font(.system(size: 10, weight: .semibold)).foregroundColor(.primary))
+                    let sz = resolved.measure(in: CGSize(width: 300, height: 30))
+                    ctx.fill(Path(roundedRect: CGRect(x: mid.x - sz.width / 2 - 4, y: mid.y - sz.height / 2 - 2, width: sz.width + 8, height: sz.height + 4), cornerRadius: 4),
+                             with: .color(.white.opacity(0.92)))
+                    ctx.draw(resolved, at: mid)
+                }
+            } else {
+                ctx.stroke(path, with: .color(color.opacity(r.tentative == true ? 0.5 : 0.95)),
+                           style: StrokeStyle(lineWidth: r.kind == .wire ? 2.5 : 5, lineCap: .round, lineJoin: .round, dash: dash))
+            }
             if r.kind != .wire {
                 let len = Geometry.runLengthFt(r)
                 let parts = [r.zone.flatMap { $0.isEmpty ? nil : "Z\($0)" }, len.map { "\($0.clean) LF" } ?? "LF?", r.switchLabel.flatMap { $0.isEmpty ? nil : $0 }]

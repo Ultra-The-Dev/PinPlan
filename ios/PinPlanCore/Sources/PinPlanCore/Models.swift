@@ -147,6 +147,8 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
     public var photoId: String?
     /// A different product for just this device (else the job's choice for its type).
     public var productId: String?
+    /// Every cable pulled to this device, repeats meaning several (e.g. ["HDMI", "Cat6", "Cat6"]). Nil = just `wireType`.
+    public var wires: [String]?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -175,6 +177,8 @@ public struct Run: Codable, Hashable, Identifiable, Sendable {
     public var steps: Int?
     public var lfPerStep: Double?
     public var wireType: String?
+    /// A home run carrying several cables along one path (copied from the device's bundle).
+    public var wireTypes: [String]?
     public var markerId: String?
     public var closetId: String?
     public var tentative: Bool?

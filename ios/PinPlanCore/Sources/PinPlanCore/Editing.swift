@@ -121,7 +121,7 @@ public extension ProjectBundle {
             let m = markers[i]
             if let sheetId, m.sheetId != sheetId { continue }
             if let markerId, m.id != markerId { continue }
-            if m.wireType == "None" || catalog.first(where: { $0.id == m.deviceTypeId })?.kind == .led { continue }
+            if m.cables.isEmpty || catalog.first(where: { $0.id == m.deviceTypeId })?.kind == .led { continue }
             var closet = liveClosets.first { $0.id == m.closetId }
             if closet == nil {
                 closet = defaultCloset(for: m.sheetId)
@@ -143,7 +143,9 @@ public extension ProjectBundle {
         r.points = Geometry.homeRunPoints(marker: m, closet: closet)
         r.markerId = m.id
         r.closetId = closet.id
-        r.wireType = m.wireType
+        let cables = m.cables
+        r.wireType = cables.first ?? m.wireType
+        r.wireTypes = cables.count > 1 ? cables : nil
         r.tentative = m.tentative
         r.measuredFt = Geometry.estimateHomeRunFt(marker: m, closet: closet, sheets: liveSheets, pricing: pricing)
         r.deleted = nil
