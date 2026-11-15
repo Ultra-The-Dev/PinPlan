@@ -1,7 +1,8 @@
+-- Safe to run more than once.
 -- Client proposals: a frozen copy of the estimate (with marked-up plans) behind an unguessable link.
 -- Clients have no account: they read and answer a proposal only through the two functions below, by its token.
 
-create table public.proposals (
+create table if not exists public.proposals (
   -- The link token (random, 24+ chars). Knowing it is what lets a client open the proposal.
   id text primary key check (length(id) >= 20),
   owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
@@ -21,10 +22,11 @@ create table public.proposals (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index proposals_project_idx on public.proposals (project_id);
+create index if not exists proposals_project_idx on public.proposals (project_id);
 
 alter table public.proposals enable row level security;
 -- The installer (and team members on the job) manage proposals; clients never touch the table directly.
+drop policy if exists proposals_team on public.proposals;
 create policy proposals_team on public.proposals for all
   using (owner_id = auth.uid() or public.is_project_member(project_id))
   with check (owner_id = auth.uid());
@@ -94,11 +96,18 @@ grant execute on function public.respond_proposal(text, boolean, text, text, jso
 
 -- Plan images for proposals: public read (paths contain the link token), only the installer can upload under their own folder.
 insert into storage.buckets (id, name, public) values ('proposals', 'proposals', true) on conflict (id) do nothing;
+drop policy if exists proposals_files_insert on storage.objects;
 create policy proposals_files_insert on storage.objects for insert
   with check (bucket_id = 'proposals' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists proposals_files_update on storage.objects;
 create policy proposals_files_update on storage.objects for update
   using (bucket_id = 'proposals' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists proposals_files_delete on storage.objects;
 create policy proposals_files_delete on storage.objects for delete
   using (bucket_id = 'proposals' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists proposals_files_read on storage.objects;
 create policy proposals_files_read on storage.objects for select
   using (bucket_id = 'proposals');
+
+-- Make the new table and functions visible to the API right away.
+notify pgrst, 'reload schema';
