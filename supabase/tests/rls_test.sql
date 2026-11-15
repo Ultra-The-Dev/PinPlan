@@ -30,6 +30,10 @@ select pg_temp.check((select count(*) from public.projects where id = 'p-upsert'
 delete from public.projects where id = 'p-upsert';
 select pg_temp.check((select count(*) from public.project_members where project_id = 'p1') = 1, 'owner auto-added as member');
 select pg_temp.check((select count(*) from public.markers) = 1, 'owner sees own markers');
+-- Estimate line order is a timestamp from the apps (seconds with decimals on iPad, milliseconds on web).
+insert into public.estimate_lines (id, project_id, key, sort_order) values ('el-ipad', 'p1', 'custom:a', 1794770916.468972), ('el-web', 'p1', 'custom:b', 1794770916468);
+select pg_temp.check((select count(*) from public.estimate_lines where id in ('el-ipad', 'el-web')) = 2, 'estimate line order accepts app timestamps');
+delete from public.estimate_lines where id in ('el-ipad', 'el-web');
 
 -- User B sees nothing and cannot write into A's project.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');

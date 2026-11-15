@@ -16,6 +16,7 @@ const MIG = {
   icons: "20261115010000_device_icons.sql",
   proposals: "20261116000000_proposals.sql",
   upsertFix: "20261117000000_fix_project_upsert.sql",
+  lineSort: "20261118000000_estimate_line_sort.sql",
 };
 const runFile = (f: string) => `In Supabase → SQL Editor, run supabase/migrations/${f} (copy the whole file, Run).`;
 const missing = (msg: string) => /does not exist|schema cache|could not find/i.test(msg);
@@ -25,6 +26,7 @@ export function explainCloudError(message: string): string {
   if (/proposals/.test(message) && missing(message)) return `The proposals table isn't set up yet. ${runFile(MIG.proposals)}`;
   if (/get_proposal|respond_proposal/.test(message) && missing(message)) return `The proposal functions aren't set up yet. ${runFile(MIG.proposals)}`;
   if (/bucket not found/i.test(message)) return `The proposal image storage isn't set up yet. ${runFile(MIG.proposals)}`;
+  if (/invalid input syntax for type integer|integer out of range/i.test(message)) return `The database can't store the estimate line order yet. ${runFile(MIG.lineSort)}`;
   if (/row-level security|violates row-level/i.test(message)) return `The database refused the save. ${runFile(MIG.upsertFix)} Then sign out and in again.`;
   if (/JWT|expired|invalid claim|not authorized/i.test(message)) return "Your sign-in expired. Sign out and sign in again under Settings → Account.";
   if (/Failed to fetch|NetworkError|Load failed/i.test(message)) return "Couldn't reach Supabase. Check the internet connection and the Supabase URL in Vercel.";
