@@ -61,28 +61,8 @@ export function symbolPath(ctx: PathCtx, shape: Shape, r: number) {
   }
 }
 
-/** Pictogram for each starting device type. Custom types use their letters unless an icon is picked. */
-export const DEFAULT_ICONS: Record<string, string> = {
-  "cam-indoor": "camera",
-  "cam-outdoor": "camera",
-  vs: "tablet",
-  wap: "wifi",
-  "net-switch": "switch",
-  "data-drop": "jack",
-  speaker: "speaker",
-  tv: "tv",
-  sh: "home",
-  keypad: "keypad",
-  "led-ceiling": "bulb",
-  "led-furniture": "bulb",
-  "led-cabinet": "bulb",
-  "led-bench": "bulb",
-  "led-bed": "bulb",
-  "led-stair": "bulb",
-  "led-spot-ceiling": "spot",
-  "led-driver": "driver",
-  shade: "shade",
-};
+/** Starting device types draw their letters (C, W, S, TV…). An icon only shows when one is picked in the catalog. */
+export const DEFAULT_ICONS: Record<string, string> = {};
 
 /** The pictogram key a device type draws with, or null to draw its letters. */
 export function iconFor(t: { id: string; icon?: string | null }): string | null {

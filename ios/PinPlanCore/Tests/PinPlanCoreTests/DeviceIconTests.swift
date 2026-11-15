@@ -3,8 +3,9 @@ import XCTest
 
 final class DeviceIconTests: XCTestCase {
     func testStartingTypesHavePictogramsAndCustomTypesUseLetters() {
-        for d in Catalog.seed() { XCTAssertNotNil(DeviceIcons.key(for: d), d.id) }
+        for d in Catalog.seed() { XCTAssertNil(DeviceIcons.key(for: d), d.id) }
         var t = Catalog.seed().first { $0.id == "wap" }!
+        t.icon = "wifi"
         XCTAssertEqual(DeviceIcons.key(for: t), "wifi")
         t.icon = "letters"
         XCTAssertNil(DeviceIcons.key(for: t))

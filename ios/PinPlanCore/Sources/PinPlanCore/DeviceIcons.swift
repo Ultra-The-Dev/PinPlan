@@ -17,13 +17,8 @@ public enum DeviceIcons {
         ("rack", "Rack"), ("plug", "Outlet"), ("remote", "Remote"), ("sub", "Subwoofer"),
     ].map { Icon(key: $0.0, label: $0.1) }
 
-    /// Pictogram for each starting device type. Custom types use their letters unless an icon is picked.
-    public static let defaults: [String: String] = [
-        "cam-indoor": "camera", "cam-outdoor": "camera", "vs": "tablet", "wap": "wifi", "net-switch": "switch", "data-drop": "jack",
-        "speaker": "speaker", "tv": "tv", "sh": "home", "keypad": "keypad", "led-ceiling": "bulb", "led-furniture": "bulb",
-        "led-cabinet": "bulb", "led-bench": "bulb", "led-bed": "bulb", "led-stair": "bulb", "led-spot-ceiling": "spot",
-        "led-driver": "driver", "shade": "shade",
-    ]
+    /// Starting device types draw their letters (C, W, S, TV…). An icon only shows when one is picked in the catalog.
+    public static let defaults: [String: String] = [:]
 
     /// The pictogram key a device type draws with, or nil to draw its letters.
     public static func key(for t: DeviceType) -> String? {

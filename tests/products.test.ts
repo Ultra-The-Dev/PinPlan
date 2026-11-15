@@ -133,12 +133,11 @@ describe("cable bundles", () => {
 });
 
 describe("device icons", () => {
-  it("gives every starting device type a pictogram, and custom types their letters", async () => {
+  it("starting device types use their letters; an icon shows only when picked", async () => {
     const { iconFor } = await import("@/lib/symbols");
-    for (const d of seedCatalog()) expect(iconFor(d), d.id).toBeTruthy();
-    expect(iconFor({ id: "custom-1" })).toBeNull();
+    for (const d of seedCatalog()) expect(iconFor(d), d.id).toBeNull();
+    expect(iconFor({ id: "wap", icon: "wifi" })).toBe("wifi");
     expect(iconFor({ id: "wap", icon: "letters" })).toBeNull();
-    expect(iconFor({ id: "custom-1", icon: "doorbell" })).toBe("doorbell");
     expect(iconFor({ id: "custom-1", icon: "nope" })).toBeNull();
   });
 });
