@@ -94,6 +94,7 @@ final class EditorModel {
     init(bundle: ProjectBundle, app: AppModel) {
         self.bundle = bundle
         self.app = app
+        app.openEditor = self
         activeSheetId = bundle.liveSheets.first?.id
         if let s = bundle.liveSheets.first { Task { await loadPlanDetails(for: s) } }
     }
@@ -121,6 +122,17 @@ final class EditorModel {
         selection = nil
         draft = []
         if let s = sheets.first(where: { $0.id == id }) { Task { await loadPlanDetails(for: s) } }
+    }
+
+    /// Another device changed this job: show its version. (Undo history no longer applies to it.)
+    func replaceFromSync(_ b: ProjectBundle) {
+        guard b != bundle else { return }
+        bundle = b
+        past.removeAll()
+        future.removeAll()
+        if case .marker(let id)? = selection, !b.liveMarkers.contains(where: { $0.id == id }) { selection = nil }
+        if activeSheetId == nil || !sheets.contains(where: { $0.id == activeSheetId }) { activeSheetId = sheets.first?.id }
+        multi = multi.filter { id in b.liveMarkers.contains { $0.id == id } }
     }
 
     var canUndo: Bool { !past.isEmpty }

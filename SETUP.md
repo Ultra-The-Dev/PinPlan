@@ -45,8 +45,22 @@ Anyone with this code and the server address can use your Billdu and AI from the
 
 The web app works too: open the same address in Safari, go to **Settings**, enter the access code.
 
+## 6. Cloud sync between iPhone, iPad and the web app (optional)
+Without this, each device keeps its own jobs (move them with **Job → Share backup**). With it, every device
+signed in to the same account sees the same jobs, catalog and products.
+
+1. Create a free project at [supabase.com](https://supabase.com) → **New project**.
+2. In the project: **SQL Editor** → run each file in `supabase/migrations/` in name order (oldest first).
+3. **Project Settings → API**: copy the **Project URL** and the **anon public** key.
+4. In Vercel → **Settings → Environment Variables** add `NEXT_PUBLIC_SUPABASE_URL` (the URL) and
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the anon key), then **Redeploy**. These two are public by design;
+   row-level security keeps each account's data private. Never paste the `service_role` key into the app.
+5. Web app: **Settings → Account** → create an account (confirm the email), then sign in.
+6. iPad / iPhone: **Settings → Cloud sync → Get cloud settings from my PinPlan server** → sign in with the same
+   email and password. The first sync uploads this device's jobs; after that it syncs a few seconds after each change
+   and every minute while the app is open. Works offline; if the same item is edited on two devices, the later edit wins.
+
 ## Optional, later
-- `SUPABASE_*`: accounts and syncing between devices (see `.env.example`). The access code keeps working alongside it.
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).
 

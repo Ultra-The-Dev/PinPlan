@@ -70,6 +70,14 @@ insert into public.device_types (id, name, category, symbol, abbrev, shape, colo
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select pg_temp.check((select count(*) from public.device_types) = 0, 'catalog rows are private to their owner');
 
+-- Product library is per owner too (same id may exist for each user).
+insert into public.products (id, device_type_id, brand, model, unit_price) values ('u7', 'wap', 'Ubiquiti', 'U7 Pro', 189);
+select pg_temp.check((select count(*) from public.products) = 1, 'owner sees own products');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select pg_temp.check((select count(*) from public.products) = 0, 'products are private to their owner');
+insert into public.products (id, device_type_id, brand, model) values ('u7', 'wap', 'Other', 'Thing');
+select pg_temp.check((select count(*) from public.products) = 1, 'another owner can use the same product id');
+
 -- Secrets table is invisible to signed-in users and anon.
 do $$ begin
   perform * from public.app_secrets;

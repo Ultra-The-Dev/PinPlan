@@ -1,0 +1,107 @@
+import XCTest
+@testable import PinPlanCore
+
+final class SyncTests: XCTestCase {
+    func sample() -> ProjectBundle {
+        var b = ProjectBundle(project: Project(id: "p1", clientName: "Client", address: "12 Maple Ridge Rd"))
+        b.sheets = [Sheet(id: "s1", projectId: "p1", name: "1st Fl", pageNumber: 1, order: 0, imageId: "img1", width: 1000, height: 800, pxPerFt: 10)]
+        b.closets = [Closet(id: "c1", projectId: "p1", sheetId: "s1", kind: .equipment, x: 0.1, y: 0.1, name: "EQ")]
+        var m = Marker(id: "m1", projectId: "p1", sheetId: "s1", deviceTypeId: "tv", x: 0.5, y: 0.5, label: "TV-1-01", closetId: "c1")
+        m.setCables(["HDMI", "Cat6"])
+        b.markers = [m]
+        return b
+    }
+
+    /// The remote row a server would send back for a local row.
+    func echo(_ t: SyncTable, _ json: [String: Any], updatedAt: String? = nil) -> [String: Any] {
+        var r = SyncMap.toRemote(t, json)
+        if let updatedAt { r["updated_at"] = updatedAt }
+        r["synced_at"] = "2026-11-15 17:00:00+00"
+        return r
+    }
+
+    func testEveryRowRoundTripsThroughTheServerFormat() {
+        let state = SyncState(bundles: [sample()], catalog: Catalog.seed(), products: [Product(id: "u7", deviceTypeId: "wap", brand: "Ubiquiti", model: "U7 Pro")])
+        var other = SyncState(bundles: [], catalog: [], products: [])
+        var ledger = SyncLedger()
+        for row in state.changes(since: SyncLedger()) {
+            XCTAssertEqual(other.merge(row.table, remote: echo(row.table, row.json), ledger: &ledger), .applied, "\(row.table) \(row.id)")
+        }
+        XCTAssertEqual(other.bundles["p1"], state.bundles["p1"])
+        XCTAssertEqual(other.bundles["p1"]?.markers.first?.cables, ["HDMI", "Cat6"])
+        XCTAssertEqual(other.catalog.count, state.catalog.count)
+        XCTAssertEqual(other.products.first?.title, "Ubiquiti U7 Pro")
+        XCTAssertTrue(other.changes(since: ledger).isEmpty, "a fresh copy has nothing to push")
+    }
+
+    func testOnlyChangedRowsArePushed() {
+        var state = SyncState(bundles: [sample()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        XCTAssertTrue(state.changes(since: ledger).isEmpty)
+        state.bundles["p1"]!.deleteMarker("m1") // soft delete, no timestamp bump
+        let changed = state.changes(since: ledger)
+        XCTAssertEqual(changed.map(\.table), [.projects, .markers].filter { t in changed.contains { $0.table == t } })
+        XCTAssertTrue(changed.contains { $0.table == .markers && ($0.json["deleted"] as? Bool) == true })
+    }
+
+    func testRemoteWinsUnlessLocalEditIsNewer() {
+        var state = SyncState(bundles: [sample()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        let row = state.rows().first { $0.table == .markers }!
+
+        // Untouched here → the server copy is taken.
+        var remote = echo(.markers, row.json, updatedAt: "2020-01-01T00:00:00Z")
+        remote["room"] = "Den"
+        XCTAssertEqual(state.merge(.markers, remote: remote, ledger: &ledger), .applied)
+        XCTAssertEqual(state.bundles["p1"]!.markers[0].room, "Den")
+
+        // Edited here after that → an older server copy doesn't overwrite it…
+        state.bundles["p1"]!.markers[0].room = "Kitchen"
+        state.bundles["p1"]!.markers[0].updatedAt = "2026-11-15T12:00:00.000Z"
+        remote["room"] = "Office"
+        remote["updated_at"] = "2026-11-15 11:00:00+00"
+        XCTAssertEqual(state.merge(.markers, remote: remote, ledger: &ledger), .keptLocal)
+        XCTAssertEqual(state.bundles["p1"]!.markers[0].room, "Kitchen")
+        // …but a newer one does.
+        remote["updated_at"] = "2026-11-15 13:00:00+00"
+        XCTAssertEqual(state.merge(.markers, remote: remote, ledger: &ledger), .applied)
+        XCTAssertEqual(state.bundles["p1"]!.markers[0].room, "Office")
+    }
+
+    func testProjectDeletionBothWays() {
+        var state = SyncState(bundles: [sample()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        var gone = state
+        gone.bundles["p1"] = nil
+        XCTAssertEqual(gone.removedProjects(since: ledger), ["p1"])
+
+        var remote = echo(.projects, state.rows().first { $0.table == .projects }!.json)
+        remote["deleted"] = true
+        XCTAssertEqual(state.merge(.projects, remote: remote, ledger: &ledger), .removedProject)
+        XCTAssertNil(state.bundles["p1"])
+        XCTAssertTrue(state.removedProjects(since: ledger).isEmpty)
+    }
+
+    func testTimestampsAreNormalised() {
+        XCTAssertEqual(SyncMap.normalizeTimestamp("2026-11-15 16:59:33.12+00"), "2026-11-15T16:59:33.120Z")
+        XCTAssertEqual(SyncMap.normalizeTimestamp("2026-11-15T16:59:33+00:00"), "2026-11-15T16:59:33.000Z")
+    }
+
+    /// Every column the app sends must exist in the Supabase schema (same contract as the web app's schema test).
+    func testColumnsExistInTheSchema() throws {
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../../supabase/migrations").standardized
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".sql") }.sorted()
+        let sql = try files.map { try String(contentsOf: dir.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n").lowercased()
+        for (t, spec) in SyncMap.specs {
+            for (_, col) in spec.columns {
+                let created = sql.range(of: "create table public.\(spec.remote) (") != nil
+                XCTAssertTrue(created, "\(spec.remote) missing")
+                let pattern = "(\\n\\s+\(col)\\s)|(add column if not exists \(col)\\s)"
+                XCTAssertNotNil(sql.range(of: pattern, options: .regularExpression), "\(t).\(col) is not in the schema")
+            }
+        }
+    }
+}

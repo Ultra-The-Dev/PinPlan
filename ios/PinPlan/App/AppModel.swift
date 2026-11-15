@@ -12,6 +12,10 @@ final class AppModel {
     var products: [Product] = []
     var settings = AppSettings()
     let store: Store
+    /// Cloud sync with the web app (when an account is connected in Settings).
+    let cloud = CloudSync()
+    /// The project open in the editor, so synced changes show up there.
+    @ObservationIgnored weak var openEditor: EditorModel?
 
     init(store: Store = .shared) {
         self.store = store
@@ -19,6 +23,23 @@ final class AppModel {
         catalog = store.loadCatalog()
         products = store.loadProducts()
         settings = store.loadSettings()
+        cloud.attach(self)
+    }
+
+    /// Write rows that sync brought in (or removed) to disk and to the screens.
+    func applySync(from before: SyncState, to after: SyncState) {
+        for (id, b) in after.bundles where before.bundles[id] != b {
+            store.save(b)
+            if let i = projects.firstIndex(where: { $0.project.id == id }) { projects[i] = b } else { projects.append(b) }
+            if openEditor?.bundle.project.id == id { openEditor?.replaceFromSync(b) }
+        }
+        for (id, b) in before.bundles where after.bundles[id] == nil {
+            store.deleteProject(b)
+            projects.removeAll { $0.project.id == id }
+        }
+        projects.sort { $0.project.updatedAt > $1.project.updatedAt }
+        if after.catalog != before.catalog { catalog = after.catalog; store.saveCatalog(catalog) }
+        if after.products != before.products { products = after.products; store.saveProducts(products) }
     }
 
     var pricing: PricingSettings { settings.pricing }
@@ -36,6 +57,7 @@ final class AppModel {
         p.updatedAt = isoNow()
         if let i = products.firstIndex(where: { $0.id == p.id }) { products[i] = p } else { products.append(p) }
         store.saveProducts(products)
+        cloud.kick()
     }
     /// Archived, not deleted: jobs that used it keep their prices.
     func archiveProduct(_ id: String) {
@@ -120,11 +142,13 @@ final class AppModel {
     /// Called by the editor whenever a project changes.
     func didSave(_ b: ProjectBundle) {
         if let i = projects.firstIndex(where: { $0.project.id == b.project.id }) { projects[i] = b } else { projects.insert(b, at: 0) }
+        cloud.kick()
     }
 
     func delete(_ b: ProjectBundle) {
         store.deleteProject(b)
         projects.removeAll { $0.project.id == b.project.id }
+        cloud.kick()
     }
 
     func updateCatalog(_ t: DeviceType) {
@@ -132,6 +156,7 @@ final class AppModel {
         t.updatedAt = isoNow()
         if let i = catalog.firstIndex(where: { $0.id == t.id }) { catalog[i] = t } else { catalog.append(t) }
         store.saveCatalog(catalog)
+        cloud.kick()
     }
 
     func saveSettings() { store.saveSettings(settings) }

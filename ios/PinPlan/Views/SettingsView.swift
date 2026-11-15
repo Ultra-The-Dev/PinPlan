@@ -23,6 +23,15 @@ struct SettingsView: View {
                 Text("Needed only for sending to Billdu and the AI plan reader. Everything else works offline.")
             }
             Section {
+                NavigationLink { CloudSyncView() } label: {
+                    LabeledContent {
+                        Text(app.cloud.signedIn ? (app.cloud.session?.email ?? "On") : "Off")
+                    } label: { Label("Cloud sync", systemImage: "arrow.triangle.2.circlepath.icloud") }
+                }
+            } footer: {
+                Text("Keep jobs in step between iPhone, iPad and the web app.")
+            }
+            Section {
                 NavigationLink { BusinessSettingsView() } label: {
                     LabeledContent {
                         Text(app.settings.business.name.isEmpty ? "Add your details" : app.settings.business.name)
