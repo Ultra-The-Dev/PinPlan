@@ -116,6 +116,7 @@ private struct MarkerForm: View {
                 photo = nil
             }
         }
+        SelectMoreSection(model: model, marker: marker)
         Section {
             Button {
                 let m = marker

@@ -113,7 +113,7 @@ struct PlanCanvasView: View {
                 ForEach(model.bundle.liveMarkers.filter { $0.sheetId == sheet.id && model.isVisible($0) }) { m in
                     let p = dragging[m.id] ?? CGPoint(x: m.x, y: m.y)
                     VStack(spacing: 1) {
-                        DeviceSymbol(type: app.type(m.deviceTypeId), size: symbolSize, tentative: m.tentative, selected: model.selection == .marker(m.id))
+                        DeviceSymbol(type: app.type(m.deviceTypeId), size: symbolSize, tentative: m.tentative, selected: model.isSelected(m.id))
                         if model.showLabels {
                             Text(m.label).font(.system(size: 9, weight: .medium)).padding(.horizontal, 3)
                                 .background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 3))
@@ -121,7 +121,7 @@ struct PlanCanvasView: View {
                     }
                     .position(x: screen(p.x, p.y).x, y: screen(p.x, p.y).y + (model.showLabels ? 7 : 0))
                     .allowsHitTesting(model.tool == .select)
-                    .onTapGesture { model.selection = .marker(m.id) }
+                    .onTapGesture { model.tapMarker(m.id) }
                     .contextMenu { markerMenu(m) }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(app.type(m.deviceTypeId)?.name ?? "Device") \(m.label)\(m.tentative ? ", tentative" : "")")

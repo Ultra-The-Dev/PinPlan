@@ -55,6 +55,10 @@ final class EditorModel {
     var activeSheetId: String?
     private(set) var tool: Tool = .select
     var selection: Selection?
+    /// Devices selected together for bulk edits (2+ ids).
+    var multi: [String] = []
+    /// "Select several" mode: taps on devices add/remove them.
+    var multiMode = false
     var hiddenLayers: Set<Layer> = []
     var room = ""
     var showLabels = false
@@ -258,6 +262,51 @@ final class EditorModel {
         draft = []
         draftMarkerId = nil
         say("Wire run added")
+    }
+
+    // MARK: multi-select
+
+    /// True when the inspector should edit several devices at once.
+    var isBulk: Bool {
+        guard multi.count >= 2, case .marker(let id)? = selection else { return false }
+        return multi.contains(id)
+    }
+
+    func isSelected(_ markerId: String) -> Bool { isBulk ? multi.contains(markerId) : selection == .marker(markerId) }
+
+    /// A tap on a device: select it, or add/remove it while picking several.
+    func tapMarker(_ id: String) {
+        guard multiMode || isBulk else { multi = []; selection = .marker(id); return }
+        var base: [String] = isBulk ? multi : []
+        if !isBulk, case .marker(let m)? = selection { base = [m] }
+        if let i = base.firstIndex(of: id) { base.remove(at: i) } else { base.append(id) }
+        selectMany(base)
+    }
+
+    func selectMany(_ ids: [String]) {
+        multi = ids.count >= 2 ? ids : []
+        selection = ids.last.map { .marker($0) }
+        if ids.isEmpty { multiMode = false }
+    }
+
+    func clearSelection() { selection = nil; multi = []; multiMode = false }
+
+    /// Change several devices as one undo step (their home runs follow).
+    func bulkEdit(_ ids: [String], _ change: @escaping (inout Marker) -> Void) {
+        let p = pricing
+        edit { b in for id in ids { b.updateMarker(id, pricing: p, change) } }
+    }
+
+    func bulkDelete(_ ids: [String]) {
+        edit { b in for id in ids { b.deleteMarker(id) } }
+        clearSelection()
+    }
+
+    func homeRuns(for ids: [String]) -> Int {
+        var n = 0
+        let cat = app.catalog, p = pricing
+        edit { b in for id in ids { n += b.autoHomeRuns(catalog: cat, pricing: p, markerId: id) } }
+        return n
     }
 
     // MARK: actions

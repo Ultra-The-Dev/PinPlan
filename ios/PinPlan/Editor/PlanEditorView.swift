@@ -58,12 +58,12 @@ struct PlanEditorView: View {
                 Divider()
                 VStack(spacing: 0) {
                     HStack {
-                        Text("Edit").font(.headline)
+                        Text(model.isBulk ? "\(model.multi.count) devices" : "Edit").font(.headline)
                         Spacer()
-                        Button { model.selection = nil } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
+                        Button { model.clearSelection() } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
                     }
                     .padding(.horizontal).padding(.vertical, 10)
-                    InspectorView(model: model, selection: sel)
+                    if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) }
                 }
                 .frame(width: 340)
                 .background(Color(.systemGroupedBackground))
@@ -91,8 +91,11 @@ struct PlanEditorView: View {
         .toolbar { toolbar }
         .sheet(isPresented: Binding(get: { !regular && model.selection != nil }, set: { if !$0 { model.selection = nil } })) {
             if let sel = model.selection {
-                NavigationStack { InspectorView(model: model, selection: sel).navigationTitle("Edit").navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.selection = nil } } } }
+                NavigationStack {
+                    Group { if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) } }
+                        .navigationTitle(model.isBulk ? "\(model.multi.count) devices" : "Edit").navigationBarTitleDisplayMode(.inline)
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.clearSelection() } } }
+                }
                 .presentationDetents([.medium, .large])
             }
         }
