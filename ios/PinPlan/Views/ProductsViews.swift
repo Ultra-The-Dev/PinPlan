@@ -325,7 +325,7 @@ struct MarkerProductPicker: View {
                     let pricing = model.pricing
                     model.edit { $0.updateMarker(marker.id, pricing: pricing) { $0.productId = v.isEmpty ? nil : v } }
                 })) {
-                    Text(jobChoice.map { "Job's choice · \($0.title)" } ?? "Job's choice · none").tag("")
+                    Text(jobChoice.map { "\($0.title) (job's choice)" } ?? "Job's choice (none)").tag("")
                     ForEach(options) { Text($0.title).tag($0.id) }
                 }
                 .labelsHidden()
