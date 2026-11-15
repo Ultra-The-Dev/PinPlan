@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/server/auth";
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
-import { clientMatches, clientPayload, documentPayload, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
+import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import type { Project } from "@/lib/types";
 
@@ -12,6 +12,8 @@ interface SendBody {
   currency?: string;
   depositPct?: number | null;
   existingDocId?: number | null;
+  /** Public link to the marked-up plans PDF (put in the document note). */
+  plansUrl?: string | null;
 }
 
 async function findOrCreateClient(client: BillduClient, p: SendBody["project"]): Promise<number> {
@@ -61,18 +63,31 @@ export async function POST(req: Request) {
   if (client instanceof Response) return client;
   try {
     const clientId = await findOrCreateClient(client, body.project);
-    const payload = documentPayload({ type: body.docType, clientId, items, currency: body.currency || "USD", address: body.project.address });
-    const doc = body.existingDocId ? await client.updateDocument(body.existingDocId, payload) : await client.createDocument(payload);
+    const plansUrl = typeof body.plansUrl === "string" && body.plansUrl.length < 1000 ? body.plansUrl : null;
+    const payload = documentPayload({ type: body.docType, clientId, items, currency: body.currency || "USD", address: body.project.address, plansUrl });
+    // Update the document already sent for this job (same number, new items). If it was deleted in Billdu, make a new one.
+    let updated = false;
+    let doc: Awaited<ReturnType<typeof client.createDocument>> | null = null;
+    if (body.existingDocId) {
+      try {
+        doc = await client.updateDocument(body.existingDocId, documentUpdate(payload));
+        updated = true;
+      } catch (e) {
+        const status = (e as { status?: number }).status;
+        if (status !== 404 && status !== 410) throw e;
+      }
+    }
+    if (!updated) doc = await client.createDocument(payload);
     const amount = itemsTotal(items);
     return Response.json({
       clientId,
       doc: {
-        id: Number(doc?.id ?? body.existingDocId),
+        id: updated ? Number(body.existingDocId) : Number(doc?.id),
         type: body.docType,
         serial: (doc?.serial_number as string | undefined) ?? null,
         amount,
         percent: deposit && deposit < 100 ? deposit : null,
-        updated: !!body.existingDocId,
+        updated,
       },
     });
   } catch (e) {

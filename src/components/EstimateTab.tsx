@@ -8,6 +8,9 @@ import { put } from "@/lib/db";
 import { downloadBlob, downloadText, slug } from "@/lib/download";
 import { estimateCsv, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
+import { supabaseConfigured } from "@/lib/supabase";
+import { useSyncStatus } from "@/lib/sync";
+import { LAYERS } from "@/lib/catalog";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { BillduDocRef, PricingSettings } from "@/lib/types";
 import JobProducts from "./JobProducts";
@@ -96,7 +99,9 @@ export default function EstimateTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [confirmDup, setConfirmDup] = useState<BillduDocRef | null>(null);
+  const [withPlans, setWithPlans] = useState(true);
+  const { signedIn, userId } = useSyncStatus();
+  const plansAvailable = supabaseConfigured && signedIn && sheets.length > 0;
 
   const input = "input w-24 text-right";
   if (!project || !settings || !pricing || !estimate) return <div className="p-6 text-slate-500">Loading…</div>;
@@ -135,11 +140,19 @@ export default function EstimateTab() {
   const billed = project.billduDocs.filter((d) => d.type === "invoice").reduce((s, d) => s + d.amount, 0);
 
   async function send(existingDocId: number | null) {
-    setConfirmDup(null);
     setBusy("send");
     setError(null);
     setNotice(null);
     try {
+      // Billdu can't take attachments, so the marked-up plans go in the document note as a link (when signed in to the cloud).
+      let plansUrl: string | null = null;
+      if (withPlans && plansAvailable) {
+        try {
+          plansUrl = await uploadPlansPdf();
+        } catch (e) {
+          setNotice(`Plans link skipped: ${(e as Error).message}`);
+        }
+      }
       const r = await apiFetch("/api/billdu/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,6 +175,7 @@ export default function EstimateTab() {
           currency: cur,
           depositPct: isDeposit ? dep : null,
           existingDocId,
+          plansUrl,
         }),
       });
       const j = await r.json().catch(() => ({ error: `Server returned ${r.status}` }));
@@ -175,9 +189,14 @@ export default function EstimateTab() {
         label: isDeposit ? `Deposit ${dep}%` : undefined,
         createdAt: new Date().toISOString(),
       };
-      const docs = existingDocId ? project!.billduDocs.map((d) => (d.id === existingDocId ? { ...ref, createdAt: d.createdAt } : d)) : [...project!.billduDocs, ref];
+      const old = existingDocId ? project!.billduDocs.find((d) => d.id === existingDocId) : undefined;
+      // Updated: keep its number and date. Re-created (deleted in Billdu): replace the old entry.
+      const merged = old ? { ...ref, serial: j.doc.updated ? (ref.serial ?? old.serial) : ref.serial, createdAt: j.doc.updated ? old.createdAt : ref.createdAt } : ref;
+      const docs = old ? project!.billduDocs.map((d) => (d.id === old.id ? merged : d)) : [...project!.billduDocs, ref];
       await updateProject({ billduClientId: j.clientId, billduDocs: docs });
-      setNotice(`${existingDocId ? "Updated" : "Created"} Billdu ${docType} ${ref.serial ?? `#${ref.id}`} (${formatMoney(ref.amount, cur)} before tax).`);
+      setNotice(
+        `${j.doc.updated ? "Updated" : "Created"} Billdu ${docType} ${merged.serial ?? `#${merged.id}`} (${formatMoney(merged.amount, cur)} before tax)${plansUrl ? " with a link to the marked-up plans" : ""}.`,
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -186,8 +205,24 @@ export default function EstimateTab() {
   }
 
   function onSendClick() {
-    if (!isDeposit && existingSame) setConfirmDup(existingSame);
-    else send(null);
+    // Same job, same document type: update what was sent before instead of making a duplicate.
+    void send(!isDeposit && existingSame ? existingSame.id : null);
+  }
+
+  async function uploadPlansPdf(): Promise<string> {
+    const { exportSheetsPdf } = await import("@/lib/exportSheets");
+    const { getSupabase } = await import("@/lib/supabase");
+    const sb = getSupabase();
+    if (!sb || !userId) throw new Error("sign in to cloud sync");
+    setBusy("plans");
+    const layers = LAYERS.map((l) => l.id).filter((l) => l !== "wiring");
+    const blob = await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", layers, download: false });
+    // Same path for the job each time, so the link in Billdu always shows the latest plans.
+    const path = `${userId}/billdu/${project!.id}/marked-up-plans.pdf`;
+    const { error } = await sb.storage.from("proposals").upload(path, blob, { upsert: true, contentType: "application/pdf", cacheControl: "60" });
+    if (error) throw new Error(error.message);
+    setBusy("send");
+    return sb.storage.from("proposals").getPublicUrl(path).data.publicUrl;
   }
 
   async function syncProducts() {
@@ -481,29 +516,34 @@ export default function EstimateTab() {
                 One line: {dep}% of {formatMoney(estimate.subtotal, cur)} = <strong>{formatMoney(Math.round(estimate.subtotal * dep!) / 100, cur)}</strong> before tax.
               </p>
             )}
-            <button className="btn btn-brand mt-4 h-10 w-full" disabled={!!busy || estimate.subtotal <= 0} onClick={onSendClick}>
-              <Send /> {busy === "send" ? "Sending…" : `Send ${isDeposit ? `${dep}% ` : ""}${docType} to Billdu`}
+            {plansAvailable ? (
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-slate-600">
+                <input type="checkbox" className="mt-0.5 accent-brand-600" checked={withPlans} onChange={(e) => setWithPlans(e.target.checked)} />
+                <span>Include a link to the marked-up plans (PDF) in the document note</span>
+              </label>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">Sign in to cloud sync to add a link to the marked-up plans.</p>
+            )}
+            <button className="btn btn-brand mt-3 h-10 w-full" disabled={!!busy || estimate.subtotal <= 0} onClick={onSendClick}>
+              <Send />{" "}
+              {busy === "plans"
+                ? "Making the plans PDF…"
+                : busy === "send"
+                  ? "Sending…"
+                  : !isDeposit && existingSame
+                    ? `Update ${docType} ${existingSame.serial ?? `#${existingSame.id}`} in Billdu`
+                    : `Send ${isDeposit ? `${dep}% ` : ""}${docType} to Billdu`}
             </button>
+            {!isDeposit && existingSame && (
+              <p className="mt-1.5 text-center text-xs text-slate-500">
+                Updates the same document with this job’s current lines ·{" "}
+                <button className="font-medium text-brand-600 hover:underline" disabled={!!busy} onClick={() => void send(null)}>
+                  create a new one instead
+                </button>
+              </p>
+            )}
             {estimate.subtotal <= 0 && <p className="mt-2 text-center text-xs text-slate-400">Add prices to send a document.</p>}
 
-            {confirmDup && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
-                <p className="mb-2">
-                  Already sent as {confirmDup.type} {confirmDup.serial ?? `#${confirmDup.id}`} ({formatMoney(confirmDup.amount, cur)}). Update it or create a new one?
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button className="btn btn-sm btn-primary" onClick={() => send(confirmDup.id)}>
-                    Update existing
-                  </button>
-                  <button className="btn btn-sm" onClick={() => send(null)}>
-                    Create new
-                  </button>
-                  <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDup(null)}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
             {notice && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p>}
             {error && (
               <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">

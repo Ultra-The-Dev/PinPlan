@@ -138,9 +138,11 @@ struct SupabaseClient {
 
     // MARK: storage
 
-    func upload(bucket: String, path: String, data: Data, token: String) async throws {
+    func upload(bucket: String, path: String, data: Data, token: String, contentType: String = "image/jpeg") async throws {
         var r = request("/storage/v1/object/\(bucket)/\(path)", method: "POST", token: token)
-        r.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        r.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        // Files replaced in place (the job's plans PDF) shouldn't be cached for long.
+        r.setValue("max-age=60", forHTTPHeaderField: "cache-control")
         r.setValue("true", forHTTPHeaderField: "x-upsert")
         r.httpBody = data
         r.timeoutInterval = 180
@@ -366,6 +368,14 @@ final class CloudSync {
         let snap = build(urls)
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(snap))
         _ = try await client.insert("proposals", row: ["id": link, "project_id": projectId, "snapshot": json, "valid_until": snap.validUntil.map { $0 as Any } ?? NSNull()], token: tok)
+    }
+
+    /// Upload a file anyone with the link can open (under this account's folder) and return its address.
+    func uploadPublic(path: String, data: Data, contentType: String) async throws -> String {
+        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        let full = "\(uid)/\(path)"
+        try await client.upload(bucket: "proposals", path: full, data: data, token: try await token(), contentType: contentType)
+        return client.publicURL(bucket: "proposals", path: full)
     }
 
     func withdrawProposal(_ id: String) async throws {

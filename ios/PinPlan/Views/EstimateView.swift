@@ -14,9 +14,9 @@ struct EstimateView: View {
     @State private var deposit = ""
     @State private var sending = false
     @State private var message: (ok: Bool, text: String)?
-    @State private var confirmUpdate: BilldoTarget?
+    @State private var withPlans = true
+    private var sendTitle: String { existingDoc.map { "Update \($0.type) \($0.serial ?? "#\($0.id)") in Billdu" } ?? "Send to Billdu" }
 
-    struct BilldoTarget: Identifiable { let doc: BillduDocRef; var id: Int { doc.id } }
 
     private var pricing: PricingSettings { model.pricing }
     private var estimate: Estimate {
@@ -129,8 +129,12 @@ struct EstimateView: View {
                 if let d = Double(deposit), d > 0, d < 100 {
                     Text("One line: \(d.clean)% of \(Money.format(e.subtotal, currency: cur)) = \(Money.format((e.subtotal * d).rounded() / 100, currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
                 }
-                Button { trySend(e) } label: { Label(sending ? "Sending…" : "Send to Billdu", systemImage: "paperplane.fill") }
+                if app.cloud.signedIn { Toggle("Link the marked-up plans (PDF)", isOn: $withPlans) }
+                Button { trySend(e) } label: { Label(sending ? "Sending…" : sendTitle, systemImage: "paperplane.fill") }
                     .disabled(sending || e.subtotal <= 0)
+                if existingDoc != nil {
+                    Button("Create a new document instead") { send(e, existing: nil) }.font(.callout).disabled(sending || e.subtotal <= 0)
+                }
                 if let m = message { Text(m.text).foregroundStyle(m.ok ? .green : .red).font(.callout) }
                 let billed = model.bundle.project.billduDocs.filter { $0.type == "invoice" }.reduce(0) { $0 + $1.amount }
                 if e.subtotal > 0 {
@@ -147,12 +151,6 @@ struct EstimateView: View {
         .navigationDestination(isPresented: $openJobProducts) { JobProductsView(model: model) }
         .sheet(item: $editing) { l in LineEditor(model: model, line: l) }
         .shareSheet($share)
-        .confirmationDialog("Already sent to Billdu", isPresented: Binding(get: { confirmUpdate != nil }, set: { if !$0 { confirmUpdate = nil } }), titleVisibility: .visible) {
-            if let t = confirmUpdate {
-                Button("Update \(t.doc.serial ?? "#\(t.doc.id)")") { send(e, existing: t.doc.id) }
-                Button("Create a new one") { send(e, existing: nil) }
-            }
-        } message: { Text("This project already has a Billdu \(confirmUpdate?.doc.type ?? "document"). Update it with the current lines, or create a new one?") }
     }
 
     private var chosenProducts: Int { model.bundle.project.productChoices?.count ?? 0 }
@@ -177,14 +175,13 @@ struct EstimateView: View {
 
     private var type: String { docType.isEmpty ? app.settings.billduDocType : docType }
 
-    private func trySend(_ e: Estimate) {
-        let isDeposit = (Double(deposit) ?? 0) > 0
-        if !isDeposit, let existing = model.bundle.project.billduDocs.first(where: { $0.type == type && $0.percent == nil }) {
-            confirmUpdate = BilldoTarget(doc: existing)
-        } else {
-            send(e, existing: nil)
-        }
+    /// The document already sent for this job (same type, not a deposit): sending again updates it.
+    private var existingDoc: BillduDocRef? {
+        guard (Double(deposit) ?? 0) <= 0 else { return nil }
+        return model.bundle.project.billduDocs.first { $0.type == type && $0.percent == nil }
     }
+
+    private func trySend(_ e: Estimate) { send(e, existing: existingDoc?.id) }
 
     private func send(_ e: Estimate, existing: Int?) {
         guard let client = APIClient(settings: app.settings) else { message = (false, "Set your PinPlan server address in Settings."); return }
@@ -192,15 +189,28 @@ struct EstimateView: View {
         sending = true
         message = nil
         let project = model.bundle.project, pricing = pricing, t = type
+        let bundle = model.bundle, catalog = app.catalog, store = app.store
         Task {
             do {
-                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing)
-                let ref = BillduDocRef(id: r.doc.id, type: t, serial: r.doc.serial, amount: r.doc.amount, percent: r.doc.percent, label: dep.map { "Deposit \($0.clean)%" }, createdAt: isoNow())
+                // Billdu can't take attachments: link the marked-up plans PDF in the document note (when signed in to the cloud).
+                var plansUrl: String?
+                if withPlans, app.cloud.signedIn, !bundle.liveSheets.isEmpty {
+                    let layers = Set(Layer.allCases).subtracting([.wiring])
+                    let pdf = await Task.detached(priority: .userInitiated) {
+                        PDFExporter.planSheets(bundle: bundle, catalog: catalog, crew: false, layers: layers) { store.image($0) }
+                    }.value
+                    plansUrl = try? await app.cloud.uploadPublic(path: "billdu/\(project.id)/marked-up-plans.pdf", data: pdf, contentType: "application/pdf")
+                }
+                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing, plansUrl: plansUrl)
+                let old = existing.flatMap { id in project.billduDocs.first { $0.id == id } }
+                let updated = r.doc.updated ?? (existing != nil)
+                let ref = BillduDocRef(id: r.doc.id, type: t, serial: r.doc.serial ?? (updated ? old?.serial : nil), amount: r.doc.amount, percent: r.doc.percent,
+                                       label: dep.map { "Deposit \($0.clean)%" }, createdAt: updated ? (old?.createdAt ?? isoNow()) : isoNow())
                 model.editSilently { b in
                     b.project.billduClientId = r.clientId
                     if let existing, let i = b.project.billduDocs.firstIndex(where: { $0.id == existing }) { b.project.billduDocs[i] = ref } else { b.project.billduDocs.append(ref) }
                 }
-                message = (true, "\(existing == nil ? "Created" : "Updated") Billdu \(t) \(ref.serial ?? "#\(ref.id)")")
+                message = (true, "\(updated ? "Updated" : "Created") Billdu \(t) \(ref.serial ?? "#\(ref.id)")\(plansUrl != nil ? " with a link to the plans" : "")")
             } catch {
                 message = (false, "\(error.localizedDescription) — you can still share the PDF or CSV.")
             }
@@ -224,7 +234,7 @@ struct EstimateView: View {
     }
 
     private func sendButton(_ e: Estimate) -> some View {
-        Button { trySend(e) } label: { iconLabel(sending ? "Sending…" : "Send to Billdu", "paperplane.fill") }
+        Button { trySend(e) } label: { iconLabel(sending ? "Sending…" : (existingDoc != nil ? "Update in Billdu" : "Send to Billdu"), "paperplane.fill") }
             .buttonStyle(.borderedProminent)
             .disabled(sending || e.subtotal <= 0)
     }

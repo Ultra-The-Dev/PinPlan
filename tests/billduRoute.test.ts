@@ -46,6 +46,7 @@ describe("POST /api/billdu/send", () => {
           clients.push(c);
           return Response.json(c, { status: 201 });
         }
+        if (url.pathname === "/documents/404" && method === "PATCH") return new Response('{"error":"not found"}', { status: 404 });
         if (url.pathname.startsWith("/documents")) {
           const items = (body.items ?? []) as { price: number; count: number }[];
           const total = items.reduce((s, i) => s + i.price * i.count, 0);
@@ -95,8 +96,26 @@ describe("POST /api/billdu/send", () => {
     const res = await send({ project: { ...project, billduClientId: 7 }, docType: "estimate", lines, taxPct: 0, currency: "USD", existingDocId: 55 });
     expect(res.status).toBe(200);
     expect(log.map((l) => `${l.method} ${l.path}`)).toContain("PATCH /documents/55");
+    expect((await res.json()).doc).toMatchObject({ id: 55, updated: true });
+    // Only the items, currency and note change — the document keeps its number and dates.
+    const patch = log.find((l) => l.method === "PATCH")!;
+    expect(Object.keys(patch.body).sort()).toEqual(["client", "currency", "items", "note"]);
     // The stored client is only re-checked (GET /clients/7), never re-created.
     expect(log.some((l) => l.path.startsWith("/clients") && l.method !== "GET")).toBe(false);
+  });
+
+  it("makes a new document when the old one was deleted in Billdu", async () => {
+    const res = await send({ project: { ...project, billduClientId: 7 }, docType: "estimate", lines, taxPct: 0, currency: "USD", existingDocId: 404 });
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.doc.updated).toBe(false);
+    expect(log.map((l) => `${l.method} ${l.path}`)).toEqual(expect.arrayContaining(["PATCH /documents/404", expect.stringMatching(/^POST \/documents\/?$/)]));
+  });
+
+  it("puts the marked-up plans link in the document note", async () => {
+    await send({ project, docType: "estimate", lines, taxPct: 0, currency: "USD", plansUrl: "https://x.supabase.co/storage/v1/object/public/proposals/u/billdu/p1/marked-up-plans.pdf" });
+    const doc = log.find((l) => l.path.startsWith("/documents"))!;
+    expect(doc.body.note).toBe("Project: 12 Maple Ridge Rd\nMarked-up plans (PDF): https://x.supabase.co/storage/v1/object/public/proposals/u/billdu/p1/marked-up-plans.pdf");
   });
 
   it("explains when Billdu rejects the credentials", async () => {

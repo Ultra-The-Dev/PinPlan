@@ -63,12 +63,12 @@ struct APIClient {
     // MARK: Billdu
 
     struct SendResult: Decodable {
-        struct Doc: Decodable { let id: Int; let type: String; let serial: String?; let amount: Double; let percent: Double? }
+        struct Doc: Decodable { let id: Int; let type: String; let serial: String?; let amount: Double; let percent: Double?; let updated: Bool? }
         let clientId: Int
         let doc: Doc
     }
 
-    func sendToBilldu(project: Project, docType: String, estimate: Estimate, pricing: PricingSettings, depositPct: Double?, existingDocId: Int?) async throws -> SendResult {
+    func sendToBilldu(project: Project, docType: String, estimate: Estimate, pricing: PricingSettings, depositPct: Double?, existingDocId: Int?, plansUrl: String? = nil) async throws -> SendResult {
         let lines = try JSONSerialization.jsonObject(with: JSONEncoder().encode(estimate.lines))
         var p: [String: Any] = ["id": project.id, "clientName": project.clientName, "address": project.address]
         if let v = project.clientEmail { p["clientEmail"] = v }
@@ -77,6 +77,7 @@ struct APIClient {
         var body: [String: Any] = ["project": p, "docType": docType, "lines": lines, "taxPct": pricing.taxPct, "currency": pricing.currency]
         if let depositPct { body["depositPct"] = depositPct }
         if let existingDocId { body["existingDocId"] = existingDocId }
+        if let plansUrl { body["plansUrl"] = plansUrl }
         return try await post("api/billdu/send", body: body, as: SendResult.self)
     }
 

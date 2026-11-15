@@ -22,7 +22,10 @@ interface Data {
  * Export every marked-up sheet as a PDF with legend and per-floor count box.
  * mode "takeoff": all layers, counts. mode "crew": selected layers, wiring schedule, no prices.
  */
-export async function exportSheetsPdf(data: Data, opts: { mode: "takeoff" | "crew"; layers?: Layer[] | null; onProgress?: (s: string) => void }) {
+export async function exportSheetsPdf(
+  data: Data,
+  opts: { mode: "takeoff" | "crew"; layers?: Layer[] | null; onProgress?: (s: string) => void; /** false: only return the PDF */ download?: boolean },
+): Promise<Blob> {
   const { renderSheetsPdf } = await import("@/components/SheetsPdf");
   const takeoff = computeTakeoff(data);
   const types = new Map(data.catalog.map((d) => [d.id, d]));
@@ -96,5 +99,6 @@ export async function exportSheetsPdf(data: Data, opts: { mode: "takeoff" | "cre
     subtitle: `${opts.mode === "crew" ? `Crew wiring sheets · ${layerNames}` : "Marked-up plan"} · ${new Date().toLocaleDateString()}`,
     pages,
   });
-  downloadBlob(blob, `${slug(data.project.address || "project")}-${opts.mode === "crew" ? "crew-wiring" : "marked-plans"}.pdf`);
+  if (opts.download !== false) downloadBlob(blob, `${slug(data.project.address || "project")}-${opts.mode === "crew" ? "crew-wiring" : "marked-plans"}.pdf`);
+  return blob;
 }

@@ -116,6 +116,8 @@ export function documentPayload(args: {
   items: BillduItem[];
   currency: string;
   address: string;
+  /** Link to the marked-up plans PDF, shown in the document's note. */
+  plansUrl?: string | null;
   now?: Date;
 }) {
   const date = billduDate(args.now);
@@ -128,6 +130,18 @@ export function documentPayload(args: {
     maturity: "14",
     payment: "transfer",
     currency: args.currency,
-    note: `Project: ${args.address}`,
+    note: documentNote(args.address, args.plansUrl),
   };
+}
+
+/** The document note: the project address, plus a link to the marked-up plans when there is one. */
+export function documentNote(address: string, plansUrl?: string | null): string {
+  const lines = [`Project: ${address}`];
+  if (plansUrl && /^https?:\/\//.test(plansUrl)) lines.push(`Marked-up plans (PDF): ${plansUrl}`);
+  return lines.join("\n");
+}
+
+/** What to change on a document that was already sent: the items, currency and note — not its dates or number. */
+export function documentUpdate(p: ReturnType<typeof documentPayload>) {
+  return { client: p.client, items: p.items, currency: p.currency, note: p.note };
 }
