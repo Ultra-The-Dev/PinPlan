@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { seedCatalog, DEFAULT_SETTINGS } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
 import { computeTakeoff, countOf, takeoffCsv } from "@/lib/takeoff";
-import { ATTIC_SETUP_LED_LF, buildHilltop, EXTRA_S, HILLTOP_COUNTS } from "./fixtures/hilltop";
+import { ATTIC_SETUP_LED_LF, buildSampleJob, EXTRA_S, SAMPLE_JOB_COUNTS } from "./fixtures/sampleJob";
 
-describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
-  const data = buildHilltop();
+describe("12 Maple Ridge Rd takeoff reproduces the hand counts", () => {
+  const data = buildSampleJob();
   const takeoff = computeTakeoff(data);
   const { TYPE_IDS } = data;
 
@@ -13,7 +13,7 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
     expect(takeoff.floors.map((f) => f.name)).toEqual(["Attic", "1st Fl", "2nd Fl", "Cellar"]);
   });
 
-  for (const [name, expected] of Object.entries(HILLTOP_COUNTS)) {
+  for (const [name, expected] of Object.entries(SAMPLE_JOB_COUNTS)) {
     it(`${name}: device counts, LED zones and LED total`, () => {
       const f = takeoff.floors.find((x) => x.name === name)!;
       expect(f.counts[TYPE_IDS.indoorCam] ?? 0).toBe(expected.indoorCam);
@@ -70,7 +70,7 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
   });
 
   it("ignores deleted markers", () => {
-    const d = buildHilltop();
+    const d = buildSampleJob();
     d.markers[0].deleted = true;
     const t = computeTakeoff(d);
     expect(t.floors[0].counts[TYPE_IDS.indoorCam]).toBe(2);
@@ -107,9 +107,9 @@ describe("20 Hilltop Dr E takeoff reproduces the hand counts", () => {
     expect(est.optionalTotal).toBe(optSpk * 165 + ATTIC_SETUP_LED_LF * 11);
 
     const withOverride = buildEstimate(takeoff, catalog, pricing, [
-      { id: "o1", projectId: "hilltop", key: "dev:cam-indoor", unitPrice: 300, updatedAt: "" },
-      { id: "o2", projectId: "hilltop", key: "opt:speaker", include: true, updatedAt: "" },
-      { id: "o3", projectId: "hilltop", key: "custom:x", description: "Programming", qty: 8, unit: "hr", unitPrice: 125, updatedAt: "" },
+      { id: "o1", projectId: "sample-job", key: "dev:cam-indoor", unitPrice: 300, updatedAt: "" },
+      { id: "o2", projectId: "sample-job", key: "opt:speaker", include: true, updatedAt: "" },
+      { id: "o3", projectId: "sample-job", key: "custom:x", description: "Programming", qty: 8, unit: "hr", unitPrice: 125, updatedAt: "" },
     ]);
     expect(withOverride.lines.find((l) => l.key === "dev:cam-indoor")!.total).toBe(3900);
     expect(withOverride.lines.find((l) => l.key === "opt:speaker")!.included).toBe(true);

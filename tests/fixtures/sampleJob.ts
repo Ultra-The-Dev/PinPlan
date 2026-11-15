@@ -1,15 +1,15 @@
-// 20 Hilltop Dr E — the installer's hand counts from PLAN.md, rebuilt as placed markers and runs.
+// 12 Maple Ridge Rd — the installer's hand counts from PLAN.md, rebuilt as placed markers and runs.
 // These counts were read from handwriting; confirm them against the scans before relying on them.
 import type { Closet, Marker, Run, Sheet } from "@/lib/types";
 
-export const HILLTOP_COUNTS = {
+export const SAMPLE_JOB_COUNTS = {
   Attic: { indoorCam: 3, outdoorCam: 0, speakers: 0, tvs: 1, sh: 1, vs: 0, wap: 1, ledZones: 3, ledTotal: 48 },
   "1st Fl": { indoorCam: 3, outdoorCam: 9, speakers: 2, tvs: 1, sh: 0, vs: 0, wap: 2, ledZones: 9, ledTotal: 305 },
   "2nd Fl": { indoorCam: 4, outdoorCam: 0, speakers: 2, tvs: 1, sh: 1, vs: 1, wap: 0, shades: 1, ledZones: 16, ledTotal: 520 },
   Cellar: { indoorCam: 3, outdoorCam: 0, speakers: 0, tvs: 1, sh: 1, vs: 1, wap: 1, ledZones: 8, ledTotal: null },
 } as const;
 
-type FloorName = keyof typeof HILLTOP_COUNTS;
+type FloorName = keyof typeof SAMPLE_JOB_COUNTS;
 const TYPE_IDS = { indoorCam: "cam-indoor", outdoorCam: "cam-outdoor", speakers: "speaker", tvs: "tv", sh: "sh", vs: "vs", wap: "wap", shades: "shade" } as const;
 
 /**
@@ -22,7 +22,7 @@ export const EXTRA_S: Partial<Record<FloorName, number>> = { "1st Fl": 2, Cellar
 export const ATTIC_SETUP_LED_LF = 60;
 
 const ts = "2026-11-11T00:00:00.000Z";
-const projectId = "hilltop";
+const projectId = "sample-job";
 
 /** Split a total LF across n zones (integers that sum exactly). */
 function split(total: number, n: number): number[] {
@@ -30,15 +30,15 @@ function split(total: number, n: number): number[] {
   return Array.from({ length: n }, (_, i) => base + (i < total - base * n ? 1 : 0));
 }
 
-export function buildHilltop() {
+export function buildSampleJob() {
   const sheets: Sheet[] = [];
   const markers: Marker[] = [];
   const runs: Run[] = [];
   const closets: Closet[] = [];
-  (Object.keys(HILLTOP_COUNTS) as FloorName[]).forEach((name, order) => {
+  (Object.keys(SAMPLE_JOB_COUNTS) as FloorName[]).forEach((name, order) => {
     const sheetId = `sheet-${order}`;
     sheets.push({ id: sheetId, projectId, name, pageNumber: order + 1, order, imageId: "img", width: 3000, height: 2000, pxPerFt: 12, createdAt: ts, updatedAt: ts });
-    const c = HILLTOP_COUNTS[name];
+    const c = SAMPLE_JOB_COUNTS[name];
     let n = 0;
     for (const [key, typeId] of Object.entries(TYPE_IDS)) {
       const qty = (c as Record<string, number | null>)[key] ?? 0;

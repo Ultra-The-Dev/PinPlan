@@ -213,7 +213,7 @@ struct NewProjectSheet: View {
     var body: some View {
         NavigationStack {
             SentenceForm {
-                Section(sentence: "Job") { TextField("Job address", text: $address, prompt: Text("20 Hilltop Dr E")) }
+                Section(sentence: "Job") { TextField("Job address", text: $address, prompt: Text("12 Maple Ridge Rd")) }
                 Section(sentence: "Client") {
                     TextField("Client name", text: $client)
                     TextField("Email", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never)

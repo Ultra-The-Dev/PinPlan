@@ -34,10 +34,10 @@ npm run dev                  # http://localhost:3000
 npm test                     # unit + route tests (see below)
 PGHOST=… npm run test:db     # applies supabase/migrations to a scratch Postgres and checks the RLS policies
 ```
-Try it with `samples/demo-plan-set.pdf` (a synthetic 4-sheet demo — not the real 20 Hilltop drawings).
+Try it with `samples/demo-plan-set.pdf` (a synthetic 4-sheet demo — not a real client job).
 
 ## What the tests cover
-- **Takeoff & estimate** — the 20 Hilltop Dr E hand counts per floor (from PLAN.md), tentative items, LED zones/LF, pricing, overrides.
+- **Takeoff & estimate** — the 12 Maple Ridge Rd hand counts per floor (from PLAN.md), tentative items, LED zones/LF, pricing, overrides.
 - **Billdu route** — against a fake Billdu API that verifies every request's HMAC signature: client create/reuse, estimate,
   50% deposit invoice, update instead of duplicate, rejected credentials.
 - **AI scan route** — with the Claude API mocked at the HTTP layer: request shape (image + JSON schema), validation/clamping

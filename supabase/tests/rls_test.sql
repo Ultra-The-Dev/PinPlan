@@ -18,7 +18,7 @@ end $$;
 -- User A creates a project with a sheet and a marker.
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
-insert into public.projects (id, client_name, address, status) values ('p1', 'Client', '20 Hilltop Dr E', 'estimate');
+insert into public.projects (id, client_name, address, status) values ('p1', 'Client', '12 Maple Ridge Rd', 'estimate');
 insert into public.sheets (id, project_id, name, page_number, sort_order, image_id, width, height) values ('s1', 'p1', 'Attic', 1, 0, 'img1', 1000, 800);
 insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)
   values ('m1', 'p1', 's1', 'cam-indoor', 0.5, 0.5, 'CAM-1-01', '', 'ceiling', 'Cat6', false, '');
@@ -38,7 +38,7 @@ exception when insufficient_privilege then raise notice 'ok: other user cannot i
 end $$;
 update public.projects set address = 'hacked' where id = 'p1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
-select pg_temp.check((select address from public.projects where id = 'p1') = '20 Hilltop Dr E', 'other user cannot update project');
+select pg_temp.check((select address from public.projects where id = 'p1') = '12 Maple Ridge Rd', 'other user cannot update project');
 
 -- A shares the project with C; C can now read and add markers.
 insert into public.project_members (project_id, user_id, role) values ('p1', '00000000-0000-0000-0000-00000000000c', 'editor');

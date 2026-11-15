@@ -1,10 +1,10 @@
 import XCTest
 @testable import PinPlanCore
 
-/// 20 Hilltop Dr E — the installer's hand counts from PLAN.md rebuilt as placed markers and runs,
+/// 12 Maple Ridge Rd — the installer's hand counts from PLAN.md rebuilt as placed markers and runs,
 /// plus the agreed decisions (circled M = shade; extra circled S = tentative speakers; Attic "Setup LED 60" = tentative 60 LF run).
 struct FloorCounts { let indoorCam, outdoorCam, speakers, tvs, sh, vs, wap, shades, ledZones: Int; let ledTotal: Double? }
-let HILLTOP: [(String, FloorCounts)] = [
+let SAMPLE_JOB: [(String, FloorCounts)] = [
     ("Attic", .init(indoorCam: 3, outdoorCam: 0, speakers: 0, tvs: 1, sh: 1, vs: 0, wap: 1, shades: 0, ledZones: 3, ledTotal: 48)),
     ("1st Fl", .init(indoorCam: 3, outdoorCam: 9, speakers: 2, tvs: 1, sh: 0, vs: 0, wap: 2, shades: 0, ledZones: 9, ledTotal: 305)),
     ("2nd Fl", .init(indoorCam: 4, outdoorCam: 0, speakers: 2, tvs: 1, sh: 1, vs: 1, wap: 0, shades: 1, ledZones: 16, ledTotal: 520)),
@@ -12,12 +12,12 @@ let HILLTOP: [(String, FloorCounts)] = [
 ]
 let EXTRA_S = ["1st Fl": 2, "Cellar": 3]
 
-func buildHilltop() -> ProjectBundle {
-    var b = ProjectBundle(project: Project(id: "hilltop", clientName: "Client", address: "20 Hilltop Dr E"))
+func buildSampleJob() -> ProjectBundle {
+    var b = ProjectBundle(project: Project(id: "sample-job", clientName: "Client", address: "12 Maple Ridge Rd"))
     let catalog = Catalog.seed()
     func type(_ id: String) -> DeviceType { catalog.first { $0.id == id }! }
-    for (order, (name, c)) in HILLTOP.enumerated() {
-        let s = Sheet(id: "sheet-\(order)", projectId: "hilltop", name: name, pageNumber: order + 1, order: order, imageId: "img", width: 3000, height: 2000, pxPerFt: 12)
+    for (order, (name, c)) in SAMPLE_JOB.enumerated() {
+        let s = Sheet(id: "sheet-\(order)", projectId: "sample-job", name: name, pageNumber: order + 1, order: order, imageId: "img", width: 3000, height: 2000, pxPerFt: 12)
         b.sheets.append(s)
         let items: [(String, Int)] = [("cam-indoor", c.indoorCam), ("cam-outdoor", c.outdoorCam), ("speaker", c.speakers), ("tv", c.tvs),
                                       ("sh", c.sh), ("vs", c.vs), ("wap", c.wap), ("shade", c.shades)]
@@ -30,7 +30,7 @@ func buildHilltop() -> ProjectBundle {
         }
         for i in 0..<(EXTRA_S[name] ?? 0) { b.addMarker(type: type("speaker"), sheetId: s.id, x: 0.9, y: Double(i + 1) / 10, tentative: true) }
         if name == "Attic" {
-            b.addRun(Run(projectId: "hilltop", sheetId: s.id, kind: .led, deviceTypeId: "led-ceiling", points: [0.5, 0.5, 0.6, 0.5], typedFt: 60, tentative: true))
+            b.addRun(Run(projectId: "sample-job", sheetId: s.id, kind: .led, deviceTypeId: "led-ceiling", points: [0.5, 0.5, 0.6, 0.5], typedFt: 60, tentative: true))
         }
         // LED zones: split the written LF exactly across the zones; the Cellar LF wasn't written.
         for z in 0..<c.ledZones {
@@ -39,25 +39,25 @@ func buildHilltop() -> ProjectBundle {
                 let base = (total / Double(c.ledZones)).rounded(.down)
                 lf = base + (Double(z) < total - base * Double(c.ledZones) ? 1 : 0)
             }
-            var r = Run(projectId: "hilltop", sheetId: s.id, kind: .led, deviceTypeId: "led-ceiling", points: [0.1, 0.1, 0.2, 0.1], typedFt: lf, zone: String(z + 1), switchLabel: "S\(z + 1)")
+            var r = Run(projectId: "sample-job", sheetId: s.id, kind: .led, deviceTypeId: "led-ceiling", points: [0.1, 0.1, 0.2, 0.1], typedFt: lf, zone: String(z + 1), switchLabel: "S\(z + 1)")
             if lf == nil { r.typedFt = nil }
             b.runs.append(r)
             if lf == nil { b.runs[b.runs.count - 1].measuredFt = nil }
         }
     }
-    b.closets.append(Closet(id: "closet-av", projectId: "hilltop", sheetId: "sheet-3", kind: .equipment, x: 0.5, y: 0.5, name: "AV Equipment"))
+    b.closets.append(Closet(id: "closet-av", projectId: "sample-job", sheetId: "sheet-3", kind: .equipment, x: 0.5, y: 0.5, name: "AV Equipment"))
     return b
 }
 
-final class HilltopTests: XCTestCase {
-    let t = TakeoffCalculator.compute(buildHilltop())
+final class SampleJobTests: XCTestCase {
+    let t = TakeoffCalculator.compute(buildSampleJob())
 
     func testFloorsInOrder() {
         XCTAssertEqual(t.floors.map(\.name), ["Attic", "1st Fl", "2nd Fl", "Cellar"])
     }
 
     func testPerFloorCountsMatchHandCounts() {
-        for (name, c) in HILLTOP {
+        for (name, c) in SAMPLE_JOB {
             let f = t.floors.first { $0.name == name }!.bucket
             XCTAssertEqual(f.counts["cam-indoor"] ?? 0, c.indoorCam, "\(name) indoor cameras")
             XCTAssertEqual(f.counts["cam-outdoor"] ?? 0, c.outdoorCam, "\(name) outdoor cameras")
@@ -101,7 +101,7 @@ final class HilltopTests: XCTestCase {
     }
 
     func testLabelsAreNumberedPerFloor() {
-        let b = buildHilltop()
+        let b = buildSampleJob()
         let atticCams = b.markers.filter { $0.sheetId == "sheet-0" && $0.deviceTypeId == "cam-indoor" }.map(\.label)
         XCTAssertEqual(atticCams, ["CAM-1-01", "CAM-1-02", "CAM-1-03"])
         XCTAssertTrue(b.markers.contains { $0.label == "CAM-3-04" })
@@ -138,9 +138,9 @@ final class HilltopTests: XCTestCase {
         let expectedOptional = optSpk + optLed
         XCTAssertEqual(e.optionalTotal, expectedOptional, accuracy: 0.001)
 
-        var o1 = EstimateLine(projectId: "hilltop", key: "dev:cam-indoor"); o1.unitPrice = 300
-        var o2 = EstimateLine(projectId: "hilltop", key: "opt:speaker"); o2.include = true
-        var o3 = EstimateLine(projectId: "hilltop", key: "custom:x"); o3.description = "Programming"; o3.qty = 8; o3.unit = "hr"; o3.unitPrice = 125
+        var o1 = EstimateLine(projectId: "sample-job", key: "dev:cam-indoor"); o1.unitPrice = 300
+        var o2 = EstimateLine(projectId: "sample-job", key: "opt:speaker"); o2.include = true
+        var o3 = EstimateLine(projectId: "sample-job", key: "custom:x"); o3.description = "Programming"; o3.qty = 8; o3.unit = "hr"; o3.unitPrice = 125
         let e2 = EstimateBuilder.build(takeoff: t, catalog: catalog, pricing: pricing, overrides: [o1, o2, o3])
         XCTAssertEqual(e2.lines.first { $0.key == "dev:cam-indoor" }!.total, 3900, accuracy: 0.001)
         XCTAssertTrue(e2.lines.first { $0.key == "opt:speaker" }!.included)

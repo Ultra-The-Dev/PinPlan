@@ -47,7 +47,7 @@ For TestFlight / App Store: set your bundle id in `project.yml` (`PRODUCT_BUNDLE
 ## Layout
 - `PinPlanCore/` — Swift package with all business logic (Foundation only, no UI): models, catalog, geometry,
   takeoff, estimate, editing operations, backup format. Tested with XCTest (`swift test`), including the
-  20 Hilltop Dr E hand counts and reading a backup exported by the web app.
+  12 Maple Ridge Rd hand counts and reading a backup exported by the web app.
 - `PinPlan/` — the SwiftUI app.
   - `App/` app entry and app-wide model · `Persistence/Store.swift` on-device storage (JSON + JPEGs in Documents)
   - `Editor/` plan canvas (pinch, pan, tap to place, drag, run drawing), device menu, inspector, AI scan, dialogs

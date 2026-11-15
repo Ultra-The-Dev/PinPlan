@@ -9,9 +9,9 @@ floor, and turns that takeoff into a priced estimate that is pushed to Billdu as
 
 - **Users:** the installer and their team, on an iPad at the job site or a laptop in the office.
 - **Problem:** plans are marked by hand, counted by hand and retyped into an invoice; the marked paper isn't shared with the crew.
-- **Done means:** load the 4-page plan set for 20 Hilltop Dr E, place every device, reproduce the hand counts below, then create the matching invoice in Billdu in one click.
+- **Done means:** load the 4-page plan set for 12 Maple Ridge Rd, place every device, reproduce the hand counts below, then create the matching invoice in Billdu in one click.
 
-## 20 Hilltop Dr E hand counts (read from handwriting — confirm before relying on them)
+## 12 Maple Ridge Rd hand counts (read from handwriting — confirm before relying on them)
 
 | Floor | Indoor cams | Outdoor cams | Speakers | TVs | SH | VS | Wi-Fi APs | LED zones | LED total |
 |---|---|---|---|---|---|---|---|---|---|
@@ -68,7 +68,7 @@ projects, sheets, device_types (catalog), markers (x,y 0–1 relative), runs (LE
 
 ## Phases
 1. Setup (Next.js, Supabase, migrations, CLAUDE.md) · 2. Projects & plan import · 3. Catalog & markers · 4. LED runs, closets & wiring ·
-5. Takeoff totals & exports (+ automated test with the 20 Hilltop counts) · 6. Estimate & Billdu · 7. AI scan assist.
+5. Takeoff totals & exports (+ automated test with the sample job counts) · 6. Estimate & Billdu · 7. AI scan assist.
 
 ## Decisions (answered Nov 12, 2026)
 - **SH / VS / circled M:** SH = smart-home control point, VS = video screen / iPad showing the cameras, circled M = motorized shade (2nd Fl has one).

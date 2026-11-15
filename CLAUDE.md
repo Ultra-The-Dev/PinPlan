@@ -23,5 +23,5 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   (`public/sw.js`). Konva components are loaded with `dynamic(..., { ssr: false })`.
 - Server-only code: `src/app/api/billdu/*` (HMAC-SHA512 signed requests, creds encrypted at rest by `src/lib/server/secrets.ts`)
   and `src/app/api/scan` (Claude vision). Secrets never go to the browser.
-- Tests: `tests/hilltop.test.ts` encodes the 20 Hilltop hand counts from PLAN.md.
+- Tests: `tests/sampleJob.test.ts` encodes the sample job hand counts from PLAN.md.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

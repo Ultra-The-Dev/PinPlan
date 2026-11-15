@@ -146,7 +146,7 @@ export default function ProjectsList() {
             </div>
             <div className="sm:col-span-2">
               <label className="label">Job address</label>
-              <input className="input" autoFocus placeholder="20 Hilltop Dr E" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <input className="input" autoFocus placeholder="12 Maple Ridge Rd" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
               <label className="label">Client name</label>

@@ -70,16 +70,16 @@ describe("Billdu mapping", () => {
   });
 
   it("collapses a deposit into one percentage line", () => {
-    const items = linesToItems(lines, 0, { depositPct: 50, address: "20 Hilltop Dr E" });
-    expect(items).toEqual([{ label: "Deposit 50% of estimate — 20 Hilltop Dr E", price: 7381.5, tax: 0, stockNumber: "", count: 1, unit: "pc", discount: 0 }]);
+    const items = linesToItems(lines, 0, { depositPct: 50, address: "12 Maple Ridge Rd" });
+    expect(items).toEqual([{ label: "Deposit 50% of estimate — 12 Maple Ridge Rd", price: 7381.5, tax: 0, stockNumber: "", count: 1, unit: "pc", discount: 0 }]);
   });
 
   it("builds client and document payloads", () => {
-    expect(splitAddress("20 Hilltop Dr E, Roslyn, NY 11576")).toEqual({ street: "20 Hilltop Dr E", city: "Roslyn", province: "NY", zip: "11576" });
-    const c = clientPayload({ clientName: "Jane Doe", clientEmail: "j@x.com", address: "20 Hilltop Dr E, Roslyn, NY 11576" });
-    expect(c).toMatchObject({ fullname: "Jane Doe", email: "j@x.com", street: "20 Hilltop Dr E", city: "Roslyn", zip: "11576" });
-    const d = documentPayload({ type: "estimate", clientId: 5, items: [], currency: "USD", address: "20 Hilltop Dr E", now: new Date(2026, 10, 11, 9, 5, 3) });
-    expect(d).toMatchObject({ type: "estimate", client: 5, payment: "transfer", currency: "USD", note: "Project: 20 Hilltop Dr E" });
+    expect(splitAddress("12 Maple Ridge Rd, Springfield, NY 10001")).toEqual({ street: "12 Maple Ridge Rd", city: "Springfield", province: "NY", zip: "10001" });
+    const c = clientPayload({ clientName: "Jane Doe", clientEmail: "j@x.com", address: "12 Maple Ridge Rd, Springfield, NY 10001" });
+    expect(c).toMatchObject({ fullname: "Jane Doe", email: "j@x.com", street: "12 Maple Ridge Rd", city: "Springfield", zip: "10001" });
+    const d = documentPayload({ type: "estimate", clientId: 5, items: [], currency: "USD", address: "12 Maple Ridge Rd", now: new Date(2026, 10, 11, 9, 5, 3) });
+    expect(d).toMatchObject({ type: "estimate", client: 5, payment: "transfer", currency: "USD", note: "Project: 12 Maple Ridge Rd" });
     expect(d.issue).toMatch(/^2026-11-11T09:05:03[+-]\d{4}$/);
     expect(billduDate(new Date())).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$/);
   });

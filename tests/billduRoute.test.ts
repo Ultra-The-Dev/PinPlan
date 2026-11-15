@@ -14,7 +14,7 @@ function verify(url: URL, body: Record<string, unknown>) {
 const line = (key: string, description: string, qty: number, unit: string, unitPrice: number) => ({
   key, description, qty, unit, unitPrice, total: qty * unitPrice, optional: false, included: true, group: "devices", overridden: false,
 });
-const project = { id: "p1", clientName: "Demo Client", clientEmail: "c@example.com", address: "20 Hilltop Dr E", billduClientId: null };
+const project = { id: "p1", clientName: "Demo Client", clientEmail: "c@example.com", address: "12 Maple Ridge Rd", billduClientId: null };
 const lines = [line("dev:cam-indoor", "Indoor camera — installed", 13, "each", 320), line("dev:led-ceiling", "LED strip", 873, "LF", 11)];
 
 describe("POST /api/billdu/send", () => {

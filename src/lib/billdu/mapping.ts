@@ -55,7 +55,7 @@ export function itemsTotal(items: BillduItem[]): number {
   return round2(items.reduce((s, i) => s + i.price * i.count * (1 - i.discount / 100), 0));
 }
 
-/** Best-effort split of a single-line address "20 Hilltop Dr E, Town, NY 10001". */
+/** Best-effort split of a single-line address "12 Maple Ridge Rd, Town, NY 10001". */
 export function splitAddress(address: string): { street: string; city: string; province: string; zip: string } {
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
   const street = parts[0] ?? "";

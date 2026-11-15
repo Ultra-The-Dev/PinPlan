@@ -6,7 +6,7 @@ import PinPlanCore
 /// so a new user can try every feature before importing their own plans.
 enum DemoProject {
     static func make(store: Store, catalog: [DeviceType], pricing: PricingSettings) -> ProjectBundle {
-        var b = ProjectBundle(project: Project(clientName: "Demo client", address: "Demo — 20 Hilltop Dr E"))
+        var b = ProjectBundle(project: Project(clientName: "Demo client", address: "Demo — 12 Maple Ridge Rd"))
         let floors = ["Attic", "1st Fl", "2nd Fl", "Cellar"]
         // A real vector PDF (17 × 11 in sheets), imported exactly like an architect's plan set:
         // pages rendered from vector, floor names and the printed scale read from each page's text.
