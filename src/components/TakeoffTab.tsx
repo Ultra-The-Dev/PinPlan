@@ -7,6 +7,7 @@ import { exportSheetsPdf } from "@/lib/exportSheets";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff, countOf, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
+import OrderList from "./OrderList";
 
 export default function TakeoffTab() {
   const st = useEditor();
@@ -211,6 +212,7 @@ export default function TakeoffTab() {
         ) : (
           <p className="text-sm text-slate-500">None. Mark a device as tentative (?) in its editor.</p>
         )}
+        <OrderList />
       </div>
     </div>
   );

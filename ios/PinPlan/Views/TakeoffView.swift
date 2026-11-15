@@ -123,6 +123,7 @@ struct TakeoffView: View {
     }
 
     @ViewBuilder private var exportButtons: some View {
+        NavigationLink { OrderListView(model: model) } label: { Label("Order list", systemImage: "cart").lineLimit(1) }.buttonStyle(.bordered)
         Button { csv() } label: { Label("CSV", systemImage: "tablecells").lineLimit(1) }.buttonStyle(.bordered)
         Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext").lineLimit(1) }
             .buttonStyle(.borderedProminent).disabled(busy || model.sheets.isEmpty)

@@ -32,6 +32,7 @@ struct CrewView: View {
                 }
                 Button { pdf() } label: { Label(busy ? "Building…" : "Wiring PDF (selected layers)", systemImage: "doc.richtext") }.disabled(busy || model.sheets.isEmpty)
                 Button { model.autoHomeRuns(sheetOnly: false) } label: { Label("Auto-draw all home runs", systemImage: "cable.connector") }
+                NavigationLink { PortScheduleView(model: model) } label: { Label("Closet ports & cable labels", systemImage: "tag") }
             } footer: { Text("Where each wire goes and which type — no prices.") }
             if !tot.wireFt.isEmpty {
                 Section(sentence: "Cable") {

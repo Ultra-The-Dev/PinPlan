@@ -2,6 +2,7 @@
 import { Cable, Download, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
+import PortSchedule from "./PortSchedule";
 import { LAYERS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
@@ -147,6 +148,7 @@ export default function CrewTab() {
             </tbody>
           </table>
         </div>
+        <PortSchedule />
       </div>
     </div>
   );
