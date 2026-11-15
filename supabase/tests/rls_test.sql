@@ -89,4 +89,45 @@ set role service_role;
 insert into public.app_secrets (name, payload) values ('billdu', 'enc') on conflict (name) do update set payload = excluded.payload;
 select pg_temp.check((select count(*) from public.app_secrets) = 1, 'service role can use app_secrets');
 reset role;
+
+-- Proposals: the installer publishes; a client with no account opens and answers only by token.
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+insert into public.proposals (id, project_id, snapshot, valid_until) values ('tok_aaaaaaaaaaaaaaaaaaaaaa', 'p1',
+  '{"taxPct": 10, "lines": [{"key": "dev:cam", "total": 1000, "optional": false}, {"key": "opt:spk", "total": 200, "optional": true}, {"key": "opt:tv", "total": 50, "optional": true}]}',
+  current_date + 30);
+select pg_temp.check((select count(*) from public.proposals) = 1, 'installer sees own proposal');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
+select pg_temp.check((select count(*) from public.proposals) = 1, 'team member on the job sees its proposal');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select pg_temp.check((select count(*) from public.proposals) = 0, 'other users cannot list proposals');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claim.role', 'anon', false);
+select pg_temp.check((select count(*) from public.proposals) = 0, 'anonymous client cannot list proposals');
+select pg_temp.check(public.get_proposal('nope_aaaaaaaaaaaaaaaaaaaa') is null, 'unknown link returns nothing');
+select pg_temp.check(public.get_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa') ->> 'status' = 'viewed', 'client opens proposal by link (marked viewed)');
+do $$ begin
+  perform public.respond_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa', true, '', 'data:x', '[]', null);
+  raise exception 'should have failed';
+exception when others then
+  if sqlerrm = 'should have failed' then raise; end if;
+end $$;
+select pg_temp.check(true, 'accepting needs a name');
+select pg_temp.check((public.respond_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa', true, 'Jane Client', 'data:image/png;base64,AAA', '["opt:spk"]', null) ->> 'acceptedTotal')::numeric = 1320,
+  'accept stores the total from the frozen lines (base + chosen option + tax)');
+do $$ begin
+  perform public.respond_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa', false, 'X', null, null, null);
+  raise exception 'should have failed';
+exception when others then
+  if sqlerrm = 'should have failed' then raise; end if;
+end $$;
+select pg_temp.check(true, 'a proposal can only be answered once');
+reset role;
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select pg_temp.check((select status = 'accepted' and client_name = 'Jane Client' from public.proposals where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa'), 'installer sees the acceptance');
+update public.proposals set status = 'revoked' where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa';
+select pg_temp.check(public.get_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa') is null, 'revoked link stops working');
+reset role;
 \echo ALL RLS CHECKS PASSED

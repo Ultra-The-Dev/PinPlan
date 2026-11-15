@@ -1,0 +1,405 @@
+"use client";
+// What the client sees: the installer's proposal by link — plans, scope, price, optional add-ons, sign and accept.
+import { Check, Eraser, Printer, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { formatMoney } from "@/lib/estimate";
+import { GROUP_LABELS, proposalTotals, sectionTotals, type ProposalLine } from "@/lib/proposal";
+import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
+import { supabaseConfigured } from "@/lib/supabase";
+
+const fmtDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
+
+function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const dirty = useRef(false);
+  useEffect(() => {
+    const c = ref.current!;
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * dpr;
+    c.height = c.offsetHeight * dpr;
+    const ctx = c.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1c1917";
+  }, []);
+  const pos = (e: React.PointerEvent) => {
+    const r = ref.current!.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top] as const;
+  };
+  const finish = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    if (!dirty.current) return;
+    // A small PNG is plenty for a signature (and keeps the stored answer light).
+    const src = ref.current!;
+    const out = document.createElement("canvas");
+    const k = Math.min(1, 600 / src.width);
+    out.width = Math.round(src.width * k);
+    out.height = Math.round(src.height * k);
+    out.getContext("2d")!.drawImage(src, 0, 0, out.width, out.height);
+    onChange(out.toDataURL("image/png"));
+  };
+  return (
+    <div>
+      <canvas
+        ref={ref}
+        aria-label="Sign here"
+        className="h-36 w-full touch-none rounded-xl bg-white ring-1 ring-slate-300"
+        onPointerDown={(e) => {
+          drawing.current = true;
+          (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+          const ctx = ref.current!.getContext("2d")!;
+          const [x, y] = pos(e);
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        }}
+        onPointerMove={(e) => {
+          if (!drawing.current) return;
+          const ctx = ref.current!.getContext("2d")!;
+          const [x, y] = pos(e);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          dirty.current = true;
+        }}
+        onPointerUp={finish}
+        onPointerCancel={finish}
+      />
+      <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+        <span>Sign with your finger or mouse</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 font-medium text-slate-600"
+          onClick={() => {
+            const c = ref.current!;
+            c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
+            dirty.current = false;
+            onChange(null);
+          }}
+        >
+          <Eraser className="h-3.5 w-3.5" /> Clear
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function ClientProposal() {
+  const token = useSearchParams().get("t") ?? "";
+  const [p, setP] = useState<PublicProposal | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
+  const [agree, setAgree] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const topRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!token || !supabaseConfigured) return;
+    fetchPublicProposal(token)
+      .then((r) => {
+        setP(r);
+        if (r) setChosen(r.status === "accepted" ? r.chosenOptions : r.snapshot.lines.filter((l) => l.optional && l.included).map((l) => l.key));
+        if (r?.snapshot.client.name) setName(r.snapshot.client.name);
+      })
+      .catch((e) => setError(e.message));
+  }, [token]);
+
+  const s = p?.snapshot;
+  const totals = useMemo(() => (s ? proposalTotals(s, chosen) : null), [s, chosen]);
+  const sections = useMemo(() => (s ? sectionTotals(s.lines, chosen) : null), [s, chosen]);
+
+  if (!token || !supabaseConfigured || p === null)
+    return <Notice title="This link isn't available" body="It may have been withdrawn or replaced by an updated proposal. Please contact the company that sent it." />;
+  if (error) return <Notice title="Couldn't open the proposal" body={error} />;
+  if (!p || !s || !totals || !sections) return <p className="p-10 text-center text-slate-500">Loading your proposal…</p>;
+
+  const cur = s.currency;
+  const answered = p.status === "accepted" || p.status === "declined";
+  const locked = answered || p.expired;
+  const base = s.lines.filter((l) => !l.optional);
+  const options = s.lines.filter((l) => l.optional);
+  const groups = (Object.keys(GROUP_LABELS) as ProposalLine["group"][]).filter((g) => base.some((l) => l.group === g));
+
+  async function respond(accept: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      setP(await respondToProposal(token, { accept, name, signature, options: chosen, note }));
+      topRef.current?.scrollIntoView({ behavior: "smooth" });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="min-h-full bg-[var(--color-slate-50)] print:bg-white">
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+        {/* Letterhead */}
+        <header ref={topRef} className="mb-8 flex flex-wrap items-start gap-4">
+          <div className="mr-auto">
+            <div className="text-xl font-semibold tracking-tight">{s.business.name || "Proposal"}</div>
+            <div className="mt-1 space-y-0.5 text-sm text-slate-500">
+              {s.business.address && <div>{s.business.address}</div>}
+              <div>{[s.business.phone, s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
+            </div>
+          </div>
+          <button className="btn btn-sm print:hidden" onClick={() => window.print()}>
+            <Printer /> Print / PDF
+          </button>
+        </header>
+
+        {answered && (
+          <div className={`mb-6 rounded-2xl px-5 py-4 ring-1 ${p.status === "accepted" ? "bg-emerald-50 text-emerald-900 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
+            {p.status === "accepted" ? (
+              <>
+                <div className="flex items-center gap-2 font-semibold">
+                  <Check className="h-5 w-5" /> Accepted by {p.clientName} on {fmtDate(p.respondedAt)}
+                </div>
+                <p className="mt-1 text-sm">
+                  Total {formatMoney(p.acceptedTotal ?? totals.total, cur)}. {s.business.name || "We"} will be in touch to schedule the work{s.depositPct ? ` and send the ${s.depositPct}% deposit invoice` : ""}. You can print this page for your records.
+                </p>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 font-semibold">
+                <X className="h-5 w-5" /> You declined this proposal on {fmtDate(p.respondedAt)}. Thank you for letting us know.
+              </div>
+            )}
+          </div>
+        )}
+        {!answered && p.expired && (
+          <div className="mb-6 rounded-2xl bg-amber-50 px-5 py-4 text-amber-900 ring-1 ring-amber-200">
+            This proposal expired on {fmtDate(p.validUntil)}. Please ask {s.business.name || "us"} for an updated one.
+          </div>
+        )}
+
+        <section className="card p-6 sm:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{s.title}</h1>
+          <dl className="mt-4 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+            <div className="flex gap-2">
+              <dt className="text-slate-500">Prepared for</dt>
+              <dd className="font-medium">{s.client.name || "—"}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-slate-500">Date</dt>
+              <dd>{fmtDate(s.createdAt)}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-slate-500">Project</dt>
+              <dd>{s.client.address || "—"}</dd>
+            </div>
+            {s.validUntil && (
+              <div className="flex gap-2">
+                <dt className="text-slate-500">Valid until</dt>
+                <dd>{fmtDate(s.validUntil)}</dd>
+              </div>
+            )}
+          </dl>
+          {s.message && <p className="mt-5 text-[15px] leading-relaxed whitespace-pre-line text-slate-700">{s.message}</p>}
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            {s.scope.map((x) => (
+              <div key={x.label} className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                <div className="text-xs text-slate-500">{x.label}</div>
+                <div className="mt-0.5 text-lg font-semibold tabular-nums">{x.value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {s.floors.some((f) => f.image || f.items.length) && (
+          <section className="mt-6">
+            <h2 className="mb-3 px-1 text-lg font-semibold">Plans</h2>
+            <div className="space-y-5">
+              {s.floors.map((f) => (
+                <figure key={f.name} className="card overflow-hidden break-inside-avoid">
+                  {f.image && (
+                    <a href={f.image} target="_blank" rel="noreferrer" title="Open full size">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.image} alt={`${f.name} plan with device locations`} className="w-full bg-white" loading="lazy" />
+                    </a>
+                  )}
+                  <figcaption className="border-t border-slate-100 px-5 py-3">
+                    <div className="font-medium">{f.name}</div>
+                    {f.items.length > 0 && (
+                      <div className="mt-1 text-sm text-slate-500">{f.items.map((i) => `${i.name} ${i.count}`).join(" · ")}</div>
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="card mt-6 p-6 sm:p-8">
+          <h2 className="text-lg font-semibold">Investment</h2>
+          <div className="mt-3 divide-y divide-slate-100">
+            {groups.map((g) => (
+              <div key={g} className="py-3">
+                <div className="flex items-baseline justify-between">
+                  <div className="text-sm font-semibold text-slate-500">{GROUP_LABELS[g]}</div>
+                  {s.detail === "sections" && <div className="font-medium tabular-nums">{formatMoney(sections.get(g) ?? 0, cur)}</div>}
+                </div>
+                <ul className="mt-1.5 space-y-1.5">
+                  {base
+                    .filter((l) => l.group === g)
+                    .map((l) => (
+                      <li key={l.key} className="flex gap-3 text-sm">
+                        <span className="min-w-0 flex-1">
+                          {l.description}
+                          {s.detail === "lines" && (
+                            <span className="block text-xs text-slate-500 tabular-nums sm:hidden">
+                              {+l.qty.toFixed(2)} {l.unit}
+                              {l.unitPrice ? ` × ${formatMoney(l.unitPrice, cur)}` : ""}
+                            </span>
+                          )}
+                        </span>
+                        {s.detail === "lines" ? (
+                          <>
+                            <span className="hidden text-slate-500 tabular-nums whitespace-nowrap sm:inline">
+                              {+l.qty.toFixed(2)} {l.unit}
+                              {l.unitPrice ? ` × ${formatMoney(l.unitPrice, cur)}` : ""}
+                            </span>
+                            <span className="w-24 text-right font-medium tabular-nums">{l.total ? formatMoney(l.total, cur) : <span className="font-normal text-slate-500">Included</span>}</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-500 tabular-nums">
+                            {+l.qty.toFixed(2)} {l.unit}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {options.length > 0 && (
+            <div className="mt-4 rounded-xl bg-amber-50/60 p-4 ring-1 ring-amber-200">
+              <div className="font-semibold">Optional add-ons</div>
+              <p className="text-sm text-slate-600">{locked ? "Add-ons included in your total are ticked." : "Tick any you'd like included — the total updates."}</p>
+              <ul className="mt-2 space-y-1">
+                {options.map((l) => (
+                  <li key={l.key}>
+                    <label className={`flex items-center gap-3 rounded-lg px-2 py-2 text-sm ${locked ? "" : "cursor-pointer hover:bg-amber-100/50"}`}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-brand-600"
+                        disabled={locked}
+                        checked={chosen.includes(l.key)}
+                        onChange={(e) => setChosen((c) => (e.target.checked ? [...c, l.key] : c.filter((k) => k !== l.key)))}
+                      />
+                      <span className="min-w-0 flex-1">
+                        {l.description}
+                        <span className="text-slate-500"> · {+l.qty.toFixed(2)} {l.unit}</span>
+                      </span>
+                      <span className="font-medium tabular-nums">+{formatMoney(l.total, cur)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <dl className="mt-5 space-y-1.5 border-t border-slate-200 pt-4 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-500">Subtotal</dt>
+              <dd className="tabular-nums">{formatMoney(totals.subtotal, cur)}</dd>
+            </div>
+            {s.taxPct > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-slate-500">Tax ({s.taxPct}%)</dt>
+                <dd className="tabular-nums">{formatMoney(totals.tax, cur)}</dd>
+              </div>
+            )}
+            <div className="flex items-baseline justify-between pt-1">
+              <dt className="text-base font-semibold">Total</dt>
+              <dd className="text-2xl font-semibold tabular-nums">{formatMoney(totals.total, cur)}</dd>
+            </div>
+            {totals.deposit != null && (
+              <div className="flex justify-between text-slate-600">
+                <dt>Deposit due on approval ({s.depositPct}%)</dt>
+                <dd className="tabular-nums">{formatMoney(totals.deposit, cur)}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
+
+        {s.terms && (
+          <section className="mt-6 px-1 text-sm leading-relaxed text-slate-600">
+            <h2 className="mb-1.5 font-semibold text-slate-800">Terms</h2>
+            <p className="whitespace-pre-line">{s.terms}</p>
+          </section>
+        )}
+
+        {!locked && (
+          <section className="card mt-6 p-6 sm:p-8 print:hidden">
+            {!declining ? (
+              <>
+                <h2 className="text-lg font-semibold">Approve this proposal</h2>
+                <label className="mt-4 block text-sm">
+                  <span className="label">Your full name</span>
+                  <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                </label>
+                <div className="mt-4">
+                  <span className="label">Signature</span>
+                  <SignaturePad onChange={setSignature} />
+                </div>
+                <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                  <span>
+                    I approve the work described above for <strong>{formatMoney(totals.total, cur)}</strong>
+                    {s.terms ? " and agree to the terms" : ""}.
+                  </span>
+                </label>
+                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <button className="btn btn-brand px-6" disabled={busy || !name.trim() || !signature || !agree} onClick={() => void respond(true)}>
+                    <Check /> {busy ? "Sending…" : `Accept — ${formatMoney(totals.total, cur)}`}
+                  </button>
+                  <button className="btn btn-ghost text-slate-500" onClick={() => setDeclining(true)}>
+                    Decline
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-semibold">Decline this proposal</h2>
+                <label className="mt-4 block text-sm">
+                  <span className="label">Anything we should know? (optional)</span>
+                  <textarea className="input min-h-20" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Timing, budget, scope changes…" />
+                </label>
+                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+                <div className="mt-4 flex gap-3">
+                  <button className="btn" onClick={() => setDeclining(false)}>
+                    Back
+                  </button>
+                  <button className="btn btn-danger" disabled={busy} onClick={() => void respond(false)}>
+                    {busy ? "Sending…" : "Decline proposal"}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+        <p className="mt-8 text-center text-xs text-slate-400 print:hidden">Questions? Contact {s.business.name || "us"}{s.business.phone ? ` at ${s.business.phone}` : ""}.</p>
+      </div>
+    </div>
+  );
+}
+
+function Notice({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="mx-auto max-w-md px-6 py-24 text-center">
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <p className="mt-2 text-slate-500">{body}</p>
+    </div>
+  );
+}

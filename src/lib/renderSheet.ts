@@ -10,6 +10,8 @@ export interface RenderOptions {
   layers?: Layer[] | null; // null = all
   maxSide?: number;
   labels?: boolean;
+  /** Bigger symbols for images viewed small (client proposals). */
+  symbolScale?: number;
 }
 
 async function loadImage(imageId: string): Promise<ImageBitmap | null> {
@@ -43,7 +45,7 @@ export async function renderSheet(
   }
   const show = (l: Layer) => !opts.layers || opts.layers.includes(l);
   const types = new Map(data.catalog.map((d) => [d.id, d]));
-  const r = Math.max(W, H) / 140;
+  const r = (Math.max(W, H) / 140) * (opts.symbolScale ?? 1);
 
   for (const run of data.runs) {
     if (run.sheetId !== sheet.id || run.deleted) continue;

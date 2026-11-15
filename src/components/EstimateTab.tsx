@@ -11,6 +11,7 @@ import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { BillduDocRef, PricingSettings } from "@/lib/types";
 import JobProducts from "./JobProducts";
+import ProposalPanel from "./ProposalPanel";
 
 type DocType = "estimate" | "order" | "invoice";
 
@@ -449,6 +450,8 @@ export default function EstimateTab() {
               )}
             </dl>
           </section>
+
+          <ProposalPanel estimate={estimate} takeoff={takeoff} pricing={pricing} />
 
           <section className="card p-5">
             <div className="mb-4 flex items-center gap-2">
