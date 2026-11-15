@@ -2,6 +2,7 @@
 import { CLOSET_KINDS, LAYERS } from "./catalog";
 import { downloadBlob, slug } from "./download";
 import { runLengthFt } from "./geometry";
+import { runCables } from "./products";
 import { renderSheet, symbolDataUrl } from "./renderSheet";
 import { wireColor } from "./symbols";
 import { computeTakeoff } from "./takeoff";
@@ -44,8 +45,8 @@ export async function exportSheetsPdf(data: Data, opts: { mode: "takeoff" | "cre
     const ledTypes = new Set(data.runs.filter((r) => r.sheetId === sheet.id && r.kind !== "wire").map((r) => r.deviceTypeId ?? ""));
     if (show("lighting")) for (const id of ledTypes) legend.push({ color: types.get(id)?.color ?? "#d97706", name: types.get(id)?.name ?? "LED strip" });
     if (show("wiring")) {
-      const wts = new Set(data.runs.filter((r) => r.sheetId === sheet.id && r.kind === "wire").map((r) => r.wireType ?? ""));
-      for (const w of wts) legend.push({ color: wireColor(w), name: `${w || "Wire"} home run` });
+      const wts = new Set(data.runs.filter((r) => r.sheetId === sheet.id && r.kind === "wire" && !r.deleted).flatMap((r) => runCables(r)));
+      for (const w of wts) legend.push({ color: wireColor(w), name: `${w === "Unspecified" ? "Wire" : w} home run` });
     }
     if (show("infrastructure"))
       for (const k of CLOSET_KINDS) if (f.closets[k.id]) legend.push({ color: k.color, name: k.name });

@@ -6,10 +6,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { downloadBlob, downloadText, slug } from "@/lib/download";
-import { buildEstimate, estimateCsv, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
+import { estimateCsv, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { BillduDocRef, PricingSettings } from "@/lib/types";
+import JobProducts from "./JobProducts";
 
 type DocType = "estimate" | "order" | "invoice";
 
@@ -45,6 +46,10 @@ function CellInner({
   );
 }
 
+const enterBlurs = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === "Enter") e.currentTarget.blur();
+};
+
 const num = (s: string) => {
   const n = parseFloat(s.replace(/[$,]/g, ""));
   return Number.isFinite(n) ? n : null;
@@ -66,6 +71,7 @@ export default function EstimateTab() {
   const runs = useEditor((s) => s.runs);
   const closets = useEditor((s) => s.closets);
   const catalog = useEditor((s) => s.catalog);
+  const products = useEditor((s) => s.products);
   const settings = useEditor((s) => s.settings);
   const estimateLines = useEditor((s) => s.estimateLines);
   const upsert = useEditor((s) => s.upsertEstimateLine);
@@ -79,8 +85,8 @@ export default function EstimateTab() {
   );
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   const estimate: Estimate | null = useMemo(
-    () => (pricing ? buildEstimate(takeoff, catalog, pricing, estimateLines) : null),
-    [takeoff, catalog, pricing, estimateLines],
+    () => (pricing && project ? projectEstimate({ project, sheets, markers, runs, closets, estimateLines }, catalog, products, pricing, takeoff) : null),
+    [takeoff, catalog, products, pricing, estimateLines, project, sheets, markers, runs, closets],
   );
 
   const [docTypeChoice, setDocType] = useState<DocType | null>(null);
@@ -95,6 +101,7 @@ export default function EstimateTab() {
   if (!project || !settings || !pricing || !estimate) return <div className="p-6 text-slate-500">Loading…</div>;
 
   const cur = pricing.currency;
+  const pricedOverrides = estimateLines.filter((l) => !l.deleted && !l.removed && l.unitPrice != null && !l.key.startsWith("custom:")).length;
   const removedKeys = estimateLines.filter((l) => l.removed && !l.deleted).map((l) => l.key);
   const fileBase = `${slug(project.address || project.clientName)}-estimate`;
 
@@ -255,11 +262,11 @@ export default function EstimateTab() {
           <div className="card flex flex-wrap items-end gap-4 p-4">
             <label className="text-sm">
               <span className="label">Markup %</span>
-              <input className={input} defaultValue={pricing.markupPct} key={`mk${pricing.markupPct}`} inputMode="decimal" onBlur={(e) => setPricing({ markupPct: num(e.target.value) ?? 0 })} />
+              <input className={input} defaultValue={pricing.markupPct} key={`mk${pricing.markupPct}`} inputMode="decimal" onBlur={(e) => setPricing({ markupPct: num(e.target.value) ?? 0 })} onKeyDown={enterBlurs} />
             </label>
             <label className="text-sm">
               <span className="label">Tax %</span>
-              <input className={input} defaultValue={pricing.taxPct} key={`tx${pricing.taxPct}`} inputMode="decimal" onBlur={(e) => setPricing({ taxPct: num(e.target.value) ?? 0 })} />
+              <input className={input} defaultValue={pricing.taxPct} key={`tx${pricing.taxPct}`} inputMode="decimal" onBlur={(e) => setPricing({ taxPct: num(e.target.value) ?? 0 })} onKeyDown={enterBlurs} />
             </label>
             <label className="text-sm">
               <span className="label">Labor</span>
@@ -273,7 +280,14 @@ export default function EstimateTab() {
               Include “?” items by default
             </label>
             <span className="ml-auto self-center text-xs text-slate-400">Applies to this project only</span>
+            {pricedOverrides > 0 && (
+              <p className="basis-full text-xs text-slate-500">
+                Markup is on material. {pricedOverrides} line{pricedOverrides === 1 ? " has" : "s have"} a typed price, which is final and isn’t marked up — reset {pricedOverrides === 1 ? "it" : "them"} to use the catalog price.
+              </p>
+            )}
           </div>
+
+          <JobProducts total={takeoff.total} pricing={pricing} />
 
           {/* Phones: one stacked block per line (description, then qty × price = total), all still editable. */}
           <div className="card divide-y divide-slate-100 sm:hidden">

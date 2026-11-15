@@ -8,16 +8,22 @@ import { exportSheetsPdf } from "@/lib/exportSheets";
 import { runLengthFt } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff, toCsv } from "@/lib/takeoff";
-import type { Layer } from "@/lib/types";
+import { cableSummary, markerCables, productIdFor, productTitle } from "@/lib/products";
+import type { Layer, Marker } from "@/lib/types";
 
 /** Wiring-only view for the crew: no prices. Marked PDFs by layer plus the home-run schedule. */
 export default function CrewTab() {
-  const { project, sheets, markers, runs, closets, catalog, autoHomeRuns } = useEditor();
+  const { project, sheets, markers, runs, closets, catalog, products, autoHomeRuns } = useEditor();
   const [layers, setLayers] = useState<Layer[]>(LAYERS.map((l) => l.id));
   const [busy, setBusy] = useState<string | null>(null);
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   if (!project) return null;
   const typeName = (id: string) => catalog.find((d) => d.id === id)?.name ?? id;
+  // What the crew installs: the device's product (its own, else the job's choice), else the device type.
+  const deviceName = (m: Marker) => {
+    const p = products.find((x) => x.id === productIdFor(m, project!, products));
+    return p ? `${productTitle(p)} (${typeName(m.deviceTypeId)})` : typeName(m.deviceTypeId);
+  };
   const closetName = (id?: string | null) => closets.find((c) => c.id === id)?.name ?? "—";
   const sheetName = (id: string) => sheets.find((s) => s.id === id)?.name ?? "";
   const order = new Map(sheets.map((s) => [s.id, s.order]));
@@ -28,11 +34,11 @@ export default function CrewTab() {
       const run = runs.find((r) => r.kind === "wire" && r.markerId === m.id);
       return { m, len: run ? runLengthFt(run) : null, drawn: !!run };
     });
-  const noCloset = schedule.filter((s) => !s.m.closetId && s.m.wireType !== "None").length;
+  const noCloset = schedule.filter((s) => !s.m.closetId && markerCables(s.m).length > 0).length;
 
   function csv() {
     const rows: (string | number)[][] = [["Floor", "Label", "Device", "Room", "Mount", "Wire", "Home run to", "Cable ft", "Tentative", "Notes"]];
-    for (const { m, len } of schedule) rows.push([sheetName(m.sheetId), m.label, typeName(m.deviceTypeId), m.room, m.mount, m.wireType, closetName(m.closetId), len ?? "", m.tentative ? "yes" : "", m.notes]);
+    for (const { m, len } of schedule) rows.push([sheetName(m.sheetId), m.label, deviceName(m), m.room, m.mount, cableSummary(markerCables(m)), closetName(m.closetId), len ?? "", m.tentative ? "yes" : "", m.notes]);
     downloadText(toCsv(rows), `${slug(project!.address)}-home-runs.csv`);
   }
 
@@ -111,7 +117,7 @@ export default function CrewTab() {
                 <th>Label</th>
                 <th>Device</th>
                 <th>Room</th>
-                <th>Wire</th>
+                <th>Cables</th>
                 <th>Home run to</th>
                 <th className="text-right">Cable</th>
               </tr>
@@ -124,9 +130,9 @@ export default function CrewTab() {
                     {m.label}
                     {m.tentative && <span className="ml-1 text-amber-700">?</span>}
                   </td>
-                  <td>{typeName(m.deviceTypeId)}</td>
+                  <td>{deviceName(m)}</td>
                   <td>{m.room}</td>
-                  <td>{m.wireType}</td>
+                  <td>{cableSummary(markerCables(m))}</td>
                   <td>{closetName(m.closetId)}</td>
                   <td className="text-right tabular-nums">{len != null ? `${len} ft` : drawn ? "no scale" : "—"}</td>
                 </tr>

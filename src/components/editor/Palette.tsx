@@ -2,11 +2,17 @@
 import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
 import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
+import { productTitle } from "@/lib/products";
 import { useEditor, type Tool } from "@/lib/store";
 import SymbolIcon from "./SymbolIcon";
 
 export default function Palette() {
-  const { catalog, tool, setTool, markers, runs, activeSheetId, room, setRoom } = useEditor();
+  const { catalog, tool, setTool, markers, runs, activeSheetId, room, setRoom, products, project } = useEditor();
+  // The job's chosen product for a type, shown under its name ("Ubiquiti G5 Turret").
+  const chosen = (typeId: string) => {
+    const p = products.find((x) => x.id === project?.productChoices?.[typeId] && x.deviceTypeId === typeId);
+    return p ? productTitle(p) : undefined;
+  };
   const rooms = Array.from(new Set(markers.filter((m) => m.sheetId === activeSheetId && m.room).map((m) => m.room))).sort();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<string[]>([]);
@@ -88,8 +94,8 @@ export default function Palette() {
                     d.kind === "led"
                       ? d.id === "led-stair"
                         ? item({ kind: "stair" }, d.id, <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} />, d.name, "steps × LF per step", runsOnSheet(d.id))
-                        : item({ kind: "led", deviceTypeId: d.id }, d.id, <LineIcon color={d.color} />, d.name.replace("LED strip — ", "LED · "), "draw run · LF", runsOnSheet(d.id))
-                      : item({ kind: "place", deviceTypeId: d.id }, d.id, <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} />, d.name, undefined, countOnSheet(d.id)),
+                        : item({ kind: "led", deviceTypeId: d.id }, d.id, <LineIcon color={d.color} />, d.name.replace("LED strip — ", "LED · "), chosen(d.id) ?? "draw run · LF", runsOnSheet(d.id))
+                      : item({ kind: "place", deviceTypeId: d.id }, d.id, <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} />, d.name, chosen(d.id), countOnSheet(d.id)),
                   )}
                   {closets.map((c) =>
                     item(

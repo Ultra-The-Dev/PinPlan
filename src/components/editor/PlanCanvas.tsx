@@ -4,7 +4,8 @@ import { ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { CLOSET_KINDS, categoryOf } from "@/lib/catalog";
-import { runLengthFt } from "@/lib/geometry";
+import { bundleOffsets, offsetPolyline, runLengthFt } from "@/lib/geometry";
+import { cableSummary, runCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { symbolPath, wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
@@ -413,9 +414,14 @@ function RunShape(props: {
   const width = r.kind === "wire" ? 2 : 5;
   const len = runLengthFt(r);
   const mid = midpoint(pts);
+  // A bundle (HDMI + Cat6…) is drawn as parallel lines, one per cable, in each cable's colour.
+  const cables = r.kind === "wire" ? runCables(r) : [];
+  const strands = cables.length > 1 ? bundleOffsets(cables.length, 3.6 * inv).map((d, k) => ({ pts: offsetPolyline(pts, d), color: wireColor(cables[k]) })) : null;
   const label =
     r.kind === "wire"
-      ? ""
+      ? props.selected || cables.length > 1
+        ? cableSummary(cables)
+        : ""
       : [r.zone ? `Z${r.zone}` : "", len != null ? `${Math.round(len * 10) / 10} LF` : "LF?", r.switchLabel ?? "", r.kind === "stair" && r.steps ? `${r.steps} steps` : ""]
           .filter(Boolean)
           .join(" · ");
@@ -427,12 +433,16 @@ function RunShape(props: {
   return (
     <Group>
       {props.selected && <Line points={pts} stroke="#ea580c" strokeWidth={(width + 8) * inv} opacity={0.35} lineCap="round" lineJoin="round" listening={false} />}
+      {strands?.map((s, k) => (
+        <Line key={k} points={s.pts} stroke={s.color} strokeWidth={2.2 * inv} dash={[6 * inv, 4 * inv]} opacity={r.tentative ? 0.5 : 0.95} lineCap="round" lineJoin="round" listening={false} />
+      ))}
       <Line
         points={pts}
         stroke={color}
         strokeWidth={width * inv}
         dash={r.kind === "wire" ? [6 * inv, 4 * inv] : r.kind === "stair" ? [3 * inv, 3 * inv] : undefined}
-        opacity={r.tentative ? 0.5 : 0.95}
+        // Bundles keep this line only as the (invisible) tap target.
+        opacity={strands ? 0 : r.tentative ? 0.5 : 0.95}
         lineCap="round"
         lineJoin="round"
         hitStrokeWidth={22 * inv}
@@ -442,7 +452,7 @@ function RunShape(props: {
       {label && (
         <Group x={mid.x} y={mid.y} scaleX={inv} scaleY={inv} listening={false}>
           <Rect x={-label.length * 3.3 - 4} y={-18} width={label.length * 6.6 + 8} height={15} fill="#fff" opacity={0.9} cornerRadius={3} />
-          <Text text={label} x={-label.length * 3.3} y={-16} fontSize={11} fontStyle="bold" fill={color} />
+          <Text text={label} x={-label.length * 3.3} y={-16} fontSize={11} fontStyle="bold" fill={strands ? "#44403c" : color} />
         </Group>
       )}
       {props.selected &&

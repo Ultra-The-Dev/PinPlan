@@ -134,3 +134,33 @@ export function findScale(text: string): { label: string; inchesPerFoot: number 
   const best = (at >= 0 && candidates.find((c) => c.index > at)) || candidates[0];
   return { label: best.label, inchesPerFoot: best.inchesPerFoot };
 }
+
+/** Shift a flat polyline [x0, y0, x1, y1, …] sideways by d (positive = left of travel), mitring at the bends. */
+export function offsetPolyline(pts: number[], d: number): number[] {
+  const n = pts.length / 2;
+  if (n < 2 || d === 0) return pts;
+  const normal = (i: number, j: number): [number, number] => {
+    const dx = pts[j * 2] - pts[i * 2];
+    const dy = pts[j * 2 + 1] - pts[i * 2 + 1];
+    const len = Math.max(Math.hypot(dx, dy), 1e-9);
+    return [-dy / len, dx / len];
+  };
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    let nx: number;
+    let ny: number;
+    if (i === 0) [nx, ny] = normal(0, 1);
+    else if (i === n - 1) [nx, ny] = normal(n - 2, n - 1);
+    else {
+      const a = normal(i - 1, i);
+      const b = normal(i, i + 1);
+      const len = Math.max(Math.hypot(a[0] + b[0], a[1] + b[1]), 1e-9);
+      [nx, ny] = [(a[0] + b[0]) / len, (a[1] + b[1]) / len];
+    }
+    out.push(pts[i * 2] + nx * d, pts[i * 2 + 1] + ny * d);
+  }
+  return out;
+}
+
+/** Sideways offsets for `count` cables drawn side by side, centred on the run. */
+export const bundleOffsets = (count: number, spacing: number) => Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * spacing);

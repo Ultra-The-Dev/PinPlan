@@ -1,10 +1,13 @@
 "use client";
-import { Camera, Copy, Trash, X } from "lucide-react";
+import { Camera, Copy, Minus, Plus, Trash, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
-import { CLOSET_KINDS, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
+import { CLOSET_KINDS, MOUNTS } from "@/lib/catalog";
 import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
+import { cableCounts, cablesPatch, CABLE_TYPES, markerCables, productIdFor, productTitle, runCables, settingCable } from "@/lib/products";
 import { useEditor } from "@/lib/store";
+import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import SymbolIcon from "./SymbolIcon";
 import type { ClosetKind, Mount } from "@/lib/types";
@@ -61,8 +64,50 @@ export default function Inspector() {
   );
 }
 
+/** The cables pulled to a device or carried by a home run: one row per type with a count, plus "Add cable". */
+function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list: string[]) => void }) {
+  const counts = cableCounts(cables);
+  const unused = CABLE_TYPES.filter((w) => !counts.some((c) => c.type === w));
+  return (
+    <div>
+      <label className="label">Cables</label>
+      <div className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
+        {counts.map((c) => (
+          <div key={c.type} className="flex items-center gap-2 px-3 py-1.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: wireColor(c.type) }} />
+            <span className="min-w-0 flex-1 truncate text-sm">{c.type}</span>
+            <button className="btn btn-sm btn-icon btn-ghost" aria-label={`One less ${c.type}`} onClick={() => onChange(settingCable(c.type, c.count - 1, cables))}>
+              <Minus />
+            </button>
+            <span className="w-5 text-center text-sm font-medium tabular-nums">{c.count}</span>
+            <button className="btn btn-sm btn-icon btn-ghost" aria-label={`One more ${c.type}`} onClick={() => onChange(settingCable(c.type, c.count + 1, cables))}>
+              <Plus />
+            </button>
+          </div>
+        ))}
+        {!counts.length && <p className="px-3 py-2 text-sm text-slate-400">No cable</p>}
+        {unused.length > 0 && (
+          <select
+            aria-label="Add cable"
+            className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none"
+            value=""
+            onChange={(e) => e.target.value && onChange([...cables, e.target.value])}
+          >
+            <option value="">+ Add cable…</option>
+            {unused.map((w) => (
+              <option key={w} value={w}>
+                {w}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarkerInspector({ id }: { id: string }) {
-  const { markers, catalog, closets, sheets, runs, updateMarker, deleteEntity, autoHomeRuns, addMarker, select } = useEditor();
+  const { markers, catalog, closets, sheets, runs, products, project, updateMarker, deleteEntity, autoHomeRuns, addMarker, select } = useEditor();
   const m = markers.find((x) => x.id === id);
   const duplicate = async () => {
     if (!m) return;
@@ -70,6 +115,8 @@ function MarkerInspector({ id }: { id: string }) {
       room: m.room,
       mount: m.mount,
       wireType: m.wireType,
+      wires: m.wires,
+      productId: m.productId,
       closetId: m.closetId,
       tentative: m.tentative,
     });
@@ -80,6 +127,8 @@ function MarkerInspector({ id }: { id: string }) {
   const type = catalog.find((d) => d.id === m.deviceTypeId);
   const run = runs.find((r) => r.kind === "wire" && r.markerId === m.id);
   const sheetName = (sid: string) => sheets.find((s) => s.id === sid)?.name ?? "";
+  const typeProducts = products.filter((p) => p.deviceTypeId === m.deviceTypeId && (!p.archived || p.id === m.productId));
+  const jobProduct = project ? products.find((p) => p.id === productIdFor({ deviceTypeId: m.deviceTypeId, productId: null }, project, products)) : undefined;
   return (
     <>
       <div className="flex items-center gap-3">
@@ -94,7 +143,7 @@ function MarkerInspector({ id }: { id: string }) {
       </div>
       <div>
         <label className="label">Device</label>
-        <select className="input" value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value })}>
+        <select className="input" value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value, productId: null })}>
           {catalog
             .filter((d) => d.kind === "device")
             .map((d) => (
@@ -103,6 +152,31 @@ function MarkerInspector({ id }: { id: string }) {
               </option>
             ))}
         </select>
+      </div>
+      <div>
+        <label className="label">Product</label>
+        <select
+          className="input"
+          value={m.productId && typeProducts.some((p) => p.id === m.productId) ? m.productId : ""}
+          onChange={(e) => updateMarker(m.id, { productId: e.target.value || null })}
+        >
+          <option value="">{jobProduct ? `Job’s choice — ${productTitle(jobProduct)}` : "Job’s choice — catalog price"}</option>
+          {typeProducts
+            .filter((p) => p.id !== jobProduct?.id)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {productTitle(p)}
+              </option>
+            ))}
+        </select>
+        {typeProducts.length === 0 && (
+          <p className="mt-1 text-xs text-slate-500">
+            No products for this type yet ·{" "}
+            <Link href="/products" className="font-medium text-brand-600 hover:underline">
+              add in Products
+            </Link>
+          </p>
+        )}
       </div>
       <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 transition ${m.tentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
         <input type="checkbox" className="mt-0.5 accent-amber-600" checked={m.tentative} onChange={(e) => updateMarker(m.id, { tentative: e.target.checked })} />
@@ -115,24 +189,15 @@ function MarkerInspector({ id }: { id: string }) {
         <Field label="Label" value={m.label} onCommit={(v) => updateMarker(m.id, { label: v })} />
         <Field label="Room" value={m.room} placeholder="e.g. Kitchen" onCommit={(v) => updateMarker(m.id, { room: v })} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="label">Mount</label>
-          <select className="input" value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
-            {MOUNTS.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Wire type</label>
-          <select className="input" value={m.wireType} onChange={(e) => updateMarker(m.id, { wireType: e.target.value })}>
-            {Array.from(new Set([...WIRE_TYPES, m.wireType])).map((w) => (
-              <option key={w}>{w}</option>
-            ))}
-          </select>
-        </div>
+      <div>
+        <label className="label">Mount</label>
+        <select className="input" value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
+          {MOUNTS.map((x) => (
+            <option key={x}>{x}</option>
+          ))}
+        </select>
       </div>
+      <CablesEditor cables={markerCables(m)} onChange={(list) => updateMarker(m.id, cablesPatch(list))} />
       <div>
         <label className="label">Home-run closet</label>
         <select className="input" value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
@@ -259,14 +324,13 @@ function RunInspector({ id }: { id: string }) {
       )}
       {r.kind === "wire" && (
         <>
-          <div>
-            <label className="label">Wire type</label>
-            <select className="input" value={r.wireType ?? ""} onChange={(e) => updateRun(r.id, { wireType: e.target.value })}>
-              {Array.from(new Set([...WIRE_TYPES, r.wireType ?? "Cat6"])).map((w) => (
-                <option key={w}>{w}</option>
-              ))}
-            </select>
-          </div>
+          <CablesEditor
+            cables={runCables(r).filter((c) => c !== "Unspecified")}
+            onChange={(list) => {
+              const p = cablesPatch(list.length ? list : ["Cat6"]);
+              updateRun(r.id, { wireType: p.wireType, wireTypes: p.wires });
+            }}
+          />
           <p className="text-xs text-slate-500">
             {marker ? marker.label : "—"} → {closet ? closet.name : "—"}
           </p>

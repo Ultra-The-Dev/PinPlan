@@ -1,0 +1,121 @@
+"use client";
+// "Products for this job": pick the brand/model used for each device type and cable on the job.
+import { Tags } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { put } from "@/lib/db";
+import { formatMoney } from "@/lib/estimate";
+import { cableKey, productTitle, withProductChoice } from "@/lib/products";
+import { useEditor } from "@/lib/store";
+import { wireColor } from "@/lib/symbols";
+import type { TakeoffBucket } from "@/lib/takeoff";
+import type { PricingSettings, Product } from "@/lib/types";
+import { blankProduct, ProductDialog } from "./ProductsEditor";
+import SymbolIcon from "./editor/SymbolIcon";
+
+const NEW = "__new__";
+
+export default function JobProducts({ total, pricing }: { total: TakeoffBucket; pricing: PricingSettings }) {
+  const project = useEditor((s) => s.project);
+  const catalog = useEditor((s) => s.catalog);
+  const products = useEditor((s) => s.products);
+  const markers = useEditor((s) => s.markers);
+  const updateProject = useEditor((s) => s.updateProject);
+  const reloadCatalog = useEditor((s) => s.reloadCatalog);
+  const [adding, setAdding] = useState<Product | null>(null);
+  if (!project) return null;
+
+  const cur = pricing.currency;
+  const choose = (key: string, productId: string | null) => updateProject({ productChoices: withProductChoice(project, key, productId) });
+  const rows = [
+    ...catalog
+      .filter((d) => (d.kind === "led" ? (total.ledFt[d.id] ?? 0) + (total.ledTentativeFt[d.id] ?? 0) : (total.counts[d.id] ?? 0)) > 0)
+      .map((d) => ({
+        key: d.id,
+        name: d.name,
+        qty: d.kind === "led" ? `${(total.ledFt[d.id] ?? 0) + (total.ledTentativeFt[d.id] ?? 0)} LF` : `× ${total.counts[d.id]}`,
+        icon: d.kind === "led" ? <span className="block h-1.5 w-5 rounded" style={{ background: d.color }} /> : <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} size={22} />,
+        fallback: `Catalog price ${formatMoney(d.unitPrice, cur)}`,
+        overrides: markers.filter((m) => m.deviceTypeId === d.id && m.productId).length,
+      })),
+    ...Object.keys(total.wireFt)
+      .filter((w) => total.wireFt[w] > 0 && w !== "Unspecified")
+      .sort()
+      .map((w) => ({
+        key: cableKey(w),
+        name: `${w} cable`,
+        qty: `${total.wireFt[w]} ft`,
+        icon: <span className="block h-1 w-5 rounded" style={{ background: wireColor(w) }} />,
+        fallback: `Default ${formatMoney(pricing.wirePrices[w] ?? 0, cur)}/ft`,
+        overrides: 0,
+      })),
+  ];
+
+  return (
+    <section className="card p-4">
+      <div className="mb-1 flex items-center gap-2">
+        <Tags className="h-4 w-4 text-slate-500" />
+        <h3 className="font-semibold">Products for this job</h3>
+        <Link href="/products" className="ml-auto text-sm font-medium text-brand-600 hover:underline">
+          Product library
+        </Link>
+      </div>
+      <p className="mb-3 text-sm text-slate-500">Choose the brand and model for each item. A single device can use another one from its inspector on the plan.</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-400">Place devices or draw home runs to choose products.</p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {rows.map((r) => {
+            const options = products.filter((p) => p.deviceTypeId === r.key && (!p.archived || project.productChoices?.[r.key] === p.id));
+            const chosen = project.productChoices?.[r.key] ?? "";
+            const valid = options.some((p) => p.id === chosen);
+            return (
+              <div key={r.key} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+                <span className="flex w-6 justify-center">{r.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{r.name}</div>
+                  <div className="text-xs text-slate-400">
+                    {r.qty}
+                    {r.overrides ? ` · ${r.overrides} with their own product` : ""}
+                  </div>
+                </div>
+                <select
+                  aria-label={`Product for ${r.name}`}
+                  className="input h-9 w-full sm:w-72"
+                  value={valid ? chosen : ""}
+                  onChange={(e) => {
+                    if (e.target.value === NEW) setAdding(blankProduct(r.key));
+                    else choose(r.key, e.target.value || null);
+                  }}
+                >
+                  <option value="">{r.fallback}</option>
+                  {options.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {productTitle(p)} — {formatMoney(p.unitPrice, cur)}
+                    </option>
+                  ))}
+                  <option value={NEW}>+ New product…</option>
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {adding && (
+        <ProductDialog
+          product={adding}
+          catalog={catalog}
+          isNew
+          lockType
+          onCancel={() => setAdding(null)}
+          onSave={async (p) => {
+            const saved = await put("products", p);
+            await reloadCatalog();
+            await choose(saved.deviceTypeId, saved.id);
+            setAdding(null);
+          }}
+        />
+      )}
+    </section>
+  );
+}

@@ -1,7 +1,8 @@
 "use client";
 import { CLOSET_KINDS } from "./catalog";
 import { db } from "./db";
-import { runLengthFt } from "./geometry";
+import { bundleOffsets, offsetPolyline, runLengthFt } from "./geometry";
+import { runCables } from "./products";
 import { drawSymbol, wireColor } from "./symbols";
 import type { Closet, DeviceType, Layer, Marker, Run, Sheet } from "./types";
 
@@ -56,14 +57,19 @@ export async function renderSheet(
     if (run.kind === "wire") ctx.setLineDash([r * 0.6, r * 0.4]);
     if (run.kind === "stair") ctx.setLineDash([r * 0.3, r * 0.3]);
     if (run.tentative) ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    for (let i = 0; i + 1 < run.points.length; i += 2) {
-      const x = run.points[i] * W;
-      const y = run.points[i + 1] * H;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    const px = run.points.map((v, i) => (i % 2 ? v * H : v * W));
+    // A bundle (HDMI + Cat6…) is drawn as parallel lines, one per cable, in each cable's colour.
+    const cables = run.kind === "wire" ? runCables(run) : [];
+    const strands = cables.length > 1 ? bundleOffsets(cables.length, r * 0.32).map((d, k) => ({ pts: offsetPolyline(px, d), color: wireColor(cables[k]) })) : [{ pts: px, color }];
+    for (const s of strands) {
+      ctx.strokeStyle = s.color;
+      ctx.beginPath();
+      for (let i = 0; i + 1 < s.pts.length; i += 2) {
+        if (i === 0) ctx.moveTo(s.pts[i], s.pts[i + 1]);
+        else ctx.lineTo(s.pts[i], s.pts[i + 1]);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
     ctx.restore();
     if (run.kind !== "wire") {
       const len = runLengthFt(run);

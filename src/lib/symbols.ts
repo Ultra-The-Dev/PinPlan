@@ -103,11 +103,12 @@ export function drawSymbol(
 export const WIRE_COLORS: Record<string, string> = {
   Cat6: "#2563eb",
   "16/4 speaker": "#7c3aed",
+  HDMI: "#c026d3",
   "HDMI + Cat6": "#0891b2",
   "18/2": "#ca8a04",
   "LV per driver": "#d97706",
   "LV per manufacturer": "#db2777",
-  Coax: "#475569",
+  Coax: "#ea580c",
   Fiber: "#16a34a",
 };
 export const wireColor = (w?: string) => WIRE_COLORS[w ?? ""] ?? "#64748b";

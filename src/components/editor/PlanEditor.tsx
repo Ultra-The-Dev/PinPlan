@@ -33,6 +33,7 @@ function formatFeetInches(ft: number) {
   }
   return `${f}'-${i}" (${ft.toFixed(1)} ft)`;
 }
+import { markerCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import Dialog, { type DialogField } from "../Dialog";
@@ -214,7 +215,8 @@ export default function PlanEditor() {
       const r = await s.addRun({
         kind: "wire",
         points: pts,
-        wireType: marker?.wireType ?? "Cat6",
+        wireType: (marker && markerCables(marker)[0]) || "Cat6",
+        wireTypes: marker && markerCables(marker).length > 1 ? markerCables(marker) : null,
         markerId: snap.markerId ?? null,
         closetId: snap.closetId ?? null,
         tentative: marker?.tentative ?? false,

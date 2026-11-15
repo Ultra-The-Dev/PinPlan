@@ -1,5 +1,5 @@
 "use client";
-import { FolderOpen, Package, Settings } from "lucide-react";
+import { FolderOpen, Package, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SyncBadge from "./SyncBadge";
@@ -19,6 +19,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
   const nav = [
     { href: "/", label: "Projects", icon: FolderOpen },
     { href: "/catalog", label: "Catalog", icon: Package },
+    { href: "/products", label: "Products", icon: Tags },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
   return (
