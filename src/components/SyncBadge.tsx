@@ -5,14 +5,14 @@ import { useSyncStatus } from "@/lib/sync";
 
 /** Small header indicator: offline / local only / pending N / synced. */
 export default function SyncBadge() {
-  const { configured, signedIn, online, syncing, pending, error } = useSyncStatus();
+  const { configured, signedIn, authReady, online, syncing, pending, error } = useSyncStatus();
   // Sync state only exists in the browser; render a neutral badge for the server/hydration pass.
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  if (!hydrated) return <span className="inline-block h-6 w-20 rounded-md bg-slate-100" aria-hidden />;
+  if (!hydrated || !authReady) return <span className="inline-block h-6 w-20 rounded-md bg-slate-100" aria-hidden />;
   let text: string;
   let cls: string;
   if (!online) {

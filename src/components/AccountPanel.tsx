@@ -42,7 +42,9 @@ export default function AccountPanel() {
     <section id="account" className="space-y-3">
       <h2 className="text-lg font-semibold">Account &amp; sync</h2>
       <CloudCheck />
-      {s.signedIn ? (
+      {!s.authReady ? (
+        <p className="text-sm text-slate-500">Checking sign-in…</p>
+      ) : s.signedIn ? (
         <div className="space-y-3">
           <p className="text-sm">
             Signed in as <span className="font-medium">{s.email}</span>

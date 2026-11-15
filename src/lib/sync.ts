@@ -12,6 +12,8 @@ import type { Sheet } from "./types";
 export interface SyncStatus {
   configured: boolean;
   signedIn: boolean;
+  /** False until the saved sign-in has been read on this page load (avoid flashing "signed out"). */
+  authReady: boolean;
   email: string | null;
   userId: string | null;
   online: boolean;
@@ -26,6 +28,7 @@ export interface SyncStatus {
 export const useSyncStatus = create<SyncStatus>(() => ({
   configured: supabaseConfigured,
   signedIn: false,
+  authReady: !supabaseConfigured,
   email: null,
   userId: null,
   online: typeof navigator === "undefined" ? true : navigator.onLine,
@@ -254,13 +257,13 @@ export function startSync(): () => void {
   if (sb) {
     sb.auth.getSession().then(({ data }) => {
       const u = data.session?.user;
-      setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null });
+      setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
       void runSync(true);
     });
     const { data } = sb.auth.onAuthStateChange((_evt, session) => {
       const u = session?.user;
       const prev = useSyncStatus.getState().userId;
-      setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null });
+      setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
       if (u && u.id !== prev) void runSync(true);
     });
     unsubAuth = () => data.subscription.unsubscribe();

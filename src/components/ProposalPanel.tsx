@@ -26,7 +26,7 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefin
 
 export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate: Estimate; takeoff: Takeoff; pricing: PricingSettings }) {
   const { project, sheets, markers, runs, closets, catalog, settings, updateProject, upsertEstimateLine } = useEditor();
-  const { signedIn, userId } = useSyncStatus();
+  const { signedIn, userId, authReady } = useSyncStatus();
   const [rows, setRows] = useState<ProposalRow[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [form, setForm] = useState(false);
@@ -89,6 +89,14 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
       )}
     </div>
   );
+
+  if (supabaseConfigured && !authReady)
+    return (
+      <section className="card p-5">
+        {header}
+        <p className="text-sm text-slate-400">Loading…</p>
+      </section>
+    );
 
   if (!supabaseConfigured || !signedIn)
     return (

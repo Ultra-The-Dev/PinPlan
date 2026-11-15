@@ -34,7 +34,12 @@ enum Keychain {
 struct SupabaseClient {
     struct Config: Codable, Equatable { var url: String; var anonKey: String }
     struct Session: Codable { var accessToken: String; var refreshToken: String; var expiresAt: Date; var userId: String; var email: String }
-    struct Failure: LocalizedError { let message: String; var errorDescription: String? { message } }
+    struct Failure: LocalizedError {
+        let message: String
+        /// HTTP status when the server answered (0 = no answer, e.g. offline).
+        var status: Int = 0
+        var errorDescription: String? { message }
+    }
 
     let config: Config
     var base: URL { URL(string: config.url.hasSuffix("/") ? String(config.url.dropLast()) : config.url)! }
@@ -56,7 +61,7 @@ struct SupabaseClient {
         guard (200..<300).contains(status) else {
             let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             let msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
-            throw Failure(message: msg ?? "Cloud server returned \(status)")
+            throw Failure(message: msg ?? "Cloud server returned \(status)", status: status)
         }
         return data
     }
@@ -239,15 +244,30 @@ final class CloudSync {
         if let d = try? enc.encode(s) { Keychain.save(d, account: Self.sessionAccount) }
     }
 
+    @ObservationIgnored private var refreshing: Task<SupabaseClient.Session, Error>?
+
+    /// A valid access token. Renews the sign-in a few minutes before it runs out; stays signed in when offline
+    /// (renewal is retried later) and only signs out if the server rejects the saved sign-in.
     private func token() async throws -> String {
-        guard let client, var s = session else { throw SupabaseClient.Failure(message: "Not signed in") }
-        if s.expiresAt < Date() {
-            do { s = try await client.refresh(s); store(s) } catch {
-                signOut()
-                throw SupabaseClient.Failure(message: "Signed out — please sign in again.")
-            }
+        guard let client, let s = session else { throw SupabaseClient.Failure(message: "Not signed in") }
+        if s.expiresAt > Date().addingTimeInterval(120) { return s.accessToken }
+        // One renewal at a time: two at once would spend the same one-time renewal token and get rejected.
+        if let t = refreshing { return try await t.value.accessToken }
+        let t = Task { try await client.refresh(s) }
+        refreshing = t
+        defer { refreshing = nil }
+        do {
+            let fresh = try await t.value
+            store(fresh)
+            return fresh.accessToken
+        } catch let e as SupabaseClient.Failure where e.status == 400 || e.status == 401 {
+            signOut()
+            throw SupabaseClient.Failure(message: "Your sign-in ended — please sign in again.")
+        } catch {
+            // Offline or the server didn't answer: keep the sign-in and try again on the next sync.
+            if s.expiresAt > Date() { return s.accessToken }
+            throw SupabaseClient.Failure(message: "Can't reach the cloud right now — will retry.")
         }
-        return s.accessToken
     }
 
     // MARK: ledger
