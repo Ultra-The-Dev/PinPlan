@@ -68,7 +68,7 @@ enum SymbolGeometry {
 /// SF Symbol for each device pictogram key (DeviceIcons). Missing symbols fall back to the type's letters.
 enum DeviceIconArt {
     static let sfSymbols: [String: String] = [
-        "camera": "video.fill", "tablet": "ipad.landscape", "wifi": "wifi", "switch": "network", "jack": "cable.connector",
+        "camera": "video.fill", "tablet": "ipad.landscape", "wifi": "wifi", "switch": "point.3.filled.connected.trianglepath.dotted", "jack": "cable.connector",
         "speaker": "hifispeaker.fill", "tv": "tv", "home": "homekit", "keypad": "square.grid.3x3.fill", "bulb": "lightbulb.fill",
         "spot": "lamp.ceiling.fill", "driver": "cpu", "shade": "blinds.vertical.closed", "shield": "shield.fill", "doorbell": "bell.fill",
         "lock": "lock.fill", "sensor": "dot.radiowaves.left.and.right", "thermostat": "thermometer.medium", "mic": "mic.fill",
