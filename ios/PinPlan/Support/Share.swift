@@ -31,6 +31,7 @@ struct CommitField: View {
     let onCommit: (String) -> Void
     @State private var text = ""
     @FocusState private var focused: Bool
+    private var numeric: Bool { keyboard == .decimalPad || keyboard == .numberPad }
 
     var body: some View {
         TextField(title, text: $text, prompt: Text(prompt))
@@ -40,6 +41,10 @@ struct CommitField: View {
             .onChange(of: value) { _, v in if !focused { text = v } }
             .onSubmit { if text != value { onCommit(text) } }
             .onChange(of: focused) { _, f in if !f && text != value { onCommit(text) } }
+            // Number pads have no Return key, so numbers save as you type.
+            .onChange(of: text) { _, t in
+                if numeric, focused, t != value, Double(t.replacingOccurrences(of: ",", with: ".")) != nil || t.isEmpty { onCommit(t) }
+            }
     }
 }
 

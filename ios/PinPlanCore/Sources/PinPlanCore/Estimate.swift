@@ -43,7 +43,8 @@ public enum EstimateBuilder {
     /// - products / split: when the job picks products (brand + model) for device types, their quantities get their own
     ///   lines at the product's price; whatever has no product stays on the device type's line.
     public static func build(takeoff: Takeoff, catalog: [DeviceType], pricing: PricingSettings, overrides: [EstimateLine] = [],
-                             products: [Product] = [], split: [String: [String: (confirmed: Double, tentative: Double)]] = [:]) -> Estimate {
+                             products: [Product] = [], split: [String: [String: (confirmed: Double, tentative: Double)]] = [:],
+                             cableChoices: [String: String] = [:]) -> Estimate {
         let t = takeoff.total
         let mk = 1 + pricing.markupPct / 100
         var base: [ComputedLine] = []
@@ -86,7 +87,16 @@ public enum EstimateBuilder {
         if let un = t.ledFt["led-unassigned"], un > 0 { push("dev:led-unassigned", "LED strip", un, "LF", 0, optional: false, .lighting) }
         for wt in t.wireFt.keys.sorted() {
             let ft = t.wireFt[wt]!
-            if ft > 0 { push("wire:\(wt)", "\(wt) cable (home runs: \(t.wireRuns[wt] ?? 0))", ft, "ft", (pricing.wirePrices[wt] ?? 0) * mk, optional: false, .wire) }
+            guard ft > 0 else { continue }
+            let runs = t.wireRuns[wt] ?? 0
+            // The job's cable product for this type (brand/model, price per ft), else the default price per ft.
+            if let pid = cableChoices[wt], let p = productById[pid], p.deviceTypeId == Cables.productKey(wt) {
+                let perFt = combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk
+                push("wire:\(wt)", "\(wt) — \(p.title) (home runs: \(runs))", ft, "ft", perFt, optional: false, .wire)
+                if !combined && p.laborPrice > 0 { push("labor:wire:\(wt)", "Labor — pull \(wt)", ft, "ft", p.laborPrice, optional: false, .labor) }
+            } else {
+                push("wire:\(wt)", "\(wt) cable (home runs: \(runs))", ft, "ft", (pricing.wirePrices[wt] ?? 0) * mk, optional: false, .wire)
+            }
         }
         for k in ClosetKind.allCases where (t.closets[k] ?? 0) > 0 {
             push("closet:\(k.rawValue)", Catalog.closetInfo(k).name, Double(t.closets[k]!), "each", 0, optional: false, .infrastructure)

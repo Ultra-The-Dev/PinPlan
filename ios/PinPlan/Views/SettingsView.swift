@@ -208,7 +208,9 @@ private struct StatusRow: View {
 struct DoubleField: View {
     @Binding var value: Double
     var body: some View {
-        TextField("0", value: $value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(maxWidth: 120)
+        // Saves as you type (the number pad has no Return key).
+        CommitField(title: "", value: value.clean, prompt: "0", keyboard: .decimalPad) { s in value = Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+            .multilineTextAlignment(.trailing).frame(maxWidth: 120)
     }
 }
 

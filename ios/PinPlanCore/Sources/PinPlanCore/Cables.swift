@@ -30,6 +30,19 @@ public struct CableCount: Hashable, Identifiable, Sendable {
 }
 
 public enum Cables {
+    /// Cable products live in the product library under "wire:<cable type>" (e.g. "wire:Cat6").
+    public static let productPrefix = "wire:"
+    public static func productKey(_ cableType: String) -> String { productPrefix + cableType }
+    public static func cableType(fromKey key: String) -> String? { key.hasPrefix(productPrefix) ? String(key.dropFirst(productPrefix.count)) : nil }
+
+    /// "cat 6", "CAT6 cable", "hdmi" → the cable type name, if it is one.
+    public static func matchCable(_ text: String) -> String? {
+        func norm(_ s: String) -> String { s.lowercased().replacingOccurrences(of: "cable", with: "").replacingOccurrences(of: "wire", with: "").filter { $0.isLetter || $0.isNumber || $0 == "/" || $0 == "+" } }
+        let t = norm(text)
+        guard !t.isEmpty else { return nil }
+        return Catalog.wireTypes.filter { $0 != "None" }.first { norm($0) == t }
+    }
+
     /// HDMI ×1, Cat6 ×2 — in first-seen order.
     public static func counts(_ list: [String]) -> [CableCount] {
         var order: [String] = []

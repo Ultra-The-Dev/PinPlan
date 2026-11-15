@@ -62,8 +62,11 @@ public extension ProjectBundle {
     /// The job's estimate: takeoff × prices, using the chosen products where set.
     func estimate(catalog: [DeviceType], products: [Product], pricing: PricingSettings) -> Estimate {
         let t = TakeoffCalculator.compute(self)
+        var cables: [String: String] = [:]
+        for (k, v) in project.productChoices ?? [:] where k.hasPrefix(Cables.productPrefix) { cables[String(k.dropFirst(Cables.productPrefix.count))] = v }
         return EstimateBuilder.build(takeoff: t, catalog: catalog, pricing: pricing, overrides: estimateLines,
-                                     products: products, split: ProductAssignment.split(self, takeoff: t, catalog: catalog, products: products))
+                                     products: products, split: ProductAssignment.split(self, takeoff: t, catalog: catalog, products: products),
+                                     cableChoices: cables)
     }
 
     /// Choose the product for a device type on this job (nil = none, price from the device type).
@@ -92,10 +95,12 @@ public enum ProductCSV {
         for (i, r) in rows.dropFirst().enumerated() {
             func v(_ c: Int?) -> String { c.flatMap { $0 < r.count ? r[$0].trimmingCharacters(in: .whitespaces) : nil } ?? "" }
             let typeText = v(cType)
-            guard let type = matchType(typeText, catalog: catalog) else { skipped.append("Row \(i + 2): unknown device type “\(typeText)”"); continue }
+            guard let typeKey = Cables.matchCable(typeText).map(Cables.productKey) ?? matchType(typeText, catalog: catalog)?.id else {
+                skipped.append("Row \(i + 2): unknown device or cable type “\(typeText)”"); continue
+            }
             let brand = v(cBrand), model = v(cModel)
             guard !(brand.isEmpty && model.isEmpty) else { skipped.append("Row \(i + 2): no brand or model"); continue }
-            products.append(Product(deviceTypeId: type.id, brand: brand, model: model, sku: v(cSku).isEmpty ? nil : v(cSku),
+            products.append(Product(deviceTypeId: typeKey, brand: brand, model: model, sku: v(cSku).isEmpty ? nil : v(cSku),
                                     unitPrice: number(v(cPrice)), laborPrice: number(v(cLabor)), notes: v(cNotes).isEmpty ? nil : v(cNotes)))
         }
         return Result(products: products, skipped: skipped)
