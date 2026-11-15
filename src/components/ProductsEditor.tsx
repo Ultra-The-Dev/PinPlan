@@ -218,7 +218,7 @@ export default function ProductsEditor() {
             return (
               <section key={key} className="mb-5">
                 <div className="mb-2 flex items-center gap-2 px-1">
-                  {d && d.kind !== "led" ? <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} size={22} /> : <span className="block h-1.5 w-5 rounded" style={{ background: d?.color ?? wireColor(cableTypeFromKey(key) ?? "") }} />}
+                  {d && d.kind !== "led" ? <SymbolIcon type={d} size={22} /> : <span className="block h-1.5 w-5 rounded" style={{ background: d?.color ?? wireColor(cableTypeFromKey(key) ?? "") }} />}
                   <h2 className="font-semibold">{typeKeyName(key, catalog)}</h2>
                   <span className="text-xs text-slate-400">{items.length}</span>
                   <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => setEditing(blankProduct(key))}>

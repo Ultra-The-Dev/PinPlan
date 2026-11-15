@@ -131,3 +131,14 @@ describe("cable bundles", () => {
     expect(d.unitPrice).toBeCloseTo((pr.wirePrices.Cat6 ?? 0) * 1.1, 2);
   });
 });
+
+describe("device icons", () => {
+  it("gives every starting device type a pictogram, and custom types their letters", async () => {
+    const { iconFor } = await import("@/lib/symbols");
+    for (const d of seedCatalog()) expect(iconFor(d), d.id).toBeTruthy();
+    expect(iconFor({ id: "custom-1" })).toBeNull();
+    expect(iconFor({ id: "wap", icon: "letters" })).toBeNull();
+    expect(iconFor({ id: "custom-1", icon: "doorbell" })).toBe("doorbell");
+    expect(iconFor({ id: "custom-1", icon: "nope" })).toBeNull();
+  });
+});

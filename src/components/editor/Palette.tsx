@@ -93,9 +93,9 @@ export default function Palette() {
                   {types.map((d) =>
                     d.kind === "led"
                       ? d.id === "led-stair"
-                        ? item({ kind: "stair" }, d.id, <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} />, d.name, "steps × LF per step", runsOnSheet(d.id))
+                        ? item({ kind: "stair" }, d.id, <SymbolIcon type={d} />, d.name, "steps × LF per step", runsOnSheet(d.id))
                         : item({ kind: "led", deviceTypeId: d.id }, d.id, <LineIcon color={d.color} />, d.name.replace("LED strip — ", "LED · "), chosen(d.id) ?? "draw run · LF", runsOnSheet(d.id))
-                      : item({ kind: "place", deviceTypeId: d.id }, d.id, <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} />, d.name, chosen(d.id), countOnSheet(d.id)),
+                      : item({ kind: "place", deviceTypeId: d.id }, d.id, <SymbolIcon type={d} />, d.name, chosen(d.id), countOnSheet(d.id)),
                   )}
                   {closets.map((c) =>
                     item(

@@ -80,6 +80,8 @@ export interface DeviceType {
   category: Category;
   /** Short text drawn inside the symbol, e.g. "C", "W", "SH". */
   symbol: string;
+  /** Pictogram drawn inside the symbol (key of DEVICE_ICONS), "letters" for the symbol text, or unset for the default. */
+  icon?: string | null;
   /** Label prefix for auto-numbering, e.g. "CAM" -> CAM-1-03. */
   abbrev: string;
   shape: Shape;

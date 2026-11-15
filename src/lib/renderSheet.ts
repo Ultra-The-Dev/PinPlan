@@ -3,7 +3,7 @@ import { CLOSET_KINDS } from "./catalog";
 import { db } from "./db";
 import { bundleOffsets, offsetPolyline, runLengthFt } from "./geometry";
 import { runCables } from "./products";
-import { drawSymbol, wireColor } from "./symbols";
+import { drawSymbol, iconFor, wireColor } from "./symbols";
 import type { Closet, DeviceType, Layer, Marker, Run, Sheet } from "./types";
 
 export interface RenderOptions {
@@ -116,16 +116,16 @@ export async function renderSheet(
     if (m.sheetId !== sheet.id || m.deleted) continue;
     const t = types.get(m.deviceTypeId);
     if (!t || !show(t.category)) continue;
-    drawSymbol(ctx, t.shape, m.x * W, m.y * H, r, t.color, t.symbol, { tentative: m.tentative, label: opts.labels ? m.label : undefined });
+    drawSymbol(ctx, t.shape, m.x * W, m.y * H, r, t.color, t.symbol, { icon: iconFor(t), tentative: m.tentative, label: opts.labels ? m.label : undefined });
   }
   return c;
 }
 
 /** Small PNG data URL of a device symbol, for PDF legends. */
-export function symbolDataUrl(t: Pick<DeviceType, "shape" | "color" | "symbol">, size = 48): string {
+export function symbolDataUrl(t: Pick<DeviceType, "id" | "icon" | "shape" | "color" | "symbol">, size = 48): string {
   const c = document.createElement("canvas");
   c.width = size;
   c.height = size;
-  drawSymbol(c.getContext("2d")!, t.shape, size / 2, size / 2, size * 0.36, t.color, t.symbol);
+  drawSymbol(c.getContext("2d")!, t.shape, size / 2, size / 2, size * 0.36, t.color, t.symbol, { icon: iconFor(t) });
   return c.toDataURL("image/png");
 }

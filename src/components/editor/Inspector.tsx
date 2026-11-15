@@ -132,7 +132,7 @@ function MarkerInspector({ id }: { id: string }) {
   return (
     <>
       <div className="flex items-center gap-3">
-        {type && <SymbolIcon shape={type.shape} color={type.color} symbol={type.symbol} size={40} tentative={m.tentative} />}
+        {type && <SymbolIcon type={type} size={40} tentative={m.tentative} />}
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold">{m.label}</h3>
           <p className="truncate text-xs text-slate-500">

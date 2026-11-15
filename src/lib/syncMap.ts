@@ -57,6 +57,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       name: "name",
       category: "category",
       symbol: "symbol",
+      icon: "icon",
       abbrev: "abbrev",
       shape: "shape",
       color: "color",

@@ -34,7 +34,7 @@ export default function JobProducts({ total, pricing }: { total: TakeoffBucket; 
         key: d.id,
         name: d.name,
         qty: d.kind === "led" ? `${(total.ledFt[d.id] ?? 0) + (total.ledTentativeFt[d.id] ?? 0)} LF` : `× ${total.counts[d.id]}`,
-        icon: d.kind === "led" ? <span className="block h-1.5 w-5 rounded" style={{ background: d.color }} /> : <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol} size={22} />,
+        icon: d.kind === "led" ? <span className="block h-1.5 w-5 rounded" style={{ background: d.color }} /> : <SymbolIcon type={d} size={22} />,
         fallback: `Catalog price ${formatMoney(d.unitPrice, cur)}`,
         overrides: markers.filter((m) => m.deviceTypeId === d.id && m.productId).length,
       })),

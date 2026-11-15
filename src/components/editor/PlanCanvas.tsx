@@ -7,12 +7,12 @@ import { CLOSET_KINDS, categoryOf } from "@/lib/catalog";
 import { bundleOffsets, offsetPolyline, runLengthFt } from "@/lib/geometry";
 import { cableSummary, runCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
-import { symbolPath, wireColor } from "@/lib/symbols";
+import { drawSymbolContent, iconFor, symbolPath, wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import type { Closet, DeviceType, Layer as LayerId, Marker, Run, Sheet } from "@/lib/types";
 import GhostLayer from "../GhostLayer";
 
-const R = 13; // marker radius in screen px
+const R = 14; // marker radius in screen px
 
 export interface CanvasHit {
   markerId?: string;
@@ -285,6 +285,7 @@ function MarkerShape(props: {
   const color = type?.color ?? "#334155";
   const shape = type?.shape ?? "circle";
   const symbol = type?.symbol ?? "?";
+  const icon = type ? iconFor(type) : null;
   return (
     <Group
       x={m.x * W}
@@ -313,32 +314,28 @@ function MarkerShape(props: {
       }}
     >
       {props.selected && <Circle radius={R + 7} fill="rgba(234,88,12,0.15)" stroke="#ea580c" strokeWidth={2.5} />}
+      {/* Solid badge in the type's colour; tentative (?) devices are hollow with a dashed outline. */}
       <Shape
         sceneFunc={(ctx, s) => {
           symbolPath(ctx, shape, R);
           ctx.fillStrokeShape(s);
         }}
-        fill="#fff"
-        stroke={color}
-        strokeWidth={3}
+        fill={m.tentative ? "#fff" : color}
+        stroke={m.tentative ? color : "#fff"}
+        strokeWidth={m.tentative ? 2.5 : 2}
         dash={m.tentative ? [5, 4] : undefined}
         shadowColor="#000"
-        shadowOpacity={0.25}
+        shadowOpacity={0.3}
         shadowBlur={3}
+        shadowOffsetY={1}
         hitStrokeWidth={14}
       />
-      <Text
-        text={symbol}
-        width={R * 2}
-        height={R * 2}
-        offsetX={R}
-        offsetY={shape === "triangle" ? R - 3 : R}
-        align="center"
-        verticalAlign="middle"
-        fontStyle="bold"
-        fontSize={symbol.length > 2 ? 8 : symbol.length > 1 ? 10 : 13}
-        fill={color}
+      <Shape
         listening={false}
+        sceneFunc={(ctx) => {
+          const native = (ctx as unknown as { _context: CanvasRenderingContext2D })._context;
+          drawSymbolContent(native, shape, R, m.tentative ? color : "#fff", symbol, icon);
+        }}
       />
       {m.tentative && <Text text="?" x={R} y={-R - 6} fontStyle="bold" fontSize={15} fill="#b91c1c" listening={false} />}
       {m.closetId === null && type?.defaultWire && type.defaultWire !== "None" ? null : null}

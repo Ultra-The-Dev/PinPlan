@@ -9,6 +9,20 @@ import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
 import { toast } from "@/lib/toast";
 import type { Category, DeviceType, Mount, Shape, Unit } from "@/lib/types";
 import SymbolIcon from "./editor/SymbolIcon";
+import { DEVICE_ICONS } from "@/lib/deviceIcons";
+import { iconFor } from "@/lib/symbols";
+import { createElement } from "react";
+
+/** A device pictogram as inline SVG (for pickers). */
+function IconSvg({ name, size = 18 }: { name: string; size?: number }) {
+  const icon = DEVICE_ICONS[name];
+  if (!icon) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {icon.node.map(([tag, attrs], i) => createElement(tag, { key: i, ...attrs }))}
+    </svg>
+  );
+}
 
 const SHAPES: Shape[] = ["circle", "square", "triangle", "diamond", "hexagon", "star"];
 
@@ -147,7 +161,7 @@ export default function CatalogEditor() {
               </div>
               {rows.map((t) => (
                 <div key={t.id} className={`grid grid-cols-[40px_1fr_auto] items-center gap-3 px-4 py-2.5 sm:grid-cols-[40px_1fr_70px_120px_120px_140px_80px] ${t.archived ? "opacity-50" : ""}`}>
-                  {t.kind === "led" ? <span className="mx-auto block h-1.5 w-7 rounded" style={{ background: t.color }} /> : <SymbolIcon shape={t.shape} color={t.color} symbol={t.symbol} size={32} />}
+                  {t.kind === "led" ? <span className="mx-auto block h-1.5 w-7 rounded" style={{ background: t.color }} /> : <SymbolIcon type={t} size={32} />}
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{t.name}</div>
                     <div className="truncate text-xs text-slate-400">
@@ -205,7 +219,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onCancel}>
       <form
-        className="card animate-in grid w-full max-w-lg gap-4 p-6 shadow-pop sm:grid-cols-2"
+        className="card animate-in grid max-h-[92vh] w-full max-w-lg gap-4 overflow-y-auto p-6 shadow-pop sm:grid-cols-2"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -214,7 +228,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
       >
         <div className="flex items-center gap-3 sm:col-span-2">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
-            {d.kind === "led" ? <span className="block h-2 w-9 rounded" style={{ background: d.color }} /> : <SymbolIcon shape={d.shape} color={d.color} symbol={d.symbol || "?"} size={44} />}
+            {d.kind === "led" ? <span className="block h-2 w-9 rounded" style={{ background: d.color }} /> : <SymbolIcon type={d} size={44} />}
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-semibold">{isNew ? "New device type" : "Edit device type"}</h2>
@@ -245,6 +259,31 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
             <option value="LF">Linear feet (draw a run)</option>
           </select>
         </div>
+        {d.kind !== "led" && (
+          <div className="sm:col-span-2">
+            <label className="label">Icon</label>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Icon">
+              {[...Object.keys(DEVICE_ICONS), "letters"].map((k) => {
+                const on = (iconFor(d) ?? "letters") === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    title={k === "letters" ? `Letters (${d.symbol || "?"})` : DEVICE_ICONS[k].label}
+                    aria-label={k === "letters" ? "Letters" : DEVICE_ICONS[k].label}
+                    onClick={() => set("icon", k)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg ring-1 transition ${on ? "text-white ring-transparent" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}
+                    style={on ? { background: d.color } : undefined}
+                  >
+                    {k === "letters" ? <span className="text-[11px] font-bold">{(d.symbol || "Aa").slice(0, 3)}</span> : <IconSvg name={k} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Symbol</label>
