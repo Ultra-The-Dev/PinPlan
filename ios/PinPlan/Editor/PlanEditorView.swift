@@ -33,6 +33,12 @@ struct PlanEditorView: View {
                     }
                     if model.tool.isDrawing && model.tool != .measure { drawingBar }
                     Spacer()
+                    if case .place = model.tool {
+                        // Placing stays on so you can drop several; this is the obvious way back to select / move / delete.
+                        Button { model.use(.select) } label: { Label("Done placing", systemImage: "checkmark") }
+                            .buttonStyle(.borderedProminent)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                     if !model.tool.isDrawing { QuickDock(model: model) }
                     if model.sheets.count > 1 { floorSwitcher }
                 }
