@@ -116,6 +116,18 @@ final class Store: @unchecked Sendable {
         queue.async { try? data.write(to: url, options: .atomic) }
     }
 
+    func loadProducts() -> [Product] {
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("products.json")),
+              let p = try? JSONDecoder().decode([Product].self, from: data) else { return [] }
+        return p
+    }
+
+    func saveProducts(_ p: [Product]) {
+        guard let data = try? encoder.encode(p) else { return }
+        let url = root.appendingPathComponent("products.json")
+        queue.async { try? data.write(to: url, options: .atomic) }
+    }
+
     func loadSettings() -> AppSettings {
         guard let data = try? Data(contentsOf: root.appendingPathComponent("settings.json")),
               let s = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
@@ -130,7 +142,7 @@ final class Store: @unchecked Sendable {
 
     // MARK: backup (same format as the web app)
 
-    func backup(of bundles: [ProjectBundle], catalog: [DeviceType]) throws -> URL {
+    func backup(of bundles: [ProjectBundle], catalog: [DeviceType], products: [Product] = []) throws -> URL {
         let entries = bundles.map { b -> BackupFile.ProjectEntry in
             let ids = Set(b.sheets.map(\.imageId) + b.markers.compactMap(\.photoId))
             let images: [BackupFile.Image] = ids.compactMap { id in
@@ -139,7 +151,7 @@ final class Store: @unchecked Sendable {
             }
             return .init(bundle: b, images: images)
         }
-        let file = BackupFile(catalog: catalog, projects: entries)
+        let file = BackupFile(catalog: catalog, products: products.isEmpty ? nil : products, projects: entries)
         let name = (bundles.count == 1 ? slug(bundles[0].project.address) : "pinplan") + ".pinplan.json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         try file.encoded().write(to: url, options: .atomic)
@@ -147,12 +159,16 @@ final class Store: @unchecked Sendable {
     }
 
     /// Restores projects (replacing ones with the same id) and adds unknown catalog types. Returns restored bundles.
-    func restore(from url: URL, catalog: inout [DeviceType]) throws -> [ProjectBundle] {
+    func restore(from url: URL, catalog: inout [DeviceType], products: inout [Product]) throws -> [ProjectBundle] {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         let file = try BackupFile.decode(Data(contentsOf: url))
         let known = Set(catalog.map(\.id))
         catalog += (file.catalog ?? []).filter { !known.contains($0.id) }
+        // Products: add new ones, take the newer copy of ones we already have.
+        for p in file.products ?? [] {
+            if let i = products.firstIndex(where: { $0.id == p.id }) { if p.updatedAt > products[i].updatedAt { products[i] = p } } else { products.append(p) }
+        }
         var out: [ProjectBundle] = []
         for entry in file.projects {
             for img in entry.images { if let data = Data(base64Encoded: img.data) { saveImageData(data, id: img.id) } }

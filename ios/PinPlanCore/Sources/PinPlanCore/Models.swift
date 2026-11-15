@@ -58,6 +58,8 @@ public struct Project: Codable, Hashable, Identifiable, Sendable {
     public var billduClientId: Int?
     public var billduDocs: [BillduDocRef]
     public var pricing: PricingOverrides?
+    /// Which product (brand/model) this job uses for each device type: device type id → product id.
+    public var productChoices: [String: String]?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -143,6 +145,8 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
     public var tentative: Bool
     public var notes: String
     public var photoId: String?
+    /// A different product for just this device (else the job's choice for its type).
+    public var productId: String?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?

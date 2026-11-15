@@ -91,6 +91,15 @@ final class EditorModel {
         self.bundle = bundle
         self.app = app
         activeSheetId = bundle.liveSheets.first?.id
+        if let s = bundle.liveSheets.first { Task { await loadPlanDetails(for: s) } }
+    }
+
+    /// Reads the sheet's text (rooms, dimensions…) once, in the background. Used by the plan reader and to fill in rooms.
+    func loadPlanDetails(for sheet: Sheet) async {
+        guard planDetails[sheet.id] == nil else { return }
+        let store = app.store
+        let found = await Task.detached(priority: .utility) { PlanReader.classify(PlanTextExtractor.items(for: sheet, store: store)) }.value
+        planDetails[sheet.id] = found
     }
 
     /// Switch tools (discarding any half-drawn run).
@@ -107,6 +116,7 @@ final class EditorModel {
         activeSheetId = id
         selection = nil
         draft = []
+        if let s = sheets.first(where: { $0.id == id }) { Task { await loadPlanDetails(for: s) } }
     }
 
     var canUndo: Bool { !past.isEmpty }
@@ -186,7 +196,9 @@ final class EditorModel {
             selection = nil
         case .place(let typeId):
             guard let t = app.type(typeId) else { return }
-            edit { $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: room) }
+            // No room typed in? Use the room name printed on the plan where the device lands.
+            let r = room.isEmpty ? (PlanReader.room(atX: x, y: y, details: planDetails[sheet.id] ?? []) ?? "") : room
+            edit { $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .closet(let kind):
             var newId = ""

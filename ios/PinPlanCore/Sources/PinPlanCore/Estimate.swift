@@ -40,7 +40,10 @@ public struct Estimate: Hashable, Sendable {
 private func money(_ v: Double) -> Double { (v * 100).rounded() / 100 }
 
 public enum EstimateBuilder {
-    public static func build(takeoff: Takeoff, catalog: [DeviceType], pricing: PricingSettings, overrides: [EstimateLine] = []) -> Estimate {
+    /// - products / split: when the job picks products (brand + model) for device types, their quantities get their own
+    ///   lines at the product's price; whatever has no product stays on the device type's line.
+    public static func build(takeoff: Takeoff, catalog: [DeviceType], pricing: PricingSettings, overrides: [EstimateLine] = [],
+                             products: [Product] = [], split: [String: [String: (confirmed: Double, tentative: Double)]] = [:]) -> Estimate {
         let t = takeoff.total
         let mk = 1 + pricing.markupPct / 100
         var base: [ComputedLine] = []
@@ -58,12 +61,27 @@ public enum EstimateBuilder {
             return (all - tent, tent)
         }
 
+        let productById = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        func productParts(_ d: DeviceType) -> [(Product, confirmed: Double, tentative: Double)] {
+            (split[d.id] ?? [:]).compactMap { pid, q in productById[pid].flatMap { $0.deviceTypeId == d.id ? ($0, confirmed: q.confirmed, tentative: q.tentative) : nil } }
+                .sorted { $0.0.title < $1.0.title }
+        }
+        func productPrice(_ p: Product) -> Double { combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk }
+
         for d in sorted {
             let q = qty(d)
             let unit = d.unit == .LF ? "LF" : "each"
             let group: LineGroup = d.kind == .led ? .lighting : .devices
-            if q.confirmed > 0 { push("dev:\(d.id)", d.name + suffix, q.confirmed, unit, price(d), optional: false, group, d.id) }
-            if q.tentative > 0 { push("opt:\(d.id)", "\(d.name)\(suffix) (optional — marked ?)", q.tentative, unit, price(d), optional: true, group, d.id) }
+            var restC = q.confirmed, restT = q.tentative
+            for (p, c, t) in productParts(d) {
+                let desc = "\(p.title) — \(d.name)\(suffix)"
+                let c = min(c, restC), t = min(t, restT)
+                restC -= c; restT -= t
+                if c > 0 { push("prod:\(p.id)", desc, c, unit, productPrice(p), optional: false, group, d.id) }
+                if t > 0 { push("optprod:\(p.id)", "\(desc) (optional — marked ?)", t, unit, productPrice(p), optional: true, group, d.id) }
+            }
+            if restC > 0.0001 { push("dev:\(d.id)", d.name + suffix, restC, unit, price(d), optional: false, group, d.id) }
+            if restT > 0.0001 { push("opt:\(d.id)", "\(d.name)\(suffix) (optional — marked ?)", restT, unit, price(d), optional: true, group, d.id) }
         }
         if let un = t.ledFt["led-unassigned"], un > 0 { push("dev:led-unassigned", "LED strip", un, "LF", 0, optional: false, .lighting) }
         for wt in t.wireFt.keys.sorted() {
@@ -74,11 +92,20 @@ public enum EstimateBuilder {
             push("closet:\(k.rawValue)", Catalog.closetInfo(k).name, Double(t.closets[k]!), "each", 0, optional: false, .infrastructure)
         }
         if !combined {
-            for d in sorted where d.laborPrice > 0 {
+            for d in sorted {
                 let q = qty(d)
                 let unit = d.unit == .LF ? "LF" : "each"
-                if q.confirmed > 0 { push("labor:\(d.id)", "Labor — \(d.name)", q.confirmed, unit, d.laborPrice, optional: false, .labor, d.id) }
-                if q.tentative > 0 { push("optlabor:\(d.id)", "Labor — \(d.name) (optional — marked ?)", q.tentative, unit, d.laborPrice, optional: true, .labor, d.id) }
+                var restC = q.confirmed, restT = q.tentative
+                for (p, c, t) in productParts(d) {
+                    let c = min(c, restC), t = min(t, restT)
+                    restC -= c; restT -= t
+                    guard p.laborPrice > 0 else { continue }
+                    if c > 0 { push("labor:prod:\(p.id)", "Labor — \(p.title)", c, unit, p.laborPrice, optional: false, .labor, d.id) }
+                    if t > 0 { push("optlabor:prod:\(p.id)", "Labor — \(p.title) (optional — marked ?)", t, unit, p.laborPrice, optional: true, .labor, d.id) }
+                }
+                guard d.laborPrice > 0 else { continue }
+                if restC > 0.0001 { push("labor:\(d.id)", "Labor — \(d.name)", restC, unit, d.laborPrice, optional: false, .labor, d.id) }
+                if restT > 0.0001 { push("optlabor:\(d.id)", "Labor — \(d.name) (optional — marked ?)", restT, unit, d.laborPrice, optional: true, .labor, d.id) }
             }
         }
 

@@ -32,10 +32,12 @@ public struct BackupFile: Codable, Sendable {
     public var version: Int
     public var exportedAt: String
     public var catalog: [DeviceType]?
+    /// Brand/model product library (native app; the web app ignores it).
+    public var products: [Product]?
     public var projects: [ProjectEntry]
 
-    public init(catalog: [DeviceType], projects: [ProjectEntry]) {
-        format = Self.formatName; version = 1; exportedAt = isoNow(); self.catalog = catalog; self.projects = projects
+    public init(catalog: [DeviceType], products: [Product]? = nil, projects: [ProjectEntry]) {
+        format = Self.formatName; version = 1; exportedAt = isoNow(); self.catalog = catalog; self.products = products; self.projects = projects
     }
 
     public enum BackupError: Error, LocalizedError {

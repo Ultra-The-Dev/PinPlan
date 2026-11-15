@@ -253,3 +253,15 @@ public extension PlanReader {
         return nil
     }
 }
+
+public extension PlanReader {
+    /// The room a point on the sheet is in, from the room names read off the plan: the nearest room label within reach.
+    /// Room details may carry a size ("Great Room · 18'-6\" × 22'-0\""); only the name is returned.
+    static func room(atX x: Double, y: Double, details: [PlanDetail], maxDistance: Double = 0.22) -> String? {
+        let rooms = details.filter { $0.kind == .room && !$0.text.hasSuffix("(schedule)") }
+        guard let best = rooms.min(by: { hypot($0.x - x, $0.y - y) < hypot($1.x - x, $1.y - y) }),
+              hypot(best.x - x, best.y - y) <= maxDistance else { return nil }
+        let name = best.text.components(separatedBy: " · ")[0].trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? nil : name
+    }
+}

@@ -16,6 +16,9 @@ struct JobView: View {
                     ForEach(ProjectStatus.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
             }
+            Section {
+                NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
+            }
             Section(sentence: "Client") {
                 LabeledContent("Name") { CommitField(title: "Name", value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
                 LabeledContent("Email") { CommitField(title: "Email", value: p.clientEmail ?? "", keyboard: .emailAddress) { v in model.editSilently { $0.project.clientEmail = v } }.multilineTextAlignment(.trailing) }
@@ -26,7 +29,7 @@ struct JobView: View {
             }
             Section {
                 Button {
-                    do { share = SharedFile(url: try app.store.backup(of: [model.bundle], catalog: app.catalog)) } catch { self.error = error.localizedDescription }
+                    do { share = SharedFile(url: try app.store.backup(of: [model.bundle], catalog: app.catalog, products: app.products)) } catch { self.error = error.localizedDescription }
                 } label: { Label("Share backup (.pinplan.json)", systemImage: "square.and.arrow.up") }
                 if let error { Text(error).foregroundStyle(.red) }
             } header: { Text("Backup").textCase(nil) } footer: {

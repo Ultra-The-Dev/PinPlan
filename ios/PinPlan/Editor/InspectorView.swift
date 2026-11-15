@@ -47,6 +47,7 @@ private struct MarkerForm: View {
                 }
                 .labelsHidden()
             }
+            MarkerProductPicker(model: model, marker: marker)
             Toggle(isOn: Binding(get: { marker.tentative }, set: { v in update { $0.tentative = v } })) {
                 VStack(alignment: .leading) { Text("Tentative (?)"); Text("Listed separately; optional on the estimate").font(.caption).foregroundStyle(.secondary) }
             }

@@ -8,6 +8,8 @@ import PinPlanCore
 final class AppModel {
     var projects: [ProjectBundle] = []
     var catalog: [DeviceType] = []
+    /// Brand/model product library.
+    var products: [Product] = []
     var settings = AppSettings()
     let store: Store
 
@@ -15,12 +17,37 @@ final class AppModel {
         self.store = store
         projects = store.loadAllProjects().sorted { $0.project.updatedAt > $1.project.updatedAt }
         catalog = store.loadCatalog()
+        products = store.loadProducts()
         settings = store.loadSettings()
     }
 
     var pricing: PricingSettings { settings.pricing }
     var liveCatalog: [DeviceType] { catalog.filter { $0.archived != true }.sorted { $0.sort < $1.sort } }
     func type(_ id: String) -> DeviceType? { catalog.first { $0.id == id } }
+
+    // MARK: products
+
+    func product(_ id: String?) -> Product? { id.flatMap { pid in products.first { $0.id == pid } } }
+    func products(for typeId: String) -> [Product] {
+        products.filter { $0.deviceTypeId == typeId && $0.archived != true }.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+    func saveProduct(_ p: Product) {
+        var p = p
+        p.updatedAt = isoNow()
+        if let i = products.firstIndex(where: { $0.id == p.id }) { products[i] = p } else { products.append(p) }
+        store.saveProducts(products)
+    }
+    /// Archived, not deleted: jobs that used it keep their prices.
+    func archiveProduct(_ id: String) {
+        guard let i = products.firstIndex(where: { $0.id == id }) else { return }
+        products[i].archived = true
+        products[i].updatedAt = isoNow()
+        store.saveProducts(products)
+    }
+    func importProducts(_ new: [Product]) {
+        products += new
+        store.saveProducts(products)
+    }
 
     func createProject(address: String, client: String, email: String, phone: String) -> ProjectBundle {
         let p = Project(clientName: client, address: address, clientEmail: email.isEmpty ? nil : email, clientPhone: phone.isEmpty ? nil : phone)
@@ -97,8 +124,9 @@ final class AppModel {
     func saveSettings() { store.saveSettings(settings) }
 
     func restore(from url: URL) throws -> Int {
-        let restored = try store.restore(from: url, catalog: &catalog)
+        let restored = try store.restore(from: url, catalog: &catalog, products: &products)
         store.saveCatalog(catalog)
+        store.saveProducts(products)
         for b in restored { didSave(b) }
         projects.sort { $0.project.updatedAt > $1.project.updatedAt }
         return restored.count

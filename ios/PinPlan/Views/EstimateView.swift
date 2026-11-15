@@ -18,7 +18,7 @@ struct EstimateView: View {
 
     private var pricing: PricingSettings { model.pricing }
     private var estimate: Estimate {
-        EstimateBuilder.build(takeoff: model.takeoff, catalog: app.catalog, pricing: pricing, overrides: model.bundle.estimateLines)
+        model.bundle.estimate(catalog: app.catalog, products: app.products, pricing: pricing)
     }
 
     var body: some View {
@@ -62,6 +62,13 @@ struct EstimateView: View {
                 Section {
                     Label("\(unpriced.count) line\(unpriced.count == 1 ? " has" : "s have") no price yet. Set prices in the Catalog and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout).foregroundStyle(.orange)
+                }
+            }
+            Section {
+                NavigationLink { JobProductsView(model: model) } label: {
+                    LabeledContent {
+                        Text(chosenProducts == 0 ? "Choose brands" : "\(chosenProducts) chosen")
+                    } label: { Label("Products for this job", systemImage: "tag") }
                 }
             }
             Section(sentence: "Pricing (this project)") {
@@ -139,6 +146,8 @@ struct EstimateView: View {
             }
         } message: { Text("This project already has a Billdu \(confirmUpdate?.doc.type ?? "document"). Update it with the current lines, or create a new one?") }
     }
+
+    private var chosenProducts: Int { model.bundle.project.productChoices?.count ?? 0 }
 
     private func miniStat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {

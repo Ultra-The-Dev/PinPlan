@@ -62,7 +62,8 @@ struct PaletteView: View {
             }
         } else {
             let n = model.bundle.liveMarkers.filter { $0.sheetId == sheetId && $0.deviceTypeId == t.id }.count
-            toolRow(.place(t.id), title: t.name, subtitle: nil, count: n) { DeviceSymbol(type: t, size: 28) }
+            let chosen = app.product(model.bundle.project.productChoices?[t.id])?.title
+            toolRow(.place(t.id), title: t.name, subtitle: chosen, count: n) { DeviceSymbol(type: t, size: 28) }
         }
     }
 

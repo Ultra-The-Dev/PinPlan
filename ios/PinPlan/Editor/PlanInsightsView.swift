@@ -212,9 +212,7 @@ struct PlanInsightsView: View {
     private func loadDetails() async {
         guard model.planDetails[sheet.id] == nil else { return }
         loading = true
-        let s = sheet, store = app.store
-        let found = await Task.detached(priority: .userInitiated) { PlanReader.classify(PlanTextExtractor.items(for: s, store: store)) }.value
-        model.planDetails[sheet.id] = found
+        await model.loadPlanDetails(for: sheet)
         loading = false
     }
 

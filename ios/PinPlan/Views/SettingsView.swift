@@ -91,7 +91,8 @@ struct PricingSettingsView: View {
             }
             Section {
                 NavigationLink("Device prices") { CatalogView() }
-            } footer: { Text("Each device's installed price lives in the catalog") }
+                NavigationLink("Products (brands and models)") { ProductLibraryView() }
+            } footer: { Text("Device types carry a default price; products carry the price of a specific brand and model") }
         }
         .navigationTitle("Pricing")
         .onDisappear { app.saveSettings() }

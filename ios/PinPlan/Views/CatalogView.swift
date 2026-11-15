@@ -10,6 +10,13 @@ struct CatalogView: View {
 
     var body: some View {
         SentenceList {
+            Section {
+                NavigationLink { ProductLibraryView() } label: {
+                    LabeledContent {
+                        Text("\(app.products.filter { $0.archived != true }.count)")
+                    } label: { Label("Products (brands and models)", systemImage: "tag") }
+                }
+            }
             ForEach(Catalog.categories, id: \.id) { cat in
                 let types = app.catalog.filter { $0.category == cat.id && (showArchived || $0.archived != true) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
                     .sorted { $0.sort < $1.sort }
