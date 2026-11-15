@@ -27,17 +27,27 @@ enum PDFExporter {
     static func drawSymbol(_ ctx: CGContext, type: DeviceType, at c: CGPoint, r: CGFloat, tentative: Bool, label: String?) {
         let color = UIColor(hex: type.color)
         let path = SymbolGeometry.cgPath(type.shape, center: c, radius: r)
+        let ink = tentative ? color : UIColor.white
         ctx.saveGState()
-        ctx.addPath(path); ctx.setFillColor(UIColor.white.cgColor); ctx.fillPath()
-        ctx.addPath(path); ctx.setStrokeColor(color.cgColor); ctx.setLineWidth(r * 0.22)
+        ctx.addPath(path); ctx.setFillColor((tentative ? UIColor.white : color).cgColor); ctx.fillPath()
+        ctx.addPath(path); ctx.setStrokeColor((tentative ? color : UIColor.white).cgColor); ctx.setLineWidth(r * 0.16)
         if tentative { ctx.setLineDash(phase: 0, lengths: [r * 0.4, r * 0.3]) }
         ctx.strokePath()
         ctx.restoreGState()
-        let fs = r * (type.symbol.count > 2 ? 0.62 : type.symbol.count > 1 ? 0.8 : 1.0)
-        let font = UIFont.systemFont(ofSize: fs, weight: .bold)
-        let str = NSAttributedString(string: type.symbol, attributes: [.font: font, .foregroundColor: color])
-        let sz = str.size()
-        str.draw(at: CGPoint(x: c.x - sz.width / 2, y: c.y - sz.height / 2 + (type.shape == .triangle ? r * 0.2 : 0)))
+        let dy = type.shape == .triangle ? r * 0.22 : 0
+        if let name = DeviceIconArt.symbolName(for: type),
+           let img = UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: r * 1.1, weight: .semibold))?.withTintColor(ink, renderingMode: .alwaysOriginal) {
+            let side = r * (type.shape == .triangle ? 0.95 : 1.15)
+            let k = min(side / img.size.width, side / img.size.height)
+            let w = img.size.width * k, h = img.size.height * k
+            img.draw(in: CGRect(x: c.x - w / 2, y: c.y - h / 2 + dy, width: w, height: h))
+        } else {
+            let fs = r * (type.symbol.count > 2 ? 0.62 : type.symbol.count > 1 ? 0.8 : 1.0)
+            let font = UIFont.systemFont(ofSize: fs, weight: .bold)
+            let str = NSAttributedString(string: type.symbol, attributes: [.font: font, .foregroundColor: ink])
+            let sz = str.size()
+            str.draw(at: CGPoint(x: c.x - sz.width / 2, y: c.y - sz.height / 2 + dy))
+        }
         if tentative {
             NSAttributedString(string: "?", attributes: [.font: UIFont.systemFont(ofSize: r * 0.9, weight: .heavy), .foregroundColor: UIColor.systemRed])
                 .draw(at: CGPoint(x: c.x + r * 0.9, y: c.y - r * 1.5))

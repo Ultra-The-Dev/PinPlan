@@ -65,7 +65,25 @@ enum SymbolGeometry {
     }
 }
 
-/// A device symbol as used on the plan, palette and legends.
+/// SF Symbol for each device pictogram key (DeviceIcons). Missing symbols fall back to the type's letters.
+enum DeviceIconArt {
+    static let sfSymbols: [String: String] = [
+        "camera": "video.fill", "tablet": "ipad.landscape", "wifi": "wifi", "switch": "network", "jack": "cable.connector",
+        "speaker": "hifispeaker.fill", "tv": "tv", "home": "homekit", "keypad": "square.grid.3x3.fill", "bulb": "lightbulb.fill",
+        "spot": "lamp.ceiling.fill", "driver": "cpu", "shade": "blinds.vertical.closed", "shield": "shield.fill", "doorbell": "bell.fill",
+        "lock": "lock.fill", "sensor": "dot.radiowaves.left.and.right", "thermostat": "thermometer.medium", "mic": "mic.fill",
+        "projector": "videoprojector.fill", "rack": "server.rack", "plug": "poweroutlet.type.b.fill", "remote": "av.remote.fill", "sub": "waveform",
+    ]
+    /// SF Symbol name for a key, only if this system has it.
+    static func symbolName(_ key: String?) -> String? {
+        guard let key, let name = sfSymbols[key], UIImage(systemName: name) != nil else { return nil }
+        return name
+    }
+    static func symbolName(for t: DeviceType?) -> String? { t.flatMap { symbolName(DeviceIcons.key(for: $0)) } }
+}
+
+/// A device symbol as used on the plan, palette and legends: a solid badge in the type's colour with a white pictogram
+/// (or its letters). Tentative (?) devices are hollow with a dashed outline.
 struct DeviceSymbol: View {
     let type: DeviceType?
     var size: CGFloat = 28
@@ -74,24 +92,36 @@ struct DeviceSymbol: View {
 
     var body: some View {
         let color = Color(hex: type?.color ?? "#334155")
+        let shape = type?.shape ?? .circle
+        let ink: Color = tentative ? color : .white
         ZStack {
             if selected {
                 Circle().fill(Color.brand.opacity(0.18)).frame(width: size * 1.55, height: size * 1.55)
                 Circle().stroke(Color.brand, lineWidth: 2).frame(width: size * 1.55, height: size * 1.55)
             }
-            SymbolShape(shape: type?.shape ?? .circle).fill(.white)
-            SymbolShape(shape: type?.shape ?? .circle)
-                .stroke(color, style: StrokeStyle(lineWidth: max(2, size * 0.1), dash: tentative ? [size * 0.18, size * 0.12] : []))
-            Text(type?.symbol ?? "?")
-                .font(.system(size: size * ((type?.symbol.count ?? 1) > 2 ? 0.28 : (type?.symbol.count ?? 1) > 1 ? 0.34 : 0.44), weight: .bold))
-                .foregroundStyle(color)
-                .offset(y: type?.shape == .triangle ? size * 0.08 : 0)
+            SymbolShape(shape: shape).fill(tentative ? .white : color)
+            SymbolShape(shape: shape)
+                .stroke(tentative ? color : .white.opacity(0.9), style: StrokeStyle(lineWidth: tentative ? max(2, size * 0.09) : max(1.5, size * 0.06), dash: tentative ? [size * 0.18, size * 0.12] : []))
+            Group {
+                if let name = DeviceIconArt.symbolName(for: type) {
+                    Image(systemName: name)
+                        .resizable().scaledToFit()
+                        .fontWeight(.semibold)
+                        .frame(width: size * (shape == .triangle ? 0.36 : shape == .star ? 0.34 : 0.5), height: size * (shape == .triangle ? 0.36 : shape == .star ? 0.34 : 0.5))
+                } else {
+                    Text(type?.symbol ?? "?")
+                        .font(.system(size: size * ((type?.symbol.count ?? 1) > 2 ? 0.28 : (type?.symbol.count ?? 1) > 1 ? 0.34 : 0.44), weight: .bold))
+                }
+            }
+            .foregroundStyle(ink)
+            .offset(y: shape == .triangle ? size * 0.09 : 0)
             if tentative {
                 Text("?").font(.system(size: size * 0.42, weight: .heavy)).foregroundStyle(.red).offset(x: size * 0.55, y: -size * 0.45)
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: .black.opacity(0.2), radius: 1.5, y: 0.5)
+        .shadow(color: .black.opacity(0.25), radius: 1.5, y: 0.75)
+        .accessibilityHidden(true)
     }
 }
 

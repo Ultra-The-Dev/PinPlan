@@ -90,6 +90,31 @@ private struct DeviceTypeEditor: View {
                     LabeledContent(type.unit == .LF ? "Price per LF" : "Price each") { DoubleField(value: $type.unitPrice) }
                     LabeledContent(type.unit == .LF ? "Labor per LF" : "Labor each") { DoubleField(value: $type.laborPrice) }
                 }
+                if type.kind != .led {
+                    Section(sentence: "Icon") {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 8)], spacing: 8) {
+                            ForEach(DeviceIcons.all.map(\.key) + ["letters"], id: \.self) { key in
+                                let on = (DeviceIcons.key(for: type) ?? "letters") == key
+                                Button { type.icon = key } label: {
+                                    Group {
+                                        if key != "letters", let name = DeviceIconArt.symbolName(key) {
+                                            Image(systemName: name).font(.system(size: 17, weight: .semibold))
+                                        } else {
+                                            Text(key == "letters" ? (type.symbol.isEmpty ? "Aa" : type.symbol) : "?").font(.system(size: 12, weight: .bold))
+                                        }
+                                    }
+                                    .frame(width: 40, height: 40)
+                                    .foregroundStyle(on ? .white : .primary)
+                                    .background(on ? Color(hex: type.color) : Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 9))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(key == "letters" ? "Letters" : DeviceIcons.all.first { $0.key == key }?.label ?? key)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
                 Section(sentence: "Symbol") {
                     TextField("Symbol (1–3 letters)", text: Binding(get: { type.symbol }, set: { type.symbol = String($0.uppercased().prefix(3)) }))
                     TextField("Label prefix", text: Binding(get: { type.abbrev }, set: { type.abbrev = String($0.uppercased().prefix(6)) }))
