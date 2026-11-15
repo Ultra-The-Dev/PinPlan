@@ -7,6 +7,7 @@ import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
 import { cableCounts, cablesPatch, CABLE_TYPES, markerCables, productIdFor, productTitle, runCables, settingCable } from "@/lib/products";
 import { useEditor } from "@/lib/store";
+import { toast } from "@/lib/toast";
 import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import SymbolIcon from "./SymbolIcon";
@@ -44,7 +45,8 @@ const num = (s: string) => {
 
 export default function Inspector() {
   const st = useEditor();
-  const { selection, select } = st;
+  const { selection, select, multi } = st;
+  if (multi.length >= 2) return <BulkInspector />;
   if (!selection) return null;
   const key = `${selection.table}:${selection.id}`;
   return (
@@ -101,6 +103,142 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
             ))}
           </select>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Edit several devices at once. Each change is one undo step. */
+function BulkInspector() {
+  const { multi, markers, catalog, closets, sheets, products, multiMode, setMultiMode, updateMarkers, deleteMarkers, autoHomeRuns, select } = useEditor();
+  const ms = markers.filter((m) => multi.includes(m.id));
+  const [room, setRoom] = useState("");
+  const typeIds = [...new Set(ms.map((m) => m.deviceTypeId))];
+  const typeName = (id: string) => catalog.find((d) => d.id === id)?.name ?? id;
+  const sameCables = ms.every((m) => JSON.stringify(markerCables(m)) === JSON.stringify(markerCables(ms[0])));
+  const oneType = typeIds.length === 1 ? typeIds[0] : null;
+  const typeProducts = oneType ? products.filter((p) => p.deviceTypeId === oneType && !p.archived) : [];
+  const allTentative = ms.every((m) => m.tentative);
+  const sheetName = (sid: string) => sheets.find((s) => s.id === sid)?.name ?? "";
+  const ids = ms.map((m) => m.id);
+  return (
+    <div>
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur">
+        <span className="section-title">{ms.length} devices selected</span>
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label="Clear selection">
+          <X />
+        </button>
+      </div>
+      <div className="space-y-3.5 p-4">
+        <div className="flex flex-wrap gap-1.5">
+          {typeIds.map((t) => (
+            <span key={t} className="chip bg-slate-100 text-slate-600">
+              {typeName(t)} × {ms.filter((m) => m.deviceTypeId === t).length}
+            </span>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">{multiMode ? "Tap devices to add or remove them." : "Shift-click devices to add or remove them."}</p>
+        <div>
+          <label className="label">Room</label>
+          <div className="flex gap-2">
+            <input className="input" placeholder={[...new Set(ms.map((m) => m.room))].length === 1 ? ms[0].room || "e.g. Kitchen" : "Mixed"} value={room} onChange={(e) => setRoom(e.target.value)} />
+            <button className="btn" disabled={!room.trim()} onClick={() => updateMarkers(ids, () => ({ room: room.trim() }))}>
+              Apply
+            </button>
+          </div>
+        </div>
+        {oneType ? (
+          <div>
+            <label className="label">Product</label>
+            <select className="input" value="" onChange={(e) => updateMarkers(ids, () => ({ productId: e.target.value === "__job" ? null : e.target.value }))}>
+              <option value="" disabled>
+                Set product for all {ms.length}…
+              </option>
+              <option value="__job">Job’s choice</option>
+              {typeProducts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {productTitle(p)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Select devices of one type to set their product.</p>
+        )}
+        <CablesEditor cables={sameCables ? markerCables(ms[0]) : []} onChange={(list) => updateMarkers(ids, () => cablesPatch(list))} />
+        {!sameCables && <p className="-mt-2 text-xs text-slate-500">Cables differ between these devices — a change replaces each device’s cables.</p>}
+        <div>
+          <label className="label">Home-run closet</label>
+          <select className="input" value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
+            <option value="" disabled>
+              Set closet for all {ms.length}…
+            </option>
+            <option value="__none">— none —</option>
+            {closets.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({sheetName(c.sheetId)})
+              </option>
+            ))}
+          </select>
+        </div>
+        <label className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 ${allTentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
+          <input type="checkbox" className="accent-amber-600" checked={allTentative} onChange={(e) => updateMarkers(ids, () => ({ tentative: e.target.checked }))} />
+          <span className="font-medium">Tentative (?)</span>
+        </label>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            className="btn"
+            onClick={async () => {
+              let n = 0;
+              for (const id of ids) n += await autoHomeRuns(undefined, id);
+              toast(n ? `Drew ${n} home runs` : "Place an equipment closet first", n ? "success" : "info");
+            }}
+          >
+            Draw home runs
+          </button>
+          <button className="btn btn-danger" onClick={() => deleteMarkers(ids)}>
+            <Trash /> Delete {ms.length}
+          </button>
+        </div>
+        <button className={`btn w-full ${multiMode ? "btn-on" : ""}`} onClick={() => setMultiMode(!multiMode)}>
+          {multiMode ? "Done adding" : "Tap to add more"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Quick ways into a multi-selection from one device. */
+function SelectMore({ id }: { id: string }) {
+  const { markers, selectMany, setMultiMode } = useEditor();
+  const m = markers.find((x) => x.id === id);
+  if (!m) return null;
+  const sameFloor = markers.filter((x) => x.deviceTypeId === m.deviceTypeId && x.sheetId === m.sheetId).map((x) => x.id);
+  const sameJob = markers.filter((x) => x.deviceTypeId === m.deviceTypeId).map((x) => x.id);
+  const sameRoom = m.room ? markers.filter((x) => x.sheetId === m.sheetId && x.room === m.room).map((x) => x.id) : [];
+  const pick = (ids: string[]) => selectMany([id, ...ids.filter((x) => x !== id)]);
+  return (
+    <div>
+      <label className="label">Select more</label>
+      <div className="flex flex-wrap gap-1.5">
+        {sameFloor.length > 1 && (
+          <button className="btn btn-sm" onClick={() => pick(sameFloor)}>
+            All like this on floor ({sameFloor.length})
+          </button>
+        )}
+        {sameJob.length > sameFloor.length && (
+          <button className="btn btn-sm" onClick={() => pick(sameJob)}>
+            In whole job ({sameJob.length})
+          </button>
+        )}
+        {sameRoom.length > 1 && (
+          <button className="btn btn-sm" onClick={() => pick(sameRoom)}>
+            Everything in {m.room} ({sameRoom.length})
+          </button>
+        )}
+        <button className="btn btn-sm" onClick={() => setMultiMode(true)} title="Then tap devices on the plan (or shift-click)">
+          Tap to pick…
+        </button>
       </div>
     </div>
   );
@@ -251,6 +389,7 @@ function MarkerInspector({ id }: { id: string }) {
           />
         </label>
       </div>
+      <SelectMore id={m.id} />
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button className="btn" onClick={() => duplicate()}>
           <Copy /> Duplicate

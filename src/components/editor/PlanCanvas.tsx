@@ -37,7 +37,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const W = sheet.width;
   const H = sheet.height;
 
-  const { markers, runs, closets, catalog, tool, selection, hiddenLayers, select, updateMarker, updateRun, updateCloset } = useEditor();
+  const { markers, runs, closets, catalog, tool, selection, multi, multiMode, toggleMulti, hiddenLayers, select, updateMarker, updateRun, updateCloset } = useEditor();
   const typeById = useMemo(() => new Map(catalog.map((d) => [d.id, d])), [catalog]);
   const visible = (l: LayerId) => !hiddenLayers.includes(l);
 
@@ -230,9 +230,9 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
               H={H}
               inv={inv}
               showLabel={showLabels}
-              selected={selection?.id === m.id}
+              selected={multi.length ? multi.includes(m.id) : selection?.id === m.id}
               draggable={selectMode}
-              onSelect={() => select({ table: "markers", id: m.id })}
+              onSelect={(add) => (add || multiMode ? toggleMulti(m.id) : select({ table: "markers", id: m.id }))}
               onMove={(x, y) => updateMarker(m.id, { x, y })}
               onPressStart={() => startPress({ table: "markers", id: m.id })}
               onPressEnd={cancelPress}
@@ -276,7 +276,8 @@ function MarkerShape(props: {
   showLabel: boolean;
   selected: boolean;
   draggable: boolean;
-  onSelect: () => void;
+  /** add = shift/⌘/ctrl held: add to the multi-selection. */
+  onSelect: (add: boolean) => void;
   onMove: (x: number, y: number) => void;
   onPressStart: () => void;
   onPressEnd: () => void;
@@ -296,12 +297,12 @@ function MarkerShape(props: {
       onClick={(e) => {
         if (!props.draggable) return;
         e.cancelBubble = true;
-        props.onSelect();
+        props.onSelect(e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey);
       }}
       onTap={(e) => {
         if (!props.draggable) return;
         e.cancelBubble = true;
-        props.onSelect();
+        props.onSelect(false);
       }}
       onMouseDown={props.onPressStart}
       onTouchStart={props.onPressStart}

@@ -54,6 +54,10 @@ interface EditorState {
   activeSheetId: string | null;
   tool: Tool;
   selection: Selection;
+  /** Devices selected together for bulk edits (2+ ids). */
+  multi: string[];
+  /** Touch-friendly "select several" mode: taps on devices add/remove them. */
+  multiMode: boolean;
   hiddenLayers: Layer[];
   /** Room applied to newly placed devices. */
   room: string;
@@ -67,6 +71,13 @@ interface EditorState {
   setActiveSheet(id: string): void;
   setTool(t: Tool): void;
   select(s: Selection): void;
+  /** Add or remove a device from the multi-selection (shift-click, or a tap in "select several" mode). */
+  toggleMulti(id: string): void;
+  selectMany(ids: string[]): void;
+  setMultiMode(on: boolean): void;
+  /** Apply a change to several devices as one undo step (home runs follow). */
+  updateMarkers(ids: string[], patch: (m: Marker) => Partial<Marker>): Promise<void>;
+  deleteMarkers(ids: string[]): Promise<void>;
   toggleLayer(l: Layer): void;
   setRoom(room: string): void;
   /** Switch to the device's floor, select it and centre the plan on it. */
@@ -130,6 +141,8 @@ export const useEditor = create<EditorState>((set, get) => ({
   activeSheetId: null,
   tool: { kind: "select" },
   selection: null,
+  multi: [],
+  multiMode: false,
   hiddenLayers: [],
   room: "",
   focus: null,
@@ -164,7 +177,53 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({ tool, selection: tool.kind === "select" ? get().selection : null });
   },
   select(selection) {
-    set({ selection });
+    set({ selection, multi: [], ...(selection ? {} : { multiMode: false }) });
+  },
+  toggleMulti(id) {
+    const s = get();
+    const base = s.multi.length ? s.multi : s.selection?.table === "markers" ? [s.selection.id] : [];
+    const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+    if (next.length >= 2) set({ multi: next, selection: { table: "markers", id: next[next.length - 1] } });
+    else set({ multi: [], selection: next[0] ? { table: "markers", id: next[0] } : null });
+  },
+  selectMany(ids) {
+    if (ids.length >= 2) set({ multi: ids, selection: { table: "markers", id: ids[ids.length - 1] }, tool: { kind: "select" } });
+    else set({ multi: [], selection: ids[0] ? { table: "markers", id: ids[0] } : null });
+  },
+  setMultiMode(on) {
+    set({ multiMode: on, tool: { kind: "select" } });
+  },
+  async updateMarkers(ids, patchFn) {
+    const s = get();
+    const changes: Change[] = [];
+    for (const id of ids) {
+      const before = s.markers.find((m) => m.id === id);
+      if (!before) continue;
+      const patch = patchFn(before);
+      const after = { ...before, ...patch };
+      if (JSON.stringify(after) === JSON.stringify(before)) continue;
+      changes.push({ table: "markers", before, after });
+      if ("closetId" in patch || "wireType" in patch || "wires" in patch || "tentative" in patch) {
+        const run = s.runs.find((r) => r.kind === "wire" && r.markerId === id);
+        if (run) {
+          const closet = s.closets.find((c) => c.id === after.closetId);
+          changes.push({ table: "runs", before: run, after: closet ? buildHomeRun(s, after, closet, run) : { ...run, deleted: true } });
+        }
+      }
+    }
+    if (changes.length) await get().commit(changes);
+  },
+  async deleteMarkers(ids) {
+    const s = get();
+    const changes: Change[] = [];
+    for (const id of ids) {
+      const before = s.markers.find((m) => m.id === id);
+      if (!before) continue;
+      changes.push({ table: "markers", before, after: { ...before, deleted: true } });
+      for (const r of s.runs.filter((rr) => rr.markerId === id)) changes.push({ table: "runs", before: r, after: { ...r, deleted: true } });
+    }
+    if (changes.length) await get().commit(changes);
+    set({ selection: null, multi: [] });
   },
   setRoom(room) {
     set({ room });
@@ -353,6 +412,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     if (get().selection?.id === id) set({ selection: null });
   },
   async deleteSelected() {
+    if (get().multi.length) return get().deleteMarkers(get().multi);
     const sel = get().selection;
     if (sel) await get().deleteEntity(sel.table, sel.id);
   },
