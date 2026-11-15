@@ -149,3 +149,12 @@ body {
 .animate-in {
   animation: pp-in 160ms ease-out;
 }
+
+/* Client proposal page: form controls in the company's colour. */
+.proposal input[type="checkbox"] {
+  accent-color: var(--brand);
+}
+.proposal .input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}

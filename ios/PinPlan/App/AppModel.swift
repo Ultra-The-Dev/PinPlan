@@ -23,6 +23,7 @@ final class AppModel {
         catalog = store.loadCatalog()
         products = store.loadProducts()
         settings = store.loadSettings()
+        settings.business = settings.business.withCompanyDefaults()
         cloud.attach(self)
     }
 

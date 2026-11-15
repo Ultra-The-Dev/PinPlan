@@ -258,6 +258,15 @@ export interface BusinessSettings {
   email: string;
   website: string;
   estimateTerms: string;
+  /** One line under the name, e.g. "Smart Home · Lighting · AV & Home Theater · Security". */
+  tagline?: string;
+  /** Logo: a site path ("/brand/…png"), a URL, or an uploaded image (data URL). */
+  logo?: string;
+  /** Main brand colour (headings, bands) and accent (buttons, highlights). */
+  brandColor?: string;
+  accentColor?: string;
+  /** Short line in the client-facing footer, e.g. the service area. */
+  serviceArea?: string;
 }
 
 export interface AppSettings {

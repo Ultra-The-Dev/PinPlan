@@ -267,7 +267,43 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var email = ""
     public var website = ""
     public var estimateTerms = "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates."
+    /// Branding for client-facing pages (optional so older settings files still load).
+    public var tagline: String?
+    /// A site path on the PinPlan server ("/brand/…png") or a full URL.
+    public var logo: String?
+    public var brandColor: String?
+    public var accentColor: String?
+    public var serviceArea: String?
     public init() {}
+
+    /// Smart Living Solutions (smartlivingny.com) — filled in wherever a field is still blank.
+    public static let company: BusinessSettings = {
+        var b = BusinessSettings()
+        b.name = "Smart Living Solutions"
+        b.address = "New York, NY"
+        b.phone = "(646) 290-1922"
+        b.email = "smartlivingny@gmail.com"
+        b.website = "smartlivingny.com"
+        b.tagline = "Smart Home · Lighting · AV & Home Theater · Security"
+        b.logo = "/brand/smart-living-logo.png"
+        b.brandColor = "#0a1b54"
+        b.accentColor = "#13e57c"
+        b.serviceArea = "Serving New York City, Long Island, Westchester & the Tri-State Area"
+        return b
+    }()
+
+    /// Blank fields take the company defaults.
+    public func withCompanyDefaults() -> BusinessSettings {
+        let d = Self.company
+        func pick(_ v: String, _ f: String) -> String { v.isEmpty ? f : v }
+        func pick(_ v: String?, _ f: String?) -> String? { (v ?? "").isEmpty ? f : v }
+        var b = self
+        b.name = pick(name, d.name); b.address = pick(address, d.address); b.phone = pick(phone, d.phone)
+        b.email = pick(email, d.email); b.website = pick(website, d.website)
+        b.tagline = pick(tagline, d.tagline); b.logo = pick(logo, d.logo); b.brandColor = pick(brandColor, d.brandColor)
+        b.accentColor = pick(accentColor, d.accentColor); b.serviceArea = pick(serviceArea, d.serviceArea)
+        return b
+    }
 }
 
 /// Everything belonging to one project (the unit the app saves, undoes and backs up).

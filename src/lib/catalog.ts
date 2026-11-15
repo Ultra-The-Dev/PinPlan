@@ -84,12 +84,18 @@ export function seedCatalog(): DeviceType[] {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   id: "app",
+  // Smart Living Solutions (smartlivingny.com). Change any of it in Settings → Your business.
   business: {
-    name: "",
-    address: "",
-    phone: "",
-    email: "",
-    website: "",
+    name: "Smart Living Solutions",
+    address: "New York, NY",
+    phone: "(646) 290-1922",
+    email: "smartlivingny@gmail.com",
+    website: "smartlivingny.com",
+    tagline: "Smart Home · Lighting · AV & Home Theater · Security",
+    logo: "/brand/smart-living-logo.png",
+    brandColor: "#0a1b54",
+    accentColor: "#13e57c",
+    serviceArea: "Serving New York City, Long Island, Westchester & the Tri-State Area",
     estimateTerms:
       "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates.",
   },

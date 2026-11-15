@@ -138,11 +138,12 @@ struct ClientProposalView: View {
         let token = Proposals.newToken()
         let open = (rows ?? []).filter { $0.status == "sent" || $0.status == "viewed" }.map(\.id)
         let business = app.settings.business
+        let origin = app.settings.serverURL
         let dep = Double(deposit.replacingOccurrences(of: ",", with: "."))
         do {
             try await app.cloud.publishProposal(token: token, projectId: b.project.id, images: images, build: { urls in
                 Proposals.snapshot(bundle: b, catalog: catalog, takeoff: takeoff, estimate: est, business: business, currency: pricing.currency,
-                                   taxPct: pricing.taxPct, title: title, message: message, validDays: validDays, detail: detail, depositPct: dep, images: urls)
+                                   taxPct: pricing.taxPct, title: title, message: message, validDays: validDays, detail: detail, depositPct: dep, images: urls, origin: origin)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
             if let url = link(token) { UIPasteboard.general.url = url; model.say("Proposal published — link copied") }

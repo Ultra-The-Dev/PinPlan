@@ -31,7 +31,7 @@ export interface ProposalSnapshot {
   detail: "lines" | "sections";
   depositPct: number | null;
   terms: string;
-  business: Pick<BusinessSettings, "name" | "address" | "phone" | "email" | "website">;
+  business: Pick<BusinessSettings, "name" | "address" | "phone" | "email" | "website" | "tagline" | "logo" | "brandColor" | "accentColor" | "serviceArea">;
   client: { name: string; email: string; phone: string; address: string };
   /** Headline counts ("8 cameras", "120 LF of LED"). */
   scope: { label: string; value: string }[];
@@ -74,6 +74,8 @@ export function buildSnapshot(input: {
   terms?: string;
   /** Image URL per sheet id (uploaded plan renders); missing → no image. */
   images?: Record<string, string>;
+  /** Site address, to turn a logo path like "/brand/logo.png" into a full URL. */
+  origin?: string;
   now?: Date;
 }): ProposalSnapshot {
   const now = input.now ?? new Date();
@@ -126,7 +128,18 @@ export function buildSnapshot(input: {
     detail: input.detail,
     depositPct: input.depositPct && input.depositPct > 0 && input.depositPct < 100 ? input.depositPct : null,
     terms: input.terms ?? input.business.estimateTerms ?? "",
-    business: { name: input.business.name, address: input.business.address, phone: input.business.phone, email: input.business.email, website: input.business.website },
+    business: {
+      name: input.business.name,
+      address: input.business.address,
+      phone: input.business.phone,
+      email: input.business.email,
+      website: input.business.website,
+      tagline: input.business.tagline ?? "",
+      logo: input.business.logo?.startsWith("/") && input.origin ? input.origin.replace(/\/$/, "") + input.business.logo : (input.business.logo ?? ""),
+      brandColor: input.business.brandColor ?? "",
+      accentColor: input.business.accentColor ?? "",
+      serviceArea: input.business.serviceArea ?? "",
+    },
     client: { name: input.project.clientName ?? "", email: input.project.clientEmail ?? "", phone: input.project.clientPhone ?? "", address: input.project.address ?? "" },
     scope,
     floors: floors.sort((a, b) => a.order - b.order).map(({ order: _o, ...f }) => f),

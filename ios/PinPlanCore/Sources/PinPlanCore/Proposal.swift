@@ -3,7 +3,10 @@ import Foundation
 /// A client proposal: a frozen copy of the estimate the client opens by link (the web app's /p page),
 /// picks optional items, signs and accepts. Same JSON as src/lib/proposal.ts.
 public struct ProposalSnapshot: Codable, Hashable, Sendable {
-    public struct Business: Codable, Hashable, Sendable { public var name, address, phone, email, website: String }
+    public struct Business: Codable, Hashable, Sendable {
+        public var name, address, phone, email, website: String
+        public var tagline, logo, brandColor, accentColor, serviceArea: String?
+    }
     public struct Client: Codable, Hashable, Sendable { public var name, email, phone, address: String }
     public struct Scope: Codable, Hashable, Sendable { public var label, value: String }
     public struct Floor: Codable, Hashable, Sendable {
@@ -56,7 +59,7 @@ public enum Proposals {
 
     public static func snapshot(bundle b: ProjectBundle, catalog: [DeviceType], takeoff: Takeoff, estimate: Estimate, business: BusinessSettings,
                                 currency: String, taxPct: Double, title: String = "", message: String = "", validDays: Int?,
-                                detail: ProposalSnapshot.Detail, depositPct: Double?, images: [String: String] = [:], now: Date = Date()) -> ProposalSnapshot {
+                                detail: ProposalSnapshot.Detail, depositPct: Double?, images: [String: String] = [:], origin: String? = nil, now: Date = Date()) -> ProposalSnapshot {
         func name(_ id: String) -> String { catalog.first { $0.id == id }?.name ?? id }
         let t = takeoff.total
         let devices = t.counts.values.reduce(0, +) - t.tentative.values.reduce(0, +)
@@ -86,9 +89,20 @@ public enum Proposals {
             validUntil: validDays.flatMap { $0 > 0 ? day.string(from: now.addingTimeInterval(Double($0) * 86400)) : nil },
             currency: currency, taxPct: taxPct, detail: detail, depositPct: depositPct.flatMap { $0 > 0 && $0 < 100 ? $0 : nil },
             terms: business.estimateTerms,
-            business: .init(name: business.name, address: business.address, phone: business.phone, email: business.email, website: business.website),
+            business: .init(name: business.name, address: business.address, phone: business.phone, email: business.email, website: business.website,
+                            tagline: business.tagline, logo: absolute(business.logo, origin: origin), brandColor: business.brandColor,
+                            accentColor: business.accentColor, serviceArea: business.serviceArea),
             client: .init(name: p.clientName, email: p.clientEmail ?? "", phone: p.clientPhone ?? "", address: p.address),
             scope: scope, floors: floors, lines: lines)
+    }
+
+    /// "/brand/logo.png" on the PinPlan server → full URL (the client page loads it from there).
+    static func absolute(_ path: String?, origin: String?) -> String? {
+        guard let path, path.hasPrefix("/"), let origin, !origin.isEmpty else { return path }
+        var o = origin.trimmingCharacters(in: .whitespaces)
+        if !o.hasPrefix("http") { o = "https://" + o }
+        while o.hasSuffix("/") { o.removeLast() }
+        return o + path
     }
 
     /// Totals for a set of chosen optional line keys (matches the server's respond_proposal).

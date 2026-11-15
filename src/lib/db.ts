@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { DEFAULT_SETTINGS, seedCatalog } from "./catalog";
 import type {
   AppSettings,
+  BusinessSettings,
   Closet,
   DeviceType,
   EstimateLine,
@@ -122,7 +123,10 @@ export async function getSettings(): Promise<AppSettings> {
   return {
     ...DEFAULT_SETTINGS,
     ...s,
-    business: { ...DEFAULT_SETTINGS.business, ...s.business },
+    // Fields left blank fall back to the company defaults (so a fresh device is already branded).
+    business: Object.fromEntries(
+      Object.entries({ ...DEFAULT_SETTINGS.business, ...s.business }).map(([k, v]) => [k, v === "" ? (DEFAULT_SETTINGS.business[k as keyof BusinessSettings] ?? "") : v]),
+    ) as unknown as BusinessSettings,
     pricing: {
       ...DEFAULT_SETTINGS.pricing,
       ...s.pricing,

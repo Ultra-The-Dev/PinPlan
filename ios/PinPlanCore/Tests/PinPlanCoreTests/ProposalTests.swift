@@ -33,3 +33,18 @@ final class ProposalTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Proposals.newToken().count, 22)
     }
 }
+
+final class BrandTests: XCTestCase {
+    func testBlankBusinessFieldsTakeTheCompanyDefaults() throws {
+        var b = BusinessSettings()
+        b.phone = "(212) 555-0100"
+        let full = b.withCompanyDefaults()
+        XCTAssertEqual(full.name, "Smart Living Solutions")
+        XCTAssertEqual(full.phone, "(212) 555-0100")
+        XCTAssertEqual(full.accentColor, "#13e57c")
+        // Older settings files without the brand fields still load.
+        let old = try JSONDecoder().decode(BusinessSettings.self, from: Data(#"{"name":"","address":"","phone":"","email":"","website":"","estimateTerms":"x"}"#.utf8))
+        XCTAssertNil(old.logo)
+        XCTAssertEqual(Proposals.absolute("/brand/l.png", origin: "pinplan.vercel.app/"), "https://pinplan.vercel.app/brand/l.png")
+    }
+}

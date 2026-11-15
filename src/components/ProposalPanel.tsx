@@ -125,7 +125,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
         build: (images) =>
           buildSnapshot({
             project, sheets, catalog, takeoff, estimate, business: settings.business, currency: pricing.currency, taxPct: pricing.taxPct,
-            title, message, validDays: n(validDays), detail, depositPct: n(deposit), images,
+            title, message, validDays: n(validDays), detail, depositPct: n(deposit), images, origin: window.location.origin,
           }),
       });
       setRows((rs) => [row, ...(rs ?? []).map((r) => (r.status === "sent" || r.status === "viewed" ? { ...r, status: "revoked" as const } : r))]);

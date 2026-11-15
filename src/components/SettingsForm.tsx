@@ -66,7 +66,49 @@ export default function SettingsForm() {
           <section id="business" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <h2 className="text-lg font-semibold">Your business</h2>
-              <p className="text-sm text-slate-500">Shown on the client estimate PDF.</p>
+              <p className="text-sm text-slate-500">Your branding on the client estimate PDF and proposal links.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+              <div className="flex h-20 w-48 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-slate-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {b.logo ? <img src={b.logo} alt="Logo" className="max-h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}
+              </div>
+              <div className="space-y-2">
+                <label className="btn btn-sm cursor-pointer">
+                  Upload logo
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      // Keep it small: proposals and PDFs carry the logo with them.
+                      const img = await createImageBitmap(f);
+                      const k = Math.min(1, 800 / Math.max(img.width, img.height));
+                      const c = document.createElement("canvas");
+                      c.width = Math.round(img.width * k);
+                      c.height = Math.round(img.height * k);
+                      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+                      setB("logo", c.toDataURL("image/png"));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <div className="flex gap-3">
+                  {(
+                    [
+                      ["brandColor", "Brand colour", "#0a1b54"],
+                      ["accentColor", "Accent", "#13e57c"],
+                    ] as const
+                  ).map(([k, label, def]) => (
+                    <label key={k} className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="color" className="h-8 w-10 cursor-pointer rounded-md border border-slate-200 bg-white p-0.5" value={b[k] || def} onChange={(e) => setB(k, e.target.value)} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
             {(
               [
@@ -84,6 +126,14 @@ export default function SettingsForm() {
             <div className="sm:col-span-2">
               <label className="label">Address</label>
               <input className="input" value={b.address} onChange={(e) => setB("address", e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label">Tagline</label>
+              <input className="input" placeholder="Smart Home · Lighting · AV & Home Theater · Security" value={b.tagline ?? ""} onChange={(e) => setB("tagline", e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label">Service area</label>
+              <input className="input" placeholder="Serving New York City & the Tri-State Area" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
               <label className="label">Estimate terms</label>

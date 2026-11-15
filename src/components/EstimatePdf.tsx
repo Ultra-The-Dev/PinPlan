@@ -1,12 +1,12 @@
 "use client";
 // Client-facing estimate PDF (@react-pdf/renderer). Load via `renderEstimatePdf` (dynamic import keeps it out of SSR).
-import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
 import type { BusinessSettings, Project } from "@/lib/types";
 
 const INK = "#161616";
-const BRAND = "#c2410c";
+const BRAND = "#0a1b54";
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 
@@ -108,13 +108,21 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
   const fmt = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const valid = new Date(date.getTime() + validDays * 86400000);
   const installed = estimate.lines.some((l) => l.description.endsWith("— installed"));
+  // Company colour and logo from Settings → Your business.
+  const brand = business.brandColor || BRAND;
   return (
     <Document title={`Estimate — ${project.address}`} author={business.name || undefined}>
       <Page size="LETTER" style={s.page}>
-        <View style={s.bar} fixed />
+        <View style={[s.bar, { backgroundColor: brand }]} fixed />
         <View style={s.header}>
           <View style={{ maxWidth: 280 }}>
-            <Text style={s.biz}>{business.name || "Estimate"}</Text>
+            {business.logo ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt
+              <Image src={business.logo} style={{ height: 46, maxWidth: 200, objectFit: "contain", marginBottom: 8, alignSelf: "flex-start" }} />
+            ) : (
+              <Text style={s.biz}>{business.name || "Estimate"}</Text>
+            )}
+            {business.logo && business.tagline ? <Text style={[s.muted, { marginBottom: 3 }]}>{business.tagline}</Text> : null}
             {[business.address, business.phone, business.email, business.website].filter(Boolean).map((t) => (
               <Text key={t} style={s.muted}>
                 {t}
@@ -122,7 +130,7 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
             ))}
           </View>
           <View>
-            <Text style={s.title}>ESTIMATE</Text>
+            <Text style={[s.title, { color: brand }]}>ESTIMATE</Text>
             <View style={s.meta}>
               <Text style={s.metaLabel}>Number</Text>
               <Text style={s.metaValue}>{estimateNumber(project, date)}</Text>
@@ -207,5 +215,7 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
 }
 
 export async function renderEstimatePdf(props: EstimatePdfProps): Promise<Blob> {
-  return pdf(<EstimateDocument {...props} />).toBlob();
+  // A site path like "/brand/logo.png" needs the full address for the PDF renderer.
+  const logo = props.business.logo?.startsWith("/") ? window.location.origin + props.business.logo : props.business.logo;
+  return pdf(<EstimateDocument {...props} business={{ ...props.business, logo }} />).toBlob();
 }

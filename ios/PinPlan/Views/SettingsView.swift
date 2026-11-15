@@ -71,6 +71,8 @@ struct BusinessSettingsView: View {
                 TextField("Phone", text: $app.settings.business.phone).keyboardType(.phonePad)
                 TextField("Email", text: $app.settings.business.email).keyboardType(.emailAddress).textInputAutocapitalization(.never)
                 TextField("Website", text: $app.settings.business.website).textInputAutocapitalization(.never)
+                TextField("Tagline", text: Binding(get: { app.settings.business.tagline ?? "" }, set: { app.settings.business.tagline = $0 }))
+                TextField("Service area", text: Binding(get: { app.settings.business.serviceArea ?? "" }, set: { app.settings.business.serviceArea = $0 }))
             } footer: { Text("Shown at the top of every client estimate") }
             Section(sentence: "Estimate terms") {
                 TextField("Terms", text: $app.settings.business.estimateTerms, axis: .vertical).lineLimit(3...8)

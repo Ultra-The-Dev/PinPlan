@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smart Living Solutions">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#13294f"/>
+      <stop offset="1" stop-color="#0d1b36"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Navy rounded-square background -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+
+  <!-- Smart-home house mark -->
+  <g fill="none" stroke="url(#mark)" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Roof -->
+    <path d="M128 236 L256 132 L384 236" stroke-width="34"/>
+    <!-- Walls -->
+    <path d="M164 224 L164 372 Q164 392 184 392 L328 392 Q348 392 348 372 L348 224" stroke-width="34"/>
+  </g>
+
+  <!-- 'Smart' signal dot above the peak -->
+  <circle cx="256" cy="96" r="20" fill="url(#mark)"/>
+
+  <!-- Doorway -->
+  <path d="M226 392 L226 320 Q226 306 240 306 L272 306 Q286 306 286 320 L286 392 Z" fill="url(#mark)" opacity="0.92"/>
+</svg>

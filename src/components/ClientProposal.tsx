@@ -140,28 +140,85 @@ export default function ClientProposal() {
     }
   }
 
+  const brand = s.business.brandColor || "#0a1b54";
+  const accent = s.business.accentColor || "#13e57c";
+  const theme = {
+    "--brand": brand,
+    "--accent": accent,
+    fontFamily: "Manrope, var(--font-sans), system-ui, sans-serif",
+  } as React.CSSProperties;
+
   return (
-    <div className="min-h-full bg-[var(--color-slate-50)] print:bg-white">
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-        {/* Letterhead */}
-        <header ref={topRef} className="mb-8 flex flex-wrap items-start gap-4">
-          <div className="mr-auto">
-            <div className="text-xl font-semibold tracking-tight">{s.business.name || "Proposal"}</div>
-            <div className="mt-1 space-y-0.5 text-sm text-slate-500">
-              {s.business.address && <div>{s.business.address}</div>}
-              <div>{[s.business.phone, s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
-            </div>
+    <div className="proposal min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={theme}>
+      {/* The company's typeface (Manrope); falls back to the app font if it can't load. */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+      {/* Letterhead */}
+      <header ref={topRef} className="border-b border-[#e3e7f1] bg-white">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-5 sm:px-6">
+          <div className="mr-auto flex items-center">
+            {s.business.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.business.logo} alt={s.business.name} className="h-14 w-auto max-w-[240px] object-contain sm:h-16" />
+            ) : (
+              <div className="text-xl font-extrabold tracking-tight text-[var(--brand)]">{s.business.name || "Proposal"}</div>
+            )}
+          </div>
+          <div className="text-right text-sm leading-relaxed text-slate-500">
+            {s.business.phone && (
+              <a href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`} className="block font-semibold text-[var(--brand)]">
+                {s.business.phone}
+              </a>
+            )}
+            <div>{[s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
           </div>
           <button className="btn btn-sm print:hidden" onClick={() => window.print()}>
             <Printer /> Print / PDF
           </button>
-        </header>
+        </div>
+      </header>
 
+      {/* Title band in the brand colours, like the company site */}
+      <section className="relative overflow-hidden bg-[var(--brand)] text-white print:bg-white print:text-black" style={{ backgroundImage: `radial-gradient(60% 120% at 100% 0%, ${accent}33 0%, transparent 60%), linear-gradient(180deg, #13294f 0%, ${brand} 100%)` }}>
+        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
+          {s.business.tagline && <div className="text-xs font-semibold tracking-[0.14em] text-[var(--accent)] uppercase">{s.business.tagline}</div>}
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">{s.title}</h1>
+          <dl className="mt-5 grid gap-x-8 gap-y-1.5 text-sm text-white/80 sm:grid-cols-2 print:text-slate-600">
+            <div className="flex gap-2">
+              <dt className="text-white/55">Prepared for</dt>
+              <dd className="font-semibold text-white print:text-black">{s.client.name || "—"}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-white/55">Date</dt>
+              <dd>{fmtDate(s.createdAt)}</dd>
+            </div>
+            <div className="flex gap-2">
+              <dt className="text-white/55">Project</dt>
+              <dd>{s.client.address || "—"}</dd>
+            </div>
+            {s.validUntil && (
+              <div className="flex gap-2">
+                <dt className="text-white/55">Valid until</dt>
+                <dd>{fmtDate(s.validUntil)}</dd>
+              </div>
+            )}
+          </dl>
+          <div className="mt-7 grid grid-cols-3 gap-3">
+            {s.scope.map((x) => (
+              <div key={x.label} className="rounded-2xl bg-white/[0.07] px-4 py-3 ring-1 ring-white/15 print:ring-slate-300">
+                <div className="text-xs text-white/60 print:text-slate-500">{x.label}</div>
+                <div className="mt-0.5 text-2xl font-extrabold text-[var(--accent)] tabular-nums print:text-black">{x.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         {answered && (
           <div className={`mb-6 rounded-2xl px-5 py-4 ring-1 ${p.status === "accepted" ? "bg-emerald-50 text-emerald-900 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
             {p.status === "accepted" ? (
               <>
-                <div className="flex items-center gap-2 font-semibold">
+                <div className="flex items-center gap-2 font-bold">
                   <Check className="h-5 w-5" /> Accepted by {p.clientName} on {fmtDate(p.respondedAt)}
                 </div>
                 <p className="mt-1 text-sm">
@@ -169,7 +226,7 @@ export default function ClientProposal() {
                 </p>
               </>
             ) : (
-              <div className="flex items-center gap-2 font-semibold">
+              <div className="flex items-center gap-2 font-bold">
                 <X className="h-5 w-5" /> You declined this proposal on {fmtDate(p.respondedAt)}. Thank you for letting us know.
               </div>
             )}
@@ -181,42 +238,13 @@ export default function ClientProposal() {
           </div>
         )}
 
-        <section className="card p-6 sm:p-8">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{s.title}</h1>
-          <dl className="mt-4 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
-            <div className="flex gap-2">
-              <dt className="text-slate-500">Prepared for</dt>
-              <dd className="font-medium">{s.client.name || "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-slate-500">Date</dt>
-              <dd>{fmtDate(s.createdAt)}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-slate-500">Project</dt>
-              <dd>{s.client.address || "—"}</dd>
-            </div>
-            {s.validUntil && (
-              <div className="flex gap-2">
-                <dt className="text-slate-500">Valid until</dt>
-                <dd>{fmtDate(s.validUntil)}</dd>
-              </div>
-            )}
-          </dl>
-          {s.message && <p className="mt-5 text-[15px] leading-relaxed whitespace-pre-line text-slate-700">{s.message}</p>}
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            {s.scope.map((x) => (
-              <div key={x.label} className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
-                <div className="text-xs text-slate-500">{x.label}</div>
-                <div className="mt-0.5 text-lg font-semibold tabular-nums">{x.value}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {s.message && (
+          <section className="card mb-6 border-l-4 border-[var(--accent)] p-6 text-[15px] leading-relaxed whitespace-pre-line text-slate-700">{s.message}</section>
+        )}
 
         {s.floors.some((f) => f.image || f.items.length) && (
           <section className="mt-6">
-            <h2 className="mb-3 px-1 text-lg font-semibold">Plans</h2>
+            <h2 className="mb-3 px-1 text-lg font-extrabold text-[var(--brand)]">Your plans</h2>
             <div className="space-y-5">
               {s.floors.map((f) => (
                 <figure key={f.name} className="card overflow-hidden break-inside-avoid">
@@ -239,7 +267,7 @@ export default function ClientProposal() {
         )}
 
         <section className="card mt-6 p-6 sm:p-8">
-          <h2 className="text-lg font-semibold">Investment</h2>
+          <h2 className="text-lg font-extrabold text-[var(--brand)]">Investment</h2>
           <div className="mt-3 divide-y divide-slate-100">
             {groups.map((g) => (
               <div key={g} className="py-3">
@@ -282,8 +310,8 @@ export default function ClientProposal() {
           </div>
 
           {options.length > 0 && (
-            <div className="mt-4 rounded-xl bg-amber-50/60 p-4 ring-1 ring-amber-200">
-              <div className="font-semibold">Optional add-ons</div>
+            <div className="mt-4 rounded-xl p-4 ring-1" style={{ background: `${accent}14`, borderColor: accent, boxShadow: `inset 0 0 0 1px ${accent}55` }}>
+              <div className="font-bold text-[var(--brand)]">Optional add-ons</div>
               <p className="text-sm text-slate-600">{locked ? "Add-ons included in your total are ticked." : "Tick any you'd like included — the total updates."}</p>
               <ul className="mt-2 space-y-1">
                 {options.map((l) => (
@@ -321,7 +349,7 @@ export default function ClientProposal() {
             )}
             <div className="flex items-baseline justify-between pt-1">
               <dt className="text-base font-semibold">Total</dt>
-              <dd className="text-2xl font-semibold tabular-nums">{formatMoney(totals.total, cur)}</dd>
+              <dd className="text-3xl font-extrabold text-[var(--brand)] tabular-nums">{formatMoney(totals.total, cur)}</dd>
             </div>
             {totals.deposit != null && (
               <div className="flex justify-between text-slate-600">
@@ -343,7 +371,7 @@ export default function ClientProposal() {
           <section className="card mt-6 p-6 sm:p-8 print:hidden">
             {!declining ? (
               <>
-                <h2 className="text-lg font-semibold">Approve this proposal</h2>
+                <h2 className="text-lg font-extrabold text-[var(--brand)]">Approve this proposal</h2>
                 <label className="mt-4 block text-sm">
                   <span className="label">Your full name</span>
                   <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -361,7 +389,12 @@ export default function ClientProposal() {
                 </label>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <button className="btn btn-brand px-6" disabled={busy || !name.trim() || !signature || !agree} onClick={() => void respond(true)}>
+                  <button
+                    className="btn h-12 rounded-full px-7 text-[15px] font-bold disabled:opacity-50"
+                    style={{ background: accent, color: brand }}
+                    disabled={busy || !name.trim() || !signature || !agree}
+                    onClick={() => void respond(true)}
+                  >
                     <Check /> {busy ? "Sending…" : `Accept — ${formatMoney(totals.total, cur)}`}
                   </button>
                   <button className="btn btn-ghost text-slate-500" onClick={() => setDeclining(true)}>
@@ -389,8 +422,26 @@ export default function ClientProposal() {
             )}
           </section>
         )}
-        <p className="mt-8 text-center text-xs text-slate-400 print:hidden">Questions? Contact {s.business.name || "us"}{s.business.phone ? ` at ${s.business.phone}` : ""}.</p>
       </div>
+      <footer className="bg-[var(--brand)] text-white/70 print:bg-white print:text-slate-500">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-6 text-sm sm:px-6">
+          <div className="mr-auto">
+            <div className="font-bold text-white print:text-black">{s.business.name}</div>
+            {s.business.serviceArea && <div>{s.business.serviceArea}</div>}
+          </div>
+          <div className="text-right">
+            Questions? {s.business.phone ? <a className="font-semibold text-[var(--accent)]" href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`}>{s.business.phone}</a> : null}
+            {s.business.email ? (
+              <>
+                {" · "}
+                <a className="text-white/80 underline-offset-2 hover:underline" href={`mailto:${s.business.email}`}>
+                  {s.business.email}
+                </a>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
