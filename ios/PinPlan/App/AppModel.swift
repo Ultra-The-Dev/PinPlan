@@ -80,7 +80,20 @@ final class AppModel {
         creatingDemo = true
         defer { creatingDemo = false }
         let store = store, catalog = catalog, pricing = pricing
-        let b = await Task.detached(priority: .userInitiated) { DemoProject.make(store: store, catalog: catalog, pricing: pricing) }.value
+        var b = await Task.detached(priority: .userInitiated) { DemoProject.make(store: store, catalog: catalog, pricing: pricing) }.value
+        // Show how products work: a few samples (only into an empty library), used by the demo job.
+        if products.isEmpty {
+            let note = "Sample product. Archive it anytime"
+            let samples = [
+                Product(deviceTypeId: "cam-indoor", brand: "Ubiquiti", model: "G5 Turret Ultra", sku: "UVC-G5-Turret-Ultra", unitPrice: 129, laborPrice: 85, notes: note),
+                Product(deviceTypeId: "cam-indoor", brand: "Axis", model: "M3086-V", sku: "02373-001", unitPrice: 349, laborPrice: 95, notes: note),
+                Product(deviceTypeId: "wap", brand: "Ubiquiti", model: "U7 Pro", sku: "U7-Pro", unitPrice: 189, laborPrice: 95, notes: note),
+                Product(deviceTypeId: "speaker", brand: "Sonance", model: "VP62R", sku: "93002", unitPrice: 215, laborPrice: 70, notes: note),
+            ]
+            importProducts(samples)
+            b.setProductChoice(typeId: "cam-indoor", productId: samples[0].id)
+            b.setProductChoice(typeId: "wap", productId: samples[2].id)
+        }
         store.save(b)
         projects.insert(b, at: 0)
         return b

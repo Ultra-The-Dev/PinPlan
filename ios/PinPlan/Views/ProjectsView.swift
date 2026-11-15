@@ -8,6 +8,7 @@ struct ProjectsView: View {
     @State private var status: ProjectStatus?
     @State private var showNew = false
     @State private var showSettings = false
+    @State private var showProducts = false
     @State private var showCatalog = false
     @State private var showRestore = false
     @State private var path: [String] = []
@@ -76,6 +77,7 @@ struct ProjectsView: View {
             }
             .sheet(isPresented: $showSettings) { NavigationStack { SettingsView() } }
             .sheet(isPresented: $showCatalog) { NavigationStack { CatalogView() } }
+            .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 do {
                     let n = try app.restore(from: result.get())
@@ -99,6 +101,7 @@ struct ProjectsView: View {
                     else { path.append(await app.createProject(fromFile: url).project.id) }
                 }
                 if args.contains("--settings") || args.contains("--server") { showSettings = true }
+                if args.contains("--products") { showProducts = true }
                 if args.contains("--catalog") { showCatalog = true }
             }
             .sheet(isPresented: Binding(get: { !app.incomingFiles.isEmpty }, set: { if !$0 { app.incomingFiles = [] } })) {

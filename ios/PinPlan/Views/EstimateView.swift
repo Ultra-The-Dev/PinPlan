@@ -7,6 +7,8 @@ struct EstimateView: View {
     let model: EditorModel
     @Environment(\.exportPlacement) private var exportPlacement
     @State private var share: SharedFile?
+    // Screenshot/automation hook: `--job-products` opens the job's product choices.
+    @State private var openJobProducts = ProcessInfo.processInfo.arguments.contains("--job-products")
     @State private var editing: ComputedLine?
     @State private var docType = ""
     @State private var deposit = ""
@@ -137,6 +139,7 @@ struct EstimateView: View {
                 Text(APIClient(settings: app.settings) == nil ? "You can still share the PDF or CSV" : "Sent through your PinPlan server; Billdu keys never live on this device")
             }
         }
+        .navigationDestination(isPresented: $openJobProducts) { JobProductsView(model: model) }
         .sheet(item: $editing) { l in LineEditor(model: model, line: l) }
         .shareSheet($share)
         .confirmationDialog("Already sent to Billdu", isPresented: Binding(get: { confirmUpdate != nil }, set: { if !$0 { confirmUpdate = nil } }), titleVisibility: .visible) {
