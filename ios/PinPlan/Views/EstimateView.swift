@@ -112,6 +112,9 @@ struct EstimateView: View {
                     }
                 }
             }
+            Section {
+                NavigationLink { ClientProposalView(model: model) } label: { Label("Client proposal link", systemImage: "signature") }
+            } footer: { Text("The client reviews the plans and price, picks options and signs online.") }
             Section(sentence: "Summary") {
                 LabeledContent("Subtotal", value: Money.format(e.subtotal, currency: cur))
                 LabeledContent("Tax (\(pricing.taxPct.clean)%)", value: Money.format(e.tax, currency: cur))

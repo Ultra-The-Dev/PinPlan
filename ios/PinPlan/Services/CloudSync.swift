@@ -119,7 +119,30 @@ struct SupabaseClient {
         return (try JSONSerialization.jsonObject(with: try await send(r)) as? [[String: Any]]) ?? []
     }
 
+    func select(_ table: String, query: String, token: String) async throws -> Data {
+        try await send(request("/rest/v1/\(table)", query: query, token: token))
+    }
+
+    func insert(_ table: String, row: [String: Any], token: String) async throws -> Data {
+        var r = request("/rest/v1/\(table)", method: "POST", token: token)
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        r.httpBody = try JSONSerialization.data(withJSONObject: row)
+        return try await send(r)
+    }
+
     // MARK: storage
+
+    func upload(bucket: String, path: String, data: Data, token: String) async throws {
+        var r = request("/storage/v1/object/\(bucket)/\(path)", method: "POST", token: token)
+        r.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        r.setValue("true", forHTTPHeaderField: "x-upsert")
+        r.httpBody = data
+        r.timeoutInterval = 180
+        _ = try await send(r)
+    }
+
+    func publicURL(bucket: String, path: String) -> String { base.absoluteString + "/storage/v1/object/public/\(bucket)/\(path)" }
 
     func upload(path: String, data: Data, token: String) async throws {
         var r = request("/storage/v1/object/plans/\(path)", method: "POST", token: token)
@@ -279,6 +302,55 @@ final class CloudSync {
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             saveLedger()
         }
+    }
+
+    // MARK: client proposals
+
+    struct ProposalRow: Decodable, Identifiable {
+        let id: String
+        let project_id: String
+        let snapshot: ProposalSnapshot
+        let status: String
+        let viewed_at: String?
+        let responded_at: String?
+        let client_name: String?
+        let signature: String?
+        let chosen_options: [String]?
+        let accepted_total: Double?
+        let client_note: String?
+        let created_at: String
+    }
+
+    func proposals(projectId: String) async throws -> [ProposalRow] {
+        guard let client else { throw SupabaseClient.Failure(message: "Cloud sync isn't connected.") }
+        let data = try await client.select("proposals", query: "select=*&project_id=eq.\(projectId)&order=created_at.desc", token: try await token())
+        return try JSONDecoder().decode([ProposalRow].self, from: data)
+    }
+
+    /// Upload the plan images, then save the proposal. The job's earlier open links are withdrawn.
+    func publishProposal(token link: String, projectId: String, images: [String: Data], build: ([String: String]) -> ProposalSnapshot,
+                         withdraw: [String], progress: (String) -> Void) async throws {
+        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        let tok = try await token()
+        // The job must be on the server first (proposals belong to a synced job).
+        await syncNow()
+        for id in withdraw { try await client.patch("proposals", filter: "id=eq.\(id)", values: ["status": "revoked", "updated_at": isoNow()], token: tok) }
+        var urls: [String: String] = [:]
+        for (i, (sheetId, data)) in images.sorted(by: { $0.key < $1.key }).enumerated() {
+            progress("Uploading plan \(i + 1) of \(images.count)…")
+            let path = "\(uid)/\(link)/\(sheetId).jpg"
+            try await client.upload(bucket: "proposals", path: path, data: data, token: tok)
+            urls[sheetId] = client.publicURL(bucket: "proposals", path: path)
+        }
+        progress("Publishing…")
+        let snap = build(urls)
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(snap))
+        _ = try await client.insert("proposals", row: ["id": link, "project_id": projectId, "snapshot": json, "valid_until": snap.validUntil.map { $0 as Any } ?? NSNull()], token: tok)
+    }
+
+    func withdrawProposal(_ id: String) async throws {
+        guard let client else { return }
+        try await client.patch("proposals", filter: "id=eq.\(id)", values: ["status": "revoked", "updated_at": isoNow()], token: try await token())
     }
 
     private func state(_ app: AppModel) -> SyncState { SyncState(bundles: app.projects, catalog: app.catalog, products: app.products) }

@@ -59,7 +59,7 @@ enum PDFExporter {
     }
 
     /// Render one sheet with its markup into `rect`.
-    static func drawSheet(_ ctx: CGContext, sheet: Sheet, image: UIImage?, bundle: ProjectBundle, catalog: [DeviceType], layers: Set<Layer>?, labels: Bool, in rect: CGRect) {
+    static func drawSheet(_ ctx: CGContext, sheet: Sheet, image: UIImage?, bundle: ProjectBundle, catalog: [DeviceType], layers: Set<Layer>?, labels: Bool, in rect: CGRect, symbolScale: CGFloat = 1) {
         let k = min(rect.width / sheet.width, rect.height / sheet.height)
         let W = sheet.width * k, H = sheet.height * k
         let o = CGPoint(x: rect.minX + (rect.width - W) / 2, y: rect.minY + (rect.height - H) / 2)
@@ -67,7 +67,7 @@ enum PDFExporter {
         let show: (Layer) -> Bool = { layers == nil || layers!.contains($0) }
         image?.draw(in: CGRect(x: o.x, y: o.y, width: W, height: H), blendMode: .normal, alpha: 0.85)
         ctx.setStrokeColor(UIColor.lightGray.cgColor); ctx.setLineWidth(0.5); ctx.stroke(CGRect(x: o.x, y: o.y, width: W, height: H))
-        let r = max(W, H) / 140
+        let r = max(W, H) / 140 * symbolScale
 
         for run in bundle.liveRuns where run.sheetId == sheet.id && show(run.kind == .wire ? .wiring : .lighting) && run.points.count >= 4 {
             let color: UIColor = run.kind == .wire ? UIColor(wireColor(run.wireType)) : UIColor(hex: catalog.first { $0.id == run.deviceTypeId }?.color ?? "#d97706")
