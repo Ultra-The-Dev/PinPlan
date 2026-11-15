@@ -62,11 +62,22 @@ describe("Billdu mapping", () => {
   it("maps included lines to items with Billdu units", () => {
     const items = linesToItems(lines, 8.875);
     expect(items).toHaveLength(3);
-    expect(items[0]).toMatchObject({ label: "Indoor camera — installed", price: 320, count: 13, unit: "pc", tax: 8.875, stockNumber: "cam-indoor" });
+    expect(items[0]).toMatchObject({ label: "Indoor camera — installed", price: 320, count: 13, unit: "pc", tax: 8.875, stockNumber: "" });
     expect(items[1]).toMatchObject({ unit: "ft", count: 873 });
     expect(items[2]).toMatchObject({ unit: "hr", stockNumber: "" });
     expect(itemsTotal(items)).toBe(4160 + 9603 + 1000);
     expect(billduUnit("each")).toBe("pc");
+  });
+
+  it("uses only a real product SKU as the item code, never internal ids", () => {
+    const items = linesToItems(
+      [
+        { key: "prod:pxoVADB09SNc", description: "UniFi Doorbell G4 — installed", qty: 2, unit: "each", unitPrice: 670, total: 1340, included: true, sku: "UVC-G4-Doorbell" },
+        { key: "dev:mf-9bGYO1tIM", description: "Outdoor Speakers — installed", qty: 4, unit: "each", unitPrice: 400, total: 1600, included: true },
+      ],
+      0,
+    );
+    expect(items.map((i) => i.stockNumber)).toEqual(["UVC-G4-Doorbell", ""]);
   });
 
   it("collapses a deposit into one percentage line", () => {

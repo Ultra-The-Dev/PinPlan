@@ -153,7 +153,11 @@ export default function EstimateTab() {
             billduClientId: project!.billduClientId ?? null,
           },
           docType,
-          lines: estimate!.lines,
+          // Item code in Billdu = the product's SKU when there is one (nothing otherwise).
+          lines: estimate!.lines.map((l) => {
+            const pid = l.key.startsWith("prod:") || l.key.startsWith("optprod:") ? l.key.slice(l.key.indexOf(":") + 1) : l.key.startsWith("wire:") ? project!.productChoices?.[l.key] : null;
+            return { ...l, sku: products.find((p) => p.id === pid)?.sku ?? null };
+          }),
           taxPct: pricing!.taxPct,
           currency: cur,
           depositPct: isDeposit ? dep : null,

@@ -12,7 +12,10 @@ export interface BillduItem {
   discount: number;
 }
 
-export type SendLine = Pick<ComputedLine, "key" | "description" | "qty" | "unit" | "unitPrice" | "total" | "included">;
+export type SendLine = Pick<ComputedLine, "key" | "description" | "qty" | "unit" | "unitPrice" | "total" | "included"> & {
+  /** The product's SKU / part number, when the line is a product with one. Shown as the item code in Billdu. */
+  sku?: string | null;
+};
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -44,7 +47,8 @@ export function linesToItems(lines: SendLine[], taxPct: number, opts: { depositP
     label: l.description,
     price: round2(l.unitPrice),
     tax: taxPct,
-    stockNumber: l.key.startsWith("dev:") || l.key.startsWith("opt:") ? l.key.slice(l.key.indexOf(":") + 1) : "",
+    // Only a real part number goes in Billdu's code column — never the app's internal ids.
+    stockNumber: (l.sku ?? "").trim().slice(0, 64),
     count: round2(l.qty),
     unit: billduUnit(l.unit),
     discount: 0,

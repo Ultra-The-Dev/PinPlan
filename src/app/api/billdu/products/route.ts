@@ -34,8 +34,9 @@ export async function POST(req: Request) {
     try {
       const p = await client.createProduct({
         label: body.laborMode === "separate" ? d.name : `${d.name} — installed`,
-        description: `PinPlan catalog: ${d.id}`,
-        stockNumber: d.id,
+        description: "",
+        // No internal ids in Billdu: they'd show up in the code column of invoices.
+        stockNumber: "",
         price: Math.round(price * 100) / 100,
         tax: body.taxPct ?? 0,
         count: 1,
