@@ -1,20 +1,18 @@
 "use client";
 import { apiFetch } from "@/lib/api";
-import { CircleExclamationPoint, Download, FileText, Package, Plus, RefreshCw, RotateCcw, Send, Settings, Trash } from "lucide-react";
-import { nanoid } from "nanoid";
+import { CircleExclamationPoint, Download, FileText, Package, RefreshCw, RotateCcw, Send, Settings, Trash } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { downloadBlob, downloadText, slug } from "@/lib/download";
 import { estimateCsv, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
-import { supabaseConfigured } from "@/lib/supabase";
-import { useSyncStatus } from "@/lib/sync";
 import { LAYERS } from "@/lib/catalog";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { BillduDocRef, PricingSettings } from "@/lib/types";
 import JobProducts from "./JobProducts";
 import ProposalPanel from "./ProposalPanel";
+import AddChargeMenu from "./AddChargeMenu";
 
 type DocType = "estimate" | "order" | "invoice";
 
@@ -65,7 +63,7 @@ const GROUP_NAMES: Record<ComputedLine["group"], string> = {
   wire: "Wire",
   labor: "Labor",
   infrastructure: "Infrastructure",
-  custom: "Other",
+  custom: "Additional charges",
 };
 
 export default function EstimateTab() {
@@ -99,9 +97,7 @@ export default function EstimateTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [withPlans, setWithPlans] = useState(true);
-  const { signedIn, userId } = useSyncStatus();
-  const plansAvailable = supabaseConfigured && signedIn && sheets.length > 0;
+
 
   const input = "input w-24 text-right";
   if (!project || !settings || !pricing || !estimate) return <div className="p-6 text-slate-500">Loading…</div>;
@@ -144,15 +140,7 @@ export default function EstimateTab() {
     setError(null);
     setNotice(null);
     try {
-      // Billdu can't take attachments, so the marked-up plans go in the document note as a link (when signed in to the cloud).
-      let plansUrl: string | null = null;
-      if (withPlans && plansAvailable) {
-        try {
-          plansUrl = await uploadPlansPdf();
-        } catch (e) {
-          setNotice(`Plans link skipped: ${(e as Error).message}`);
-        }
-      }
+
       const r = await apiFetch("/api/billdu/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -175,7 +163,6 @@ export default function EstimateTab() {
           currency: cur,
           depositPct: isDeposit ? dep : null,
           existingDocId,
-          plansUrl,
         }),
       });
       const j = await r.json().catch(() => ({ error: `Server returned ${r.status}` }));
@@ -195,7 +182,7 @@ export default function EstimateTab() {
       const docs = old ? project!.billduDocs.map((d) => (d.id === old.id ? merged : d)) : [...project!.billduDocs, ref];
       await updateProject({ billduClientId: j.clientId, billduDocs: docs });
       setNotice(
-        `${j.doc.updated ? "Updated" : "Created"} Billdu ${docType} ${merged.serial ?? `#${merged.id}`} (${formatMoney(merged.amount, cur)} before tax)${plansUrl ? " with a link to the marked-up plans" : ""}.`,
+        `${j.doc.updated ? "Updated" : "Created"} Billdu ${docType} ${merged.serial ?? `#${merged.id}`} (${formatMoney(merged.amount, cur)} before tax). Attach the plans PDF in Billdu if needed.`,
       );
     } catch (e) {
       setError((e as Error).message);
@@ -209,20 +196,18 @@ export default function EstimateTab() {
     void send(!isDeposit && existingSame ? existingSame.id : null);
   }
 
-  async function uploadPlansPdf(): Promise<string> {
-    const { exportSheetsPdf } = await import("@/lib/exportSheets");
-    const { getSupabase } = await import("@/lib/supabase");
-    const sb = getSupabase();
-    if (!sb || !userId) throw new Error("sign in to cloud sync");
+  /** The client's marked-up plans (devices + lighting, no crew wiring) as a PDF, to attach in Billdu. */
+  async function downloadPlansPdf() {
     setBusy("plans");
-    const layers = LAYERS.map((l) => l.id).filter((l) => l !== "wiring");
-    const blob = await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", layers, download: false });
-    // Same path for the job each time, so the link in Billdu always shows the latest plans.
-    const path = `${userId}/billdu/${project!.id}/marked-up-plans.pdf`;
-    const { error } = await sb.storage.from("proposals").upload(path, blob, { upsert: true, contentType: "application/pdf", cacheControl: "60" });
-    if (error) throw new Error(error.message);
-    setBusy("send");
-    return sb.storage.from("proposals").getPublicUrl(path).data.publicUrl;
+    try {
+      const { exportSheetsPdf } = await import("@/lib/exportSheets");
+      const layers = LAYERS.map((l) => l.id).filter((l) => l !== "wiring");
+      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", layers });
+    } catch (e) {
+      setError(`Plans PDF failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function syncProducts() {
@@ -372,12 +357,7 @@ export default function EstimateTab() {
               </div>
             ))}
             <div className="px-4 py-2.5">
-              <button
-                className="btn btn-sm btn-ghost text-brand-600"
-                onClick={() => upsert(`custom:${nanoid(8)}`, { description: "Custom item", qty: 1, unit: "each", unitPrice: 0, sort: Date.now() })}
-              >
-                <Plus /> Add custom line
-              </button>
+              <AddChargeMenu total={takeoff.total} currency={cur} onAdd={(k, p) => void upsert(k, p)} />
             </div>
             {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the estimate.</p>}
           </div>
@@ -443,12 +423,7 @@ export default function EstimateTab() {
               <tbody>
                 <tr className="border-t border-slate-200">
                   <td colSpan={7} className="px-3 py-2.5">
-                    <button
-                      className="btn btn-sm btn-ghost text-brand-600"
-                      onClick={() => upsert(`custom:${nanoid(8)}`, { description: "Custom item", qty: 1, unit: "each", unitPrice: 0, sort: Date.now() })}
-                    >
-                      <Plus /> Add custom line
-                    </button>
+                    <AddChargeMenu total={takeoff.total} currency={cur} onAdd={(k, p) => void upsert(k, p)} />
                     {removedKeys.length > 0 && (
                       <span className="ml-3 text-xs text-slate-500">
                         {removedKeys.length} removed line{removedKeys.length > 1 ? "s" : ""} ·{" "}
@@ -516,19 +491,9 @@ export default function EstimateTab() {
                 One line: {dep}% of {formatMoney(estimate.subtotal, cur)} = <strong>{formatMoney(Math.round(estimate.subtotal * dep!) / 100, cur)}</strong> before tax.
               </p>
             )}
-            {plansAvailable ? (
-              <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-slate-600">
-                <input type="checkbox" className="mt-0.5 accent-brand-600" checked={withPlans} onChange={(e) => setWithPlans(e.target.checked)} />
-                <span>Include a link to the marked-up plans (PDF) in the document note</span>
-              </label>
-            ) : (
-              <p className="mt-3 text-xs text-slate-500">Sign in to cloud sync to add a link to the marked-up plans.</p>
-            )}
-            <button className="btn btn-brand mt-3 h-10 w-full" disabled={!!busy || estimate.subtotal <= 0} onClick={onSendClick}>
+            <button className="btn btn-brand mt-4 h-10 w-full" disabled={!!busy || estimate.subtotal <= 0} onClick={onSendClick}>
               <Send />{" "}
-              {busy === "plans"
-                ? "Making the plans PDF…"
-                : busy === "send"
+              {busy === "send"
                   ? "Sending…"
                   : !isDeposit && existingSame
                     ? `Update ${docType} ${existingSame.serial ?? `#${existingSame.id}`} in Billdu`
@@ -543,6 +508,11 @@ export default function EstimateTab() {
               </p>
             )}
             {estimate.subtotal <= 0 && <p className="mt-2 text-center text-xs text-slate-400">Add prices to send a document.</p>}
+            {sheets.length > 0 && (
+              <button className="btn btn-sm mt-3 w-full" disabled={!!busy} onClick={() => void downloadPlansPdf()} title="Marked-up plans without crew wiring — attach it to the document in Billdu">
+                <FileText /> {busy === "plans" ? "Making the plans PDF…" : "Plans PDF (to attach in Billdu)"}
+              </button>
+            )}
 
             {notice && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p>}
             {error && (

@@ -14,7 +14,7 @@ struct EstimateView: View {
     @State private var deposit = ""
     @State private var sending = false
     @State private var message: (ok: Bool, text: String)?
-    @State private var withPlans = true
+    @State private var makingPlans = false
     private var sendTitle: String { existingDoc.map { "Update \($0.type) \($0.serial ?? "#\($0.id)") in Billdu" } ?? "Send to Billdu" }
 
 
@@ -102,8 +102,21 @@ struct EstimateView: View {
                 }
             }
             Section {
-                Button { model.editSilently { $0.upsertEstimateLine(key: "custom:\(newId(8))") { $0.description = "Custom item"; $0.qty = 1; $0.unit = "each"; $0.unitPrice = 0; $0.sort = Date().timeIntervalSince1970 } } } label: {
-                    Label("Add custom line", systemImage: "plus")
+                Menu {
+                    let tot = model.takeoff.total
+                    ForEach(QuickCharges.defaults) { c in
+                        Button { addCharge(c) } label: {
+                            if let f = c.countFrom {
+                                Text("\(c.name) × \(QuickCharges.count(tot, f))")
+                            } else {
+                                Text(c.name)
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Custom line") { addCharge(QuickCharge(id: "custom", name: "Custom item", unit: "each", price: 0)) }
+                } label: {
+                    Label("Add charge — labor, prewire…", systemImage: "plus.circle.fill")
                 }
                 let removed = model.bundle.estimateLines.filter { $0.removed == true && $0.deleted != true }
                 if !removed.isEmpty {
@@ -129,11 +142,14 @@ struct EstimateView: View {
                 if let d = Double(deposit), d > 0, d < 100 {
                     Text("One line: \(d.clean)% of \(Money.format(e.subtotal, currency: cur)) = \(Money.format((e.subtotal * d).rounded() / 100, currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
                 }
-                if app.cloud.signedIn { Toggle("Link the marked-up plans (PDF)", isOn: $withPlans) }
                 Button { trySend(e) } label: { Label(sending ? "Sending…" : sendTitle, systemImage: "paperplane.fill") }
                     .disabled(sending || e.subtotal <= 0)
                 if existingDoc != nil {
                     Button("Create a new document instead") { send(e, existing: nil) }.font(.callout).disabled(sending || e.subtotal <= 0)
+                }
+                if !model.sheets.isEmpty {
+                    Button { plansPDF() } label: { Label(makingPlans ? "Making the plans PDF…" : "Plans PDF (to attach in Billdu)", systemImage: "doc.richtext") }
+                        .disabled(makingPlans)
                 }
                 if let m = message { Text(m.text).foregroundStyle(m.ok ? .green : .red).font(.callout) }
                 let billed = model.bundle.project.billduDocs.filter { $0.type == "invoice" }.reduce(0) { $0 + $1.amount }
@@ -175,6 +191,32 @@ struct EstimateView: View {
 
     private var type: String { docType.isEmpty ? app.settings.billduDocType : docType }
 
+    /// The client's marked-up plans (devices + lighting, no crew wiring) to share or attach in Billdu.
+    private func plansPDF() {
+        makingPlans = true
+        let bundle = model.bundle, catalog = app.catalog, store = app.store
+        let layers = Set(Layer.allCases).subtracting([.wiring])
+        Task {
+            let data = await Task.detached(priority: .userInitiated) {
+                PDFExporter.planSheets(bundle: bundle, catalog: catalog, crew: false, layers: layers) { store.image($0) }
+            }.value
+            share = SharedFile(url: PDFExporter.write(data, name: "\(slug(bundle.project.address))-plans.pdf"))
+            makingPlans = false
+        }
+    }
+
+    /// Add a quick charge. Per-device ones count themselves from the plan; unpriced ones open for a price right away.
+    private func addCharge(_ c: QuickCharge) {
+        let key = QuickCharges.key(for: c)
+        model.editSilently {
+            $0.upsertEstimateLine(key: key) { l in
+                l.description = c.name; l.unit = c.unit; l.unitPrice = c.price; l.sort = Date().timeIntervalSince1970
+                if c.countFrom == nil { l.qty = 1 }
+            }
+        }
+        if c.price == 0 { editing = estimate.lines.first { $0.key == key } }
+    }
+
     /// The document already sent for this job (same type, not a deposit): sending again updates it.
     private var existingDoc: BillduDocRef? {
         guard (Double(deposit) ?? 0) <= 0 else { return nil }
@@ -189,19 +231,9 @@ struct EstimateView: View {
         sending = true
         message = nil
         let project = model.bundle.project, pricing = pricing, t = type
-        let bundle = model.bundle, catalog = app.catalog, store = app.store
         Task {
             do {
-                // Billdu can't take attachments: link the marked-up plans PDF in the document note (when signed in to the cloud).
-                var plansUrl: String?
-                if withPlans, app.cloud.signedIn, !bundle.liveSheets.isEmpty {
-                    let layers = Set(Layer.allCases).subtracting([.wiring])
-                    let pdf = await Task.detached(priority: .userInitiated) {
-                        PDFExporter.planSheets(bundle: bundle, catalog: catalog, crew: false, layers: layers) { store.image($0) }
-                    }.value
-                    plansUrl = try? await app.cloud.uploadPublic(path: "billdu/\(project.id)/marked-up-plans.pdf", data: pdf, contentType: "application/pdf")
-                }
-                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing, plansUrl: plansUrl)
+                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing)
                 let old = existing.flatMap { id in project.billduDocs.first { $0.id == id } }
                 let updated = r.doc.updated ?? (existing != nil)
                 let ref = BillduDocRef(id: r.doc.id, type: t, serial: r.doc.serial ?? (updated ? old?.serial : nil), amount: r.doc.amount, percent: r.doc.percent,
@@ -210,7 +242,7 @@ struct EstimateView: View {
                     b.project.billduClientId = r.clientId
                     if let existing, let i = b.project.billduDocs.firstIndex(where: { $0.id == existing }) { b.project.billduDocs[i] = ref } else { b.project.billduDocs.append(ref) }
                 }
-                message = (true, "\(updated ? "Updated" : "Created") Billdu \(t) \(ref.serial ?? "#\(ref.id)")\(plansUrl != nil ? " with a link to the plans" : "")")
+                message = (true, "\(updated ? "Updated" : "Created") Billdu \(t) \(ref.serial ?? "#\(ref.id)")")
             } catch {
                 message = (false, "\(error.localizedDescription) — you can still share the PDF or CSV.")
             }

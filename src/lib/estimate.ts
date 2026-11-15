@@ -1,4 +1,5 @@
 import { CLOSET_KINDS } from "./catalog";
+import { countOf, linkedTypes } from "./charges";
 import { cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
 import { computeTakeoff, type Takeoff } from "./takeoff";
 import type { Closet, ClosetKind, DeviceType, EstimateLine, Marker, PricingSettings, Product, Project, Run, Sheet } from "./types";
@@ -157,10 +158,12 @@ export function buildEstimate(
   }
   for (const o of overrides) {
     if (o.deleted || o.removed || !o.key.startsWith("custom:")) continue;
+    // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
+    const linked = linkedTypes(o.key);
     lines.push({
       key: o.key,
       description: o.description || "Custom item",
-      qty: o.qty ?? 1,
+      qty: o.qty ?? (linked ? countOf(t, linked) : 1),
       unit: o.unit || "each",
       unitPrice: o.unitPrice ?? 0,
       total: 0,

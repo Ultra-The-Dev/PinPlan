@@ -48,3 +48,19 @@ final class BrandTests: XCTestCase {
         XCTAssertEqual(Proposals.absolute("/brand/l.png", origin: "pinplan.vercel.app/"), "https://pinplan.vercel.app/brand/l.png")
     }
 }
+
+final class QuickChargeTests: XCTestCase {
+    func testPerDeviceChargesCountThePlan() {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        b.sheets = [Sheet(id: "s1", projectId: "p", name: "1st Fl", pageNumber: 1, order: 0, imageId: "i", width: 100, height: 100)]
+        b.markers = ["cam-indoor", "cam-indoor", "cam-outdoor"].map { Marker(projectId: "p", sheetId: "s1", deviceTypeId: $0, x: 0.5, y: 0.5, label: "") }
+        b.markers.append(Marker(projectId: "p", sheetId: "s1", deviceTypeId: "cam-outdoor", x: 0.5, y: 0.5, label: "", tentative: true))
+        let key = QuickCharges.key(for: QuickCharges.defaults[0], id: "abc")
+        XCTAssertEqual(key, "custom:abc@cam-indoor+cam-outdoor")
+        b.upsertEstimateLine(key: key) { $0.description = "Prewire"; $0.unitPrice = 180 }
+        let line = EstimateBuilder.build(takeoff: TakeoffCalculator.compute(b), catalog: Catalog.seed(), pricing: Catalog.defaultPricing, overrides: b.estimateLines)
+            .lines.first { $0.key == key }!
+        XCTAssertEqual(line.qty, 3)
+        XCTAssertEqual(line.total, 540)
+    }
+}

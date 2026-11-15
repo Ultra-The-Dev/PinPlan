@@ -45,7 +45,7 @@ export const GROUP_LABELS: Record<ComputedLine["group"], string> = {
   wire: "Wiring",
   labor: "Labor",
   infrastructure: "Infrastructure",
-  custom: "Other",
+  custom: "Additional work",
 };
 
 /** Random link token (URL-safe, ~143 bits). */

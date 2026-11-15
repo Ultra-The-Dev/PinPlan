@@ -8,7 +8,7 @@ public enum LineGroup: String, CaseIterable, Codable, Sendable { case devices, l
         case .wire: return "Wire"
         case .labor: return "Labor"
         case .infrastructure: return "Infrastructure"
-        case .custom: return "Other"
+        case .custom: return "Additional charges"
         }
     }
 }
@@ -136,7 +136,10 @@ public enum EstimateBuilder {
             lines.append(l)
         }
         for o in live.sorted(by: { ($0.sort ?? 0) < ($1.sort ?? 0) }) where o.key.hasPrefix("custom:") && o.removed != true {
-            lines.append(ComputedLine(key: o.key, description: o.description ?? "Custom item", qty: o.qty ?? 1, unit: o.unit ?? "each",
+            // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
+            let linked = QuickCharges.linkedTypes(o.key)
+            let auto = linked.map { ids in Double(ids.reduce(0) { $0 + (t.counts[$1] ?? 0) - (t.tentative[$1] ?? 0) }) } ?? 1
+            lines.append(ComputedLine(key: o.key, description: o.description ?? "Custom item", qty: o.qty ?? auto, unit: o.unit ?? "each",
                                       unitPrice: o.unitPrice ?? 0, total: 0, optional: false, included: true, deviceTypeId: nil, group: .custom, overridden: true))
         }
         var subtotal = 0.0, optionalTotal = 0.0
