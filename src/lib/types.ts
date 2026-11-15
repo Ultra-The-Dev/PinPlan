@@ -45,6 +45,8 @@ export interface Project {
   billduDocs: BillduDocRef[];
   /** Per-project estimate overrides of the global pricing settings. */
   pricing?: Partial<PricingSettings>;
+  /** Product chosen for this job per device type id (or "wire:<cable type>" for cable products). */
+  productChoices?: Record<string, string> | null;
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
@@ -108,6 +110,10 @@ export interface Marker {
   room: string;
   mount: Mount;
   wireType: string;
+  /** Cables pulled to this device when there are several (e.g. ["HDMI", "Cat6"]). Repeats mean several of that type. */
+  wires?: string[] | null;
+  /** This device's product when it differs from the job's choice for its type. */
+  productId?: string | null;
   closetId?: string | null;
   tentative: boolean;
   notes: string;
@@ -135,12 +141,31 @@ export interface Run {
   steps?: number | null;
   lfPerStep?: number | null;
   wireType?: string;
+  /** Cables a home run carries when it is a bundle (wireType is the first). */
+  wireTypes?: string[] | null;
   /** For wire home runs: the device and closet they connect. */
   markerId?: string | null;
   closetId?: string | null;
   tentative?: boolean;
   notes?: string;
   createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+/** A specific product (brand + model) for a device type, e.g. a Ubiquiti G5 Turret for "Indoor camera".
+ * Cable products use deviceTypeId "wire:<cable type>" and are priced per foot. */
+export interface Product {
+  id: string;
+  deviceTypeId: string;
+  brand: string;
+  model: string;
+  sku?: string | null;
+  /** Material cost per unit (each, per LF for LED, per ft for cable). */
+  unitPrice: number;
+  laborPrice: number;
+  notes?: string | null;
+  archived?: boolean;
   updatedAt: string;
   deleted?: boolean;
 }

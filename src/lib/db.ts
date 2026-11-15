@@ -7,6 +7,7 @@ import type {
   DeviceType,
   EstimateLine,
   Marker,
+  Product,
   Project,
   Run,
   Sheet,
@@ -15,7 +16,7 @@ import type {
 } from "./types";
 
 /** Tables that are synced to Supabase when it is configured. */
-export type SyncTable = "projects" | "sheets" | "deviceTypes" | "markers" | "runs" | "closets" | "estimateLines";
+export type SyncTable = "projects" | "sheets" | "deviceTypes" | "products" | "markers" | "runs" | "closets" | "estimateLines";
 
 export interface SyncItem {
   seq?: number;
@@ -28,6 +29,7 @@ class PinPlanDB extends Dexie {
   projects!: EntityTable<Project, "id">;
   sheets!: EntityTable<Sheet, "id">;
   deviceTypes!: EntityTable<DeviceType, "id">;
+  products!: EntityTable<Product, "id">;
   markers!: EntityTable<Marker, "id">;
   runs!: EntityTable<Run, "id">;
   closets!: EntityTable<Closet, "id">;
@@ -52,6 +54,8 @@ class PinPlanDB extends Dexie {
       settings: "id",
       syncQueue: "++seq, table, rowId",
     });
+    // v2: brand/model product library.
+    this.version(2).stores({ products: "id, deviceTypeId" });
   }
 }
 
@@ -160,6 +164,13 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     closets: live(closets),
     estimateLines: live(estimateLines),
   };
+}
+
+/** The product library (live rows), sorted by brand then model. */
+export async function getProducts(): Promise<Product[]> {
+  return (await db().products.toArray())
+    .filter((p) => !p.deleted)
+    .sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`));
 }
 
 export async function getCatalog(): Promise<DeviceType[]> {

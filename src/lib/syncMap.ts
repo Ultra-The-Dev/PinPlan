@@ -28,6 +28,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       billduClientId: "billdu_client_id",
       billduDocs: "billdu_docs",
       pricing: "pricing",
+      productChoices: "product_choices",
     },
   },
   sheets: {
@@ -70,6 +71,23 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       archived: "archived",
     },
   },
+  products: {
+    remote: "products",
+    conflict: "owner_id,id",
+    columns: {
+      id: "id",
+      updatedAt: "updated_at",
+      deleted: "deleted",
+      deviceTypeId: "device_type_id",
+      brand: "brand",
+      model: "model",
+      sku: "sku",
+      unitPrice: "unit_price",
+      laborPrice: "labor_price",
+      notes: "notes",
+      archived: "archived",
+    },
+  },
   markers: {
     remote: "markers",
     conflict: "id",
@@ -83,6 +101,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       room: "room",
       mount: "mount",
       wireType: "wire_type",
+      wires: "wires",
+      productId: "product_id",
       closetId: "closet_id",
       tentative: "tentative",
       notes: "notes",
@@ -105,6 +125,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       steps: "steps",
       lfPerStep: "lf_per_step",
       wireType: "wire_type",
+      wireTypes: "wire_types",
       markerId: "marker_id",
       closetId: "closet_id",
       tentative: "tentative",
@@ -137,7 +158,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
 };
 
 /** Push order: parents before children so foreign keys and RLS checks pass. */
-export const PUSH_ORDER: SyncTable[] = ["projects", "deviceTypes", "sheets", "closets", "markers", "runs", "estimateLines"];
+export const PUSH_ORDER: SyncTable[] = ["projects", "deviceTypes", "products", "sheets", "closets", "markers", "runs", "estimateLines"];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt"]);
 const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false };

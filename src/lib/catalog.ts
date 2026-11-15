@@ -19,6 +19,7 @@ export const LAYERS: { id: Layer; name: string }[] = [
 export const WIRE_TYPES = [
   "Cat6",
   "16/4 speaker",
+  "HDMI",
   "HDMI + Cat6",
   "18/2",
   "LV per driver",

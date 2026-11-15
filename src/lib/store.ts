@@ -1,8 +1,9 @@
 "use client";
 import { create } from "zustand";
-import { getCatalog, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
+import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
+import { markerCables } from "./products";
 import type {
   AppSettings,
   Closet,
@@ -12,6 +13,7 @@ import type {
   Layer,
   Marker,
   PricingSettings,
+  Product,
   Project,
   Run,
   Sheet,
@@ -46,6 +48,8 @@ interface EditorState {
   closets: Closet[];
   estimateLines: EstimateLine[];
   catalog: DeviceType[];
+  /** Brand/model product library. */
+  products: Product[];
   settings: AppSettings | null;
   activeSheetId: string | null;
   tool: Tool;
@@ -121,6 +125,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   closets: [],
   estimateLines: [],
   catalog: [],
+  products: [],
   settings: null,
   activeSheetId: null,
   tool: { kind: "select" },
@@ -132,7 +137,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   future: [],
 
   async load(projectId) {
-    const [bundle, catalog, settings] = await Promise.all([loadProject(projectId), getCatalog(), getSettings()]);
+    const [bundle, catalog, products, settings] = await Promise.all([loadProject(projectId), getCatalog(), getProducts(), getSettings()]);
     if (!bundle) {
       set({ loaded: true, project: null });
       return;
@@ -141,6 +146,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({
       ...bundle,
       catalog,
+      products,
       settings,
       loaded: true,
       activeSheetId: bundle.sheets.some((s) => s.id === cur) ? cur : (bundle.sheets[0]?.id ?? null),
@@ -149,7 +155,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
   },
   async reloadCatalog() {
-    set({ catalog: await getCatalog(), settings: await getSettings() });
+    set({ catalog: await getCatalog(), products: await getProducts(), settings: await getSettings() });
   },
   setActiveSheet(id) {
     set({ activeSheetId: id, selection: null });
@@ -262,7 +268,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     const after = { ...before, ...patch };
     const changes: Change[] = [{ table: "markers", before, after }];
     // Keep an attached home-run line in sync when the device moves or changes closet/wire.
-    if ("x" in patch || "y" in patch || "closetId" in patch || "wireType" in patch) {
+    if ("x" in patch || "y" in patch || "closetId" in patch || "wireType" in patch || "wires" in patch || "tentative" in patch) {
       const run = get().runs.find((r) => r.kind === "wire" && r.markerId === id);
       if (run) {
         const closet = get().closets.find((c) => c.id === after.closetId);
@@ -414,7 +420,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     for (const m of s.markers) {
       if (sheetId && m.sheetId !== sheetId) continue;
       if (markerId && m.id !== markerId) continue;
-      if (m.wireType === "None" || typeOf(m.deviceTypeId)?.kind === "led") continue;
+      if (!markerCables(m).length || typeOf(m.deviceTypeId)?.kind === "led") continue;
       let closet = s.closets.find((c) => c.id === m.closetId);
       if (!closet) {
         // Unassigned: home-run to the equipment closet (same floor first), else any closet.
@@ -457,7 +463,9 @@ function buildHomeRun(s: EditorState, m: Marker, closet: Closet, existing: Run |
     points: pts,
     markerId: m.id,
     closetId: closet.id,
-    wireType: m.wireType,
+    // A device with several cables (HDMI + Cat6…) gets one home run carrying the bundle.
+    wireType: markerCables(m)[0] ?? m.wireType,
+    wireTypes: markerCables(m).length > 1 ? markerCables(m) : null,
     tentative: m.tentative,
     measuredFt: estimateHomeRunFt(m, closet, s.sheets, pricing),
     deleted: false,

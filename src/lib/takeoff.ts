@@ -1,4 +1,5 @@
 import { runLengthFt } from "./geometry";
+import { runCables } from "./products";
 import type { Closet, ClosetKind, DeviceType, Marker, Run, Sheet } from "./types";
 
 /** Quantities for one floor (sheet) or for the whole project. Built only from placed markers/runs. */
@@ -102,9 +103,11 @@ export function computeTakeoff({ sheets, markers, runs, closets }: TakeoffInput)
         f.stairSteps += r.steps ?? 0;
       }
     } else if (r.kind === "wire") {
-      const wt = r.wireType || "Unspecified";
-      add(f.wireRuns, wt, 1);
-      if (len != null) add(f.wireFt, wt, len);
+      // A run carrying a bundle (HDMI + Cat6…) counts its length once per cable.
+      for (const wt of runCables(r)) {
+        add(f.wireRuns, wt, 1);
+        if (len != null) add(f.wireFt, wt, len);
+      }
     }
   }
 

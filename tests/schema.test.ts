@@ -28,6 +28,12 @@ function parseTables(src: string) {
     }
     out[m[1]] = cols;
   }
+  // Columns added later: `alter table public.x add column if not exists col type …`.
+  for (const m of src.matchAll(/alter table (?:if exists )?public\.(\w+)\s+([\s\S]*?);/g)) {
+    for (const c of m[2].matchAll(/add column (?:if not exists )?(\w+)\s+([^,]+)/g)) {
+      (out[m[1]] ??= {})[c[1]] = { required: /not null/i.test(c[2]) && !/default/i.test(c[2]) };
+    }
+  }
   return out;
 }
 
@@ -36,11 +42,12 @@ const ts = "2026-11-12T00:00:00.000Z";
 
 // One fully-populated local row per synced table (every optional field set).
 const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
-  projects: { id: "p", clientName: "c", clientEmail: "e", clientPhone: "t", address: "a", status: "estimate", notes: "n", billduClientId: 1, billduDocs: [], pricing: {}, createdAt: ts, updatedAt: ts, deleted: false },
+  projects: { id: "p", clientName: "c", clientEmail: "e", clientPhone: "t", address: "a", status: "estimate", notes: "n", billduClientId: 1, billduDocs: [], pricing: {}, productChoices: { wap: "pr" }, createdAt: ts, updatedAt: ts, deleted: false },
   sheets: { id: "s", projectId: "p", name: "Attic", pageNumber: 1, order: 0, imageId: "i", imageUrl: "local-only", width: 10, height: 10, pxPerFt: 2, pxPerInch: 72, scaleLabel: "1/4", createdAt: ts, updatedAt: ts, deleted: false },
   deviceTypes: { id: "d", name: "n", category: "security", symbol: "C", abbrev: "CAM", shape: "circle", color: "#000", unit: "each", unitPrice: 1, laborPrice: 1, defaultWire: "Cat6", defaultMount: "ceiling", kind: "device", billduProductId: 1, sort: 0, archived: false, updatedAt: ts, deleted: false },
-  markers: { id: "m", projectId: "p", sheetId: "s", deviceTypeId: "d", x: 0.5, y: 0.5, label: "l", room: "r", mount: "ceiling", wireType: "Cat6", closetId: "c", tentative: true, notes: "n", photoId: "ph", createdAt: ts, updatedAt: ts, deleted: false },
-  runs: { id: "r", projectId: "p", sheetId: "s", kind: "led", deviceTypeId: "d", points: [0, 0, 1, 1], measuredFt: 1, typedFt: 2, zone: "1", switchLabel: "S1", steps: 3, lfPerStep: 1, wireType: "Cat6", markerId: "m", closetId: "c", tentative: false, notes: "n", createdAt: ts, updatedAt: ts, deleted: false },
+  products: { id: "pr", deviceTypeId: "wap", brand: "Ubiquiti", model: "U7 Pro", sku: "U7-Pro", unitPrice: 189, laborPrice: 95, notes: "n", archived: false, updatedAt: ts, deleted: false },
+  markers: { id: "m", projectId: "p", sheetId: "s", deviceTypeId: "d", x: 0.5, y: 0.5, label: "l", room: "r", mount: "ceiling", wireType: "Cat6", wires: ["HDMI", "Cat6"], productId: "pr", closetId: "c", tentative: true, notes: "n", photoId: "ph", createdAt: ts, updatedAt: ts, deleted: false },
+  runs: { id: "r", projectId: "p", sheetId: "s", kind: "led", deviceTypeId: "d", points: [0, 0, 1, 1], measuredFt: 1, typedFt: 2, zone: "1", switchLabel: "S1", steps: 3, lfPerStep: 1, wireType: "Cat6", wireTypes: ["HDMI", "Cat6"], markerId: "m", closetId: "c", tentative: false, notes: "n", createdAt: ts, updatedAt: ts, deleted: false },
   closets: { id: "c", projectId: "p", sheetId: "s", kind: "equipment", x: 0.1, y: 0.1, name: "EQ", notes: "n", createdAt: ts, updatedAt: ts, deleted: false },
   estimateLines: { id: "e", projectId: "p", key: "dev:d", description: "x", qty: 1, unit: "each", unitPrice: 1, removed: false, include: true, sort: 1, updatedAt: ts, deleted: false },
 };

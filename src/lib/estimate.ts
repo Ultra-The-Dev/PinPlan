@@ -1,6 +1,7 @@
 import { CLOSET_KINDS } from "./catalog";
-import type { Takeoff } from "./takeoff";
-import type { ClosetKind, DeviceType, EstimateLine, PricingSettings } from "./types";
+import { cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
+import { computeTakeoff, type Takeoff } from "./takeoff";
+import type { Closet, ClosetKind, DeviceType, EstimateLine, Marker, PricingSettings, Product, Project, Run, Sheet } from "./types";
 
 export interface ComputedLine {
   key: string;
@@ -27,12 +28,23 @@ export interface Estimate {
 
 const money = (n: number) => Math.round(n * 100) / 100;
 
-/** Build the client estimate from the takeoff, catalog prices and pricing settings, then apply overrides. */
+export interface ProductPricing {
+  products?: Product[];
+  /** Quantities per device type per product (from productSplit). */
+  split?: ProductSplit;
+  /** Job cable product id per cable type. */
+  cableChoices?: Record<string, string>;
+}
+
+/** Build the client estimate from the takeoff, catalog prices and pricing settings, then apply overrides.
+ * When the job picks products (brand + model) for device types, their quantities get their own lines at the
+ * product's price; whatever has no product stays on the device type's line. */
 export function buildEstimate(
   takeoff: Takeoff,
   catalog: DeviceType[],
   pricing: PricingSettings,
   overrides: EstimateLine[] = [],
+  pp: ProductPricing = {},
 ): Estimate {
   const t = takeoff.total;
   const mk = 1 + pricing.markupPct / 100;
@@ -43,26 +55,58 @@ export function buildEstimate(
 
   const priceFor = (d: DeviceType) =>
     pricing.laborMode === "combined" ? d.unitPrice * mk + d.laborPrice : d.unitPrice * mk;
-  const suffix = pricing.laborMode === "combined" ? " — installed" : "";
-
-  for (const d of sorted) {
+  const combined = pricing.laborMode === "combined";
+  const suffix = combined ? " — installed" : "";
+  const qtyOf = (d: DeviceType) => {
     const all = d.kind === "led" ? (t.ledFt[d.id] ?? 0) : (t.counts[d.id] ?? 0);
     const tent = d.kind === "led" ? (t.ledTentativeFt[d.id] ?? 0) : (t.tentative[d.id] ?? 0);
-    const confirmed = d.kind === "led" ? all : all - tent;
+    return { confirmed: d.kind === "led" ? all : all - tent, tentative: tent };
+  };
+  const productById = new Map((pp.products ?? []).filter((p) => !p.deleted).map((p) => [p.id, p]));
+  const productParts = (d: DeviceType) =>
+    Object.entries(pp.split?.[d.id] ?? {})
+      .map(([pid, q]) => ({ p: productById.get(pid), ...q }))
+      .filter((x): x is { p: Product; confirmed: number; tentative: number } => !!x.p && x.p.deviceTypeId === d.id)
+      .sort((a, b) => productTitle(a.p).localeCompare(productTitle(b.p)));
+  const productPrice = (p: Product) => (combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk);
+
+  for (const d of sorted) {
+    const q = qtyOf(d);
     const unit = d.unit === "LF" ? "LF" : "each";
     const group = d.kind === "led" ? "lighting" : "devices";
-    if (confirmed > 0)
-      push({ key: `dev:${d.id}`, description: d.name + suffix, qty: confirmed, unit, unitPrice: priceFor(d), optional: false, deviceTypeId: d.id, group });
-    if (tent > 0)
-      push({ key: `opt:${d.id}`, description: `${d.name}${suffix} (optional — marked ?)`, qty: tent, unit, unitPrice: priceFor(d), optional: true, deviceTypeId: d.id, group });
+    let restC = q.confirmed;
+    let restT = q.tentative;
+    for (const part of productParts(d)) {
+      const c = Math.min(part.confirmed, restC);
+      const tt = Math.min(part.tentative, restT);
+      restC -= c;
+      restT -= tt;
+      const desc = `${productTitle(part.p)} — ${d.name}${suffix}`;
+      if (c > 0) push({ key: `prod:${part.p.id}`, description: desc, qty: c, unit, unitPrice: productPrice(part.p), optional: false, deviceTypeId: d.id, group });
+      if (tt > 0) push({ key: `optprod:${part.p.id}`, description: `${desc} (optional — marked ?)`, qty: tt, unit, unitPrice: productPrice(part.p), optional: true, deviceTypeId: d.id, group });
+    }
+    if (restC > 0.0001)
+      push({ key: `dev:${d.id}`, description: d.name + suffix, qty: restC, unit, unitPrice: priceFor(d), optional: false, deviceTypeId: d.id, group });
+    if (restT > 0.0001)
+      push({ key: `opt:${d.id}`, description: `${d.name}${suffix} (optional — marked ?)`, qty: restT, unit, unitPrice: priceFor(d), optional: true, deviceTypeId: d.id, group });
   }
   // LED drawn without a type.
   if (t.ledFt["led-unassigned"])
     push({ key: "dev:led-unassigned", description: "LED strip", qty: t.ledFt["led-unassigned"], unit: "LF", unitPrice: 0, optional: false, group: "lighting" });
 
-  for (const [wt, ft] of Object.entries(t.wireFt)) {
+  for (const wt of Object.keys(t.wireFt).sort()) {
+    const ft = t.wireFt[wt];
     if (!ft) continue;
-    push({ key: `wire:${wt}`, description: `${wt} cable (home runs: ${t.wireRuns[wt] ?? 0})`, qty: ft, unit: "ft", unitPrice: (pricing.wirePrices[wt] ?? 0) * mk, optional: false, group: "wire" });
+    const runs = t.wireRuns[wt] ?? 0;
+    // The job's cable product for this type (brand/model, price per ft), else the default price per ft.
+    const cp = productById.get(pp.cableChoices?.[wt] ?? "");
+    if (cp && cp.deviceTypeId === cableKey(wt)) {
+      push({ key: `wire:${wt}`, description: `${wt} — ${productTitle(cp)} (home runs: ${runs})`, qty: ft, unit: "ft", unitPrice: productPrice(cp), optional: false, group: "wire" });
+      if (!combined && cp.laborPrice > 0)
+        push({ key: `labor:wire:${wt}`, description: `Labor — pull ${wt}`, qty: ft, unit: "ft", unitPrice: cp.laborPrice, optional: false, group: "labor" });
+    } else {
+      push({ key: `wire:${wt}`, description: `${wt} cable (home runs: ${runs})`, qty: ft, unit: "ft", unitPrice: (pricing.wirePrices[wt] ?? 0) * mk, optional: false, group: "wire" });
+    }
   }
 
   for (const k of Object.keys(t.closets) as ClosetKind[]) {
@@ -73,15 +117,25 @@ export function buildEstimate(
 
   if (pricing.laborMode === "separate") {
     for (const d of sorted) {
-      if (!d.laborPrice) continue;
-      const all = d.kind === "led" ? (t.ledFt[d.id] ?? 0) : (t.counts[d.id] ?? 0);
-      const tent = d.kind === "led" ? (t.ledTentativeFt[d.id] ?? 0) : (t.tentative[d.id] ?? 0);
-      const confirmed = d.kind === "led" ? all : all - tent;
+      const q = qtyOf(d);
       const unit = d.unit === "LF" ? "LF" : "each";
-      if (confirmed > 0)
-        push({ key: `labor:${d.id}`, description: `Labor — ${d.name}`, qty: confirmed, unit, unitPrice: d.laborPrice, optional: false, deviceTypeId: d.id, group: "labor" });
-      if (tent > 0)
-        push({ key: `optlabor:${d.id}`, description: `Labor — ${d.name} (optional — marked ?)`, qty: tent, unit, unitPrice: d.laborPrice, optional: true, deviceTypeId: d.id, group: "labor" });
+      let restC = q.confirmed;
+      let restT = q.tentative;
+      for (const part of productParts(d)) {
+        const c = Math.min(part.confirmed, restC);
+        const tt = Math.min(part.tentative, restT);
+        restC -= c;
+        restT -= tt;
+        if (!part.p.laborPrice) continue;
+        const title = productTitle(part.p);
+        if (c > 0) push({ key: `labor:prod:${part.p.id}`, description: `Labor — ${title}`, qty: c, unit, unitPrice: part.p.laborPrice, optional: false, deviceTypeId: d.id, group: "labor" });
+        if (tt > 0) push({ key: `optlabor:prod:${part.p.id}`, description: `Labor — ${title} (optional — marked ?)`, qty: tt, unit, unitPrice: part.p.laborPrice, optional: true, deviceTypeId: d.id, group: "labor" });
+      }
+      if (!d.laborPrice) continue;
+      if (restC > 0.0001)
+        push({ key: `labor:${d.id}`, description: `Labor — ${d.name}`, qty: restC, unit, unitPrice: d.laborPrice, optional: false, deviceTypeId: d.id, group: "labor" });
+      if (restT > 0.0001)
+        push({ key: `optlabor:${d.id}`, description: `Labor — ${d.name} (optional — marked ?)`, qty: restT, unit, unitPrice: d.laborPrice, optional: true, deviceTypeId: d.id, group: "labor" });
     }
   }
 
@@ -128,6 +182,21 @@ export function buildEstimate(
   subtotal = money(subtotal);
   const tax = money((subtotal * pricing.taxPct) / 100);
   return { lines, subtotal, tax, total: money(subtotal + tax), optionalTotal: money(optionalTotal) };
+}
+
+/** The job's estimate: takeoff × prices, using the job's chosen products and cable products where set. */
+export function projectEstimate(
+  data: { project: Project; sheets: Sheet[]; markers: Marker[]; runs: Run[]; closets: Closet[]; estimateLines: EstimateLine[] },
+  catalog: DeviceType[],
+  products: Product[],
+  pricing: PricingSettings,
+  takeoff: Takeoff = computeTakeoff(data),
+): Estimate {
+  return buildEstimate(takeoff, catalog, pricing, data.estimateLines, {
+    products,
+    split: productSplit(data, takeoff, catalog, products),
+    cableChoices: cableChoices(data.project),
+  });
 }
 
 export function estimateCsv(est: Estimate): string {
