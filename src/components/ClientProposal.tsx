@@ -108,7 +108,7 @@ export default function ClientProposal() {
         if (r) setChosen(r.status === "accepted" ? r.chosenOptions : r.snapshot.lines.filter((l) => l.optional && l.included).map((l) => l.key));
         if (r?.snapshot.client.name) setName(r.snapshot.client.name);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(/does not exist|schema cache|could not find/i.test(e.message) ? "This proposal link isn't available right now. Please contact the company that sent it." : e.message));
   }, [token]);
 
   const s = p?.snapshot;

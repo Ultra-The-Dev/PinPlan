@@ -62,7 +62,10 @@ signed in to the same account sees the same jobs, catalog and products.
 
 ## 7. Client proposal links
 Needs step 6 (cloud sync) — make sure you ran every file in `supabase/migrations/`, including
-`20261116000000_proposals.sql`.
+`20261116000000_proposals.sql` and `20261117000000_fix_project_upsert.sql`.
+
+**Not working?** Web app → **Settings → Account → Check cloud setup**. It tests each piece on your Supabase project
+(keys, sign-in, tables, proposal functions, image storage, saving a job) and tells you which file to run if one is missing.
 
 1. Fill in **Settings → Your business** (name, phone, email, terms). The client sees these.
 2. Open a job → **Estimate** → **Client proposal** → **Create proposal link**: add a message, validity, deposit %,

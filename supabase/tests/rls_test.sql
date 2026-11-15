@@ -23,6 +23,11 @@ insert into public.sheets (id, project_id, name, page_number, sort_order, image_
 insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)
   values ('m1', 'p1', 's1', 'cam-indoor', 0.5, 0.5, 'CAM-1-01', '', 'ceiling', 'Cat6', false, '');
 select pg_temp.check((select count(*) from public.projects) = 1, 'owner sees own project');
+-- The apps save jobs with insert-or-update (upsert); a brand-new job must pass too.
+insert into public.projects (id, client_name, address, status) values ('p-upsert', 'Client', 'x', 'estimate')
+  on conflict (id) do update set client_name = excluded.client_name;
+select pg_temp.check((select count(*) from public.projects where id = 'p-upsert') = 1, 'owner can upsert a new project (sync)');
+delete from public.projects where id = 'p-upsert';
 select pg_temp.check((select count(*) from public.project_members where project_id = 'p1') = 1, 'owner auto-added as member');
 select pg_temp.check((select count(*) from public.markers) = 1, 'owner sees own markers');
 

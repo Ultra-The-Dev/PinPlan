@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { formatMoney, type Estimate } from "@/lib/estimate";
 import { buildSnapshot, newToken, proposalUrl, type ProposalSnapshot } from "@/lib/proposal";
+import { explainCloudError } from "@/lib/cloudCheck";
 import { listProposals, publishProposal, revokeProposal, type ProposalRow } from "@/lib/proposalCloud";
 import { useEditor } from "@/lib/store";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -42,7 +43,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
     try {
       setRows(await listProposals(projectId));
     } catch (e) {
-      toast((e as Error).message, "error");
+      toast(explainCloudError((e as Error).message), "error");
     }
   }, [projectId, signedIn]);
 
@@ -132,7 +133,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
       setForm(false);
       await copy(row.id);
     } catch (e) {
-      toast((e as Error).message, "error");
+      toast(explainCloudError((e as Error).message), "error");
     } finally {
       setBusy(null);
     }

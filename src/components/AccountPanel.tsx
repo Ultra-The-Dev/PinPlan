@@ -1,5 +1,7 @@
 "use client";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState } from "react";
+import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
 import { getSupabase } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 
@@ -39,6 +41,7 @@ export default function AccountPanel() {
   return (
     <section id="account" className="space-y-3">
       <h2 className="text-lg font-semibold">Account &amp; sync</h2>
+      <CloudCheck />
       {s.signedIn ? (
         <div className="space-y-3">
           <p className="text-sm">
@@ -98,5 +101,51 @@ export default function AccountPanel() {
         </form>
       )}
     </section>
+  );
+}
+
+/** Tests each piece of the cloud setup (keys, sign-in, tables, functions, storage, saving) and says what to fix. */
+function CloudCheck() {
+  const [results, setResults] = useState<CheckResult[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+      <div className="flex items-center gap-3">
+        <span className="flex-1 text-sm text-slate-600">Something not syncing or proposals failing? Check every part of the cloud setup.</span>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              setResults(await checkCloudSetup());
+            } catch (e) {
+              setResults([{ name: "Cloud check", ok: false, fix: (e as Error).message }]);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "Checking…" : "Check cloud setup"}
+        </button>
+      </div>
+      {results && (
+        <ul className="mt-3 space-y-2">
+          {results.map((r) => (
+            <li key={r.name} className="flex gap-2 text-sm">
+              {r.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
+              <div>
+                <span className="font-medium">{r.name}</span>
+                {r.detail && r.ok && <span className="text-slate-500"> · {r.detail}</span>}
+                {!r.ok && r.fix && <div className="text-slate-600">{r.fix}</div>}
+                {!r.ok && r.detail && <div className="text-xs text-slate-400">{r.detail}</div>}
+              </div>
+            </li>
+          ))}
+          {results.every((r) => r.ok) && <li className="text-sm font-medium text-emerald-700">All good — sync and proposal links are ready.</li>}
+        </ul>
+      )}
+    </div>
   );
 }
