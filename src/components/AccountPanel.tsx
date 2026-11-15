@@ -71,6 +71,7 @@ export default function AccountPanel() {
               Sign out
             </button>
           </div>
+          <SetPassword />
         </div>
       ) : (
         <form
@@ -87,7 +88,7 @@ export default function AccountPanel() {
             <button type="submit" disabled={busy || !password} className="btn btn-primary">
               Sign in
             </button>
-            <button type="button" disabled={busy || !password} className="btn" onClick={() => run(() => sb!.auth.signUp({ email, password }), "Account created. Check your email to confirm.")}>
+            <button type="button" disabled={busy || !password} className="btn" onClick={() => run(() => sb!.auth.signUp({ email, password }), "If this email is new, open the confirmation email from Supabase (check spam), then sign in. If you already have an account, use Sign in — no email is sent.")}>
               Create account
             </button>
             <button
@@ -149,5 +150,44 @@ function CloudCheck() {
         </ul>
       )}
     </div>
+  );
+}
+
+/** Accounts made with a magic link have no password; the iPad app signs in with email + password. */
+function SetPassword() {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const valid = pw.length >= 8 && pw === pw2;
+  return (
+    <form
+      className="space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!valid) return;
+        setBusy(true);
+        setMsg(null);
+        const { error } = (await getSupabase()?.auth.updateUser({ password: pw })) ?? { error: { message: "Not connected" } };
+        setBusy(false);
+        setMsg(error ? { ok: false, text: error.message } : { ok: true, text: "Password set. On the iPad/iPhone, sign in with this email and password." });
+        if (!error) {
+          setPw("");
+          setPw2("");
+        }
+      }}
+    >
+      <div className="text-sm font-medium">Set or change password</div>
+      <p className="text-xs text-slate-500">Signed in with a magic link? Set a password here to sign in on the iPad and iPhone app.</p>
+      <div className="flex flex-wrap gap-2">
+        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="New password (8+ characters)" value={pw} onChange={(e) => setPw(e.target.value)} />
+        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="Repeat password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+        <button className="btn" disabled={busy || !valid}>
+          {busy ? "Saving…" : "Set password"}
+        </button>
+      </div>
+      {pw2 && pw !== pw2 && <p className="text-xs text-amber-700">The two passwords don’t match.</p>}
+      {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+    </form>
   );
 }

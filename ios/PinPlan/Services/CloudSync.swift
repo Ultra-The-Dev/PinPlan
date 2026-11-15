@@ -60,7 +60,14 @@ struct SupabaseClient {
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            let msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
+            var msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
+            switch (j?["error_code"] as? String) ?? "" {
+            case "invalid_credentials": msg = "Wrong email or password. Use the same ones as on the web app."
+            case "email_not_confirmed": msg = "This email isn't confirmed yet. Open the confirmation email from Supabase (check spam), then sign in."
+            case "user_already_exists": msg = "This email already has an account — tap Sign in instead."
+            case "over_email_send_rate_limit": msg = "Too many emails sent — wait an hour, or sign in if the account already exists."
+            default: break
+            }
             throw Failure(message: msg ?? "Cloud server returned \(status)", status: status)
         }
         return data
@@ -72,7 +79,9 @@ struct SupabaseClient {
         guard let j = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let access = j["access_token"] as? String, let refresh = j["refresh_token"] as? String,
               let user = j["user"] as? [String: Any], let uid = user["id"] as? String else {
-            throw Failure(message: "Check your email to confirm the account, then sign in.")
+            // Sign-up without a session: either a new account waiting for its confirmation email, or an email that
+            // already has an account (Supabase sends nothing then, and doesn't say which).
+            throw Failure(message: "If you already have an account with this email, tap Sign in instead (no email is sent). If it's new, open the confirmation email from Supabase (check spam), then sign in.")
         }
         let expires = (j["expires_in"] as? Double) ?? 3600
         return Session(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(expires - 60), userId: uid, email: user["email"] as? String ?? "")
