@@ -60,6 +60,20 @@ signed in to the same account sees the same jobs, catalog and products.
    email and password. The first sync uploads this device's jobs; after that it syncs a few seconds after each change
    and every minute while the app is open. Works offline; if the same item is edited on two devices, the later edit wins.
 
+## 7. Client proposal links
+Needs step 6 (cloud sync) — make sure you ran every file in `supabase/migrations/`, including
+`20261116000000_proposals.sql`.
+
+1. Fill in **Settings → Your business** (name, phone, email, terms). The client sees these.
+2. Open a job → **Estimate** → **Client proposal** → **Create proposal link**: add a message, validity, deposit %,
+   choose whether to show every line or section totals, then **Publish**. The link is copied — text or email it.
+3. The client opens it on any phone or computer (no account), ticks any optional add-ons, types their name, signs
+   and taps **Accept** (or declines with a note).
+4. You see *Opened* / *Accepted* / *Declined* on the same card. When accepted, the job turns **Approved** and the
+   add-ons they picked are switched on in the estimate. Then send the deposit invoice with **Send to Billdu**.
+
+Sending an updated proposal withdraws the previous link. You can withdraw a link any time.
+
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).
