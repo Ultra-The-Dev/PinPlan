@@ -13,6 +13,8 @@ import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { Checklist, ChecklistItem, Photo } from "@/lib/types";
 import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
+import { tradeChecklists } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import { useBlobUrl } from "@/lib/useImage";
 import Dialog from "../Dialog";
 import PhotoViewer from "../photos/PhotoViewer";
@@ -267,7 +269,8 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
 export default function Checklists() {
   const { project, checklists, photos, saveRow } = useEditor();
   const [name, setName] = useState("");
-  const templates = allChecklistTemplates(useChecklistTemplates().templates);
+  // Built-in templates follow the company's trades (low voltage: pre-wire, trim-out, rack, final, punch list).
+  const templates = allChecklistTemplates(useChecklistTemplates().templates, tradeChecklists(useTrades()));
   if (!project) return null;
   const live = checklists.filter((c) => !c.deleted);
   const add = (c: Checklist) => void saveRow("checklists", c);

@@ -9,7 +9,20 @@ export const CATEGORIES: { id: Category; name: string; color: string }[] = [
   { id: "lighting", name: "Lighting", color: "#d97706" },
   { id: "shades", name: "Shades", color: "#db2777" },
   { id: "infrastructure", name: "Infrastructure", color: "#16a34a" },
+  // Other trades. These are the default names/colours; a trade pack can rename a category (see trades.ts).
+  { id: "power", name: "Receptacles", color: "#c2410c" },
+  { id: "switching", name: "Switches & controls", color: "#4f46e5" },
+  { id: "panels", name: "Panels & equipment", color: "#334155" },
+  { id: "fire", name: "Fire & life safety", color: "#e11d48" },
+  { id: "hvac", name: "HVAC", color: "#0284c7" },
+  { id: "plumbing", name: "Plumbing", color: "#0d9488" },
+  { id: "solar", name: "Solar", color: "#ca8a04" },
+  { id: "ev", name: "EV charging", color: "#65a30d" },
+  { id: "general", name: "General", color: "#64748b" },
 ];
+
+/** The low-voltage categories (the original catalog), in their original order. */
+export const LOW_VOLTAGE_CATEGORIES: Category[] = ["security", "network", "audio", "video", "smarthome", "lighting", "shades", "infrastructure"];
 
 export const LAYERS: { id: Layer; name: string }[] = [
   ...CATEGORIES.map((c) => ({ id: c.id as Layer, name: c.name })),
@@ -31,11 +44,41 @@ export const WIRE_TYPES = [
 
 export const MOUNTS: Mount[] = ["ceiling", "wall", "exterior", "floor", "cabinet", "other"];
 
-export const CLOSET_KINDS: { id: ClosetKind; name: string; abbrev: string; color: string }[] = [
-  { id: "equipment", name: "Equipment closet", abbrev: "EQ", color: "#16a34a" },
-  { id: "switch", name: "Switch closet", abbrev: "SW", color: "#15803d" },
-  { id: "rack", name: "Network rack", abbrev: "RK", color: "#166534" },
+export interface ClosetKindInfo {
+  id: ClosetKind;
+  name: string;
+  abbrev: string;
+  color: string;
+  /** Layer / palette section it belongs to. */
+  category: Category;
+  /** One line for the client legend. */
+  description: string;
+}
+
+const LV_CLOSET_TEXT = "Where the equipment and cables come together.";
+export const CLOSET_KINDS: ClosetKindInfo[] = [
+  { id: "equipment", name: "Equipment closet", abbrev: "EQ", color: "#16a34a", category: "infrastructure", description: LV_CLOSET_TEXT },
+  { id: "switch", name: "Switch closet", abbrev: "SW", color: "#15803d", category: "infrastructure", description: LV_CLOSET_TEXT },
+  { id: "rack", name: "Network rack", abbrev: "RK", color: "#166534", category: "infrastructure", description: LV_CLOSET_TEXT },
+  // Other trades' "closets": where their runs end.
+  { id: "panel", name: "Main panel", abbrev: "MP", color: "#1e293b", category: "panels", description: "The main electrical panel, where the circuits start." },
+  { id: "subpanel", name: "Subpanel", abbrev: "SP", color: "#475569", category: "panels", description: "A second electrical panel, fed from the main panel." },
+  { id: "facp", name: "Fire alarm control panel", abbrev: "FACP", color: "#be123c", category: "fire", description: "The fire alarm control panel that monitors every device." },
+  { id: "nac", name: "NAC / power extender", abbrev: "NAC", color: "#9f1239", category: "fire", description: "Power supply for the horns and strobes." },
+  { id: "airhandler", name: "Air handler / furnace", abbrev: "AH", color: "#0369a1", category: "hvac", description: "The indoor heating and cooling unit." },
+  { id: "condenser", name: "Condenser / heat pump", abbrev: "CU", color: "#075985", category: "hvac", description: "The outdoor cooling / heat-pump unit." },
+  { id: "waterheater", name: "Water heater", abbrev: "WH", color: "#0f766e", category: "plumbing", description: "The water heater." },
+  { id: "manifold", name: "Manifold", abbrev: "MAN", color: "#115e59", category: "plumbing", description: "Where the water lines branch out to the fixtures." },
+  { id: "inverter", name: "Inverter / battery", abbrev: "INV", color: "#a16207", category: "solar", description: "The solar inverter and battery storage." },
 ];
+
+/** Closet kind info. Unknown kinds (synced from a newer app) fall back to the equipment closet's look. */
+export function closetMeta(kind: string): ClosetKindInfo {
+  return CLOSET_KINDS.find((k) => k.id === kind) ?? { ...CLOSET_KINDS[0], id: kind as ClosetKind, name: kind ? `${kind[0].toUpperCase()}${kind.slice(1)}` : "Closet" };
+}
+
+/** The panel kinds that get a panel schedule. */
+export const PANEL_KINDS: ClosetKind[] = ["panel", "subpanel"];
 
 const now = () => new Date(0).toISOString();
 
@@ -43,7 +86,7 @@ type Seed = Omit<DeviceType, "updatedAt" | "sort" | "unitPrice" | "laborPrice" |
   Partial<Pick<DeviceType, "unitPrice" | "laborPrice">>;
 
 // Starting catalog from PLAN.md. Prices start at 0 for the installer to fill in.
-const SEED: Seed[] = [
+export const SEED: Seed[] = [
   // Security
   { id: "cam-indoor", name: "Indoor camera", category: "security", symbol: "C", abbrev: "CAM", shape: "circle", color: "#dc2626", unit: "each", defaultWire: "Cat6", defaultMount: "ceiling", kind: "device" },
   { id: "cam-outdoor", name: "Outdoor camera", category: "security", symbol: "OC", abbrev: "OCAM", shape: "triangle", color: "#b91c1c", unit: "each", defaultWire: "Cat6", defaultMount: "exterior", kind: "device" },
@@ -146,6 +189,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   updatedAt: now(),
 };
 
-export function categoryOf(id: Category) {
-  return CATEGORIES.find((c) => c.id === id)!;
+/** Default category name/colour (trade-aware names: tradeCategory in trades.ts). Unknown ids fall back to "General". */
+export function categoryOf(id: Category | string) {
+  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1];
 }

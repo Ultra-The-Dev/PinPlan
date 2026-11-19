@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { applyPriceList, catalogToCsv, type PriceImportResult } from "@/lib/catalogCsv";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
-import { CATEGORIES, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
+import { categoryOf, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
+import { allCategoriesFor, hasTrade, tradeCategories, tradeWireTypes, typeVisible } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
 import { toast } from "@/lib/toast";
 import type { Category, DeviceType, Mount, Shape, Unit } from "@/lib/types";
@@ -56,9 +58,16 @@ export default function CatalogEditor() {
   const [editing, setEditing] = useState<DeviceType | null>(null);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState<PriceImportResult | null>(null);
+  // Sections follow the company's trades; items from trade packs it doesn't use are tucked away (never deleted).
+  const trades = useTrades();
+  const [otherTrades, setOtherTrades] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     getCatalog().then(setTypes);
+    // A trade's starting catalog was added (Settings → Trades).
+    const reload = () => void getCatalog().then(setTypes);
+    window.addEventListener("pinplan:catalog", reload);
+    return () => window.removeEventListener("pinplan:catalog", reload);
   }, []);
 
   async function save(t: DeviceType, quiet = false) {
@@ -68,7 +77,7 @@ export default function CatalogEditor() {
   }
 
   function newType(category: Category) {
-    const cat = CATEGORIES.find((c) => c.id === category)!;
+    const cat = categoryOf(category);
     setEditing({
       id: newId(),
       name: "",
@@ -106,7 +115,10 @@ export default function CatalogEditor() {
   }
 
   if (!types) return <p className="p-6 text-slate-500">Loading…</p>;
-  const unpriced = types.filter((t) => !t.archived && t.unitPrice === 0).length;
+  const inTrades = (t: DeviceType) => typeVisible({ ...t, archived: false }, trades);
+  const hiddenOther = types.filter((t) => !t.archived && !inTrades(t)).length;
+  const unpriced = types.filter((t) => !t.archived && t.unitPrice === 0 && inTrades(t)).length;
+  const mine = tradeCategories(trades);
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex flex-wrap items-end gap-3">
@@ -128,17 +140,23 @@ export default function CatalogEditor() {
         <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived
         </label>
+        {hiddenOther > 0 && (
+          <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600" title="Starting items of trades your company doesn't use (Settings → Trades)">
+            <input type="checkbox" className="accent-brand-600" checked={otherTrades} onChange={(e) => setOtherTrades(e.target.checked)} /> Other trades ({hiddenOther})
+          </label>
+        )}
       </div>
       {unpriced > 0 && (
         <p className="mb-5 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200">
           {unpriced} device type{unpriced === 1 ? "" : "s"} still at $0. Type the price and labor right in the list — it saves as you go.
         </p>
       )}
-      {CATEGORIES.map((cat) => {
+      {allCategoriesFor(trades).map((cat) => {
         const rows = types
-          .filter((t) => t.category === cat.id && (showArchived || !t.archived) && (!q || t.name.toLowerCase().includes(q.toLowerCase())))
+          .filter((t) => t.category === cat.id && (showArchived || !t.archived) && (otherTrades || inTrades(t) || t.archived) && (!q || t.name.toLowerCase().includes(q.toLowerCase())))
           .sort((a, b) => a.sort - b.sort);
-        if (!rows.length && q) return null;
+        // The company's own sections always show (to add types); other categories only when they have items.
+        if (!rows.length && (q || !mine.some((m) => m.id === cat.id))) return null;
         return (
           <section key={cat.id} className="mb-6">
             <div className="mb-2 flex items-center gap-2 px-1">
@@ -215,6 +233,7 @@ export default function CatalogEditor() {
 
 function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: boolean; onSave: (t: DeviceType) => void; onCancel: () => void }) {
   const [d, setD] = useState(t);
+  const trades = useTrades();
   const set = <K extends keyof DeviceType>(k: K, v: DeviceType[K]) => setD({ ...d, [k]: v });
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onCancel}>
@@ -245,7 +264,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         <div>
           <label className="label">Category</label>
           <select className="input" value={d.category} onChange={(e) => set("category", e.target.value as Category)}>
-            {CATEGORIES.map((c) => (
+            {allCategoriesFor(trades).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -319,7 +338,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         <div>
           <label className="label">Default wire</label>
           <select className="input" value={d.defaultWire} onChange={(e) => set("defaultWire", e.target.value)}>
-            {Array.from(new Set([...WIRE_TYPES, d.defaultWire])).map((w) => (
+            {Array.from(new Set([...(hasTrade(trades, "lowvoltage") ? WIRE_TYPES : []), ...tradeWireTypes(trades), "None", d.defaultWire])).map((w) => (
               <option key={w}>{w}</option>
             ))}
           </select>

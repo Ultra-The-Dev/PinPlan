@@ -2,20 +2,36 @@
 import { Cable, Download, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
+import PanelSchedule from "./PanelSchedule";
 import PortSchedule from "./PortSchedule";
-import { LAYERS } from "@/lib/catalog";
+import { PANEL_KINDS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
 import { runLengthFt } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff, toCsv } from "@/lib/takeoff";
 import { cableSummary, markerCables, productIdFor, productTitle } from "@/lib/products";
+import { hasTrade, primaryTrade, tradeCategories, tradeClosetKinds, tradeLayers, tradeVocab } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import type { Layer, Marker } from "@/lib/types";
 
 /** Wiring-only view for the crew: no prices. Marked PDFs by layer plus the home-run schedule. */
 export default function CrewTab() {
   const { project, sheets, markers, runs, closets, catalog, products, autoHomeRuns } = useEditor();
-  const [layers, setLayers] = useState<Layer[]>(LAYERS.map((l) => l.id));
+  // Layers follow the company's trades (low voltage only: the original list). Kept as the ones switched off, so the
+  // list can change when the trades load.
+  const trades = useTrades();
+  const LAYERS = tradeLayers(trades);
+  const vocab = tradeVocab(trades);
+  const [off, setOff] = useState<Layer[]>([]);
+  const layers = LAYERS.map((l) => l.id).filter((l) => !off.includes(l));
+  const setLayers = (f: (ls: Layer[]) => Layer[]) => {
+    const next = f(layers);
+    setOff(LAYERS.map((l) => l.id).filter((l) => !next.includes(l)));
+  };
+  const lowVoltage = primaryTrade(trades).id === "lowvoltage";
+  const oneLayerButtons: Layer[] = lowVoltage ? ["security", "network", "audio", "video", "lighting", "shades"] : tradeCategories(trades).map((c) => c.id);
+  const closetLayers: Layer[] = [...new Set(tradeClosetKinds(trades).map((k) => k.category as Layer))];
   const [busy, setBusy] = useState<string | null>(null);
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   if (!project) return null;
@@ -46,7 +62,10 @@ export default function CrewTab() {
   async function pdf(oneLayer?: Layer) {
     setBusy("Preparing…");
     try {
-      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "crew", layers: oneLayer ? [oneLayer, "infrastructure", "wiring"] : layers, onProgress: setBusy });
+      await exportSheetsPdf(
+        { project: project!, sheets, markers, runs, closets, catalog },
+        { mode: "crew", layers: oneLayer ? [...new Set<Layer>([oneLayer, ...closetLayers, "wiring"])] : layers, onProgress: setBusy, trades },
+      );
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
@@ -76,7 +95,7 @@ export default function CrewTab() {
             <button className="btn btn-primary" disabled={!!busy || !sheets.length} onClick={() => pdf()}>
               <FileText /> {busy ?? "Wiring PDF (selected layers)"}
             </button>
-            {(["security", "network", "audio", "video", "lighting", "shades"] as Layer[]).map((l) => (
+            {oneLayerButtons.map((l) => (
               <button key={l} className="btn" disabled={!!busy || !sheets.length} onClick={() => pdf(l)}>
                 {LAYERS.find((x) => x.id === l)?.name} only
               </button>
@@ -88,13 +107,13 @@ export default function CrewTab() {
               className="btn"
               onClick={async () => {
                 const n = await autoHomeRuns();
-                toast(n ? `Drew ${n} home runs` : "Place an equipment closet first", n ? "success" : "info");
+                toast(n ? `Drew ${n} home runs` : lowVoltage ? "Place an equipment closet first" : `Place a ${vocab.closet} and assign devices to it first`, n ? "success" : "info");
               }}
             >
               <Cable /> Auto-draw all home runs
             </button>
           </div>
-          {noCloset > 0 && <p className="text-sm text-amber-700">{noCloset} device(s) have no home-run closet assigned.</p>}
+          {noCloset > 0 && <p className="text-sm text-amber-700">{noCloset} device(s) have no home-run {vocab.closet} assigned.</p>}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -119,7 +138,7 @@ export default function CrewTab() {
                 <th>Device</th>
                 <th>Room</th>
                 <th>Cables</th>
-                <th>Home run to</th>
+                <th>{lowVoltage ? "Home run to" : `${vocab.closet[0].toUpperCase()}${vocab.closet.slice(1)}`}</th>
                 <th className="text-right">Cable</th>
               </tr>
             </thead>
@@ -135,7 +154,7 @@ export default function CrewTab() {
                   <td>{m.room}</td>
                   <td>{cableSummary(markerCables(m))}</td>
                   <td>{closetName(m.closetId)}</td>
-                  <td className="text-right tabular-nums">{len != null ? `${len} ft` : drawn ? "no scale" : "—"}</td>
+                  <td className="text-right tabular-nums">{len != null ? `${Math.round(len * 10) / 10} ft` : drawn ? "no scale" : "—"}</td>
                 </tr>
               ))}
               {!schedule.length && (
@@ -148,7 +167,8 @@ export default function CrewTab() {
             </tbody>
           </table>
         </div>
-        <PortSchedule />
+        {(hasTrade(trades, "electrical") || closets.some((c) => PANEL_KINDS.includes(c.kind))) && <PanelSchedule />}
+        {(hasTrade(trades, "lowvoltage") || closets.some((c) => c.kind === "equipment" || c.kind === "switch" || c.kind === "rack")) && <PortSchedule />}
       </div>
     </div>
   );

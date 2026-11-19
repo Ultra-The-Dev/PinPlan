@@ -1,9 +1,10 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, CreditCard, ListChecks, Receipt, Save, Users } from "lucide-react";
+import { Building, Cable, Calculator, CloudOff, CreditCard, HardHat, ListChecks, Receipt, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
-import { WIRE_TYPES } from "@/lib/catalog";
 import { getSettings, saveSettings } from "@/lib/db";
+import { tradeWireTypes, tradeVocab } from "@/lib/trades";
+import { TRADES_EVENT, useTrades } from "@/lib/useTrades";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import type { AppSettings } from "@/lib/types";
@@ -13,16 +14,23 @@ import BillduSettings from "./BillduSettings";
 import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 import TeamPanel from "./TeamPanel";
+import TradeSettings from "./TradeSettings";
 
 export default function SettingsForm() {
   const [s, setS] = useState<AppSettings | null>(null);
   const [orig, setOrig] = useState<string>("");
   useEffect(() => {
-    getSettings().then((x) => {
-      setS(x);
-      setOrig(JSON.stringify(x));
-    });
+    const load = () =>
+      void getSettings().then((x) => {
+        // Adding a trade adds wire prices: pick them up without losing unsaved edits elsewhere.
+        setS((cur) => (cur ? { ...cur, trades: x.trades, pricing: { ...cur.pricing, wirePrices: { ...x.pricing.wirePrices, ...cur.pricing.wirePrices } } } : x));
+        setOrig((o) => (o ? JSON.stringify({ ...JSON.parse(o), trades: x.trades, pricing: { ...JSON.parse(o).pricing, wirePrices: { ...x.pricing.wirePrices, ...JSON.parse(o).pricing.wirePrices } } }) : JSON.stringify(x)));
+      });
+    load();
+    window.addEventListener(TRADES_EVENT, load);
+    return () => window.removeEventListener(TRADES_EVENT, load);
   }, []);
+  const trades = useTrades();
   // Technicians don't see prices, the business branding or Billdu (office work).
   const office = can(useRole(), "prices");
   if (!s) return <p className="p-6 text-slate-500">Loading…</p>;
@@ -33,6 +41,7 @@ export default function SettingsForm() {
 
   const dirty = JSON.stringify(s) !== orig;
   const NAV = [
+    { id: "trades", label: "Trades", icon: HardHat },
     { id: "business", label: "Business", icon: Building, office: true },
     { id: "pricing", label: "Pricing", icon: Calculator, office: true },
     { id: "wire", label: "Wire", icon: Cable },
@@ -64,6 +73,7 @@ export default function SettingsForm() {
       </aside>
       <div className="min-w-0 space-y-6">
         <h1 className="page-title md:hidden">Settings</h1>
+        <TradeSettings />
         <form
           className="space-y-6"
           onSubmit={async (e) => {
@@ -187,8 +197,8 @@ export default function SettingsForm() {
 
           <section id="wire" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-3">
             <div className="sm:col-span-3">
-              <h2 className="text-lg font-semibold">Wire</h2>
-              <p className="text-sm text-slate-500">{office ? "How home-run lengths are estimated from the plan, and the price per foot of each cable." : "How home-run lengths are estimated from the plan."}</p>
+              <h2 className="text-lg font-semibold">{tradeVocab(trades).wire === "Cable" ? "Wire" : tradeVocab(trades).wire}</h2>
+              <p className="text-sm text-slate-500">{office ? `How home-run lengths are estimated from the plan, and the price per foot of each ${tradeVocab(trades).wire === "Cable" ? "cable" : "type"}.` : "How home-run lengths are estimated from the plan."}</p>
             </div>
             <div>
               <label className="label" htmlFor="set-slack-service-loop">Slack / service loop %</label>
@@ -202,7 +212,7 @@ export default function SettingsForm() {
               <label className="label" htmlFor="set-floor-to-floor-height-ft">Floor-to-floor height ft</label>
               <input id="set-floor-to-floor-height-ft" className="input" type="number" value={p.floorHeightFt} onChange={(e) => setP("floorHeightFt", Number(e.target.value) || 0)} />
             </div>
-            {office && WIRE_TYPES.filter((w) => w !== "None").map((w) => (
+            {office && tradeWireTypes(trades).map((w) => (
               <div key={w}>
                 <label className="label" htmlFor={`set-wire-${w.replace(/[^a-zA-Z0-9]+/g, "-")}`}>{w} $/ft</label>
                 <input

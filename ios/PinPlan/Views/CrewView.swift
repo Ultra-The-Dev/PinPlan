@@ -18,10 +18,11 @@ struct CrewView: View {
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(Layer.allCases) { l in
+                        ForEach(Trades.layers(for: app.trades)) { info in
+                            let l = info.id
                             let on = layers.contains(l)
                             Button { if on { layers.remove(l) } else { layers.insert(l) } } label: {
-                                Text(Catalog.layerNames[l] ?? l.rawValue).font(.subheadline)
+                                Text(info.name).font(.subheadline)
                                     .padding(.horizontal, 12).padding(.vertical, 6)
                                     .background(on ? Color.brand.opacity(0.14) : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                                     .foregroundStyle(on ? Color.brand : .secondary)

@@ -1,3 +1,4 @@
+import { closetMeta } from "./catalog";
 import { runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import type { Closet, ClosetKind, DeviceType, Marker, Run, Sheet } from "./types";
@@ -21,10 +22,13 @@ export interface TakeoffBucket {
   wireFt: Record<string, number>;
   /** Home runs per wire type. */
   wireRuns: Record<string, number>;
-  closets: Record<ClosetKind, number>;
+  closets: ClosetCounts;
   /** Runs with no length yet (no scale and nothing typed). */
   unmeasuredRuns: number;
 }
+
+/** Closets per kind. The low-voltage kinds are always present (0 when none); other trades' kinds only when placed. */
+export type ClosetCounts = Record<"equipment" | "switch" | "rack", number> & Partial<Record<ClosetKind, number>>;
 
 export interface FloorTakeoff extends TakeoffBucket {
   sheetId: string;
@@ -52,6 +56,8 @@ function emptyBucket(): TakeoffBucket {
     unmeasuredRuns: 0,
   };
 }
+
+const LV_CLOSET_KINDS: ClosetKind[] = ["equipment", "switch", "rack"];
 
 const add = (rec: Record<string, number>, key: string, n: number) => {
   rec[key] = (rec[key] ?? 0) + n;
@@ -113,7 +119,7 @@ export function computeTakeoff({ sheets, markers, runs, closets }: TakeoffInput)
 
   for (const c of live(closets)) {
     const f = bySheet.get(c.sheetId);
-    if (f) f.closets[c.kind] += 1;
+    if (f) f.closets[c.kind] = (f.closets[c.kind] ?? 0) + 1;
   }
 
   const total = emptyBucket();
@@ -129,7 +135,7 @@ export function computeTakeoff({ sheets, markers, runs, closets }: TakeoffInput)
     for (const k in f.ledTentativeFt) add(total.ledTentativeFt, k, f.ledTentativeFt[k]);
     for (const k in f.wireFt) add(total.wireFt, k, f.wireFt[k]);
     for (const k in f.wireRuns) add(total.wireRuns, k, f.wireRuns[k]);
-    for (const k of Object.keys(f.closets) as ClosetKind[]) total.closets[k] += f.closets[k];
+    for (const k of Object.keys(f.closets) as ClosetKind[]) total.closets[k] = (total.closets[k] ?? 0) + (f.closets[k] ?? 0);
     total.ledZones += f.ledZones;
     total.ledTotalFt += f.ledTotalFt;
     total.stairFt += f.stairFt;
@@ -166,7 +172,7 @@ export function takeoffCsv(takeoff: Takeoff, catalog: DeviceType[]): string {
     for (const wt of Object.keys(b.wireFt)) rows.push([floor, `Wire — ${wt}`, "ft", b.wireFt[wt], ""]);
     for (const wt of Object.keys(b.wireRuns)) rows.push([floor, `Home runs — ${wt}`, "each", b.wireRuns[wt], ""]);
     for (const k of Object.keys(b.closets) as ClosetKind[])
-      if (b.closets[k]) rows.push([floor, `${k[0].toUpperCase()}${k.slice(1)} closet`, "each", b.closets[k], ""]);
+      if (b.closets[k]) rows.push([floor, LV_CLOSET_KINDS.includes(k) ? `${k[0].toUpperCase()}${k.slice(1)} closet` : closetMeta(k).name, "each", b.closets[k] ?? 0, ""]);
   };
   for (const f of takeoff.floors) emit(f.name, f);
   emit("Whole project", takeoff.total);

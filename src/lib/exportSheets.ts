@@ -1,12 +1,13 @@
 "use client";
 import { CLOSET_KINDS, LAYERS } from "./catalog";
+import { DEFAULT_TRADES, tradeCategory, tradeVocab } from "./trades";
 import { downloadBlob, slug } from "./download";
 import { runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import { renderSheet, symbolDataUrl } from "./renderSheet";
 import { wireColor } from "./symbols";
 import { computeTakeoff } from "./takeoff";
-import type { Closet, DeviceType, Layer, Marker, Project, Run, Sheet } from "./types";
+import type { Closet, DeviceType, Layer, Marker, Project, Run, Sheet, TradeId } from "./types";
 
 interface Data {
   project: Project;
@@ -31,8 +32,12 @@ export async function exportSheetsPdf(
     onProgress?: (s: string) => void;
     /** false: only return the PDF */ download?: boolean;
     business?: string;
+    /** The company's trades: layer names and wording (default low voltage). */
+    trades?: TradeId[];
   },
 ): Promise<Blob> {
+  const trades = opts.trades ?? DEFAULT_TRADES;
+  const vocab = tradeVocab(trades);
   const { renderSheetsPdf } = await import("@/components/SheetsPdf");
   // Soft-deleted rows never print (callers usually pass live rows; this keeps the legend and schedule honest if not).
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
@@ -62,8 +67,7 @@ export async function exportSheetsPdf(
       const wts = new Set(data.runs.filter((r) => r.sheetId === sheet.id && r.kind === "wire" && !r.deleted).flatMap((r) => runCables(r)));
       for (const w of wts) legend.push({ color: wireColor(w), name: `${w === "Unspecified" ? "Wire" : w} home run` });
     }
-    if (show("infrastructure"))
-      for (const k of CLOSET_KINDS) if (f.closets[k.id]) legend.push({ color: k.color, name: k.name });
+    for (const k of CLOSET_KINDS) if (f.closets[k.id] && show(k.category)) legend.push({ color: k.color, name: k.name });
 
     const counts: { name: string; value: string; note?: string }[] = [];
     for (const d of data.catalog) {
@@ -95,16 +99,17 @@ export async function exportSheetsPdf(
             m.mount,
             m.wireType,
             closetName(m.closetId),
-            len != null ? `${len} ft` : "",
+            len != null ? `${Math.round(len * 10) / 10} ft` : "",
             m.notes || "",
           ];
         });
-      table = { headers: ["Label", "Device", "Room", "Mount", "Wire", "Home run to", "Cable", "Notes"], rows };
+      table = { headers: ["Label", "Device", "Room", "Mount", "Wire", vocab.closet === "closet" ? "Home run to" : `To ${vocab.closet}`, vocab.wire, "Notes"], rows };
     }
     pages.push({ name: sheet.name, imageDataUrl, width: sheet.width, height: sheet.height, legend, counts, table });
   }
   opts.onProgress?.("Building PDF…");
-  const layerNames = layers ? LAYERS.filter((l) => layers.includes(l.id)).map((l) => l.name).join(", ") : "All layers";
+  const layerName = (l: Layer) => (l === "wiring" ? (LAYERS.find((x) => x.id === l)?.name ?? l) : tradeCategory(l, trades).name);
+  const layerNames = layers ? LAYERS.filter((l) => layers.includes(l.id)).map((l) => layerName(l.id)).join(", ") : "All layers";
   const title = `${data.project.address || "Project"}${data.project.clientName ? ` — ${data.project.clientName}` : ""}`;
   const kind = opts.mode === "crew" ? `Crew wiring sheets · ${layerNames}` : opts.mode === "client" ? `Preliminary plan for your review${opts.business ? ` · ${opts.business}` : ""}` : "Marked-up plan";
   const blob = await renderSheetsPdf({ title, subtitle: `${kind} · ${new Date().toLocaleDateString()}`, pages });

@@ -11,6 +11,9 @@ import { PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { createTeam } from "@/lib/team";
+import type { TradeId } from "@/lib/types";
+import { chooseTrades } from "@/lib/useTrades";
+import TradePicker from "../TradePicker";
 import { TryDemoLink } from "../marketing/Site";
 import { AuthCard, AuthShell, AuthTitle, errText, FormError, FormNotice, PasswordField } from "./AuthShell";
 
@@ -19,7 +22,7 @@ const confirmRedirect = () => `${window.location.origin}/login?confirmed=1`;
 export default function SignupForm() {
   const router = useRouter();
   const sync = useSyncStatus();
-  const [f, setF] = useState({ company: "", name: "", email: "", password: "", accepted: false });
+  const [f, setF] = useState({ company: "", name: "", email: "", password: "", accepted: false, trades: [] as TradeId[] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<React.ReactNode>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -38,6 +41,8 @@ export default function SignupForm() {
     setAuthor(f.name.trim());
     sendWelcomeEmail(f.company, f.name);
     await brandNewCompany(f.company, f.email).catch(() => undefined);
+    // The company's trades: their palette, catalog, wire types and checklists (none picked = low voltage).
+    if (f.trades.length) await chooseTrades(f.trades).catch(() => undefined);
     markOnboardingStarted();
     setLeaving(true);
     void useSyncStatus.getState().syncNow().catch(() => undefined);
@@ -90,7 +95,7 @@ export default function SignupForm() {
       }
       if (!data.session) {
         // "Confirm email" is on: the company is made on the first sign-in after they click the link (see sync.ts).
-        rememberPendingCompany({ company: f.company.trim(), name: f.name.trim(), email });
+        rememberPendingCompany({ company: f.company.trim(), name: f.name.trim(), email, trades: f.trades });
         setAuthor(f.name.trim());
         setSentTo(email);
         return;
@@ -161,6 +166,13 @@ export default function SignupForm() {
             void submit();
           }}
         >
+          {!teamRetry && (
+            <div>
+              <span className="label">What does your company do?</span>
+              <TradePicker compact value={f.trades} onChange={(t) => set("trades", t)} />
+              <p className="mt-1.5 text-xs text-slate-500">Pick one or more — the first is your main trade. It sets up your device menu, catalog, wire types and checklists. You can change it later in Settings.</p>
+            </div>
+          )}
           <div>
             <label className="label" htmlFor="su-company">Company name</label>
             <input id="su-company" className="input h-11" autoComplete="organization" maxLength={120} required placeholder="Brightline Integration" value={f.company} onChange={(e) => set("company", e.target.value)} disabled={teamRetry} />

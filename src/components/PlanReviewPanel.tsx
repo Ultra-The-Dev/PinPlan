@@ -13,6 +13,7 @@ import { supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { computeTakeoff } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
+import { useTrades } from "@/lib/useTrades";
 
 const when = (iso: string | null) =>
   iso
@@ -72,6 +73,7 @@ function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["
 
 export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void; pdfBusy: string | null }) {
   const { project, sheets, markers, runs, closets, catalog, settings } = useEditor();
+  const trades = useTrades();
   const { signedIn, userId, authReady } = useSyncStatus();
   const [rows, setRows] = useState<ProposalRow[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
     try {
       // The client's current link is withdrawn only once the new one is published (a failed publish leaves it working).
       const open = (rows ?? []).filter((r) => r.status === "sent" || r.status === "viewed").map((r) => r.id);
-      const legend = buildLegend(takeoff, catalog, (d) => symbolDataUrl(d, 64));
+      const legend = buildLegend(takeoff, catalog, (d) => symbolDataUrl(d, 64), trades);
       const row = await publishProposal({
         token,
         projectId: project.id,

@@ -201,7 +201,9 @@ final class EditorModel {
         return !hiddenLayers.contains(Layer(rawValue: t.category.rawValue) ?? .security)
     }
     func isVisible(_ r: Run) -> Bool { !hiddenLayers.contains(r.kind == .wire ? .wiring : .lighting) }
-    var closetsVisible: Bool { !hiddenLayers.contains(.infrastructure) }
+    var closetsVisible: Bool { Catalog.closetKinds.contains { isVisible(kind: $0.id) } }
+    /// Each closet kind is on its trade's layer (equipment closets: infrastructure; panels: panels; FACP: fire…).
+    func isVisible(kind: ClosetKind) -> Bool { !hiddenLayers.contains(Layer(rawValue: Catalog.closetInfo(kind).category.rawValue) ?? .infrastructure) }
 
     // MARK: taps on the plan
 

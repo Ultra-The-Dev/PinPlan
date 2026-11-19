@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/server/auth";
 import { limitAi } from "@/lib/server/rateLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import { ASK_SCHEMA, EXPLAIN_SCHEMA, buildAskPrompt, buildExplainPrompt, parseAnswer, parseExplanation } from "@/lib/planRead";
+import { parseTrades } from "@/lib/trades";
 
 // Plan reader: Claude (vision) reads one sheet and explains it, or answers a question about it.
 // Body: { imageBase64, mime, mode: "explain" | "ask", question?, sheetName?, knownScale? }
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: "Plan reading is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
   }
-  let body: { imageBase64?: string; mime?: string; mode?: string; question?: string; sheetName?: string; knownScale?: string | null };
+  let body: { imageBase64?: string; mime?: string; mode?: string; question?: string; sheetName?: string; knownScale?: string | null; trades?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   if ((imageBase64.length * 3) / 4 > MAX_IMAGE_BYTES) return Response.json({ error: "Image too large (max 5 MB)." }, { status: 413 });
   if (mode === "ask" && !question) return Response.json({ error: "Type a question about the plan." }, { status: 400 });
 
-  const context = { sheetName: body.sheetName ? String(body.sheetName).slice(0, 80) : undefined, knownScale: body.knownScale ? String(body.knownScale).slice(0, 60) : null };
+  const context = { sheetName: body.sheetName ? String(body.sheetName).slice(0, 80) : undefined, knownScale: body.knownScale ? String(body.knownScale).slice(0, 60) : null, trades: parseTrades(body.trades) };
   const client = new Anthropic();
   try {
     const response = await client.beta.messages.create({

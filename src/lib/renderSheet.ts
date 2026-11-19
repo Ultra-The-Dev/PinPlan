@@ -1,5 +1,5 @@
 "use client";
-import { CLOSET_KINDS } from "./catalog";
+import { closetMeta } from "./catalog";
 import { db } from "./db";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "./geometry";
 import { runCables } from "./products";
@@ -91,10 +91,12 @@ export async function renderSheet(
     }
   }
 
-  if (show("infrastructure")) {
+  {
     for (const cl of data.closets) {
       if (cl.sheetId !== sheet.id || cl.deleted) continue;
-      const meta = CLOSET_KINDS.find((k2) => k2.id === cl.kind) ?? CLOSET_KINDS[0];
+      // Each closet kind is on its trade's layer (equipment closets: infrastructure; panels: panels; FACP: fire…).
+      const meta = closetMeta(cl.kind);
+      if (!show(meta.category)) continue;
       const s = r * 1.3;
       const x = cl.x * W;
       const y = cl.y * H;

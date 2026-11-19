@@ -1,5 +1,7 @@
 // Pure helpers for the AI scan assist: the JSON schema Claude must answer with, and
 // server-side validation/clamping of whatever comes back. No browser or server imports here.
+import { hasTrade, isLowVoltageOnly, scanHints, tradeWho } from "./trades";
+import type { TradeId } from "./types";
 
 export interface ScanCatalogEntry {
   id: string;
@@ -164,10 +166,24 @@ export function prettyFloorName(s: string): string {
     .replace(/\b(\d+)(St|Nd|Rd|Th)\b/g, (_, n, suf) => n + suf.toLowerCase());
 }
 
-export function buildScanPrompt(catalog: ScanCatalogEntry[], mode: "full" | "title"): string {
+export function buildScanPrompt(catalog: ScanCatalogEntry[], mode: "full" | "title", trades?: TradeId[]): string {
   if (mode === "title")
     return "This is one sheet of an architectural plan set. Read the sheet's floor/plan name from the title block (for example ATTIC, 1ST. FL, 2ND FL, CELLAR). Return it in floorName exactly as printed, or an empty string if none is visible.";
   const list = catalog.map((c) => `- ${c.id}: ${c.name} (symbol "${c.symbol}", ${c.category})`).join("\n");
+  if (trades && !isLowVoltageOnly(trades)) {
+    const lv = hasTrade(trades, "lowvoltage");
+    return `This is one sheet of an architectural floor plan that ${tradeWho(trades)} has marked up by hand (usually coloured pen). Extract three things:
+
+1. floorName: the floor name from the title block (e.g. ATTIC, 1ST. FL, CELLAR), as printed.
+2. ledCallouts: ${lv ? "the architect's red LED strip callouts. Each has a zone number, a length in LF (linear feet) and often a switch label like S21" : "any LED / linear lighting callouts with a length in LF (linear feet), zone number and switch label if shown; usually none"}. Give the position of the callout text.
+3. symbols: every hand-drawn device symbol the installer added (circled letters, small drawings). Do not include the architect's printed symbols unless the installer clearly marked them. For each, pick the best matching catalog id below, or null if none fits. Set tentative=true when a "?" is written beside it.
+${scanHints(trades)}
+
+Positions x and y are fractions of the image width and height (0 = left/top, 1 = right/bottom), at the centre of the item. Confidence is 0-1. Do not count or total anything; just list what you see. If unsure about an item, include it with a low confidence rather than leaving it out.
+
+Catalog:
+${list}`;
+  }
   return `This is one sheet of an architectural floor plan that a low-voltage / smart-home installer has marked up by hand (usually blue pen). Extract three things:
 
 1. floorName: the floor name from the title block (e.g. ATTIC, 1ST. FL, CELLAR), as printed.

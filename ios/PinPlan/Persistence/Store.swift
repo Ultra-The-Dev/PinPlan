@@ -12,6 +12,8 @@ struct AppSettings: Codable, Equatable {
     var accessCode = ""
     /// Company checklist templates saved from jobs ("Save as template"). Optional so older settings.json files still decode.
     var checklistTemplates: [ChecklistTemplate]? = nil
+    /// The company's trades, primary first (TradeId raw values). Nil = low voltage only, as before.
+    var trades: [String]? = nil
 }
 
 /// File-based, offline-first storage in the app's Documents folder:

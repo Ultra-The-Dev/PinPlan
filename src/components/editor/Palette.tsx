@@ -1,9 +1,10 @@
 "use client";
 import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
-import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
 import { productTitle } from "@/lib/products";
 import { useEditor, type Tool } from "@/lib/store";
+import { tradeCategories, tradeClosetKinds, tradeVocab, typeVisible } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import SymbolIcon from "./SymbolIcon";
 
 export default function Palette() {
@@ -20,6 +21,14 @@ export default function Palette() {
   const countOnSheet = (id: string) => markers.filter((m) => m.sheetId === activeSheetId && m.deviceTypeId === id).length;
   const runsOnSheet = (id: string) => runs.filter((r) => r.sheetId === activeSheetId && r.deviceTypeId === id).length;
   const match = (name: string) => !q || name.toLowerCase().includes(q.toLowerCase());
+  // The company's trades decide the sections, their names, the closet kinds and what a run is called.
+  const trades = useTrades();
+  const vocab = tradeVocab(trades);
+  const closetKinds = tradeClosetKinds(trades);
+  const sections = tradeCategories(trades);
+  // Closet kinds whose category isn't one of the sections (e.g. a solar company's main panel) get their own section.
+  const orphanClosets = closetKinds.filter((k) => !sections.some((c) => c.id === k.category));
+  if (orphanClosets.length) sections.push({ id: orphanClosets[0].category, name: "Equipment", color: orphanClosets[0].color });
 
   const item = (t: Tool, key: string, icon: React.ReactNode, name: string, hint?: string, badge?: number) => (
     <button
@@ -73,9 +82,9 @@ export default function Palette() {
         </div>
       </div>
       <div className="scroll-thin min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-        {CATEGORIES.map((cat) => {
-          const types = catalog.filter((d) => d.category === cat.id && !d.archived && match(d.name));
-          const closets = cat.id === "infrastructure" ? CLOSET_KINDS.filter((c) => match(c.name)) : [];
+        {sections.map((cat) => {
+          const types = catalog.filter((d) => d.category === cat.id && typeVisible(d, trades) && match(d.name));
+          const closets = closetKinds.filter((c) => (c.category === cat.id || (orphanClosets.includes(c) && cat.id === orphanClosets[0].category)) && match(c.name));
           if (!types.length && !closets.length) return null;
           const isCollapsed = collapsed.includes(cat.id) && !q;
           return (
@@ -112,13 +121,13 @@ export default function Palette() {
             </section>
           );
         })}
-        {match("wire run") && (
+        {match(vocab.run) && (
           <section>
             <div className="flex items-center gap-1.5 px-1.5 py-1">
               <span className="h-2 w-2 rounded-full bg-blue-600" />
-              <span className="section-title">Wiring</span>
+              <span className="section-title">{vocab.run === "Wire run" ? "Wiring" : vocab.runs}</span>
             </div>
-            {item({ kind: "wire" }, "wire", <span className="flex h-7 w-7 items-center justify-center text-blue-600"><Spline className="h-5 w-5" /></span>, "Wire run", "device → closet")}
+            {item({ kind: "wire" }, "wire", <span className="flex h-7 w-7 items-center justify-center text-blue-600"><Spline className="h-5 w-5" /></span>, vocab.run, vocab.runHint)}
           </section>
         )}
       </div>

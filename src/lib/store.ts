@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { closetMeta, LAYERS } from "./catalog";
 import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
@@ -300,7 +301,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
   setOnlyLayer(l) {
     if (!l) return set({ hiddenLayers: [] });
-    const all: Layer[] = ["security", "network", "audio", "video", "smarthome", "lighting", "shades", "infrastructure", "wiring"];
+    const all: Layer[] = LAYERS.map((x) => x.id);
     set({ hiddenLayers: all.filter((x) => x !== l) });
   },
 
@@ -446,8 +447,8 @@ export const useEditor = create<EditorState>((set, get) => ({
     const { project, activeSheetId, sheets, closets } = get();
     const sheet = sheets.find((s) => s.id === activeSheetId);
     if (!project || !sheet) return null;
-    const names: Record<ClosetKind, string> = { equipment: "Equipment closet", switch: "Switch closet", rack: "Network rack" };
     const n = closets.filter((c) => c.kind === kind).length;
+    const base = closetMeta(kind).name;
     const c: Closet = {
       id: newId(),
       projectId: project.id,
@@ -455,7 +456,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       kind,
       x,
       y,
-      name: n ? `${names[kind]} ${n + 1}` : names[kind],
+      name: n ? `${base} ${n + 1}` : base,
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };

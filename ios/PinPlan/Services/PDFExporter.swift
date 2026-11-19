@@ -99,8 +99,9 @@ enum PDFExporter {
                 text(label, at: CGPoint(x: m.x - 40, y: m.y - r * 1.6), size: r * 0.75, weight: .bold, color: color, align: .center, width: 80)
             }
         }
-        if show(.infrastructure) {
-            for c in bundle.liveClosets where c.sheetId == sheet.id {
+        do {
+            // Each closet kind is on its trade's layer (equipment closets: infrastructure; panels: panels…).
+            for c in bundle.liveClosets where c.sheetId == sheet.id && show(Layer(rawValue: Catalog.closetInfo(c.kind).category.rawValue) ?? .infrastructure) {
                 let info = Catalog.closetInfo(c.kind)
                 let p = pt(c.x, c.y), s = r * 1.3
                 ctx.setFillColor(UIColor(hex: info.color).cgColor)

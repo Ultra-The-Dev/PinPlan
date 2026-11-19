@@ -1,7 +1,9 @@
 "use client";
-import { Cable, Camera, Download, FileText, Lightbulb, Speaker, Tv, Wifi } from "lucide-react";
+import { Cable, Camera, Download, FileText, Flame, Lightbulb, Plug, Speaker, ToggleRight, Tv, Wifi, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
+import { CLOSET_KINDS } from "@/lib/catalog";
+import { allCategoriesFor, hasTrade, primaryTrade, tradeCategory, tradeClosetKinds, tradeVocab } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
 import { useEditor } from "@/lib/store";
@@ -21,7 +23,14 @@ export default function TakeoffTab() {
   const [clientBusy, setClientBusy] = useState<string | null>(null);
   // Plan reviews go to the client: office work, like proposals.
   const office = can(useRole(), "prices");
+  const trades = useTrades();
   if (!project) return null;
+  // Low voltage keeps its original layout; other trades get their own summary cards and wording.
+  const lowVoltage = primaryTrade(trades).id === "lowvoltage";
+  const lvEnabled = hasTrade(trades, "lowvoltage");
+  const vocab = tradeVocab(trades);
+  const categories = allCategoriesFor(trades);
+  const closetKinds = [...tradeClosetKinds(trades), ...CLOSET_KINDS.filter((k) => !tradeClosetKinds(trades).some((x) => x.id === k.id) && cols0(takeoff).some((b) => b.closets[k.id]))];
   const cols: { name: string; b: TakeoffBucket }[] = [...takeoff.floors.map((f) => ({ name: f.name, b: f })), { name: "Total", b: takeoff.total }];
 
   const cell = (v: number, tent = 0, unit = "") =>
@@ -38,11 +47,17 @@ export default function TakeoffTab() {
   const ledRows = catalog.filter((d) => d.kind === "led" && cols.some((c) => c.b.ledFt[d.id] || c.b.ledTentativeFt[d.id]));
   const wireTypes = Array.from(new Set(cols.flatMap((c) => Object.keys(c.b.wireRuns))));
   const tentativeList = markers.filter((m) => m.tentative);
+  const inCategory = (cat: string) => catalog.filter((d) => d.category === cat && d.kind === "device").map((d) => d.id);
+  const catCount = (cat: string) => countOf(takeoff.total, inCategory(cat));
+  const catTentative = (cat: string) => inCategory(cat).reduce((n, id) => n + (takeoff.total.tentative[id] ?? 0), 0);
+  const circuitCount = new Set(runs.filter((r) => r.kind === "wire" && r.circuit).map((r) => `${r.closetId ?? ""}|${r.circuit?.number?.trim() || r.id}`)).size;
+  const wireFt = Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0));
+  const wireRunCount = Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0);
 
   async function pdf() {
     setBusy("Preparing…");
     try {
-      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", onProgress: setBusy });
+      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", onProgress: setBusy, trades });
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
@@ -53,7 +68,7 @@ export default function TakeoffTab() {
   async function clientPdf() {
     setClientBusy("Preparing…");
     try {
-      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "client", layers: CLIENT_LAYERS, onProgress: setClientBusy, business: st.settings?.business.name });
+      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "client", layers: CLIENT_LAYERS, onProgress: setClientBusy, business: st.settings?.business.name, trades });
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
@@ -83,6 +98,7 @@ export default function TakeoffTab() {
         </div>
         )}
 
+        {lowVoltage ? (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <SummaryCard icon={Camera} label="Cameras" value={countOf(takeoff.total, ["cam-indoor", "cam-outdoor"])} sub={`${takeoff.total.counts["cam-outdoor"] ?? 0} outdoor`} color="text-red-600 bg-red-50" />
           <SummaryCard icon={Wifi} label="Wi-Fi APs" value={takeoff.total.counts["wap"] ?? 0} color="text-blue-600 bg-blue-50" />
@@ -91,6 +107,23 @@ export default function TakeoffTab() {
           <SummaryCard icon={Lightbulb} label="LED" value={`${takeoff.total.ledTotalFt}`} unit="LF" sub={`${takeoff.total.ledZones} zones`} color="text-amber-600 bg-amber-50" />
           <SummaryCard icon={Cable} label="Cable" value={`${Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0))}`} unit="ft" sub={`${Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0)} home runs`} color="text-slate-600 bg-slate-100" />
         </div>
+        ) : primaryTrade(trades).id === "electrical" ? (
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <SummaryCard icon={Plug} label={tradeCategory("power", trades).name} value={catCount("power")} sub={catTentative("power") ? `${catTentative("power")} tentative` : undefined} color="text-orange-700 bg-orange-50" />
+          <SummaryCard icon={ToggleRight} label="Switches" value={catCount("switching")} color="text-indigo-600 bg-indigo-50" />
+          <SummaryCard icon={Lightbulb} label="Fixtures" value={catCount("lighting")} sub={takeoff.total.ledTotalFt ? `+ ${takeoff.total.ledTotalFt} LF linear` : undefined} color="text-amber-600 bg-amber-50" />
+          <SummaryCard icon={Flame} label="Life safety" value={catCount("fire")} color="text-rose-600 bg-rose-50" />
+          <SummaryCard icon={Zap} label="Circuits" value={circuitCount} sub={((n) => `${n} panel${n === 1 ? "" : "s"}`)(closets.filter((c) => c.kind === "panel" || c.kind === "subpanel").length)} color="text-slate-700 bg-slate-100" />
+          <SummaryCard icon={Cable} label="Wire" value={`${wireFt}`} unit="ft" sub={`${wireRunCount} home runs`} color="text-slate-600 bg-slate-100" />
+        </div>
+        ) : (
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {primaryTrade(trades).categories.slice(0, 4).map((c) => (
+            <SummaryCard key={c.id} icon={Zap} label={c.name} value={catCount(c.id)} sub={catTentative(c.id) ? `${catTentative(c.id)} tentative` : undefined} color="text-slate-700 bg-slate-100" />
+          ))}
+          <SummaryCard icon={Cable} label={vocab.wire} value={`${wireFt}`} unit="ft" sub={`${wireRunCount} ${vocab.runs.toLowerCase()}`} color="text-slate-600 bg-slate-100" />
+        </div>
+        )}
 
         <div className="card overflow-x-auto">
           <table className="tbl">
@@ -105,7 +138,7 @@ export default function TakeoffTab() {
               </tr>
             </thead>
             <tbody>
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const rows = deviceRows.filter((d) => d.category === cat.id);
                 if (!rows.length) return null;
                 return [
@@ -126,11 +159,13 @@ export default function TakeoffTab() {
                   )),
                 ];
               })}
+              {(lvEnabled || ledRows.length > 0) && (
               <tr>
                 <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-amber-700">
-                  LED
+                  {lvEnabled ? "LED" : "Linear lighting (LF)"}
                 </td>
               </tr>
+              )}
               {ledRows.map((d) => (
                 <tr key={d.id}>
                   <td>{d.name}</td>
@@ -141,6 +176,8 @@ export default function TakeoffTab() {
                   ))}
                 </tr>
               ))}
+              {lvEnabled && (
+              <>
               <tr>
                 <td>Stair steps</td>
                 {cols.map((c) => (
@@ -165,10 +202,12 @@ export default function TakeoffTab() {
                   </td>
                 ))}
               </tr>
+              </>
+              )}
               {wireTypes.length > 0 && (
                 <tr>
                   <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-blue-700">
-                    Wire (home runs)
+                    {lowVoltage ? "Wire (home runs)" : `${vocab.wire} (${vocab.runs.toLowerCase()})`}
                   </td>
                 </tr>
               )}
@@ -184,15 +223,15 @@ export default function TakeoffTab() {
               ))}
               <tr>
                 <td colSpan={cols.length + 1} className="bg-slate-50 text-xs font-semibold text-green-700">
-                  Infrastructure
+                  {lowVoltage ? "Infrastructure" : "Panels & equipment"}
                 </td>
               </tr>
-              {CLOSET_KINDS.map((k) => (
+              {closetKinds.map((k) => (
                 <tr key={k.id}>
                   <td>{k.name}</td>
                   {cols.map((c) => (
                     <td key={c.name} className={`text-right tabular-nums ${c.name === "Total" ? "bg-slate-50 font-semibold" : ""}`}>
-                      {cell(c.b.closets[k.id])}
+                      {cell(c.b.closets[k.id] ?? 0)}
                     </td>
                   ))}
                 </tr>
@@ -240,6 +279,10 @@ export default function TakeoffTab() {
       </div>
     </div>
   );
+}
+
+function cols0(t: { floors: TakeoffBucket[]; total: TakeoffBucket }): TakeoffBucket[] {
+  return [...t.floors, t.total];
 }
 
 function SummaryCard({ icon: Icon, label, value, unit, sub, color }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string | number; unit?: string; sub?: string; color: string }) {

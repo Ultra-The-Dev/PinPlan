@@ -2,10 +2,12 @@
 import { Camera, Copy, Minus, Plus, Trash, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { CLOSET_KINDS, MOUNTS } from "@/lib/catalog";
+import { closetMeta, MOUNTS, PANEL_KINDS } from "@/lib/catalog";
 import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
-import { cableCounts, cablesPatch, CABLE_TYPES, markerCables, productIdFor, productTitle, runCables, settingCable } from "@/lib/products";
+import { cableCounts, cablesPatch, markerCables, productIdFor, productTitle, runCables, settingCable } from "@/lib/products";
+import { BREAKER_SIZES, deviceSpec, hasTrade, tradeClosetKinds, tradeVocab, tradeWireTypes, wireForBreaker } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import { wireColor } from "@/lib/symbols";
@@ -16,7 +18,7 @@ import { getAuthor, importPhoto } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import { useBlobUrl } from "@/lib/useImage";
 import type { Photo } from "@/lib/types";
-import type { ClosetKind, Mount } from "@/lib/types";
+import type { CircuitInfo, ClosetKind, Mount, Run } from "@/lib/types";
 
 /** Text/number field that commits on blur or Enter (so typing doesn't flood undo history). */
 function Field(props: { label: string; value: string | number | null | undefined; onCommit: (v: string) => void; type?: string; placeholder?: string; inputMode?: "decimal" | "numeric" | "text" }) {
@@ -74,7 +76,9 @@ export default function Inspector() {
 /** The cables pulled to a device or carried by a home run: one row per type with a count, plus "Add cable". */
 function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list: string[]) => void }) {
   const counts = cableCounts(cables);
-  const unused = CABLE_TYPES.filter((w) => !counts.some((c) => c.type === w));
+  // The company's wire / pipe types (low voltage: the original cable list).
+  const trades = useTrades();
+  const unused = tradeWireTypes(trades).filter((w) => !counts.some((c) => c.type === w));
   return (
     <div>
       <label className="label">Cables</label>
@@ -126,6 +130,9 @@ function BulkInspector() {
   const allTentative = ms.every((m) => m.tentative);
   const sheetName = (sid: string) => sheets.find((s) => s.id === sid)?.name ?? "";
   const ids = ms.map((m) => m.id);
+  const trades = useTrades();
+  const electrical = hasTrade(trades, "electrical");
+  const [circuit, setCircuit] = useState("");
   return (
     <div>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur">
@@ -173,10 +180,10 @@ function BulkInspector() {
         <CablesEditor cables={sameCables ? markerCables(ms[0]) : []} onChange={(list) => updateMarkers(ids, () => cablesPatch(list))} />
         {!sameCables && <p className="-mt-2 text-xs text-slate-500">Cables differ between these devices — a change replaces each device’s cables.</p>}
         <div>
-          <label className="label">Home-run closet</label>
+          <label className="label">Home-run {tradeVocab(trades).closet}</label>
           <select className="input" value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
             <option value="" disabled>
-              Set closet for all {ms.length}…
+              Set {tradeVocab(trades).closet} for all {ms.length}…
             </option>
             <option value="__none">— none —</option>
             {closets.map((c) => (
@@ -186,6 +193,18 @@ function BulkInspector() {
             ))}
           </select>
         </div>
+        {electrical && (
+          <div>
+            <label className="label">Circuit #</label>
+            <div className="flex gap-2">
+              <input className="input" inputMode="numeric" placeholder={[...new Set(ms.map((m) => m.circuit ?? ""))].length === 1 ? ms[0].circuit || "e.g. 12" : "Mixed"} value={circuit} onChange={(e) => setCircuit(e.target.value)} />
+              <button className="btn" onClick={() => updateMarkers(ids, () => ({ circuit: circuit.trim() || null }))}>
+                {circuit.trim() ? "Apply" : "Clear"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">Puts these devices on one circuit of their panel (the panel schedule groups them).</p>
+          </div>
+        )}
         <label className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 ${allTentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
           <input type="checkbox" className="accent-amber-600" checked={allTentative} onChange={(e) => updateMarkers(ids, () => ({ tentative: e.target.checked }))} />
           <span className="font-medium">Tentative (?)</span>
@@ -266,7 +285,13 @@ function MarkerInspector({ id }: { id: string }) {
     if (copy) select({ table: "markers", id: copy.id });
   };
   const photo = useSheetImage(m?.photoId);
+  const trades = useTrades();
   if (!m) return null;
+  const vocab = tradeVocab(trades);
+  const myCloset = closets.find((c) => c.id === m.closetId);
+  // Electrical devices on a panel carry a circuit number (the panel schedule groups by it).
+  const showCircuit = hasTrade(trades, "electrical") && (!!m.circuit || (!!myCloset && PANEL_KINDS.includes(myCloset.kind)));
+  const circuitsOnPanel = myCloset ? [...new Set(markers.filter((x) => x.closetId === myCloset.id && x.circuit).map((x) => x.circuit!))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) : [];
   const type = catalog.find((d) => d.id === m.deviceTypeId);
   const run = runs.find((r) => r.kind === "wire" && r.markerId === m.id);
   const sheetName = (sid: string) => sheets.find((s) => s.id === sid)?.name ?? "";
@@ -342,7 +367,7 @@ function MarkerInspector({ id }: { id: string }) {
       </div>
       <CablesEditor cables={markerCables(m)} onChange={(list) => updateMarker(m.id, cablesPatch(list))} />
       <div>
-        <label className="label">Home-run closet</label>
+        <label className="label">Home-run {vocab.closet}</label>
         <select className="input" value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
           <option value="">— none —</option>
           {closets.map((c) => (
@@ -360,6 +385,17 @@ function MarkerInspector({ id }: { id: string }) {
           </div>
         )}
       </div>
+      {showCircuit && (
+        <div>
+          <Field label="Circuit #" value={m.circuit ?? ""} inputMode="numeric" placeholder={circuitsOnPanel.length ? `e.g. ${circuitsOnPanel.join(", ")}` : "e.g. 12"} onCommit={(v) => updateMarker(m.id, { circuit: v.trim() || null })} />
+          <p className="mt-1 text-xs text-slate-500">
+            {(() => {
+              const sp = deviceSpec(type);
+              return `Typical: ${sp.breakerA ? `${sp.breakerA} A` : "—"}${sp.poles >= 2 ? " 2-pole" : ""}, ${sp.volts} V${sp.va ? ` · ~${sp.va} VA` : ""}`;
+            })()}
+          </p>
+        </div>
+      )}
       <div>
         <label className="label">Notes</label>
         <NotesField value={m.notes} onCommit={(v) => updateMarker(m.id, { notes: v })} />
@@ -415,14 +451,16 @@ function NotesField({ value, onCommit }: { value: string; onCommit: (v: string) 
 
 function RunInspector({ id }: { id: string }) {
   const { runs, catalog, markers, closets, sheets, updateRun, deleteEntity } = useEditor();
+  const trades = useTrades();
   const r = runs.find((x) => x.id === id);
   if (!r) return null;
   const sheet = sheets.find((s) => s.id === r.sheetId);
   const len = runLengthFt(r);
   const ledTypes = catalog.filter((d) => d.kind === "led");
-  const title = r.kind === "wire" ? "Wire run" : r.kind === "stair" ? "Stair LED" : "LED run";
   const marker = markers.find((m) => m.id === r.markerId);
   const closet = closets.find((c) => c.id === r.closetId);
+  const isCircuit = r.kind === "wire" && (!!r.circuit || (hasTrade(trades, "electrical") && !!closet && PANEL_KINDS.includes(closet.kind)));
+  const title = r.kind === "wire" ? (isCircuit ? "Circuit" : tradeVocab(trades).run) : r.kind === "stair" ? "Stair LED" : "LED run";
   return (
     <>
       <h3 className="font-semibold">
@@ -467,6 +505,7 @@ function RunInspector({ id }: { id: string }) {
           </p>
         </div>
       )}
+      {isCircuit && <CircuitEditor run={r} onChange={(c) => updateRun(r.id, { circuit: c })} />}
       {r.kind === "wire" && (
         <>
           <CablesEditor
@@ -497,11 +536,61 @@ function RunInspector({ id }: { id: string }) {
   );
 }
 
+/** Electrical circuit details on a run: number, breaker, voltage, poles, what it feeds. */
+function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo) => void }) {
+  const c = run.circuit ?? {};
+  const set = (patch: Partial<CircuitInfo>) => onChange({ ...c, ...patch });
+  return (
+    <div className="space-y-2 rounded-xl bg-orange-50/60 p-3 ring-1 ring-orange-200">
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Circuit #" value={c.number ?? ""} placeholder="e.g. 12 or 3/5" onCommit={(v) => set({ number: v.trim() || null })} />
+        <div>
+          <label className="label">Breaker</label>
+          <select className="input" value={c.breakerA ?? ""} onChange={(e) => set({ breakerA: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">—</option>
+            {BREAKER_SIZES.map((a) => (
+              <option key={a} value={a}>
+                {a} A
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Voltage</label>
+          <select className="input" value={c.volts ?? 120} onChange={(e) => { const v = Number(e.target.value); set({ volts: v, poles: v >= 208 ? Math.max(2, c.poles ?? 2) : 1 }); }}>
+            {[120, 240, 208, 277].map((v) => (
+              <option key={v} value={v}>
+                {v} V
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Poles</label>
+          <select className="input" value={c.poles ?? 1} onChange={(e) => set({ poles: Number(e.target.value) })}>
+            {[1, 2, 3].map((p) => (
+              <option key={p} value={p}>
+                {p}-pole
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <Field label="Feeds" value={c.description ?? ""} placeholder="e.g. Kitchen counter receptacles" onCommit={(v) => set({ description: v.trim() || null })} />
+      {c.breakerA ? <p className="text-xs text-slate-500">Usual wire for {c.breakerA} A: {wireForBreaker(c.breakerA, c.volts ?? 120)}</p> : null}
+    </div>
+  );
+}
+
 function ClosetInspector({ id }: { id: string }) {
   const { closets, markers, updateCloset, deleteEntity } = useEditor();
+  const trades = useTrades();
   const c = closets.find((x) => x.id === id);
   if (!c) return null;
   const n = markers.filter((m) => m.closetId === c.id).length;
+  // This company's kinds, plus the closet's own kind if it's from another trade.
+  const kinds = tradeClosetKinds(trades);
+  if (!kinds.some((k) => k.id === c.kind)) kinds.push(closetMeta(c.kind));
   return (
     <>
       <h3 className="font-semibold">{c.name}</h3>
@@ -509,7 +598,7 @@ function ClosetInspector({ id }: { id: string }) {
       <div>
         <label className="label">Kind</label>
         <select className="input" value={c.kind} onChange={(e) => updateCloset(c.id, { kind: e.target.value as ClosetKind })}>
-          {CLOSET_KINDS.map((k) => (
+          {kinds.map((k) => (
             <option key={k.id} value={k.id}>
               {k.name}
             </option>

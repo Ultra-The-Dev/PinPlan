@@ -7,6 +7,8 @@ import { db, getSettings, saveSettings } from "./db";
 import { onboardingDone, onboardingProgress, type OnboardingStepId } from "./onboardingLogic";
 import { getSupabase } from "./supabase";
 import { createTeam, useTeam } from "./team";
+import type { TradeId } from "./types";
+import { chooseTrades } from "./useTrades";
 
 const DEMO_KEY = "pinplan.demo";
 const PENDING_COMPANY_KEY = "pinplan.pendingCompany";
@@ -41,6 +43,8 @@ export interface PendingCompany {
   company: string;
   name: string;
   email: string;
+  /** Trades picked at sign-up (applied once the company is made). */
+  trades?: TradeId[];
 }
 export const rememberPendingCompany = (p: PendingCompany) => write(PENDING_COMPANY_KEY, { ...p, email: p.email.trim().toLowerCase() });
 export const pendingCompany = () => read<PendingCompany>(PENDING_COMPANY_KEY);
@@ -71,6 +75,7 @@ export async function finishPendingCompany(email: string | null): Promise<string
   }
   try {
     await createTeam(p.company, p.name);
+    if (p.trades?.length) await chooseTrades(p.trades).catch(() => undefined);
     clearPendingCompany();
     sendWelcomeEmail(p.company, p.name);
     write(ONBOARDING_KEY, { ...readOnboarding(), started: true });
