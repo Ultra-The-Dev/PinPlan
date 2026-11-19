@@ -1,4 +1,6 @@
 // Tasks pinned on the plan (src/lib/tasks.ts). The iPad app runs the same fixtures in PinPlanCore TaskTests.swift.
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { TABLES, toLocal, toRemote } from "@/lib/syncMap";
 import {
@@ -328,5 +330,25 @@ describe("sync mapping for tasks", () => {
   it("fills the required columns for a bare row", () => {
     const remote = toRemote("tasks", { id: "t", projectId: "p" });
     expect(remote).toMatchObject({ status: "open", title: "", number: 0, deleted: false });
+  });
+});
+
+describe("tasks migration", () => {
+  const sql = readFileSync(path.resolve(__dirname, "../supabase/migrations/20261123100100_plan_tasks.sql"), "utf8");
+  const billing = readFileSync(path.resolve(__dirname, "../supabase/migrations/20261121000000_billing.sql"), "utf8");
+  it("keeps tasks to the job's team, with soft deletes only", () => {
+    expect(sql).toMatch(/enable row level security/);
+    for (const op of ["select", "insert", "update"]) expect(sql).toMatch(new RegExp(`for ${op} .*is_project_member\\(project_id\\)`));
+    expect(sql).not.toMatch(/for delete/);
+  });
+  it("stamps synced_at and honours the billing read-only lock", () => {
+    expect(sql).toMatch(/tasks_synced_at before insert or update on public\.tasks .*set_synced_at/);
+    expect(sql).toMatch(/tasks_write_guard before insert or update on public\.tasks .*job_write_guard/);
+    expect(billing).toMatch(/'tasks'\]/);
+  });
+  it("doesn't let a technician set or clear Verified (and doesn't stall their sync either)", () => {
+    expect(sql).toMatch(/tasks_verify_guard before insert or update on public\.tasks/);
+    expect(sql).toMatch(/if not public\.is_tech\(\) then\s+return new;/);
+    expect(sql).not.toMatch(/raise exception/);
   });
 });

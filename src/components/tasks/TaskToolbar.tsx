@@ -12,7 +12,7 @@ import type { PlanTask } from "@/lib/types";
 import type { PlanOverlayCtx } from "../editor/overlays/registry";
 import TaskDetail from "./TaskDetail";
 import TaskQuickCreate from "./TaskQuickCreate";
-import { Chip, DueText, TaskBadge, useTaskOptions } from "./TaskUi";
+import { Chip, DueText, Portal, TaskBadge, useTaskOptions } from "./TaskUi";
 import { useProjectTasks, useTasks } from "./taskStore";
 
 export default function TaskToolbar({ sheet, projectId }: PlanOverlayCtx) {
@@ -78,13 +78,16 @@ export default function TaskToolbar({ sheet, projectId }: PlanOverlayCtx) {
       </button>
 
       {drop && (
-        <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 py-1.5 pr-1.5 pl-4 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-          {drop.kind === "new" ? "Tap the plan to drop a task" : drop.kind === "duplicate" ? `Tap where the copy of #${drop.source.number} goes` : "Tap the new spot for the task"}
-          <button className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" onClick={() => arm(null)} aria-label="Cancel">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        // Centred on the screen above the bottom buttons (this strip is a narrow column, so it can't centre the hint itself).
+        <Portal>
+          <div role="status" className="fixed bottom-32 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 py-1.5 pr-1.5 pl-4 text-[13px] text-white shadow-pop backdrop-blur">
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
+            <span className="min-w-0 truncate">{drop.kind === "new" ? "Tap the plan to drop a task" : drop.kind === "duplicate" ? `Tap where the copy of #${drop.source.number} goes` : "Tap the new spot for the task"}</span>
+            <button className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/15 hover:bg-white/25" onClick={() => arm(null)} aria-label="Cancel dropping a task">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </Portal>
       )}
 
       {panel === "filter" && (

@@ -141,8 +141,18 @@ struct TaskListView: View {
         let ids = picked
         let role = model.taskRole
         return HStack(spacing: 10) {
-            Text("\(ids.count) selected").font(.subheadline.weight(.semibold))
-            Spacer()
+            Text("\(ids.count) selected").font(.subheadline.weight(.semibold)).fixedSize()
+            Spacer(minLength: 4)
+            // Scrolls sideways on a phone, where the six actions don't fit next to the count.
+            ScrollView(.horizontal, showsIndicators: false) { bulkActions(ids, role: role) }
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal).padding(.vertical, 12)
+        .background(.bar)
+    }
+
+    private func bulkActions(_ ids: Set<String>, role: TeamRole?) -> some View {
+        HStack(spacing: 14) {
             Menu("Status") {
                 ForEach(TaskLogic.statuses, id: \.id) { s in
                     Button(s.label) {
@@ -170,15 +180,16 @@ struct TaskListView: View {
                 ForEach(model.taskCategories, id: \.self) { c in Button(c) { model.changeTasks(ids) { $0.category = c } } }
                 Button("None") { model.changeTasks(ids) { $0.category = nil } }
             } label: { Image(systemName: "tag") }
+            .accessibilityLabel("Set category")
             Button(role: .destructive) {
                 let me = model.taskAuthor
                 let ok = Set(model.bundle.liveTasks.filter { ids.contains($0.id) && TaskLogic.canDelete(role, task: $0, me: me) }.map(\.id))
                 model.removeRows(ok, in: \.tasks)
                 picked = []
             } label: { Image(systemName: "trash") }
+            .accessibilityLabel("Delete selected tasks")
         }
-        .padding(.horizontal).padding(.vertical, 12)
-        .background(.bar)
+        .padding(.vertical, 4)
     }
 
     /// Open the plan on the task's sheet with it selected (placing it first when it has no spot).

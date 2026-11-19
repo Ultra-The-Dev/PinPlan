@@ -482,7 +482,18 @@ export default function TaskList() {
 
       {quick && <TaskQuickCreate projectId={project.id} draft={quick} onClose={() => setQuick(null)} />}
       {detailId && (
-        <TaskDetail taskId={detailId} onClose={() => setDetailId(null)} onPlace={(t) => showOnPlan(t, false)} onDuplicate={(t) => void duplicate(t)} placeLabel="Show on plan" />
+        <TaskDetail
+          taskId={detailId}
+          onClose={() => {
+            setDetailId(null);
+            // Opened from a link (My Tasks): don't open it again on reload.
+            if (params.has("task")) {
+              const q = new URLSearchParams(params.toString());
+              q.delete("task");
+              router.replace(`/project?${q.toString()}`, { scroll: false });
+            }
+          }}
+onPlace={(t) => showOnPlan(t, false)} onDuplicate={(t) => void duplicate(t)} placeLabel="Show on plan" />
       )}
     </div>
   );

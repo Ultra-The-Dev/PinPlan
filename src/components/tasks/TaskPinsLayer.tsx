@@ -1,7 +1,8 @@
 "use client";
 // Task pins on the plan (a plan overlay, see editor/overlays/registry.ts): a teardrop in the status colour with the
 // task number. Tap to open the task; drag a selected pin to move it (logged in its history).
-import { useMemo } from "react";
+import type Konva from "konva";
+import { useEffect, useMemo, useRef } from "react";
 import { Circle, Group, Shape, Text } from "react-konva";
 import { getAuthor } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
@@ -28,10 +29,22 @@ export default function TaskPinsLayer({ sheet, projectId, scale }: PlanOverlayCt
       // Matching pins on top of greyed ones; the selected pin on top of everything.
       .sort((a, b) => Number(a.match) - Number(b.match) || Number(a.t.id === selectedId) - Number(b.t.id === selectedId) || a.t.number - b.t.number);
   }, [tasks, sheet.id, filter, greyOthers, today, selectedId]);
-  if (!showPins) return null;
+  // A tap on the empty plan drops the pin selection, so a later drag pans the plan instead of moving the pin.
+  const groupRef = useRef<Konva.Group>(null);
+  useEffect(() => {
+    const stage = groupRef.current?.getStage();
+    if (!stage) return;
+    const onTap = (e: Konva.KonvaEventObject<Event>) => {
+      if ((e.target === stage || e.target.name() === "plan-image") && useTasks.getState().selectedId) useTasks.getState().set({ selectedId: null });
+    };
+    stage.on("click.taskpins tap.taskpins", onTap);
+    return () => {
+      stage.off("click.taskpins tap.taskpins");
+    };
+  }, []);
   const inv = 1 / scale;
   return (
-    <Group>
+    <Group ref={groupRef} visible={showPins} listening={showPins}>
       {pins.map(({ t, match }) => (
         <TaskPin key={t.id} task={t} W={sheet.width} H={sheet.height} inv={inv} grey={!match} selected={t.id === selectedId} />
       ))}

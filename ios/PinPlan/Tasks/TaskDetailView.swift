@@ -91,7 +91,8 @@ private struct TaskDetailForm: View {
             if !t.isEmpty { x.title = t }
             x.description = d.isEmpty ? nil : d
             x.room = r.isEmpty ? nil : r
-            x.tags = tagList
+            // No tags typed on a task that never had any: leave it nil, or every close would save the task again.
+            if tagList != (x.tags ?? []) { x.tags = tagList }
         }
     }
 

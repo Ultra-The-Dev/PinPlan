@@ -50,6 +50,35 @@ create policy tasks_select on public.tasks for select using (public.is_project_m
 create policy tasks_insert on public.tasks for insert with check (public.is_project_member(project_id));
 create policy tasks_update on public.tasks for update using (public.is_project_member(project_id)) with check (public.is_project_member(project_id));
 
+-- Only the office verifies. A technician's write can't set or clear Verified: the old values are kept (no error, so a
+-- device's sync queue never stalls on it). The apps already hide the option from technicians.
+create or replace function public.tasks_verify_guard() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if not public.is_tech() then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    if new.status = 'verified' then
+      new.status := 'done';
+    end if;
+    new.verified_by := null;
+    new.verified_at := null;
+  elsif (new.status = 'verified') <> (old.status = 'verified') then
+    new.status := old.status;
+    new.verified_by := old.verified_by;
+    new.verified_at := old.verified_at;
+    new.closed_at := old.closed_at;
+  else
+    new.verified_by := old.verified_by;
+    new.verified_at := old.verified_at;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists tasks_verify_guard on public.tasks;
+create trigger tasks_verify_guard before insert or update on public.tasks for each row execute function public.tasks_verify_guard();
+
 -- Read-only when the company's subscription has lapsed (job_write_guard, 20261121000000_billing.sql).
 drop trigger if exists tasks_write_guard on public.tasks;
 create trigger tasks_write_guard before insert or update on public.tasks for each row execute function public.job_write_guard();

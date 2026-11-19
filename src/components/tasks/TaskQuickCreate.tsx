@@ -78,9 +78,18 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
 
   return (
     <Portal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        // Keep keys away from the plan's shortcuts behind; Escape closes.
+        e.stopPropagation();
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <form
         role="dialog"
+        aria-modal="true"
         aria-label="New task"
         className="card animate-in w-full max-w-lg space-y-4 rounded-b-none p-4 shadow-pop sm:rounded-b-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}

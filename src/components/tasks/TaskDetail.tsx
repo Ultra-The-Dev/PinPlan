@@ -2,7 +2,7 @@
 // One task, everything editable in place: status (two-step close-out: tech → Completed, office → Verified), priority,
 // category, assignee, dates, room, tags, checklist, photos, comments and the history. Changes save as you go.
 import { Camera, Check, Copy, MapPin, MessageSquare, Plus, Send, Trash2, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { newId, nowIso } from "@/lib/db";
 import { roomOptions } from "@/lib/fieldDocs";
 import { useEditor } from "@/lib/store";
@@ -45,6 +45,11 @@ function TaskDetailBody({ task, tasks, onClose, onDuplicate, onPlace, placeLabel
   const [viewer, setViewer] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Focus the sheet so keys (Escape, Delete…) go to it rather than the plan behind.
+  useEffect(() => {
+    if (!dialogRef.current?.contains(document.activeElement)) dialogRef.current?.focus({ preventScroll: true });
+  }, []);
   const rooms = useMemo(() => roomOptions(photos, markers), [photos, markers]);
   const taskPhotos = useMemo(() => (task.photoIds ?? []).map((id) => photos.find((p) => p.id === id && !p.deleted)).filter((p): p is Photo => !!p), [task.photoIds, photos]);
   const sheet = sheets.find((s) => s.id === task.sheetId);
@@ -90,11 +95,27 @@ function TaskDetailBody({ task, tasks, onClose, onDuplicate, onPlace, placeLabel
 
   return (
     <Portal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        // The photo viewer handles its own keys. Otherwise keep keys away from the plan's shortcuts (Delete would remove
+        // the selected device), and Escape closes.
+        if (viewer) return;
+        e.stopPropagation();
+        if (e.key === "Escape") {
+          if (confirmDelete) setConfirmDelete(false);
+          else onClose();
+        }
+      }}
+    >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
+        aria-modal="true"
         aria-label={`Task #${task.number}`}
-        className="card animate-in flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-b-none shadow-pop sm:rounded-b-xl"
+        className="card animate-in flex max-h-[94dvh] w-full max-w-xl flex-col overflow-hidden rounded-b-none shadow-pop outline-none sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -369,6 +390,8 @@ function TaskDetailBody({ task, tasks, onClose, onDuplicate, onPlace, placeLabel
         </div>
       </div>
       {confirmDelete && (
+        // Its backdrop click cancels the delete only, not the task sheet behind it.
+        <div onClick={(e) => e.stopPropagation()}>
         <Dialog
           title={`Delete task #${task.number}?`}
           description="It disappears from the plan and the task list for everyone on the job."
@@ -382,6 +405,7 @@ function TaskDetailBody({ task, tasks, onClose, onDuplicate, onPlace, placeLabel
             toast(`Deleted #${task.number}`);
           }}
         />
+        </div>
       )}
       {viewer && (
         <div onClick={(e) => e.stopPropagation()}>
