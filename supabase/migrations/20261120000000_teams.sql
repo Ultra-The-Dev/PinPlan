@@ -101,7 +101,8 @@ create or replace function public.team_members_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if current_setting('pinplan.team_admin', true) = 'on' then return new; end if;
-  if new.role is distinct from old.role or new.team_id is distinct from old.team_id or new.user_id is distinct from old.user_id then
+  if new.role is distinct from old.role or new.team_id is distinct from old.team_id or new.user_id is distinct from old.user_id
+     or new.email is distinct from old.email or new.created_at is distinct from old.created_at then
     raise exception 'Use the team settings to change roles' using errcode = '42501';
   end if;
   return new;

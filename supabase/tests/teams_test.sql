@@ -65,6 +65,7 @@ update public.projects set pricing = '{"markup": 0}', notes = 'gate code 1234' w
 select pg_temp.check((select pricing ->> 'markup' from public.projects where id = 'tp1') = '20', 'tech cannot change pricing');
 select pg_temp.check((select notes from public.projects where id = 'tp1') = 'gate code 1234', 'tech can edit job notes');
 select pg_temp.check(pg_temp.fails($$update public.team_members set role = 'admin' where user_id = auth.uid()$$), 'tech cannot promote themselves');
+select pg_temp.check(pg_temp.fails($$update public.team_members set email = 'boss@example.com' where user_id = auth.uid()$$), 'member cannot change their email on the team');
 update public.team_members set name = 'Tommy' where user_id = auth.uid();
 select pg_temp.check((select name from public.team_members where user_id = auth.uid()) = 'Tommy', 'member can rename themselves');
 select pg_temp.check((select count(*) from public.team_invites) = 0, 'tech cannot see invites');
