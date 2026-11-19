@@ -12,13 +12,14 @@ export function usePendingUploads(fileIds: string[]): number {
   const [count, setCount] = useState(0);
   const pending = useSyncStatus((s) => s.pending);
   const syncing = useSyncStatus((s) => s.syncing);
+  const configured = useSyncStatus((s) => s.configured);
   const key = useMemo(() => [...fileIds].sort().join("|"), [fileIds]);
 
   useEffect(() => {
     let alive = true;
     const ids = key ? key.split("|") : [];
     const refresh = async () => {
-      if (!ids.length) return alive && setCount(0);
+      if (!ids.length || !configured) return alive && setCount(0);
       try {
         const items = await db().syncQueue.where("table").equals("images").toArray();
         if (alive) setCount(pendingUploadCount(items, ids));
@@ -27,6 +28,10 @@ export function usePendingUploads(fileIds: string[]): number {
       }
     };
     void refresh();
+    // Without cloud sync nothing ever uploads (and the banner is hidden), so don't poll IndexedDB for nothing.
+    if (!configured) return () => {
+      alive = false;
+    };
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
     }, POLL_MS);
@@ -39,7 +44,7 @@ export function usePendingUploads(fileIds: string[]): number {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [key, pending, syncing]);
+  }, [key, pending, syncing, configured]);
 
   return count;
 }

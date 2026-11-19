@@ -12,9 +12,9 @@ export default function UploadStatus({ fileIds, noun }: { fileIds: string[]; nou
   if (!configured || !authReady || count === 0) return null;
   const what = `${count} ${noun}${count === 1 ? "" : "s"} waiting to upload`;
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800" role="status">
-      <CloudUpload className="h-4 w-4 shrink-0" />
-      <span className="mr-auto">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-800">
+      <CloudUpload className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="mr-auto" role="status">
         {what}
         {!online ? " · offline, will upload when you're back online" : !signedIn ? " · sign in to upload" : error && !syncing ? " · last sync failed" : ""}
       </span>
@@ -24,7 +24,7 @@ export default function UploadStatus({ fileIds, noun }: { fileIds: string[]; nou
         </Link>
       ) : (
         <button className="btn btn-sm" disabled={!online || syncing} title={error ?? undefined} onClick={() => void syncNow()}>
-          <RefreshCw className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing…" : "Sync now"}
+          <RefreshCw className={syncing ? "animate-spin" : ""} aria-hidden /> {syncing ? "Syncing…" : "Sync now"}
         </button>
       )}
     </div>
