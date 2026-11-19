@@ -29,6 +29,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-konva": "^19.3.2",
+    "stripe": "^23.1.0",
     "zustand": "^5.1.0"
   },
   "devDependencies": {
