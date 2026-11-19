@@ -193,6 +193,11 @@ revoke all on function public.team_invite_info(text) from public;
 revoke all on function public.accept_team_invite(text, text) from public;
 revoke all on function public.set_team_member_role(uuid, text) from public;
 revoke all on function public.remove_team_member(uuid) from public;
+-- Supabase grants new functions to anon by default; only the invite lookup is for signed-out visitors.
+revoke execute on function public.create_team(text, text) from anon;
+revoke execute on function public.accept_team_invite(text, text) from anon;
+revoke execute on function public.set_team_member_role(uuid, text) from anon;
+revoke execute on function public.remove_team_member(uuid) from anon;
 grant execute on function public.create_team(text, text) to authenticated;
 grant execute on function public.team_invite_info(text) to anon, authenticated;
 grant execute on function public.accept_team_invite(text, text) to authenticated;
