@@ -204,12 +204,15 @@ export const blocks = {
 
 // ---------------------------------------------------------------- page layout
 
-export function layout(opts: { subject: string; preheader: string; company?: string; blocks: Block[]; footer: string }): EmailContent {
+/** `sender`: client-facing mail, headed by the company's name instead of PinPlan's. */
+export function layout(opts: { subject: string; preheader: string; company?: string; blocks: Block[]; footer: string; sender?: string }): EmailContent {
   const company = line(opts.company, 80);
+  const sender = line(opts.sender, 80);
   const body = opts.blocks.map((b) => b.html).join("");
-  const header =
-    `<span style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.brand}">${esc(PRODUCT_NAME)}</span>` +
-    (company ? `<span class="pp-muted" style="font-family:${FONT};font-size:14px;color:${C.muted}">&nbsp;&nbsp;·&nbsp;&nbsp;${esc(company)}</span>` : "");
+  const header = sender
+    ? `<span class="pp-ink" style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.ink}">${esc(sender)}</span>`
+    : `<span style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.brand}">${esc(PRODUCT_NAME)}</span>` +
+      (company ? `<span class="pp-muted" style="font-family:${FONT};font-size:14px;color:${C.muted}">&nbsp;&nbsp;·&nbsp;&nbsp;${esc(company)}</span>` : "");
   const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -266,7 +269,7 @@ export function layout(opts: { subject: string; preheader: string; company?: str
 </table>
 </body>
 </html>`;
-  const text = [`${PRODUCT_NAME}${company ? ` · ${company}` : ""}`, "", ...opts.blocks.map((b) => b.text).filter(Boolean).flatMap((t) => [t, ""]), "--", opts.footer].join("\n");
+  const text = [sender || `${PRODUCT_NAME}${company ? ` · ${company}` : ""}`, "", ...opts.blocks.map((b) => b.text).filter(Boolean).flatMap((t) => [t, ""]), "--", opts.footer].join("\n");
   return { subject: opts.subject, html, text };
 }
 
@@ -512,5 +515,151 @@ export function paymentFailedEmail(o: PaymentFailedEmail): EmailContent {
       blocks.small("Banks often decline a charge they don't recognise or a card that's expired. Updating the card retries the payment right away."),
     ],
     footer: `You're receiving this because you own ${company ? `${company}'s` : "a"} ${PRODUCT_NAME} account.`,
+  });
+}
+
+// ---------------------------------------------------------------- quotes / invoices to the client
+
+export interface DocumentEmail {
+  /** document: "here is your quote/invoice"; reminder: payment reminder; receipt: thanks for your payment. */
+  kind: "document" | "reminder" | "receipt";
+  docKind: "quote" | "invoice" | "credit_note";
+  /** "Estimate", "Invoice"… */
+  title: string;
+  number?: string | null;
+  companyName?: string | null;
+  clientName?: string | null;
+  total: number;
+  balanceDue?: number | null;
+  amountPaid?: number | null;
+  currency?: string;
+  dueDate?: string | null;
+  validUntil?: string | null;
+  overdue?: boolean;
+  /** The client link (/d?t=…): view online, download the PDF, accept or pay. */
+  url: string;
+  /** The company's own pay-online link, already filled in. */
+  payUrl?: string | null;
+  message?: string | null;
+  lastPayment?: { amount: number; date: string; method: string } | null;
+}
+
+export function documentEmail(o: DocumentEmail): EmailContent {
+  const company = line(o.companyName) || "Your contractor";
+  const title = line(o.title, 40) || "Document";
+  const name = [title, line(o.number, 40)].filter(Boolean).join(" ");
+  const cur = o.currency || "USD";
+  const hi = line(o.clientName, 60);
+  const due = fmtDate(o.dueDate);
+  const valid = fmtDate(o.validUntil);
+  const balance = typeof o.balanceDue === "number" ? o.balanceDue : o.total;
+  const out: Block[] = [];
+  let subject: string;
+  let preheader: string;
+  if (o.kind === "receipt") {
+    subject = `Payment received — ${name}`;
+    preheader = `Thank you for your payment${o.lastPayment ? ` of ${money(o.lastPayment.amount, cur)}` : ""}.`;
+    out.push(blocks.heading("Thank you for your payment"));
+    if (hi) out.push(blocks.para(`Hi ${hi},`));
+    out.push(blocks.para(`${company} received your payment for `, { b: name }, "."));
+    out.push(
+      blocks.details([
+        ["Payment", o.lastPayment ? money(o.lastPayment.amount, cur) : ""],
+        ["Date", fmtDate(o.lastPayment?.date)],
+        ["Method", line(o.lastPayment?.method, 40)],
+        ["Invoice total", money(o.total, cur)],
+        ["Paid so far", typeof o.amountPaid === "number" ? money(o.amountPaid, cur) : ""],
+        ["Balance", money(Math.max(0, balance), cur)],
+      ]),
+    );
+  } else if (o.kind === "reminder") {
+    subject = o.overdue ? `Past due: ${name} from ${company}` : `Reminder: ${name} from ${company}${due ? ` is due ${due}` : ""}`;
+    preheader = `${money(balance, cur)} ${o.overdue ? "is past due" : `due${due ? ` ${due}` : ""}`}.`;
+    out.push(blocks.heading(o.overdue ? "Your invoice is past due" : "A friendly reminder"));
+    if (hi) out.push(blocks.para(`Hi ${hi},`));
+    out.push(blocks.para("This is a reminder that ", { b: name }, ` from ${company} has `, { b: money(balance, cur) }, o.overdue ? ` outstanding${due ? ` (due ${due})` : ""}.` : ` due${due ? ` on ${due}` : ""}.`));
+    out.push(
+      blocks.details([
+        ["Invoice", name],
+        ["Balance due", money(balance, cur)],
+        ["Due date", due],
+      ]),
+    );
+  } else {
+    subject = `${name} from ${company}`;
+    preheader = o.docKind === "quote" ? `${money(o.total, cur)} — review and accept online.` : o.docKind === "invoice" ? `${money(balance, cur)} due${due ? ` ${due}` : ""}.` : `Credit of ${money(o.total, cur)}.`;
+    out.push(blocks.heading(o.docKind === "quote" ? `Your ${title.toLowerCase()} from ${company}` : `${name} from ${company}`));
+    if (hi) out.push(blocks.para(`Hi ${hi},`));
+    out.push(
+      blocks.para(
+        o.docKind === "quote"
+          ? `Here is your ${title.toLowerCase()}. You can review it online, download a PDF and accept it with your signature.`
+          : o.docKind === "invoice"
+            ? `Here is your invoice. You can view it online and download a PDF${o.payUrl ? ", or pay online" : ""}.`
+            : "Here is your credit note.",
+      ),
+    );
+    const rows: [string, string][] =
+      o.docKind === "quote"
+        ? [
+            ["Total", money(o.total, cur)],
+            ["Valid until", valid],
+          ]
+        : o.docKind === "invoice"
+          ? [
+              ["Total", money(o.total, cur)],
+              ["Balance due", money(balance, cur)],
+              ["Due date", due],
+            ]
+          : [["Credit", money(o.total, cur)]];
+    out.push(blocks.details(rows));
+  }
+  if (o.message?.trim()) out.push(blocks.quote(`Message from ${company}`, o.message.trim().slice(0, 4000)));
+  out.push(blocks.button(o.docKind === "quote" && o.kind === "document" ? "Review & accept" : `View ${title.toLowerCase()}`, o.url));
+  if (o.docKind === "invoice" && o.kind !== "receipt" && o.payUrl && balance > 0) out.push(blocks.button(`Pay ${money(balance, cur)} online`, o.payUrl));
+  out.push(blocks.small("Questions? Just reply to this email."));
+  return layout({ subject, preheader, sender: company, blocks: out, footer: `Sent on behalf of ${company} with ${PRODUCT_NAME}.` });
+}
+
+export interface DocumentResponseEmail {
+  outcome: "accepted" | "declined";
+  title: string;
+  number?: string | null;
+  signerName?: string | null;
+  clientName?: string | null;
+  jobName: string;
+  total?: number | null;
+  currency?: string;
+  note?: string | null;
+  respondedAt?: string | null;
+  url: string;
+  companyName?: string | null;
+}
+
+/** To the company: a client accepted or declined a quote from its link. */
+export function documentResponseEmail(o: DocumentResponseEmail): EmailContent {
+  const job = line(o.jobName) || "your job";
+  const name = [line(o.title, 40) || "Quote", line(o.number, 40)].filter(Boolean).join(" ");
+  const who = line(o.signerName, 60) || line(o.clientName, 60) || "Your client";
+  const accepted = o.outcome === "accepted";
+  const out: Block[] = [
+    blocks.heading(accepted ? `${name} accepted` : `${name} declined`),
+    blocks.para({ b: who }, accepted ? " accepted and signed " : " declined ", { b: name }, " for ", { b: job }, "."),
+    blocks.details([
+      ["Client", line(o.clientName, 80)],
+      ["Job", job],
+      [accepted ? "Signed by" : "Answered by", line(o.signerName, 80)],
+      ["Total", typeof o.total === "number" ? money(o.total, o.currency || "USD") : ""],
+      [accepted ? "Accepted on" : "Answered on", fmtDate(o.respondedAt)],
+    ]),
+  ];
+  if (o.note?.trim()) out.push(blocks.quote("Note from the client", o.note.trim().slice(0, 4000)));
+  out.push(blocks.para(accepted ? "Next: create the deposit invoice from the quote and schedule the work." : "Open the job to see their answer."), blocks.button("Open in PinPlan", o.url));
+  return layout({
+    subject: `${accepted ? "Accepted" : "Declined"}: ${name} — ${job}`,
+    preheader: `${who} ${accepted ? "accepted" : "declined"} ${name}.`,
+    company: line(o.companyName),
+    blocks: out,
+    footer: `${PRODUCT_NAME} sent this because a client answered a link from ${line(o.companyName) || "your company"}.`,
   });
 }

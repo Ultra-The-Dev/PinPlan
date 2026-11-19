@@ -1,5 +1,5 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, CreditCard, HardHat, ListChecks, Receipt, Save, Users } from "lucide-react";
+import { Building, Cable, Calculator, CloudOff, CreditCard, HardHat, ListChecks, Receipt, ReceiptText, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { getSettings, saveSettings } from "@/lib/db";
@@ -13,6 +13,7 @@ import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
 import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
+import DocSettingsPanel from "./documents/DocSettingsPanel";
 import TeamPanel from "./TeamPanel";
 import TradeSettings from "./TradeSettings";
 
@@ -45,6 +46,7 @@ export default function SettingsForm() {
     { id: "business", label: "Business", icon: Building, office: true },
     { id: "pricing", label: "Pricing", icon: Calculator, office: true },
     { id: "wire", label: "Wire", icon: Cable },
+    { id: "invoicing", label: "Invoicing", icon: ReceiptText, office: true },
     { id: "checklists", label: "Checklists", icon: ListChecks },
     { id: "billdu", label: "Billdu", icon: Receipt, office: true },
     { id: "team", label: "Team", icon: Users },
@@ -236,6 +238,16 @@ export default function SettingsForm() {
             </button>
           </div>
         </form>
+
+        {office && (
+          <section id="invoicing" className="card scroll-mt-6 space-y-4 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Invoicing</h2>
+              <p className="text-sm text-slate-500">Quotes, invoices and credit notes made in PinPlan: titles, numbering, terms, taxes and how clients pay. Shared by everyone in the office.</p>
+            </div>
+            <DocSettingsPanel />
+          </section>
+        )}
 
         <section id="checklists" className="card scroll-mt-6 space-y-4 p-6">
           <div>

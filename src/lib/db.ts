@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
 import { DEFAULT_SETTINGS, FOUNDER_BUSINESS, NEUTRAL_BUSINESS, seedCatalog } from "./catalog";
+import { normalizeDocSettings } from "./documents";
 import { normalizeTemplates } from "./fieldDocs";
 import type {
   AppSettings,
@@ -8,6 +9,8 @@ import type {
   ChecklistTemplate,
   Closet,
   DeviceType,
+  DocPayment,
+  DocumentSettings,
   EstimateLine,
   Checklist,
   JobDocument,
@@ -18,6 +21,7 @@ import type {
   Product,
   Project,
   Run,
+  SalesDoc,
   Sheet,
   StoredImage,
   Suggestion,
@@ -37,7 +41,9 @@ export type SyncTable =
   | "photoComments"
   | "checklists"
   | "jobLogs"
-  | "documents";
+  | "documents"
+  | "salesDocs"
+  | "salesPayments";
 
 export interface SyncItem {
   seq?: number;
@@ -60,6 +66,9 @@ class PinPlanDB extends Dexie {
   checklists!: EntityTable<Checklist, "id">;
   jobLogs!: EntityTable<JobLog, "id">;
   documents!: EntityTable<JobDocument, "id">;
+  /** Quotes, invoices and credit notes (not to be confused with `documents`, the job's attached files). */
+  salesDocs!: EntityTable<SalesDoc, "id">;
+  salesPayments!: EntityTable<DocPayment, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
@@ -89,6 +98,11 @@ class PinPlanDB extends Dexie {
       checklists: "id, projectId",
       jobLogs: "id, projectId, date",
       documents: "id, projectId",
+    });
+    // v4: quotes / invoices / credit notes and their payments.
+    this.version(4).stores({
+      salesDocs: "id, projectId, kind, status, updatedAt",
+      salesPayments: "id, projectId, documentId",
     });
   }
 }
@@ -181,6 +195,7 @@ export async function getSettings(): Promise<AppSettings> {
       wirePrices: { ...DEFAULT_SETTINGS.pricing.wirePrices, ...s.pricing?.wirePrices },
     },
     checklistTemplates: normalizeTemplates(s.checklistTemplates),
+    documents: normalizeDocSettings(s.documents, s.pricing?.currency),
     // Older installs have no marker: keep them on the founder's defaults when they're saved again.
     brandDefaults: s.brandDefaults ?? "founder",
   };
@@ -194,8 +209,18 @@ export async function saveSettings(s: AppSettings) {
   const d = db();
   await d.transaction("rw", d.settings, async () => {
     const stored = await d.settings.get("app");
-    // Trades are written only by saveTrades (useTrades.ts): an older settings form can't undo a trade change.
-    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, updatedAt: nowIso() });
+    // Trades are written only by saveTrades (useTrades.ts); invoicing settings: they're only changed by saveDocumentSettings (and sync).
+    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, documents: stored?.documents ?? s.documents, updatedAt: nowIso() });
+  });
+}
+
+/** Store this device's copy of the company invoicing settings (see docSettings.ts). */
+export async function saveDocumentSettings(doc: DocumentSettings): Promise<void> {
+  await ensureSeeded();
+  const d = db();
+  await d.transaction("rw", d.settings, async () => {
+    const s = (await d.settings.get("app")) ?? DEFAULT_SETTINGS;
+    await d.settings.put({ ...s, documents: doc, updatedAt: nowIso() });
   });
 }
 
@@ -275,4 +300,19 @@ export async function getProducts(): Promise<Product[]> {
 export async function getCatalog(): Promise<DeviceType[]> {
   await ensureSeeded();
   return (await db().deviceTypes.toArray()).sort((a, b) => a.sort - b.sort);
+}
+
+/** A job's quotes, invoices and credit notes (live rows), newest first, and their payments. */
+export async function getProjectDocs(projectId: string): Promise<{ docs: SalesDoc[]; payments: DocPayment[] }> {
+  const [docs, payments] = await Promise.all([
+    db().salesDocs.where("projectId").equals(projectId).toArray(),
+    db().salesPayments.where("projectId").equals(projectId).toArray(),
+  ]);
+  return { docs: docs.filter((d) => !d.deleted).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), payments: payments.filter((p) => !p.deleted) };
+}
+
+/** Every quote, invoice and credit note on this device (all jobs), and their payments. */
+export async function getAllDocs(): Promise<{ docs: SalesDoc[]; payments: DocPayment[] }> {
+  const [docs, payments] = await Promise.all([db().salesDocs.toArray(), db().salesPayments.toArray()]);
+  return { docs: docs.filter((d) => !d.deleted).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), payments: payments.filter((p) => !p.deleted) };
 }

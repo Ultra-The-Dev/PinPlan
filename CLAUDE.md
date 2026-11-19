@@ -23,5 +23,7 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   (`public/sw.js`). Konva components are loaded with `dynamic(..., { ssr: false })`.
 - Server-only code: `src/app/api/billdu/*` (HMAC-SHA512 signed requests, creds encrypted at rest by `src/lib/server/secrets.ts`)
   and `src/app/api/scan` (Claude vision). Secrets never go to the browser.
+- Quotes / invoices / credit notes (Dexie `salesDocs`, `salesPayments`; `src/lib/documents.ts`, `src/components/documents/`):
+  data model, numbering (given by the database when issued) and RPCs in `docs/documents.md`. Office only, like the estimate.
 - Tests: `tests/sampleJob.test.ts` encodes the sample job hand counts from PLAN.md.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

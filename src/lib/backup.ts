@@ -3,7 +3,7 @@
 // Useful when running local-only (no Supabase) or to move a job between devices.
 import { db, loadProject, nowIso, putMany, type SyncTable } from "./db";
 import { downloadBlob, slug } from "./download";
-import type { DeviceType, Product, StoredImage } from "./types";
+import type { DeviceType, DocPayment, Product, SalesDoc, StoredImage } from "./types";
 
 const FORMAT = "pinplan-backup";
 
@@ -70,7 +70,13 @@ async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof l
   // Products the job uses (job choices + per-device picks), so prices survive the move.
   const used = new Set<string>([...Object.values(bundle.project.productChoices ?? {}), ...bundle.markers.map((m) => m.productId).filter((x): x is string => !!x)]);
   const products = (await db().products.toArray()).filter((p) => !p.deleted && used.has(p.id));
-  return { project: { ...bundle, images }, products };
+  // Quotes, invoices, credit notes and payments go with the job.
+  const pid = bundle.project.id;
+  const [salesDocs, salesPayments] = await Promise.all([
+    db().salesDocs.where("projectId").equals(pid).filter((d) => !d.deleted).toArray(),
+    db().salesPayments.where("projectId").equals(pid).filter((p) => !p.deleted).toArray(),
+  ]);
+  return { project: { ...bundle, images, salesDocs, salesPayments }, products };
 }
 
 /** Restore projects from a backup file. Existing rows with the same ids are replaced. Returns the number of projects. */
@@ -79,7 +85,7 @@ export async function importBackup(file: File): Promise<number> {
     format?: string;
     catalog?: DeviceType[];
     products?: Product[];
-    projects?: (Awaited<ReturnType<typeof loadProject>> & { images: ImageRecord[] })[];
+    projects?: (Awaited<ReturnType<typeof loadProject>> & { images: ImageRecord[]; salesDocs?: SalesDoc[]; salesPayments?: DocPayment[] })[];
   };
   try {
     data = JSON.parse(await file.text());
@@ -124,6 +130,8 @@ export async function importBackup(file: File): Promise<number> {
       ["checklists", p.checklists],
       ["jobLogs", p.jobLogs],
       ["documents", p.documents],
+      ["salesDocs", p.salesDocs ?? []],
+      ["salesPayments", p.salesPayments ?? []],
     ];
     for (const [t, rows] of tables) if (rows?.length) await putMany(t, rows);
   }

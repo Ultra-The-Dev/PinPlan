@@ -205,6 +205,61 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, name: "name", mime: "mime", size: "size", fileId: "file_id" },
   },
+  // Quotes / invoices / credit notes and payments (docs/documents.md). The database gives numbers and keeps the
+  // client's answer; whatever the app sends for those is ignored.
+  salesDocs: {
+    remote: "sales_documents",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      kind: "kind",
+      title: "title",
+      number: "number",
+      status: "status",
+      issueDate: "issue_date",
+      dueDate: "due_date",
+      validUntil: "valid_until",
+      termsDays: "terms_days",
+      client: "client",
+      lines: "lines",
+      discount: "discount",
+      taxes: "taxes",
+      fees: "fees",
+      deposit: "deposit",
+      deductions: "deductions",
+      currency: "currency",
+      notes: "notes",
+      terms: "terms",
+      footer: "footer",
+      internalNotes: "internal_notes",
+      options: "options",
+      subtotal: "subtotal",
+      discountTotal: "discount_total",
+      taxTotal: "tax_total",
+      total: "total",
+      amountPaid: "amount_paid",
+      balanceDue: "balance_due",
+      source: "source",
+      convertedFrom: "converted_from",
+      invoiceType: "invoice_type",
+      billedPct: "billed_pct",
+      shareToken: "share_token",
+      shareHash: "share_hash",
+      sentAt: "sent_at",
+      viewedAt: "viewed_at",
+      respondedAt: "responded_at",
+      signerName: "signer_name",
+      signature: "signature",
+      clientNote: "client_note",
+      paidAt: "paid_at",
+      voidedAt: "voided_at",
+    },
+  },
+  salesPayments: {
+    remote: "sales_document_payments",
+    conflict: "id",
+    columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
+  },
 };
 
 
@@ -223,10 +278,14 @@ export const PUSH_ORDER: SyncTable[] = [
   "checklists",
   "jobLogs",
   "documents",
+  "salesDocs",
+  "salesPayments",
 ];
 
-const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt"]);
-const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false };
+const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
+const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
+/** Columns that are NOT NULL in the database: what to send when the row has nothing. */
+const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
 
 /** Local row -> remote row. Unknown keys are dropped; undefined becomes null. */
 export function toRemote(table: SyncTable, row: Record<string, unknown>): Record<string, unknown> {
@@ -238,7 +297,16 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   }
   if (table === "projects" && !Array.isArray(out.billdu_docs)) out.billdu_docs = [];
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
+  if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
+  if (table === "salesPayments" && out.amount == null) out.amount = 0;
   return out;
+}
+
+/** A sales document the server numbered after this device's copy was written (same or older `updatedAt` locally,
+ *  e.g. a device clock that runs ahead): keep the local row but take the number. Null when nothing to merge. */
+export function mergeServerNumber(local: Record<string, unknown> | undefined, remote: Record<string, unknown>): Record<string, unknown> | null {
+  if (!local || local.number || !remote.number || remote.deleted) return null;
+  return { ...local, number: remote.number };
 }
 
 /** Remote row -> local row. Nulls are dropped (optional fields), timestamps normalised to ISO. */
