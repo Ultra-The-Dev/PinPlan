@@ -274,6 +274,7 @@ struct DailyLogsView: View {
     @State private var editing: JobLog?
     @State private var viewer: PhotoViewerItem?
     @State private var exporting: LogExportItem?
+    @State private var weekly = false
 
     var body: some View {
         let logs = model.bundle.liveLogs
@@ -287,6 +288,7 @@ struct DailyLogsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(dayTitle(l.date))\(l.author.map { " · \($0)" } ?? "")").font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     if let t = l.title, !t.isEmpty { Text(t).font(.headline) }
+                    DailyReportBadges(log: l)
                     if !l.body.isEmpty { Text(l.body).font(.subheadline) }
                     if !ps.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -315,6 +317,9 @@ struct DailyLogsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { exporting = LogExportItem(log: nil) } label: { Label("Export PDF", systemImage: "doc.richtext") }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { weekly = true } label: { Label("Weekly hours", systemImage: "calendar.badge.clock") }
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -322,7 +327,8 @@ struct DailyLogsView: View {
                 } label: { Label("New daily log", systemImage: "square.and.pencil") }
             }
         }
-        .sheet(item: $editing) { l in LogEditor(model: model, log: l) }
+        .sheet(item: $editing) { l in DailyReportEditor(model: model, log: l) }
+        .sheet(isPresented: $weekly) { WeeklyHoursView(model: model) }
         .sheet(item: $exporting) { x in DailyLogExportSheet(model: model, single: x.log).presentationDetents([.medium, .large]) }
         .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
     }

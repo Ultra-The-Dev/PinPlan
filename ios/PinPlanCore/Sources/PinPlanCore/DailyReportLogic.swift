@@ -529,3 +529,10 @@ public enum DailyReportLogic {
         return Array(out.prefix(limit))
     }
 }
+
+extension ProjectBundle {
+    /// Signature images of the live daily reports (synced to <project>/<image id> like photos).
+    public var signatureImageIds: [String] {
+        jobLogs.filter { $0.deleted != true }.compactMap { $0.report?.signature?.imageId }.filter { !$0.isEmpty }
+    }
+}

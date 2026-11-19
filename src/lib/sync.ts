@@ -8,7 +8,7 @@ import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, mergeServerNumber, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
-import type { Sheet } from "./types";
+import type { JobLog, Sheet } from "./types";
 import { pullDocSettings } from "./docSettings";
 import { finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
@@ -154,7 +154,10 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   const photo = await db().photos.filter((p) => p.imageId === imageId).first();
   if (photo) return photo.projectId;
   const doc = await db().documents.filter((d) => d.fileId === imageId).first();
-  return doc?.projectId ?? null;
+  if (doc) return doc.projectId;
+  // A daily report's signature.
+  const log = await db().jobLogs.filter((l) => l.report?.signature?.imageId === imageId).first();
+  return log?.projectId ?? null;
 }
 
 /** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
@@ -255,6 +258,9 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
           filesNeeded.push({ id: String(local.imageId), path: `${local.projectId}/${local.imageId}`, width: Number(local.width) || 0, height: Number(local.height) || 0, mime: "image/jpeg" });
         if (table === "documents" && !local.deleted)
           filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream") });
+        // Daily report signatures are stored at <project>/<image id> too.
+        const sig = table === "jobLogs" && !local.deleted ? (local as unknown as JobLog).report?.signature?.imageId : null;
+        if (sig) filesNeeded.push({ id: sig, path: `${local.projectId}/${sig}`, width: 0, height: 0, mime: "image/png" });
       }
       if (writes.length) changedTables.add(table);
       const next = nextPullPage(cur, rows, PAGE);

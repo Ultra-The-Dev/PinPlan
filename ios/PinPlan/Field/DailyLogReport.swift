@@ -86,7 +86,15 @@ struct DailyLogExportSheet: View {
                 let out = await Task.detached(priority: .userInitiated) { PhotoMarkup.render(img, shapes: shapes, maxSide: 1400) }.value
                 items.append(DailyLogPDFBuilder.PhotoItem(image: out, caption: p.caption, meta: meta(p)))
             }
-            entries.append(DailyLogPDFBuilder.Entry(day: DailyLogPDFBuilder.longDay(l.date), title: l.title, author: l.author, body: l.body, photos: items))
+            var entry = DailyLogPDFBuilder.Entry(day: DailyLogPDFBuilder.longDay(l.date), title: l.title, author: l.author, body: l.body, photos: items)
+            // Structured report sections (older free-text logs have none and print as before).
+            let sheets = model.bundle.sheets
+            entry.report = DailyLogReport.sections(for: l, sheetName: { id in sheets.first(where: { $0.id == id && $0.deleted != true })?.name })
+            if let sig = entry.report?.signature {
+                entry.signature = app.store.image(sig.imageId)
+                entry.signedAt = FieldDocs.date(sig.signedAt)?.formatted(date: .abbreviated, time: .shortened) ?? ""
+            }
+            entries.append(entry)
         }
         busy = "Building the PDF…"
         let logo = await PhotoReportBuilder.logo(app.brandedSettings)
@@ -94,8 +102,9 @@ struct DailyLogExportSheet: View {
         if let d = DailyLogReport.days(logs) {
             range = d.first == d.last ? DailyLogPDFBuilder.shortDay(d.first) : "\(DailyLogPDFBuilder.shortDay(d.first)) – \(DailyLogPDFBuilder.shortDay(d.last))"
         }
+        let summary: DailyLogReport.Summary? = logs.count > 1 ? DailyLogReport.rangeSummary(logs) : nil
         let data = DailyLogPDFBuilder.pdf(title: logs.count == 1 ? "Daily log" : "Daily logs", range: range, project: model.bundle.project,
-                                          business: app.business, logo: logo, entries: entries)
+                                          business: app.business, logo: logo, entries: entries, summary: summary)
         let job = model.bundle.project.address.isEmpty ? model.bundle.project.clientName : model.bundle.project.address
         share = SharedFile(url: PDFExporter.write(data, name: DailyLogReport.fileName(jobSlug: slug(job.isEmpty ? "job" : job), logs: logs)))
     }
@@ -104,7 +113,12 @@ struct DailyLogExportSheet: View {
 /// Lays the logs out top to bottom on Letter pages (same look as PhotoReportBuilder and the web DailyLogPdf).
 enum DailyLogPDFBuilder {
     struct PhotoItem { let image: UIImage; let caption: String?; let meta: String }
-    struct Entry { let day: String; let title: String?; let author: String?; let body: String; let photos: [PhotoItem] }
+    struct Entry {
+        let day: String; let title: String?; let author: String?; let body: String; let photos: [PhotoItem]
+        var report: DailyLogReport.Sections? = nil
+        var signature: UIImage? = nil
+        var signedAt: String = ""
+    }
 
     private static func day(_ s: String) -> Date? {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
@@ -125,18 +139,19 @@ enum DailyLogPDFBuilder {
         ceil(a.boundingRect(with: CGSize(width: width, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin], context: nil).height)
     }
 
-    static func pdf(title: String, range: String, project: Project, business: BusinessSettings, logo: UIImage?, entries: [Entry]) -> Data {
+    static func pdf(title: String, range: String, project: Project, business: BusinessSettings, logo: UIImage?, entries: [Entry],
+                    summary: DailyLogReport.Summary? = nil) -> Data {
         let page = CGRect(x: 0, y: 0, width: 612, height: 792)
         // First pass only measures, to know the page count for the footers.
-        let pages = layout(nil, page: page, total: 0, title: title, range: range, project: project, business: business, logo: logo, entries: entries)
+        let pages = layout(nil, page: page, total: 0, title: title, range: range, project: project, business: business, logo: logo, entries: entries, summary: summary)
         return UIGraphicsPDFRenderer(bounds: page).pdfData { ctx in
-            _ = layout(ctx, page: page, total: pages, title: title, range: range, project: project, business: business, logo: logo, entries: entries)
+            _ = layout(ctx, page: page, total: pages, title: title, range: range, project: project, business: business, logo: logo, entries: entries, summary: summary)
         }
     }
 
     /// Draws into `ctx` (or only measures when it's nil) and returns the number of pages.
     private static func layout(_ ctx: UIGraphicsPDFRendererContext?, page: CGRect, total: Int, title: String, range: String, project: Project,
-                               business: BusinessSettings, logo: UIImage?, entries: [Entry]) -> Int {
+                               business: BusinessSettings, logo: UIImage?, entries: [Entry], summary: DailyLogReport.Summary? = nil) -> Int {
         let brand = UIColor(hex: business.brandColor ?? (BusinessSettings.neutral.brandColor ?? "#c2410c"))
         let L: CGFloat = 36
         let R: CGFloat = page.width - 36
@@ -193,6 +208,72 @@ enum DailyLogPDFBuilder {
         put(contact, CGRect(x: R - 190, y: ry, width: 190, height: ch)); ry += ch
         y = max(hy, ry) + 16
 
+        // One line of text, moved to a new page when it doesn't fit.
+        func line(_ a: NSAttributedString, indent: CGFloat = 0, gap: CGFloat = 0) {
+            let w: CGFloat = W - indent
+            let h = height(a, width: w)
+            if y + gap + h > bottom { newPage() } else { y += gap }
+            put(a, CGRect(x: L + indent, y: y, width: w, height: h))
+            y += h
+        }
+        func sectionTitle(_ s: String) {
+            line(text(s.uppercased(), size: 8, weight: .bold, color: .gray, kern: 0.5), gap: 9)
+            y += 2
+        }
+        /// A table row: (text, width, right-aligned) cells, with a hairline under it.
+        func row(_ cells: [(String, CGFloat, Bool)], bold: Bool = false, color: UIColor = .black) {
+            let rowH: CGFloat = 15
+            if y + rowH > bottom { newPage() }
+            var x: CGFloat = L
+            for c in cells {
+                let a = text(c.0, size: 9, weight: bold ? .bold : .regular, color: color, align: c.2 ? .right : .left)
+                put(a, CGRect(x: x, y: y + 2, width: c.1, height: rowH - 2))
+                x += c.1
+            }
+            if ctx != nil {
+                UIColor(red: 0.886, green: 0.91, blue: 0.941, alpha: 1).setFill()
+                UIRectFill(CGRect(x: L, y: y + rowH, width: W, height: 0.5))
+            }
+            y += rowH
+        }
+        func bullets(_ title: String, _ xs: [String]) {
+            if xs.isEmpty { return }
+            sectionTitle(title)
+            for x in xs { line(text("•  \(x)", size: 9.5, spacing: 2)) }
+        }
+        let num: (Double) -> String = { DailyReportLogic.number($0) }
+
+        // Date-range summary: total man-hours and delay hours, then a row per day.
+        if let sm = summary, !sm.rows.isEmpty {
+            if ctx != nil {
+                UIColor(red: 0.886, green: 0.91, blue: 0.941, alpha: 1).setFill()
+                UIRectFill(CGRect(x: L, y: y, width: W, height: 1))
+            }
+            y += 12
+            line(text("SUMMARY", size: 8.5, weight: .bold, color: brand, kern: 0.6))
+            y += 6
+            let stats: [(String, String)] = [(num(sm.manHours), "Man-hours"), (num(sm.delayHours), "Delay hours"), ("\(sm.rows.count)", "Days reported"), ("\(sm.incidents)", "Safety incidents")]
+            let boxW: CGFloat = (W - 18) / 4
+            for (i, st) in stats.enumerated() {
+                let x: CGFloat = L + CGFloat(i) * (boxW + 6)
+                if ctx != nil {
+                    UIColor(red: 0.973, green: 0.98, blue: 0.988, alpha: 1).setFill()
+                    UIBezierPath(roundedRect: CGRect(x: x, y: y, width: boxW, height: 40), cornerRadius: 4).fill()
+                }
+                put(text(st.0, size: 15, weight: .bold, color: brand), CGRect(x: x + 8, y: y + 5, width: boxW - 16, height: 19))
+                put(text(st.1, size: 8, color: .gray), CGRect(x: x + 8, y: y + 25, width: boxW - 16, height: 11))
+            }
+            y += 48
+            let dayW: CGFloat = W - 290
+            row([("Day", dayW, false), ("Crew", 60, true), ("Man-hours", 80, true), ("Delay hours", 80, true), ("Incident", 70, true)], bold: true, color: .gray)
+            for r in sm.rows {
+                row([(shortDay(r.date), dayW, false), (r.crew > 0 ? "\(r.crew)" : "", 60, true), (r.manHours > 0 ? num(r.manHours) : "", 80, true),
+                     (r.delayHours > 0 ? num(r.delayHours) : "", 80, true), (r.incident ? "Yes" : "", 70, true)])
+            }
+            row([("Total", dayW, false), ("", 60, true), (num(sm.manHours), 80, true), (num(sm.delayHours), 80, true), (sm.incidents > 0 ? "\(sm.incidents)" : "", 70, true)], bold: true)
+            y += 14
+        }
+
         for e in entries {
             // Day heading block, kept together with a little of what follows.
             var head: [(NSAttributedString, CGFloat)] = [(text(e.day.uppercased(), size: 8.5, weight: .bold, color: brand, kern: 0.6), 0)]
@@ -211,8 +292,33 @@ enum DailyLogPDFBuilder {
                 put(a, CGRect(x: L, y: y, width: W, height: h)); y += h
             }
 
+            // Structured report: weather, crew table with man-hours, work, deliveries, equipment, delays, safety, visitors.
+            if let r = e.report {
+                if !r.weather.isEmpty {
+                    sectionTitle("Weather")
+                    line(text(r.weather, size: 9.5))
+                }
+                if !r.crew.isEmpty {
+                    sectionTitle("Crew & hours")
+                    let nameW: CGFloat = W - 200
+                    row([("Name", nameW, false), ("Role", 140, false), ("Hours", 60, true)], bold: true, color: .gray)
+                    for c in r.crew { row([(c.name, nameW, false), (c.role, 140, false), (num(c.hours), 60, true)]) }
+                    row([("\(r.crew.count) on site · total man-hours", nameW + 140, false), (num(r.manHours), 60, true)], bold: true)
+                }
+                bullets("Work performed", r.work)
+                bullets("Materials delivered", r.deliveries)
+                bullets("Equipment", r.equipment)
+                bullets(r.delayHours > 0 ? "Delays · \(num(r.delayHours)) h lost" : "Delays", r.delays)
+                if !r.safety.isEmpty {
+                    sectionTitle("Safety")
+                    line(text(r.safety, size: 9.5, weight: r.incident ? .bold : .regular, color: r.incident ? UIColor.systemRed : UIColor.black))
+                }
+                bullets("Visitors & inspections", r.visitors)
+                if !e.body.isEmpty { sectionTitle("Notes") }
+            }
+
             // Body, a paragraph at a time; a paragraph that doesn't fit is split at a word boundary onto the next page.
-            if !e.body.isEmpty { y += 7 }
+            if !e.body.isEmpty && e.report == nil { y += 7 }
             for para in e.body.components(separatedBy: "\n") {
                 let line = height(text("Ag", size: 9.5, spacing: 3), width: W)
                 if para.trimmingCharacters(in: .whitespaces).isEmpty { y += line; continue }
@@ -239,6 +345,23 @@ enum DailyLogPDFBuilder {
                     words.removeFirst(lo)
                     newPage()
                 }
+            }
+
+            // Foreman signature (structured reports), with the time it was signed.
+            if let sig = e.report?.signature {
+                let sigH: CGFloat = 44
+                if y + 9 + 12 + sigH + 16 > bottom { newPage() }
+                sectionTitle("Signature")
+                if let img = e.signature {
+                    let k: CGFloat = min(160 / max(1, img.size.width), sigH / max(1, img.size.height))
+                    if ctx != nil { img.draw(in: CGRect(x: L, y: y, width: img.size.width * k, height: img.size.height * k)) }
+                }
+                y += sigH
+                if ctx != nil {
+                    UIColor.gray.setFill()
+                    UIRectFill(CGRect(x: L, y: y, width: 200, height: 0.5))
+                }
+                line(text([sig.name, e.signedAt].filter { !$0.isEmpty }.joined(separator: " · "), size: 9, color: .gray), gap: 2)
             }
 
             // Photos, two per row.

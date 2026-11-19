@@ -737,6 +737,11 @@ final class CloudSync {
                 guard let data = app.store.imageData(p.imageId) else { continue }
                 try await attempt(p.imageId) { try await client.upload(path: "\(pid)/\(p.imageId)", data: data, token: token) }
             }
+            // Daily report signatures: <project>/<image id> too.
+            for id in b.signatureImageIds where !ledger.uploadedImages.contains(id) {
+                guard let data = app.store.imageData(id) else { continue }
+                try await attempt(id) { try await client.upload(path: "\(pid)/\(id)", data: data, token: token) }
+            }
             for d in b.liveDocuments where !ledger.uploadedImages.contains(d.fileId) {
                 guard let data = app.store.fileData(d.fileId) else { continue }
                 try await attempt(d.fileId) { try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime) }
@@ -768,6 +773,12 @@ final class CloudSync {
                 budget -= 1
                 _ = app.store.saveImageData(data, id: p.imageId)
                 ledger.uploadedImages.insert(p.imageId)
+            }
+            for id in b.signatureImageIds where budget > 0 && !app.store.hasImage(id) {
+                guard let data = try? await client.download(path: "\(pid)/\(id)", token: token) else { continue }
+                budget -= 1
+                _ = app.store.saveImageData(data, id: id)
+                ledger.uploadedImages.insert(id)
             }
             for d in b.liveDocuments where budget > 0 && !app.store.hasFile(d.fileId) {
                 guard let data = try? await client.download(path: "\(pid)/\(d.fileId)", token: token) else { continue }

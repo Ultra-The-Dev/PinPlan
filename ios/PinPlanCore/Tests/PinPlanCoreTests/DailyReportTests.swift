@@ -200,6 +200,13 @@ final class DailyReportTests: XCTestCase {
         XCTAssertEqual(DailyReportLogic.crewSuggestions(members: ["Ana", "Ben", " "], logs: logs), ["Ana", "Ben", "Dee", "Cy"])
     }
 
+    func testSignatureImagesOfLiveLogs() {
+        var b = ProjectBundle(project: Project(clientName: "c", address: "a"))
+        let sig = DailyReport.Signature(name: "Ana", imageId: "sig1", signedAt: "x")
+        b.jobLogs = [log("a", "2026-11-19", DailyReport(signature: sig)), log("b", "2026-11-18", DailyReport(signature: DailyReport.Signature(name: "B", imageId: "sig2", signedAt: "x")), deleted: true), log("c", "2026-11-17")]
+        XCTAssertEqual(b.signatureImageIds, ["sig1"])
+    }
+
     func testSyncMapsTheReportColumn() {
         let cols = SyncMap.specs[.jobLogs]?.columns.map { $0.1 } ?? []
         XCTAssertTrue(cols.contains("report"))
