@@ -444,8 +444,11 @@ struct TimelineView: View {
                     Text("\(filtered.count) of \(all.count) events").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            if page.shown.isEmpty {
+            if page.shown.isEmpty && filtering {
                 ContentUnavailableView("No matching events", systemImage: "line.3.horizontal.decrease.circle", description: Text("Try other filters."))
+                    .listRowBackground(Color.clear)
+            } else if page.shown.isEmpty {
+                ContentUnavailableView("Nothing yet", systemImage: "clock", description: Text("Photos, comments and logs show up here."))
                     .listRowBackground(Color.clear)
             }
             ForEach(days.keys.sorted(by: >), id: \.self) { day in
@@ -513,6 +516,7 @@ struct TimelineView: View {
                             .foregroundStyle(on ? Color.white : Color.primary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
                 if filtering {
                     Button("Clear") { kinds = []; person = ""; query = "" }

@@ -49,7 +49,7 @@ export default function Timeline() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-48 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input h-9 pl-9" placeholder="Search the timeline" value={text} onChange={(e) => refilter(() => setText(e.target.value))} />
+            <input className="input h-9 pl-9" type="search" aria-label="Search the timeline" placeholder="Search the timeline" value={text} onChange={(e) => refilter(() => setText(e.target.value))} />
           </div>
           {people.length > 0 && (
             <select className="input h-9 w-auto" value={person} onChange={(e) => refilter(() => setPerson(e.target.value))} aria-label="Person">
@@ -83,7 +83,7 @@ export default function Timeline() {
           </div>
         )}
       </div>
-      {events.length === 0 && <div className="py-8 text-center text-sm text-slate-500">No events match these filters.</div>}
+      {events.length === 0 && <div className="py-8 text-center text-sm text-slate-500">{filtering ? "No events match these filters." : "Nothing on the timeline yet."}</div>}
       <ol className="relative space-y-1 border-l border-slate-200 pl-6">
         {events.map((e, i) => {
           const day = localDay(e.at);
@@ -120,7 +120,7 @@ export default function Timeline() {
       </ol>
       {remaining > 0 && (
         <div className="mt-4 flex items-center justify-center gap-3">
-          <button className="btn btn-sm" onClick={() => setLimit((n) => n + TIMELINE_PAGE)}>
+          <button type="button" className="btn btn-sm" onClick={() => setLimit((n) => n + TIMELINE_PAGE)}>
             Load more
           </button>
           <span className="text-xs text-slate-500">{remaining} older</span>
