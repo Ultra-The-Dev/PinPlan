@@ -1,8 +1,15 @@
 "use client";
-// Layers & filters: the company's trade categories plus wiring, closets and labels as layers (with counts on this
-// sheet), and filters by device type, status and room. Remembered on this device (viewerStore). Display only.
+// Layers & filters: "Show on plan" switches for what other features draw (measurements, links, markups, task pins,
+// progress colours), the company's trade categories plus wiring, closets and labels as layers (with counts on this
+// sheet), and filters by device type, status and room. Remembered on this device. Display only.
 import { Eye, EyeOff, RotateCcw, X } from "lucide-react";
+import { useId } from "react";
+import { useMarkups } from "@/components/markups/useMarkups";
+import { useMeasureUi } from "@/components/measure/measureUi";
+import { useProgressUi } from "@/components/progress/progressStore";
+import { useTasks } from "@/components/tasks/taskStore";
 import { activeFilterCount, type PlanFilters, type PlanStatusFilter } from "@/lib/planFilter";
+import { useSheetLinks } from "@/lib/sheetLinks";
 import type { DeviceType, Layer } from "@/lib/types";
 
 export interface LayersPanelProps {
@@ -64,7 +71,9 @@ export default function LayersPanel(p: LayersPanelProps) {
           </button>
         </div>
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-2">
-          <section>
+          <ShowOnPlan />
+
+          <section className="mt-3 border-t border-slate-100 pt-2">
             <h3 className="px-2 pt-1 pb-1 text-xs font-medium text-slate-500">Layers</h3>
             {p.layers.map((l) => (
               <Row
@@ -163,6 +172,48 @@ export default function LayersPanel(p: LayersPanelProps) {
         </div>
       </div>
     </>
+  );
+}
+
+/** What the plan's other features draw, one switch each (they used to be scattered eye buttons). */
+function ShowOnPlan() {
+  const measure = useMeasureUi((s) => s.visible);
+  const links = useSheetLinks((s) => s.visible);
+  const auto = useSheetLinks((s) => s.showAuto);
+  const markupsHidden = useMarkups((s) => s.allHidden);
+  const pins = useTasks((s) => s.showPins);
+  const progress = useProgressUi((s) => s.on);
+  return (
+    <section data-testid="show-on-plan">
+      <h3 className="px-2 pt-1 pb-1 text-xs font-medium text-slate-500">Show on plan</h3>
+      <Switch on={measure} label="Measurements" onChange={(v) => useMeasureUi.getState().setVisible(v)} testId="show-measurements" />
+      <Switch on={links} label="Links" onChange={(v) => useSheetLinks.getState().setPrefs({ visible: v })} testId="show-links" />
+      {links && <Switch on={auto} label="Links found automatically" sub onChange={(v) => useSheetLinks.getState().setPrefs({ showAuto: v })} testId="show-auto-links" />}
+      <Switch on={!markupsHidden} label="Markups" onChange={(v) => useMarkups.getState().setAllHidden(!v)} testId="show-markups" />
+      <Switch on={pins} label="Task pins" onChange={(v) => useTasks.getState().set({ showPins: v })} testId="show-task-pins" />
+      <Switch on={progress} label="Progress colours" onChange={(v) => useProgressUi.getState().set(v ? { on: true } : { on: false, walk: false })} testId="show-progress" />
+    </section>
+  );
+}
+
+function Switch({ on, label, sub, onChange, testId }: { on: boolean; label: string; sub?: boolean; onChange: (on: boolean) => void; testId?: string }) {
+  const id = useId();
+  return (
+    <div className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2 hover:bg-slate-50 ${sub ? "pl-6" : ""}`}>
+      <label htmlFor={id} className={`min-w-0 flex-1 cursor-pointer truncate text-sm ${on ? "text-slate-800" : "text-slate-400"}`}>
+        {label}
+      </label>
+      <button
+        id={id}
+        role="switch"
+        aria-checked={on}
+        className={`relative h-6 w-10 shrink-0 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${on ? "bg-brand-600" : "bg-slate-300"}`}
+        onClick={() => onChange(!on)}
+        data-testid={testId}
+      >
+        <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${on ? "translate-x-4" : ""}`} />
+      </button>
+    </div>
   );
 }
 

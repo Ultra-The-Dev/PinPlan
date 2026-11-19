@@ -1,7 +1,7 @@
 "use client";
 import { Camera, Copy, Minus, Plus, Trash, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { closetMeta, MOUNTS, PANEL_KINDS } from "@/lib/catalog";
 import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
@@ -23,14 +23,16 @@ import type { CircuitInfo, ClosetKind, Mount, Run } from "@/lib/types";
 
 /** Text/number field that commits on blur or Enter (so typing doesn't flood undo history). */
 function Field(props: { label: string; value: string | number | null | undefined; onCommit: (v: string) => void; type?: string; placeholder?: string; inputMode?: "decimal" | "numeric" | "text" }) {
+  const uid = useId();
   const [v, setV] = useState(props.value == null ? "" : String(props.value));
   const commit = () => {
     if (v !== (props.value == null ? "" : String(props.value))) props.onCommit(v);
   };
   return (
     <div>
-      <label className="label">{props.label}</label>
+      <label className="label" htmlFor={`${uid}-f`}>{props.label}</label>
       <input
+        id={`${uid}-f`}
         className="input"
         type={props.type ?? "text"}
         inputMode={props.inputMode}
@@ -82,7 +84,7 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
   const unused = tradeWireTypes(trades).filter((w) => !counts.some((c) => c.type === w));
   return (
     <div>
-      <label className="label">Cables</label>
+      <div className="label">Cables</div>
       <div className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
         {counts.map((c) => (
           <div key={c.type} className="flex items-center gap-2 px-3 py-1.5">
@@ -101,7 +103,7 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
         {unused.length > 0 && (
           <select
             aria-label="Add cable"
-            className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none"
+            className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
             value=""
             onChange={(e) => e.target.value && onChange([...cables, e.target.value])}
           >
@@ -120,6 +122,7 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
 
 /** Edit several devices at once. Each change is one undo step. */
 function BulkInspector() {
+  const uid = useId();
   const { multi, markers, catalog, closets, sheets, products, multiMode, setMultiMode, updateMarkers, deleteMarkers, autoHomeRuns, select } = useEditor();
   const ms = markers.filter((m) => multi.includes(m.id));
   const [room, setRoom] = useState("");
@@ -152,9 +155,9 @@ function BulkInspector() {
         </div>
         <p className="text-xs text-slate-500">{multiMode ? "Tap devices to add or remove them." : "Shift-click devices to add or remove them."}</p>
         <div>
-          <label className="label">Room</label>
+          <label className="label" htmlFor={`${uid}-room`}>Room</label>
           <div className="flex gap-2">
-            <input className="input" placeholder={[...new Set(ms.map((m) => m.room))].length === 1 ? ms[0].room || "e.g. Kitchen" : "Mixed"} value={room} onChange={(e) => setRoom(e.target.value)} />
+            <input id={`${uid}-room`} className="input" placeholder={[...new Set(ms.map((m) => m.room))].length === 1 ? ms[0].room || "e.g. Kitchen" : "Mixed"} value={room} onChange={(e) => setRoom(e.target.value)} />
             <button className="btn" disabled={!room.trim()} onClick={() => updateMarkers(ids, () => ({ room: room.trim() }))}>
               Apply
             </button>
@@ -162,8 +165,8 @@ function BulkInspector() {
         </div>
         {oneType ? (
           <div>
-            <label className="label">Product</label>
-            <select className="input" value="" onChange={(e) => updateMarkers(ids, () => ({ productId: e.target.value === "__job" ? null : e.target.value }))}>
+            <label className="label" htmlFor={`${uid}-product`}>Product</label>
+            <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-product`} value="" onChange={(e) => updateMarkers(ids, () => ({ productId: e.target.value === "__job" ? null : e.target.value }))}>
               <option value="" disabled>
                 Set product for all {ms.length}…
               </option>
@@ -181,8 +184,8 @@ function BulkInspector() {
         <CablesEditor cables={sameCables ? markerCables(ms[0]) : []} onChange={(list) => updateMarkers(ids, () => cablesPatch(list))} />
         {!sameCables && <p className="-mt-2 text-xs text-slate-500">Cables differ between these devices — a change replaces each device’s cables.</p>}
         <div>
-          <label className="label">Home-run {tradeVocab(trades).closet}</label>
-          <select className="input" value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
+          <label className="label" htmlFor={`${uid}-home-run`}>Home-run {tradeVocab(trades).closet}</label>
+          <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
             <option value="" disabled>
               Set {tradeVocab(trades).closet} for all {ms.length}…
             </option>
@@ -196,9 +199,9 @@ function BulkInspector() {
         </div>
         {electrical && (
           <div>
-            <label className="label">Circuit #</label>
+            <label className="label" htmlFor={`${uid}-circuit`}>Circuit #</label>
             <div className="flex gap-2">
-              <input className="input" inputMode="numeric" placeholder={[...new Set(ms.map((m) => m.circuit ?? ""))].length === 1 ? ms[0].circuit || "e.g. 12" : "Mixed"} value={circuit} onChange={(e) => setCircuit(e.target.value)} />
+              <input id={`${uid}-circuit`} className="input" inputMode="numeric" placeholder={[...new Set(ms.map((m) => m.circuit ?? ""))].length === 1 ? ms[0].circuit || "e.g. 12" : "Mixed"} value={circuit} onChange={(e) => setCircuit(e.target.value)} />
               <button className="btn" onClick={() => updateMarkers(ids, () => ({ circuit: circuit.trim() || null }))}>
                 {circuit.trim() ? "Apply" : "Clear"}
               </button>
@@ -244,7 +247,7 @@ function SelectMore({ id }: { id: string }) {
   const pick = (ids: string[]) => selectMany([id, ...ids.filter((x) => x !== id)]);
   return (
     <div>
-      <label className="label">Select more</label>
+      <div className="label">Select more</div>
       <div className="flex flex-wrap gap-1.5">
         {sameFloor.length > 1 && (
           <button className="btn btn-sm" onClick={() => pick(sameFloor)}>
@@ -270,6 +273,7 @@ function SelectMore({ id }: { id: string }) {
 }
 
 function MarkerInspector({ id }: { id: string }) {
+  const uid = useId();
   const { markers, catalog, closets, sheets, runs, products, project, updateMarker, deleteEntity, autoHomeRuns, addMarker, select } = useEditor();
   const m = markers.find((x) => x.id === id);
   const duplicate = async () => {
@@ -311,8 +315,8 @@ function MarkerInspector({ id }: { id: string }) {
         </div>
       </div>
       <div>
-        <label className="label">Device</label>
-        <select className="input" value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value, productId: null })}>
+        <label className="label" htmlFor={`${uid}-device`}>Device</label>
+        <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-device`} value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value, productId: null })}>
           {catalog
             .filter((d) => d.kind === "device")
             .map((d) => (
@@ -323,9 +327,10 @@ function MarkerInspector({ id }: { id: string }) {
         </select>
       </div>
       <div>
-        <label className="label">Product</label>
+        <label className="label" htmlFor={`${uid}-product`}>Product</label>
         <select
-          className="input"
+          id={`${uid}-product`}
+          className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           value={m.productId && typeProducts.some((p) => p.id === m.productId) ? m.productId : ""}
           onChange={(e) => updateMarker(m.id, { productId: e.target.value || null })}
         >
@@ -359,8 +364,8 @@ function MarkerInspector({ id }: { id: string }) {
         <Field label="Room" value={m.room} placeholder="e.g. Kitchen" onCommit={(v) => updateMarker(m.id, { room: v })} />
       </div>
       <div>
-        <label className="label">Mount</label>
-        <select className="input" value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
+        <label className="label" htmlFor={`${uid}-mount`}>Mount</label>
+        <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-mount`} value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
           {MOUNTS.map((x) => (
             <option key={x}>{x}</option>
           ))}
@@ -368,8 +373,8 @@ function MarkerInspector({ id }: { id: string }) {
       </div>
       <CablesEditor cables={markerCables(m)} onChange={(list) => updateMarker(m.id, cablesPatch(list))} />
       <div>
-        <label className="label">Home-run {vocab.closet}</label>
-        <select className="input" value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
+        <label className="label" htmlFor={`${uid}-home-run`}>Home-run {vocab.closet}</label>
+        <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
           <option value="">— none —</option>
           {closets.map((c) => (
             <option key={c.id} value={c.id}>
@@ -398,11 +403,11 @@ function MarkerInspector({ id }: { id: string }) {
         </div>
       )}
       <div>
-        <label className="label">Notes</label>
-        <NotesField value={m.notes} onCommit={(v) => updateMarker(m.id, { notes: v })} />
+        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <NotesField id={`${uid}-notes`} value={m.notes} onCommit={(v) => updateMarker(m.id, { notes: v })} />
       </div>
       <div>
-        <label className="label">Photo</label>
+        <div className="label">Photo</div>
         {photo && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo.url} alt="Device location" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
@@ -446,12 +451,13 @@ function MarkerInspector({ id }: { id: string }) {
   );
 }
 
-function NotesField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+function NotesField({ id, value, onCommit }: { id?: string; value: string; onCommit: (v: string) => void }) {
   const [v, setV] = useState(value ?? "");
-  return <textarea className="input min-h-16" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onCommit(v)} />;
+  return <textarea id={id} className="input min-h-16" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onCommit(v)} />;
 }
 
 function RunInspector({ id }: { id: string }) {
+  const uid = useId();
   const { runs, catalog, markers, closets, sheets, updateRun, deleteEntity } = useEditor();
   const trades = useTrades();
   const r = runs.find((x) => x.id === id);
@@ -471,8 +477,8 @@ function RunInspector({ id }: { id: string }) {
       {r.kind !== "wire" && (
         <>
           <div>
-            <label className="label">LED type</label>
-            <select className="input" value={r.deviceTypeId ?? ""} onChange={(e) => updateRun(r.id, { deviceTypeId: e.target.value || null })}>
+            <label className="label" htmlFor={`${uid}-led-type`}>LED type</label>
+            <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-led-type`} value={r.deviceTypeId ?? ""} onChange={(e) => updateRun(r.id, { deviceTypeId: e.target.value || null })}>
               {ledTypes.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -527,8 +533,8 @@ function RunInspector({ id }: { id: string }) {
         Tentative (?)
       </label>
       <div>
-        <label className="label">Notes</label>
-        <NotesField value={r.notes ?? ""} onCommit={(v) => updateRun(r.id, { notes: v })} />
+        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <NotesField id={`${uid}-notes`} value={r.notes ?? ""} onCommit={(v) => updateRun(r.id, { notes: v })} />
       </div>
       <DeviceInstallSection run={r} />
       <p className="text-xs text-slate-500">Drag the white handles to reshape the run.</p>
@@ -541,6 +547,7 @@ function RunInspector({ id }: { id: string }) {
 
 /** Electrical circuit details on a run: number, breaker, voltage, poles, what it feeds. */
 function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo) => void }) {
+  const uid = useId();
   const c = run.circuit ?? {};
   const set = (patch: Partial<CircuitInfo>) => onChange({ ...c, ...patch });
   return (
@@ -548,8 +555,8 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
       <div className="grid grid-cols-2 gap-2">
         <Field label="Circuit #" value={c.number ?? ""} placeholder="e.g. 12 or 3/5" onCommit={(v) => set({ number: v.trim() || null })} />
         <div>
-          <label className="label">Breaker</label>
-          <select className="input" value={c.breakerA ?? ""} onChange={(e) => set({ breakerA: e.target.value ? Number(e.target.value) : null })}>
+          <label className="label" htmlFor={`${uid}-breaker`}>Breaker</label>
+          <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-breaker`} value={c.breakerA ?? ""} onChange={(e) => set({ breakerA: e.target.value ? Number(e.target.value) : null })}>
             <option value="">—</option>
             {BREAKER_SIZES.map((a) => (
               <option key={a} value={a}>
@@ -559,8 +566,8 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
           </select>
         </div>
         <div>
-          <label className="label">Voltage</label>
-          <select className="input" value={c.volts ?? 120} onChange={(e) => { const v = Number(e.target.value); set({ volts: v, poles: v >= 208 ? Math.max(2, c.poles ?? 2) : 1 }); }}>
+          <label className="label" htmlFor={`${uid}-voltage`}>Voltage</label>
+          <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-voltage`} value={c.volts ?? 120} onChange={(e) => { const v = Number(e.target.value); set({ volts: v, poles: v >= 208 ? Math.max(2, c.poles ?? 2) : 1 }); }}>
             {[120, 240, 208, 277].map((v) => (
               <option key={v} value={v}>
                 {v} V
@@ -569,8 +576,8 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
           </select>
         </div>
         <div>
-          <label className="label">Poles</label>
-          <select className="input" value={c.poles ?? 1} onChange={(e) => set({ poles: Number(e.target.value) })}>
+          <label className="label" htmlFor={`${uid}-poles`}>Poles</label>
+          <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-poles`} value={c.poles ?? 1} onChange={(e) => set({ poles: Number(e.target.value) })}>
             {[1, 2, 3].map((p) => (
               <option key={p} value={p}>
                 {p}-pole
@@ -586,6 +593,7 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
 }
 
 function ClosetInspector({ id }: { id: string }) {
+  const uid = useId();
   const { closets, markers, updateCloset, deleteEntity } = useEditor();
   const trades = useTrades();
   const c = closets.find((x) => x.id === id);
@@ -599,8 +607,8 @@ function ClosetInspector({ id }: { id: string }) {
       <h3 className="font-semibold">{c.name}</h3>
       <Field label="Name" value={c.name} onCommit={(v) => updateCloset(c.id, { name: v })} />
       <div>
-        <label className="label">Kind</label>
-        <select className="input" value={c.kind} onChange={(e) => updateCloset(c.id, { kind: e.target.value as ClosetKind })}>
+        <label className="label" htmlFor={`${uid}-kind`}>Kind</label>
+        <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-kind`} value={c.kind} onChange={(e) => updateCloset(c.id, { kind: e.target.value as ClosetKind })}>
           {kinds.map((k) => (
             <option key={k.id} value={k.id}>
               {k.name}
@@ -610,8 +618,8 @@ function ClosetInspector({ id }: { id: string }) {
       </div>
       <p className="text-sm text-slate-600">{n} devices home-run here.</p>
       <div>
-        <label className="label">Notes</label>
-        <NotesField value={c.notes ?? ""} onCommit={(v) => updateCloset(c.id, { notes: v })} />
+        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <NotesField id={`${uid}-notes`} value={c.notes ?? ""} onCommit={(v) => updateCloset(c.id, { notes: v })} />
       </div>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("closets", c.id)}>
         <Trash /> Delete closet
@@ -638,7 +646,7 @@ function SitePhotos({ markerId, sheetId, room }: { markerId: string; sheetId: st
   const list = photos.filter((p) => !p.deleted && p.markerId === markerId).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
   return (
     <div>
-      <label className="label">Site photos ({list.length})</label>
+      <div className="label">Site photos ({list.length})</div>
       {list.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {list.map((p) => (

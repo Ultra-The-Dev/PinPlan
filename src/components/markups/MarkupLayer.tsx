@@ -22,6 +22,7 @@ import {
   toPx,
   visibleMarkups,
 } from "@/lib/markups";
+import { HANDLE_FILL, HANDLE_STROKE, SELECT_HALO, SELECT_INK } from "@/lib/canvasColors";
 import { useViewTransform } from "@/lib/planOverlays";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useSyncStatus } from "@/lib/sync";
@@ -132,13 +133,23 @@ function Selection({ m, W, H, viewport, editable }: { m: PlanMarkup; W: number; 
         y={b.y0 * H - pad}
         width={(b.x1 - b.x0) * W + 2 * pad}
         height={(b.y1 - b.y0) * H + 2 * pad}
-        stroke="#2563eb"
+        stroke={SELECT_HALO}
+        strokeWidth={4 * inv}
+        opacity={0.5}
+        cornerRadius={4 * inv}
+      />
+      <Rect
+        x={b.x0 * W - pad}
+        y={b.y0 * H - pad}
+        width={(b.x1 - b.x0) * W + 2 * pad}
+        height={(b.y1 - b.y0) * H + 2 * pad}
+        stroke={SELECT_INK}
         strokeWidth={1.5 * inv}
         dash={[6 * inv, 4 * inv]}
         cornerRadius={4 * inv}
       />
       {hs.map(([x, y], i) => (
-        <Circle key={i} x={x * W} y={y * H} radius={(BOX_KINDS.includes(m.kind) ? 8 : 9) * inv} fill="#fff" stroke="#2563eb" strokeWidth={2 * inv} />
+        <Circle key={i} x={x * W} y={y * H} radius={(BOX_KINDS.includes(m.kind) ? 8 : 9) * inv} fill={HANDLE_FILL} stroke={HANDLE_STROKE} strokeWidth={2 * inv} />
       ))}
     </Group>
   );

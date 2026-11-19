@@ -7,6 +7,7 @@ import { Eye, EyeOff, ListTodo, MapPinPlus, SlidersHorizontal, X } from "lucide-
 import { useEffect, useMemo, useState } from "react";
 import { localDay } from "@/lib/fieldDocs";
 import { newId, nowIso } from "@/lib/db";
+import { claimPlanInput } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
 import { duplicateTask, filterIsEmpty, isClosed, isOverdue, nearestRoom, STATUSES, taskMatches, taskPlacement } from "@/lib/tasks";
 import { toast } from "@/lib/toast";
@@ -49,6 +50,8 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
   useEffect(() => () => useTasks.getState().arm(null), []);
 
   function startDrop() {
+    // Dropping a task owns the next plan tap: Measure, Markups, Walk, the Link tool and device tools close.
+    if (useTasks.getState().drop?.kind !== "new") claimPlanInput("task-drop");
     useEditor.getState().setTool({ kind: "select" });
     useTasks.getState().arm(useTasks.getState().drop?.kind === "new" ? null : { kind: "new" });
     setOpen(false);
@@ -190,10 +193,12 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
           onClose={() => set({ detailId: null })}
           onPlace={(t) => {
             set({ detailId: null, selectedId: t.id });
+            claimPlanInput("task-drop");
             arm({ kind: "move", id: t.id });
           }}
           onDuplicate={(t) => {
             set({ detailId: null });
+            claimPlanInput("task-drop");
             arm({ kind: "duplicate", source: t });
           }}
         />

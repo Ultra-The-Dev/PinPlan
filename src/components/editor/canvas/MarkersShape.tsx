@@ -4,6 +4,7 @@
 // 60 fps with thousands of devices.
 import type Konva from "konva";
 import { Shape } from "react-konva";
+import { SELECT_HALO, SELECT_HALO_FILL, SELECT_INK } from "@/lib/canvasColors";
 import type { PlanViewport } from "@/lib/planViewport";
 import type { Shape as SymbolShape } from "@/lib/types";
 import { MARKER_R, markerSprite, spriteRes } from "./markerSprites";
@@ -104,10 +105,14 @@ function drawOne(ctx: CanvasRenderingContext2D, m: MarkerItem, sx: number, sy: n
   if (m.selected) {
     ctx.beginPath();
     ctx.arc(sx, sy, (MARKER_R + 7) * k, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(234,88,12,0.15)";
+    ctx.fillStyle = SELECT_HALO_FILL;
     ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = "#ea580c";
+    // Light-blue halo outside, dark ink ring inside: visible on white paper and on dense linework.
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = SELECT_HALO;
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = SELECT_INK;
     ctx.stroke();
   }
   const sp = markerSprite(m, res);

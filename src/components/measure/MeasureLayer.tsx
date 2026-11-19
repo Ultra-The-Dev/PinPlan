@@ -8,7 +8,7 @@ import { areaSqFt, formatFeetInches, formatSqFt, formatValue, labelAnchor, lengt
 import { useMeasurements } from "@/lib/measurements";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
 import type { Measurement, Sheet } from "@/lib/types";
-import { useMeasureUi } from "./measureUi";
+import { MEASURE_LOOK, useMeasureUi } from "./measureUi";
 
 const flat = (p: { x: number; y: number }[]) => p.flatMap((q) => [q.x, q.y]);
 
@@ -33,7 +33,12 @@ function Shape({ m, sheet, selected }: { m: Measurement; sheet: Sheet; selected:
   const area = m.kind === "area";
   return (
     <>
-      {selected && <Line points={flat(pts)} closed={area} stroke="#ffffff" strokeWidth={9} opacity={0.85} lineCap="round" lineJoin="round" strokeScaleEnabled={false} listening={false} perfectDrawEnabled={false} />}
+      {selected && (
+        <>
+          <Line points={flat(pts)} closed={area} stroke={MEASURE_LOOK.halo} strokeWidth={12} opacity={MEASURE_LOOK.haloOpacity} lineCap="round" lineJoin="round" strokeScaleEnabled={false} listening={false} perfectDrawEnabled={false} />
+          <Line points={flat(pts)} closed={area} stroke={MEASURE_LOOK.ink} strokeWidth={7} lineCap="round" lineJoin="round" strokeScaleEnabled={false} listening={false} perfectDrawEnabled={false} />
+        </>
+      )}
       <Line
         points={flat(pts)}
         closed={area}
@@ -73,7 +78,7 @@ function Draft({ sheet }: { sheet: Sheet }) {
     <>
       {area && live.length >= 3 && <Line points={flat(live)} closed fill={`${color}24`} listening={false} perfectDrawEnabled={false} />}
       <Line points={flat(pts)} stroke={color} strokeWidth={3} lineCap="round" lineJoin="round" strokeScaleEnabled={false} listening={false} />
-      {hv && !(kind === "length" && pts.length >= 2) && <Line points={[last.x, last.y, hv.x, hv.y]} stroke={color} strokeWidth={2} dash={[7, 6]} strokeScaleEnabled={false} listening={false} />}
+      {hv && !(kind === "length" && pts.length >= 2) && <Line points={[last.x, last.y, hv.x, hv.y]} stroke={color} strokeWidth={2} dash={MEASURE_LOOK.draftDash} strokeScaleEnabled={false} listening={false} />}
       {area && pts.length >= 2 && <Line points={[(hv ?? last).x, (hv ?? last).y, pts[0].x, pts[0].y]} stroke={color} strokeWidth={1.5} dash={[3, 5]} opacity={0.8} strokeScaleEnabled={false} listening={false} />}
       {pts.map((p, i) => (
         <Circle key={i} name={CONSTANT_SIZE} x={p.x} y={p.y} radius={i === 0 && area && pts.length >= 3 ? 9 : 5} fill={i === 0 && area && pts.length >= 3 ? `${color}55` : "#ffffff"} stroke={color} strokeWidth={2} listening={false} />

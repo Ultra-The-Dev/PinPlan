@@ -4,7 +4,7 @@
 // `overlays` prop. The canvas renders each overlay in its own Konva Layer (sheet-pixel coordinates, the stage
 // transform already applied) and/or an absolutely positioned HTML layer (screen pixels), and offers it taps before the
 // editor's own tools. See docs/plan-viewer.md.
-import { useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { useMemo, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import type { PlanViewport, ViewportSnapshot } from "./planViewport";
 import type { Tool } from "./store";
 import type { Sheet } from "./types";
@@ -119,4 +119,210 @@ export function usePlanOverlays(extra?: PlanOverlay[]): PlanOverlay[] {
  */
 export function useViewTransform(viewport: PlanViewport): ViewportSnapshot {
   return useSyncExternalStore(viewport.subscribe, viewport.getSnapshot, viewport.getSnapshot);
+}
+
+// ---- One tool owns plan taps at a time ----------------------------------------------------------------------------
+// Measure, Markups, Walk, the Link tool, dropping a task and the editor's own tools (place, wire, calibrate…) each take
+// over taps on the plan. Starting one closes the others: a feature registers how to stop (`registerPlanInput`) and calls
+// `claimPlanInput(id)` when it starts. A release only closes its own feature (it never claims).
+
+/** Who can own plan input. */
+export type PlanInputId = "measure" | "markups" | "walk" | "links" | "task-drop" | "editor-tool";
+
+const releasers: { id: PlanInputId; release: () => void }[] = [];
+let claiming = false;
+
+/** How to stop owning plan input (close the toolbar, disarm…). Returns an unregister function. */
+export function registerPlanInput(id: PlanInputId, release: () => void): () => void {
+  const entry = { id, release };
+  releasers.push(entry);
+  return () => {
+    const i = releasers.indexOf(entry);
+    if (i >= 0) releasers.splice(i, 1);
+  };
+}
+
+function releaseWhere(keep: (id: PlanInputId) => boolean) {
+  if (claiming) return;
+  claiming = true;
+  try {
+    for (const r of [...releasers]) if (!keep(r.id)) r.release();
+  } finally {
+    claiming = false;
+  }
+}
+
+/** `id` starts owning plan input: every other registered owner is released. */
+export function claimPlanInput(id: PlanInputId): void {
+  releaseWhere((k) => k === id);
+}
+
+/** Release every owner (leaving the plan, switching jobs). */
+export function releaseAllPlanInput(): void {
+  releaseWhere(() => false);
+}
+
+// ---- Keyboard safety ----------------------------------------------------------------------------------------------
+// Plan shortcuts never act behind a dialog, while typing, or on a focused button's own Space / Enter.
+
+/** Text entry: every key belongs to it. */
+const TEXT_ENTRY = "input,textarea,select,[contenteditable=''],[contenteditable='true'],[role=textbox],[role=combobox],[role=searchbox],[role=spinbutton]";
+/** Controls: Space / Enter (and arrows for the ones that move between options) belong to them. */
+const CONTROL = "button,a[href],summary,[role=button],[role=link],[role=menuitem],[role=switch],[role=checkbox],[role=radio],[role=tab],[role=option],[role=slider]";
+const ARROW_CONTROL = "[role=radio],[role=tab],[role=option],[role=slider],[role=menuitem]";
+const DIALOG = "[role=dialog],[role=alertdialog],[aria-modal='true']";
+
+type KeyLike = Pick<KeyboardEvent, "key"> & { target: EventTarget | null };
+type Doc = Pick<Document, "querySelector"> | null;
+const pageDoc = (): Doc => (typeof document === "undefined" ? null : document);
+
+function asElement(t: EventTarget | null): Element | null {
+  return t && typeof (t as Element).closest === "function" ? (t as Element) : null;
+}
+
+/** A modal (aria-modal="true") is open anywhere on the page. */
+export function modalOpen(doc: Doc = pageDoc()): boolean {
+  return !!doc?.querySelector("[aria-modal='true']");
+}
+
+/**
+ * True when a plan shortcut must ignore this key: a modal is open, the key happened inside a dialog or a text field,
+ * or it is Space / Enter (arrows in option groups) on a focused control.
+ */
+export function planKeyBlocked(e: KeyLike, doc: Doc = pageDoc()): boolean {
+  if (modalOpen(doc)) return true;
+  const t = asElement(e.target);
+  if (!t) return false;
+  if (t.closest(DIALOG)) return true;
+  if (t.closest(TEXT_ENTRY)) return true;
+  if (t.closest(CONTROL)) {
+    if (e.key === " " || e.key === "Spacebar" || e.key === "Enter") return true;
+    if (e.key.startsWith("Arrow") && t.closest(ARROW_CONTROL)) return true;
+  }
+  return false;
+}
+
+/** Keys that change something once per press: holding them down must not repeat (E toggles the mode, Delete deletes). */
+export function repeatBlocked(e: Pick<KeyboardEvent, "key" | "repeat">): boolean {
+  if (!e.repeat) return false;
+  const k = e.key.toLowerCase();
+  return k === "e" || k === "delete" || k === "backspace";
+}
+
+/** A single printable character with no ⌘ / Ctrl / Alt (Shift allowed: "?" needs it) — follows the letters setting. */
+export function isLetterShortcut(e: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey">): boolean {
+  return e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey;
+}
+
+// Single-letter shortcuts on / off (this device). Off: ⌘ / Ctrl keys, Esc, arrows and Delete still work.
+const LETTERS_KEY = "pinplan.shortcuts.letters";
+let lettersOn: boolean | null = null;
+const letterListeners = new Set<() => void>();
+
+export function letterShortcutsOn(): boolean {
+  if (lettersOn == null) {
+    try {
+      lettersOn = typeof localStorage === "undefined" ? true : localStorage.getItem(LETTERS_KEY) !== "off";
+    } catch {
+      lettersOn = true;
+    }
+  }
+  return lettersOn;
+}
+
+export function setLetterShortcuts(on: boolean): void {
+  lettersOn = on;
+  try {
+    localStorage.setItem(LETTERS_KEY, on ? "on" : "off");
+  } catch {
+    /* storage unavailable */
+  }
+  letterListeners.forEach((l) => l());
+}
+
+export function useLetterShortcuts(): boolean {
+  return useSyncExternalStore(
+    (l) => {
+      letterListeners.add(l);
+      return () => letterListeners.delete(l);
+    },
+    letterShortcutsOn,
+    () => true,
+  );
+}
+
+// ---- Layout of the plan's chrome ----------------------------------------------------------------------------------
+// Shared by the rails (editor/overlays/PlanRail.tsx) and tests/planLayout.test.ts, so "nothing overlaps" is checked on
+// the numbers the page uses. Screen px inside the plan view.
+
+export const PLAN_CHROME = {
+  /** Phones: up to this plan-view width (Tailwind's sm is 640). */
+  phoneMax: 639,
+  /** Gap to the plan's edges (p-2 / sm:p-3). */
+  gutter: { phone: 8, wide: 12 },
+  /** Top bar (sheet pill, tools, View / Edit): 44 px buttons, 52 px on touch screens. */
+  topBarHeight: 52,
+  /** Both rails start under the top bar. */
+  railTop: { phone: 64, wide: 72 },
+  /** Gap between stacked rail items. */
+  railGap: 8,
+  /** The right rail is one button wide. */
+  rightRailWidth: 44,
+  /** Room the left rail leaves on its right for the right rail (phones: calc(100% - 4rem)). */
+  leftRailReserve: { phone: 64, wide: 72 },
+  /** The bottom controls (device menu, zoom, the toolbar row on narrow plans) reach this high. */
+  bottomReserve: { row: 128, wide: 76 },
+} as const;
+
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const boxesIntersect = (a: Box, b: Box) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+export const isPhoneWidth = (viewW: number) => viewW <= PLAN_CHROME.phoneMax;
+
+function frame(viewW: number, toolbarRow: boolean) {
+  const phone = isPhoneWidth(viewW);
+  return {
+    phone,
+    gutter: phone ? PLAN_CHROME.gutter.phone : PLAN_CHROME.gutter.wide,
+    top: phone ? PLAN_CHROME.railTop.phone : PLAN_CHROME.railTop.wide,
+    bottom: toolbarRow ? PLAN_CHROME.bottomReserve.row : PLAN_CHROME.bottomReserve.wide,
+    reserve: phone ? PLAN_CHROME.leftRailReserve.phone : PLAN_CHROME.leftRailReserve.wide,
+  };
+}
+
+/** Where the left rail sits and how wide its content may be (`toolbarRow`: the plan toolbar has its own bottom row). */
+export function leftRailFrame(viewW: number, viewH: number, toolbarRow = isPhoneWidth(viewW)) {
+  const f = frame(viewW, toolbarRow);
+  return { x: f.gutter, y: f.top, maxW: viewW - f.gutter - f.reserve + (f.phone ? f.gutter : 0), maxH: Math.max(0, viewH - f.top - f.bottom) };
+}
+
+/** The right rail's column (its buttons are rightRailWidth wide, against the right edge). */
+export function rightRailFrame(viewW: number, viewH: number, toolbarRow = isPhoneWidth(viewW)): Box {
+  const f = frame(viewW, toolbarRow);
+  return { x: viewW - f.gutter - PLAN_CHROME.rightRailWidth, y: f.top, w: PLAN_CHROME.rightRailWidth, h: Math.max(0, viewH - f.top - f.bottom) };
+}
+
+/** Stack items top-down in the left rail (a flex column with railGap), each capped at the rail's width. */
+export function stackLeftRail(viewW: number, viewH: number, items: { id: string; w: number; h: number }[], toolbarRow?: boolean): Record<string, Box> {
+  const f = leftRailFrame(viewW, viewH, toolbarRow);
+  const out: Record<string, Box> = {};
+  let y = f.y;
+  for (const it of items) {
+    out[it.id] = { x: f.x, y, w: Math.min(it.w, f.maxW), h: it.h };
+    y += it.h + PLAN_CHROME.railGap;
+  }
+  return out;
+}
+
+/** CSS for a rail host (absolutely positioned inside the plan view): the same numbers as the frames above. */
+export function railStyle(side: "left" | "right", phone: boolean, toolbarRow: boolean): CSSProperties {
+  const f = frame(phone ? 0 : PLAN_CHROME.phoneMax + 1, toolbarRow);
+  if (side === "right") return { top: f.top, right: f.gutter, bottom: f.bottom };
+  return { top: f.top, left: f.gutter, bottom: f.bottom, maxWidth: `calc(100% - ${f.reserve + (f.phone ? 0 : f.gutter)}px)` };
 }

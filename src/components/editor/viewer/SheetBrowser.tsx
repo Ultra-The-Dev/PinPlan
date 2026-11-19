@@ -1,7 +1,8 @@
 "use client";
 // Sheet browser: every sheet of the job as a thumbnail (from the cached pyramid), with search and recently viewed.
-// A side drawer on tablets and desktops, full screen on phones.
-import { Clock, FileText, Search, X } from "lucide-react";
+// A side drawer on tablets and desktops, full screen on phones. "Manage sheets" (office) opens the Sheets drawer
+// (upload, rename, reorder, scale) without leaving the plan.
+import { Clock, FileText, Search, Settings2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSheetThumb } from "@/lib/tiles/tileClient";
 import type { Sheet } from "@/lib/types";
@@ -15,6 +16,8 @@ export default function SheetBrowser(props: {
   full: boolean;
   onPick: (id: string) => void;
   onClose: () => void;
+  /** Office: open the Sheets drawer. */
+  onManage?: () => void;
 }) {
   const { sheets, activeId } = props;
   const [q, setQ] = useState("");
@@ -28,7 +31,7 @@ export default function SheetBrowser(props: {
     activeRef.current?.scrollIntoView({ block: "nearest" });
     // Type to search straight away on a keyboard; phones don't get a keyboard popping up.
     if (!props.full) searchRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector("[aria-modal='true']") && props.onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -47,6 +50,11 @@ export default function SheetBrowser(props: {
           <h2 className="flex-1 text-base font-semibold text-slate-900">
             Sheets <span className="font-normal text-slate-400 tabular-nums">{sheets.length}</span>
           </h2>
+          {props.onManage && (
+            <button className="btn btn-sm btn-ghost h-9" onClick={props.onManage} data-testid="manage-sheets">
+              <Settings2 /> Manage sheets
+            </button>
+          )}
           <button className="btn btn-sm btn-icon btn-ghost h-9 w-9" onClick={props.onClose} aria-label="Close sheets">
             <X />
           </button>

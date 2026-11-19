@@ -91,14 +91,52 @@ Overlay Konva layers don't listen, so hit-test in `onTap` / `onDragStart` yourse
 reach: `ctx.viewport.relToScreen(pos)` vs `e.screen` (task pins use ~22 px on touch), or divide a screen tolerance by
 `ctx.viewport.transform.scale` to compare in sheet px.
 
-### Controls: the plan rail
+### Controls: the plan rails and the status slot
 
-Overlay buttons go in one shared column at the top right of the plan (under View / Edit), so they don't overlap the
-viewer's chrome (sheet pill, progress / measure at the top left, links at the left, zoom at the bottom right) or each
-other: render `<RailSlot order={n}>…</RailSlot>` (`src/components/editor/overlays/PlanRail.tsx`) from `html`. Slots
-sort by `order` (tasks 10, markups 20, revisions 30); `shrink` lets a tall tool column shrink and scroll. The rail has
-`data-plan-ui`; give your controls `pointer-events-auto`. Keep it to one button per feature and open panels from it
-(toward the plan: `right-full`); full-screen sheets and fixed cards go to `document.body` with a portal.
+Overlay controls never position themselves over the plan; they go in one of three shared places
+(`src/components/editor/overlays/PlanRail.tsx`), so nothing overlaps at any width:
+
+| Place | Where | Who (order) |
+| --- | --- | --- |
+| Right rail — `<RailSlot order={n}>` | top right, under View / Edit, one button wide | tasks 10, markups 20, revisions 30 |
+| Left rail — `<RailSlot side="left" order={n}>` | top left, under the sheet pill; at most `calc(100% - 4rem)` wide on phones | Back to sheet 10, Measure 20, Progress 30, Link tool 40 |
+| Status slot — `<StatusSlot order={n}>` | bottom centre, above the bottom controls (above the toolbar row on phones) | editor hint / drawing bar 10, measure bars 20, link tool bar 30, progress snackbar 40 / photo prompt 41, phone bottom sheets 80–90 |
+
+- Slots sort by `order` (CSS order, so mount order doesn't matter). `shrink` lets a tall right-rail column shrink and
+  scroll. Hosts and slots are `pointer-events: none` with `data-plan-ui`; give your controls `pointer-events-auto`.
+- Right rail: one button per feature; open panels toward the plan (`right-full`). Cards that belong to the plan (the
+  selected measurement, measurement totals) sit beside it on sm+ (`right-16`).
+- Phones (plan view < 640 px): open strips and options become **bottom sheets** — put the sheet in a `StatusSlot` with
+  `data-plan-sheet` on its outer element; the slot then docks to the bottom edge and keeps its bars above the sheet
+  (Measure strip, Progress options, the selected measurement, the totals).
+- The numbers (gutters, rail tops, the left rail's reserve, how high the bottom controls reach) are `PLAN_CHROME` in
+  `src/lib/planOverlays.ts`; the rails' CSS comes from `railStyle()`, and `tests/planLayout.test.ts` checks on the same
+  numbers that Back / Measure / Progress don't intersect each other, the right rail, the top bar or the bottom controls
+  at 390, 768 and 1280 px. PlanEditor tells the rails when the toolbar has its own bottom row (`setPlanToolbarRow`).
+- Full-screen sheets and fixed cards go to `document.body` with a portal.
+
+### One tool owns plan taps
+
+Measure, Markups, Walk, the Link tool, dropping a task and the editor's own tools (place, wire, LED, calibrate…) each
+take over taps on the plan; only one is on at a time. A feature registers how it stops with
+`registerPlanInput(id, release)` (all of them: `src/components/editor/overlays/planInputs.ts`) and calls
+`claimPlanInput(id)` when it starts (`useMeasureUi.setActive(true)`, `useMarkups.setOpen(true)` / `setTool`, the Walk
+button, the Link tool button, `TaskToolbar` drops, `useEditor.setTool` with anything but Select). Claiming releases every
+other owner; Walk therefore also puts the editor back on Select. Releases only close their own feature.
+`resetPlanUi()` releases everything and clears half-finished state (a measurement being drawn, selections, the device
+sheet, a pending proof photo) when the plan closes or the job changes — not on the first mount, so "Place on plan" from
+the Tasks tab still arrives armed. Tested in `tests/planOverlays.test.ts`.
+
+### Show on plan
+
+Layers & filters starts with "Show on plan" switches for what features draw: Measurements, Links (and links found
+automatically), Markups, Task pins and Progress colours. Features don't add their own eye buttons over the plan.
+
+### Selection and draft colours
+
+`src/lib/canvasColors.ts`: anything selected on the plan (devices, runs, closets, markups, measurements) gets a dark ink
+outline (`SELECT_INK` #0F2340) inside a light-blue halo (`SELECT_HALO` #33A9FF); points and lines still being drawn are
+`DRAFT` #33A9FF, dashed. Handles are white with an ink ring. Device letters and trade colours don't change.
 
 Or pass overlays to one view only: `<PlanCanvas overlays={[pins]} … />` (a prop overlay replaces a registered one with
 the same id).
@@ -142,14 +180,30 @@ the plan's gestures ignore it.
 - Touch: one finger pans (with momentum), two fingers pinch + pan, double-tap zooms in, two-finger tap zooms out,
   swipe in from the left/right edge = previous/next sheet. A device moves only after a **long-press** (edit mode); a
   quick drag across it pans the plan. Mouse/pen drags devices after a 4–6 px threshold.
-- Keys: `+`/`−` (also ⌘+/⌘−), `0` fit sheet, `W` fit width, `1` 100%, arrows pan (shift = more), `[`/`]` sheets,
-  `E` view/edit, `F` fit, `L` labels, `M` measure, `V`/Esc select. Zoom limits: half of fit to 4 screen px per image px.
-  Animations are instant with `prefers-reduced-motion`.
+- Keys: `+`/`−`, `0` fit sheet, `W` fit width, `1` 100%, arrows pan (shift = more), `[`/`]` sheets, `E` view/edit,
+  `F` fit, `L` labels, `M` Measure (the saved-measurements tool; there is no second, throwaway measure), `V`/Esc
+  select, `Shift T` drop a task, `?` the shortcut sheet. ⌘+/⌘−/⌘0 zoom the plan only while focus is in the editor
+  (pressing the plan focuses it); elsewhere they zoom the page as usual. Zoom limits: half of fit to 4 screen px per
+  image px. Animations are instant with `prefers-reduced-motion`.
+- Keyboard safety (`planKeyBlocked`, `repeatBlocked` in `src/lib/planOverlays.ts`, used by the editor, Measure,
+  Markups and the Link tool): no plan shortcut acts while a modal (`aria-modal="true"`) is open, or when the key
+  happens in a text field or inside a dialog; Space / Enter on a focused button are the button's; holding E or Delete
+  doesn't repeat. Markups' tool letters ignore Shift (Shift T is the task drop). The `?` sheet has a switch to turn
+  single-key shortcuts off on this device (⌘ / Ctrl keys, Esc, arrows and Delete still work).
 
 ## View only vs edit
 
 Technicians open the plan in **View**, everyone else in their last mode (Edit by default). View hides the device menu
 and editing tools, blocks dragging and deleting, and allows measuring. Edit frames the plan in orange.
+
+Setting a sheet's scale is for the office: technicians don't get the Scale button, and Measure on a sheet without a
+scale tells them "Ask the office to set this sheet's scale". When the office starts it from Measure in View, a short
+confirmation explains it switches to Edit; once the scale is set (or the tool is closed) the plan goes back to View with
+Measure open. Saved measurements change or delete only in Edit or with Measure open, and like markups a technician
+changes only their own (`canEditMeasurement` in `src/components/measure/measureUi.ts`).
+
+On phones, Home runs and Counts sit under **More** in the toolbar. The sheet browser has **Manage sheets** (office),
+which opens the job's Sheets screen as a drawer over the plan.
 
 ## Performance notes
 

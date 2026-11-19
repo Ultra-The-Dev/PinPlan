@@ -1,16 +1,18 @@
 "use client";
-// Plan hyperlinks: the HTML part over the plan (screen px). "Back to E-101" after following a link, the Links control
-// (show/hide, auto links on/off, the link tool for the office), the box-drawing surface of the link tool, the target
-// picker, a photo opened from a link and the "open web page?" check.
-import { ArrowLeft, Check, Eye, EyeOff, Link2, X } from "lucide-react";
+// Plan hyperlinks: the HTML part over the plan (screen px). "Back to E-101" after following a link and the Link tool
+// button (office, Edit mode) in the plan's left rail, the box-drawing surface of the link tool with its bar in the status
+// slot, the target picker, a photo opened from a link and the "open web page?" check. Show / hide and auto links are in
+// Layers ("Show on plan"). The Link tool owns plan taps: starting it closes the other tools (claimPlanInput).
+import { ArrowLeft, Check, Link2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { PlanOverlayContext } from "@/lib/planOverlays";
+import { claimPlanInput, planKeyBlocked, type PlanOverlayContext } from "@/lib/planOverlays";
 import { linkAt, rectFromCorners, sheetDisplayName, type Rect } from "@/lib/sheetIndex";
 import { useJobLinks, useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
+import { RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
 import { goBack } from "./follow";
 import LinkTargetPicker, { targetLabel } from "./LinkTargetPicker";
 
@@ -32,8 +34,6 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
   const documents = useEditor((s) => s.documents);
   const tool = useEditor((s) => s.tool.kind);
   const canEdit = office && editing;
-  const onSheet = links.filter((l) => l.sheetId === sheet.id);
-  const hasAuto = onSheet.some((l) => l.auto);
 
   // The link tool is an edit-mode tool: leave it when the mode, role or editor tool changes.
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
   // Esc leaves the link tool.
   useEffect(() => {
     if (!st.drawing) return;
-    const key = (e: KeyboardEvent) => e.key === "Escape" && !st.pending && !st.editingId && st.setDrawing(false);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && !planKeyBlocked(e) && !st.pending && !st.editingId && st.setDrawing(false);
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [st]);
@@ -55,35 +55,36 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
   return (
     <>
       {backSheet && !st.drawing && (
-        <button
-          className={`pointer-events-auto absolute left-2 z-20 flex h-10 max-w-[70%] items-center gap-1.5 rounded-full bg-ink/90 pr-4 pl-3 text-[13px] font-semibold text-white shadow-pop backdrop-blur hover:bg-ink sm:left-3 ${tool === "select" ? "top-[60px] sm:top-[68px]" : "top-[160px]"}`}
-          onClick={goBack}
-          data-plan-ui
-          data-testid="link-back"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" />
-          <span className="truncate">Back to {sheetDisplayName(backSheet)}</span>
-        </button>
+        <RailSlot side="left" order={10}>
+          <button
+            className="pointer-events-auto flex h-10 max-w-full items-center gap-1.5 rounded-full bg-ink/90 pr-4 pl-3 text-[13px] font-semibold text-white shadow-pop backdrop-blur hover:bg-ink"
+            onClick={goBack}
+            data-plan-ui
+            data-testid="link-back"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <span className="truncate">Back to {sheetDisplayName(backSheet)}</span>
+          </button>
+        </RailSlot>
       )}
 
-      {(onSheet.length > 0 || canEdit) && !st.drawing && (
-        <div className="pointer-events-auto absolute top-1/2 left-2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md sm:left-3" data-plan-ui>
-          {canEdit && (
-            <SideButton label="Link tool: draw a box over a callout and choose where it goes" onClick={() => (useEditor.getState().setTool({ kind: "select" }), st.setDrawing(true))} testId="link-tool">
-              <Link2 className="h-[18px] w-[18px]" />
-            </SideButton>
-          )}
-          {onSheet.length > 0 && (
-            <SideButton label={st.visible ? "Hide links" : "Show links"} onClick={() => st.setPrefs({ visible: !st.visible })} active={!st.visible} testId="links-visible">
-              {st.visible ? <Eye className="h-[18px] w-[18px]" /> : <EyeOff className="h-[18px] w-[18px]" />}
-            </SideButton>
-          )}
-          {hasAuto && st.visible && (
-            <SideButton label={st.showAuto ? "Auto links on (tap to hide links found from callouts)" : "Auto links off"} onClick={() => st.setPrefs({ showAuto: !st.showAuto })} active={!st.showAuto}>
-              <span className={`text-[10px] leading-none font-bold tracking-wide ${st.showAuto ? "text-red-600" : "text-slate-400 line-through"}`}>AUTO</span>
-            </SideButton>
-          )}
-        </div>
+      {canEdit && !st.drawing && tool === "select" && (
+        <RailSlot side="left" order={40}>
+          <button
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-700 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900"
+            onClick={() => {
+              // The link tool takes the plan's taps: Measure, Markups, Walk, a task drop and device tools close.
+              claimPlanInput("links");
+              st.setDrawing(true);
+            }}
+            title="Link tool: draw a box over a callout and choose where it goes"
+            aria-label="Link tool: draw a box over a callout and choose where it goes"
+            data-plan-ui
+            data-testid="link-tool"
+          >
+            <Link2 className="h-[18px] w-[18px]" />
+          </button>
+        </RailSlot>
       )}
 
       {st.drawing && <DrawSurface ctx={ctx} />}
@@ -124,20 +125,6 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
 
       {st.confirmUrl && <ConfirmUrl url={st.confirmUrl} onClose={() => st.setConfirmUrl(null)} />}
     </>
-  );
-}
-
-function SideButton({ label, onClick, active, children, testId }: { label: string; onClick: () => void; active?: boolean; children: React.ReactNode; testId?: string }) {
-  return (
-    <button
-      className={`flex h-11 w-11 items-center justify-center rounded-lg transition ${active ? "bg-slate-100 text-slate-400" : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"}`}
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      data-testid={testId}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -231,9 +218,11 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
       >
         {box && <div className="pointer-events-none absolute rounded-md border-2 border-red-500 bg-red-500/15" style={{ left: box.x, top: box.y, width: box.w, height: box.h }} />}
       </div>
+      <StatusSlot order={30}>
       <div
-        className="pointer-events-auto absolute top-[60px] left-1/2 z-20 flex max-w-[94%] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur sm:top-[68px]"
+        className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur"
         data-plan-ui
+        data-testid="link-tool-bar"
       >
         <Link2 className="h-4 w-4 shrink-0 text-red-300" />
         <span className="min-w-0 truncate py-1">Drag a box over a callout · tap a link to change it</span>
@@ -241,6 +230,7 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
           <Check className="h-3.5 w-3.5" /> Done
         </button>
       </div>
+      </StatusSlot>
     </>
   );
 }

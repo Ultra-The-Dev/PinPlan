@@ -1,16 +1,21 @@
 "use client";
 // Progress controls over the plan (HTML overlay, screen px): the Progress toggle, walk mode with the status a tap
-// sets, filters and a "12/40 tested" counter; plus the undo snackbar, the photo-required prompt with its camera input,
-// and the device install sheet (long-press / right-click a device in walk mode).
+// sets, filters and a "12/40 tested" counter, in the plan's left rail (under Measure); on phones the walk / filter
+// options open as a bottom sheet. Plus the undo snackbar and the photo-required prompt (status slot, with its camera
+// input) and the device install sheet (long-press / right-click a device in walk mode). Walk mode owns plan taps:
+// starting it closes Measure, Markups, the Link tool, a task drop and device tools (claimPlanInput).
 import { Camera, ChevronDown, ChevronUp, CircleDot, Footprints, Info, ListFilter, Undo2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { categoryOf } from "@/lib/catalog";
 import { STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, canSetInstall, countAtLeast } from "@/lib/installProgress";
+import { claimPlanInput } from "@/lib/planOverlays";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { InstallStatus, Sheet } from "@/lib/types";
+import { useMedia } from "@/lib/useMedia";
+import { PHONE_QUERY, RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
 import { itemLabel, findItem, saveProofPhoto, setInstall } from "./actions";
 import DeviceInstallSheet from "./DeviceInstallSheet";
 import { photoInput, showSnack, useProgressUi, type WalkTarget } from "./progressStore";
@@ -44,11 +49,14 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
   const targets = TARGETS.filter((t) => t.id !== "verified" || canSetInstall(role, "verified"));
   const filtered = ui.statuses.length > 0 || !!ui.category;
 
+  const phone = useMedia(PHONE_QUERY);
+
   useWalkGestures(viewport, sheet);
 
   return (
     <>
-      <div className="pointer-events-auto absolute top-[60px] left-2 z-[6] w-[min(340px,calc(100%-1rem))] sm:top-[68px] sm:left-3" data-plan-ui data-testid="progress-toolbar">
+      <RailSlot side="left" order={30}>
+      <div className={`pointer-events-auto max-w-full ${ui.on ? "w-[340px]" : ""}`} data-plan-ui data-testid="progress-toolbar">
         {!ui.on ? (
           <button className="btn h-10 rounded-xl bg-white/95 shadow-pop backdrop-blur" onClick={() => ui.set({ on: true, folded: false })} aria-pressed={false}>
             <CircleDot /> Progress
@@ -60,8 +68,12 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
                 <CircleDot /> Progress
               </button>
               <button className={`btn btn-sm ${ui.walk ? "btn-brand" : ""}`} onClick={() => {
-                  // Start without a selection, so only a long-press from now on opens a device's sheet.
-                  if (!ui.walk) useEditor.getState().select(null);
+                  // Start without a selection, so only a long-press from now on opens a device's sheet. Walking owns
+                  // plan taps: other tools close and the editor goes back to Select.
+                  if (!ui.walk) {
+                    claimPlanInput("walk");
+                    useEditor.getState().select(null);
+                  }
                   ui.set({ walk: !ui.walk, folded: false });
                 }} aria-pressed={ui.walk} data-testid="walk-toggle">
                 <Footprints /> Walk
@@ -94,7 +106,8 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
               )}
             </div>
             {!ui.folded && (ui.walk || filtersOpen) && (
-              <div className="mt-1.5 space-y-1.5">
+              <OptionsShell phone={phone} onClose={() => (setFiltersOpen(false), ui.set({ folded: true }))}>
+              <div className="space-y-1.5">
                 {ui.walk && (
                   <div className="scroll-thin -mx-0.5 flex gap-1 overflow-x-auto px-0.5 pb-0.5" role="radiogroup" aria-label="A tap marks devices" title="Tap a device to mark it. Long-press (or right-click) for photos, tests and history.">
                     {targets.map((t) => {
@@ -152,14 +165,36 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
                   </div>
                 )}
               </div>
+              </OptionsShell>
             )}
           </div>
         )}
       </div>
-      <Snackbar />
+      </RailSlot>
+      <StatusSlot order={40}>
+        <Snackbar />
+      </StatusSlot>
       <PhotoPrompt />
       {ui.sheet && <DeviceInstallSheet item={ui.sheet} onClose={() => ui.set({ sheet: null })} />}
     </>
+  );
+}
+
+/** Walk / filter options: under the Progress bar on sm+, a bottom sheet on phones (the rail stays one line there). */
+function OptionsShell({ phone, onClose, children }: { phone: boolean; onClose: () => void; children: ReactNode }) {
+  if (!phone) return <div className="mt-1.5">{children}</div>;
+  return (
+    <StatusSlot order={90}>
+      <div className="pointer-events-auto w-full rounded-t-2xl bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-pop ring-1 ring-black/5 backdrop-blur-md" data-plan-ui data-plan-sheet data-testid="progress-options">
+        <div className="mb-1.5 flex items-center gap-2 pl-1">
+          <span className="flex-1 text-sm font-semibold text-slate-900">Progress</span>
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={onClose} aria-label="Hide progress options">
+            <ChevronDown />
+          </button>
+        </div>
+        {children}
+      </div>
+    </StatusSlot>
   );
 }
 
@@ -208,7 +243,7 @@ function Snackbar() {
   };
   return (
     <div
-      className="pointer-events-auto absolute bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[6] flex max-w-[94%] -translate-x-1/2 items-center gap-1 rounded-xl bg-ink/95 py-1 pr-1 pl-3.5 text-sm text-white shadow-pop"
+      className="pointer-events-auto flex max-w-full items-center gap-1 rounded-xl bg-ink/95 py-1 pr-1 pl-3.5 text-sm text-white shadow-pop"
       data-plan-ui
       role="status"
       data-testid="progress-snack"
@@ -261,7 +296,8 @@ function PhotoPrompt() {
         }}
       />
       {pending && (
-        <div className="pointer-events-auto absolute bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[7] flex w-[min(420px,94%)] -translate-x-1/2 items-center gap-2 rounded-xl bg-white p-2 pl-3.5 text-sm shadow-pop ring-1 ring-slate-200" data-plan-ui>
+        <StatusSlot order={41}>
+        <div className="pointer-events-auto flex w-[min(420px,100%)] items-center gap-2 rounded-xl bg-white p-2 pl-3.5 text-sm shadow-pop ring-1 ring-slate-200" data-plan-ui>
           <span className="min-w-0 flex-1">
             Photo needed to mark <span className="font-semibold">{pending.label}</span> {STATUS_LABELS[pending.to].toLowerCase()}
           </span>
@@ -272,6 +308,7 @@ function PhotoPrompt() {
             <X />
           </button>
         </div>
+        </StatusSlot>
       )}
     </>
   );
