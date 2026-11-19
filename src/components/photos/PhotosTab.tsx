@@ -246,6 +246,7 @@ export default function PhotosTab() {
             <select
               className="h-8 rounded-lg bg-white/10 px-2 text-sm"
               value=""
+              aria-label="Add tag to selected"
               onChange={async (e) => {
                 const t = e.target.value;
                 if (!t) return;
