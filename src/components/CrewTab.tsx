@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
 import PanelSchedule from "./PanelSchedule";
 import PortSchedule from "./PortSchedule";
+import ProgressPanel from "./progress/ProgressPanel";
 import { PANEL_KINDS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
@@ -80,6 +81,8 @@ export default function CrewTab() {
           <h2 className="page-title">Crew wiring sheets</h2>
           <p className="mt-1 text-sm text-slate-500">Where each wire goes and which type — no prices. Share the PDF with the crew pulling wire.</p>
         </div>
+
+        <ProgressPanel />
 
         <div className="card space-y-3 p-4">
           <div className="section-title">Layers in the PDF</div>

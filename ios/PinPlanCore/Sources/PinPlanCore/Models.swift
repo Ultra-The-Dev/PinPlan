@@ -194,6 +194,8 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
+    /// Install progress (roughed → installed → tested → verified) with history and photo proof. Never counted.
+    public var install: InstallState?
 
     public init(id: String = newId(), projectId: String, sheetId: String, deviceTypeId: String, x: Double, y: Double, label: String,
                 room: String = "", mount: Mount = .ceiling, wireType: String = "Cat6", closetId: String? = nil, tentative: Bool = false, notes: String = "") {
@@ -230,6 +232,8 @@ public struct Run: Codable, Hashable, Identifiable, Sendable {
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
+    /// Install progress (wire runs: roughed = pulled, installed = terminated, tested = certified). Never counted.
+    public var install: InstallState?
 
     public init(id: String = newId(), projectId: String, sheetId: String, kind: RunKind, deviceTypeId: String? = nil, points: [Double],
                 measuredFt: Double? = nil, typedFt: Double? = nil, zone: String? = nil, switchLabel: String? = nil,
@@ -444,4 +448,73 @@ public func isoNow() -> String {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return f.string(from: Date())
+}
+
+// MARK: - install progress (InstallProgress.swift)
+
+/// Install status of a device or run. Unknown ids (from a newer app) read as `.planned`.
+public enum InstallStatus: String, Codable, CaseIterable, Sendable, Identifiable {
+    case planned, roughed, installed, tested, verified, issue
+    public var id: String { rawValue }
+    public init(from decoder: Decoder) throws {
+        let raw = (try? decoder.singleValueContainer().decode(String.self)) ?? ""
+        self = InstallStatus(rawValue: raw) ?? .planned
+    }
+}
+
+/// Same JSON as the web app's InstallState. Decoding tolerates missing and unknown fields.
+public struct InstallState: Codable, Hashable, Sendable {
+    public struct Test: Codable, Hashable, Sendable {
+        public var pass: Bool
+        public var value: String?
+        public var note: String?
+        public init(pass: Bool, value: String? = nil, note: String? = nil) { self.pass = pass; self.value = value; self.note = note }
+        private enum CodingKeys: String, CodingKey { case pass, value, note }
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            pass = (try? c.decodeIfPresent(Bool.self, forKey: .pass)) ?? false
+            value = try? c.decodeIfPresent(String.self, forKey: .value)
+            note = try? c.decodeIfPresent(String.self, forKey: .note)
+        }
+    }
+    public struct Entry: Codable, Hashable, Sendable {
+        public var status: InstallStatus
+        public var by: String?
+        public var at: String
+        public var note: String?
+        public init(status: InstallStatus, by: String? = nil, at: String, note: String? = nil) { self.status = status; self.by = by; self.at = at; self.note = note }
+        private enum CodingKeys: String, CodingKey { case status, by, at, note }
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            status = (try? c.decodeIfPresent(InstallStatus.self, forKey: .status)) ?? .planned
+            by = try? c.decodeIfPresent(String.self, forKey: .by)
+            at = (try? c.decodeIfPresent(String.self, forKey: .at)) ?? ""
+            note = try? c.decodeIfPresent(String.self, forKey: .note)
+        }
+    }
+
+    public var status: InstallStatus
+    public var by: String?
+    public var at: String?
+    public var photoIds: [String]?
+    public var test: Test?
+    public var history: [Entry]?
+
+    public init(status: InstallStatus, by: String? = nil, at: String? = nil, photoIds: [String]? = nil, test: Test? = nil, history: [Entry]? = nil) {
+        self.status = status; self.by = by; self.at = at; self.photoIds = photoIds; self.test = test; self.history = history
+    }
+
+    private enum CodingKeys: String, CodingKey { case status, by, at, photoIds, test, history }
+    public init(from decoder: Decoder) throws {
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
+            status = .planned
+            return
+        }
+        status = (try? c.decodeIfPresent(InstallStatus.self, forKey: .status)) ?? .planned
+        by = try? c.decodeIfPresent(String.self, forKey: .by)
+        at = try? c.decodeIfPresent(String.self, forKey: .at)
+        photoIds = try? c.decodeIfPresent([String].self, forKey: .photoIds)
+        test = try? c.decodeIfPresent(Test.self, forKey: .test)
+        history = try? c.decodeIfPresent([Entry].self, forKey: .history)
+    }
 }
