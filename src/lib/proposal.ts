@@ -184,3 +184,49 @@ export function sectionTotals(lines: ProposalLine[], chosen: string[]) {
 export function proposalUrl(origin: string, token: string) {
   return `${origin.replace(/\/$/, "")}/p?t=${encodeURIComponent(token)}`;
 }
+
+/** A spot the client pointed at on a plan review (x, y relative 0–1 to that floor's plan image). */
+export interface ClientPin {
+  floor: string;
+  x: number;
+  y: number;
+  note: string;
+}
+
+/** Unique, single-line floor labels for pins (a repeated name gets " (2)", " (3)"…), so two floors with the same name don't share pins. */
+export function floorLabels(names: string[]): string[] {
+  const used = new Set<string>();
+  return names.map((raw) => {
+    const name = raw.replace(/[\r\n]+/g, " ").trim() || "Plan";
+    let label = name;
+    for (let k = 2; used.has(label); k++) label = `${name} (${k})`;
+    used.add(label);
+    return label;
+  });
+}
+
+/** Header line that starts the pinned comments inside a packed client note. */
+export const PIN_HEADER = "Pinned on the plan:";
+const PIN_LINE = /^(.+?), pin (\d+) at \((\d{1,3}(?:\.\d+)?)%, (\d{1,3}(?:\.\d+)?)%\):[ \t]*(.*)$/;
+const pct = (v: number) => Math.round(Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0)) * 100);
+
+/**
+ * Packs the client's change request and their plan pins into the single text note the server stores (client_note), readable as is:
+ *   "Move the office speaker\n\nPinned on the plan:\n1st Fl, pin 1 at (42%, 31%): move TV". Pins are numbered 1…n in order.
+ */
+export function packClientNote(text: string, pins: ClientPin[]): string {
+  const lines = pins.map((p, i) => `${p.floor.replace(/[\r\n]+/g, " ").trim() || "Plan"}, pin ${i + 1} at (${pct(p.x)}%, ${pct(p.y)}%): ${p.note.replace(/\s*[\r\n]+\s*/g, " ").trim()}`.trimEnd());
+  return [text.trim(), lines.length ? [PIN_HEADER, ...lines].join("\n") : ""].filter(Boolean).join("\n\n");
+}
+
+/** Reads a client note back: the free text, plus any pins (with their number) written by packClientNote. Plain notes give no pins. */
+export function parseClientNote(note: string | null | undefined): { text: string; pins: (ClientPin & { n: number })[] } {
+  const pins: (ClientPin & { n: number })[] = [];
+  const rest: string[] = [];
+  for (const line of (note ?? "").split(/\r?\n/)) {
+    const m = PIN_LINE.exec(line.trim());
+    if (m) pins.push({ floor: m[1].trim(), n: Number(m[2]), x: Math.min(100, Number(m[3])) / 100, y: Math.min(100, Number(m[4])) / 100, note: m[5].trim() });
+    else if (line.trim() !== PIN_HEADER) rest.push(line);
+  }
+  return { text: rest.join("\n").trim(), pins };
+}

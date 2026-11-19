@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { explainCloudError } from "@/lib/cloudCheck";
 import { buildLegend } from "@/lib/legend";
-import { buildSnapshot, newToken, proposalUrl } from "@/lib/proposal";
+import { buildSnapshot, floorLabels, newToken, parseClientNote, proposalUrl, type ProposalSnapshot } from "@/lib/proposal";
 import { listProposals, publishProposal, revokeProposal, type ProposalRow } from "@/lib/proposalCloud";
 import { symbolDataUrl } from "@/lib/renderSheet";
 import { useEditor } from "@/lib/store";
@@ -23,6 +23,52 @@ const when = (iso: string | null) =>
         minute: "2-digit",
       })
     : "";
+
+/** The client's note: free text, their numbered pins as a list, and the pins drawn over the plan they were dropped on. */
+function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["floors"] }) {
+  const { text, pins } = parseClientNote(note);
+  const labels = floorLabels(floors.map((f) => f.name));
+  const pinned = floors.map((f, i) => ({ name: labels[i], image: f.image })).filter((f) => f.image && pins.some((p) => p.floor === f.name));
+  return (
+    <div className="space-y-2 text-sm text-slate-800">
+      {text && <blockquote className="border-l-2 border-amber-400 pl-3 whitespace-pre-line">“{text}”</blockquote>}
+      {pins.length > 0 && (
+        <ol className="space-y-1">
+          {pins.map((p, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white">{p.n}</span>
+              <span>
+                <span className="font-medium">{p.floor}</span>
+                {p.note ? ` — ${p.note}` : <span className="text-slate-500"> — (no note)</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {pinned.map((f) => (
+        <figure key={f.name} className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={f.image!} alt={`${f.name} with the client's pins`} className="block w-full" loading="lazy" />
+            {pins.map((p, i) =>
+              p.floor === f.name ? (
+                <span
+                  key={i}
+                  title={p.note || `Pin ${p.n}`}
+                  className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white shadow ring-2 ring-white"
+                  style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+                >
+                  {p.n}
+                </span>
+              ) : null,
+            )}
+          </div>
+          <figcaption className="border-t border-slate-100 px-3 py-1 text-xs text-slate-600">{f.name}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
 
 export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void; pdfBusy: string | null }) {
   const { project, sheets, markers, runs, closets, catalog, settings } = useEditor();
@@ -161,16 +207,20 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
               <span className="text-xs text-slate-400">sent {when(r.created_at)}</span>
             </div>
             {r.status === "accepted" && (
-              <p className="text-sm">
-                <strong>{r.client_name}</strong> approved the layout {when(r.responded_at)}.{r.client_note ? ` Note: “${r.client_note}”` : ""} Next: price it and send the proposal
-                from the Estimate tab.
-              </p>
+              <>
+                <p className="text-sm">
+                  <strong>{r.client_name}</strong> approved the layout {when(r.responded_at)}. Next: price it and send the proposal from the Estimate tab.
+                </p>
+                {r.client_note && <ClientNote note={r.client_note} floors={r.snapshot.floors} />}
+              </>
             )}
             {r.status === "declined" && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {r.client_name ?? "The client"} asked for changes {when(r.responded_at)}
-                {r.client_note ? `: “${r.client_note}”` : "."} Update the plan, then send a new review.
-              </p>
+              <div className="space-y-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <p>
+                  {r.client_name ?? "The client"} asked for changes {when(r.responded_at)}. Update the plan, then send a new review.
+                </p>
+                {r.client_note && <ClientNote note={r.client_note} floors={r.snapshot.floors} />}
+              </div>
             )}
             <div className="flex flex-wrap gap-1.5">
               <button className="btn btn-sm" onClick={() => void copy(r.id)}>

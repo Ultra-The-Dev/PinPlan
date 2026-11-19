@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
 import { buildLegend } from "@/lib/legend";
-import { buildSnapshot, newToken, proposalTotals, sectionTotals } from "@/lib/proposal";
+import { buildSnapshot, floorLabels, newToken, packClientNote, parseClientNote, proposalTotals, sectionTotals } from "@/lib/proposal";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { Marker, Project, Sheet } from "@/lib/types";
 
@@ -75,5 +75,48 @@ describe("plan review (no prices) with a legend", () => {
     expect(snap.legend).toHaveLength(3);
     expect(snap.floors[0].image).toBe("https://x/s1.jpg");
     expect(JSON.stringify(snap)).not.toMatch(/unitPrice|"total"/);
+  });
+});
+
+describe("client review pins in the note", () => {
+  it("packs pins as readable lines numbered in order", () => {
+    const note = packClientNote("  Looks good apart from these.  ", [
+      { floor: "1st Fl", x: 0.4249, y: 0.3051, note: "move TV" },
+      { floor: "2nd Fl", x: 1.4, y: -0.2, note: "add a\nspeaker here " },
+      { floor: "", x: 0.5, y: 0.5, note: "" },
+    ]);
+    expect(note).toBe(
+      "Looks good apart from these.\n\nPinned on the plan:\n1st Fl, pin 1 at (42%, 31%): move TV\n2nd Fl, pin 2 at (100%, 0%): add a speaker here\nPlan, pin 3 at (50%, 50%):",
+    );
+  });
+
+  it("leaves a plain note unchanged and needs no text when there are pins", () => {
+    expect(packClientNote("Move the office speaker", [])).toBe("Move the office speaker");
+    expect(packClientNote("", [{ floor: "Basement", x: 0.1, y: 0.2, note: "no camera" }])).toBe("Pinned on the plan:\nBasement, pin 1 at (10%, 20%): no camera");
+  });
+
+  it("parses pins back with their coordinates (round trip)", () => {
+    const parsed = parseClientNote(packClientNote("General: darker speaker grilles", [
+      { floor: "1st Fl, east wing", x: 0.42, y: 0.31, note: "move TV: other wall" },
+      { floor: "2nd Fl", x: 0.07, y: 0.9, note: "" },
+    ]));
+    expect(parsed.text).toBe("General: darker speaker grilles");
+    expect(parsed.pins).toEqual([
+      { floor: "1st Fl, east wing", n: 1, x: 0.42, y: 0.31, note: "move TV: other wall" },
+      { floor: "2nd Fl", n: 2, x: 0.07, y: 0.9, note: "" },
+    ]);
+  });
+
+  it("treats notes without pins (or empty) as plain text", () => {
+    expect(parseClientNote("Please move the TV to the other wall.\nThanks!")).toEqual({ text: "Please move the TV to the other wall.\nThanks!", pins: [] });
+    expect(parseClientNote(null)).toEqual({ text: "", pins: [] });
+    expect(parseClientNote("Office, pin 2 at (5%, 95%): add a dimmer").pins).toEqual([{ floor: "Office", n: 2, x: 0.05, y: 0.95, note: "add a dimmer" }]);
+  });
+
+  it("gives repeated or blank floor names unique labels so pins land on one plan", () => {
+    expect(floorLabels(["1st Fl", "1st Fl", "2nd Fl", "", "1st Fl (2)", "1st Fl"])).toEqual(["1st Fl", "1st Fl (2)", "2nd Fl", "Plan", "1st Fl (2) (2)", "1st Fl (3)"]);
+    // Labels survive the pack/parse round trip, so the installer's view matches pins to the same plan.
+    const labels = floorLabels(["Main", "Main"]);
+    expect(parseClientNote(packClientNote("", [{ floor: labels[1], x: 0.5, y: 0.5, note: "here" }])).pins[0].floor).toBe("Main (2)");
   });
 });

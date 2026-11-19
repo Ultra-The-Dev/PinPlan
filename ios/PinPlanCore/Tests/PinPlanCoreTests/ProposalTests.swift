@@ -93,4 +93,19 @@ final class QuickChargeTests: XCTestCase {
         let p = Proposals.snapshot(bundle: b, catalog: catalog, takeoff: t, estimate: est, business: BusinessSettings(), currency: "USD", taxPct: 10, validDays: 30, detail: .lines, depositPct: 50)
         XCTAssertNil((try JSONSerialization.jsonObject(with: JSONEncoder().encode(p)) as! [String: Any])["kind"])
     }
+
+    func testClientNotePinsParseLikeTheWeb() {
+        // Written by packClientNote on the web client page.
+        let note = "General: darker speaker grilles\n\nPinned on the plan:\n1st Fl, east wing, pin 1 at (42%, 31%): move TV: other wall\n2nd Fl, pin 2 at (7%, 90%):"
+        let r = Proposals.parseClientNote(note)
+        XCTAssertEqual(r.text, "General: darker speaker grilles")
+        XCTAssertEqual(r.pins, [
+            Proposals.ClientPin(n: 1, floor: "1st Fl, east wing", x: 0.42, y: 0.31, note: "move TV: other wall"),
+            Proposals.ClientPin(n: 2, floor: "2nd Fl", x: 0.07, y: 0.9, note: ""),
+        ])
+        let plain = Proposals.parseClientNote("Please move the TV.\nThanks!")
+        XCTAssertEqual(plain.text, "Please move the TV.\nThanks!")
+        XCTAssertTrue(plain.pins.isEmpty)
+        XCTAssertEqual(Proposals.parseClientNote(nil).text, "")
+    }
 }
