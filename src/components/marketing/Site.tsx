@@ -1,6 +1,7 @@
 "use client";
 // Shared chrome for the public pages (/welcome, /pricing) and the auth pages (/signup, /login, /reset).
-import { ArrowRight, CheckCircle2, ChevronDown, X } from "lucide-react";
+// The public pages use the brand in docs/brand.md, scoped under `.mk`; the auth pages keep the app's look (Brand).
+import { CheckCircle2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -8,7 +9,12 @@ import { PRODUCT_NAME } from "@/lib/plans";
 import { startDemo } from "@/lib/onboarding";
 import { useSyncStatus } from "@/lib/sync";
 import { useArrivalParams } from "@/lib/useArrivalUrl";
+import SiteFooter from "@/components/SiteFooter";
+import { MK_ROOT } from "./fonts";
+import { Wordmark } from "./Wordmark";
+import "./marketing.css";
 
+/** The app-styled logo link, used by the sign-in and sign-up pages. */
 export function Brand({ href = "/welcome" }: { href?: string }) {
   return (
     <Link href={href} className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label={`${PRODUCT_NAME} home`}>
@@ -19,35 +25,38 @@ export function Brand({ href = "/welcome" }: { href?: string }) {
   );
 }
 
+const NAV = [
+  { href: "/welcome#how", label: "How it works" },
+  { href: "/welcome#trades", label: "Trades" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/welcome#faq", label: "Questions" },
+];
+
 /** Top bar for the marketing pages. Signed-in visitors get a way back into the app instead of the sign-up buttons. */
 export function SiteHeader() {
   const s = useSyncStatus();
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-slate-50/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
-        <Brand />
-        <nav className="ml-4 hidden items-center gap-1 text-sm md:flex" aria-label="Site">
-          <Link href="/welcome#features" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white hover:text-slate-900">
-            Features
-          </Link>
-          <Link href="/pricing" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white hover:text-slate-900">
-            Pricing
-          </Link>
-          <Link href="/welcome#faq" className="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-white hover:text-slate-900">
-            FAQ
-          </Link>
+    <header className="sticky top-0 z-30 border-b border-mk-rule bg-mk-paper/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
+        <Wordmark />
+        <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label="Site">
+          {NAV.map((n) => (
+            <Link key={n.href} href={n.href} className="rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
+              {n.label}
+            </Link>
+          ))}
         </nav>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           {s.authReady && s.signedIn ? (
-            <Link href="/" className="btn btn-primary">
-              Open {PRODUCT_NAME} <ArrowRight />
+            <Link href="/" className="mk-btn mk-btn-ink mk-btn-sm">
+              Open the app
             </Link>
           ) : (
             <>
-              <Link href="/login" className="btn btn-ghost px-2.5 sm:px-3">
+              <Link href="/login" className="rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 sm:px-3">
                 Sign in
               </Link>
-              <Link href="/signup" className="btn btn-brand px-2.5 sm:px-3">
+              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm max-[359px]:px-2.5">
                 Start free trial
               </Link>
             </>
@@ -58,71 +67,12 @@ export function SiteHeader() {
   );
 }
 
-export function SiteFooter() {
-  const cols: { title: string; links: [string, string][] }[] = [
-    {
-      title: "Product",
-      links: [
-        ["/welcome#features", "Features"],
-        ["/pricing", "Pricing"],
-        ["/signup", "Start free trial"],
-        ["/login", "Sign in"],
-      ],
-    },
-    {
-      title: "Teams",
-      links: [
-        ["/join", "Join your team"],
-        ["/reset", "Reset password"],
-        ["/support", "Support"],
-      ],
-    },
-    {
-      title: "Legal",
-      links: [
-        ["/terms", "Terms of Service"],
-        ["/privacy", "Privacy Policy"],
-      ],
-    },
-  ];
-  return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div className="space-y-3">
-          <Brand />
-          <p className="max-w-xs text-sm text-slate-500">Floor-plan device mapping, estimating and field documentation for low-voltage, electrical and specialty contractors.</p>
-        </div>
-        {cols.map((c) => (
-          <div key={c.title}>
-            <div className="mb-3 text-xs font-semibold text-slate-900">{c.title}</div>
-            <ul className="space-y-2 text-sm">
-              {c.links.map(([href, label]) => (
-                <li key={href}>
-                  <Link href={href} className="text-slate-500 hover:text-slate-900">
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div className="border-t border-slate-100">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-slate-400 sm:px-6">
-          <span>© {PRODUCT_NAME}</span>
-          <span>Made for the people who pull the wire.</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 /** A scrolling page under the site header (the app's body is a fixed-height column). */
 export function SitePage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 overflow-x-hidden overflow-y-auto scroll-smooth" id="site-scroll">
+    <div className={`${MK_ROOT} flex-1 overflow-x-hidden overflow-y-auto scroll-smooth motion-reduce:scroll-auto`} id="site-scroll">
       <SiteHeader />
-      {children}
+      <main>{children}</main>
       <SiteFooter />
     </div>
   );
@@ -130,14 +80,14 @@ export function SitePage({ children }: { children: React.ReactNode }) {
 
 export function Faq({ items }: { items: [string, React.ReactNode][] }) {
   return (
-    <div className="divide-y divide-slate-200 rounded-xl bg-white shadow-soft ring-1 ring-slate-200/60">
+    <div className="mk-faq">
       {items.map(([q, a]) => (
-        <details key={q} className="group px-5 py-4 [&_summary::-webkit-details-marker]:hidden">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium text-slate-900">
+        <details key={q}>
+          <summary>
             {q}
-            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
+            <span className="mk-plus" aria-hidden="true" />
           </summary>
-          <div className="mt-2 text-sm leading-relaxed text-slate-600">{a}</div>
+          <div className="mk-answer">{a}</div>
         </details>
       ))}
     </div>
@@ -167,11 +117,11 @@ export function DeletedNotice() {
   const [hidden, setHidden] = useState(false);
   if (!deleted || hidden) return null;
   return (
-    <div className="mx-auto mt-4 flex max-w-6xl items-center gap-3 px-4 sm:px-6" role="status">
-      <div className="flex flex-1 items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-200">
-        <CheckCircle2 className="h-4 w-4 shrink-0" />
+    <div className="mx-auto mt-4 flex max-w-[1240px] items-center gap-3 px-4 sm:px-6" role="status">
+      <div className="flex flex-1 items-center gap-2 rounded-lg bg-mk-sheet px-3 py-2.5 text-[15px] ring-1 ring-mk-rule">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-mk-ok" />
         <span className="flex-1">Your account was deleted and this device was cleared.</span>
-        <button className="rounded p-0.5 hover:bg-emerald-100" onClick={() => setHidden(true)} aria-label="Dismiss">
+        <button className="rounded p-1 hover:bg-mk-paper" onClick={() => setHidden(true)} aria-label="Dismiss">
           <X className="h-4 w-4" />
         </button>
       </div>

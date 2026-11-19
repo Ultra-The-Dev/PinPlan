@@ -1,0 +1,344 @@
+/* Public site (/welcome, /pricing, footer). Every token lives under `.mk` so the app's look is unchanged.
+   The palette and rules are documented in docs/brand.md. Utilities `bg-mk-*`/`text-mk-*` map to these vars
+   (see the `@theme inline` block in src/app/globals.css). */
+
+.mk {
+  --mk-paper: #f2f4f3; /* drafting paper: page background */
+  --mk-sheet: #ffffff; /* a plan sheet / document */
+  --mk-graphite: #1c2a30; /* ink: text, linework, dark band */
+  --mk-pencil: #56656b; /* secondary text (5.4:1 on paper) */
+  --mk-rule: #c9d1d3; /* hairlines and sheet borders, never text */
+  --mk-marker: #ffc933; /* the takeoff highlighter: primary action, counted things */
+  --mk-marker-deep: #f0b400; /* marker hover */
+  --mk-redline: #c73a2c; /* mark-up on photos and plans only */
+  --mk-ok: #1f7a4d; /* approved / paid status */
+  --mk-on-dark: #a9b6ba; /* secondary text on graphite (7.4:1) */
+  --mk-focus: var(--mk-graphite);
+
+  font-family: var(--font-mk), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: normal;
+  color: var(--mk-graphite);
+  background: var(--mk-paper);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+}
+.mk ::selection {
+  background: var(--mk-marker);
+  color: var(--mk-graphite);
+}
+.mk .mk-dark {
+  --mk-focus: var(--mk-marker);
+  color: #fff;
+  background: var(--mk-graphite);
+}
+.mk :focus-visible {
+  outline: 3px solid var(--mk-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ---------- type ---------- */
+.mk .mk-display,
+.mk .mk-h2,
+.mk .mk-h3,
+.mk .mk-figure {
+  font-stretch: 75%;
+  font-weight: 750;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+.mk .mk-display {
+  font-size: clamp(2.75rem, 1.6rem + 5vw, 5.25rem);
+  line-height: 0.92;
+}
+.mk .mk-h2 {
+  font-size: clamp(2rem, 1.4rem + 2.4vw, 3.25rem);
+  line-height: 0.98;
+}
+.mk .mk-h3 {
+  font-size: clamp(1.5rem, 1.25rem + 0.8vw, 1.875rem);
+  font-weight: 700;
+  line-height: 1.05;
+}
+.mk .mk-figure {
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1;
+}
+.mk .mk-lede {
+  font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  line-height: 1.55;
+  color: var(--mk-pencil);
+  max-width: 36em;
+}
+.mk .mk-body {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--mk-pencil);
+  max-width: 34em;
+}
+.mk .mk-dark .mk-lede,
+.mk .mk-dark .mk-body {
+  color: var(--mk-on-dark);
+}
+.mk .mk-num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.mk .mk-link {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+.mk .mk-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ---------- buttons ---------- */
+.mk .mk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 3rem;
+  padding: 0 1.375rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 650;
+  white-space: nowrap;
+  border: 1.5px solid transparent;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+.mk .mk-btn:active {
+  transform: translateY(1px);
+}
+.mk .mk-btn-primary {
+  background: var(--mk-marker);
+  color: var(--mk-graphite);
+  border-color: var(--mk-marker);
+  box-shadow: inset 0 -2px 0 rgb(28 42 48 / 0.22);
+}
+.mk .mk-btn-primary:hover {
+  background: var(--mk-marker-deep);
+  border-color: var(--mk-marker-deep);
+}
+.mk .mk-btn-line {
+  color: var(--mk-graphite);
+  border-color: var(--mk-graphite);
+  background: transparent;
+}
+.mk .mk-btn-line:hover {
+  background: var(--mk-sheet);
+}
+.mk .mk-dark .mk-btn-line {
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.6);
+}
+.mk .mk-dark .mk-btn-line:hover {
+  background: rgb(255 255 255 / 0.08);
+  border-color: #fff;
+}
+.mk .mk-btn-ink {
+  background: var(--mk-graphite);
+  color: #fff;
+  border-color: var(--mk-graphite);
+}
+.mk .mk-btn-ink:hover {
+  background: #2c3d44;
+}
+.mk .mk-btn-sm {
+  height: 2.5rem;
+  padding: 0 0.95rem;
+  font-size: 0.9375rem;
+  border-radius: 8px;
+}
+
+/* ---------- surfaces ---------- */
+/* A sheet of paper: square-ish corners, a pencil-line border, a shadow like paper lying on a desk. */
+.mk .mk-sheet {
+  background: var(--mk-sheet);
+  border: 1px solid var(--mk-rule);
+  border-radius: 4px;
+  box-shadow:
+    0 1px 0 rgb(28 42 48 / 0.04),
+    0 18px 40px -24px rgb(28 42 48 / 0.35);
+}
+/* A device screen: rounder, darker bezel. */
+.mk .mk-phone {
+  border-radius: 30px;
+  background: var(--mk-graphite);
+  padding: 7px;
+  box-shadow: 0 30px 60px -28px rgb(28 42 48 / 0.55);
+}
+.mk .mk-phone > .mk-screen {
+  border-radius: 23px;
+  background: var(--mk-sheet);
+  overflow: hidden;
+}
+/* The takeoff highlighter: a marker swipe behind a counted figure. */
+.mk .mk-hl {
+  background: linear-gradient(transparent 18%, color-mix(in srgb, var(--mk-marker) 75%, transparent) 18%, color-mix(in srgb, var(--mk-marker) 75%, transparent) 88%, transparent 88%);
+  padding: 0 0.2em;
+  margin: 0 -0.2em;
+  border-radius: 2px;
+}
+
+/* ---------- FAQ ---------- */
+.mk .mk-faq > details {
+  border-top: 1px solid var(--mk-rule);
+}
+.mk .mk-faq > details:last-child {
+  border-bottom: 1px solid var(--mk-rule);
+}
+.mk .mk-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 0;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+.mk .mk-faq summary::-webkit-details-marker {
+  display: none;
+}
+.mk .mk-faq summary .mk-plus {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.mk .mk-faq summary .mk-plus::before,
+.mk .mk-faq summary .mk-plus::after {
+  content: "";
+  position: absolute;
+  inset: 6px 0 auto 0;
+  height: 2px;
+  background: currentColor;
+  transition: transform 160ms ease;
+}
+.mk .mk-faq summary .mk-plus::after {
+  transform: rotate(90deg);
+}
+.mk .mk-faq details[open] summary .mk-plus::after {
+  transform: rotate(0deg);
+}
+.mk .mk-faq .mk-answer {
+  padding: 0 2.5rem 1.35rem 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--mk-pencil);
+  max-width: 40em;
+}
+
+/* ---------- workflow rail ---------- */
+/* The steps hang off one wire run, drawn in the same dashes the plan uses. */
+.mk .mk-rail {
+  position: relative;
+}
+.mk .mk-rail::before {
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  bottom: 2rem;
+  left: 1.1875rem;
+  border-left: 2px dashed color-mix(in srgb, var(--mk-graphite) 35%, transparent);
+}
+.mk .mk-step-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 999px;
+  background: var(--mk-graphite);
+  color: var(--mk-marker);
+  font-stretch: 75%;
+  font-weight: 750;
+  font-size: 1.125rem;
+  box-shadow: 0 0 0 5px var(--mk-paper);
+}
+
+/* ---------- the one orchestrated moment: the hero plan fills in, counts, and gets approved ---------- */
+@keyframes mk-pin {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mk-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes mk-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.6);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+.mk .mk-anim-pin {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: mk-pin 340ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  animation-delay: calc(250ms + var(--i) * 38ms);
+}
+.mk .mk-anim-run {
+  stroke-dasharray: var(--len);
+  animation: mk-draw 700ms ease-out both;
+  animation-delay: calc(1300ms + var(--i) * 120ms);
+}
+.mk .mk-anim-rise {
+  animation: mk-rise 420ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+.mk .mk-anim-stamp {
+  transform: rotate(-8deg);
+  animation: mk-stamp 380ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  animation-delay: 3000ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk .mk-anim-pin,
+  .mk .mk-anim-run,
+  .mk .mk-anim-rise,
+  .mk .mk-anim-stamp {
+    animation: none;
+  }
+  .mk .mk-anim-run {
+    stroke-dasharray: none;
+  }
+  .mk .mk-btn,
+  .mk .mk-faq summary .mk-plus::after {
+    transition: none;
+  }
+}

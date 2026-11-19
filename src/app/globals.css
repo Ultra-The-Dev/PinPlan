@@ -3,6 +3,17 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Public-site palette. The values are defined only under `.mk` (src/components/marketing/marketing.css),
+     so these utilities do nothing in the app. */
+  --color-mk-paper: var(--mk-paper);
+  --color-mk-sheet: var(--mk-sheet);
+  --color-mk-graphite: var(--mk-graphite);
+  --color-mk-pencil: var(--mk-pencil);
+  --color-mk-rule: var(--mk-rule);
+  --color-mk-marker: var(--mk-marker);
+  --color-mk-redline: var(--mk-redline);
+  --color-mk-ok: var(--mk-ok);
+  --color-mk-on-dark: var(--mk-on-dark);
 }
 
 @theme {

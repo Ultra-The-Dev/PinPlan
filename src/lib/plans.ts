@@ -21,17 +21,18 @@ export interface Plan {
 export const PLANS: Plan[] = [
   {
     id: "team",
-    name: "PinPlan Team",
+    name: `${PRODUCT_NAME} Team`,
     basePrice: 49,
     includedSeats: 3,
     seatPrice: 15,
     features: [
-      "Unlimited jobs, plans and devices",
-      "Per-floor takeoff, priced estimates and Billdu",
-      "Client proposals and plan reviews with e-signature",
-      "Job photos, mark-up, checklists, daily logs and reports",
-      "iPad, iPhone and web, offline-first with sync",
-      "Technician logins without prices",
+      "Unlimited jobs, plans and devices, for every trade",
+      "Device and wire counts per floor, priced from your price list",
+      "Quotes your client approves and signs on their phone",
+      "Deposit, progress and final invoices, with payments",
+      "Photos with mark-up, checklists, tasks, daily logs and files",
+      "iPad, iPhone and web, works offline and syncs",
+      "Technician logins that never show prices",
     ],
   },
 ];

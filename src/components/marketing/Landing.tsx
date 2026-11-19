@@ -1,53 +1,68 @@
-// /welcome: what PinPlan does for an installer, in their words. Static (server) markup with small client islands.
-import {
-  ArrowRight,
-  Cable,
-  Cctv,
-  Lightbulb,
-  Network,
-  Speaker,
-  Calculator,
-  Camera,
-  CheckCircle2,
-  ClipboardCheck,
-  Droplets,
-  FileSignature,
-  Flame,
-  Layers,
-  MapPin,
-  Monitor,
-  Receipt,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-  Sun,
-  Tablet,
-  Users,
-  Wind,
-  WifiOff,
-  Zap,
-} from "lucide-react";
+// /welcome: what the product does for a contractor, in their words, in the order a job actually runs.
+// Server markup; the header, FAQ and demo link are small client islands.
 import Link from "next/link";
-import { PLANS, TRIAL_DAYS, monthlyPrice } from "@/lib/plans";
-import PlanIllustration, { TakeoffCard } from "./PlanIllustration";
+import { PLANS, PRODUCT_NAME, TRIAL_DAYS, monthlyPrice } from "@/lib/plans";
+import { closetMeta } from "@/lib/catalog";
+import { tradePack } from "@/lib/trades";
+import type { TradeId } from "@/lib/types";
+import HeroPlan from "./HeroPlan";
+import { ApproveVisual, CountVisual, FieldVisual, InvoiceVisual, PlansVisual, QuoteVisual } from "./StepVisuals";
 import { DeletedNotice, Faq, SitePage, TryDemoLink } from "./Site";
+import { Symbol } from "./Symbol";
 
-// The trade packs (src/lib/trades.ts): each comes with its own device menu, wire types and checklists.
-const TRADES = [
-  { icon: Cable, label: "Low voltage & AV" },
-  { icon: Zap, label: "Electrical" },
-  { icon: Flame, label: "Fire alarm" },
-  { icon: Wind, label: "HVAC" },
-  { icon: Droplets, label: "Plumbing" },
-  { icon: Sun, label: "Solar & EV" },
+const STEPS: { id: string; title: string; body: string; detail: string[]; visual: React.ReactNode }[] = [
+  {
+    id: "plan",
+    title: "Pin devices on the plans",
+    body: "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.",
+    detail: ["Letters on the plan, like the legend on the drawings", "Wire runs drawn back to the panel, rack or closet", "Set the scale once from any known dimension"],
+    visual: <PlansVisual />,
+  },
+  {
+    id: "count",
+    title: "Get the count for every floor",
+    body: "Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule.",
+    detail: ["Counts come only from what’s on the plan", "Export the count and marked-up sheets as PDF"],
+    visual: <CountVisual />,
+  },
+  {
+    id: "quote",
+    title: "Price it from your price list",
+    body: "Your material and labor prices, markup and wire by the foot turn the count into a quote. Mark items optional and let the client decide.",
+    detail: ["Starting prices for your trade, all editable", "Change the plan and the quote follows"],
+    visual: <QuoteVisual />,
+  },
+  {
+    id: "approve",
+    title: "Your client approves on their phone",
+    body: "Send the client a link. They read the quote, tick the options they want, sign with a finger and approve. No account or app for them.",
+    detail: ["See when it’s opened and when it’s approved", "The approved options are added to the job"],
+    visual: <ApproveVisual />,
+  },
+  {
+    id: "bill",
+    title: "Bill the deposit, progress and final",
+    body: "Invoices come straight from the approved quote, so nothing is typed twice. Record payments as they come in and see what’s left to collect on every job.",
+    detail: ["Quote and invoice numbering, tax and terms set once", "Using Billdu? Connect it in Settings, or don’t"],
+    visual: <InvoiceVisual />,
+  },
+  {
+    id: "field",
+    title: "Run the job in the field",
+    body: "The crew works from the same plans. Photos with mark-up, checklists and punch lists, tasks with who’s on them, daily logs and files all live on the job.",
+    detail: ["Photos pinned to the spot on the plan", "Daily logs and photo reports ready to send"],
+    visual: <FieldVisual />,
+  },
 ];
 
-const FLOW = [
-  { icon: MapPin, title: "Pin devices", body: "Drop cameras, receptacles, detectors or fixtures — whatever your trade installs — right on the floor plan." },
-  { icon: Layers, title: "Per-floor takeoff", body: "Counts and cable footage for every floor, always in step with the plan." },
-  { icon: Calculator, title: "Priced estimate", body: "Your catalog prices, markup, labor and wire by the foot." },
-  { icon: FileSignature, title: "Proposal & e-sign", body: "A branded link your client signs on their phone." },
-  { icon: Camera, title: "Field docs", body: "Photos, checklists and daily logs on the same job." },
+/** Four real starting devices per trade, looked up from the trade packs. */
+const TRADES: { id: TradeId; picks: string[] }[] = [
+  { id: "electrical", picks: ["el-rec15", "el-sw", "el-can6", "el-smoke"] },
+  { id: "lowvoltage", picks: ["cam-indoor", "wap", "speaker", "tv"] },
+  { id: "fire", picks: ["fa-smoke", "fa-pull", "fa-hs", "fa-mon"] },
+  { id: "hvac", picks: ["hv-supply", "hv-return", "hv-tstat", "hv-mini"] },
+  { id: "plumbing", picks: ["pl-wc", "pl-lav", "pl-ks", "pl-hb"] },
+  { id: "solar", picks: ["pv-module", "pv-mi", "pv-rsd", "ev-charger"] },
 ];
 
 export default function Landing() {
@@ -55,213 +70,225 @@ export default function Landing() {
   return (
     <SitePage>
       <DeletedNotice />
-      {/* Hero */}
-      <section className="relative">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_60%_at_70%_20%,var(--color-brand-100),transparent_70%)] opacity-70" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-14 sm:px-6 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-12 lg:pb-20">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-soft ring-1 ring-slate-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-500" /> For low-voltage, electrical & specialty contractors
-            </span>
-            <h1 className="mt-5 text-[2.15rem] leading-[1.08] font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[3.4rem]">
-              Pin it on the plan.
-              <br />
-              <span className="text-brand-600">Price it before you leave the site.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
-              PinPlan turns a floor plan into a per-floor device takeoff, a priced estimate and a client proposal they sign on their phone — then keeps your crew’s
-              photos, checklists and daily logs on the same job.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link href="/signup" className="btn btn-brand h-12 px-5 text-[15px]">
-                Start {TRIAL_DAYS}-day free trial <ArrowRight />
-              </Link>
-              <Link href="/pricing" className="btn h-12 px-5 text-[15px]">
-                See pricing
-              </Link>
-            </div>
-            <p className="mt-4 text-sm text-slate-500">
-              Just looking? <TryDemoLink className="font-medium text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-900" /> — your jobs stay on this
-              device.
-            </p>
-            <ul className="mt-8 flex flex-wrap gap-2">
-              {TRADES.map((t) => (
-                <li key={t.label} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
-                  <t.icon className="h-3.5 w-3.5 text-slate-400" /> {t.label}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="relative">
-            <div className="rounded-2xl bg-white p-2 shadow-pop ring-1 ring-slate-200 sm:p-3">
-              <PlanIllustration className="block h-auto w-full" />
-            </div>
-            <TakeoffCard className="relative mx-auto -mt-10 sm:absolute sm:right-[-12px] sm:-bottom-8 sm:mt-0 lg:right-[-24px]" />
-          </div>
-        </div>
-      </section>
+      <Hero />
 
-      {/* Flow */}
-      <section className="border-y border-slate-200/70 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <p className="text-center text-sm font-medium text-slate-500">From walkthrough to signed job, in one app</p>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {FLOW.map((f, i) => (
-              <li key={f.title} className="relative rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200/70">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-brand-600 shadow-soft ring-1 ring-slate-200">
-                    <f.icon className="h-4 w-4" />
-                  </span>
-                  <span className="font-mono text-xs text-slate-400">0{i + 1}</span>
+      {/* How a job runs */}
+      <section id="how" aria-labelledby="how-title" className="scroll-mt-20 border-t border-mk-rule">
+        <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6 lg:py-28">
+          <div className="max-w-[40rem]">
+            <h2 id="how-title" className="mk-h2">
+              One job, from the first walkthrough to the final invoice
+            </h2>
+            <p className="mk-lede mt-5">Each step uses what the last one made, so you never count the same plan twice or type a quote into an invoice.</p>
+          </div>
+          <ol className="mk-rail mt-14 space-y-16 lg:mt-20 lg:space-y-24">
+            {STEPS.map((s, i) => (
+              <li key={s.id} className="relative grid gap-8 pl-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+                <span className="mk-step-pin absolute top-0 left-0">{i + 1}</span>
+                <div className="lg:pt-0.5">
+                  <h3 className="mk-h3">{s.title}</h3>
+                  <p className="mk-body mt-3">{s.body}</p>
+                  <ul className="mt-5 space-y-2 text-[15px]">
+                    {s.detail.map((d) => (
+                      <li key={d} className="flex gap-3">
+                        <span className="mt-[9px] h-[2px] w-3 shrink-0 bg-mk-graphite" aria-hidden="true" />
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <h3 className="mt-3 text-sm font-semibold text-slate-900">{f.title}</h3>
-                <p className="mt-1 text-sm leading-snug text-slate-500">{f.body}</p>
+                <div className="-ml-14 min-w-0 lg:ml-0">{s.visual}</div>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="mx-auto max-w-6xl scroll-mt-16 space-y-16 px-4 py-16 sm:space-y-24 sm:px-6 sm:py-24">
-        <Feature
-          eyebrow="Plans & devices"
-          title="Count from the plan, not from memory"
-          points={[
-            "Upload the architect’s PDF or a photo of the plan — every floor becomes a sheet.",
-            "Pin cameras, access points, speakers, TVs, keypads and fixtures; draw LED and cable runs to the rack.",
-            "Set the scale once and lengths come out in feet, with slack and drops added for you.",
-            "Counts come only from what you pin, so the takeoff always matches the plan.",
-          ]}
-          visual={<DeviceList />}
-        />
-        <Feature
-          flip
-          eyebrow="Takeoff & estimate"
-          title="Your takeoff and estimate, already done"
-          points={[
-            "A per-floor takeoff of every device and foot of wire, straight from what’s pinned.",
-            "Priced from your own catalog with markup, labor and tax; mark items tentative for options.",
-            "Export the takeoff and plan sheets as PDF, or send the estimate to Billdu in one tap.",
-          ]}
-          visual={<EstimateMock />}
-        />
-        <Feature
-          eyebrow="Client proposals"
-          title="Proposals your client signs on their phone"
-          points={[
-            "Publish a branded proposal link with your logo, plans and terms.",
-            "Clients tick optional add-ons, sign with their finger and accept — no account needed.",
-            "See when it’s opened and accepted; the job turns Approved and the add-ons switch on.",
-          ]}
-          visual={<ProposalMock />}
-        />
-        <Feature
-          flip
-          eyebrow="In the field"
-          title="Photos, checklists and logs where the work is"
-          points={[
-            "Job photos pinned to the plan, with mark-up and comments.",
-            "Rough-in and trim-out checklists your techs tick off on site.",
-            "Daily logs and photo reports ready to send to the GC or homeowner.",
-          ]}
-          visual={<FieldMock />}
-        />
-        <Feature
-          eyebrow="Your team"
-          title="One company, everyone on the same jobs"
-          points={[
-            "Invite office staff and technicians with a code — each gets their own login.",
-            "Technicians see plans, devices, photos and tasks, but never your prices.",
-            "Everyone’s changes sync to every device the moment they’re back online.",
-          ]}
-          visual={<TeamMock />}
-        />
-      </section>
-
-      {/* Devices / offline */}
-      <section className="bg-ink text-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-20">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Works on iPad, iPhone and web — even offline.</h2>
-            <p className="mt-4 max-w-md leading-relaxed text-white/70">
-              Basements and new builds rarely have signal. PinPlan keeps every job on the device and syncs when you’re back online, so the walkthrough never waits for a
-              connection.
+      {/* Trades */}
+      <section id="trades" aria-labelledby="trades-title" className="scroll-mt-20 border-t border-mk-rule bg-mk-sheet">
+        <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6 lg:py-28">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+            <h2 id="trades-title" className="mk-h2">
+              Your trade’s devices, already on the list
+            </h2>
+            <p className="mk-lede lg:pt-2">
+              Pick your trades when you sign up. Each one comes with its own devices, wire or pipe types and checklists, with starting prices you change to yours.
             </p>
           </div>
-          <ul className="grid grid-cols-2 gap-3 text-sm">
-            {[
-              { icon: Tablet, t: "iPad", d: "Walk the site with the plan" },
-              { icon: Smartphone, t: "iPhone", d: "Photos and checklists" },
-              { icon: Monitor, t: "Web", d: "Estimates in the office" },
-              { icon: WifiOff, t: "Offline", d: "Syncs when you’re back" },
-            ].map((x) => (
-              <li key={x.t} className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                <x.icon className="h-5 w-5 text-brand-300" />
-                <div className="mt-3 font-medium">{x.t}</div>
-                <div className="text-white/60">{x.d}</div>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            {TRADES.map((t) => {
+              const pack = tradePack(t.id);
+              const items = t.picks.map((id) => pack.catalog.find((c) => c.id === id)).filter((c) => !!c);
+              const ends = pack.closets.map((c) => closetMeta(c).name);
+              return (
+                <div key={t.id} className="border-t-2 pt-4" style={{ borderColor: pack.color }}>
+                  <h3 className="text-[20px] font-[750]" style={{ fontStretch: "75%" }}>
+                    {pack.name}
+                  </h3>
+                  <ul className="mt-3 space-y-2 text-[15px]">
+                    {items.map((c) => (
+                      <li key={c.id} className="flex items-center gap-3">
+                        <Symbol symbol={c.symbol} color={c.color} shape={c.shape} size={30} />
+                        <span className="min-w-0">{c.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[14px] leading-snug">
+                    <dt className="text-mk-pencil">Runs to</dt>
+                    <dd>{ends.slice(0, 2).join(", ")}</dd>
+                    <dt className="text-mk-pencil">{pack.wireNoun}</dt>
+                    <dd>{pack.wireTypes.slice(0, 3).join(", ")} and more</dd>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Team */}
+      <section aria-labelledby="team-title" className="border-t border-mk-rule">
+        <div className="mx-auto grid max-w-[1240px] gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 lg:py-28">
+          <div>
+            <h2 id="team-title" className="mk-h2">
+              The office sees the money. The crew sees the work.
+            </h2>
+            <p className="mk-lede mt-5">
+              Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technicians never see prices.
+            </p>
+            <dl className="mt-8 space-y-4 text-[15px]">
+              {[
+                ["Owner and office", "Plans, counts, prices, quotes, invoices and settings."],
+                ["Technicians", "Plans, devices, photos, checklists, daily logs and their tasks. No prices, quotes or invoices, and they can’t delete jobs."],
+              ].map(([t, d]) => (
+                <div key={t} className="grid gap-1 border-l-2 border-mk-graphite pl-4">
+                  <dt className="font-semibold">{t}</dt>
+                  <dd className="text-mk-pencil">{d}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <TeamCompare />
+        </div>
+      </section>
+
+      {/* Offline + devices */}
+      <section aria-labelledby="offline-title" className="mk-dark">
+        <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-24">
+          <div>
+            <h2 id="offline-title" className="mk-h2">
+              No signal in the basement? Keep working.
+            </h2>
+            <p className="mk-lede mt-5">
+              Every job is saved on the iPad or iPhone. Pin devices, take photos and tick checklists with no connection, and it all syncs when you’re back online.
+            </p>
+            <ul className="mt-8 grid gap-x-8 gap-y-5 text-[15px] sm:grid-cols-2">
+              {[
+                ["iPad", "Walk the site with the plans"],
+                ["iPhone", "Photos, checklists and tasks"],
+                ["Web", "Quotes and invoices at the desk"],
+                ["Large plan sets", "Opens fast; pinch, zoom and flip sheets"],
+              ].map(([t, d]) => (
+                <li key={t} className="border-t border-white/15 pt-3">
+                  <div className="font-semibold">{t}</div>
+                  <div className="text-mk-on-dark">{d}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <DevicesDrawing />
         </div>
       </section>
 
       {/* Pricing teaser */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-        <div className="card flex flex-col gap-6 p-6 ring-1 ring-slate-200/70 sm:p-8 md:flex-row md:items-center">
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Simple pricing for the whole company</h2>
-            <p className="mt-2 text-slate-600">
-              <span className="font-semibold text-slate-900">${plan.basePrice}/month</span> includes {plan.includedSeats} users, then ${plan.seatPrice} per extra user. A crew of
-              six is ${monthlyPrice(plan, 6)}/month. Start with a {TRIAL_DAYS}-day free trial.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/pricing" className="btn h-11 px-5">
-              Pricing details
-            </Link>
-            <Link href="/signup" className="btn btn-brand h-11 px-5">
-              Start free trial
-            </Link>
+      <section aria-labelledby="price-title" className="border-b border-mk-rule">
+        <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6 lg:py-24">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+            <div>
+              <h2 id="price-title" className="mk-h2">
+                One price for the company
+              </h2>
+              <p className="mk-lede mt-5">
+                Every feature, every trade, unlimited jobs. Pay for the people who log in. Try it free for {TRIAL_DAYS} days.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/signup" className="mk-btn mk-btn-primary">
+                  Start free trial
+                </Link>
+                <Link href="/pricing" className="mk-btn mk-btn-line">
+                  See pricing
+                </Link>
+              </div>
+            </div>
+            <TitleBlock
+              cells={[
+                { label: "Monthly", value: `$${plan.basePrice}`, note: `includes ${plan.includedSeats} users`, big: true },
+                { label: "Each extra user", value: `$${plan.seatPrice}`, note: "a month", big: true },
+                { label: "A crew of 6", value: `$${monthlyPrice(plan, 6)}`, note: "a month" },
+                { label: "Free trial", value: `${TRIAL_DAYS} days`, note: "every feature" },
+              ]}
+            />
           </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 pb-16 sm:px-6 sm:pb-24">
-        <h2 className="mb-6 text-center text-2xl font-semibold tracking-tight text-slate-900">Questions installers ask</h2>
-        <Faq
-          items={[
-            ["Do I need internet on site?", "No. Plans, devices, photos and checklists are saved on the iPad or phone and sync when you’re back online."],
-            [
-              "What plans can I use?",
-              "Architect PDFs (every page becomes a sheet), photos or scans of a printed plan, or a sketch. Set the scale once from any known dimension.",
-            ],
-            ["Can my technicians use it without seeing prices?", "Yes. Technicians get their own login and see plans, devices, photos, checklists and tasks — never prices, estimates or proposals."],
-            ["Does it work with my accounting?", "Estimates, orders and invoices go straight to Billdu. You can also export the takeoff, estimate and plan sheets as PDF or CSV."],
-            [
-              `What happens after the ${TRIAL_DAYS}-day trial?`,
-              <>
-                Choose a plan to keep going. If you don’t, your jobs stay readable and you can export them any time. See <Link href="/pricing" className="underline underline-offset-2">pricing</Link>.
-              </>,
-            ],
-            ["Is my data private?", "Each company’s jobs are private to its team, enforced in the database. You can export everything or delete your account from Settings."],
-          ]}
-        />
+      <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20">
+        <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 lg:py-28">
+          <h2 id="faq-title" className="mk-h2">
+            Questions contractors ask
+          </h2>
+          <Faq
+            items={[
+              ["Do I need internet on site?", "No. Plans, devices, photos and checklists are saved on the iPad or phone and sync when you’re back online."],
+              [
+                "What plans can I use?",
+                "PDF plan sets (every page becomes a floor), photos or scans of printed plans, or a sketch. Set the scale once from any known dimension.",
+              ],
+              [
+                "Which trades does it work for?",
+                "Low voltage and smart home, electrical, fire alarm, HVAC, plumbing, and solar and EV charging. Pick one or several, and add your own devices to any list.",
+              ],
+              [
+                "Can my technicians use it without seeing prices?",
+                "Yes. Technicians get their own login and see plans, devices, photos, checklists and tasks, never prices, quotes or invoices.",
+              ],
+              [
+                "Does it work with my accounting?",
+                `Quotes, invoices and payments are built into ${PRODUCT_NAME}, so you don’t need anything else. If you already use Billdu, you can connect it in Settings. You can also export counts, quotes and plan sheets as PDF or CSV.`,
+              ],
+              [
+                `What happens after the ${TRIAL_DAYS}-day trial?`,
+                <>
+                  Choose a plan to keep going. If you don’t, your jobs stay readable and you can export them any time. See{" "}
+                  <Link href="/pricing" className="mk-link">
+                    pricing
+                  </Link>
+                  .
+                </>,
+              ],
+              ["Is my data private?", "Each company’s jobs are private to its team, enforced in the database. You can export everything or delete your account from Settings."],
+            ]}
+          />
+        </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="px-4 pb-16 sm:px-6 sm:pb-24">
-        <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl bg-brand-600 px-6 py-12 text-center text-white sm:px-12">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Your next walkthrough could end with a signed proposal.</h2>
-          <p className="mx-auto mt-3 max-w-xl text-white/80">Set up your company in two minutes. Bring your crew when you’re ready.</p>
-          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/signup" className="btn h-12 border-white bg-white px-6 text-[15px] text-brand-700 hover:bg-brand-50 hover:text-brand-700">
-              Start free trial <ArrowRight />
+      {/* Final call */}
+      <section aria-labelledby="cta-title" className="bg-mk-marker">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 py-16 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:py-20">
+          <div>
+            <h2 id="cta-title" className="mk-h2 max-w-[16em]">
+              Bring your next set of plans
+            </h2>
+            <p className="mt-4 max-w-[34em] text-[17px] leading-relaxed">
+              Set up your company, upload a plan and send a real quote during the {TRIAL_DAYS}-day trial. Bring the crew in when you’re ready.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+            <Link href="/signup" className="mk-btn mk-btn-ink">
+              Start free trial
             </Link>
-            <Link href="/login" className="btn btn-ghost h-12 px-6 text-[15px] text-white hover:bg-white/10 hover:text-white">
-              Sign in
-            </Link>
+            <TryDemoLink className="mk-link h-12 px-2 text-left text-[15px] sm:text-center" />
           </div>
         </div>
       </section>
@@ -269,189 +296,127 @@ export default function Landing() {
   );
 }
 
-function Feature(props: { eyebrow: string; title: string; points: string[]; visual: React.ReactNode; flip?: boolean }) {
+function Hero() {
   return (
-    <div className="grid items-center gap-8 md:grid-cols-2 md:gap-14">
-      <div className={props.flip ? "md:order-2" : ""}>
-        <div className="text-sm font-semibold text-brand-600">{props.eyebrow}</div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">{props.title}</h2>
-        <ul className="mt-5 space-y-3">
-          {props.points.map((p) => (
-            <li key={p} className="flex gap-3 text-[15px] leading-relaxed text-slate-600">
-              <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-brand-500" />
-              {p}
-            </li>
-          ))}
-        </ul>
+    <section aria-labelledby="hero-title" className="overflow-hidden">
+      <div className="mx-auto max-w-[1240px] px-4 pt-12 pb-20 sm:px-6 sm:pt-16 lg:pt-20 lg:pb-28">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-14">
+          <h1 id="hero-title" className="mk-display">
+            Pin the plan. Send the quote. Get it signed.
+          </h1>
+          <div className="lg:pb-2">
+            <p className="mk-lede">
+              {PRODUCT_NAME} is takeoff, quoting and job management for electrical, low-voltage and specialty contractors. Put each device on the floor plan, and the count,
+              the wire and your price come straight from it.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row">
+              <Link href="/signup" className="mk-btn mk-btn-primary">
+                Start free trial
+              </Link>
+              <Link href="#how" className="mk-btn mk-btn-line">
+                See how it works
+              </Link>
+            </div>
+            <p className="mt-5 text-[15px] text-mk-pencil">
+              Free for {TRIAL_DAYS} days with every feature. Just looking? <TryDemoLink className="mk-link text-mk-graphite" />.
+            </p>
+          </div>
+        </div>
+        <div className="mt-12 lg:mt-16">
+          <HeroPlan />
+        </div>
       </div>
-      <div className={props.flip ? "md:order-1" : ""}>{props.visual}</div>
+    </section>
+  );
+}
+
+/** The same job seen by the office and by a technician. */
+function TeamCompare() {
+  const el = tradePack("electrical");
+  const rows = (
+    [
+      ["el-can6", "Recessed light 6\"", 20, 14],
+      ["el-gfci", "GFCI receptacle", 10, 10],
+      ["el-sw3", "3-way switch", 4, 1],
+    ] as const
+  ).map(([id, name, n, done]) => ({ name, n, done, s: el.catalog.find((c) => c.id === id)! }));
+  return (
+    <div className="grid items-start gap-4 sm:grid-cols-2">
+      {(["Office", "Technician"] as const).map((who) => (
+        <div key={who} className="mk-sheet overflow-hidden text-[14px]">
+          <div className="flex items-center justify-between border-b border-mk-rule px-4 py-2.5">
+            <span className="font-semibold">Kitchen, first floor</span>
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${who === "Office" ? "bg-mk-graphite text-white" : "bg-mk-marker text-mk-graphite"}`}>{who}</span>
+          </div>
+          <ul>
+            {rows.map(({ name, n, done, s }) => (
+              <li key={s.id} className="flex items-center gap-2.5 border-b border-mk-rule px-4 py-2.5 last:border-b-0">
+                <Symbol symbol={s.symbol} color={s.color} shape={s.shape} size={22} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{name}</span>
+                  <span className="block text-[13px] text-mk-pencil">{n} on the plan</span>
+                </span>
+                {who === "Office" ? (
+                  <span className="mk-num font-semibold">${(n * (s.unitPrice + s.laborPrice)).toLocaleString("en-US")}</span>
+                ) : (
+                  <span className="mk-num text-[13px] text-mk-pencil">{done === n ? "All set" : `${done} of ${n} set`}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-mk-rule bg-mk-paper px-4 py-2.5 text-[13px] text-mk-pencil">
+            {who === "Office" ? "Quote, invoices and margins" : "Photos, checklist and today’s tasks"}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function MockFrame({ title, children }: { title: string; children: React.ReactNode }) {
+/** iPad, iPhone and laptop drawn as plan linework. */
+function DevicesDrawing() {
   return (
-    <div className="rounded-2xl bg-slate-100 p-3 ring-1 ring-slate-200 sm:p-5">
-      <div className="card overflow-hidden ring-1 ring-slate-200/70">
-        <div className="flex items-center gap-1.5 border-b border-slate-100 px-4 py-2.5">
-          <span className="h-2 w-2 rounded-full bg-slate-200" />
-          <span className="h-2 w-2 rounded-full bg-slate-200" />
-          <span className="h-2 w-2 rounded-full bg-slate-200" />
-          <span className="ml-2 truncate text-xs font-medium text-slate-500">{title}</span>
-        </div>
-        <div className="p-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function DeviceList() {
-  const items: [React.ElementType, string, string, string][] = [
-    [Cctv, "Turret camera 4K", "Exterior · eave", "#c2410c"],
-    [Network, "Wi-Fi 7 access point", "Ceiling · hallway", "#2563eb"],
-    [Speaker, "6.5″ in-ceiling speaker", "Living · pair", "#7c3aed"],
-    [Lightbulb, "Keypad, 6-button", "Entry · 48″ AFF", "#b45309"],
-  ];
-  return (
-    <MockFrame title="1st floor · Sheet A-101">
-      <ul className="space-y-2">
-        {items.map(([Icon, name, where, c]) => (
-          <li key={name} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200/60">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full text-white" style={{ background: c }}>
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-slate-900">{name}</span>
-              <span className="block truncate text-xs text-slate-500">{where}</span>
-            </span>
-            <MapPin className="h-4 w-4 text-slate-300" />
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-700 ring-1 ring-brand-200">
-        <Sparkles className="h-3.5 w-3.5" /> Plan reader found 6 more devices — review to add them
-      </div>
-    </MockFrame>
-  );
-}
-
-function EstimateMock() {
-  const rows: [string, string, string][] = [
-    ["Turret camera 4K — installed", "8", "$3,360.00"],
-    ["Wi-Fi 7 access point — installed", "4", "$1,780.00"],
-    ["In-ceiling speaker pair", "6", "$2,940.00"],
-    ["Cat6 plenum, per ft", "1,240", "$868.00"],
-  ];
-  return (
-    <MockFrame title="Estimate · 14 Harbor View Rd">
-      <table className="w-full text-sm">
-        <tbody>
-          {rows.map(([d, q, t]) => (
-            <tr key={d} className="border-b border-slate-100 last:border-0">
-              <td className="py-2 pr-2 text-slate-700">{d}</td>
-              <td className="py-2 pr-2 text-right font-mono text-slate-500 tabular-nums">{q}</td>
-              <td className="py-2 text-right font-mono text-slate-900 tabular-nums">{t}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
-        <span className="text-sm text-slate-500">Total incl. tax</span>
-        <span className="font-mono text-lg font-semibold text-slate-900 tabular-nums">$9,846.00</span>
-      </div>
-      <div className="mt-3 flex gap-2">
-        <span className="btn btn-sm btn-primary">
-          <Receipt /> Send to Billdu
-        </span>
-        <span className="btn btn-sm">
-          <FileSignature /> Client proposal
-        </span>
-      </div>
-    </MockFrame>
-  );
-}
-
-function ProposalMock() {
-  return (
-    <div className="mx-auto max-w-xs rounded-[2rem] bg-ink p-2.5 shadow-pop">
-      <div className="overflow-hidden rounded-[1.5rem] bg-white">
-        <div className="bg-slate-900 px-5 py-4 text-white">
-          <div className="text-[11px] text-white/60">Proposal from</div>
-          <div className="font-semibold">Brightline Integration</div>
-        </div>
-        <div className="space-y-3 p-5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-slate-500">Security & network</span>
-            <span className="font-mono tabular-nums">$9,846</span>
-          </div>
-          <label className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-brand-800 ring-1 ring-brand-200">
-            <span className="flex h-4 w-4 items-center justify-center rounded bg-brand-600 text-white">
-              <CheckCircle2 className="h-3 w-3" />
-            </span>
-            Add: garage camera <span className="ml-auto font-mono">+$420</span>
-          </label>
-          <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4">
-            <svg viewBox="0 0 200 40" className="h-8 w-full" aria-hidden>
-              <path d="M8 30c14-22 22-22 24-6s10 10 18-6 14-14 16 2 12 12 22-4 18-10 26 2 20 10 34-6" fill="none" stroke="#1c1a18" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <div className="mt-1 text-[11px] text-slate-400">Signed by Dana Whitfield</div>
-          </div>
-          <span className="btn btn-brand w-full">Accept proposal</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FieldMock() {
-  return (
-    <MockFrame title="Daily log · Tue">
-      <div className="grid grid-cols-3 gap-2">
-        {["#efece7", "#e2ded7", "#ccc6bd"].map((c, i) => (
-          <div key={c} className="relative aspect-square rounded-lg" style={{ background: c }}>
-            <Camera className="absolute top-2 left-2 h-3.5 w-3.5 text-slate-500" />
-            {i === 1 && <span className="absolute right-2 bottom-2 h-6 w-6 rounded-full border-2 border-red-500" />}
-          </div>
-        ))}
-      </div>
-      <ul className="mt-4 space-y-2 text-sm">
+    <svg viewBox="0 0 520 330" className="h-auto w-full" role="img" aria-label="The same plan open on an iPad, an iPhone and a laptop">
+      <g fill="none" stroke="#a9b6ba" strokeWidth="1.5">
+        {/* laptop */}
+        <rect x="150" y="30" width="330" height="210" rx="10" />
+        <rect x="164" y="44" width="302" height="182" rx="2" strokeOpacity="0.5" />
+        <path d="M120 252h390l-14 22H134z" />
+        {/* plan on laptop */}
+        <path d="M200 70h230v130H200zM300 70v60M300 130h130M360 130v70" stroke="#fff" strokeOpacity="0.5" />
+        {/* iPad */}
+        <rect x="40" y="96" width="180" height="230" rx="14" fill="#1c2a30" />
+        <rect x="52" y="108" width="156" height="206" rx="3" strokeOpacity="0.5" />
+        <path d="M70 134h120v150H70zM70 200h70M140 134v66M140 240h50" stroke="#fff" strokeOpacity="0.5" />
+        {/* iPhone */}
+        <rect x="392" y="150" width="96" height="176" rx="16" fill="#1c2a30" />
+        <rect x="402" y="162" width="76" height="152" rx="6" strokeOpacity="0.5" />
+        <path d="M412 190h56v90h-56zM412 232h30" stroke="#fff" strokeOpacity="0.5" />
+      </g>
+      {/* the same pins on each */}
+      <g fill="#ffc933">
         {[
-          ["Rough-in: all low-voltage brackets set", true],
-          ["Home runs labelled at the rack", true],
-          ["Photo every wall before drywall", false],
-        ].map(([t, done]) => (
-          <li key={String(t)} className="flex items-center gap-2">
-            {done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <ClipboardCheck className="h-4 w-4 text-slate-300" />}
-            <span className={done ? "text-slate-500 line-through decoration-slate-300" : "text-slate-800"}>{t}</span>
-          </li>
+          [240, 100], [340, 100], [400, 170], [250, 170],
+          [96, 160], [168, 160], [110, 250], [172, 262],
+          [428, 210], [454, 254],
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="6" />
         ))}
-      </ul>
-    </MockFrame>
+      </g>
+    </svg>
   );
 }
 
-function TeamMock() {
-  const people: [string, string, string, string][] = [
-    ["JL", "Jordan Lee", "Owner", "bg-slate-900 text-white"],
-    ["PR", "Priya Raman", "Office", "bg-brand-100 text-brand-800"],
-    ["MK", "Marcus King", "Technician", "bg-slate-100 text-slate-700"],
-    ["AT", "Ana Torres", "Technician", "bg-slate-100 text-slate-700"],
-  ];
+function TitleBlock({ cells }: { cells: { label: string; value: string; note: string; big?: boolean }[] }) {
   return (
-    <MockFrame title="Settings · Team">
-      <ul className="divide-y divide-slate-100">
-        {people.map(([i, n, r, c]) => (
-          <li key={n} className="flex items-center gap-3 py-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{i}</span>
-            <span className="flex-1 text-sm font-medium text-slate-900">{n}</span>
-            <span className={`chip ${c}`}>{r}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Technicians never see prices
-        <Users className="ml-auto h-3.5 w-3.5 text-slate-400" />
-      </div>
-    </MockFrame>
+    <div className="mk-sheet grid grid-cols-2 self-start">
+      {cells.map((c, i) => (
+        <div key={c.label} className={`px-5 py-5 sm:px-6 ${i % 2 === 0 ? "border-r border-mk-rule" : ""} ${i >= 2 ? "border-t border-mk-rule" : ""}`}>
+          <div className="text-[14px] text-mk-pencil">{c.label}</div>
+          <div className={`mk-figure mt-1 ${c.big ? "text-[44px] sm:text-[56px]" : "text-[28px] sm:text-[32px]"}`}>{c.value}</div>
+          <div className="mt-1 text-[14px] text-mk-pencil">{c.note}</div>
+        </div>
+      ))}
+    </div>
   );
 }
