@@ -104,6 +104,7 @@ struct TakeoffView: View {
         }
         .background(Color(.systemGroupedBackground))
         .shareSheet($share)
+        .navigationDestination(isPresented: $openReview) { PlanReviewView(model: model) }
     }
 
     @ViewBuilder
@@ -121,6 +122,8 @@ struct TakeoffView: View {
         Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.")
             .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
+
+    @State private var openReview = ProcessInfo.processInfo.arguments.contains("--plan-review")
 
     @ViewBuilder private var exportButtons: some View {
         NavigationLink { PlanReviewView(model: model) } label: { Label("Send plan to client", systemImage: "eye").lineLimit(1) }.buttonStyle(.bordered)

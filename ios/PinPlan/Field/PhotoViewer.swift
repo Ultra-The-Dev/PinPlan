@@ -9,7 +9,7 @@ struct PhotoViewer: View {
     let model: EditorModel
     let ids: [String]
     @State var current: String
-    @State private var annotating = false
+    @State private var annotating = ProcessInfo.processInfo.arguments.contains("--markup")
     @State private var compare = false
     @State private var share: SharedFile?
 

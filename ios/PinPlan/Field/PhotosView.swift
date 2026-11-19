@@ -152,6 +152,12 @@ struct PhotosView: View {
             }
         }
         .onChange(of: stampLocation) { _, v in LocationOnce.enabled = v }
+        .onAppear {
+            // Screenshot/automation hooks.
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("--open-photo"), viewer == nil, let first = shown.first { viewer = PhotoViewerItem(ids: shown.map(\.id), start: first.id) }
+            if args.contains("--photo-report"), report == nil, !shown.isEmpty { report = shown }
+        }
         .alert("Your name", isPresented: $askName) {
             TextField("Name", text: $nameDraft)
             Button("Save") { FieldAuthor.set(nameDraft) }

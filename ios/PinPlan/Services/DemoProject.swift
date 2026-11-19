@@ -70,7 +70,101 @@ enum DemoProject {
             else { price = nil }
             if let price { b.upsertEstimateLine(key: line.key) { $0.unitPrice = price } }
         }
+        addFieldSamples(&b, store: store)
         return b
+    }
+
+    /// Sample site photos (with mark-up, tags, comments, a device link and a before/after pair), a pre-wire checklist
+    /// and a daily log, so the Photos and Field tabs have something to explore.
+    static func addFieldSamples(_ b: inout ProjectBundle, store: Store) {
+        let pid = b.project.id
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let day = 86400.0
+        let now = Date()
+        let shots: [(String, [String], String, Double, Int)] = [
+            ("Living room camera bracket and Cat6 in place", ["Pre-wire", "Camera"], "Living", 2 * day, 0),
+            ("Speaker back boxes, living room ceiling", ["Pre-wire", "Audio"], "Living", 2 * day - 1800, 1),
+            ("TV wall: HDMI + 2× Cat6 bundle at 60\"", ["Pre-wire", "TV"], "Living", 2 * day - 3600, 2),
+            ("Cables labeled and home-run to the closet", ["Pre-wire", "Rack"], "AV Equipment", day, 3),
+            ("Rack dressed and patched", ["Rack", "Completed"], "AV Equipment", 3600, 4),
+            ("Living room camera mounted", ["Trim-out", "Camera", "After"], "Living", 1800, 5),
+        ]
+        var photos: [Photo] = []
+        for (i, s) in shots.enumerated() {
+            let img = sitePhoto(s.4)
+            guard let data = img.jpegData(compressionQuality: 0.8), let imageId = store.saveImageData(data, image: img) else { continue }
+            var p = Photo(projectId: pid, imageId: imageId, width: img.size.width, height: img.size.height,
+                          takenAt: iso.string(from: now.addingTimeInterval(-s.3)), takenBy: i % 2 == 0 ? "Alex" : "Sam", lat: 40.7486, lng: -73.9857)
+            p.caption = s.0; p.tags = s.1; p.room = s.2
+            photos.append(p)
+        }
+        guard photos.count == 6 else { return }
+        if let cam = b.liveMarkers.first(where: { $0.deviceTypeId == "cam-indoor" && $0.room == "Living" }) {
+            for i in [0, 5] { photos[i].markerId = cam.id; photos[i].sheetId = cam.sheetId }
+        }
+        photos[5].beforeId = photos[0].id
+        photos[0].annotations = [
+            PhotoShape(kind: .arrow, color: "#ef4444", width: 0.007, points: [0.18, 0.2, 0.42, 0.42]),
+            PhotoShape(kind: .text, color: "#ffffff", width: 0.007, points: [0.08, 0.1], text: "Camera here, 7 ft"),
+            PhotoShape(kind: .circle, color: "#f59e0b", width: 0.006, points: [0.4, 0.38, 0.62, 0.66]),
+        ]
+        for p in photos { b.save(p, in: \.photos) }
+        b.project.lat = 40.7486; b.project.lng = -73.9857
+        b.save(PhotoComment(projectId: pid, photoId: photos[0].id, author: "Sam", text: "Client asked to move this 6 in. to the left — done."), in: \.photoComments)
+        b.save(PhotoComment(projectId: pid, photoId: photos[3].id, author: "Alex", text: "All 24 runs tested and labeled."), in: \.photoComments)
+        if let t = FieldDocs.templates.first(where: { $0.id == "prewire" }) {
+            var c = FieldDocs.checklist(from: t, projectId: pid)
+            for i in 0..<3 { c.items[i].done = true; c.items[i].doneBy = "Alex"; c.items[i].doneAt = iso.string(from: now.addingTimeInterval(-day)) }
+            b.save(c, in: \.checklists)
+            for (k, item) in [(0, 0), (1, 1)] {
+                b.update([photos[k].id], in: \.photos) { $0.checklistId = c.id; $0.checklistItemId = c.items[item].id }
+            }
+        }
+        var log = JobLog(projectId: pid, date: FieldDocs.localDay(iso.string(from: now.addingTimeInterval(-2 * day))), title: "Pre-wire, 1st floor",
+                         body: "Crew: Alex, Sam.\n- Camera, speaker and TV boxes set in the living room\n- TV wall bundle pulled (HDMI + 2× Cat6)\n- Next: 2nd floor and the cellar closet", author: "Alex")
+        log.photoIds = Array(photos.prefix(3).map(\.id))
+        b.save(log, in: \.jobLogs)
+        b.project.labels = ["Pre-wire"]
+    }
+
+    /// A simple drawn "site photo": an open stud wall with a box, cables and a bracket (no real photos in the repo).
+    static func sitePhoto(_ n: Int) -> UIImage {
+        let size = CGSize(width: 1600, height: 1200)
+        let fmt = UIGraphicsImageRendererFormat()
+        fmt.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: fmt).image { r in
+            let c = r.cgContext
+            let tones: [UIColor] = [UIColor(red: 0.82, green: 0.76, blue: 0.66, alpha: 1), UIColor(red: 0.74, green: 0.72, blue: 0.70, alpha: 1)]
+            c.setFillColor(tones[n % 2].cgColor); c.fill(CGRect(origin: .zero, size: size))
+            if n == 4 || n == 5 {
+                // Finished: a rack or a mounted camera on a white wall.
+                c.setFillColor(UIColor(white: n == 4 ? 0.2 : 0.95, alpha: 1).cgColor); c.fill(CGRect(origin: .zero, size: size))
+                if n == 4 {
+                    for i in 0..<9 {
+                        c.setFillColor(UIColor(white: 0.1 + Double(i % 3) * 0.05, alpha: 1).cgColor)
+                        c.fill(CGRect(x: 420, y: 140 + i * 105, width: 760, height: 90))
+                        for j in 0..<16 { c.setFillColor([UIColor.systemBlue, .systemGreen, .systemYellow][j % 3].cgColor); c.fill(CGRect(x: 450 + j * 44, y: 175 + i * 105, width: 24, height: 20)) }
+                    }
+                } else {
+                    c.setFillColor(UIColor.white.cgColor); c.fillEllipse(in: CGRect(x: 560, y: 420, width: 300, height: 300))
+                    c.setStrokeColor(UIColor(white: 0.75, alpha: 1).cgColor); c.setLineWidth(6); c.strokeEllipse(in: CGRect(x: 560, y: 420, width: 300, height: 300))
+                    c.setFillColor(UIColor(white: 0.1, alpha: 1).cgColor); c.fillEllipse(in: CGRect(x: 650, y: 510, width: 120, height: 120))
+                }
+                return
+            }
+            // Studs, a low-voltage bracket and cables.
+            for x in stride(from: 80, to: 1600, by: 360) {
+                c.setFillColor(UIColor(red: 0.72, green: 0.55, blue: 0.36, alpha: 1).cgColor); c.fill(CGRect(x: x, y: 0, width: 70, height: 1200))
+            }
+            c.setFillColor(UIColor(red: 0.12, green: 0.35, blue: 0.85, alpha: 1).cgColor); c.fill(CGRect(x: 600 + n * 40, y: 480, width: 170, height: 240))
+            let colors: [UIColor] = [.systemBlue, .systemPurple, .black, .systemOrange]
+            for (i, col) in colors.prefix(2 + n % 3).enumerated() {
+                c.setStrokeColor(col.cgColor); c.setLineWidth(18)
+                c.move(to: CGPoint(x: 680 + n * 40 + i * 20, y: 480)); c.addCurve(to: CGPoint(x: 700 + i * 60, y: 0), control1: CGPoint(x: 600, y: 300), control2: CGPoint(x: 900, y: 150))
+                c.strokePath()
+            }
+        }
     }
 
     /// A realistic test "photo": the demo plan lying tilted on a darker table with uneven lighting.

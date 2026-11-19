@@ -7,7 +7,14 @@ import PinPlanCore
 struct FieldView: View {
     enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline"; var id: String { rawValue } }
     let model: EditorModel
-    @State private var section: Part = .checklists
+    @State private var section: Part = {
+        // Screenshot hook: `--field logs|documents|timeline`.
+        let a = ProcessInfo.processInfo.arguments
+        if let i = a.firstIndex(of: "--field"), a.indices.contains(i + 1) {
+            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; default: break }
+        }
+        return .checklists
+    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,7 +38,7 @@ struct ChecklistsView: View {
     let model: EditorModel
     @State private var naming = false
     @State private var name = ""
-    @State private var open: String?
+    @State private var openFirst = ProcessInfo.processInfo.arguments.contains("--checklist")
 
     var body: some View {
         let lists = model.bundle.liveChecklists
@@ -61,6 +68,7 @@ struct ChecklistsView: View {
                 .swipeActions { Button("Delete", role: .destructive) { model.removeRows([c.id], in: \.checklists) } }
             }
         }
+        .navigationDestination(isPresented: $openFirst) { if let c = lists.first { ChecklistDetail(model: model, id: c.id) } }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
