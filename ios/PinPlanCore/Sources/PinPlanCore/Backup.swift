@@ -26,6 +26,8 @@ public struct BackupFile: Codable, Sendable {
         public var jobLogs: [JobLog]?
         public var documents: [JobDocument]?
         public var images: [Image]
+        /// Entries in `images` that are job documents (any file type; the web app keeps them with the images).
+        public var documentFileIds: Set<String> { Set((documents ?? []).map(\.fileId)) }
         public var bundle: ProjectBundle {
             var b = ProjectBundle(project: project, sheets: sheets, markers: markers, runs: runs, closets: closets, estimateLines: estimateLines)
             b.photos = photos ?? []; b.photoComments = photoComments ?? []; b.checklists = checklists ?? []
@@ -64,4 +66,17 @@ public struct BackupFile: Codable, Sendable {
     }
 
     public func encoded() throws -> Data { try JSONEncoder().encode(self) }
+}
+
+extension ProjectBundle {
+    /// Every JPEG this job keeps: plan sheets, device photos and job photos (deleted rows included, so undo still finds them).
+    public var storedImageIds: [String] {
+        var seen = Set<String>()
+        return (sheets.map(\.imageId) + markers.compactMap(\.photoId) + photos.map(\.imageId)).filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+    /// Job document files (any type).
+    public var storedFileIds: [String] {
+        var seen = Set<String>()
+        return documents.map(\.fileId).filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
 }

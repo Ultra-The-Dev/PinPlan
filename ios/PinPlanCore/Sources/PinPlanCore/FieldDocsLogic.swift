@@ -185,7 +185,8 @@ public enum FieldDocs {
         public var text: String
         public var who: String?
         public var photoIds: [String] = []
-        public var id: String { "\(kind.rawValue)|\(at)|\(text)" }
+        /// Unique within a timeline (SwiftUI lists need that): two people can post the same words at the same moment.
+        public var id: String { "\(kind.rawValue)|\(at)|\(text)|\(who ?? "")|\(photoIds.joined(separator: ","))" }
     }
 
     /// Everything that happened on the job, newest first. Photo uploads are grouped per person per hour.

@@ -113,4 +113,18 @@ final class FieldDocsTests: XCTestCase {
         b.photoComments = [PhotoComment(projectId: "p", photoId: "a", author: "Sam", text: "on a"), PhotoComment(projectId: "p", photoId: "b", author: "Sam", text: "on b")]
         XCTAssertEqual(FieldDocs.timeline(b).filter { $0.kind == .comment }.map(\.text), ["Commented: “on a”"])
     }
+
+    func testTimelineEventIdsAreUnique() {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        var a = Photo(projectId: "p", imageId: "ia", width: 1, height: 1); a.id = "a"
+        var c = Photo(projectId: "p", imageId: "ic", width: 1, height: 1); c.id = "c"
+        b.photos = [a, c]
+        // Same words at the same moment, by two people / on two photos.
+        var x = PhotoComment(projectId: "p", photoId: "a", author: "Sam", text: "Looks good"); x.createdAt = "2026-11-19T10:00:00.000Z"
+        var y = PhotoComment(projectId: "p", photoId: "c", author: "Sam", text: "Looks good"); y.createdAt = x.createdAt
+        var z = PhotoComment(projectId: "p", photoId: "a", author: "Alex", text: "Looks good"); z.createdAt = x.createdAt
+        b.photoComments = [x, y, z]
+        let ids = FieldDocs.timeline(b).map(\.id)
+        XCTAssertEqual(Set(ids).count, ids.count)
+    }
 }

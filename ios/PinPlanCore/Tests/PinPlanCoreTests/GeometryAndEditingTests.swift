@@ -118,6 +118,23 @@ final class BackupTests: XCTestCase {
         XCTAssertEqual(again.projects[0].bundle, b)
     }
 
+    func testKnowsWhichFilesAreDocuments() throws {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        b.sheets = [Sheet(id: "s1", projectId: "p", name: "1", pageNumber: 1, order: 0, imageId: "plan", width: 10, height: 10)]
+        var m = Marker(id: "m", projectId: "p", sheetId: "s1", deviceTypeId: "tv", x: 0, y: 0, label: "TV")
+        m.photoId = "devphoto"
+        b.markers = [m]
+        b.photos = [Photo(projectId: "p", imageId: "job1", width: 1, height: 1), Photo(projectId: "p", imageId: "job1", width: 1, height: 1)]
+        b.documents = [JobDocument(projectId: "p", name: "Permit.pdf", mime: "application/pdf", size: 3, fileId: "doc1")]
+        XCTAssertEqual(b.storedImageIds, ["plan", "devphoto", "job1"])
+        XCTAssertEqual(b.storedFileIds, ["doc1"])
+        // A web backup lists documents among its images; the entry says which ones they are.
+        let entry = BackupFile.ProjectEntry(bundle: b, images: [.init(id: "doc1", mime: "application/pdf", width: 0, height: 0, data: "AAA=")])
+        let back = try BackupFile.decode(BackupFile(catalog: [], projects: [entry]).encoded())
+        XCTAssertEqual(back.projects[0].documentFileIds, ["doc1"])
+        XCTAssertEqual(back.projects[0].images.map(\.mime), ["application/pdf"])
+    }
+
     func testRejectsOtherJSON() {
         XCTAssertThrowsError(try BackupFile.decode(Data("{\"hello\":1}".utf8)))
     }

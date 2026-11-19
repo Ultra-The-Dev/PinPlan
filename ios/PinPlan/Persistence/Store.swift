@@ -56,13 +56,17 @@ final class Store: @unchecked Sendable {
 
     func deleteProject(_ bundle: ProjectBundle) {
         let url = projectsDir.appendingPathComponent("\(bundle.project.id).json")
-        let imageIds = bundle.sheets.map(\.imageId) + bundle.markers.compactMap(\.photoId) + bundle.photos.map(\.imageId)
-        let fileIds = bundle.documents.map(\.fileId)
+        let imageIds = bundle.storedImageIds
+        let fileIds = bundle.storedFileIds
+        // Source PDFs are per import (never shared between jobs), so they go with the job too.
+        let pdfIds = Set(bundle.sheets.compactMap(\.sourcePdfId))
         queue.async {
             try? FileManager.default.removeItem(at: url)
             for id in imageIds { try? FileManager.default.removeItem(at: self.imagesDir.appendingPathComponent("\(id).jpg")) }
             for id in fileIds { try? FileManager.default.removeItem(at: self.fileURL(id)) }
+            for id in pdfIds { try? FileManager.default.removeItem(at: self.pdfURL(id)) }
         }
+        for id in imageIds { imageCache.removeObject(forKey: id as NSString) }
     }
 
     // MARK: images
@@ -77,7 +81,7 @@ final class Store: @unchecked Sendable {
     func saveImageData(_ data: Data, id: String = newId(), image: UIImage? = nil) -> String? {
         let url = imagesDir.appendingPathComponent("\(id).jpg")
         do { try data.write(to: url, options: .atomic) } catch { return nil }
-        if let image { imageCache.setObject(image, forKey: id as NSString, cost: data.count) }
+        if let image { imageCache.setObject(image, forKey: id as NSString, cost: data.count) } else { imageCache.removeObject(forKey: id as NSString) }
         return id
     }
 
@@ -90,11 +94,15 @@ final class Store: @unchecked Sendable {
     }
 
     func imageData(_ id: String) -> Data? { try? Data(contentsOf: imagesDir.appendingPathComponent("\(id).jpg")) }
+    /// Whether the image is on this device (without reading it).
+    func hasImage(_ id: String) -> Bool { FileManager.default.fileExists(atPath: imagesDir.appendingPathComponent("\(id).jpg").path) }
 
     // MARK: job documents (any file type), kept next to the images
 
     func fileURL(_ id: String) -> URL { imagesDir.appendingPathComponent("\(id).file") }
     func fileData(_ id: String) -> Data? { try? Data(contentsOf: fileURL(id)) }
+    /// Whether the document is on this device (without reading it — files can be 25 MB).
+    func hasFile(_ id: String) -> Bool { FileManager.default.fileExists(atPath: fileURL(id).path) }
     func saveFile(_ data: Data, id: String = newId()) {
         try? data.write(to: fileURL(id), options: .atomic)
     }
@@ -154,10 +162,14 @@ final class Store: @unchecked Sendable {
 
     func backup(of bundles: [ProjectBundle], catalog: [DeviceType], products: [Product] = []) throws -> URL {
         let entries = bundles.map { b -> BackupFile.ProjectEntry in
-            let ids = Set(b.sheets.map(\.imageId) + b.markers.compactMap(\.photoId) + b.photos.map(\.imageId))
-            let images: [BackupFile.Image] = ids.compactMap { id in
+            var images: [BackupFile.Image] = b.storedImageIds.compactMap { id in
                 guard let data = imageData(id), let img = image(id) else { return nil }
                 return .init(id: id, mime: "image/jpeg", width: Double(img.size.width * img.scale), height: Double(img.size.height * img.scale), data: data.base64EncodedString())
+            }
+            // Job documents travel with the images, like the web app's backups.
+            for d in b.documents where d.deleted != true {
+                guard let data = fileData(d.fileId), !images.contains(where: { $0.id == d.fileId }) else { continue }
+                images.append(.init(id: d.fileId, mime: d.mime, width: 0, height: 0, data: data.base64EncodedString()))
             }
             return .init(bundle: b, images: images)
         }
@@ -181,7 +193,12 @@ final class Store: @unchecked Sendable {
         }
         var out: [ProjectBundle] = []
         for entry in file.projects {
-            for img in entry.images { if let data = Data(base64Encoded: img.data) { saveImageData(data, id: img.id) } }
+            let docs = entry.documentFileIds
+            for img in entry.images {
+                guard let data = Data(base64Encoded: img.data) else { continue }
+                // Documents (PDFs, spreadsheets…) are stored as files, not as JPEG images.
+                if docs.contains(img.id) { saveFile(data, id: img.id) } else { saveImageData(data, id: img.id) }
+            }
             var b = entry.bundle
             b.project.deleted = nil
             save(b)

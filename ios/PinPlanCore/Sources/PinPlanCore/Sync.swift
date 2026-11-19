@@ -252,7 +252,8 @@ public struct SyncState: Sendable {
         }
         if t == .projects, (remote["deleted"] as? Bool) == true {
             if bundles.removeValue(forKey: id) != nil {
-                for k in ledger.hashes.keys where k.hasPrefix("projects:\(id)") { ledger.hashes.removeValue(forKey: k) }
+                // Exactly this job's key: a prefix match would also drop "projects:p10" when "p1" goes.
+                ledger.hashes.removeValue(forKey: key)
                 return .removedProject
             }
             return .skipped

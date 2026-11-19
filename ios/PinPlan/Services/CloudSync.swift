@@ -355,7 +355,19 @@ final class CloudSync {
     func proposals(projectId: String) async throws -> [ProposalRow] {
         guard let client else { throw SupabaseClient.Failure(message: "Cloud sync isn't connected.") }
         let data = try await client.select("proposals", query: "select=*&project_id=eq.\(projectId)&order=created_at.desc", token: try await token())
-        return try JSONDecoder().decode([ProposalRow].self, from: data)
+        // One row this version can't read (e.g. a newer web app's snapshot) mustn't hide the job's other links.
+        return try JSONDecoder().decode([Lossy<ProposalRow>].self, from: data).compactMap(\.value)
+    }
+
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+    }
+
+    /// Run a sync and wait for it, even if one is already under way (so a job just created is on the server).
+    private func syncAndWait() async {
+        while syncing { try? await Task.sleep(for: .milliseconds(250)) }
+        await syncNow()
     }
 
     /// Upload the plan images, then save the proposal. The job's earlier open links are withdrawn.
@@ -364,7 +376,7 @@ final class CloudSync {
         guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
         let tok = try await token()
         // The job must be on the server first (proposals belong to a synced job).
-        await syncNow()
+        await syncAndWait()
         var urls: [String: String] = [:]
         for (i, (sheetId, data)) in images.sorted(by: { $0.key < $1.key }).enumerated() {
             progress("Uploading plan \(i + 1) of \(images.count)…")
@@ -391,7 +403,7 @@ final class CloudSync {
     /// Save a photo report the client can open at /r?t=<token> (photos already uploaded with `uploadPublic`).
     func publishPhotoReport(token link: String, projectId: String, snapshot: [String: Any]) async throws {
         guard let client else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
-        await syncNow()   // the report belongs to a synced job
+        await syncAndWait()   // the report belongs to a synced job
         do {
             _ = try await client.insert("photo_reports", row: ["id": link, "project_id": projectId, "snapshot": snapshot], token: try await token())
         } catch {
@@ -470,49 +482,73 @@ final class CloudSync {
 
     /// Upload plan images this device has that the cloud doesn't; download ones it is missing.
     private func images(app: AppModel, client: SupabaseClient, token: String) async throws {
+        // One file the server refuses (too big, bad type…) mustn't hold up every other upload and all downloads:
+        // remember the first refusal and report it at the end. No connection at all still stops the run straight away.
+        var refused: Error?
+        func attempt(_ id: String, _ work: () async throws -> Void) async throws {
+            do {
+                try await work()
+                ledger.uploadedImages.insert(id)
+            } catch let e as SupabaseClient.Failure where e.status != 0 && e.status != 401 {
+                if refused == nil { refused = e }
+            }
+        }
         for b in app.projects {
             let pid = b.project.id
             for s in b.liveSheets where !ledger.uploadedImages.contains(s.imageId) {
                 guard let data = app.store.imageData(s.imageId) else { continue }
                 let path = "\(pid)/\(s.imageId)"
-                try await client.upload(path: path, data: data, token: token)
-                try await client.patch("sheets", filter: "image_id=eq.\(s.imageId)", values: ["image_path": path], token: token)
-                ledger.uploadedImages.insert(s.imageId)
+                try await attempt(s.imageId) {
+                    try await client.upload(path: path, data: data, token: token)
+                    try await client.patch("sheets", filter: "image_id=eq.\(s.imageId)", values: ["image_path": path], token: token)
+                }
             }
             for m in b.liveMarkers {
                 guard let id = m.photoId, !ledger.uploadedImages.contains(id), let data = app.store.imageData(id) else { continue }
-                try await client.upload(path: "\(pid)/\(id)", data: data, token: token)
-                ledger.uploadedImages.insert(id)
+                try await attempt(id) { try await client.upload(path: "\(pid)/\(id)", data: data, token: token) }
             }
             // Job photos and documents: stored at <project>/<file id>, like the web app.
             for p in b.livePhotos where !ledger.uploadedImages.contains(p.imageId) {
                 guard let data = app.store.imageData(p.imageId) else { continue }
-                try await client.upload(path: "\(pid)/\(p.imageId)", data: data, token: token)
-                ledger.uploadedImages.insert(p.imageId)
+                try await attempt(p.imageId) { try await client.upload(path: "\(pid)/\(p.imageId)", data: data, token: token) }
             }
             for d in b.liveDocuments where !ledger.uploadedImages.contains(d.fileId) {
                 guard let data = app.store.fileData(d.fileId) else { continue }
-                try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime)
-                ledger.uploadedImages.insert(d.fileId)
+                try await attempt(d.fileId) { try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime) }
             }
         }
+        // Downloads: check for the file without reading it (this runs every minute), and cap each run so a big
+        // first sync doesn't hold the loop for ages — the rest come on the next runs.
+        var budget = 300
         for b in app.projects {
-            for s in b.liveSheets where app.store.imageData(s.imageId) == nil {
-                let path = imagePaths[s.imageId] ?? "\(b.project.id)/\(s.imageId)"
+            let pid = b.project.id
+            for s in b.liveSheets where budget > 0 && !app.store.hasImage(s.imageId) {
+                budget -= 1
+                let path = imagePaths[s.imageId] ?? "\(pid)/\(s.imageId)"
                 guard let data = try? await client.download(path: path, token: token) else { continue }   // may still be uploading elsewhere
                 _ = app.store.saveImageData(data, id: s.imageId)
                 ledger.uploadedImages.insert(s.imageId)
             }
-            for p in b.livePhotos.prefix(200) where app.store.imageData(p.imageId) == nil {
-                guard let data = try? await client.download(path: "\(b.project.id)/\(p.imageId)", token: token) else { continue }
+            // Device photos (a marker's photo) are stored at <project>/<photo id> too.
+            for id in b.liveMarkers.compactMap(\.photoId) where budget > 0 && !app.store.hasImage(id) {
+                budget -= 1
+                guard let data = try? await client.download(path: "\(pid)/\(id)", token: token) else { continue }
+                _ = app.store.saveImageData(data, id: id)
+                ledger.uploadedImages.insert(id)
+            }
+            for p in b.livePhotos where budget > 0 && !app.store.hasImage(p.imageId) {
+                budget -= 1
+                guard let data = try? await client.download(path: "\(pid)/\(p.imageId)", token: token) else { continue }
                 _ = app.store.saveImageData(data, id: p.imageId)
                 ledger.uploadedImages.insert(p.imageId)
             }
-            for d in b.liveDocuments where app.store.fileData(d.fileId) == nil {
-                guard let data = try? await client.download(path: "\(b.project.id)/\(d.fileId)", token: token) else { continue }
+            for d in b.liveDocuments where budget > 0 && !app.store.hasFile(d.fileId) {
+                budget -= 1
+                guard let data = try? await client.download(path: "\(pid)/\(d.fileId)", token: token) else { continue }
                 app.store.saveFile(data, id: d.fileId)
                 ledger.uploadedImages.insert(d.fileId)
             }
         }
+        if let refused { throw refused }
     }
 }
