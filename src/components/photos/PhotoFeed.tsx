@@ -1,5 +1,5 @@
 "use client";
-// Every job's photos in one feed (newest first): filter by job, tag or person; open one on its job.
+// Every job's photos in one feed (newest first): filter by job, tag, person or dates; open one on its job.
 import { Camera, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
 import type { Photo, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
+import DateRange from "./DateRange";
 
 function Thumb({ photo, job }: { photo: Photo; job?: Project }) {
   const url = useBlobUrl(photo.imageId);
@@ -29,6 +30,8 @@ export default function PhotoFeed() {
   const [tags, setTags] = useState<string[]>([]);
   const [person, setPerson] = useState("");
   const [text, setText] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   useEffect(() => {
     void (async () => {
       const ps = (await db().projects.toArray()).filter((p) => !p.deleted);
@@ -38,7 +41,7 @@ export default function PhotoFeed() {
     })();
   }, []);
   const live = useMemo(() => (photos ?? []).filter((p) => !job || p.projectId === job), [photos, job]);
-  const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text }), [live, tags, person, text]);
+  const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
   const groups = useMemo(() => photosByDay(shown), [shown]);
   const options = useMemo(() => tagOptions(live).slice(0, 14), [live]);
   const people = useMemo(() => [...new Set((photos ?? []).map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [photos]);
@@ -72,6 +75,7 @@ export default function PhotoFeed() {
               ))}
             </select>
           )}
+          <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
           <div className="flex basis-full flex-wrap gap-1.5">
             {options.map((t) => (
               <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} onClick={() => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]))}>
@@ -89,6 +93,13 @@ export default function PhotoFeed() {
           <p className="mt-3 font-medium">No photos yet</p>
           <p className="mt-1 text-sm text-slate-500">Open a job and use its Photos tab to take or add photos.</p>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="card p-8 text-center text-sm text-slate-500">
+          No photos match these filters.{" "}
+          <button className="font-medium text-brand-600" onClick={() => (setJob(""), setTags([]), setPerson(""), setText(""), setFrom(""), setTo(""))}>
+            Clear filters
+          </button>
+        </p>
       ) : (
         groups.map((g) => (
           <section key={g.day}>
