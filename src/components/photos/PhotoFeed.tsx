@@ -61,7 +61,11 @@ export default function PhotoFeed() {
   }, [photos, jobs, job, label]);
   const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text }), [live, tags, person, text]);
   const groups = useMemo(() => photosByDay(shown), [shown]);
-  const options = useMemo(() => tagOptions(live).slice(0, 14), [live]);
+  // Keep selected tags visible even when a job/label change drops them from the options, so they can still be cleared.
+  const options = useMemo(() => {
+    const top = tagOptions(live).slice(0, 14);
+    return [...top, ...tags.filter((t) => !top.includes(t))];
+  }, [live, tags]);
   const people = useMemo(() => [...new Set((photos ?? []).map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [photos]);
   const withPhotos = useMemo(() => new Set((photos ?? []).map((p) => p.projectId)), [photos]);
   const labels = useMemo(() => labelOptions([...jobs.values()].filter((j) => withPhotos.has(j.id))), [jobs, withPhotos]);
@@ -129,7 +133,12 @@ export default function PhotoFeed() {
           <p className="mt-1 text-sm text-slate-500">Open a job and use its Photos tab to take or add photos.</p>
         </div>
       ) : shown.length === 0 ? (
-        <p className="px-1 py-10 text-center text-sm text-slate-500">No photos match these filters.</p>
+        <div className="px-1 py-10 text-center text-sm text-slate-500">
+          <p>No photos match these filters.</p>
+          <button className="mt-2 font-medium text-brand-600 hover:underline" onClick={() => { setJob(""); setLabel(""); setTags([]); setPerson(""); setText(""); }}>
+            Clear filters
+          </button>
+        </div>
       ) : (
         groups.map((g) => (
           <section key={g.day}>

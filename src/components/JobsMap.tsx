@@ -57,7 +57,8 @@ export default function JobsMap() {
   }, []);
   const live = useMemo(() => jobs ?? [], [jobs]);
   const labels = useMemo(() => labelOptions(live), [live]);
-  const counts = useMemo(() => statusCounts(live), [live]);
+  // Status badges count jobs under the current label filter, so they match what picking that status would show.
+  const counts = useMemo(() => statusCounts(filterJobs(live, { label })), [live, label]);
   const shown = useMemo(() => filterJobs(live, { statuses, label }), [live, statuses, label]);
   const placed = useMemo(() => shown.filter(isPlaced).sort((a, b) => jobTitle(a).localeCompare(jobTitle(b))), [shown]);
   const unplaced = shown.filter((j) => !isPlaced(j));
