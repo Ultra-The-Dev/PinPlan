@@ -97,6 +97,7 @@ enum DemoProject {
             var p = Photo(projectId: pid, imageId: imageId, width: img.size.width, height: img.size.height,
                           takenAt: iso.string(from: now.addingTimeInterval(-s.3)), takenBy: i % 2 == 0 ? "Alex" : "Sam", lat: 40.7486, lng: -73.9857)
             p.caption = s.0; p.tags = s.1; p.room = s.2
+            p.createdAt = p.takenAt   // as if uploaded on site, so the timeline reads in order
             photos.append(p)
         }
         guard photos.count == 6 else { return }
@@ -111,10 +112,16 @@ enum DemoProject {
         ]
         for p in photos { b.save(p, in: \.photos) }
         b.project.lat = 40.7486; b.project.lng = -73.9857
-        b.save(PhotoComment(projectId: pid, photoId: photos[0].id, author: "Sam", text: "Client asked to move this 6 in. to the left — done."), in: \.photoComments)
-        b.save(PhotoComment(projectId: pid, photoId: photos[3].id, author: "Alex", text: "All 24 runs tested and labeled."), in: \.photoComments)
+        func comment(_ photo: Photo, _ who: String, _ text: String, after: Double) {
+            var c = PhotoComment(projectId: pid, photoId: photo.id, author: who, text: text)
+            c.createdAt = iso.string(from: (FieldDocs.date(photo.takenAt) ?? now).addingTimeInterval(after))
+            b.save(c, in: \.photoComments)
+        }
+        comment(photos[0], "Sam", "Client asked to move this 6 in. to the left — done.", after: 900)
+        comment(photos[3], "Alex", "All 24 runs tested and labeled.", after: 600)
         if let t = FieldDocs.templates.first(where: { $0.id == "prewire" }) {
             var c = FieldDocs.checklist(from: t, projectId: pid)
+            c.createdAt = iso.string(from: now.addingTimeInterval(-2 * day - 7200))
             for i in 0..<3 { c.items[i].done = true; c.items[i].doneBy = "Alex"; c.items[i].doneAt = iso.string(from: now.addingTimeInterval(-day)) }
             b.save(c, in: \.checklists)
             for (k, item) in [(0, 0), (1, 1)] {
@@ -124,6 +131,7 @@ enum DemoProject {
         var log = JobLog(projectId: pid, date: FieldDocs.localDay(iso.string(from: now.addingTimeInterval(-2 * day))), title: "Pre-wire, 1st floor",
                          body: "Crew: Alex, Sam.\n- Camera, speaker and TV boxes set in the living room\n- TV wall bundle pulled (HDMI + 2× Cat6)\n- Next: 2nd floor and the cellar closet", author: "Alex")
         log.photoIds = Array(photos.prefix(3).map(\.id))
+        log.createdAt = iso.string(from: now.addingTimeInterval(-2 * day + 3 * 3600))
         b.save(log, in: \.jobLogs)
         b.project.labels = ["Pre-wire"]
     }

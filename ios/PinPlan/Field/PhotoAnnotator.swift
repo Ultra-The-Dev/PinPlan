@@ -8,12 +8,15 @@ struct PhotoAnnotator: View {
     @State var shapes: [PhotoShape]
     let onSave: ([PhotoShape]) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSize
     @State private var tool: PhotoShape.Kind = .arrow
     @State private var color = PhotoMarkup.colors[0]
     @State private var width = PhotoMarkup.widths[1]
     @State private var draft: PhotoShape?
     @State private var textAt: [Double]?
     @State private var text = ""
+
+    private static let colorNames = ["#ef4444": "Red", "#f59e0b": "Amber", "#22c55e": "Green", "#3b82f6": "Blue", "#ffffff": "White", "#111827": "Black"]
 
     private struct Tool: Identifiable { let kind: PhotoShape.Kind; let name: String; let icon: String; var id: String { kind.rawValue } }
     private static let tools: [Tool] = [
@@ -73,14 +76,27 @@ struct PhotoAnnotator: View {
                         ForEach(Self.tools) { t in Label(t.name, systemImage: t.icon).tag(t.kind) }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 300)
+                    .frame(maxWidth: hSize == .compact ? 220 : 300)
                     Spacer()
-                    ForEach(PhotoMarkup.colors, id: \.self) { c in
-                        Button { color = c } label: {
-                            Circle().fill(Color(hex: c)).frame(width: 22, height: 22)
-                                .overlay(Circle().stroke(color == c ? Color.accentColor : Color.gray.opacity(0.5), lineWidth: color == c ? 3 : 1))
+                    if hSize == .compact {
+                        // Phone: the colours sit in a menu so the bar fits.
+                        Menu {
+                            ForEach(PhotoMarkup.colors, id: \.self) { c in
+                                Button { color = c } label: { Label(Self.colorNames[c] ?? c, systemImage: color == c ? "checkmark.circle.fill" : "circle.fill") }
+                            }
+                        } label: {
+                            Circle().fill(Color(hex: color)).frame(width: 24, height: 24)
+                                .overlay(Circle().stroke(Color.gray.opacity(0.6), lineWidth: 1))
                         }
-                        .accessibilityLabel("Colour \(c)")
+                        .accessibilityLabel("Colour")
+                    } else {
+                        ForEach(PhotoMarkup.colors, id: \.self) { c in
+                            Button { color = c } label: {
+                                Circle().fill(Color(hex: c)).frame(width: 22, height: 22)
+                                    .overlay(Circle().stroke(color == c ? Color.accentColor : Color.gray.opacity(0.5), lineWidth: color == c ? 3 : 1))
+                            }
+                            .accessibilityLabel("Colour \(Self.colorNames[c] ?? c)")
+                        }
                     }
                     Spacer()
                     Menu {
