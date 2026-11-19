@@ -3,6 +3,7 @@
 import { Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { readSnapshotSections } from "@/lib/photoReport";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 
 interface Snap {
@@ -11,8 +12,15 @@ interface Snap {
   dateRange?: string;
   client: { name: string; address: string };
   business: { name: string; phone?: string; email?: string; website?: string; logo?: string; brandColor?: string; accentColor?: string; tagline?: string };
-  photos: { url: string; width: number; height: number; caption: string; meta: string; tags: string[]; label: string }[];
+  photos: { url: string; width: number; height: number; caption: string; meta: string; tags: string[]; label: string; comments?: { author?: string; text: string; at?: string }[] }[];
+  /** v2: headings and before/after pairs as indexes into `photos`. Missing on v1 reports. */
+  sections?: unknown;
 }
+
+const shortDate = (iso?: string) => {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+};
 
 export default function ClientPhotoReport() {
   const token = useSearchParams().get("t") ?? "";
@@ -59,22 +67,28 @@ export default function ClientPhotoReport() {
       </section>
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         {s.notes && <p className="card mb-6 border-l-4 p-5 leading-relaxed whitespace-pre-line text-slate-700" style={{ borderLeftColor: accent }}>{s.notes}</p>}
-        <div className="grid gap-5 sm:grid-cols-2">
-          {s.photos.map((p, i) => (
-            <figure key={i} className="card overflow-hidden break-inside-avoid">
-              <button className="block w-full bg-slate-100" onClick={() => setOpen(i)} aria-label="Enlarge photo">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt={p.caption || "Job photo"} loading="lazy" className="w-full object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
-              </button>
-              <figcaption className="px-4 py-3 text-sm">
-                {p.label && <div className="text-[11px] font-bold tracking-wide uppercase" style={{ color: brand }}>{p.label}</div>}
-                {p.caption && <div className="font-semibold">{p.caption}</div>}
-                <div className="text-slate-500">{p.meta}</div>
-                {p.tags.length > 0 && <div className="mt-1 text-xs text-slate-400">{p.tags.join(" · ")}</div>}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
+        {readSnapshotSections(s.photos.length, s.sections).map((sec, si) => (
+          <section key={si} className="mb-8 last:mb-0">
+            {sec.title && (
+              <h2 className="mb-3 border-b border-[#e3e7f1] pb-2 text-lg font-bold break-after-avoid" style={{ color: brand }}>
+                {sec.title}
+              </h2>
+            )}
+            <div className="grid gap-5 sm:grid-cols-2">
+              {sec.cells.map((cell, ci) =>
+                cell.length > 1 ? (
+                  <div key={ci} className="card grid grid-cols-2 gap-px overflow-hidden break-inside-avoid bg-[#e3e7f1] sm:col-span-2">
+                    {cell.map((i) => (
+                      <PhotoFigure key={i} p={s.photos[i]} brand={brand} onOpen={() => setOpen(i)} bare />
+                    ))}
+                  </div>
+                ) : (
+                  <PhotoFigure key={ci} p={s.photos[cell[0]]} brand={brand} onOpen={() => setOpen(cell[0])} />
+                ),
+              )}
+            </div>
+          </section>
+        ))}
       </main>
       <footer className="text-sm text-white/70 print:hidden" style={{ background: brand }}>
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
@@ -92,5 +106,32 @@ export default function ClientPhotoReport() {
         </div>
       )}
     </div>
+  );
+}
+
+function PhotoFigure({ p, brand, onOpen, bare }: { p: Snap["photos"][number]; brand: string; onOpen: () => void; bare?: boolean }) {
+  const comments = Array.isArray(p.comments) ? p.comments.filter((c) => c && typeof c.text === "string" && c.text.trim()) : [];
+  return (
+    <figure className={`${bare ? "bg-white" : "card overflow-hidden break-inside-avoid"} flex flex-col`}>
+      <button className="block w-full bg-slate-100" onClick={onOpen} aria-label="Enlarge photo">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={p.url} alt={p.caption || "Job photo"} loading="lazy" className="w-full object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
+      </button>
+      <figcaption className="px-4 py-3 text-sm">
+        {p.label && <div className="text-[11px] font-bold tracking-wide uppercase" style={{ color: brand }}>{p.label}</div>}
+        {p.caption && <div className="font-semibold">{p.caption}</div>}
+        <div className="text-slate-500">{p.meta}</div>
+        {p.tags?.length > 0 && <div className="mt-1 text-xs text-slate-400">{p.tags.join(" · ")}</div>}
+        {comments.length > 0 && (
+          <ul className="mt-2 space-y-1 border-l-2 border-[#e3e7f1] pl-3 text-[13px] text-slate-700">
+            {comments.map((c, i) => (
+              <li key={i}>
+                <span className="font-semibold">{[c.author, shortDate(c.at)].filter(Boolean).join(" · ") || "Comment"}:</span> {c.text}
+              </li>
+            ))}
+          </ul>
+        )}
+      </figcaption>
+    </figure>
   );
 }

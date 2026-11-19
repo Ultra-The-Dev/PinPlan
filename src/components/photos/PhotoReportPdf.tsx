@@ -1,5 +1,6 @@
 // Branded photo report PDF (@react-pdf/renderer). Loaded with a dynamic import so it stays out of SSR.
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
+import { reportPages, type ReportComment, type ReportSection } from "@/lib/photoReport";
 import type { BusinessSettings } from "@/lib/types";
 
 export interface ReportPhoto {
@@ -10,6 +11,7 @@ export interface ReportPhoto {
   meta: string;
   tags?: string[];
   label?: string;
+  comments?: ReportComment[];
 }
 
 export interface PhotoReportData {
@@ -21,7 +23,14 @@ export interface PhotoReportData {
   dateRange: string;
   perPage: 1 | 2 | 4;
   photos: ReportPhoto[];
+  /** Headings and before/after pairs; omitted = every photo in order under no heading (the original layout). */
+  sections?: ReportSection<ReportPhoto>[];
 }
+
+const shortDate = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
 
 const MUTED = "#64748b";
 
@@ -34,17 +43,40 @@ export function PhotoReportDocument({ d }: { d: PhotoReportData }) {
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },
     muted: { color: MUTED, lineHeight: 1.4 },
     grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+    section: { fontFamily: "Helvetica-Bold", fontSize: 12, color: brand, borderBottomWidth: 1, borderBottomColor: "#e2e8f0", paddingBottom: 3, marginBottom: 8, marginTop: 2 },
     footer: { position: "absolute", bottom: 18, left: 36, right: 36, flexDirection: "row", justifyContent: "space-between", color: MUTED, fontSize: 7.5 },
   });
   const contentW = 612 - 72;
-  const cellW = d.perPage === 1 ? contentW : (contentW - 12) / 2;
+  const halfW = (contentW - 12) / 2;
+  const cellW = d.perPage === 1 ? contentW : halfW;
   const imgH = d.perPage === 1 ? 470 : d.perPage === 2 ? 300 : 200;
-  const pages: ReportPhoto[][] = [];
-  for (let i = 0; i < d.photos.length; i += d.perPage === 2 ? 2 : d.perPage) pages.push(d.photos.slice(i, i + (d.perPage === 2 ? 2 : d.perPage)));
-  const fit = (p: ReportPhoto) => {
-    const k = Math.min(cellW / p.width, imgH / p.height);
+  const pages = reportPages(d.sections ?? [{ key: "", title: "", cells: d.photos.map((p) => [p]) }], d.perPage);
+  const fit = (p: ReportPhoto, w: number, h: number) => {
+    const k = Math.min(w / p.width, h / p.height);
     return { width: p.width * k, height: p.height * k };
   };
+  const cell = (p: ReportPhoto, k: number, w: number, h: number) => (
+    <View key={k} style={{ width: w, marginBottom: 14 }} wrap={false}>
+      <View style={{ height: h, justifyContent: "center", alignItems: "center", backgroundColor: "#f1f5f9", borderRadius: 4 }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
+        <Image src={p.src} style={fit(p, w, h)} />
+      </View>
+      {p.label ? <Text style={{ marginTop: 5, fontFamily: "Helvetica-Bold", color: brand, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>{p.label}</Text> : null}
+      {p.caption ? <Text style={{ marginTop: p.label ? 2 : 6, fontFamily: "Helvetica-Bold", fontSize: 10 }}>{p.caption}</Text> : null}
+      <Text style={[s.muted, { marginTop: 2 }]}>{p.meta}</Text>
+      {p.tags?.length ? <Text style={[s.muted, { marginTop: 1 }]}>{p.tags.join(" · ")}</Text> : null}
+      {p.comments?.length ? (
+        <View style={{ marginTop: 4, paddingLeft: 6, borderLeftWidth: 1.5, borderLeftColor: "#cbd5e1" }}>
+          {p.comments.map((c, i) => (
+            <Text key={i} style={{ fontSize: 8, lineHeight: 1.35, marginTop: i ? 2 : 0 }}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>{[c.author, shortDate(c.at)].filter(Boolean).join(" · ") || "Comment"}: </Text>
+              {c.text}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
   return (
     <Document title={d.title} author={d.business.name || undefined}>
       {pages.map((group, pi) => (
@@ -71,20 +103,17 @@ export function PhotoReportDocument({ d }: { d: PhotoReportData }) {
               </View>
             </View>
           )}
-          <View style={s.grid}>
-            {group.map((p, k) => (
-              <View key={k} style={{ width: cellW, marginBottom: 14 }} wrap={false}>
-                <View style={{ height: imgH, justifyContent: "center", alignItems: "center", backgroundColor: "#f1f5f9", borderRadius: 4 }}>
-                  {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
-                  <Image src={p.src} style={fit(p)} />
-                </View>
-                {p.label ? <Text style={{ marginTop: 5, fontFamily: "Helvetica-Bold", color: brand, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.6 }}>{p.label}</Text> : null}
-                {p.caption ? <Text style={{ marginTop: p.label ? 2 : 6, fontFamily: "Helvetica-Bold", fontSize: 10 }}>{p.caption}</Text> : null}
-                <Text style={[s.muted, { marginTop: 2 }]}>{p.meta}</Text>
-                {p.tags?.length ? <Text style={[s.muted, { marginTop: 1 }]}>{p.tags.join(" · ")}</Text> : null}
+          {group.map((row, ri) =>
+            row.kind === "heading" ? (
+              <Text key={ri} style={s.section} minPresenceAhead={120}>
+                {row.title}
+              </Text>
+            ) : (
+              <View key={ri} style={s.grid}>
+                {row.items.map((p, k) => (row.pair ? cell(p, k, halfW, d.perPage === 1 ? 340 : imgH) : cell(p, k, cellW, imgH)))}
               </View>
-            ))}
-          </View>
+            ),
+          )}
           <View style={s.footer} fixed>
             <Text>{d.business.name}</Text>
             <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />

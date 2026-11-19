@@ -11,12 +11,19 @@ struct PhotoReportSheet: View {
     @State private var title = ""
     @State private var notes = ""
     @State private var perPage = 2
+    @State private var groupBy: PhotoReportLayout.GroupBy = .none
+    @State private var withComments = false
+    @State private var pairs = false
     @State private var busy: String?
     @State private var error: String?
     @State private var link: URL?
     @State private var share: SharedFile?
 
     private var ordered: [Photo] { photos.sorted { $0.takenAt < $1.takenAt } }
+    private var hasPairs: Bool { photos.contains { p in p.beforeId.map { b in photos.contains { $0.id == b } } ?? false } }
+    private var commentCount: Int { photos.reduce(0) { $0 + PhotoReportLayout.comments(model.bundle.photoComments, photoId: $1.id).count } }
+    private var sections: [PhotoReportLayout.Section<Photo>] { PhotoReportLayout.sections(photos, groupBy: groupBy, pairs: pairs && hasPairs) }
+    private func comments(_ p: Photo) -> [PhotoReportLayout.Comment] { withComments ? PhotoReportLayout.comments(model.bundle.photoComments, photoId: p.id) : [] }
 
     var body: some View {
         NavigationStack {
@@ -27,6 +34,20 @@ struct PhotoReportSheet: View {
                     Picker("Photos per page", selection: $perPage) { ForEach([1, 2, 4], id: \.self) { Text("\($0)").tag($0) } }.pickerStyle(.segmented)
                 } footer: {
                     Text("\(photos.count) photo\(photos.count == 1 ? "" : "s") · \(PhotoReportBuilder.range(ordered)) · with your branding, captions and mark-up.")
+                }
+                Section {
+                    Picker("Group photos", selection: $groupBy) { ForEach(PhotoReportLayout.GroupBy.allCases, id: \.self) { Text($0.name).tag($0) } }.pickerStyle(.segmented)
+                    Toggle(isOn: $withComments) {
+                        VStack(alignment: .leading) {
+                            Text("Include comments")
+                            Text(commentCount == 0 ? "None yet" : "\(commentCount) on these photos").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Toggle("Show before / after side by side", isOn: $pairs).disabled(!hasPairs)
+                } header: {
+                    Text("Layout")
+                } footer: {
+                    if !hasPairs { Text("None of these photos are linked as before / after.") }
                 }
                 Section {
                     Button { Task { await pdf() } } label: { Label("Share PDF", systemImage: "doc.richtext") }
@@ -94,9 +115,13 @@ struct PhotoReportSheet: View {
         let imgs = await rendered(maxSide: perPage == 1 ? 2000 : 1400)
         busy = "Building the PDF…"
         let logo = await PhotoReportBuilder.logo(app.settings)
-        let items = imgs.map { PhotoReportBuilder.Item(image: $0.1, caption: $0.0.caption, meta: meta($0.0), tags: $0.0.tags ?? [], label: label($0.0)) }
+        var byId: [String: PhotoReportBuilder.Item] = [:]
+        for (p, img) in imgs {
+            byId[p.id] = PhotoReportBuilder.Item(image: img, caption: p.caption, meta: meta(p), tags: p.tags ?? [], label: label(p), comments: comments(p))
+        }
+        let secs: [PhotoReportLayout.Section<PhotoReportBuilder.Item>] = sections.map { s in s.map { byId[$0.id] } }.filter { !$0.cells.isEmpty }
         let data = PhotoReportBuilder.pdf(title: title, notes: notes, project: model.bundle.project, business: app.settings.business, logo: logo,
-                                          range: PhotoReportBuilder.range(ordered), perPage: perPage, items: items)
+                                          range: PhotoReportBuilder.range(ordered), perPage: perPage, sections: secs)
         share = SharedFile(url: PDFExporter.write(data, name: "\(slug(model.bundle.project.address.isEmpty ? "job" : model.bundle.project.address))-photo-report.pdf"))
     }
 
@@ -106,12 +131,17 @@ struct PhotoReportSheet: View {
         let token = Proposals.newToken()
         do {
             var list: [[String: Any]] = []
+            var indexOf: [String: Int] = [:]
             let imgs = await rendered(maxSide: 1600)
             for (i, (p, img)) in imgs.enumerated() {
                 busy = "Uploading photo \(i + 1) of \(imgs.count)…"
                 guard let data = img.jpegData(compressionQuality: 0.85) else { continue }
                 let url = try await app.cloud.uploadPublic(path: "reports/\(token)/\(p.id).jpg", data: data, contentType: "image/jpeg")
-                list.append(["url": url, "width": img.size.width, "height": img.size.height, "caption": p.caption ?? "", "meta": meta(p), "tags": p.tags ?? [], "label": label(p) ?? ""])
+                var entry: [String: Any] = ["url": url, "width": img.size.width, "height": img.size.height, "caption": p.caption ?? "", "meta": meta(p), "tags": p.tags ?? [], "label": label(p) ?? ""]
+                let notesOn = comments(p)
+                if !notesOn.isEmpty { entry["comments"] = notesOn.map { c -> [String: String] in ["author": c.author, "text": c.text, "at": c.at] } }
+                indexOf[p.id] = list.count
+                list.append(entry)
             }
             busy = "Publishing…"
             let b = app.settings.business
@@ -119,13 +149,15 @@ struct PhotoReportSheet: View {
             if !origin.hasPrefix("http") { origin = "https://" + origin }
             while origin.hasSuffix("/") { origin.removeLast() }
             let logo = b.logo.map { $0.hasPrefix("/") ? origin + $0 : $0 } ?? ""
-            let snapshot: [String: Any] = [
-                "version": 1, "title": title, "notes": notes, "dateRange": PhotoReportBuilder.range(ordered), "createdAt": isoNow(),
+            let grouped = groupBy != .none || (pairs && hasPairs)
+            var snapshot: [String: Any] = [
+                "version": grouped ? 2 : 1, "title": title, "notes": notes, "dateRange": PhotoReportBuilder.range(ordered), "createdAt": isoNow(),
                 "client": ["name": model.bundle.project.clientName, "address": model.bundle.project.address],
                 "business": ["name": b.name, "phone": b.phone, "email": b.email, "website": b.website, "logo": logo,
                              "brandColor": b.brandColor ?? "", "accentColor": b.accentColor ?? "", "tagline": b.tagline ?? ""],
                 "photos": list,
             ]
+            if grouped { snapshot["sections"] = PhotoReportLayout.snapshotSections(sections, indexOf: indexOf) }
             try await app.cloud.publishPhotoReport(token: token, projectId: model.bundle.project.id, snapshot: snapshot)
             let url = URL(string: "\(origin)/r?t=\(token)")
             link = url
@@ -138,7 +170,7 @@ struct PhotoReportSheet: View {
 }
 
 enum PhotoReportBuilder {
-    struct Item { let image: UIImage; let caption: String?; let meta: String; let tags: [String]; let label: String? }
+    struct Item { let image: UIImage; let caption: String?; let meta: String; let tags: [String]; let label: String?; var comments: [PhotoReportLayout.Comment] = [] }
 
     static func range(_ ordered: [Photo]) -> String {
         let days = [ordered.first, ordered.last].compactMap { $0.flatMap { FieldDocs.date($0.takenAt)?.formatted(date: .abbreviated, time: .omitted) } }
@@ -159,15 +191,19 @@ enum PhotoReportBuilder {
         return UIImage(data: res.0)
     }
 
-    static func pdf(title: String, notes: String, project: Project, business: BusinessSettings, logo: UIImage?, range: String, perPage: Int, items: [Item]) -> Data {
+    /// `sections` come from `PhotoReportLayout.sections` (one untitled section of single photos = the original layout).
+    static func pdf(title: String, notes: String, project: Project, business: BusinessSettings, logo: UIImage?, range: String, perPage: Int,
+                    sections: [PhotoReportLayout.Section<Item>]) -> Data {
         let page = CGRect(x: 0, y: 0, width: 612, height: 792)
         let brand = UIColor(hex: business.brandColor ?? "#0a1b54")
         let L: CGFloat = 36, R = page.width - 36, W = R - L
-        let cols = perPage == 1 ? 1 : 2
-        let cellW = cols == 1 ? W : (W - 12) / 2
+        let halfW: CGFloat = (W - 12) / 2
+        let cellW: CGFloat = perPage == 1 ? W : halfW
         let imgH: CGFloat = perPage == 1 ? 470 : perPage == 2 ? 300 : 200
-        let groupSize = perPage == 2 ? 2 : perPage
-        let groups = stride(from: 0, to: items.count, by: groupSize).map { Array(items[$0..<min($0 + groupSize, items.count)]) }
+        let pairH: CGFloat = perPage == 1 ? 340 : imgH
+        let commentsH: CGFloat = perPage == 1 ? 60 : perPage == 2 ? 110 : 30
+        let pages: [[PhotoReportLayout.Row<Item>]] = PhotoReportLayout.pages(sections, perPage: perPage)
+        let count: Int = sections.reduce(0) { n, s in n + s.cells.reduce(0) { $0 + $1.count } }
 
         func draw(_ s: String, _ r: CGRect, size: CGFloat, weight: UIFont.Weight = .regular, color: UIColor = .black, align: NSTextAlignment = .left) -> CGFloat {
             let para = NSMutableParagraphStyle(); para.alignment = align; para.lineBreakMode = .byWordWrapping
@@ -177,8 +213,36 @@ enum PhotoReportBuilder {
             return min(h, r.height)
         }
 
+        /// One photo with its label, caption, details, tags and comments; returns the bottom of its text.
+        func cell(_ it: Item, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> CGFloat {
+            let box = CGRect(x: x, y: y, width: w, height: h)
+            UIColor(red: 0.945, green: 0.96, blue: 0.976, alpha: 1).setFill()
+            UIBezierPath(roundedRect: box, cornerRadius: 4).fill()
+            let s: CGFloat = min(box.width / it.image.size.width, box.height / it.image.size.height)
+            let iw: CGFloat = it.image.size.width * s, ih: CGFloat = it.image.size.height * s
+            it.image.draw(in: CGRect(x: box.midX - iw / 2, y: box.midY - ih / 2, width: iw, height: ih))
+            var ty: CGFloat = box.maxY + 5
+            if let l = it.label { ty += draw(l.uppercased(), CGRect(x: x, y: ty, width: w, height: 12), size: 8, weight: .bold, color: brand) + 1 }
+            if let c = it.caption, !c.isEmpty { ty += draw(c, CGRect(x: x, y: ty, width: w, height: 26), size: 10, weight: .semibold) + 1 }
+            ty += draw(it.meta, CGRect(x: x, y: ty, width: w, height: 24), size: 8, color: .gray)
+            if !it.tags.isEmpty { ty += draw(it.tags.joined(separator: " · "), CGRect(x: x, y: ty, width: w, height: 12), size: 8, color: .gray) }
+            if !it.comments.isEmpty {
+                let lines: [String] = it.comments.map { c in
+                    let when: String = FieldDocs.date(c.at)?.formatted(date: .abbreviated, time: .omitted) ?? ""
+                    let who: String = [c.author, when].filter { !$0.isEmpty }.joined(separator: " · ")
+                    return "\(who.isEmpty ? "Comment" : who): \(c.text)"
+                }
+                ty += 3
+                let ch: CGFloat = draw(lines.joined(separator: "\n"), CGRect(x: x + 6, y: ty, width: w - 6, height: commentsH), size: 8, color: .darkGray)
+                UIColor(red: 0.8, green: 0.835, blue: 0.882, alpha: 1).setFill()
+                UIRectFill(CGRect(x: x, y: ty, width: 1.5, height: ch))
+                ty += ch
+            }
+            return ty
+        }
+
         return UIGraphicsPDFRenderer(bounds: page).pdfData { ctx in
-            for (pi, group) in groups.enumerated() {
+            for (pi, rows) in pages.enumerated() {
                 ctx.beginPage()
                 brand.setFill(); UIRectFill(CGRect(x: 0, y: 0, width: page.width, height: 6))
                 var y: CGFloat = 28
@@ -187,7 +251,7 @@ enum PhotoReportBuilder {
                     var hy = y
                     hy += draw(title, CGRect(x: L, y: hy, width: headW, height: 60), size: 18, weight: .bold, color: brand) + 4
                     hy += draw([project.clientName, project.address].filter { !$0.isEmpty }.joined(separator: " · "), CGRect(x: L, y: hy, width: headW, height: 30), size: 9, color: .gray)
-                    hy += draw("\(range) · \(items.count) photo\(items.count == 1 ? "" : "s")", CGRect(x: L, y: hy, width: headW, height: 14), size: 9, color: .gray)
+                    hy += draw("\(range) · \(count) photo\(count == 1 ? "" : "s")",CGRect(x: L, y: hy, width: headW, height: 14), size: 9, color: .gray)
                     if !notes.isEmpty { hy += 8; hy += draw(notes, CGRect(x: L, y: hy, width: headW, height: 140), size: 9.5) }
                     var ry = y
                     if let logo {
@@ -199,25 +263,25 @@ enum PhotoReportBuilder {
                     ry += draw([business.phone, business.email, business.website].filter { !$0.isEmpty }.joined(separator: "\n"), CGRect(x: R - 190, y: ry, width: 190, height: 50), size: 9, color: .gray, align: .right)
                     y = max(hy, ry) + 14
                 }
-                for (k, it) in group.enumerated() {
-                    let col = cols == 1 ? 0 : k % 2
-                    let row = cols == 1 ? k : k / 2
-                    let x = L + CGFloat(col) * (cellW + 12)
-                    let cellY = y + CGFloat(row) * (imgH + 52)
-                    let box = CGRect(x: x, y: cellY, width: cellW, height: imgH)
-                    UIColor(red: 0.945, green: 0.96, blue: 0.976, alpha: 1).setFill()
-                    UIBezierPath(roundedRect: box, cornerRadius: 4).fill()
-                    let s = min(box.width / it.image.size.width, box.height / it.image.size.height)
-                    let iw = it.image.size.width * s, ih = it.image.size.height * s
-                    it.image.draw(in: CGRect(x: box.midX - iw / 2, y: box.midY - ih / 2, width: iw, height: ih))
-                    var ty = box.maxY + 5
-                    if let l = it.label { ty += draw(l.uppercased(), CGRect(x: x, y: ty, width: cellW, height: 12), size: 8, weight: .bold, color: brand) + 1 }
-                    if let c = it.caption, !c.isEmpty { ty += draw(c, CGRect(x: x, y: ty, width: cellW, height: 26), size: 10, weight: .semibold) + 1 }
-                    ty += draw(it.meta, CGRect(x: x, y: ty, width: cellW, height: 24), size: 8, color: .gray)
-                    if !it.tags.isEmpty { _ = draw(it.tags.joined(separator: " · "), CGRect(x: x, y: ty, width: cellW, height: 12), size: 8, color: .gray) }
+                for row in rows {
+                    switch row {
+                    case .heading(let t):
+                        let th: CGFloat = draw(t, CGRect(x: L, y: y + 2, width: W, height: 18), size: 12, weight: .bold, color: brand)
+                        UIColor(red: 0.886, green: 0.91, blue: 0.941, alpha: 1).setFill()
+                        UIRectFill(CGRect(x: L, y: y + th + 5, width: W, height: 1))
+                        y += th + 14
+                    case .photos(let items, let pair):
+                        let w: CGFloat = pair ? halfW : cellW
+                        let h: CGFloat = pair ? pairH : imgH
+                        var bottom: CGFloat = y
+                        for (k, it) in items.enumerated() {
+                            bottom = max(bottom, cell(it, x: L + CGFloat(k) * (w + 12), y: y, w: w, h: h))
+                        }
+                        y = max(y + h + 52, bottom + 12)
+                    }
                 }
                 _ = draw(business.name, CGRect(x: L, y: page.height - 26, width: 300, height: 12), size: 7.5, color: .gray)
-                _ = draw("\(pi + 1) / \(groups.count)", CGRect(x: R - 100, y: page.height - 26, width: 100, height: 12), size: 7.5, color: .gray, align: .right)
+                _ = draw("\(pi + 1) / \(pages.count)",CGRect(x: R - 100, y: page.height - 26, width: 100, height: 12), size: 7.5, color: .gray, align: .right)
             }
         }
     }
