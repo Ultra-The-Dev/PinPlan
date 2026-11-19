@@ -61,7 +61,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 
 | CompanyCam | PinPlan | Where |
 |---|---|---|
-| Branded photo report PDF | ✅ 1/2/4 per page, logo, captions, mark-up, before/after labels | Photos → Photo report |
+| Branded photo report PDF | ✅ 1/2/4 per page, logo, captions, mark-up, before/after labels; optional comments, group by room or day (headings), before/after side by side | Photos → Photo report (`src/lib/photoReport.ts`, `PhotoReportLayout.swift`) |
 | Shareable report link for the client | ✅ `/r?t=…`, no login | Photo report → Share link |
 | Showcase / client gallery | ✅ the report link and plan review link |
 | Plan review for the client (PinPlan extra) | ✅ plans + legend, no prices; client approves or requests changes | Takeoff → Plan review / Send plan to client |
