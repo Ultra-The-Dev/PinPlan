@@ -129,7 +129,9 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
   const status = displayStatus(draft);
   const isInvoice = draft.kind === "invoice";
   const isQuote = draft.kind === "quote";
-  const locked = draft.status === "void";
+  // Void documents, and quotes the client signed, are read-only (duplicate one to change it).
+  const signed = isQuote && draft.status === "accepted" && !!draft.respondedAt;
+  const locked = draft.status === "void" || signed;
   const kindLabel = settings.kinds[draft.kind].label;
   const name = docName(draft, settings);
   const docPayments = payments.filter((p) => p.documentId === draft.id).sort((a, b) => a.date.localeCompare(b.date));
@@ -256,7 +258,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
         <button className="btn btn-sm" onClick={downloadPdf} disabled={!!busy}>
           <Download /> {busy === "pdf" ? "PDF…" : "PDF"}
         </button>
-        {primary && !locked && (
+        {primary && draft.status !== "void" && (
           <button className="btn btn-sm btn-brand" onClick={primary.onClick} disabled={!!busy || (!online && supabaseConfigured && !unsent)}>
             {primary.icon} {busy === "issue" || busy === "link" ? "Working…" : primary.label}
           </button>
@@ -273,10 +275,10 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
             isInvoice && !unsent && !locked && draft.balanceDue > 0 && canEmail && { label: "Send payment reminder", icon: <Mail />, onClick: () => setDialog({ email: "reminder" }) },
             isQuote && !locked && draft.status !== "accepted" && { label: "Mark accepted", icon: <CircleCheck />, onClick: () => markAnswer(true) },
             isQuote && !locked && draft.status !== "declined" && draft.status !== "accepted" && { label: "Mark declined", icon: <CircleX />, onClick: () => markAnswer(false) },
-            isQuote && !locked && { label: "Create invoice…", icon: <FilePlus2 />, onClick: () => actions.convert(draft) },
+            isQuote && draft.status !== "void" && { label: "Create invoice…", icon: <FilePlus2 />, onClick: () => actions.convert(draft) },
             isInvoice && !unsent && !locked && { label: "Credit note…", icon: <FileMinus />, onClick: () => actions.credit(draft) },
             { label: "Duplicate", icon: <Copy />, onClick: () => actions.duplicate(draft) },
-            !unsent && !locked && {
+            !unsent && draft.status !== "void" && {
               label: `Void ${kindLabel.toLowerCase()}`,
               icon: <Ban />,
               danger: true,
@@ -316,6 +318,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
               {draft.respondedAt ? ` on ${new Date(draft.respondedAt).toLocaleDateString()}` : " (marked by the office)"}
             </div>
             {draft.clientNote && <div className="mt-0.5">“{draft.clientNote}”</div>}
+            {signed && <div className="mt-0.5 text-xs text-emerald-800/80">The signed copy can’t be edited. Duplicate it to make changes.</div>}
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {draft.signature && <img src={draft.signature} alt={`Signature of ${draft.signerName ?? "the client"}`} className="h-12 rounded bg-white ring-1 ring-emerald-200" />}
@@ -514,8 +517,26 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
               {totals.taxLines.map((t) => (
                 <Total key={t.id} label={`${t.name} ${t.rate}% on ${money(t.base)}`} value={money(t.amount)} />
               ))}
+              {(draft.deductions ?? []).length > 0 && (
+                <>
+                  <Total label="Job total" value={money(totals.grossTotal)} />
+                  {(draft.deductions ?? []).map((d) => (
+                    <div key={d.id} className="flex justify-between gap-3">
+                      <dt className="text-slate-500">
+                        {d.label}
+                        {!locked && (
+                          <button className="ml-1.5 text-xs text-slate-400 hover:text-red-600" aria-label={`Remove: ${d.label}`} onClick={() => edit({ deductions: (draft.deductions ?? []).filter((x) => x.id !== d.id) })}>
+                            remove
+                          </button>
+                        )}
+                      </dt>
+                      <dd className="tabular-nums">−{money(d.amount)}</dd>
+                    </div>
+                  ))}
+                </>
+              )}
               <div className="flex items-baseline justify-between border-t border-slate-200 pt-2">
-                <dt className="font-semibold">Total</dt>
+                <dt className="font-semibold">{(draft.deductions ?? []).length ? "This invoice" : "Total"}</dt>
                 <dd className="text-xl font-bold tabular-nums">{money(totals.total)}</dd>
               </div>
               {totals.deposit != null && <Total label="Deposit" value={money(totals.deposit)} />}

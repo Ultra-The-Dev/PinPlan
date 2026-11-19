@@ -224,6 +224,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       taxes: "taxes",
       fees: "fees",
       deposit: "deposit",
+      deductions: "deductions",
       currency: "currency",
       notes: "notes",
       terms: "terms",

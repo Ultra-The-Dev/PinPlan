@@ -83,6 +83,16 @@ select pg_temp.check(public.issue_document('di2') = 'INV-2026-0002', 'issue_docu
 select pg_temp.check((select status from public.sales_documents where id = 'di2') = 'sent', 'issue_document marks it sent');
 select pg_temp.check(public.issue_document('di2') = 'INV-2026-0002', 'issuing again returns the same number');
 select pg_temp.check(public.document_numbering() -> 'invoice' ->> 'next' = '3', 'next invoice number is 3');
+-- What sync does: upsert the whole row, again and again. No numbers may be burnt.
+insert into public.sales_documents (id, project_id, kind, status, issue_date) values ('di2u', 'dp1', 'invoice', 'sent', '2026-11-19')
+  on conflict (id) do update set status = excluded.status;
+insert into public.sales_documents (id, project_id, kind, status, issue_date) values ('di2u', 'dp1', 'invoice', 'sent', '2026-11-19')
+  on conflict (id) do update set status = excluded.status, total = 1;
+insert into public.sales_documents (id, project_id, kind, status, issue_date) values ('di2v', 'dp1', 'invoice', 'draft', '2026-11-19');
+insert into public.sales_documents (id, project_id, kind, status, issue_date) values ('di2v', 'dp1', 'invoice', 'sent', '2026-11-19')
+  on conflict (id) do update set status = excluded.status;
+select pg_temp.check((select string_agg(number, ',' order by number) from public.sales_documents where id in ('di2u', 'di2v')) = 'INV-2026-0003,INV-2026-0004', 'upserts (as sync sends them) leave no gaps');
+select pg_temp.check(public.document_numbering() -> 'invoice' ->> 'next' = '5', 'next invoice number is 5');
 
 -- Settings: the admin changes the invoice format; the counter for it starts at 1, and numbers already used are skipped.
 insert into public.document_settings (owner_id, config) values (public.my_billing_owner(), '{"kinds": {"invoice": {"format": "A-{#}", "yearlyReset": false}}}');

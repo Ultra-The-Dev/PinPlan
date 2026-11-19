@@ -118,7 +118,7 @@ export default function DocumentsTab() {
           </p>
         </div>
         <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : "Place devices and price the estimate first"}>
-          <FilePlus2 /> New {label("quote").toLowerCase()} from estimate
+          <FilePlus2 /> New {label("quote").toLowerCase()} from job pricing
         </button>
         <Menu
           label="New"

@@ -524,6 +524,8 @@ export interface SalesDoc {
   fees?: DocFee[] | null;
   /** Deposit asked for (quotes: on acceptance; invoices: due first). */
   deposit?: Adjust | null;
+  /** Final invoices: amounts already invoiced (deposits, progress bills), taken off after tax. */
+  deductions?: DocFee[] | null;
   currency: string;
   notes?: string | null;
   terms?: string | null;

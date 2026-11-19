@@ -46,6 +46,8 @@ create table if not exists public.sales_documents (
   taxes jsonb not null default '[]'::jsonb,
   fees jsonb,
   deposit jsonb,
+  -- Final invoices: [{id, label, amount}] already invoiced, taken off after tax.
+  deductions jsonb,
   currency text not null default 'USD',
   notes text,
   terms text,
@@ -77,6 +79,7 @@ create table if not exists public.sales_documents (
   deleted boolean not null default false,
   synced_at timestamptz not null default now()
 );
+alter table public.sales_documents add column if not exists deductions jsonb;
 create index if not exists sales_documents_project_idx on public.sales_documents (project_id);
 create index if not exists sales_documents_owner_idx on public.sales_documents (owner_id);
 create unique index if not exists sales_documents_number_uniq on public.sales_documents (owner_id, kind, number) where number is not null;
@@ -244,7 +247,10 @@ begin
       new.responded_at := null; new.signer_name := null; new.signature := null;
     end if;
   end if;
-  if new.number is null and new.status <> 'draft' and not new.deleted and new.owner_id is not null then
+  -- An upsert of a row that already exists fires this INSERT trigger before turning into an UPDATE: number it on the
+  -- UPDATE only, or every sync of an issued document would burn a number (gaps in the sequence).
+  if new.number is null and new.status <> 'draft' and not new.deleted and new.owner_id is not null
+     and not (tg_op = 'INSERT' and exists (select 1 from public.sales_documents x where x.id = new.id)) then
     select * into r from public.take_document_number(new.project_id, new.kind, coalesce(new.issue_date, current_date));
     new.number := r.num;
     new.number_seq := r.seq;

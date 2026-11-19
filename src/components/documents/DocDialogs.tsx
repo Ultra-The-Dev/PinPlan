@@ -18,7 +18,7 @@ export function NewQuoteDialog({ settings, estimateTotal, onClose, onCreate }: {
   const [o, setO] = useState<QuoteBuildOptions>({ grouping: settings.grouping, details: settings.lineDetails, detail: settings.detail, includeOptional: true });
   const label = settings.kinds.quote.label.toLowerCase();
   return (
-    <Modal title={`New ${label} from the estimate`} description={`A copy of the job's estimate (${estimateTotal} before tax) you can edit and send. Changing it never changes the estimate.`} onClose={onClose}>
+    <Modal title={`New ${label}`} description={`Built from the job's Estimate tab (${estimateTotal} before tax). Edit it freely: changes here never change the job's pricing.`} onClose={onClose}>
       <fieldset className="space-y-1.5">
         <legend className="label">Group the lines</legend>
         {GROUPINGS.map((g) => (

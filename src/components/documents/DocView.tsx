@@ -168,8 +168,16 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
           {snap.totals.taxLines.map((x) => (
             <Row key={x.id} label={`${x.name || "Tax"} (${pctText(x.rate)})`} value={money(x.amount)} />
           ))}
+          {snap.deductions?.length ? (
+            <>
+              <Row label="Job total" value={money(snap.totals.grossTotal)} strong />
+              {snap.deductions.map((d) => (
+                <Row key={d.id} label={d.label} value={`−${money(d.amount)}`} />
+              ))}
+            </>
+          ) : null}
           <div className="flex items-baseline justify-between border-t-2 pt-2" style={{ borderColor: brand }}>
-            <span className="font-semibold">Total</span>
+            <span className="font-semibold">{snap.deductions?.length ? "This invoice" : "Total"}</span>
             <span className="text-xl font-extrabold tabular-nums" style={{ color: brand }}>
               {money(snap.totals.total)}
             </span>

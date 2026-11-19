@@ -96,8 +96,8 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
   const toggle = (id: string) => setOpen((s) => new Set(s.has(id) ? [...s].filter((x) => x !== id) : [...s, id]));
 
   return (
-    <div ref={box} className="text-sm">
-      <div className="hidden grid-cols-[minmax(0,1fr)_72px_64px_100px_40px_100px_84px] gap-1 border-b border-slate-200 px-2 pb-1.5 text-[11px] font-semibold text-slate-500 sm:grid">
+    <div ref={box} className="@container text-sm">
+      <div className="hidden grid-cols-[minmax(0,1fr)_72px_64px_100px_40px_100px_96px] gap-1 border-b border-slate-200 px-2 pb-1.5 text-[11px] font-semibold text-slate-500 @3xl:grid">
         <span className="pl-1.5">Description</span>
         <span className="pr-1.5 text-right">Qty</span>
         <span className="pl-1.5">Unit</span>
@@ -144,8 +144,8 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
         const more = open.has(l.id);
         return (
           <div key={l.id} className={`border-b border-slate-100 px-2 py-1.5 ${l.optional ? "bg-amber-50/40" : ""}`}>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 sm:grid-cols-[minmax(0,1fr)_72px_64px_100px_40px_100px_84px]">
-              <div className="col-span-2 flex min-w-0 items-center gap-1 sm:col-span-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 @3xl:grid-cols-[minmax(0,1fr)_72px_64px_100px_40px_100px_96px]">
+              <div className="col-span-2 flex min-w-0 items-center gap-1 @3xl:col-span-1">
                 <button type="button" className={`btn btn-sm btn-icon btn-ghost shrink-0 text-slate-400 ${more ? "rotate-180" : ""}`} aria-label={`More for: ${l.description || "line"}`} aria-expanded={more} title="Details, SKU, discount, optional" onClick={() => toggle(l.id)}>
                   <ChevronDown />
                 </button>
@@ -161,7 +161,7 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
                   onKeyDown={(e) => onKey(e, i, "desc")}
                 />
               </div>
-              <div className="col-span-2 grid grid-cols-[64px_56px_minmax(0,1fr)_36px_minmax(0,1fr)] items-center gap-1 sm:contents">
+              <div className="col-span-2 grid grid-cols-[64px_56px_minmax(0,1fr)_36px_minmax(0,1fr)] items-center gap-1 @3xl:contents">
                 <NumCell label={`Quantity: ${l.description || "line"}`} value={l.qty} onValue={(n) => set(i, { qty: n })} row={i} col="qty" onKey={onKey} />
                 <input
                   aria-label={`Unit: ${l.description || "line"}`}
@@ -182,7 +182,7 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
                   {money(a.net)}
                   {a.discount ? <div className="text-[11px] font-normal text-emerald-700">−{money(a.discount)}</div> : null}
                 </div>
-                <div className="hidden sm:block">{actions}</div>
+                <div className="hidden @3xl:block">{actions}</div>
               </div>
             </div>
             {l.details && !more ? <p className="truncate pl-10 text-xs text-slate-500">{l.details}</p> : null}
@@ -247,7 +247,7 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
                   <input type="checkbox" className="accent-brand-600" disabled={readOnly} checked={!!l.optional} onChange={(e) => set(i, { optional: e.target.checked })} />
                   Optional — show it, but don’t count it in the total
                 </label>
-                <div className="sm:hidden">{actions}</div>
+                <div className="@3xl:hidden">{actions}</div>
               </div>
             )}
           </div>

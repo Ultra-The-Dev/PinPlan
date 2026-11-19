@@ -276,7 +276,18 @@ describe("conversions", () => {
     const fin = invoiceFromQuote(quote, { mode: "final" }, { id: "i4", now: NOW, day: DAY, settings: S, prior: [dep, prog] });
     expect(fin.invoiceType).toBe("final");
     expect(money(dep.total + prog.total + fin.total)).toBe(quote.total);
-    expect(fin.lines.filter((l) => l.unitPrice < 0).map((l) => l.description)).toEqual(["Less INV-1 (deposit)", "Less INV-2 (progress)"]);
+    expect(fin.deductions?.map((l) => l.label)).toEqual(["Less INV-1 (deposit)", "Less INV-2 (progress)"]);
+    expect(fin.lines.some((l) => l.unitPrice < 0)).toBe(false);
+  });
+
+  it("final invoice keeps the quote's discount and tax: deposit + final = quote, to the cent", () => {
+    const q = withTotals({ ...quote, discount: { type: "pct", value: 5 }, fees: [{ id: "f", label: "Permit", amount: 75, taxable: true }] });
+    const dep = { ...invoiceFromQuote(q, { mode: "deposit", pct: 30 }, { id: "d1", now: NOW, day: DAY, settings: S }), number: "INV-7", status: "sent" as const };
+    const fin = invoiceFromQuote(q, { mode: "final" }, { id: "f1", now: NOW, day: DAY, settings: S, prior: [dep] });
+    expect(fin.discountTotal).toBe(q.discountTotal);
+    expect(fin.taxTotal).toBe(q.taxTotal);
+    expect(documentTotals(fin).grossTotal).toBe(q.total);
+    expect(money(dep.total + fin.total)).toBe(q.total);
   });
 
   it("selected lines keep their section heading", () => {

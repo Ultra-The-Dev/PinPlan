@@ -13,7 +13,7 @@ const SOFT = "#f8fafc";
 function styles(compact: boolean) {
   const f = compact ? 0.9 : 1;
   return StyleSheet.create({
-    page: { paddingTop: 0, paddingBottom: 56, paddingHorizontal: compact ? 34 : 44, fontSize: 9.5 * f, fontFamily: "Helvetica", color: INK },
+    page: { paddingTop: 32, paddingBottom: 56, paddingHorizontal: compact ? 34 : 44, fontSize: 9.5 * f, fontFamily: "Helvetica", color: INK },
     header: { flexDirection: "row", justifyContent: "space-between", marginBottom: compact ? 14 : 22 },
     biz: { fontSize: 16 * f, fontFamily: "Helvetica-Bold", marginBottom: 4 },
     muted: { color: MUTED, lineHeight: 1.45 },
@@ -118,8 +118,8 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
   return (
     <Document title={`${snap.title} ${number ?? ""}`.trim()} author={snap.business.name || undefined}>
       <Page size="LETTER" style={s.page}>
-        <View style={{ height: modern ? 0 : 6, backgroundColor: brand, marginHorizontal: compact ? -34 : -44, marginBottom: modern ? 0 : compact ? 20 : 30 }} fixed />
-        <View style={[s.header, modern ? { backgroundColor: brand, marginHorizontal: -44, paddingHorizontal: 44, paddingTop: 28, paddingBottom: 22 } : {}]}>
+        {!modern && <View style={{ height: 6, backgroundColor: brand, marginTop: -32, marginHorizontal: compact ? -34 : -44, marginBottom: compact ? 20 : 30 }} fixed />}
+        <View style={[s.header, modern ? { backgroundColor: brand, marginTop: -32, marginHorizontal: -44, paddingHorizontal: 44, paddingTop: 28, paddingBottom: 22 } : {}]}>
           <View style={{ maxWidth: 270 }}>
             {snap.business.logo ? (
               // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt
@@ -168,6 +168,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
           </View>
         </View>
 
+        <View>
         {head}
         {counted.map((l) =>
           (l.kind ?? "item") === "section" ? (
@@ -179,6 +180,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
             row(l)
           ),
         )}
+        </View>
 
         <View style={s.totals} wrap={false}>
           <View style={s.totalRow}>
@@ -188,7 +190,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
           {snap.totals.discountTotal ? (
             <View style={s.totalRow}>
               <Text style={{ color: MUTED }}>Discount{snap.discount?.type === "pct" ? ` (${pct(snap.discount.value)})` : ""}</Text>
-              <Text>−{money(snap.totals.discountTotal)}</Text>
+              <Text>-{money(snap.totals.discountTotal)}</Text>
             </View>
           ) : null}
           {snap.fees.map((f) => (
@@ -205,8 +207,22 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
               <Text>{money(x.amount)}</Text>
             </View>
           ))}
+          {snap.deductions?.length ? (
+            <>
+              <View style={s.totalRow}>
+                <Text style={s.strong}>Job total</Text>
+                <Text style={s.strong}>{money(snap.totals.grossTotal)}</Text>
+              </View>
+              {snap.deductions.map((d) => (
+                <View style={s.totalRow} key={d.id}>
+                  <Text style={{ color: MUTED }}>{d.label}</Text>
+                  <Text>-{money(d.amount)}</Text>
+                </View>
+              ))}
+            </>
+          ) : null}
           <View style={[s.totalRow, s.grand, { borderTopColor: brand }]}>
-            <Text>Total</Text>
+            <Text>{snap.deductions?.length ? "This invoice" : "Total"}</Text>
             <Text>{money(snap.totals.total)}</Text>
           </View>
           {snap.kind === "quote" && snap.totals.deposit != null ? (
@@ -218,7 +234,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
           {isInvoice && paid ? (
             <View style={s.totalRow}>
               <Text style={{ color: MUTED }}>Paid</Text>
-              <Text>−{money(paid)}</Text>
+              <Text>-{money(paid)}</Text>
             </View>
           ) : null}
           {isInvoice ? (

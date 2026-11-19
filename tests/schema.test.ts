@@ -57,7 +57,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
   estimateLines: { id: "e", projectId: "p", key: "dev:d", description: "x", qty: 1, unit: "each", unitPrice: 1, removed: false, include: true, sort: 1, updatedAt: ts, deleted: false },
   salesDocs: {
     id: "sd", projectId: "p", kind: "invoice", title: "t", number: "INV-1", status: "sent", issueDate: "2026-11-19", dueDate: "2026-12-19", validUntil: "2026-12-19", termsDays: 30,
-    client: { name: "c" }, lines: [], discount: { type: "pct", value: 5 }, taxes: [], fees: [], deposit: null, currency: "USD", notes: "n", terms: "t", footer: "f", internalNotes: "i",
+    client: { name: "c" }, lines: [], discount: { type: "pct", value: 5 }, taxes: [], fees: [], deposit: null, deductions: [], currency: "USD", notes: "n", terms: "t", footer: "f", internalNotes: "i",
     options: {}, subtotal: 1, discountTotal: 0, taxTotal: 0, total: 1, amountPaid: 0, balanceDue: 1, source: "quote", convertedFrom: "q", invoiceType: "deposit", billedPct: 50,
     shareToken: "tok", shareHash: "h", sentAt: ts, viewedAt: ts, respondedAt: ts, signerName: "s", signature: "data:", clientNote: "c", paidAt: "2026-11-20", voidedAt: ts,
     createdAt: ts, updatedAt: ts, deleted: false,

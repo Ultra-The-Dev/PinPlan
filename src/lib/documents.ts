@@ -157,6 +157,10 @@ export interface DocTotals {
   taxLines: TaxLine[];
   taxTotal: number;
   total: number;
+  /** Before deductions (what the whole job comes to). Equals `total` when there are none. */
+  grossTotal: number;
+  /** Amounts already invoiced, taken off after tax (final invoices). */
+  deductionTotal: number;
   /** Deposit asked for, or null. */
   deposit: number | null;
   /** Optional lines (not counted). */
@@ -166,7 +170,7 @@ export interface DocTotals {
   lineNet: Record<string, number>;
 }
 
-type TotalsInput = Pick<SalesDoc, "lines" | "taxes"> & Partial<Pick<SalesDoc, "discount" | "fees" | "deposit">>;
+type TotalsInput = Pick<SalesDoc, "lines" | "taxes"> & Partial<Pick<SalesDoc, "discount" | "fees" | "deposit" | "deductions">>;
 
 /**
  * Totals: line nets → subtotal → document discount (spread over the lines in proportion, so tax is on the discounted
@@ -218,9 +222,12 @@ export function documentTotals(doc: TotalsInput): DocTotals {
     return { ...t, base, amount: money((base * (Number(t.rate) || 0)) / 100) };
   });
   const taxTotal = money(taxLines.reduce((s, t) => s + t.amount, 0));
-  const total = money(subtotal - discountTotal + feeTotal + taxTotal);
+  const grossTotal = money(subtotal - discountTotal + feeTotal + taxTotal);
+  // Deductions come off after tax: the tax was charged on the invoices they stand for.
+  const deductionTotal = money((doc.deductions ?? []).filter((d) => d && Number.isFinite(d.amount)).reduce((s, d) => s + money(d.amount), 0));
+  const total = money(grossTotal - deductionTotal);
   const deposit = doc.deposit && doc.deposit.value > 0 ? adjustAmount(doc.deposit, total) : null;
-  return { subtotal, discountTotal, feeTotal, taxLines, taxTotal, total, deposit, optionalTotal, sections: sections.filter((s) => s.id !== null || s.total !== 0), lineNet };
+  return { subtotal, discountTotal, feeTotal, taxLines, taxTotal, grossTotal, deductionTotal, total, deposit, optionalTotal, sections: sections.filter((s) => s.id !== null || s.total !== 0), lineNet };
 }
 
 /** A % of, or a fixed amount up to, `of` (never negative, never more than `of` when `of` is positive). */
@@ -590,6 +597,7 @@ export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id:
       billedPct: pct,
       discount: null,
       fees: [],
+      deductions: [],
       lines: [{ id: lineId(), kind: "item", description: `${label} — ${name}`, details: `${pct}% of ${formatDocMoney(quoteTotal, quote.currency, s.locale)}`, qty: 1, unit: "each", unitPrice: amount, taxable: false }],
     });
   }
@@ -608,17 +616,16 @@ export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id:
         out.push({ ...l, id: lineId() });
       }
     }
-    return withTotals({ ...base, lines: out, discount: null, fees: [] });
+    return withTotals({ ...base, lines: out, discount: null, fees: [], deductions: [] });
   }
   const lines = counted.map((l) => ({ ...l, id: lineId() }));
   if (how.mode === "final") {
+    // Every line (discount and taxes as quoted), less what was already invoiced, taken off after tax.
     const prior = input.prior ?? [];
-    if (prior.length) lines.push({ id: lineId(), kind: "section", description: "Less amounts already invoiced", qty: 0, unitPrice: 0, taxable: false });
-    for (const p of prior)
-      lines.push({ id: lineId(), kind: "item", description: `Less ${p.number ?? "earlier invoice"}${p.invoiceType && p.invoiceType !== "standard" ? ` (${p.invoiceType})` : ""}`, qty: 1, unit: "each", unitPrice: -p.total, taxable: false });
-    return withTotals({ ...base, lines, invoiceType: prior.length ? "final" : "standard" });
+    const deductions = prior.map((p) => ({ id: lineId(), label: `Less ${p.number ?? "earlier invoice"}${p.invoiceType && p.invoiceType !== "standard" ? ` (${p.invoiceType})` : ""}`, amount: p.total }));
+    return withTotals({ ...base, lines, deductions, invoiceType: prior.length ? "final" : "standard" });
   }
-  return withTotals({ ...base, lines });
+  return withTotals({ ...base, lines, deductions: [] });
 }
 
 /** A credit note against an invoice: its lines, to edit down to what is being credited. */
@@ -632,6 +639,7 @@ export function creditNoteFor(invoice: SalesDoc, input: { id: string; now: strin
     dueDate: null,
     termsDays: null,
     deposit: null,
+    deductions: [],
     invoiceType: null,
     notes: invoice.number ? `Credit against invoice ${invoice.number}.` : s.kinds.credit_note.notes,
     terms: s.kinds.credit_note.terms,
@@ -700,8 +708,8 @@ export function documentsCsv(docs: SalesDoc[], projects: Map<string, Pick<Projec
       d.discountTotal.toFixed(2),
       d.taxTotal.toFixed(2),
       d.total.toFixed(2),
-      d.amountPaid.toFixed(2),
-      d.balanceDue.toFixed(2),
+      d.kind === "invoice" ? d.amountPaid.toFixed(2) : "",
+      d.kind === "invoice" ? d.balanceDue.toFixed(2) : "",
       d.currency,
     ]);
   }
@@ -740,7 +748,8 @@ export interface DocSnapshot {
   template: DocTemplate;
   discount: Adjust | null;
   fees: DocFee[];
-  totals: Pick<DocTotals, "subtotal" | "discountTotal" | "feeTotal" | "taxLines" | "taxTotal" | "total" | "deposit" | "optionalTotal">;
+  deductions: DocFee[];
+  totals: Pick<DocTotals, "subtotal" | "discountTotal" | "feeTotal" | "taxLines" | "taxTotal" | "grossTotal" | "deductionTotal" | "total" | "deposit" | "optionalTotal">;
   notes: string;
   terms: string;
   footer: string;
@@ -778,7 +787,8 @@ export function buildDocSnapshot(doc: SalesDoc, input: { settings: DocumentSetti
     template: doc.options?.template ?? s.template,
     discount: doc.discount ?? null,
     fees: doc.fees ?? [],
-    totals: { subtotal: t.subtotal, discountTotal: t.discountTotal, feeTotal: t.feeTotal, taxLines: t.taxLines, taxTotal: t.taxTotal, total: t.total, deposit: t.deposit, optionalTotal: t.optionalTotal },
+    deductions: doc.deductions ?? [],
+    totals: { subtotal: t.subtotal, discountTotal: t.discountTotal, feeTotal: t.feeTotal, taxLines: t.taxLines, taxTotal: t.taxTotal, grossTotal: t.grossTotal, deductionTotal: t.deductionTotal, total: t.total, deposit: t.deposit, optionalTotal: t.optionalTotal },
     notes: doc.notes ?? "",
     terms: doc.terms ?? "",
     footer: doc.footer ?? "",
