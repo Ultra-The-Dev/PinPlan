@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/server/auth";
+import { limitAi } from "@/lib/server/rateLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import { ASK_SCHEMA, EXPLAIN_SCHEMA, buildAskPrompt, buildExplainPrompt, parseAnswer, parseExplanation } from "@/lib/planRead";
 
@@ -15,6 +16,8 @@ const MIMES: ImageMime[] = ["image/jpeg", "image/png", "image/webp", "image/gif"
 export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
+  const limited = limitAi(request, auth.userId, "planRead");
+  if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: "Plan reading is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
   }

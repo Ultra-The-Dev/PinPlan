@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DESCRIBE_SCHEMA, describePrompt, parseDescribe } from "@/lib/photoAi";
 import { requireUser } from "@/lib/server/auth";
+import { limitAi } from "@/lib/server/rateLimit";
 
 // AI caption + tags for one job photo. Body: { imageBase64 (JPEG), room?, device?, existingTags? }
 export const maxDuration = 120;
@@ -9,6 +10,8 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
+  const limited = limitAi(request, auth.userId, "photoDescribe");
+  if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "AI is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
   let body: { imageBase64?: string; room?: string; device?: string; existingTags?: string[] };
   try {

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SUMMARY_SCHEMA, parseSummary, summaryPrompt } from "@/lib/photoAi";
 import { requireUser } from "@/lib/server/auth";
+import { limitAi } from "@/lib/server/rateLimit";
 
 // AI daily-log draft from a day's photos. Body: { date, address?, notes?, photos: [{ data (JPEG base64), caption }] }
 export const maxDuration = 180;
@@ -9,6 +10,8 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
+  const limited = limitAi(request, auth.userId, "photoSummary");
+  if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "AI is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
   let body: { date?: string; address?: string; notes?: string; photos?: { data: string; caption?: string }[] };
   try {

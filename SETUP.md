@@ -269,3 +269,7 @@ password) only open pages it allows:
 - **Access code not accepted**: it must match `PINPLAN_ACCESS_CODE` exactly (case-sensitive); redeploy after changing it.
 - **AI or Billdu orange after adding keys**: you added them but didn't redeploy.
 - **Billdu send fails**: the key/secret must come from the account owner; check them in Billdu → Settings → API.
+
+## Going live as a service
+See [docs/production-checklist.md](docs/production-checklist.md) (legal pages, Supabase/Vercel/Stripe/Apple setup,
+monitoring with `/api/health` and `/admin`, key rotation) and [docs/backups.md](docs/backups.md).
