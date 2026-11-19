@@ -1,20 +1,28 @@
 "use client";
-// App-wide notice under the header: the free trial ends within 3 days, a payment failed, or the team is read-only.
-// Owners and admins get the button that fixes it; technicians are told to ask the office.
+// App-wide notice under the header: the free trial ends within 3 days, a payment failed, the subscription is ending,
+// or jobs are read-only (edits are refused on this device and in the cloud; viewing and exports keep working).
+// Owners and admins get the button that fixes it; technicians are told to ask the office. People on no company team
+// get the same for their personal trial, pointing at Settings → Team.
 import { CircleAlert, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { openBillingPortal, startCheckout, useNow } from "@/lib/billing";
-import { bannerFor } from "@/lib/billingLogic";
+import { bannerFor, soloBannerFor } from "@/lib/billingLogic";
+import { useCanEdit, useSoloBilling } from "@/lib/canEdit";
 import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 
 export default function BillingBanner() {
   const billing = useTeam((s) => s.billing);
   const role = useTeam((s) => s.role);
+  const onTeam = useTeam((s) => !!s.team);
+  const ready = useTeam((s) => s.ready);
+  const userId = useTeam((s) => s.userId);
+  const solo = useSoloBilling((s) => (s.userId === userId ? s.solo : null));
+  useCanEdit(); // keeps the personal trial loaded for people on no team
   const [busy, setBusy] = useState(false);
   const now = useNow();
-  const banner = now ? bannerFor(billing, role, now) : null;
+  const banner = !now ? null : onTeam ? bannerFor(billing, role, now) : ready && userId ? soloBannerFor(solo, now) : null;
   if (!banner) return null;
   const red = banner.tone === "red";
   const run = async () => {
@@ -34,7 +42,11 @@ export default function BillingBanner() {
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span className="min-w-0 flex-1">{banner.text}</span>
-      {banner.action ? (
+      {banner.action === "team" ? (
+        <Link href="/settings#team" className={`btn btn-sm ${red ? "btn-brand" : ""}`}>
+          Start a company team
+        </Link>
+      ) : banner.action ? (
         <button className={`btn btn-sm ${red ? "btn-brand" : ""}`} disabled={busy} onClick={() => void run()}>
           {busy ? "Opening…" : banner.action === "portal" ? "Update billing" : "Start subscription"}
         </button>

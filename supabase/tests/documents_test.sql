@@ -189,7 +189,7 @@ select pg_temp.check((select count(*) from public.document_links) = 0, 'tech see
 
 -- ---------- lapsed subscription: read-only ----------
 reset role;
-update public.teams set plan_status = 'canceled' where owner_id = '00000000-0000-0000-0000-0000000000d1';
+update public.teams set plan_status = 'canceled', trial_ends_at = now() - interval '1 minute' where owner_id = '00000000-0000-0000-0000-0000000000d1';
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d3');
 select pg_temp.check(pg_temp.error_of($$insert into public.sales_documents (id, project_id, kind) values ('dlock', 'dp1', 'invoice')$$) like '%subscription inactive%', 'locked company cannot add documents');

@@ -3,9 +3,10 @@
 // Owners and admins manage it; technicians only see the status.
 import { CreditCard, ExternalLink, Minus, Plus, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { changeSeats, openBillingPortal, startCheckout, useNow } from "@/lib/billing";
 import { billingSummary, paidSeats, type Tone } from "@/lib/billingLogic";
-import { monthlyPrice, PLANS, PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
+import { monthlyPrice, PLANS, PRICE_CURRENCY, PRODUCT_NAME, RENEWAL_NOTE, TRIAL_DAYS } from "@/lib/plans";
 import { useSyncStatus } from "@/lib/sync";
 import { reloadTeam, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -48,6 +49,29 @@ function useCheckoutReturn() {
   }, []);
 }
 
+/** Owner/admin: do Stripe's prices match the ones shown here? (GET /api/billing/check). Mismatches, or null. */
+function usePriceCheck(enabled: boolean) {
+  const [mismatches, setMismatches] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let stop = false;
+    void (async () => {
+      try {
+        const r = await apiFetch("/api/billing/check");
+        if (!r.ok) return; // billing not set up, offline…: nothing to say
+        const j = (await r.json()) as { mismatches?: unknown };
+        if (!stop && Array.isArray(j.mismatches) && j.mismatches.length) setMismatches(j.mismatches.filter((m): m is string => typeof m === "string"));
+      } catch {
+        /* offline */
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [enabled]);
+  return mismatches;
+}
+
 export default function BillingPanel() {
   useCheckoutReturn();
   const sync = useSyncStatus();
@@ -57,6 +81,7 @@ export default function BillingPanel() {
   const plan = PLANS[0];
   const [busy, setBusy] = useState<string | null>(null);
   const now = useNow();
+  const priceIssues = usePriceCheck(office && !!b && b.status !== "comped");
 
   const act = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
     setBusy(key);
@@ -74,7 +99,7 @@ export default function BillingPanel() {
   if (!sync.configured || !sync.signedIn || !t.team) {
     body = (
       <p className="text-sm text-slate-600">
-        {PRODUCT_NAME} is billed per company team: {TRIAL_DAYS} days free, then ${plan.basePrice}/month including {plan.includedSeats} users and ${plan.seatPrice}/month for each extra user.
+        {PRODUCT_NAME} is billed per company team: {TRIAL_DAYS} days free, then ${plan.basePrice}/month including {plan.includedSeats} users and ${plan.seatPrice}/month for each extra user ({PRICE_CURRENCY}).
         {sync.configured && sync.signedIn ? " Start a team below to begin your trial." : ""}
       </p>
     );
@@ -108,7 +133,7 @@ export default function BillingPanel() {
           <div className="rounded-xl p-3 ring-1 ring-slate-200">
             <dt className="text-xs text-slate-500">{subscribed ? "Monthly" : "Monthly after the trial"}</dt>
             <dd className="font-medium">{comped ? "Free" : `$${monthlyPrice(plan, seats)}/month`}</dd>
-            {!comped && <dd className="text-xs text-slate-500">{`$${plan.basePrice} incl. ${plan.includedSeats} users + $${plan.seatPrice} per extra user`}</dd>}
+            {!comped && <dd className="text-xs text-slate-500">{`$${plan.basePrice} incl. ${plan.includedSeats} users + $${plan.seatPrice} per extra user · ${PRICE_CURRENCY}`}</dd>}
           </div>
         </dl>
         {office && !comped && (
@@ -133,6 +158,17 @@ export default function BillingPanel() {
                 <ExternalLink /> {busy === "portal" ? "Opening…" : "Manage billing & invoices"}
               </button>
             )}
+          </div>
+        )}
+        {office && !comped && !subscribed && <p className="text-xs text-slate-500">{RENEWAL_NOTE}</p>}
+        {office && priceIssues && (
+          <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200">
+            <p className="font-medium">Stripe’s prices don’t match the prices shown here. Checkout charges Stripe’s prices.</p>
+            <ul className="mt-1 list-disc pl-4">
+              {priceIssues.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
           </div>
         )}
         {!office && !comped && <p className="text-xs text-slate-500">The owner or an admin manages the subscription.</p>}

@@ -5,8 +5,8 @@
 //   fit:     exactly the people on the team.
 // The seat item's quantity is changed in Stripe and the new limit written to the team straight away (the webhook
 // confirms it). Teams on the free trial or comped have no seat limit, so there's nothing to change.
-import { extraSeats, seatItem, seatTarget, type SeatAction, type SubscriptionLike } from "@/lib/billingLogic";
-import { applySubscription, billingConfig, getStripe, jsonError, notConfigured, requireTeamOffice } from "@/lib/server/billing";
+import { seatTarget, type SeatAction, type SubscriptionLike } from "@/lib/billingLogic";
+import { billingConfig, billingFailure, getStripe, jsonError, notConfigured, requireTeamOffice, setSeats } from "@/lib/server/billing";
 
 const ACTIONS: SeatAction[] = ["add", "release", "fit"];
 const LIVE = new Set(["active", "past_due", "trialing"]);
@@ -31,16 +31,9 @@ export async function POST(request: Request) {
     const stripe = getStripe(cfg);
     const sub = (await stripe.subscriptions.retrieve(team.stripe_subscription_id)) as unknown as SubscriptionLike;
     const target = seatTarget(action, { members, seatLimit: team.seat_limit });
-    const extra = extraSeats(target);
-    const item = seatItem(sub, cfg.priceSeat);
-    let latest = sub;
-    if ((item?.quantity ?? 0) !== extra) {
-      const items = item ? [extra > 0 ? { id: item.id, quantity: extra } : { id: item.id, deleted: true }] : [{ price: cfg.priceSeat, quantity: extra }];
-      latest = (await stripe.subscriptions.update(sub.id, { items, proration_behavior: "create_prorations" })) as unknown as SubscriptionLike;
-    }
-    await applySubscription(cfg, latest, team.id);
+    await setSeats(cfg, stripe, sub, team.id, target);
     return Response.json({ seats: target });
   } catch (e) {
-    return jsonError((e as Error).message || "Couldn't change seats.", "stripe_error", 502);
+    return billingFailure("sync-seats", e, "Couldn't change seats. Try again in a minute.");
   }
 }
