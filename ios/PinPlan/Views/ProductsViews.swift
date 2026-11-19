@@ -12,6 +12,10 @@ struct ProductLibraryView: View {
     @State private var importing = false
 
     var body: some View {
+        if app.cloud.can(.prices) { library } else { OfficeOnlyView(what: "Products and their prices") }
+    }
+
+    private var library: some View {
         SentenceList {
             if app.products.allSatisfy({ $0.archived == true || $0.deleted == true }) && query.isEmpty {
                 Section {

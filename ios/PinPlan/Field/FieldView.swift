@@ -158,7 +158,7 @@ struct ChecklistDetail: View {
             }
             .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
             .sheet(item: $assigning) { item in
-                TaskEditor(item: item, names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app))) { who, due in
+                TaskEditor(item: item, names: FieldAuthor.teamNames(app)) { who, due in
                     change(c) { x in
                         if let i = x.items.firstIndex(where: { $0.id == item.id }) { x.items[i].assignee = who; x.items[i].due = due }
                     }

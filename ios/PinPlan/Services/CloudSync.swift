@@ -38,7 +38,12 @@ struct SupabaseClient {
         let message: String
         /// HTTP status when the server answered (0 = no answer, e.g. offline).
         var status: Int = 0
+        /// PostgREST / Postgres error code when there is one ("42501", "PGRST205", "23505"…).
+        var code: String? = nil
         var errorDescription: String? { message }
+        /// The server answered and refused this request (bad row, not allowed, missing table). Retrying the same
+        /// request won't help, but other requests may still work. Not an expired sign-in or a busy server.
+        var isRefusal: Bool { (400..<500).contains(status) && ![401, 408, 429].contains(status) }
     }
 
     let config: Config
@@ -68,7 +73,7 @@ struct SupabaseClient {
             case "over_email_send_rate_limit": msg = "Too many emails sent — wait an hour, or sign in if the account already exists."
             default: break
             }
-            throw Failure(message: msg ?? "Cloud server returned \(status)", status: status)
+            throw Failure(message: msg ?? "Cloud server returned \(status)", status: status, code: j?["code"] as? String)
         }
         return data
     }
@@ -94,11 +99,16 @@ struct SupabaseClient {
         return try session(from: try await send(r))
     }
 
-    func signUp(email: String, password: String) async throws -> Session {
+    /// Create an account. Nil when the project asks new accounts to confirm their email first (no session yet), or
+    /// when the email already has an account (Supabase answers the same way then, and sends nothing).
+    func signUp(email: String, password: String) async throws -> Session? {
         var r = request("/auth/v1/signup", method: "POST")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         r.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
-        return try session(from: try await send(r))
+        let data = try await send(r)
+        let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard j?["access_token"] is String else { return nil }
+        return try session(from: data)
     }
 
     func refresh(_ s: Session) async throws -> Session {
@@ -131,6 +141,14 @@ struct SupabaseClient {
         let wm = watermark.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? watermark
         let r = request("/rest/v1/\(table)", query: "select=*&synced_at=gt.\(wm)&order=synced_at.asc&limit=\(limit)", token: token)
         return (try JSONSerialization.jsonObject(with: try await send(r)) as? [[String: Any]]) ?? []
+    }
+
+    /// Call a database function (`POST /rest/v1/rpc/<name>`). Without a token it runs as the public (anon) role.
+    func rpc(_ name: String, params: [String: Any], token: String?) async throws -> Data {
+        var r = request("/rest/v1/rpc/\(name)", method: "POST", token: token)
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try JSONSerialization.data(withJSONObject: params)
+        return try await send(r)
     }
 
     func select(_ table: String, query: String, token: String) async throws -> Data {
@@ -189,6 +207,17 @@ final class CloudSync {
     private(set) var lastSummary: String?
     /// Per job: photos / documents on this device not uploaded yet. Refreshed after each sync and on edits.
     private(set) var uploadBacklogs: [String: UploadBacklog] = [:]
+    /// The signed-in user's company team as last loaded (kept on the device, so role gating works offline).
+    /// `team == nil` inside means signed in but not on a team: working alone, full access.
+    private(set) var team: TeamSnapshot?
+    /// The cloud database doesn't have the team tables yet (supabase/migrations/20261120000000_teams.sql not run).
+    private(set) var teamNeedsMigration = false
+    private(set) var teamError: String?
+    /// Something worth telling once ("You joined Acme as Technician", "Only the office can delete a job…").
+    var teamNotice: String?
+
+    /// When the team was last loaded from the cloud (syncs refresh it at most about once a minute).
+    @ObservationIgnored var teamLoadedAt: Date?
 
     @ObservationIgnored private weak var app: AppModel?
     @ObservationIgnored private var ledger = SyncLedger()
@@ -204,6 +233,7 @@ final class CloudSync {
             let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
             session = try? dec.decode(SupabaseClient.Session.self, from: d)
         }
+        loadTeamCache()
     }
 
     var signedIn: Bool { session != nil && config != nil }
@@ -262,10 +292,47 @@ final class CloudSync {
 
     func signIn(email: String, password: String, create: Bool) async throws {
         guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
-        let s = create ? try await client.signUp(email: email, password: password) : try await client.signIn(email: email, password: password)
-        if let old = session, old.userId != s.userId { ledger = SyncLedger() }
+        if create {
+            guard try await createAccount(email: email, password: password) else {
+                throw SupabaseClient.Failure(message: SignUpOutcome.confirmEmail(email).message)
+            }
+            return
+        }
+        await begin(try await client.signIn(email: email, password: password))
+    }
+
+    /// What happened when creating an account.
+    enum SignUpOutcome: Equatable {
+        case signedIn
+        /// The project asks new accounts to confirm their email (or the email already has an account).
+        case confirmEmail(String)
+        var message: String {
+            switch self {
+            case .signedIn: return "Account created."
+            case .confirmEmail(let e):
+                return "Check \(e.isEmpty ? "your inbox" : e) for the confirmation email from Supabase (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in."
+            }
+        }
+    }
+
+    /// Create an account (`POST /auth/v1/signup`). True when it signed straight in; false when the email has to be
+    /// confirmed first. Any invite code remembered with `rememberPendingInvite` is used after the next sign-in.
+    @discardableResult
+    func createAccount(email: String, password: String) async throws -> Bool {
+        guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
+        guard let s = try await client.signUp(email: email, password: password) else { return false }
+        await begin(s)
+        return true
+    }
+
+    /// A new sign-in: switch ledgers, learn the team (and finish a remembered invite), then sync.
+    private func begin(_ s: SupabaseClient.Session) async {
+        if let old = session, old.userId != s.userId { ledger = SyncLedger(); team = nil }
         store(s)
         loadLedger()
+        loadTeamCache()
+        await loadTeam()
+        await finishPendingInvite()
         await syncNow()
     }
 
@@ -275,6 +342,10 @@ final class CloudSync {
         lastSync = nil
         lastSummary = nil
         uploadBacklogs = [:]
+        team = nil
+        teamNeedsMigration = false
+        teamError = nil
+        UserDefaults.standard.removeObject(forKey: Self.teamKey)
     }
 
     private func store(_ s: SupabaseClient.Session) {
@@ -351,12 +422,14 @@ final class CloudSync {
         defer { syncing = false; refreshUploadBacklogs() }
         do {
             let token = try await token()
-            let pushed = try await push(app: app, client: client, token: token)
+            // Know the role before pushing, so a technician's device never sends what the database would refuse.
+            await loadTeam(maxAge: 50)
+            let (pushed, refused) = try await push(app: app, client: client, token: token)
             let pulled = try await pull(app: app, client: client, token: token)
             try await images(app: app, client: client, token: token)
             saveLedger()
             lastSync = Date()
-            lastError = nil
+            lastError = refused.map { "Some changes weren't accepted by the cloud (they'll be tried again): " + (($0 as? LocalizedError)?.errorDescription ?? $0.localizedDescription) }
             lastSummary = pushed + pulled == 0 ? "Up to date" : "Sent \(pushed), received \(pulled) change\(pushed + pulled == 1 ? "" : "s")"
         } catch {
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -451,30 +524,88 @@ final class CloudSync {
 
     private func state(_ app: AppModel) -> SyncState { SyncState(bundles: app.projects, catalog: app.catalog, products: app.products) }
 
-    private func push(app: AppModel, client: SupabaseClient, token: String) async throws -> Int {
+    /// Send this device's changes. A row the server refuses (not allowed, bad value, missing table) is reported, not
+    /// fatal: the other rows and tables still go up and the pull still runs, so one bad row can't stall syncing.
+    /// No connection or an ended sign-in still stops the run.
+    private func push(app: AppModel, client: SupabaseClient, token: String) async throws -> (Int, Error?) {
         let s = state(app)
         let changed = s.changes(since: ledger)
         let now = isoNow()
+        let role = self.role
+        var refused: Error?
+        var sent = 0
         for t in SyncMap.pushOrder {
             let rows = changed.filter { $0.table == t }
             guard !rows.isEmpty, let spec = SyncMap.specs[t] else { continue }
-            for chunk in stride(from: 0, to: rows.count, by: 200).map({ Array(rows[$0..<min($0 + 200, rows.count)]) }) {
-                let payload = chunk.map { r -> [String: Any] in
+            // Technicians can't write prices (the database refuses): drop those edits instead of retrying forever.
+            guard TeamLogic.mayPush(t, role: role) else {
+                s.markSynced(rows, ledger: &ledger)
+                continue
+            }
+            func payload(_ chunk: [SyncState.Row]) -> [[String: Any]] {
+                chunk.map { r -> [String: Any] in
                     var row = SyncMap.toRemote(t, r.json)
                     row["updated_at"] = now   // newer than any copy elsewhere, so other devices take this edit
                     return row
                 }
-                try await client.upsert(spec.remote, conflict: spec.conflict, rows: payload, token: token)
-                s.markSynced(chunk, ledger: &ledger)
+            }
+            for chunk in stride(from: 0, to: rows.count, by: 200).map({ Array(rows[$0..<min($0 + 200, rows.count)]) }) {
+                do {
+                    try await client.upsert(spec.remote, conflict: spec.conflict, rows: payload(chunk), token: token)
+                    s.markSynced(chunk, ledger: &ledger)
+                    sent += chunk.count
+                } catch let e as SupabaseClient.Failure where e.isRefusal {
+                    if chunk.count == 1 {
+                        noteRefusal(e, rows: chunk, role: role, refused: &refused)
+                        continue
+                    }
+                    // Find the refused rows: send one at a time. Three refusals in a row means the whole table is
+                    // refused (e.g. a missing column): stop there and try again on the next sync.
+                    var strikes = 0
+                    for r in chunk where strikes < 3 {
+                        do {
+                            try await client.upsert(spec.remote, conflict: spec.conflict, rows: payload([r]), token: token)
+                            s.markSynced([r], ledger: &ledger)
+                            sent += 1
+                            strikes = 0
+                        } catch let one as SupabaseClient.Failure where one.isRefusal {
+                            noteRefusal(one, rows: [r], role: role, refused: &refused)
+                            strikes += 1
+                        }
+                    }
+                }
             }
         }
         // Jobs deleted on this device.
         let removed = s.removedProjects(since: ledger)
         for id in removed {
-            try await client.patch("projects", filter: "id=eq.\(id)", values: ["deleted": true, "updated_at": now], token: token)
-            for k in ledger.hashes.keys where k == SyncLedger.key(.projects, id) { ledger.hashes.removeValue(forKey: k) }
+            do {
+                try await client.patch("projects", filter: "id=eq.\(id)", values: ["deleted": true, "updated_at": now], token: token)
+                ledger.hashes.removeValue(forKey: SyncLedger.key(.projects, id))
+                sent += 1
+            } catch let e as SupabaseClient.Failure where e.isRefusal {
+                if e.status == 403 || e.code == "42501" {
+                    // Not allowed to delete it (a technician): it stays on the server, so bring it back here.
+                    // Forgetting the pull watermarks makes the next pull fetch the job (and its sheets, devices…) again.
+                    ledger.hashes.removeValue(forKey: SyncLedger.key(.projects, id))
+                    ledger.watermarks = [:]
+                    teamNotice = "Only the office can delete a job, so it's back on this device."
+                } else if refused == nil {
+                    refused = e
+                }
+            }
         }
-        return changed.count + removed.count
+        return (sent, refused)
+    }
+
+    /// Remember a refused row. A technician's row the database won't take (403 / 42501) is dropped for good —
+    /// it would be refused every time — while other refusals are tried again on the next sync.
+    private func noteRefusal(_ e: SupabaseClient.Failure, rows: [SyncState.Row], role: TeamRole?, refused: inout Error?) {
+        if role == .tech && (e.status == 403 || e.code == "42501") {
+            for r in rows { ledger.hashes[SyncLedger.key(r.table, r.id)] = r.hash }
+            return
+        }
+        if refused == nil { refused = e }
     }
 
     private func pull(app: AppModel, client: SupabaseClient, token: String) async throws -> Int {
@@ -581,5 +712,229 @@ final class CloudSync {
             }
         }
         if let refused { throw refused }
+    }
+}
+
+// MARK: - company team
+
+/// The signed-in user's company team and the calls that manage it (mirrors src/lib/team.ts). The team and role are
+/// cached on this device so the app hides the right things offline too.
+extension CloudSync {
+    static let teamKey = "pinplan.team"
+    private static let pendingInviteKey = "pinplan.pendingInvite"
+
+    /// My role, or nil when working alone (full access) or signed out.
+    var role: TeamRole? {
+        guard signedIn, let t = team, t.userId == session?.userId, t.team != nil else { return nil }
+        return t.role
+    }
+    /// What this user may do. Solo users (no team) can do everything.
+    func can(_ action: TeamAction) -> Bool { TeamLogic.can(role, action) }
+    var onTeam: Bool { role != nil }
+    /// My row on the team.
+    var teamMe: TeamMember? { role == nil ? nil : team?.me }
+    /// Everyone on the team, owner first.
+    var teamMembers: [TeamMember] { role == nil ? [] : TeamLogic.sortMembers(team?.members ?? []) }
+
+    func loadTeamCache() {
+        guard let uid = session?.userId, let d = UserDefaults.standard.data(forKey: Self.teamKey),
+              let snap = try? JSONDecoder().decode(TeamSnapshot.self, from: d), snap.userId == uid else { return }
+        if team == nil { team = snap }
+    }
+
+    private func saveTeam(_ snap: TeamSnapshot) {
+        team = snap
+        teamLoadedAt = Date()
+        if let d = try? JSONEncoder().encode(snap) { UserDefaults.standard.set(d, forKey: Self.teamKey) }
+    }
+
+    /// Learn (or refresh) my team: my member row → the team → everyone on it. Offline, or a database without the
+    /// team tables, keeps what this device knew. `maxAge` skips the call when the team was loaded that recently.
+    func loadTeam(maxAge: TimeInterval = 0) async {
+        guard let client, let uid = session?.userId else { return }
+        if maxAge > 0, let at = teamLoadedAt, Date().timeIntervalSince(at) < maxAge { return }
+        do {
+            let tok = try await token()
+            let meData = try await client.select("team_members", query: "select=team_id,role&user_id=eq.\(uid)", token: tok)
+            let mine = (try JSONSerialization.jsonObject(with: meData) as? [[String: Any]]) ?? []
+            teamNeedsMigration = false
+            teamError = nil
+            guard let row = mine.first, let tid = row["team_id"] as? String else {
+                saveTeam(TeamSnapshot(userId: uid))
+                return
+            }
+            let tData = try await client.select("teams", query: "select=id,name,owner_id&id=eq.\(tid)", token: tok)
+            let mData = try await client.select("team_members", query: "select=user_id,role,name,email,created_at&team_id=eq.\(tid)", token: tok)
+            let teams = try JSONDecoder().decode([Team].self, from: tData)
+            let members = try JSONDecoder().decode([TeamMember].self, from: mData)
+            saveTeam(TeamSnapshot(userId: uid, team: teams.first, role: TeamRole(remote: row["role"] as? String), members: members))
+        } catch let e as SupabaseClient.Failure {
+            if TeamLogic.isMissingSchema(code: e.code, message: e.message) {
+                teamNeedsMigration = true
+                teamError = nil
+                teamLoadedAt = Date()
+            } else if e.status != 0 {
+                teamError = TeamLogic.errorMessage(e.message, code: e.code)
+            }
+        } catch {
+            // Offline or an answer we couldn't read: keep the cached team.
+        }
+    }
+
+    /// Run a team call with a friendly message on failure (missing migration, signed out…).
+    private func teamCall<T>(_ work: (SupabaseClient, String) async throws -> T) async throws -> T {
+        guard let client else { throw SupabaseClient.Failure(message: "Connect cloud sync first.") }
+        do {
+            let tok = try await token()
+            return try await work(client, tok)
+        } catch let e as SupabaseClient.Failure {
+            if TeamLogic.isMissingSchema(code: e.code, message: e.message) { teamNeedsMigration = true }
+            throw SupabaseClient.Failure(message: TeamLogic.errorMessage(e.message, code: e.code), status: e.status, code: e.code)
+        }
+    }
+
+    func createTeam(name: String, myName: String) async throws {
+        let n = name.trimmingCharacters(in: .whitespaces), me = myName.trimmingCharacters(in: .whitespaces)
+        let _: Data = try await teamCall { c, t in
+            try await c.rpc("create_team", params: ["p_name": n, "p_my_name": me], token: t)
+        }
+        await loadTeam()
+    }
+
+    func renameTeam(_ name: String) async throws {
+        guard let id = team?.team?.id else { return }
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let _: Void = try await teamCall { c, t in
+            try await c.patch("teams", filter: "id=eq.\(id)", values: ["name": n, "updated_at": isoNow()], token: t)
+        }
+        await loadTeam()
+    }
+
+    func setMyName(_ name: String) async throws {
+        guard let uid = session?.userId else { return }
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let _: Void = try await teamCall { c, t in
+            try await c.patch("team_members", filter: "user_id=eq.\(uid)", values: ["name": n], token: t)
+        }
+        await loadTeam()
+    }
+
+    func listInvites() async throws -> [TeamInvite] {
+        guard let id = team?.team?.id else { return [] }
+        let data: Data = try await teamCall { c, t in
+            try await c.select("team_invites", query: "select=code,role,name,created_at,expires_at,used_by,used_at,revoked&team_id=eq.\(id)&order=created_at.desc", token: t)
+        }
+        return try JSONDecoder().decode([TeamInvite].self, from: data)
+    }
+
+    /// Make an invite code for someone (returns the code, upper case without dashes).
+    func createInvite(role: TeamRole, name: String) async throws -> String {
+        guard let id = team?.team?.id else { throw SupabaseClient.Failure(message: "Start your team first.") }
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let r = role == .admin ? "admin" : "tech"
+        // A clash is astronomically unlikely, but retry rather than fail.
+        for _ in 0..<3 {
+            let code = TeamLogic.newInviteCode()
+            do {
+                let _: Data = try await teamCall { c, t in
+                    try await c.insert("team_invites", row: ["code": code, "team_id": id, "role": r, "name": n], token: t)
+                }
+                return code
+            } catch let e as SupabaseClient.Failure where e.code == "23505" {
+                continue
+            }
+        }
+        throw SupabaseClient.Failure(message: "Couldn't make an invite code. Try again.")
+    }
+
+    func revokeInvite(_ code: String) async throws {
+        let c0 = TeamLogic.normalizeCode(code)
+        let _: Void = try await teamCall { c, t in
+            try await c.patch("team_invites", filter: "code=eq.\(c0)", values: ["revoked": true], token: t)
+        }
+    }
+
+    func setMemberRole(_ userId: String, role: TeamRole) async throws {
+        let r = role == .admin ? "admin" : "tech"
+        let _: Data = try await teamCall { c, t in
+            try await c.rpc("set_team_member_role", params: ["p_user": userId, "p_role": r], token: t)
+        }
+        await loadTeam()
+    }
+
+    func removeMember(_ userId: String) async throws {
+        let _: Data = try await teamCall { c, t in
+            try await c.rpc("remove_team_member", params: ["p_user": userId], token: t)
+        }
+        await loadTeam()
+    }
+
+    func leaveTeam() async throws {
+        guard let uid = session?.userId else { return }
+        try await removeMember(uid)
+    }
+
+    /// What a code is for (works before signing in). Nil when the code isn't valid (wrong, used, expired or revoked).
+    func inviteInfo(_ code: String) async throws -> InviteInfo? {
+        guard let client else { throw SupabaseClient.Failure(message: "Connect cloud sync first.") }
+        var tok: String?
+        if signedIn { tok = try? await token() }
+        do {
+            let data = try await client.rpc("team_invite_info", params: ["p_code": TeamLogic.normalizeCode(code)], token: tok)
+            return try? JSONDecoder().decode(InviteInfo.self, from: data)   // JSON null → nil
+        } catch let e as SupabaseClient.Failure {
+            if TeamLogic.isMissingSchema(code: e.code, message: e.message) { teamNeedsMigration = true }
+            throw SupabaseClient.Failure(message: TeamLogic.errorMessage(e.message, code: e.code), status: e.status, code: e.code)
+        }
+    }
+
+    /// Join a team with an invite code. Returns the team's name and my role there.
+    @discardableResult
+    func acceptInvite(_ code: String, name: String) async throws -> (team: String, role: TeamRole) {
+        let c0 = TeamLogic.normalizeCode(code), n = name.trimmingCharacters(in: .whitespaces)
+        let data: Data = try await teamCall { c, t in
+            try await c.rpc("accept_team_invite", params: ["p_code": c0, "p_name": n], token: t)
+        }
+        await loadTeam()
+        let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let joined: String = (j?["team"] as? String) ?? team?.team?.name ?? ""
+        let joinedRole = TeamRole(remote: (j?["role"] as? String) ?? team?.role?.rawValue)
+        return (joined, joinedRole)
+    }
+
+    // An invite opened before the worker had an account (e.g. waiting for the confirmation email) is finished
+    // automatically the next time they sign in on this device.
+
+    struct PendingInvite: Codable, Equatable {
+        var code: String
+        var name: String
+    }
+
+    var pendingInvite: PendingInvite? {
+        guard let d = UserDefaults.standard.data(forKey: Self.pendingInviteKey) else { return nil }
+        return try? JSONDecoder().decode(PendingInvite.self, from: d)
+    }
+
+    func rememberPendingInvite(code: String, name: String) {
+        let p = PendingInvite(code: TeamLogic.normalizeCode(code), name: name.trimmingCharacters(in: .whitespaces))
+        if let d = try? JSONEncoder().encode(p) { UserDefaults.standard.set(d, forKey: Self.pendingInviteKey) }
+    }
+
+    func clearPendingInvite() { UserDefaults.standard.removeObject(forKey: Self.pendingInviteKey) }
+
+    /// Call after sign-in: joins the team from a remembered invite, if any.
+    func finishPendingInvite() async {
+        guard let p = pendingInvite, signedIn else { return }
+        do {
+            let r = try await acceptInvite(p.code, name: p.name)
+            clearPendingInvite()
+            teamNotice = "You joined \(r.team.isEmpty ? "the team" : r.team) as \(r.role.name)."
+        } catch let e as SupabaseClient.Failure where e.status != 0 {
+            // A dead code won't start working later; a network error might.
+            clearPendingInvite()
+            teamNotice = "Couldn't join with the saved invite code: \(e.message)"
+        } catch {
+            // Offline: try again after the next sign-in.
+        }
     }
 }

@@ -32,15 +32,28 @@ struct SettingsView: View {
                 Text("Keep jobs in step between iPhone, iPad and the web app.")
             }
             Section {
+                NavigationLink { TeamView() } label: {
+                    LabeledContent {
+                        Text(teamSummary)
+                    } label: { Label("Team", systemImage: "person.2") }
+                }
+            } footer: {
+                Text(app.cloud.role == .tech
+                     ? "You're a technician on this team: field work on every job. Prices, estimates and proposals stay with the office."
+                     : "Give your office staff and technicians their own sign-in. Technicians don't see prices.")
+            }
+            Section {
                 NavigationLink { BusinessSettingsView() } label: {
                     LabeledContent {
                         Text(app.settings.business.name.isEmpty ? "Add your details" : app.settings.business.name)
                     } label: { Label("Your business", systemImage: "building.2") }
                 }
-                NavigationLink { PricingSettingsView() } label: {
-                    LabeledContent {
-                        Text("\(app.settings.pricing.markupPct.clean)% markup · \(app.settings.pricing.taxPct.clean)% tax")
-                    } label: { Label("Pricing", systemImage: "dollarsign.circle") }
+                if app.cloud.can(.prices) {
+                    NavigationLink { PricingSettingsView() } label: {
+                        LabeledContent {
+                            Text("\(app.settings.pricing.markupPct.clean)% markup · \(app.settings.pricing.taxPct.clean)% tax")
+                        } label: { Label("Pricing", systemImage: "dollarsign.circle") }
+                    }
                 }
                 NavigationLink { WireSettingsView() } label: {
                     LabeledContent {
@@ -58,6 +71,11 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $openServer) { ServerSetupView() }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { app.saveSettings(); dismiss() } } }
         .onDisappear { app.saveSettings() }
+    }
+
+    private var teamSummary: String {
+        if let t = app.cloud.team?.team, let r = app.cloud.role { return "\(t.name.isEmpty ? "Team" : t.name) · \(r.short)" }
+        return app.cloud.signedIn ? "Working alone" : "Off"
     }
 
     private func host(_ raw: String) -> String {
@@ -207,10 +225,12 @@ struct WireSettingsView: View {
                 LabeledContent("Extra ft per home run") { DoubleField(value: $app.settings.pricing.wireDropFt) }
                 LabeledContent("Floor-to-floor height ft") { DoubleField(value: $app.settings.pricing.floorHeightFt) }
             } footer: { Text("Home-run length is the path to the closet, plus floor heights, slack and the extra per run") }
-            Section(sentence: "Price per foot") {
-                ForEach(Catalog.wireTypes.filter { $0 != "None" }, id: \.self) { w in
-                    LabeledContent(w) {
-                        DoubleField(value: Binding(get: { app.settings.pricing.wirePrices[w] ?? 0 }, set: { app.settings.pricing.wirePrices[w] = $0 }))
+            if app.cloud.can(.prices) {
+                Section(sentence: "Price per foot") {
+                    ForEach(Catalog.wireTypes.filter { $0 != "None" }, id: \.self) { w in
+                        LabeledContent(w) {
+                            DoubleField(value: Binding(get: { app.settings.pricing.wirePrices[w] ?? 0 }, set: { app.settings.pricing.wirePrices[w] = $0 }))
+                        }
                     }
                 }
             }
@@ -259,11 +279,13 @@ struct ServerSetupView: View {
                     }
                 }
             }
-            Section {
-                Picker("First document", selection: $app.settings.billduDocType) {
-                    Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
-                }
-            } header: { Text("Billdu").textCase(nil) } footer: { Text("What Send to Billdu creates the first time for a job") }
+            if app.cloud.can(.prices) {
+                Section {
+                    Picker("First document", selection: $app.settings.billduDocType) {
+                        Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
+                    }
+                } header: { Text("Billdu").textCase(nil) } footer: { Text("What Send to Billdu creates the first time for a job") }
+            }
             Section {
                 Text("Keys stay on the server. This device only stores the address and access code.")
                     .font(.callout).foregroundStyle(.secondary)

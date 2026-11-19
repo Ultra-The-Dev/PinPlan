@@ -25,8 +25,10 @@ struct JobView: View {
                 Text("Filter jobs by label on the jobs list (web and iPad).")
             }
             JobLocationSection(model: model)
-            Section {
-                NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
+            if app.cloud.can(.prices) {
+                Section {
+                    NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
+                }
             }
             Section(sentence: "Client") {
                 LabeledContent("Name") { CommitField(title: "Name", value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
@@ -44,7 +46,7 @@ struct JobView: View {
             } header: { Text("Backup").textCase(nil) } footer: {
                 Text("One file with every sheet, device, run, photo and estimate edit. It opens in this app or the PinPlan web app.")
             }
-            if !p.billduDocs.isEmpty {
+            if !p.billduDocs.isEmpty && app.cloud.can(.prices) {
                 Section(sentence: "Billdu") {
                     ForEach(p.billduDocs, id: \.id) { d in
                         LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
@@ -141,9 +143,14 @@ struct JobHealthSection: View {
         let unpriced = e.lines.filter { $0.included && $0.unitPrice == 0 && $0.qty > 0 }.count
         let s = JobSummary.make(model.bundle, estimate: (total: e.total, unpriced: unpriced), today: today)
         let urgent = s.next.kind == .overdueTasks || s.next.kind == .reviseProposal
+        let showPrices = app.cloud.can(.prices)
+        // Technicians don't have the Estimate tab or plan review: those steps are the office's.
+        let officeStep = !showPrices && (s.next.tab == "estimate" || s.next.kind == .sendReview)
         Section {
             if s.next.kind == .done {
                 nextRow(s.next, urgent: false, chevron: false)
+            } else if officeStep {
+                nextRow(forOffice(s.next), urgent: false, chevron: false)
             } else {
                 Button { act(s.next) } label: { nextRow(s.next, urgent: urgent, chevron: true) }
                     .buttonStyle(.plain)
@@ -155,9 +162,11 @@ struct JobHealthSection: View {
             }
             LabeledContent("Photos", value: photosText(s, today: today))
             LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? "None yet")
-            LabeledContent("Estimate") {
-                Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
-                    .foregroundStyle(unpriced > 0 ? Color.red : Color.secondary)
+            if showPrices {
+                LabeledContent("Estimate") {
+                    Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
+                        .foregroundStyle(unpriced > 0 ? Color.red : Color.secondary)
+                }
             }
         } header: { Text("Job health").textCase(nil) }
     }
@@ -176,6 +185,13 @@ struct JobHealthSection: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    /// The same step, labelled as the office's to do (shown to technicians, not tappable).
+    private func forOffice(_ n: JobSummary.NextStep) -> JobSummary.NextStep {
+        var x = n
+        x.text = "Office: " + n.text
+        return x
     }
 
     private func act(_ n: JobSummary.NextStep) {

@@ -104,7 +104,7 @@ struct TakeoffView: View {
         }
         .background(Color(.systemGroupedBackground))
         .shareSheet($share)
-        .navigationDestination(isPresented: $openReview) { PlanReviewView(model: model) }
+        .navigationDestination(isPresented: Binding(get: { openReview && app.cloud.can(.prices) }, set: { openReview = $0 })) { PlanReviewView(model: model) }
     }
 
     @ViewBuilder
@@ -126,7 +126,9 @@ struct TakeoffView: View {
     @State private var openReview = ProcessInfo.processInfo.arguments.contains("--plan-review")
 
     @ViewBuilder private var exportButtons: some View {
-        NavigationLink { PlanReviewView(model: model) } label: { Label("Send plan to client", systemImage: "eye").lineLimit(1) }.buttonStyle(.bordered)
+        if app.cloud.can(.prices) {   // client-facing sending is the office's (technicians don't see it)
+            NavigationLink { PlanReviewView(model: model) } label: { Label("Send plan to client", systemImage: "eye").lineLimit(1) }.buttonStyle(.bordered)
+        }
         NavigationLink { OrderListView(model: model) } label: { Label("Order list", systemImage: "cart").lineLimit(1) }.buttonStyle(.bordered)
         Button { csv() } label: { Label("CSV", systemImage: "tablecells").lineLimit(1) }.buttonStyle(.bordered)
         Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext").lineLimit(1) }

@@ -9,14 +9,28 @@ import PinPlanCore
 
 enum FieldAuthor {
     private static let key = "pinplan.author"
-    /// The name stamped on photos, comments and logs: set in Photos › ⋯, else the cloud email's name, else "Me".
+    /// The name stamped on photos, comments and logs: on a company team, my name there (so everyone sees the same
+    /// name); else the one set in Photos › ⋯, else the cloud email's name, else "Me".
     @MainActor static func name(_ app: AppModel) -> String {
+        if let me = app.cloud.teamMe { return me.label }
         if let n = UserDefaults.standard.string(forKey: key), !n.trimmingCharacters(in: .whitespaces).isEmpty { return n }
         if let e = app.cloud.session?.email, let first = e.split(separator: "@").first, !first.isEmpty { return String(first) }
         return "Me"
     }
     static var stored: String { UserDefaults.standard.string(forKey: key) ?? "" }
     static func set(_ name: String) { UserDefaults.standard.set(name.trimmingCharacters(in: .whitespaces), forKey: key) }
+
+    /// Change my name: on a team it's my name there (everyone sees it); this device remembers it too.
+    @MainActor static func set(_ name: String, app: AppModel) {
+        set(name)
+        guard app.cloud.onTeam, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        Task { try? await app.cloud.setMyName(name) }
+    }
+
+    /// People to suggest for tasks: names on the jobs plus everyone on the company team.
+    @MainActor static func teamNames(_ app: AppModel) -> [String] {
+        FieldDocs.teamNames(app.projects, me: name(app), members: app.cloud.teamMembers.map(\.label))
+    }
 }
 
 /// One-shot location for stamping photos (only when the user has turned it on).

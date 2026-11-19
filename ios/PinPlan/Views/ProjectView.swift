@@ -32,7 +32,7 @@ struct ProjectView: View {
                 if hSize == .compact {
                     // iPhone: native bottom tab bar.
                     TabView(selection: $tab) {
-                        ForEach(ProjectTab.allCases) { t in
+                        ForEach(tabs) { t in
                             content(model, t)
                                 .tabItem { Label(t.title, systemImage: t.icon) }
                                 .tag(t)
@@ -48,7 +48,7 @@ struct ProjectView: View {
                         .toolbar {
                             ToolbarItem(placement: .principal) {
                                 Picker("Section", selection: $tab) {
-                                    ForEach(ProjectTab.allCases) { t in Text(t.title).tag(t) }   // words, not icon-only segments
+                                    ForEach(tabs) { t in Text(t.title).tag(t) }   // words, not icon-only segments
                                 }
                                 .pickerStyle(.segmented)
                                 .frame(maxWidth: 760)
@@ -60,6 +60,8 @@ struct ProjectView: View {
             }
         }
         .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
+        // A technician has no Estimate tab (also when the role arrives with a sync while the job is open).
+        .onChange(of: app.cloud.can(.prices)) { _, ok in if !ok && tab == .estimate { tab = .plan } }
         .onAppear {
             if model == nil {
                 let m = EditorModel(bundle: bundle, app: app)
@@ -68,12 +70,17 @@ struct ProjectView: View {
                 if app.pendingImport?.projectId == bundle.project.id { tab = .sheets }
                 // Screenshot/automation hook: `--tab estimate` etc.
                 let args = ProcessInfo.processInfo.arguments
-                if let i = args.firstIndex(of: "--tab"), args.indices.contains(i + 1), let t = ProjectTab(rawValue: args[i + 1]) { tab = t }
+                if let i = args.firstIndex(of: "--tab"), args.indices.contains(i + 1), let t = ProjectTab(rawValue: args[i + 1]), tabs.contains(t) { tab = t }
                 if args.contains("--select-first"), let first = m.bundle.liveMarkers.first(where: { $0.sheetId == m.sheets.dropFirst().first?.id }) {
                     m.focusOn(.marker(first.id))
                 }
             }
         }
+    }
+
+    /// The job's sections for this user: technicians don't get the Estimate tab (prices stay with the office).
+    private var tabs: [ProjectTab] {
+        app.cloud.can(.prices) ? ProjectTab.allCases : ProjectTab.allCases.filter { $0 != .estimate }
     }
 
     @ViewBuilder
@@ -93,7 +100,8 @@ struct ProjectView: View {
             }
         case .sheets: SheetsView(model: model) { self.tab = .plan }
         case .takeoff: TakeoffView(model: model)
-        case .estimate: EstimateView(model: model)
+        case .estimate:
+            if app.cloud.can(.prices) { EstimateView(model: model) } else { OfficeOnlyView(what: "The estimate") }
         case .crew: CrewView(model: model)
         case .job: JobView(model: model) { self.tab = $0 }
         case .photos: PhotosView(model: model)

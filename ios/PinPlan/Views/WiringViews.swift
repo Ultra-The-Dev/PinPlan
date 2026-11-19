@@ -69,6 +69,7 @@ struct OrderListView: View {
         let rows = Wiring.materialList(model.bundle, catalog: app.catalog, products: app.products, includeTentative: withTentative, wirePrices: pricing.wirePrices)
         let suppliers = rows.map(\.supplier).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
         let total = rows.reduce(0) { $0 + $1.total }
+        let showPrices = app.cloud.can(.prices)
         SentenceList {
             Section {
                 Toggle("Include “?” items", isOn: $withTentative)
@@ -92,13 +93,13 @@ struct OrderListView: View {
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text("\(r.qty.clean) \(r.unit)").font(.subheadline).monospacedDigit()
-                                if r.total > 0 { Text(Money.format(r.total, currency: pricing.currency)).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+                                if r.total > 0 && showPrices { Text(Money.format(r.total, currency: pricing.currency)).font(.caption).foregroundStyle(.secondary).monospacedDigit() }
                             }
                         }
                     }
                 }
             }
-            if total > 0 {
+            if total > 0 && showPrices {
                 Section { LabeledContent("Material cost", value: Money.format(total, currency: pricing.currency)).font(.headline) }
             }
         }

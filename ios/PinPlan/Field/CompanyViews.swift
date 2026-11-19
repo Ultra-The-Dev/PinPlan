@@ -238,7 +238,7 @@ struct TasksView: View {
         let today = FieldDocs.localDay(isoNow())
         let filter: String? = who == "__me" ? me : who == "__all" ? nil : who
         let tasks = FieldDocs.openTasks(app.projects, today: today, who: filter)
-        let names = FieldDocs.teamNames(app.projects, me: me).filter { $0.caseInsensitiveCompare(me) != .orderedSame }
+        let names = FieldAuthor.teamNames(app).filter { $0.caseInsensitiveCompare(me) != .orderedSame }
         NavigationStack {
             List {
                 if tasks.isEmpty {

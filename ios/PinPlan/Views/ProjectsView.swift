@@ -16,6 +16,7 @@ struct ProjectsView: View {
     @State private var showMap = ProcessInfo.processInfo.arguments.contains("--jobs-map")
     @State private var showTasks = ProcessInfo.processInfo.arguments.contains("--tasks")
     @State private var showRestore = false
+    @State private var showTeam = false
     @State private var path: [String] = []
     @State private var message: String?
     @State private var toDelete: ProjectBundle?
@@ -39,6 +40,7 @@ struct ProjectsView: View {
                     EmptyProjects(onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
                     VStack(alignment: .leading, spacing: 16) {
+                        if app.cloud.onTeam { TeamBadge { showTeam = true } }
                         Picker("Status", selection: $status) {
                             Text("All").tag(ProjectStatus?.none)
                             ForEach(ProjectStatus.allCases, id: \.self) { s in Text(s.rawValue.capitalized).tag(Optional(s)) }
@@ -66,7 +68,10 @@ struct ProjectsView: View {
                                 NavigationLink(value: b.project.id) { ProjectCard(bundle: b) }
                                     .buttonStyle(.plain)
                                     .contextMenu {
-                                        Button(role: .destructive) { toDelete = b } label: { Label("Delete", systemImage: "trash") }
+                                        // Only the office deletes jobs on a team (the database refuses a technician's delete too).
+                                        if app.cloud.can(.deleteJob) {
+                                            Button(role: .destructive) { toDelete = b } label: { Label("Delete", systemImage: "trash") }
+                                        }
                                     }
                             }
                         }
@@ -88,11 +93,14 @@ struct ProjectsView: View {
                             Button { showTasks = true } label: { Label("Tasks", systemImage: "checklist") }
                             Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
                             Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
+                            Divider()
+                            Button { showTeam = true } label: { Label("Team", systemImage: "person.2") }
                         } label: { Label("Company", systemImage: "square.grid.2x2") }
                     } else {
                         Button { showTasks = true } label: { Label("Tasks", systemImage: "checklist") }
                         Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
                         Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
+                        Button { showTeam = true } label: { Label("Team", systemImage: "person.2") }
                     }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -115,6 +123,7 @@ struct ProjectsView: View {
             .fullScreenCover(isPresented: $showMap) { JobsMapView { id in path = [id] } }
             .sheet(isPresented: $showTasks) { TasksView { id in path = [id] } }
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
+            .sheet(isPresented: $showTeam) { TeamSheet() }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 do {
                     let n = try app.restore(from: result.get())
@@ -124,6 +133,8 @@ struct ProjectsView: View {
             .task {
                 // Screenshot/automation hook: `--demo` opens (creating if needed) the demo job.
                 let args = ProcessInfo.processInfo.arguments
+                // Screenshot hook: `--team` opens the Team screen (with `--cloud-test`, the stand-in server's team fills it in).
+                if args.contains("--team") { showTeam = true }
                 // Test hook: sign in to a stand-in cloud server (the screenshots workflow runs one on the runner).
                 if let i = args.firstIndex(of: "--cloud-test"), args.indices.contains(i + 1) {
                     app.cloud.setConfig(url: args[i + 1], anonKey: "test-anon-key")

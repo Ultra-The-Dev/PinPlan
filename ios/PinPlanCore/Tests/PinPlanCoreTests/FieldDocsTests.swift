@@ -151,6 +151,8 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(FieldDocs.openTasks([a, b], today: "2026-11-19", who: "Alex").map(\.item.id), ["1", "5", "7"])
         XCTAssertEqual(FieldDocs.daysUntil("2026-12-01", today: "2026-11-30"), 1)
         XCTAssertEqual(FieldDocs.teamNames([a, b], me: "Me"), ["Alex", "Me", "Sam"])
+        // Team members show up even before they have anything on a job (team spelling wins over job spelling).
+        XCTAssertEqual(FieldDocs.teamNames([a, b], me: "Me", members: ["Bea", "ALEX", " "]), ["ALEX", "Bea", "Me", "Sam"])
         // Same JSON keys as the web.
         let json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(a.checklists[0].items[0])) as! [String: Any]
         XCTAssertEqual(json["assignee"] as? String, "Alex")

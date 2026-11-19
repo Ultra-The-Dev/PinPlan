@@ -9,12 +9,22 @@ struct CatalogView: View {
     @State private var query = ""
 
     var body: some View {
+        // Technicians see the catalog (symbols, letters, wire) but not prices, and can't change it.
+        let canEdit = app.cloud.can(.editCatalog)
+        let showPrices = app.cloud.can(.prices)
         SentenceList {
-            Section {
-                NavigationLink { ProductLibraryView() } label: {
-                    LabeledContent {
-                        Text("\(app.products.filter { $0.archived != true && $0.deleted != true }.count)")
-                    } label: { Label("Products (brands and models)", systemImage: "tag") }
+            if showPrices {
+                Section {
+                    NavigationLink { ProductLibraryView() } label: {
+                        LabeledContent {
+                            Text("\(app.products.filter { $0.archived != true && $0.deleted != true }.count)")
+                        } label: { Label("Products (brands and models)", systemImage: "tag") }
+                    }
+                }
+            }
+            if !canEdit {
+                Section {
+                    Label("Only the office can change the catalog.", systemImage: "lock").font(.callout).foregroundStyle(.secondary)
                 }
             }
             ForEach(Catalog.categories, id: \.id) { cat in
@@ -31,14 +41,17 @@ struct CatalogView: View {
                                         Text("\(t.abbrev)-1-01 · \(t.defaultWire)").font(.caption).foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    VStack(alignment: .trailing) {
-                                        Text(Money.format(t.unitPrice, currency: app.pricing.currency) + (t.unit == .LF ? "/LF" : "")).foregroundStyle(t.unitPrice == 0 ? .orange : .primary)
-                                        Text("+ \(Money.format(t.laborPrice, currency: app.pricing.currency)) labor").font(.caption).foregroundStyle(.secondary)
+                                    if showPrices {
+                                        VStack(alignment: .trailing) {
+                                            Text(Money.format(t.unitPrice, currency: app.pricing.currency) + (t.unit == .LF ? "/LF" : "")).foregroundStyle(t.unitPrice == 0 ? .orange : .primary)
+                                            Text("+ \(Money.format(t.laborPrice, currency: app.pricing.currency)) labor").font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        .monospacedDigit()
                                     }
-                                    .monospacedDigit()
                                 }
                             }
                             .buttonStyle(.plain)
+                            .allowsHitTesting(canEdit)
                         }
                     } header: {
                         HStack { Circle().fill(Color(hex: cat.color)).frame(width: 8, height: 8); Text(cat.name) }.textCase(nil)
@@ -52,7 +65,7 @@ struct CatalogView: View {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             ToolbarItemGroup(placement: .topBarLeading) {
                 Toggle(isOn: $showArchived) { Label("Archived", systemImage: "archivebox") }
-                Button { editing = newType() } label: { Label("Add", systemImage: "plus") }
+                if canEdit { Button { editing = newType() } label: { Label("Add", systemImage: "plus") } }
             }
         }
         .sheet(item: $editing) { t in DeviceTypeEditor(type: t) }

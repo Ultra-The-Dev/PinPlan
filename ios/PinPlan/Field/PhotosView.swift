@@ -163,7 +163,7 @@ struct PhotosView: View {
         }
         .alert("Your name", isPresented: $askName) {
             TextField("Name", text: $nameDraft)
-            Button("Save") { FieldAuthor.set(nameDraft) }
+            Button("Save") { FieldAuthor.set(nameDraft, app: app) }
             Button("Cancel", role: .cancel) {}
         } message: { Text("Shown on the photos, comments and logs you add.") }
         .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }

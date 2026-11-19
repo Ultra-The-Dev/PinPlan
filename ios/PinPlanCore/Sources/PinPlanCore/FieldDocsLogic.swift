@@ -353,14 +353,15 @@ public enum FieldDocs {
         return (c, item, existing == nil)
     }
 
-    /// Names seen on the jobs, one per person whatever the capitalisation.
-    public static func teamNames(_ bundles: [ProjectBundle], me: String? = nil) -> [String] {
+    /// Names seen on the jobs (plus `members`, the company team), one per person whatever the capitalisation.
+    public static func teamNames(_ bundles: [ProjectBundle], me: String? = nil, members: [String] = []) -> [String] {
         var seen: [String: String] = [:]
         func add(_ n: String?) {
             guard let t = n?.trimmingCharacters(in: .whitespaces), !t.isEmpty, seen[t.lowercased()] == nil else { return }
             seen[t.lowercased()] = t
         }
         add(me)
+        for m in members { add(m) }
         for b in bundles {
             for p in b.photos { add(p.takenBy) }
             for l in b.jobLogs { add(l.author) }
