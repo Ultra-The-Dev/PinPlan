@@ -153,7 +153,7 @@ struct JobHealthSection: View {
             LabeledContent("Open tasks") {
                 Text(tasksText(s)).foregroundStyle(s.overdueTasks > 0 ? Color.red : Color.secondary)
             }
-            LabeledContent("Photos", value: s.photos > 0 ? "\(s.photos) · last \(ago(FieldDocs.localDay(s.lastPhotoAt ?? ""), today: today))" : "None yet")
+            LabeledContent("Photos", value: photosText(s, today: today))
             LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? "None yet")
             LabeledContent("Estimate") {
                 Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
@@ -203,16 +203,23 @@ struct JobHealthSection: View {
         return s.openTasks > 0 ? "\(s.openTasks)" : "All clear"
     }
 
+    private func photosText(_ s: JobSummary, today: String) -> String {
+        if s.photos == 0 { return "None yet" }
+        guard let last = s.lastPhotoAt else { return "\(s.photos)" }
+        return "\(s.photos) · last \(ago(FieldDocs.localDay(last), today: today))"
+    }
+
     /// "today", "yesterday", "3 days ago" or a short date, for a YYYY-MM-DD day.
     private func ago(_ day: String, today: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        // An unreadable day would otherwise count as 0 days away and read "today".
+        guard let date = f.date(from: day) else { return day }
         let d: Int = FieldDocs.daysUntil(today, today: day)
         if d == 0 { return "today" }
         if d == 1 { return "yesterday" }
         if d > 1 && d < 14 { return "\(d) days ago" }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        guard let date = f.date(from: day) else { return day }
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 }

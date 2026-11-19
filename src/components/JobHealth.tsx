@@ -63,7 +63,7 @@ export default function JobHealth() {
           tone={s.checklists.total && s.checklists.done === s.checklists.total ? "ok" : undefined}
         />
         <Stat icon={ListTodo} label="Open tasks" value={String(s.tasks.open)} sub={s.tasks.overdue ? `${s.tasks.overdue} overdue` : s.tasks.dueToday ? `${s.tasks.dueToday} due today` : s.tasks.open ? "None overdue" : "All clear"} tone={s.tasks.overdue ? "bad" : undefined} />
-        <Stat icon={Camera} label="Photos" value={String(s.photos.count)} sub={s.photos.lastAt ? `Last ${dayAgo(localDay(s.photos.lastAt), today)}` : "None yet"} />
+        <Stat icon={Camera} label="Photos" value={String(s.photos.count)} sub={s.photos.lastAt ? `Last ${dayAgo(localDay(s.photos.lastAt), today)}` : s.photos.count ? undefined : "None yet"} />
         <Stat icon={NotebookPen} label="Daily log" value={s.logs.lastDate ? dayAgo(s.logs.lastDate, today) : "—"} sub={s.logs.count ? `${s.logs.count} log${s.logs.count === 1 ? "" : "s"}` : "None yet"} />
         <Stat
           icon={Receipt}
@@ -94,7 +94,7 @@ export default function JobHealth() {
           );
         if (finished) return <div className={cls}>{inner(<Check className="h-4 w-4 shrink-0" />)}</div>;
         return (
-          <Link href={`/project?id=${project.id}&tab=${s.next.tab}`} className={cls}>
+          <Link href={`/project?id=${project.id}&tab=${s.next.tab}`} replace className={cls}>
             {inner(<ArrowRight className="h-4 w-4 shrink-0" />)}
           </Link>
         );
