@@ -118,6 +118,24 @@ Needs step 6 (cloud sync). Everyone gets their own login; everyone on the team w
 Change someone between Technician and Office / admin, or remove them, under **Settings → Team**. Prices are also
 protected in the database and on the server, not just hidden in the app.
 
+## 10. Public sign-up, sign-in links and account deletion
+New companies sign up at `/signup` (landing page `/welcome`, pricing `/pricing`). Sign-in is `/login`, password
+reset `/reset`, and the first-run checklist `/start`. Supabase's emails (confirm address, sign-in link, reset
+password) only open pages it allows:
+
+1. Supabase → **Authentication → URL Configuration**.
+2. **Site URL**: your Vercel address, e.g. `https://pinplan-abc123.vercel.app`.
+3. **Redirect URLs**: add each of these (with your address):
+   `https://pinplan-abc123.vercel.app/login`, `https://pinplan-abc123.vercel.app/reset`,
+   `https://pinplan-abc123.vercel.app/settings`, `https://pinplan-abc123.vercel.app/join` (or `https://pinplan-abc123.vercel.app/**`).
+   Add your own domain too if you use one.
+4. **Confirm email** (Authentication → Sign In / Providers → Email) can be on or off. Off: new accounts work straight
+   away. On: the person confirms their address first, and their company is created the first time they sign in on
+   the device they signed up on.
+5. **Delete account** (Settings → Account; required by Apple for apps with sign-up) needs `SUPABASE_SERVICE_ROLE_KEY`
+   on Vercel (step 9). Without it the button explains that deletion isn't switched on and to contact support.
+   Owners must remove their team members first; a member's jobs stay with the company (moved to the owner).
+
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).
