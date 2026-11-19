@@ -8,7 +8,8 @@ import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, mergeServerNumber, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
-import type { JobForm, JobLog, Sheet } from "./types";
+import { markupsToPush } from "./markups";
+import type { JobForm, JobLog, PlanMarkup, Sheet } from "./types";
 import { pullDocSettings } from "./docSettings";
 import { finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
@@ -122,7 +123,13 @@ async function push(changed?: PullResult): Promise<void> {
       continue;
     }
     const spec = TABLES[table];
-    const rows = (await db().table(table).bulkGet(items.map((i) => i.rowId))).filter(Boolean) as Record<string, unknown>[];
+    let rows = (await db().table(table).bulkGet(items.map((i) => i.rowId))).filter(Boolean) as Record<string, unknown>[];
+    if (table === "planMarkups") {
+      // Claim markups drawn signed out; leave out ones the database would refuse (see markupsToPush).
+      const { send, claimed } = markupsToPush(rows as unknown as PlanMarkup[], useTeam.getState().role, useSyncStatus.getState().userId);
+      if (claimed.length) await db().planMarkups.bulkPut(claimed);
+      rows = send as unknown as Record<string, unknown>[];
+    }
     let skipped = false;
     for (let i = 0; i < rows.length && !skipped; i += CHUNK) {
       const payload = rows.slice(i, i + CHUNK).map((r) => toRemote(table, r));

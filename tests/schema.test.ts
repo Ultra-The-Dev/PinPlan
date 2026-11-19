@@ -89,6 +89,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     due: "2026-11-20", startDate: "2026-11-18", sheetId: "s", x: 0.4, y: 0.6, markerId: "m", room: "Lobby", tags: ["lobby"], checklist: [], photoIds: ["ph"], activity: [],
     createdBy: "Ann", closedAt: ts, verifiedBy: "Office", verifiedAt: ts, createdAt: ts, updatedAt: ts, deleted: false,
   },
+  planMarkups: { id: "pm", projectId: "p", sheetId: "s", kind: "text", points: [0.1, 0.2], text: "t", color: "#dc2626", width: 0.002, fontSize: 0.01, layer: "Redlines", private: false, author: "a", authorId: "00000000-0000-0000-0000-000000000001", createdAt: ts, updatedAt: ts, deleted: false },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);

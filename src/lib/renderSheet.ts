@@ -4,7 +4,8 @@ import { db } from "./db";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import { drawSymbol, iconFor, wireColor } from "./symbols";
-import type { Closet, DeviceType, Layer, Marker, Run, Sheet } from "./types";
+import { drawMarkupsOnCanvas, exportableMarkups } from "./markups";
+import type { Closet, DeviceType, Layer, Marker, PlanMarkup, Run, Sheet } from "./types";
 
 export interface RenderOptions {
   layers?: Layer[] | null; // null = all
@@ -12,6 +13,8 @@ export interface RenderOptions {
   labels?: boolean;
   /** Bigger symbols for images viewed small (client proposals). */
   symbolScale?: number;
+  /** Plan markups to draw on top (this sheet's non-private ones are used). */
+  markups?: PlanMarkup[] | null;
 }
 
 async function loadImage(imageId: string): Promise<ImageBitmap | null> {
@@ -122,6 +125,7 @@ export async function renderSheet(
     if (!t || !show(t.category)) continue;
     drawSymbol(ctx, t.shape, m.x * W, m.y * H, r, t.color, t.symbol, { icon: iconFor(t), tentative: m.tentative, label: opts.labels ? m.label : undefined });
   }
+  if (opts.markups?.length) drawMarkupsOnCanvas(ctx, exportableMarkups(opts.markups, sheet.id), W, H);
   return c;
 }
 

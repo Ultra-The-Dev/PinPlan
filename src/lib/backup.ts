@@ -151,6 +151,7 @@ export async function importBackup(file: File): Promise<number> {
       ["measurements", p.measurements ?? []],
       ["sheetLinks", p.sheetLinks ?? []],
       ["tasks", p.tasks ?? []],
+      ["planMarkups", p.planMarkups ?? []],
     ];
     for (const [t, rows] of tables) if (rows?.length) await putMany(t, rows);
   }

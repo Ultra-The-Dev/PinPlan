@@ -13,6 +13,7 @@ import type { Sheet } from "@/lib/types";
 import PhotoStraighten from "./PhotoStraighten";
 import { SheetIndexButton, SheetMetaChips } from "./sheetIndex/SheetIndexPanel";
 import SheetNamesReview, { hasProposals, type ReviewPage } from "./sheetIndex/SheetNamesReview";
+import { rotateSheetMarkups } from "./markups/useMarkups";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
   const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
@@ -123,6 +124,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       const imageId = await saveImage(blob, c.width, c.height);
       await rotateSheetCW(sheet.id, imageId, c.width, c.height);
       await useSheetLinks.getState().rotateSheetCW(sheet.projectId, sheet.id);
+      await rotateSheetMarkups(sheet.id, sheet.width, c.width);
       c.width = c.height = 0;
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");

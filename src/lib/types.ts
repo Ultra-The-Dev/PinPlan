@@ -1147,3 +1147,33 @@ export interface PlanTask {
   updatedAt: string;
   deleted?: boolean;
 }
+
+// ---------- plan markups (redlines / as-built notes; never counted — see docs/plan-markups.md) ----------
+export type MarkupKind = "pen" | "highlight" | "line" | "arrow" | "cloud" | "rect" | "ellipse" | "text";
+
+export interface PlanMarkup {
+  id: string;
+  projectId: string;
+  sheetId: string;
+  kind: MarkupKind;
+  /** Relative (0–1) x,y pairs. rect / ellipse / cloud: 2 opposite corners; line / arrow: 2 ends; pen / highlight: a
+   *  polyline; text: 1 point (the box's top-left corner). */
+  points: number[];
+  text?: string | null;
+  color: string;
+  /** Stroke width as a fraction of the sheet width (e.g. 0.002). */
+  width: number;
+  /** Text size as a fraction of the sheet width. */
+  fontSize?: number | null;
+  /** Named layer, e.g. "Redlines", "As-built", "Notes". */
+  layer: string;
+  /** Only its author sees it (purple). */
+  private?: boolean;
+  /** Display name of whoever drew it. */
+  author?: string | null;
+  /** Their user id when signed in (permissions + private visibility). */
+  authorId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

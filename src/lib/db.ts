@@ -22,6 +22,7 @@ import type {
   Photo,
   PhotoComment,
   PlanTask,
+  PlanMarkup,
   Product,
   Project,
   Rfi,
@@ -59,7 +60,8 @@ export type SyncTable =
   | "forms"
   | "measurements"
   | "sheetLinks"
-  | "tasks";
+  | "tasks"
+  | "planMarkups";
 
 export interface SyncItem {
   seq?: number;
@@ -97,6 +99,8 @@ class PinPlanDB extends Dexie {
   tasks!: EntityTable<PlanTask, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   scheduleItems!: EntityTable<ScheduleItem, "id">;
+  /** Plan markups (redlines, clouds, notes): drawn on sheets, never counted. */
+  planMarkups!: EntityTable<PlanMarkup, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
@@ -149,6 +153,8 @@ class PinPlanDB extends Dexie {
     this.version(25).stores({ sheetLinks: "id, projectId, sheetId, updatedAt" });
     // v21: tasks pinned on the plan (version numbers leave room for features built in parallel).
     this.version(21).stores({ tasks: "id, projectId, sheetId, status, assignee, updatedAt" });
+    // v22: plan markups (docs/plan-markups.md). Version numbers are spread out between features built in parallel.
+    this.version(22).stores({ planMarkups: "id, projectId, sheetId, updatedAt" });
   }
 }
 
@@ -315,6 +321,7 @@ export interface ProjectBundle {
   sheetLinks?: SheetLink[];
   /** Tasks pinned on the plan. Optional so older bundles and backups still type-check. */
   tasks?: PlanTask[];
+  planMarkups?: PlanMarkup[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -360,6 +367,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     measurements: live(measurements).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     sheetLinks: live(sheetLinks),
     tasks: live(tasks).sort((a, b) => a.number - b.number || a.createdAt.localeCompare(b.createdAt)),
+    planMarkups: live(await d.planMarkups.where("projectId").equals(projectId).toArray()),
   };
 }
 

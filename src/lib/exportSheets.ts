@@ -7,7 +7,7 @@ import { runCables } from "./products";
 import { renderSheet, symbolDataUrl } from "./renderSheet";
 import { wireColor } from "./symbols";
 import { computeTakeoff } from "./takeoff";
-import type { Closet, DeviceType, Layer, Marker, Project, Run, Sheet, TradeId } from "./types";
+import type { Closet, DeviceType, Layer, Marker, PlanMarkup, Project, Run, Sheet, TradeId } from "./types";
 
 interface Data {
   project: Project;
@@ -34,6 +34,8 @@ export async function exportSheetsPdf(
     business?: string;
     /** The company's trades: layer names and wording (default low voltage). */
     trades?: TradeId[];
+    /** Plan markups to draw on the sheets (private ones never print). */
+    markups?: PlanMarkup[] | null;
   },
 ): Promise<Blob> {
   const trades = opts.trades ?? DEFAULT_TRADES;
@@ -49,7 +51,7 @@ export async function exportSheetsPdf(
   const pages = [];
   for (const sheet of data.sheets) {
     opts.onProgress?.(`Rendering ${sheet.name}…`);
-    const canvas = await renderSheet(sheet, data, { layers, labels: opts.mode === "crew", symbolScale: opts.mode === "client" ? 1.6 : undefined });
+    const canvas = await renderSheet(sheet, data, { layers, labels: opts.mode === "crew", symbolScale: opts.mode === "client" ? 1.6 : undefined, markups: opts.markups });
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.85);
     canvas.width = canvas.height = 0;
     const f = takeoff.floors.find((x) => x.sheetId === sheet.id);
