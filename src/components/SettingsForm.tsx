@@ -15,6 +15,8 @@ import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 import DocSettingsPanel from "./documents/DocSettingsPanel";
 import TeamPanel from "./TeamPanel";
+import TemplatesSettings from "./templates/TemplatesSettings";
+import { LayoutTemplate } from "lucide-react";
 import TradeSettings from "./TradeSettings";
 import InstallSettings from "./progress/InstallSettings";
 
@@ -49,6 +51,7 @@ export default function SettingsForm() {
     { id: "wire", label: "Wire", icon: Cable },
     { id: "invoicing", label: "Invoicing", icon: ReceiptText, office: true },
     { id: "checklists", label: "Checklists", icon: ListChecks },
+    { id: "templates", label: "Job templates", icon: LayoutTemplate, office: true },
     { id: "billdu", label: "Billdu", icon: Receipt, office: true },
     { id: "team", label: "Team", icon: Users },
     { id: "billing", label: "Billing", icon: CreditCard },
@@ -258,6 +261,7 @@ export default function SettingsForm() {
           </div>
           <ChecklistTemplatesSettings />
         </section>
+        <TemplatesSettings />
 
         <AccessCodePanel />
       {office && (

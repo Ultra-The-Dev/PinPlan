@@ -7,6 +7,7 @@ import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import JobHealth from "./JobHealth";
+import JobTemplatesCard from "./templates/JobTemplatesCard";
 import { toast } from "@/lib/toast";
 import { currentPosition, mapsLink } from "@/lib/photos";
 
@@ -213,6 +214,8 @@ export default function ProjectInfo() {
               <DatabaseBackup /> {busy ? "Preparing…" : "Download backup"}
             </button>
           </section>
+
+          <JobTemplatesCard />
 
           <p className="px-1 text-xs text-slate-400">
             Created {new Date(project.createdAt).toLocaleDateString()} · Updated {new Date(project.updatedAt).toLocaleString()}

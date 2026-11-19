@@ -721,3 +721,53 @@ export interface InstallState {
   test?: { pass: boolean; value?: string | null; note?: string | null } | null;
   history?: { status: InstallStatus; by?: string | null; at: string; note?: string | null }[];
 }
+
+// ---------------- job templates (see docs/job-templates.md) ----------------
+
+/** A checklist kept in a job template: no ids, ticks, dates or photos. */
+export interface JobTemplateChecklist {
+  name: string;
+  items: { text: string; requiresPhoto?: boolean; assignee?: string | null }[];
+}
+
+/** An estimate line kept in a job template: custom lines, and overrides that make sense without the job's devices. */
+export interface JobTemplateEstimateLine {
+  /** "custom:<id>" or a computed line key ("dev:<typeId>", "opt:<typeId>", "wire:<type>"). */
+  key: string;
+  description?: string | null;
+  qty?: number | null;
+  unit?: string | null;
+  /** Left out when the template was saved without prices (or by a technician). */
+  unitPrice?: number | null;
+  sort?: number;
+}
+
+/** What a job template holds. Versioned JSON so the web and iPad apps can read each other's templates. */
+export interface JobTemplatePayload {
+  version: 1;
+  project: {
+    pricing?: Partial<PricingSettings> | null;
+    productChoices?: Record<string, string> | null;
+    labels?: string[] | null;
+    notes?: string | null;
+    trades?: string[] | null;
+  };
+  checklists: JobTemplateChecklist[];
+  estimateLines: JobTemplateEstimateLine[];
+  /** Extension data from template parts other features registered (registerTemplatePart), by part key. */
+  parts?: Record<string, unknown>;
+}
+
+/** A saved job setup to start new jobs from (company level: not part of any job). */
+export interface JobTemplate {
+  id: string;
+  name: string;
+  description?: string | null;
+  trades?: string[] | null;
+  payload: JobTemplatePayload;
+  /** Set by the database (the signed-in user who saved it). */
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

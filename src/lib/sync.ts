@@ -115,7 +115,8 @@ async function push(): Promise<void> {
       continue;
     }
     // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
-    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments") && useTeam.getState().role === "tech") {
+    // Job templates are the office's too (technicians only start jobs from them).
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "jobTemplates") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }
