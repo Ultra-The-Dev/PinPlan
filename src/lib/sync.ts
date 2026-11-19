@@ -8,7 +8,7 @@ import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, mergeServerNumber, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
-import type { Sheet } from "./types";
+import type { JobForm, Sheet } from "./types";
 import { pullDocSettings } from "./docSettings";
 import { finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
@@ -85,7 +85,7 @@ async function compactQueue() {
 
 // ---------------- push ----------------
 
-async function push(): Promise<void> {
+async function push(changed?: PullResult): Promise<void> {
   const sb = getSupabase()!;
   const snapshot = await db().syncQueue.orderBy("seq").toArray();
   if (!snapshot.length) return;
@@ -139,10 +139,33 @@ async function push(): Promise<void> {
           skipped = true;
           break;
         }
+        // A technician can't change a form the office has locked (submitted): take the server's copy for those rows
+        // instead of retrying forever (which would also stop every later pull).
+        if (table === "forms" && error.code === "42501" && useTeam.getState().role === "tech") {
+          await pushFormsOneByOne(sb, payload, changed);
+          break;
+        }
         throw new Error(`${spec.remote}: ${error.message}`);
       }
     }
     if (!skipped) await db().syncQueue.bulkDelete(seqsFor(table));
+  }
+}
+
+/** Send forms one at a time; a row the database refuses (a submitted form, for a technician) is replaced here by the server's copy. */
+async function pushFormsOneByOne(sb: NonNullable<ReturnType<typeof getSupabase>>, payload: Record<string, unknown>[], changed?: PullResult): Promise<void> {
+  const remote = TABLES.forms.remote;
+  for (const row of payload) {
+    const { error } = await sb.from(remote).upsert(withoutColumns([row], schemaGaps.columns.get(remote)), { onConflict: TABLES.forms.conflict });
+    if (!error) continue;
+    if (error.code !== "42501") throw new Error(`${remote}: ${error.message}`);
+    const { data, error: readError } = await sb.from(remote).select("*").eq("id", String(row.id)).maybeSingle();
+    if (readError) throw new Error(`${remote}: ${readError.message}`);
+    if (!data) continue; // not on the server for this user: nothing to restore, the refused edit is dropped
+    const local = toLocal("forms", data as Record<string, unknown>);
+    await db().forms.put(local as unknown as JobForm);
+    changed?.tables.add("forms");
+    if (typeof local.projectId === "string") changed?.projectIds.add(local.projectId);
   }
 }
 
@@ -347,7 +370,7 @@ async function runSync(force = false): Promise<void> {
       let readOnly = !billingAllowsWork(useTeam.getState().billing) || Date.now() < readOnlyUntil;
       if (!readOnly) {
         try {
-          await push();
+          await push(changed);
         } catch (e) {
           if (!isSubscriptionInactive(e instanceof Error ? e.message : String(e))) throw e;
           readOnly = true;

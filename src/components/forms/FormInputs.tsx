@@ -177,11 +177,15 @@ function Cell({ col, value, onChange, disabled, autoFocus }: { col: FormField; v
         onChange={(e) => onChange(e.target.value)}
       />
     );
+  // Yes/No is a group of buttons: a <label> around it would press "Yes" when the column name is tapped.
+  const Wrap = col.type === "yesno" ? "div" : "label";
   return (
-    <label className="block min-w-0">
-      <span className="mb-1 block text-[11px] font-medium text-slate-500">{label}</span>
+    <Wrap className="block min-w-0">
+      <span className="mb-1 block text-[11px] font-medium text-slate-500" aria-hidden={col.type === "yesno" ? true : undefined}>
+        {label}
+      </span>
       {input}
-    </label>
+    </Wrap>
   );
 }
 

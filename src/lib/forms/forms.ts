@@ -315,6 +315,13 @@ export function newJobForm(t: FormTemplate, projectId: string, newId: () => stri
   };
 }
 
+/** Take a photo off a photo field; it stays linked (`photoIds`) only while another photo field still uses it. */
+export function removeFormPhoto<T extends Pick<JobForm, "template" | "values" | "photoIds">>(form: T, fieldId: string, photoId: string): T {
+  const values = { ...form.values, [fieldId]: (Array.isArray(form.values[fieldId]) ? (form.values[fieldId] as string[]) : []).filter((x) => x !== photoId) };
+  const stillUsed = form.template.fields.some((f) => f.type === "photo" && Array.isArray(values[f.id]) && (values[f.id] as string[]).includes(photoId));
+  return { ...form, values, photoIds: stillUsed ? form.photoIds : (form.photoIds ?? []).filter((x) => x !== photoId) };
+}
+
 // ---------------- punch items ----------------
 
 /** Add the form's "No" answers to the job's punch list (started when there is none). Items already added are skipped. */

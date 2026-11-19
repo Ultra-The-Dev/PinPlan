@@ -44,7 +44,15 @@ create policy job_forms_member on public.job_forms for all
 create or replace function public.job_forms_lock() returns trigger
 language plpgsql set search_path = public as $$
 begin
-  if current_user <> 'authenticated' or not public.is_tech() then return new; end if;
+  if current_user <> 'authenticated' or not public.is_tech() then return coalesce(new, old); end if;
+  -- The app only soft-deletes, but the API also allows a hard delete: same rule.
+  if tg_op = 'DELETE' then
+    if old.status = 'submitted' then
+      raise exception 'This form was submitted and is locked'
+        using errcode = '42501', hint = 'Ask the office to delete it.';
+    end if;
+    return old;
+  end if;
   if old.status = 'submitted' and (
        new.status is distinct from old.status
        or new.deleted is distinct from old.deleted
@@ -57,7 +65,7 @@ begin
   return new;
 end $$;
 drop trigger if exists job_forms_lock on public.job_forms;
-create trigger job_forms_lock before update on public.job_forms
+create trigger job_forms_lock before update or delete on public.job_forms
   for each row execute function public.job_forms_lock();
 
 -- ---------- read-only when the subscription has lapsed (same guard as the other job tables) ----------

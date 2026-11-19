@@ -667,6 +667,8 @@ final class CloudSync {
     private func noteRefusal(_ e: SupabaseClient.Failure, rows: [SyncState.Row], role: TeamRole?, refused: inout Error?) {
         if role == .tech && (e.status == 403 || e.code == "42501") {
             for r in rows { ledger.hashes[SyncLedger.key(r.table, r.id)] = r.hash }
+            // A form the office has locked (submitted): pull the forms again so the server's copy replaces this one.
+            if rows.contains(where: { $0.table == .forms }) { ledger.watermarks.removeValue(forKey: SyncTable.forms.rawValue) }
             return
         }
         if refused == nil { refused = e }

@@ -50,7 +50,7 @@ function ColumnsEditor({ field, onChange }: { field: FormField; onChange: (cols:
     <div className="space-y-2">
       <span className="label">Columns ({cols.length}/{MAX_TABLE_COLUMNS})</span>
       {cols.map((c, i) => (
-        <div key={i} className="rounded-lg bg-slate-50 p-2">
+        <div key={c.id || i} className="rounded-lg bg-slate-50 p-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <input className="input h-9 min-w-32 flex-1" aria-label={`Column ${i + 1} label`} value={c.label} onChange={(e) => set(i, { label: e.target.value })} />
             <select className="input h-9 w-32" aria-label={`Column ${i + 1} type`} value={c.type} onChange={(e) => set(i, { type: e.target.value as FormFieldType, ...(e.target.value === "select" && !c.options?.length ? { options: ["Option 1"] } : {}) })}>

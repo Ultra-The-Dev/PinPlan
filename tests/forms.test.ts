@@ -18,6 +18,7 @@ import {
   normalizeFormTemplates,
   parseNumber,
   punchItemsFromForm,
+  removeFormPhoto,
   reopenForm,
   searchTemplates,
   submitForm,
@@ -292,5 +293,18 @@ describe("sync", () => {
     expect(back).toMatchObject({ projectId: "p1", templateId: "tm_tag", status: "submitted", submittedAt: NOW, signatures: f.signatures, values: f.values });
     expect(back).not.toHaveProperty("markerId");
     expect(toRemote("forms", { id: "x", projectId: "p", template: tm })).toMatchObject({ status: "draft", values: {} });
+  });
+});
+
+describe("photo fields", () => {
+  it("unlinks a photo only when no photo field uses it any more", () => {
+    const t = { id: "ph", name: "Photos", category: "other" as const, version: 1, fields: [{ id: "a", type: "photo" as const, label: "A" }, { id: "b", type: "photo" as const, label: "B" }] };
+    const f = { template: t, values: { a: ["p1", "p2"], b: ["p2"] }, photoIds: ["p1", "p2"] };
+    const r1 = removeFormPhoto(f, "a", "p1");
+    expect(r1.values.a).toEqual(["p2"]);
+    expect(r1.photoIds).toEqual(["p2"]);
+    const r2 = removeFormPhoto(f, "a", "p2");
+    expect(r2.values.a).toEqual(["p1"]);
+    expect(r2.photoIds).toEqual(["p1", "p2"]);
   });
 });

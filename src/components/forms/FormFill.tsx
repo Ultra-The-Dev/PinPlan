@@ -17,6 +17,7 @@ import {
   formHistory,
   formProgress,
   punchItemsFromForm,
+  removeFormPhoto,
   reopenForm,
   signatureFor,
   submitForm,
@@ -355,7 +356,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
                 photo={live[k]}
                 missing={!live[k]}
                 onOpen={() => live[k] && setViewer({ list: live.filter((p): p is Photo => !!p), id })}
-                onRemove={editable ? () => setValue(f.id, ids.filter((x) => x !== id)) : undefined}
+                onRemove={editable ? () => update((cur) => removeFormPhoto(cur, f.id, id)) : undefined}
               />
             ))}
             {editable && (
