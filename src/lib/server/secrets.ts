@@ -1,4 +1,6 @@
 // Server-side storage for the Billdu API key + secret, encrypted at rest (AES-256-GCM).
+// These are the server-wide ("single-company") credentials. Each company's own credentials live in
+// team_secrets / user_secrets (see ./billduCreds.ts); the server-wide ones only serve the founder's company.
 // Never import from client components.
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -22,16 +24,22 @@ function key(): Buffer {
   return createHash("sha256").update(raw).digest();
 }
 
-export function encrypt(plain: string): string {
+/**
+ * AES-256-GCM. `aad` (additional authenticated data) binds the ciphertext to a context such as the owning team, so a
+ * payload copied to another row fails to decrypt. Decrypt with the same `aad` that was used to encrypt.
+ */
+export function encrypt(plain: string, aad?: string): string {
   const iv = randomBytes(12);
   const c = createCipheriv("aes-256-gcm", key(), iv);
+  if (aad) c.setAAD(Buffer.from(aad, "utf8"));
   const enc = Buffer.concat([c.update(plain, "utf8"), c.final()]);
   return [iv, c.getAuthTag(), enc].map((b) => b.toString("base64")).join(".");
 }
 
-export function decrypt(payload: string): string {
+export function decrypt(payload: string, aad?: string): string {
   const [iv, tag, enc] = payload.split(".").map((s) => Buffer.from(s, "base64"));
   const d = createDecipheriv("aes-256-gcm", key(), iv);
+  if (aad) d.setAAD(Buffer.from(aad, "utf8"));
   d.setAuthTag(tag);
   return Buffer.concat([d.update(enc), d.final()]).toString("utf8");
 }

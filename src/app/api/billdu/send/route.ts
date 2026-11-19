@@ -1,4 +1,4 @@
-import { requireOffice } from "@/lib/server/auth";
+import { resolveBillduCaller } from "@/lib/server/billduCreds";
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
 import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
@@ -42,7 +42,7 @@ async function findOrCreateClient(client: BillduClient, p: SendBody["project"]):
 }
 
 export async function POST(req: Request) {
-  const auth = await requireOffice(req);
+  const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
   let body: SendBody;
   try {
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   const items = linesToItems(body.lines, body.taxPct ?? 0, { depositPct: deposit, address: body.project.address });
   if (!items.length) return jsonError("There are no included estimate lines to send.", 400);
 
-  const client = await getClientOrError();
+  const client = await getClientOrError(auth.caller);
   if (client instanceof Response) return client;
   try {
     const clientId = await findOrCreateClient(client, body.project);

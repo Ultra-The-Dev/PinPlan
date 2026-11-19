@@ -17,6 +17,13 @@ Only the Billdu **account owner** can do this.
 2. **Settings → API** (in some accounts: Settings → Integrations → API).
 3. Create / show the **API key** and **API secret**, copy both.
 
+**With accounts (Supabase) enabled, each company connects its own Billdu account** in the web app: an owner or
+admin opens **Settings → Billdu**, pastes their key and secret, and presses **Test connection**. Technicians don't
+see it. The server stores them encrypted per company, so it needs `PINPLAN_ENCRYPTION_KEY` (any long random string)
+and `SUPABASE_SERVICE_ROLE_KEY`, plus the migration `20261122010000_team_secrets.sql`. The `BILLDU_API_KEY` /
+`BILLDU_API_SECRET` below are server-wide: they only serve your own (founder) company and devices that sign in with
+just the access code — never other companies. Details and moving off them: `docs/billdu.md`.
+
 ## 3. Team access code
 Make one up: a long phrase nobody would guess, e.g. `copper-ladder-91-orchard`.
 Anyone with this code and the server address can use your Billdu and AI from the app, so treat it like a password.
