@@ -171,7 +171,8 @@ struct ChecklistDetail: View {
     }
 
     private func change(_ c: Checklist, _ f: (inout Checklist) -> Void) {
-        var x = c
+        // Start from the saved copy: a sheet (assign) or button may hold an older one from before a sync or another edit.
+        var x = model.bundle.checklists.first { $0.id == c.id } ?? c
         f(&x)
         model.saveRow(x, in: \.checklists)
     }
@@ -447,7 +448,7 @@ struct DocumentsView: View {
                         Image(systemName: icon(d.mime)).font(.title2).foregroundStyle(Color.accentColor).frame(width: 32)
                         VStack(alignment: .leading) {
                             Text(d.name).lineLimit(2)
-                            Text("\(ByteCountFormatter.string(fromByteCount: Int64(d.size), countStyle: .file)) · \(shortDate(d.createdAt))\(app.store.fileData(d.fileId) == nil ? " · downloading…" : "")")
+                            Text("\(ByteCountFormatter.string(fromByteCount: Int64(d.size), countStyle: .file)) · \(shortDate(d.createdAt))\(app.store.hasFile(d.fileId) ? "" : " · downloading…")")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -476,14 +477,20 @@ struct DocumentsView: View {
             model.saveRows(added, in: \.documents)
         }
         .quickLookPreview($preview)
+        .onChange(of: preview) { old, new in
+            // The named copy made for Quick Look isn't needed once the preview closes.
+            if new == nil, let old { try? FileManager.default.removeItem(at: old.deletingLastPathComponent()) }
+        }
     }
 
     private func open(_ d: JobDocument) {
         guard let data = app.store.fileData(d.fileId) else { error = "This file hasn't downloaded yet — it arrives with the next sync."; return }
+        error = nil
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("docs-\(d.id)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent(d.name.replacingOccurrences(of: "/", with: "-"))
-        try? data.write(to: url, options: .atomic)
+        let safe = d.name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-").trimmingCharacters(in: .whitespaces)
+        let url = dir.appendingPathComponent(safe.isEmpty || safe.hasPrefix(".") ? "document" + safe : safe)
+        do { try data.write(to: url, options: .atomic) } catch { self.error = "Couldn't open \(d.name)."; return }
         preview = url
     }
 

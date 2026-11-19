@@ -64,6 +64,13 @@ struct PhotoViewer: View {
                     PhotoAnnotator(image: img, shapes: p.annotations ?? []) { shapes in
                         model.updateRows([p.id], in: \.photos) { $0.annotations = shapes }
                     }
+                } else {
+                    // Not downloaded yet (or just deleted): never leave an empty full-screen cover with no way out.
+                    NavigationStack {
+                        ContentUnavailableView("Photo not on this device yet", systemImage: "icloud.and.arrow.down",
+                                               description: Text("It arrives with the next sync — then you can mark it up."))
+                            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { annotating = false } } }
+                    }
                 }
             }
             .shareSheet($share)
@@ -131,7 +138,17 @@ struct ZoomablePhoto: View {
             .simultaneousGesture(scale > 1 ? DragGesture().onChanged { v in offset = CGSize(width: baseOffset.width + v.translation.width, height: baseOffset.height + v.translation.height) }.onEnded { _ in baseOffset = offset } : nil)
             .onTapGesture(count: 2) { withAnimation(.snappy) { scale = scale > 1 ? 1 : 2.5; base = scale; offset = .zero; baseOffset = .zero } }
         }
-        .task(id: photo.imageId) { image = app.store.image(photo.imageId) }
+        .task(id: photo.imageId) {
+            // Show this photo (never the previous one's image), then, if it's still downloading from another device,
+            // look again for a while.
+            image = app.store.image(photo.imageId)
+            if image != nil { return }
+            for _ in 0..<60 {
+                try? await Task.sleep(for: .seconds(2))
+                if Task.isCancelled { return }
+                if let img = app.store.image(photo.imageId) { image = img; return }
+            }
+        }
     }
 }
 

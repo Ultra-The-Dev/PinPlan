@@ -85,6 +85,20 @@ final class SyncTests: XCTestCase {
         XCTAssertTrue(state.removedProjects(since: ledger).isEmpty)
     }
 
+    func testRemoteDeletionOnlyForgetsThatJob() {
+        var other = sample()
+        other.project.id = "p10"
+        var state = SyncState(bundles: [sample(), other], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        var remote = echo(.projects, state.rows().first { $0.table == .projects && $0.id == "p1" }!.json)
+        remote["deleted"] = true
+        XCTAssertEqual(state.merge(.projects, remote: remote, ledger: &ledger), .removedProject)
+        XCTAssertNil(ledger.hashes[SyncLedger.key(.projects, "p1")])
+        XCTAssertNotNil(ledger.hashes[SyncLedger.key(.projects, "p10")], "p10 starts with p1 but is still synced")
+        XCTAssertFalse(state.changes(since: ledger).contains { $0.table == .projects }, "p10 isn't pushed again")
+    }
+
     func testTimestampsAreNormalised() {
         XCTAssertEqual(SyncMap.normalizeTimestamp("2026-11-15 16:59:33.12+00"), "2026-11-15T16:59:33.120Z")
         XCTAssertEqual(SyncMap.normalizeTimestamp("2026-11-15T16:59:33+00:00"), "2026-11-15T16:59:33.000Z")
