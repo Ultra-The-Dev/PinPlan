@@ -124,7 +124,7 @@ export async function exportAsBuiltPdf(data: Data, opts: { trades?: TradeId[]; b
     date: new Date().toLocaleDateString(),
     overall: { ...all, done, pct: all.total ? Math.round((done / all.total) * 100) : 0, cables: trackedRuns.filter((x) => x.kind === "wire").length, cablesDone: trackedRuns.filter((x) => x.kind === "wire" && ["tested", "verified"].includes(statusOf(x))).length },
     sheets: bySheet,
-    issues: issues(markers.filter(markable), runs).map((i) => ({ ...i, sheet: sheets.find((s) => s.id === i.sheetId)?.name ?? "", date: fmt(i.at) })),
+    issues: issues(markers.filter(markable), trackedRuns).map((i) => ({ ...i, sheet: sheets.find((s) => s.id === i.sheetId)?.name ?? "", date: fmt(i.at) })),
     legend: STATUS_ORDER.map((s) => ({ color: STATUS_COLORS[s], name: STATUS_LABELS[s] })),
     pages,
   });

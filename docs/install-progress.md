@@ -19,7 +19,12 @@ come only from placed markers and runs, and `computeTakeoff` / `Takeoff.swift` i
 Runs use the same statuses: roughed = pulled, installed = terminated, tested = certified. Proof photos are ordinary
 job photos linked to the device (`Photo.markerId`, tag `install`) and listed in `install.photoIds`.
 
-Company setting `installPhotoRequired` (Settings → Install progress; default `["installed"]`).
+Company setting `installPhotoRequired` (Settings → Install progress; default `["installed"]`). Like checklist
+templates it is stored per device (web: app settings; iPad: UserDefaults), so each office device sets its own.
+
+The same migration adds `install_verify_guard` on markers and runs: a technician can't set `verified` or change a
+verified record. A blocked change keeps the stored `install` (the rest of the row still saves), so an offline tech's
+queued edits never wedge sync.
 
 ## Logic
 

@@ -12,7 +12,7 @@ import { useBlobUrl } from "@/lib/useImage";
 import { useTrades } from "@/lib/useTrades";
 import type { InstallStatus, Marker, Photo, Run } from "@/lib/types";
 import PhotoViewer from "../photos/PhotoViewer";
-import { attachPhoto, itemLabel, photoNeeded, resetInstall, saveProofPhoto, saveTest, setInstall } from "./actions";
+import { attachPhoto, itemLabel, photoNeeded, resetInstall, saveProofPhoto, saveTest, setInstall, testTarget } from "./actions";
 import type { InstallRef } from "./progressStore";
 
 export function testPlaceholder(w: Workflow): string {
@@ -37,6 +37,7 @@ export default function DeviceInstallSheet({ item: ref, onClose }: { item: Insta
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose} data-plan-ui>
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Install progress"
         className="animate-in scroll-thin max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-pop sm:max-w-md sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -128,7 +129,9 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
     input.click();
   };
   const go = (to: InstallStatus) => {
-    if (photoNeeded(to) && status !== to)
+    // Already there: don't record the same status again.
+    if (status === to) return;
+    if (photoNeeded(to))
       return pickPhoto(async (f) => {
         const photoId = await saveProofPhoto(f, ref);
         if (photoId) await setInstall(ref, to, { photoId });
@@ -212,7 +215,17 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
           <button
             className="btn btn-primary h-10"
             disabled={pass === null || !!busy || !canSetInstall(role, pass ? "tested" : "issue", status)}
-            onClick={() => run("test", () => saveTest(ref, { pass: !!pass, value: value.trim() || null }))}
+            onClick={() => {
+              const test = { pass: !!pass, value: value.trim() || null };
+              const to = testTarget(status, !!pass);
+              // A pass that moves it to a status needing proof (Settings) takes the photo first, like the status buttons.
+              if (to !== status && photoNeeded(to))
+                return pickPhoto(async (f) => {
+                  const photoId = await saveProofPhoto(f, ref);
+                  if (photoId) await saveTest(ref, test, photoId);
+                });
+              void run("test", () => saveTest(ref, test));
+            }}
           >
             Save
           </button>

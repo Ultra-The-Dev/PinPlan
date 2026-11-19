@@ -23,7 +23,9 @@ enum ProgressOverlays {
         guard ui.on, ui.walk else { return false }
         let ctx = tap.context
         let model = ctx.model
-        let markers = model.visibleMarkers(on: ctx.sheet.id, types: model.typesById)
+        let types = model.typesById
+        // LED fixtures are tracked as runs (same as the web app and InstallProgress.trackedMarkers).
+        let markers = model.visibleMarkers(on: ctx.sheet.id, types: types).filter { types[$0.deviceTypeId]?.kind != .led }
         let loc: (x: Double, y: Double) = (Double(tap.location.x), Double(tap.location.y))
         let pts: [(x: Double, y: Double)] = markers.map { m in
             let p = ctx.point(m.x, m.y)
@@ -99,8 +101,9 @@ struct ProgressRingsLayer: View {
     var body: some View {
         if ProgressUI.shared.on {
             let model = ctx.model
-            let rings: [Ring] = model.visibleMarkers(on: ctx.sheet.id, types: model.typesById)
-                .filter { !$0.tentative && ctx.isOnScreen($0.x, $0.y) }
+            let types = model.typesById
+            let rings: [Ring] = model.visibleMarkers(on: ctx.sheet.id, types: types)
+                .filter { !$0.tentative && types[$0.deviceTypeId]?.kind != .led && ctx.isOnScreen($0.x, $0.y) }
                 .map { Ring(center: ctx.point($0.x, $0.y), status: InstallProgress.status($0)) }
             let lines: [Line] = model.visibleRuns(on: ctx.sheet.id).filter { $0.tentative != true && $0.points.count >= 4 }.map { r in
                 var pts: [CGPoint] = []

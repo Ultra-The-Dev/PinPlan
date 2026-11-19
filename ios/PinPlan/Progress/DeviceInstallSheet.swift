@@ -13,6 +13,9 @@ struct DeviceInstallSheet: View {
     struct CameraIntent: Identifiable {
         let id = UUID()
         let status: InstallStatus?
+        /// A test result saved together with the proof photo (the status it sets needs one).
+        var test: InstallState.Test? = nil
+        var note: String? = nil
     }
 
     @State private var camera: CameraIntent?
@@ -57,7 +60,7 @@ struct DeviceInstallSheet: View {
 
     private func took(_ img: UIImage, intent: CameraIntent) {
         guard let p = model.makeInstallPhoto(img, for: ref) else { return }
-        if let s = intent.status { model.setInstall(ref, to: s, photo: p) } else { model.attachInstallPhoto(ref, photo: p) }
+        if let s = intent.status { model.setInstall(ref, to: s, photo: p, note: intent.note, test: intent.test) } else { model.attachInstallPhoto(ref, photo: p) }
     }
 
     private func choose(_ s: InstallStatus) {
@@ -134,7 +137,13 @@ struct DeviceInstallSheet: View {
                 guard let pass else { return }
                 let test = InstallState.Test(pass: pass, value: reading.trimmingCharacters(in: .whitespaces).isEmpty ? nil : reading)
                 let to: InstallStatus = !pass ? .issue : (status == .verified ? .verified : .tested)
-                model.setInstall(ref, to: to, note: pass ? nil : "Test failed", test: test)
+                let note: String? = pass ? nil : "Test failed"
+                // Same photo rule as the status buttons: a status that needs proof takes the photo first.
+                if to != status && InstallProgress.requiresPhoto(InstallSettings.photoRequired, to) && CameraPicker.isAvailable {
+                    camera = CameraIntent(status: to, test: test, note: note)
+                    return
+                }
+                model.setInstall(ref, to: to, note: note, test: test)
             }
             .disabled(pass == nil || !InstallProgress.canSet(role, pass == false ? .issue : .tested, from: status))
         } header: {

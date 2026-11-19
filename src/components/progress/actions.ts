@@ -55,12 +55,13 @@ export async function setInstall(ref: InstallRef, to: InstallStatus, opts: Insta
 }
 
 /** Save a test result. A pass marks it tested (unless it's further along); a fail flags an issue. */
-export async function saveTest(ref: InstallRef, test: NonNullable<InstallState["test"]>): Promise<boolean> {
-  const item = findItem(ref);
-  const cur = statusOf(item);
-  const to: InstallStatus = !test.pass ? "issue" : cur === "verified" ? "verified" : "tested";
-  return setInstall(ref, to, { test, note: !test.pass ? test.note || "Test failed" : test.note });
+export async function saveTest(ref: InstallRef, test: NonNullable<InstallState["test"]>, photoId?: string | null): Promise<boolean> {
+  const to = testTarget(statusOf(findItem(ref)), test.pass);
+  return setInstall(ref, to, { test, photoId, note: !test.pass ? test.note || "Test failed" : test.note });
 }
+
+/** The status a saved test result sets: a pass marks it tested (verified stays verified); a fail flags an issue. */
+export const testTarget = (cur: InstallStatus, pass: boolean): InstallStatus => (!pass ? "issue" : cur === "verified" ? "verified" : "tested");
 
 /** Attach a proof photo without changing the status. */
 export async function attachPhoto(ref: InstallRef, photoId: string) {
@@ -95,7 +96,10 @@ export async function saveProofPhoto(file: File, ref: InstallRef): Promise<strin
   return saved.id;
 }
 
-/** Office bulk action outside the editor's undo history: mark these devices verified. */
+/**
+ * Office bulk action: mark these devices verified. When the job is open in the editor this is one commit (one undo
+ * step), so a later plan undo can't silently restore a pre-verify copy of the row; otherwise it writes with `put`.
+ */
 export async function bulkVerify(markers: Marker[]): Promise<number> {
   if (!canSetInstall(myRole(), "verified")) {
     toast("Only the office can verify", "info");
@@ -103,13 +107,17 @@ export async function bulkVerify(markers: Marker[]): Promise<number> {
   }
   const by = me();
   const now = nowIso();
-  let n = 0;
-  for (const m of markers) {
-    if (!markable(m) || statusOf(m) === "verified") continue;
-    await put("markers", { ...m, install: applyInstall(m.install, "verified", by, now) });
-    n++;
+  const st = useEditor.getState();
+  const open = !!markers.length && st.project?.id === markers[0].projectId;
+  const todo = markers
+    // Use the editor's current copy (it may be newer than the list the panel rendered).
+    .map((m) => (open ? (st.markers.find((x) => x.id === m.id) ?? m) : m))
+    .filter((m) => markable(m) && statusOf(m) !== "verified");
+  if (!todo.length) return 0;
+  if (open) {
+    await st.commit(todo.map((m) => ({ table: "markers" as const, before: m, after: { ...m, install: applyInstall(m.install, "verified", by, now) } })));
+    return todo.length;
   }
-  // Show it in the open job straight away.
-  if (n) await useEditor.getState().load(markers[0].projectId);
-  return n;
+  for (const m of todo) await put("markers", { ...m, install: applyInstall(m.install, "verified", by, now) });
+  return todo.length;
 }

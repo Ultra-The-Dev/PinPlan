@@ -21,6 +21,7 @@ import {
   workflowFor,
 } from "@/lib/installProgress";
 import { useEditor } from "@/lib/store";
+import { useTeam } from "@/lib/team";
 import { TABLES, toLocal, toRemote } from "@/lib/syncMap";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { DeviceType, InstallStatus, Marker, Project, Run, Sheet } from "@/lib/types";
@@ -242,5 +243,39 @@ describe("editor store", () => {
     await useEditor.getState().undo();
     await useEditor.getState().undo();
     expect(statusOf(useEditor.getState().markers[0])).toBe("planned");
+  });
+});
+
+describe("progress actions", () => {
+  const project: Project = { id: "p2", clientName: "T", address: "2 Test St", status: "estimate", billduDocs: [], createdAt: ts, updatedAt: ts };
+  const sheet: Sheet = { ...sheets[0], id: "s2", projectId: "p2" };
+  beforeEach(async () => {
+    await db().delete();
+    await db().open();
+    await put("projects", project);
+    await put("sheets", sheet);
+    for (const id of ["v1", "v2"]) await put("markers", { ...mk(id, "s2", "cam", undefined, { install: applyInstall(null, "tested", "Sam", ts) }), projectId: "p2" });
+    useEditor.setState({ project: null, past: [], future: [], loaded: false });
+    await useEditor.getState().load("p2");
+    useTeam.setState({ role: null });
+  });
+
+  it("bulk verify in the open job is one undo step", async () => {
+    const { bulkVerify } = await import("@/components/progress/actions");
+    expect(await bulkVerify(useEditor.getState().markers)).toBe(2);
+    expect(useEditor.getState().markers.map(statusOf)).toEqual(["verified", "verified"]);
+    expect((await db().markers.get("v1"))?.install?.status).toBe("verified");
+    await useEditor.getState().undo();
+    expect(useEditor.getState().markers.map(statusOf)).toEqual(["tested", "tested"]);
+  });
+
+  it("techs can't bulk verify; a saved test sets tested, issue or keeps verified", async () => {
+    const { bulkVerify, testTarget } = await import("@/components/progress/actions");
+    useTeam.setState({ role: "tech" });
+    expect(await bulkVerify(useEditor.getState().markers)).toBe(0);
+    expect(useEditor.getState().markers.map(statusOf)).toEqual(["tested", "tested"]);
+    expect(testTarget("installed", true)).toBe("tested");
+    expect(testTarget("verified", true)).toBe("verified");
+    expect(testTarget("tested", false)).toBe("issue");
   });
 });
