@@ -63,13 +63,13 @@ export function UploadRevisedSetButton({ disabled }: { disabled?: boolean }) {
 }
 
 /** Plan toolbar: the current revision chip and Compare. Shown once a sheet has a history. */
-export function RevisionToolbar({ sheet }: { sheet: Sheet; projectId: string }) {
+export function RevisionToolbar({ sheet }: { sheet: Sheet }) {
   const live = useEditor((s) => s.sheets.find((x) => x.id === sheet.id)) ?? sheet;
   const [open, setOpen] = useState<"list" | "compare" | null>(null);
   const n = live.revisions?.length ?? 0;
   if (!n) return null;
   return (
-    <div className="flex items-center gap-1 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
+    <div className="pointer-events-auto flex items-center gap-1 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
       <button className="chip h-8 bg-ink px-2.5 text-white" onClick={() => setOpen("list")} title={`${n} earlier drawing${n === 1 ? "" : "s"}`} data-testid="plan-revision-chip">
         {needsRecalibration(live) && <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />}
         {live.revisionLabel || "Current"}

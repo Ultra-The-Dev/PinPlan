@@ -1,15 +1,21 @@
 "use client";
-// Registers the tasks overlay on the plan (pins, toolbar, tap-to-drop). Imported for its side effect by editor/overlays.
-import { getAuthor } from "@/lib/photos";
-import { useSyncStatus } from "@/lib/sync";
-import { registerPlanOverlay } from "../editor/overlays/registry";
+// Plan tasks as a plan overlay (src/lib/planOverlays.ts, docs/plan-viewer.md): pins (Konva, above devices and
+// markups), the Tasks button and panel in the plan rail (HTML), tap a pin to open it, tap to drop an armed task, drag
+// the selected pin to move it. Imported for its side effect by editor/overlays/index.ts.
+import { createElement } from "react";
+import { registerPlanOverlay } from "@/lib/planOverlays";
+import { RailSlot } from "../editor/overlays/PlanRail";
 import TaskPinsLayer from "./TaskPinsLayer";
-import TaskToolbar, { handleTaskTap } from "./TaskToolbar";
+import TaskToolbar from "./TaskToolbar";
+import { onTaskDragEnd, onTaskDragMove, onTaskDragStart, onTaskTap } from "./taskInput";
 
 registerPlanOverlay({
   id: "tasks",
-  order: 50,
-  Layer: TaskPinsLayer,
-  Toolbar: TaskToolbar,
-  onTap: (ctx) => handleTaskTap(ctx, getAuthor(useSyncStatus.getState().email)),
+  order: 220,
+  konva: (ctx) => createElement(TaskPinsLayer, { sheet: ctx.sheet, viewport: ctx.viewport }),
+  html: (ctx) => createElement(RailSlot, { order: 10 }, createElement(TaskToolbar, { sheet: ctx.sheet })),
+  onTap: onTaskTap,
+  onDragStart: onTaskDragStart,
+  onDragMove: onTaskDragMove,
+  onDragEnd: onTaskDragEnd,
 });

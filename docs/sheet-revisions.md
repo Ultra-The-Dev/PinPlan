@@ -76,6 +76,8 @@ go back, invert. `transformBetween()` does this.
   darkness, multiplied, so shared ink is black; aligned with the stored transforms (or an ad-hoc 2-point alignment
   when shapes differ). Swipe mode, fade slider, devices on top. Works offline with drawings stored on the device;
   an older drawing that was never downloaded is fetched from storage when online ("Not downloaded yet" otherwise).
+  On the Plan tab, a sheet with earlier drawings shows its revision chip (opens the history) and Compare in the plan
+  rail at the top right (`src/components/revisions/revisionOverlay.tsx`, a plan overlay).
 
 Moved rows: markers (`x`,`y`), runs (`points`), closets (`x`,`y`) and anything registered with
 `registerRevisionCarry(table, { xy: ["x","y"] } | { points: "points" })`. Photos follow by `sheetId` (no position).

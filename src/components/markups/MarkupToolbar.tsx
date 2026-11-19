@@ -26,14 +26,14 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import type { PlanOverlayCtx } from "@/components/editor/overlays/registry";
+import { createPortal } from "react-dom";
 import { canEditMarkup, canSeeMarkup, KIND_NAMES, layerNames, MARKUP_COLORS, PRIVATE_COLOR, STROKE_SIZES, type StrokeSize } from "@/lib/markups";
 import { newId } from "@/lib/db";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
-import type { PlanMarkup } from "@/lib/types";
+import type { PlanMarkup, Sheet } from "@/lib/types";
 import { useMarkups, type MarkupTool } from "./useMarkups";
 
 const TOOLS: { id: MarkupTool; name: string; key: string; Icon: ComponentType<{ className?: string }> }[] = [
@@ -56,7 +56,8 @@ function when(iso: string) {
   return Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
 }
 
-export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
+export default function MarkupToolbar({ sheet }: { sheet: Sheet }) {
+  const projectId = sheet.projectId;
   const st = useMarkups();
   const { open, tool, color, size, layer, hiddenLayers, allHidden, extraLayers, items, selectedId, details, textDraft, listOpen, past, future } = st;
   const userId = useSyncStatus((s) => s.userId);
@@ -166,17 +167,22 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
 
   if (!open) {
     return (
-      <div className="pointer-events-auto relative rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
-        <button className={iconBtn} onClick={openMarkups} title="Markups: pen, cloud, arrow, text…" aria-label="Markups" data-testid="markups-open">
-          <Pencil className="h-5 w-5" />
-        </button>
+      <button
+        className="pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-700 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900"
+        onClick={openMarkups}
+        title="Markups: pen, cloud, arrow, text…"
+        aria-label="Markups"
+        data-testid="markups-open"
+      >
+        <Pencil className="h-5 w-5" />
         {anyHidden && <span className="pointer-events-none absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />}
-      </div>
+      </button>
     );
   }
 
   return (
-    <div className="pointer-events-none relative flex max-h-full items-start gap-2">
+    // In the plan rail at the right edge: the tool column outermost, flyouts open toward the plan.
+    <div className="pointer-events-none relative flex max-h-full min-h-0 flex-row-reverse items-start gap-2">
       <div className="scroll-thin pointer-events-auto flex max-h-full flex-col items-center gap-0.5 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur" data-testid="markup-toolbar">
         <button className={iconBtn} onClick={() => useMarkups.getState().setOpen(false)} title="Close markups (Esc)" aria-label="Close markups">
           <X className="h-5 w-5" />
@@ -321,8 +327,9 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
       )}
 
       {listOpen && !fly && <MarkupList items={sheetItems} selectedId={selectedId} hiddenLayers={hiddenLayers} allHidden={allHidden} />}
-      {details && <DetailsCard id={details.id} x={details.x} y={details.y} />}
-      {textDraft && <TextDialog />}
+      {/* Fixed cards go to the body: outside the plan (its gestures and stacking) and the rail. */}
+      {details && typeof document !== "undefined" && createPortal(<DetailsCard id={details.id} x={details.x} y={details.y} />, document.body)}
+      {textDraft && typeof document !== "undefined" && createPortal(<TextDialog />, document.body)}
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { create } from "zustand";
 import { db, newId, nowIso, put, putMany } from "@/lib/db";
 import { applyTaskChange, nextTaskNumber, type TaskFilter, type TaskPatch } from "@/lib/tasks";
 import type { PlanTask } from "@/lib/types";
-import { useOverlayCapture } from "../editor/overlays/registry";
 
 /** Waiting for a tap on the plan: a new task, a duplicate to place, or a task to (re)place. */
 export type DropMode = { kind: "new" } | { kind: "duplicate"; source: PlanTask } | { kind: "move"; id: string } | null;
@@ -46,7 +45,6 @@ interface TaskState {
   arm(drop: DropMode): void;
 }
 
-const CAPTURE_ID = "tasks";
 let loadSeq = 0;
 
 export const useTasks = create<TaskState>((set, get) => ({
@@ -116,9 +114,11 @@ export const useTasks = create<TaskState>((set, get) => ({
   },
   arm(drop) {
     set({ drop, ...(drop ? { quick: null } : {}) });
-    useOverlayCapture.getState().setCapture(drop ? CAPTURE_ID : useOverlayCapture.getState().capture === CAPTURE_ID ? null : useOverlayCapture.getState().capture);
   },
 }));
+
+/** A pin being dragged on the plan (relative position), drawn there until the move is saved. */
+export const useTaskDrag = create<{ drag: { id: string; x: number; y: number } | null }>(() => ({ drag: null }));
 
 function upsert(list: PlanTask[], t: PlanTask): PlanTask[] {
   const i = list.findIndex((x) => x.id === t.id);

@@ -6,7 +6,8 @@ estimate, proposals and Billdu are unchanged by anything drawn here.
 
 ## Using it (web)
 
-Open a sheet on the **Plan** tab and tap the pencil button at the top left of the plan. The tool column opens:
+Open a sheet on the **Plan** tab and tap the pencil button in the column at the top right of the plan (under
+View / Edit). The tool column opens there:
 
 | Tool | Key | Notes |
 | --- | --- | --- |
@@ -105,7 +106,11 @@ missing `width` as M).
   `resize`, `rotateMarkupPointsCW`), `visibleMarkups`, `canEditMarkup`, and `drawMarkupsOnCanvas` for the PDF.
   Tests: `tests/markups.test.ts`.
 - `src/components/markups/useMarkups.ts` — markup state, saving, undo / redo, hidden layers (localStorage per user).
-- `src/components/markups/MarkupLayer.tsx` — the Konva layer (drawing, select / move / resize, long-press).
+- `src/components/markups/MarkupLayer.tsx` — the Konva layer (markups, the stroke being drawn, the selection box).
+- `src/components/markups/markupInput.ts` — plan input: tap, drag (draw / move / resize), long-press / right-click,
+  hit testing in screen px.
 - `src/components/markups/MarkupToolbar.tsx` — tool column, colour / size, layers, list, details card, text dialog.
-- `src/components/markups/registerOverlay.ts` — plugs into the plan through `src/components/editor/overlays/registry.ts`
-  (`registerPlanOverlay`, `useOverlayCapture`), so `PlanCanvas` only knows about overlays in general.
+- `src/components/markups/registerOverlay.ts` — a plan overlay (`registerPlanOverlay` in `src/lib/planOverlays.ts`,
+  docs/plan-viewer.md): `konva` layer, `html` toolbar in the plan rail, `onTap` / `onDragStart…` / `onLongPress`, and
+  `capturing` while a draw tool is active (one finger draws, devices can't be dragged, a pause before drawing isn't a
+  long-press). `PlanCanvas` only knows about overlays in general.

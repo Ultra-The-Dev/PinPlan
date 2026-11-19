@@ -1,122 +1,93 @@
 "use client";
-// Task pins on the plan (a plan overlay, see editor/overlays/registry.ts): a teardrop in the status colour with the
-// task number. Tap to open the task; drag a selected pin to move it (logged in its history).
-import type Konva from "konva";
-import { useEffect, useMemo, useRef } from "react";
+// Task pins on the plan (Konva side of the tasks plan overlay, see registerOverlay.ts): a teardrop in the status
+// colour with the task number, a constant size on screen (name="cs", like devices). The layer doesn't listen: taps
+// and drags arrive through the overlay (taskInput.ts), which hit-tests with the same geometry (pinGeometry).
+import { useLayoutEffect, useMemo } from "react";
 import { Circle, Group, Shape, Text } from "react-konva";
-import { getAuthor } from "@/lib/photos";
-import { useSyncStatus } from "@/lib/sync";
+import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
 import { filterIsEmpty, isClosed, PIN_GREY, taskMatches, taskPinColor, taskPlacement } from "@/lib/tasks";
 import { localDay } from "@/lib/fieldDocs";
-import type { PlanTask } from "@/lib/types";
-import type { PlanOverlayCtx } from "../editor/overlays/registry";
-import { useProjectTasks, useTasks } from "./taskStore";
+import type { PlanTask, Sheet } from "@/lib/types";
+import { useProjectTasks, useTaskDrag, useTasks } from "./taskStore";
 
-const R = 13; // head radius in screen px
-const L = R * 1.9; // tip to head centre
-const A = Math.acos(R / L);
+/** Head radius and tip-to-head-centre distance, in screen px at size factor 1. */
+export const PIN_R = 13;
+export const PIN_L = PIN_R * 1.9;
+export const PIN_SELECTED_SCALE = 1.15;
+const A = Math.acos(PIN_R / PIN_L);
 
-export default function TaskPinsLayer({ sheet, projectId, scale }: PlanOverlayCtx & { scale: number }) {
-  const tasks = useProjectTasks(projectId);
-  const { filter, showPins, greyOthers, selectedId } = useTasks();
-  const today = localDay(new Date().toISOString());
-  const pins = useMemo(() => {
-    const active = !filterIsEmpty(filter);
-    return tasks
-      .filter((t) => t.sheetId === sheet.id && taskPlacement(t) === "pin")
-      .map((t) => ({ t, match: !active || taskMatches(t, filter, today) }))
-      .filter((p) => p.match || greyOthers)
-      // Matching pins on top of greyed ones; the selected pin on top of everything.
-      .sort((a, b) => Number(a.match) - Number(b.match) || Number(a.t.id === selectedId) - Number(b.t.id === selectedId) || a.t.number - b.t.number);
-  }, [tasks, sheet.id, filter, greyOthers, today, selectedId]);
-  // A tap on the empty plan drops the pin selection, so a later drag pans the plan instead of moving the pin.
-  const groupRef = useRef<Konva.Group>(null);
-  useEffect(() => {
-    const stage = groupRef.current?.getStage();
-    if (!stage) return;
-    const onTap = (e: Konva.KonvaEventObject<Event>) => {
-      if ((e.target === stage || e.target.name() === "plan-image") && useTasks.getState().selectedId) useTasks.getState().set({ selectedId: null });
-    };
-    stage.on("click.taskpins tap.taskpins", onTap);
-    return () => {
-      stage.off("click.taskpins tap.taskpins");
-    };
-  }, []);
-  const inv = 1 / scale;
+/** The pins shown on a sheet, bottom to top (the selected pin last, i.e. on top). */
+export function shownPins(tasks: PlanTask[], sheetId: string, st: { filter: ReturnType<typeof useTasks.getState>["filter"]; greyOthers: boolean; selectedId: string | null }, today: string) {
+  const active = !filterIsEmpty(st.filter);
   return (
-    <Group ref={groupRef} visible={showPins} listening={showPins}>
-      {pins.map(({ t, match }) => (
-        <TaskPin key={t.id} task={t} W={sheet.width} H={sheet.height} inv={inv} grey={!match} selected={t.id === selectedId} />
-      ))}
+    tasks
+      .filter((t) => t.sheetId === sheetId && !t.deleted && taskPlacement(t) === "pin")
+      .map((t) => ({ t, match: !active || taskMatches(t, st.filter, today) }))
+      .filter((p) => p.match || st.greyOthers)
+      // Matching pins on top of greyed ones; the selected pin on top of everything.
+      .sort((a, b) => Number(a.match) - Number(b.match) || Number(a.t.id === st.selectedId) - Number(b.t.id === st.selectedId) || a.t.number - b.t.number)
+  );
+}
+
+export default function TaskPinsLayer({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
+  const tasks = useProjectTasks(sheet.projectId);
+  const { filter, showPins, greyOthers, selectedId } = useTasks();
+  const drag = useTaskDrag((s) => s.drag);
+  const today = localDay(new Date().toISOString());
+  const pins = useMemo(() => shownPins(tasks, sheet.id, { filter, greyOthers, selectedId }, today), [tasks, sheet.id, filter, greyOthers, today, selectedId]);
+  // New pins start at scale 1: give them the constant on-screen size now.
+  useLayoutEffect(() => {
+    viewport.updateConstantSize();
+  });
+  if (!showPins) return null;
+  return (
+    <Group>
+      {pins.map(({ t, match }) => {
+        const at = drag?.id === t.id ? drag : t;
+        return <TaskPin key={t.id} task={t} x={(at.x ?? 0) * sheet.width} y={(at.y ?? 0) * sheet.height} grey={!match} selected={t.id === selectedId} />;
+      })}
     </Group>
   );
 }
 
-function TaskPin({ task, W, H, inv, grey, selected }: { task: PlanTask; W: number; H: number; inv: number; grey: boolean; selected: boolean }) {
+function TaskPin({ task, x, y, grey, selected }: { task: PlanTask; x: number; y: number; grey: boolean; selected: boolean }) {
   const color = grey ? PIN_GREY : taskPinColor(task);
   const label = String(task.number);
-  const open = () => {
-    useTasks.getState().set({ selectedId: task.id, detailId: task.id });
-  };
+  const k = selected ? PIN_SELECTED_SCALE : 1;
   return (
-    <Group
-      x={(task.x ?? 0) * W}
-      y={(task.y ?? 0) * H}
-      scaleX={inv * (selected ? 1.15 : 1)}
-      scaleY={inv * (selected ? 1.15 : 1)}
-      opacity={grey ? 0.55 : 1}
-      draggable={selected}
-      onClick={(e) => {
-        e.cancelBubble = true;
-        open();
-      }}
-      onTap={(e) => {
-        e.cancelBubble = true;
-        open();
-      }}
-      onDragStart={(e) => {
-        e.cancelBubble = true;
-      }}
-      onDragEnd={(e) => {
-        e.cancelBubble = true;
-        const x = Math.max(0, Math.min(1, e.target.x() / W));
-        const y = Math.max(0, Math.min(1, e.target.y() / H));
-        e.target.position({ x: x * W, y: y * H });
-        void useTasks.getState().change(task.id, { x, y }, getAuthor(useSyncStatus.getState().email));
-      }}
-    >
-      {selected && <Circle y={-L} radius={R + 7} fill="rgba(37,99,235,0.15)" stroke="#2563eb" strokeWidth={2.5} listening={false} />}
-      <Shape
-        sceneFunc={(ctx, s) => {
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.arc(0, -L, R, Math.PI / 2 + A, Math.PI / 2 - A + Math.PI * 2, false);
-          ctx.closePath();
-          ctx.fillStrokeShape(s);
-        }}
-        fill={color}
-        stroke="#fff"
-        strokeWidth={2}
-        shadowColor="#000"
-        shadowOpacity={0.35}
-        shadowBlur={4}
-        shadowOffsetY={1.5}
-        hitStrokeWidth={12}
-      />
-      <Text
-        text={label}
-        x={-R}
-        y={-L - R}
-        width={R * 2}
-        height={R * 2}
-        align="center"
-        verticalAlign="middle"
-        fontStyle="bold"
-        fontSize={label.length > 3 ? 9 : label.length > 2 ? 10.5 : 12.5}
-        fill="#fff"
-        listening={false}
-      />
-      {task.priority === 1 && !grey && !isClosed(task.status) && <Circle x={R * 0.8} y={-L - R * 0.8} radius={4} fill="#fff" stroke="#dc2626" strokeWidth={2.5} listening={false} />}
+    <Group name={CONSTANT_SIZE} x={x} y={y} opacity={grey ? 0.55 : 1} listening={false}>
+      <Group scaleX={k} scaleY={k}>
+        {selected && <Circle y={-PIN_L} radius={PIN_R + 7} fill="rgba(37,99,235,0.15)" stroke="#2563eb" strokeWidth={2.5} />}
+        <Shape
+          sceneFunc={(ctx, s) => {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, -PIN_L, PIN_R, Math.PI / 2 + A, Math.PI / 2 - A + Math.PI * 2, false);
+            ctx.closePath();
+            ctx.fillStrokeShape(s);
+          }}
+          fill={color}
+          stroke="#fff"
+          strokeWidth={2}
+          shadowColor="#000"
+          shadowOpacity={0.35}
+          shadowBlur={4}
+          shadowOffsetY={1.5}
+        />
+        <Text
+          text={label}
+          x={-PIN_R}
+          y={-PIN_L - PIN_R}
+          width={PIN_R * 2}
+          height={PIN_R * 2}
+          align="center"
+          verticalAlign="middle"
+          fontStyle="bold"
+          fontSize={label.length > 3 ? 9 : label.length > 2 ? 10.5 : 12.5}
+          fill="#fff"
+        />
+        {task.priority === 1 && !grey && !isClosed(task.status) && <Circle x={PIN_R * 0.8} y={-PIN_L - PIN_R * 0.8} radius={4} fill="#fff" stroke="#dc2626" strokeWidth={2.5} />}
+      </Group>
     </Group>
   );
 }

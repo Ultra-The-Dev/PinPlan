@@ -52,9 +52,53 @@ const pins: PlanOverlay = {
 registerPlanOverlay(pins);
 ```
 
-Optional extras: `onDoubleTap(e, ctx)` (return true to stop the editor's double-tap zoom, e.g. to finish a drawing) and
+Optional extras: `onDoubleTap(e, ctx)` (return true to stop the editor's double-tap zoom, e.g. to finish a drawing),
+`onLongPress(e, ctx)` (long-press on touch / pen, right-click with a mouse; return true when handled) and
 `capturing(ctx)` (true while the overlay owns plan input: devices, closets and run points can't be dragged then). See
 `src/components/measure/registerOverlay.ts` (saved measurements, docs/saved-measurements.md).
+
+### Drags: drawing and moving things
+
+An overlay can take over one-pointer drags (draw a markup, move a task pin) instead of the plan panning:
+
+```ts
+onDragStart: (e, ctx) => {           // the press moved past the tap slop; e is where it began
+  if (!drawing) return false;        // false: the plan pans (or a device moves) as usual
+  start(e.rel);
+  return true;                       // this drag is ours until it ends
+},
+onDragMove: (e, ctx) => extend(e.rel),
+onDragEnd: (e, ctx, cancelled) => (cancelled ? discard() : save()),
+capturing: () => drawing,            // also: a pause before moving doesn't become a long-press
+```
+
+- Overlays are asked top-down (highest `order` first), before the editor's device / closet / run-point drag; the first
+  that returns true owns the drag. Taps never reach `onDragStart` (they stay taps).
+- Same event shape as `onTap` (`rel`, `sheetPx`, `screen`, `pointerType`, `shiftKey`, `hit`); moves report the current
+  point.
+- A second finger cancels the drag (`onDragEnd(…, cancelled = true)`) and pinch-zooms, so pinching still works while
+  drawing; so does pointer cancel. Space + drag and middle-button drag always pan.
+- With `capturing` true and an `onDragStart`, a still press doesn't turn into a long-press (stay ready to draw).
+- Respect `ctx.editing`: e.g. task pins move only in Edit mode; in View a drag on a pin pans.
+
+The gesture side is `claimDrag` / `claimedDragMove` / `claimedDragEnd` / `holdLongPress` / `onContextMenu` in
+`PlanGestures` (tests: `tests/planGestures.test.ts`). Examples: `src/components/markups/markupInput.ts`,
+`src/components/tasks/taskInput.ts`.
+
+### Hit testing your own things
+
+Overlay Konva layers don't listen, so hit-test in `onTap` / `onDragStart` yourself, in screen px for a finger-sized
+reach: `ctx.viewport.relToScreen(pos)` vs `e.screen` (task pins use ~22 px on touch), or divide a screen tolerance by
+`ctx.viewport.transform.scale` to compare in sheet px.
+
+### Controls: the plan rail
+
+Overlay buttons go in one shared column at the top right of the plan (under View / Edit), so they don't overlap the
+viewer's chrome (sheet pill, progress / measure at the top left, links at the left, zoom at the bottom right) or each
+other: render `<RailSlot order={n}>…</RailSlot>` (`src/components/editor/overlays/PlanRail.tsx`) from `html`. Slots
+sort by `order` (tasks 10, markups 20, revisions 30); `shrink` lets a tall tool column shrink and scroll. The rail has
+`data-plan-ui`; give your controls `pointer-events-auto`. Keep it to one button per feature and open panels from it
+(toward the plan: `right-full`); full-screen sheets and fixed cards go to `document.body` with a portal.
 
 Or pass overlays to one view only: `<PlanCanvas overlays={[pins]} … />` (a prop overlay replaces a registered one with
 the same id).
