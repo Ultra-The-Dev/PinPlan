@@ -136,6 +136,31 @@ public struct SyncLedger: Codable, Sendable, Equatable {
     public var uploadedImages: Set<String> = []
     public init() {}
     public static func key(_ t: SyncTable, _ id: String) -> String { "\(t.rawValue):\(id)" }
+
+    /// Photo / document files of a job that this device holds but hasn't uploaded yet.
+    /// `hasLocal` says whether the file exists on this device (files pulled from elsewhere but not downloaded don't count).
+    public func uploadBacklog(_ bundle: ProjectBundle, hasLocal: (_ fileId: String, _ isDocument: Bool) -> Bool) -> UploadBacklog {
+        var seen = Set<String>()
+        var out = UploadBacklog()
+        for p in bundle.livePhotos where !uploadedImages.contains(p.imageId) && seen.insert(p.imageId).inserted && hasLocal(p.imageId, false) { out.photos += 1 }
+        for d in bundle.liveDocuments where !uploadedImages.contains(d.fileId) && seen.insert(d.fileId).inserted && hasLocal(d.fileId, true) { out.documents += 1 }
+        return out
+    }
+}
+
+/// How many of a job's photos and documents are still waiting to upload from this device.
+public struct UploadBacklog: Equatable, Sendable {
+    public var photos = 0
+    public var documents = 0
+    public init(photos: Int = 0, documents: Int = 0) { self.photos = photos; self.documents = documents }
+    public var total: Int { photos + documents }
+    /// "3 photos and 1 file waiting to upload"; empty when nothing is waiting.
+    public var summary: String {
+        var parts: [String] = []
+        if photos > 0 { parts.append("\(photos) photo\(photos == 1 ? "" : "s")") }
+        if documents > 0 { parts.append("\(documents) file\(documents == 1 ? "" : "s")") }
+        return parts.isEmpty ? "" : parts.joined(separator: " and ") + " waiting to upload"
+    }
 }
 
 /// Everything this device holds locally that syncs.

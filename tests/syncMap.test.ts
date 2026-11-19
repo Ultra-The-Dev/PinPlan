@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dedupeQueue, remoteWins, TABLES, toLocal, toRemote } from "@/lib/syncMap";
+import { dedupeQueue, pendingUploadCount, remoteWins, TABLES, toLocal, toRemote } from "@/lib/syncMap";
 import { seedCatalog } from "@/lib/catalog";
 
 describe("sync row mapping", () => {
@@ -62,5 +62,21 @@ describe("sync row mapping", () => {
       { seq: 3, table: "markers", rowId: "a" },
     ]);
     expect(q.map((x) => x.seq)).toEqual([2, 3]);
+  });
+});
+
+describe("pendingUploadCount", () => {
+  it("counts each queued image once, only for this job's files", () => {
+    const queue = [
+      { seq: 1, table: "images", rowId: "a" },
+      { seq: 2, table: "images", rowId: "a" },
+      { seq: 3, table: "images", rowId: "b" },
+      { seq: 4, table: "images", rowId: "other-job" },
+      { seq: 5, table: "photos", rowId: "c" },
+    ];
+    expect(pendingUploadCount(queue, ["a", "b", "c"])).toBe(2);
+    expect(pendingUploadCount(queue, new Set(["c"]))).toBe(0);
+    expect(pendingUploadCount(queue, [])).toBe(0);
+    expect(pendingUploadCount([], ["a"])).toBe(0);
   });
 });

@@ -13,6 +13,7 @@ import { useBlobUrl } from "@/lib/useImage";
 import PhotoViewer from "./PhotoViewer";
 import PhotoReport from "./PhotoReport";
 import DateRange from "./DateRange";
+import UploadStatus from "../UploadStatus";
 
 const GPS_KEY = "pinplan.photoLocation";
 // Sentinel option values in the bulk-edit menus (never a real room or device id).
@@ -90,6 +91,7 @@ export default function PhotosTab() {
         .map((m) => ({ m, name: [m.label, catalog.find((d) => d.id === m.deviceTypeId)?.name].filter(Boolean).join(" · ") })),
     [markers, catalog],
   );
+  const imageIds = useMemo(() => live.map((p) => p.imageId), [live]);
   const people = useMemo(() => [...new Set(live.map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [live]);
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -200,6 +202,7 @@ export default function PhotosTab() {
             <ImagePlus /> {busy ?? "Add photos"}
           </button>
         </div>
+        <UploadStatus fileIds={imageIds} noun="photo" />
 
         {live.length > 0 && (
           <div className="card space-y-3 p-3">

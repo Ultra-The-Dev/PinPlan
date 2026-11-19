@@ -187,6 +187,8 @@ final class CloudSync {
     private(set) var lastSync: Date?
     private(set) var lastError: String?
     private(set) var lastSummary: String?
+    /// Per job: photos / documents on this device not uploaded yet. Refreshed after each sync and on edits.
+    private(set) var uploadBacklogs: [String: UploadBacklog] = [:]
 
     @ObservationIgnored private weak var app: AppModel?
     @ObservationIgnored private var ledger = SyncLedger()
@@ -210,7 +212,32 @@ final class CloudSync {
     func attach(_ app: AppModel) {
         self.app = app
         loadLedger()
+        refreshUploadBacklogs()
         startLoop()
+    }
+
+    /// Photos and documents of this job that this device holds but hasn't uploaded yet.
+    func uploadBacklog(projectId: String) -> UploadBacklog { uploadBacklogs[projectId] ?? UploadBacklog() }
+
+    func refreshUploadBacklogs() {
+        guard let app else { uploadBacklogs = [:]; return }
+        var out: [String: UploadBacklog] = [:]
+        for b in app.projects {
+            let n = backlog(b, store: app.store)
+            if n.total > 0 { out[b.project.id] = n }
+        }
+        if out != uploadBacklogs { uploadBacklogs = out }
+    }
+
+    private func refreshUploadBacklog(_ b: ProjectBundle, store: Store) {
+        let n = backlog(b, store: store)
+        let next: UploadBacklog? = n.total > 0 ? n : nil
+        if uploadBacklogs[b.project.id] != next { uploadBacklogs[b.project.id] = next }
+    }
+
+    /// Only files missing from the ledger are checked on disk, so this stays cheap once a job is uploaded.
+    private func backlog(_ b: ProjectBundle, store: Store) -> UploadBacklog {
+        ledger.uploadBacklog(b) { id, isDocument in isDocument ? store.hasFile(id) : store.hasImage(id) }
     }
 
     // MARK: setup
@@ -247,6 +274,7 @@ final class CloudSync {
         Keychain.delete(account: Self.sessionAccount)
         lastSync = nil
         lastSummary = nil
+        uploadBacklogs = [:]
     }
 
     private func store(_ s: SupabaseClient.Session) {
@@ -308,6 +336,7 @@ final class CloudSync {
     /// Sync a few seconds after an edit (edits in a burst become one sync).
     func kick() {
         guard signedIn else { return }
+        refreshUploadBacklogs()   // a new photo / document shows as waiting right away
         pendingKick?.cancel()
         pendingKick = Task { [weak self] in
             try? await Task.sleep(for: .seconds(4))
@@ -319,7 +348,7 @@ final class CloudSync {
     func syncNow() async {
         guard signedIn, !syncing, let app, let client else { return }
         syncing = true
-        defer { syncing = false }
+        defer { syncing = false; refreshUploadBacklogs() }
         do {
             let token = try await token()
             let pushed = try await push(app: app, client: client, token: token)
@@ -495,6 +524,7 @@ final class CloudSync {
                 try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime)
                 ledger.uploadedImages.insert(d.fileId)
             }
+            refreshUploadBacklog(b, store: app.store)   // the "waiting to upload" count goes down job by job
         }
         for b in app.projects {
             for s in b.liveSheets where app.store.imageData(s.imageId) == nil {
