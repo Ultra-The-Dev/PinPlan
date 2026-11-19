@@ -50,7 +50,8 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
   const [l, setL] = useState(log);
   const [busy, setBusy] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const dayPhotos = useMemo(() => photos.filter((p) => !p.deleted && localDay(p.takenAt) === l.date), [photos, l.date]);
+  // This day's photos, plus any already linked to the log from another day.
+  const dayPhotos = useMemo(() => photos.filter((p) => !p.deleted && (localDay(p.takenAt) === l.date || (l.photoIds ?? []).includes(p.id))), [photos, l.date, l.photoIds]);
   const chosen = new Set(l.photoIds ?? []);
   const toggle = (id: string) => setL((x) => ({ ...x, photoIds: chosen.has(id) ? (x.photoIds ?? []).filter((y) => y !== id) : [...(x.photoIds ?? []), id] }));
 
@@ -104,7 +105,8 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
               for (const f of [...e.target.files]) {
                 const p = await importPhoto(f, { projectId: project.id, author: getAuthor(email) });
                 await saveRow("photos", p);
-                setL((x) => ({ ...x, date: localDay(p.takenAt), photoIds: [...(x.photoIds ?? []), p.id] }));
+                // Keep the log's day; the photo is linked even if it was taken on another day.
+                setL((x) => ({ ...x, photoIds: [...(x.photoIds ?? []), p.id] }));
               }
               e.target.value = "";
             }}

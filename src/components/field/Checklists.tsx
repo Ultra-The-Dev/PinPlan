@@ -73,7 +73,11 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoFor, setPhotoFor] = useState<string | null>(null);
   const prog = checklistProgress(c, photos);
-  const setItem = (id: string, patch: Partial<ChecklistItem>) => saveRow("checklists", { ...c, items: c.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  // Patch the latest copy from the store, so quick taps on two items don't overwrite each other.
+  const setItem = (id: string, patch: Partial<ChecklistItem>) => {
+    const cur = useEditor.getState().checklists.find((x) => x.id === c.id) ?? c;
+    return saveRow("checklists", { ...cur, items: cur.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  };
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length || !photoFor || !project) return;

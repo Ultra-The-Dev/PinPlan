@@ -521,6 +521,10 @@ export const useEditor = create<EditorState>((set, get) => ({
   async removeRows(table, ids) {
     const list = get()[tableKey[table] as ListKey] as AnyRow[];
     const changes: Change[] = list.filter((r) => ids.includes(r.id)).map((r) => ({ table, before: r, after: { ...r, deleted: true } }));
+    // Deleting photos also deletes their comments (same as the iPad app), in the same undo step.
+    if (table === "photos")
+      for (const c of get().photoComments)
+        if (!c.deleted && ids.includes(c.photoId)) changes.push({ table: "photoComments", before: c, after: { ...c, deleted: true } });
     if (changes.length) await get().commit(changes);
   },
   async autoHomeRuns(sheetId, markerId) {

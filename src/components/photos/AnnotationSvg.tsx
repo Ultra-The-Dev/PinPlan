@@ -1,20 +1,23 @@
 "use client";
 // Photo mark-up drawn as SVG over the photo (same look as drawAnnotations on canvas).
+import { useId } from "react";
 import type { PhotoShape } from "@/lib/types";
 
 export default function AnnotationSvg({ shapes, w, h, className = "" }: { shapes: PhotoShape[]; w: number; h: number; className?: string }) {
   const side = Math.max(w, h);
+  // One filter per drawing (ids are page-wide), so each photo gets a halo sized to it.
+  const halo = `halo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={`pointer-events-none absolute inset-0 h-full w-full ${className}`} aria-hidden>
       <defs>
-        <filter id="halo" x="-20%" y="-20%" width="140%" height="140%">
+        <filter id={halo} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="0" stdDeviation={side * 0.003} floodColor="#000" floodOpacity="0.5" />
         </filter>
       </defs>
       {shapes.map((s, i) => {
         const lw = Math.max(1, s.width * side);
         const p = s.points.map((v, j) => (j % 2 ? v * h : v * w));
-        const common = { stroke: s.color, strokeWidth: lw, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, filter: "url(#halo)" };
+        const common = { stroke: s.color, strokeWidth: lw, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, filter: `url(#${halo})` };
         if (s.kind === "pen") return <polyline key={i} points={p.join(" ")} {...common} />;
         if (s.kind === "rect")
           return <rect key={i} x={Math.min(p[0], p[2])} y={Math.min(p[1], p[3])} width={Math.abs(p[2] - p[0])} height={Math.abs(p[3] - p[1])} {...common} />;
@@ -25,7 +28,7 @@ export default function AnnotationSvg({ shapes, w, h, className = "" }: { shapes
           const head = lw * 4.5;
           const tip = `${p[2]},${p[3]} ${p[2] - head * Math.cos(a - 0.45)},${p[3] - head * Math.sin(a - 0.45)} ${p[2] - head * Math.cos(a + 0.45)},${p[3] - head * Math.sin(a + 0.45)}`;
           return (
-            <g key={i} filter="url(#halo)">
+            <g key={i} filter={`url(#${halo})`}>
               <line x1={p[0]} y1={p[1]} x2={p[2] - Math.cos(a) * head * 0.6} y2={p[3] - Math.sin(a) * head * 0.6} stroke={s.color} strokeWidth={lw} strokeLinecap="round" />
               <polygon points={tip} fill={s.color} />
             </g>

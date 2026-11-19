@@ -365,7 +365,6 @@ final class CloudSync {
         let tok = try await token()
         // The job must be on the server first (proposals belong to a synced job).
         await syncNow()
-        for id in withdraw { try await client.patch("proposals", filter: "id=eq.\(id)", values: ["status": "revoked", "updated_at": isoNow()], token: tok) }
         var urls: [String: String] = [:]
         for (i, (sheetId, data)) in images.sorted(by: { $0.key < $1.key }).enumerated() {
             progress("Uploading plan \(i + 1) of \(images.count)…")
@@ -377,6 +376,8 @@ final class CloudSync {
         let snap = build(urls)
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(snap))
         _ = try await client.insert("proposals", row: ["id": link, "project_id": projectId, "snapshot": json, "valid_until": snap.validUntil.map { $0 as Any } ?? NSNull()], token: tok)
+        // Earlier open links are withdrawn only now that the new one exists (a failed publish leaves the client's link working).
+        for id in withdraw { try? await client.patch("proposals", filter: "id=eq.\(id)", values: ["status": "revoked", "updated_at": isoNow()], token: tok) }
     }
 
     /// Upload a file anyone with the link can open (under this account's folder) and return its address.

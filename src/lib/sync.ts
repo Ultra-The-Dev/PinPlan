@@ -93,8 +93,11 @@ async function push(): Promise<void> {
     if (!items?.length) continue;
     if (table === "images") {
       for (const it of items) {
-        await pushImage(it.rowId);
-        await db().syncQueue.bulkDelete(snapshot.filter((s) => s.table === "images" && s.rowId === it.rowId).map((s) => s.seq!));
+        // Not referenced yet (e.g. a photo whose row is still being written): keep it queued for the next sync,
+        // unless it has been orphaned for a day.
+        const done = await pushImage(it.rowId);
+        const stale = Date.now() - new Date(it.queuedAt).getTime() > 86_400_000;
+        if (done || stale) await db().syncQueue.bulkDelete(snapshot.filter((s) => s.table === "images" && s.rowId === it.rowId).map((s) => s.seq!));
       }
       continue;
     }
@@ -120,17 +123,19 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   return doc?.projectId ?? null;
 }
 
-async function pushImage(imageId: string) {
+/** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
+async function pushImage(imageId: string): Promise<boolean> {
   const sb = getSupabase()!;
   const img = await db().images.get(imageId);
-  if (!img) return; // deleted locally
+  if (!img) return true; // deleted locally
   const projectId = await projectIdForImage(imageId);
-  if (!projectId) return; // orphan image, nothing references it
+  if (!projectId) return false;
   const path = `${projectId}/${imageId}`;
   const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, img.blob, { upsert: true, contentType: img.mime || "image/jpeg" });
   if (error) throw new Error(`upload ${path}: ${error.message}`);
   const { error: e2 } = await sb.from("sheets").update({ image_path: path }).eq("image_id", imageId);
   if (e2) throw new Error(`sheets.image_path: ${e2.message}`);
+  return true;
 }
 
 // ---------------- pull ----------------

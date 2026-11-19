@@ -273,7 +273,7 @@ struct LogEditor: View {
     }
 
     var body: some View {
-        let dayPhotos = model.bundle.livePhotos.filter { FieldDocs.localDay($0.takenAt) == log.date }
+        let dayPhotos = model.bundle.livePhotos.filter { FieldDocs.localDay($0.takenAt) == log.date || (log.photoIds ?? []).contains($0.id) }
         let chosen = Set(log.photoIds ?? [])
         NavigationStack {
             Form {
@@ -305,7 +305,7 @@ struct LogEditor: View {
                         }
                     }
                     PhotoAddMenu(model: model, onAdded: { added in
-                        if let first = added.first { log.date = FieldDocs.localDay(first.takenAt) }
+                        // Keep the log's day; the photos are linked even if they were taken on another day.
                         log.photoIds = (log.photoIds ?? []) + added.map(\.id)
                     }) { Label("Add photos", systemImage: "camera") }
                 } header: { Text("Photos from this day") }

@@ -43,7 +43,8 @@ export default function TasksBoard() {
   const mineCount = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: me }).length : 0), [projects, checklists, today, me]);
 
   async function complete(t: OpenTask) {
-    const c = t.checklist;
+    // Read the checklist fresh: ticking two items quickly must not overwrite the first with a stale copy.
+    const c = (await db().checklists.get(t.checklist.id)) ?? t.checklist;
     await put("checklists", { ...c, items: c.items.map((i) => (i.id === t.item.id ? { ...i, done: true, doneBy: me, doneAt: nowIso() } : i)) });
     toast(`Done: ${t.item.text}`, "success");
     await load();

@@ -123,7 +123,8 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
     setBusy("Preparing…");
     try {
       // Older links for this job stop working; the client always sees the latest price.
-      for (const r of rows ?? []) if (r.status === "sent" || r.status === "viewed") await revokeProposal(r.id);
+      // The client's current link is withdrawn only once the new one is published (a failed publish leaves it working).
+      const open = (rows ?? []).filter((r) => r.status === "sent" || r.status === "viewed").map((r) => r.id);
       const row = await publishProposal({
         token,
         projectId: project.id,
@@ -138,6 +139,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
             title, message, validDays: n(validDays), detail, depositPct: n(deposit), images, origin: window.location.origin,
           }),
       });
+      for (const id of open) await revokeProposal(id).catch(() => undefined);
       setRows((rs) => [row, ...(rs ?? []).map((r) => (r.status === "sent" || r.status === "viewed" ? { ...r, status: "revoked" as const } : r))]);
       setForm(false);
       await copy(row.id);

@@ -95,3 +95,14 @@ describe("tasks and punch lists", () => {
     expect(CHECKLIST_TEMPLATES.some((t) => t.id === "punch")).toBe(true);
   });
 });
+
+describe("timeline and deleted photos", () => {
+  it("leaves out comments on deleted photos", () => {
+    const pr: Project = { id: "p", clientName: "", address: "", status: "estimate", billduDocs: [], createdAt: "2026-11-10T09:00:00.000Z", updatedAt: "2026-11-10T09:00:00.000Z" };
+    const live = { id: "a", projectId: "p", imageId: "ia", width: 1, height: 1, takenAt: "2026-11-19T10:00:00.000Z", createdAt: "2026-11-19T10:00:00.000Z", updatedAt: "2026-11-19T10:00:00.000Z" };
+    const gone = { ...live, id: "b", imageId: "ib", deleted: true };
+    const c = (id: string, photoId: string) => ({ id, projectId: "p", photoId, author: "Sam", text: `on ${photoId}`, createdAt: "2026-11-19T11:00:00.000Z", updatedAt: "2026-11-19T11:00:00.000Z" });
+    const ev = timeline({ project: pr, photos: [live, gone], photoComments: [c("1", "a"), c("2", "b")], checklists: [], jobLogs: [], documents: [] });
+    expect(ev.filter((e) => e.kind === "comment").map((e) => e.text)).toEqual(["Commented: “on a”"]);
+  });
+});

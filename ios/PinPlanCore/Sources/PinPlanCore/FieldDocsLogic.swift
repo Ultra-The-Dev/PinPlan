@@ -197,7 +197,8 @@ public enum FieldDocs {
             let latest = ps.max { $0.createdAt < $1.createdAt }!
             ev.append(Event(at: latest.createdAt, kind: .photos, text: "\(ps.count) photo\(ps.count == 1 ? "" : "s") added", who: latest.takenBy, photoIds: ps.map(\.id)))
         }
-        for c in b.photoComments where c.deleted != true {
+        let livePhotoIds = Set(b.photos.filter { $0.deleted != true }.map(\.id))
+        for c in b.photoComments where c.deleted != true && livePhotoIds.contains(c.photoId) {
             ev.append(Event(at: c.createdAt, kind: .comment, text: "Commented: “\(c.text.count > 80 ? String(c.text.prefix(80)) + "…" : c.text)”", who: c.author, photoIds: [c.photoId]))
         }
         for c in b.checklists where c.deleted != true {

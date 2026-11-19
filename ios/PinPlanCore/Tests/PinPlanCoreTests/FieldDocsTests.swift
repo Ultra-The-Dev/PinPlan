@@ -104,4 +104,13 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(json["assignee"] as? String, "Alex")
         XCTAssertEqual(json["due"] as? String, "2026-11-18")
     }
+
+    func testTimelineSkipsCommentsOnDeletedPhotos() {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        var live = Photo(projectId: "p", imageId: "ia", width: 1, height: 1); live.id = "a"
+        var gone = Photo(projectId: "p", imageId: "ib", width: 1, height: 1); gone.id = "b"; gone.deleted = true
+        b.photos = [live, gone]
+        b.photoComments = [PhotoComment(projectId: "p", photoId: "a", author: "Sam", text: "on a"), PhotoComment(projectId: "p", photoId: "b", author: "Sam", text: "on b")]
+        XCTAssertEqual(FieldDocs.timeline(b).filter { $0.kind == .comment }.map(\.text), ["Commented: “on a”"])
+    }
 }

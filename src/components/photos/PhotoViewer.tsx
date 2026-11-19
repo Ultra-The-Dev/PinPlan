@@ -48,6 +48,8 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      // While marking up, keys belong to the editor (don't switch photos or close and lose the drawing).
+      if (marking) return;
       if ((e.target as HTMLElement)?.closest("input,textarea,select")) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") setId(photos[Math.min(photos.length - 1, i + 1)]?.id ?? id);
@@ -55,7 +57,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [i, id, photos, onClose]);
+  }, [i, id, photos, onClose, marking]);
 
   if (!p) return null;
   const save = (patch: Partial<Photo>) => saveRow("photos", { ...p, ...patch });
@@ -290,7 +292,9 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
           shapes={p.annotations ?? []}
           onCancel={() => setMarking(false)}
           onSave={(shapes) => {
-            void save({ annotations: shapes.length ? shapes : null });
+            // Save onto the photo that was marked up, read fresh (not whatever is showing now).
+            const target = all.find((x) => x.id === p.id) ?? p;
+            void saveRow("photos", { ...target, annotations: shapes.length ? shapes : null });
             setMarking(false);
           }}
         />

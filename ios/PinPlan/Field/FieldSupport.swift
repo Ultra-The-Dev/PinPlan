@@ -112,7 +112,11 @@ enum PhotoImport {
     @MainActor
     static func make(data: Data, projectId: String, author: String, location: CLLocation?, store: Store) -> Photo? {
         guard let img = UIImage(data: data) else { return nil }
-        return make(image: img, exif: exif(data), projectId: projectId, author: author, location: location, store: store)
+        let ex = exif(data)
+        // A library photo gets the device's position only if it was just taken (same rule as the web app);
+        // otherwise an old picture would be stamped — and could place the job on the map — wherever the device is now.
+        let recent = ex.takenAt.flatMap(FieldDocs.date).map { abs($0.timeIntervalSinceNow) < 300 } ?? false
+        return make(image: img, exif: ex, projectId: projectId, author: author, location: recent ? location : nil, store: store)
     }
 
     @MainActor

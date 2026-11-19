@@ -252,7 +252,8 @@ struct PhotoDetails: View {
         do {
             let r = try await api.describePhoto(PhotoMarkup.render(img, shapes: p.annotations, maxSide: 1280), room: p.room, device: model.deviceName(p.markerId), existingTags: FieldDocs.tagOptions(model.bundle.livePhotos))
             model.updateRows([p.id], in: \.photos) { x in
-                if !r.caption.isEmpty { x.caption = r.caption }
+                // Keep a caption the installer wrote; only fill an empty one.
+                if !r.caption.isEmpty, (x.caption ?? "").trimmingCharacters(in: .whitespaces).isEmpty { x.caption = r.caption }
                 var tags = x.tags ?? []
                 for t in r.tags where !tags.contains(t) { tags.append(t) }
                 x.tags = tags

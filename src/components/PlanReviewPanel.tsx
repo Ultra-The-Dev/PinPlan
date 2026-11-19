@@ -61,7 +61,8 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
     const token = newToken();
     setBusy("Preparing…");
     try {
-      for (const r of rows ?? []) if (r.status === "sent" || r.status === "viewed") await revokeProposal(r.id);
+      // The client's current link is withdrawn only once the new one is published (a failed publish leaves it working).
+      const open = (rows ?? []).filter((r) => r.status === "sent" || r.status === "viewed").map((r) => r.id);
       const legend = buildLegend(takeoff, catalog, (d) => symbolDataUrl(d, 64));
       const row = await publishProposal({
         token,
@@ -91,6 +92,7 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
             origin: window.location.origin,
           }),
       });
+      for (const id of open) await revokeProposal(id).catch(() => undefined);
       setRows((rs) => [row, ...(rs ?? []).map((r) => (r.status === "sent" || r.status === "viewed" ? { ...r, status: "revoked" as const } : r))]);
       setForm(false);
       await copy(row.id);

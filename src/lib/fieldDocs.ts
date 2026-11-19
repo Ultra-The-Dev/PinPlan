@@ -234,7 +234,9 @@ export function timeline(input: {
     const latest = ps.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
     ev.push({ at: latest.createdAt, kind: "photos", text: `${ps.length} photo${ps.length === 1 ? "" : "s"} added`, who: latest.takenBy, photoIds: ps.map((p) => p.id) });
   }
-  for (const c of input.photoComments.filter((x) => !x.deleted))
+  // Comments on deleted photos (e.g. older data) are left out.
+  const livePhotos = new Set(input.photos.filter((x) => !x.deleted).map((x) => x.id));
+  for (const c of input.photoComments.filter((x) => !x.deleted && livePhotos.has(x.photoId)))
     ev.push({ at: c.createdAt, kind: "comment", text: `Commented: “${c.text.length > 80 ? c.text.slice(0, 80) + "…" : c.text}”`, who: c.author, photoIds: [c.photoId], refId: c.photoId });
   for (const c of input.checklists.filter((x) => !x.deleted)) {
     ev.push({ at: c.createdAt, kind: "checklist", text: `Checklist started: ${c.name}`, refId: c.id });

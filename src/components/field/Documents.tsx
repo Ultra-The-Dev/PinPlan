@@ -71,10 +71,19 @@ export default function Documents() {
               <button
                 className="btn btn-sm"
                 onClick={async () => {
+                  // Open the tab inside the click (Safari/iPad block windows opened after an await), then fill it in.
+                  const viewable = d.mime === "application/pdf" || d.mime.startsWith("image/");
+                  const win = viewable ? window.open("", "_blank") : null;
                   const rec = await db().images.get(d.fileId);
-                  if (!rec) return toast("This file hasn't downloaded to this device yet — try again after sync.", "info");
-                  if (d.mime === "application/pdf" || d.mime.startsWith("image/")) window.open(URL.createObjectURL(rec.blob), "_blank");
-                  else downloadBlob(rec.blob, d.name);
+                  if (!rec) {
+                    win?.close();
+                    return toast("This file hasn't downloaded to this device yet — try again after sync.", "info");
+                  }
+                  if (win) {
+                    const url = URL.createObjectURL(rec.blob);
+                    win.location.href = url;
+                    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                  } else downloadBlob(rec.blob, d.name);
                 }}
               >
                 <Download /> Open
