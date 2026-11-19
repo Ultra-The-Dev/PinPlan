@@ -2,17 +2,19 @@ import SwiftUI
 import PinPlanCore
 
 enum ProjectTab: String, CaseIterable, Identifiable {
-    case plan, sheets, takeoff, estimate, crew, job
+    case plan, photos, field, sheets, takeoff, estimate, crew, job
     var id: String { rawValue }
     var title: String { rawValue == "job" ? "Job" : rawValue.capitalized }
     var icon: String {
         switch self {
         case .plan: return "mappin.and.ellipse"
         case .sheets: return "doc.on.doc"
-        case .takeoff: return "checklist"
+        case .takeoff: return "list.number"
         case .estimate: return "dollarsign.square"
         case .crew: return "wrench.and.screwdriver"
         case .job: return "info.circle"
+        case .photos: return "camera"
+        case .field: return "checklist.checked"
         }
     }
 }
@@ -49,7 +51,7 @@ struct ProjectView: View {
                                     ForEach(ProjectTab.allCases) { t in Text(t.title).tag(t) }   // words, not icon-only segments
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(maxWidth: 620)
+                                .frame(maxWidth: 760)
                             }
                         }
                 }
@@ -94,6 +96,8 @@ struct ProjectView: View {
         case .estimate: EstimateView(model: model)
         case .crew: CrewView(model: model)
         case .job: JobView(model: model)
+        case .photos: PhotosView(model: model)
+        case .field: FieldView(model: model)
         }
     }
 }

@@ -387,6 +387,21 @@ final class CloudSync {
         return client.publicURL(bucket: "proposals", path: full)
     }
 
+    /// Save a photo report the client can open at /r?t=<token> (photos already uploaded with `uploadPublic`).
+    func publishPhotoReport(token link: String, projectId: String, snapshot: [String: Any]) async throws {
+        guard let client else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        await syncNow()   // the report belongs to a synced job
+        do {
+            _ = try await client.insert("photo_reports", row: ["id": link, "project_id": projectId, "snapshot": snapshot], token: try await token())
+        } catch {
+            let m = error.localizedDescription
+            if m.contains("does not exist") || m.contains("schema cache") {
+                throw SupabaseClient.Failure(message: "Photo reports aren't set up in Supabase yet — run supabase/migrations/20261119000000_field_docs.sql in the SQL editor.")
+            }
+            throw error
+        }
+    }
+
     func withdrawProposal(_ id: String) async throws {
         guard let client else { return }
         try await client.patch("proposals", filter: "id=eq.\(id)", values: ["status": "revoked", "updated_at": isoNow()], token: try await token())

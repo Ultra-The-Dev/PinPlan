@@ -116,6 +116,7 @@ private struct MarkerForm: View {
                 photo = nil
             }
         }
+        MarkerJobPhotos(model: model, marker: marker)
         SelectMoreSection(model: model, marker: marker)
         Section {
             Button {
@@ -195,5 +196,32 @@ private struct ClosetForm: View {
         Section {
             Button(role: .destructive) { model.deleteSelection() } label: { Label("Delete closet", systemImage: "trash") }
         }
+    }
+}
+
+/// Site photos linked to this device (from the Photos tab or taken here), CompanyCam-style.
+private struct MarkerJobPhotos: View {
+    let model: EditorModel
+    let marker: Marker
+    @State private var viewer: PhotoViewerItem?
+    var body: some View {
+        let photos = model.bundle.livePhotos.filter { $0.markerId == marker.id }
+        Section {
+            if !photos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(photos) { p in
+                            Button { viewer = PhotoViewerItem(ids: photos.map(\.id), start: p.id) } label: { PhotoThumb(photo: p, size: 64) }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            PhotoAddMenu(model: model, extra: { p in
+                p.markerId = marker.id
+                p.sheetId = marker.sheetId
+                if !marker.room.isEmpty { p.room = marker.room }
+            }) { Label("Add site photo", systemImage: "camera") }
+        } header: { Text("Site photos (\(photos.count))").textCase(nil) }
+        .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
     }
 }

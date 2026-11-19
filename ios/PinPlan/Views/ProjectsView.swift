@@ -6,6 +6,7 @@ struct ProjectsView: View {
     @Environment(AppModel.self) private var app
     @State private var search = ""
     @State private var status: ProjectStatus?
+    @State private var label: String?
     @State private var showNew = false
     @State private var showSettings = false
     @State private var showProducts = false
@@ -22,7 +23,8 @@ struct ProjectsView: View {
     private var filtered: [ProjectBundle] {
         app.projects.filter { b in
             (status == nil || b.project.status == status) &&
-            (search.isEmpty || "\(b.project.address) \(b.project.clientName)".localizedCaseInsensitiveContains(search))
+            (label == nil || (b.project.labels ?? []).contains(label!)) &&
+            (search.isEmpty || "\(b.project.address) \(b.project.clientName) \((b.project.labels ?? []).joined(separator: " "))".localizedCaseInsensitiveContains(search))
         }
     }
 
@@ -39,6 +41,22 @@ struct ProjectsView: View {
                         }
                         .pickerStyle(.segmented)
                         .frame(maxWidth: 480)
+                        let labels = Array(Set(app.projects.flatMap { $0.project.labels ?? [] })).sorted()
+                        if !labels.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(labels, id: \.self) { l in
+                                        let on = label == l
+                                        Button { label = on ? nil : l } label: {
+                                            Label(l, systemImage: "tag").font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
+                                                .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
+                                                .foregroundStyle(on ? .white : .primary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 16)], spacing: 16) {
                             ForEach(filtered, id: \.project.id) { b in
                                 NavigationLink(value: b.project.id) { ProjectCard(bundle: b) }
@@ -171,7 +189,7 @@ private struct ProjectCard: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 Group {
-                    if let id = bundle.liveSheets.first?.imageId, let img = app.store.image(id) {
+                    if let id = bundle.liveSheets.first?.imageId ?? bundle.livePhotos.first?.imageId, let img = app.store.image(id) {
                         Image(uiImage: img).resizable().scaledToFill()
                     } else {
                         Image(systemName: "doc.richtext").font(.largeTitle).foregroundStyle(.tertiary).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -184,7 +202,10 @@ private struct ProjectCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.address.isEmpty ? "Untitled job" : p.address).font(.headline).lineLimit(1)
                 Text(p.clientName.isEmpty ? "No client" : p.clientName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                Text(summary(sheets: bundle.liveSheets.count, devices: bundle.liveMarkers.count, led: led))
+                if let labels = p.labels, !labels.isEmpty {
+                    Text(labels.joined(separator: " · ")).font(.caption.weight(.semibold)).foregroundStyle(Color.accentColor).lineLimit(1)
+                }
+                Text(summary(sheets: bundle.liveSheets.count, devices: bundle.liveMarkers.count, led: led, photos: bundle.livePhotos.count))
                     .font(.footnote).foregroundStyle(.secondary).monospacedDigit().padding(.top, 6)
             }
             .padding(14)
@@ -194,8 +215,9 @@ private struct ProjectCard: View {
         .shadow(color: .black.opacity(0.07), radius: 10, y: 4)
     }
 
-    private func summary(sheets: Int, devices: Int, led: Double) -> String {
+    private func summary(sheets: Int, devices: Int, led: Double, photos: Int) -> String {
         var parts = ["\(sheets) sheet\(sheets == 1 ? "" : "s")", "\(devices) device\(devices == 1 ? "" : "s")"]
+        if photos > 0 { parts.append("\(photos) photo\(photos == 1 ? "" : "s")") }
         if led > 0 { parts.append("\(led.clean) LF LED") }
         return parts.joined(separator: " · ")
     }

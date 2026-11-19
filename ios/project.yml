@@ -47,8 +47,9 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_NSCameraUsageDescription: "PinPlan uses the camera to scan paper plans and photograph device locations."
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PinPlan imports plan photos from your library."
+        INFOPLIST_KEY_NSCameraUsageDescription: "PinPlan uses the camera to scan paper plans and take job photos."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PinPlan imports plan photos and job photos from your library."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "PinPlan stamps job photos with where they were taken and puts the job on the map. You can turn this off in Photos."
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

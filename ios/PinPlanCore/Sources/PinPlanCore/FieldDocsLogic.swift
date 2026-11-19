@@ -46,6 +46,33 @@ public enum FieldDocs {
         ]),
     ]
 
+    /// "2026-11-19T15:04:00.000Z" → Date (with or without fractional seconds).
+    public static func date(_ iso: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: iso) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: iso)
+    }
+
+    /// The local calendar day (YYYY-MM-DD) of an ISO timestamp — how photos and logs are grouped.
+    public static func localDay(_ iso: String, timeZone: TimeZone = .current) -> String {
+        guard let d = date(iso) else { return String(iso.prefix(10)) }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = timeZone
+        let c = cal.dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// Photos grouped by local day, newest day first.
+    public static func byDay(_ photos: [Photo], timeZone: TimeZone = .current) -> [(day: String, photos: [Photo])] {
+        let groups = Dictionary(grouping: photos) { localDay($0.takenAt, timeZone: timeZone) }
+        return groups.keys.sorted(by: >).map { k in (k, groups[k]!.sorted { $0.takenAt > $1.takenAt }) }
+    }
+
+    /// Job labels (same list as the web app's Job tab).
+    public static let suggestedLabels = ["Pre-wire", "Trim-out", "Service call", "Waiting on GC", "Waiting on client", "Punch list", "Warranty", "Commercial"]
+
     public static let suggestedTags = ["Pre-wire", "Trim-out", "Rack", "Camera", "Wi-Fi", "Audio", "TV", "Lighting", "Issue", "Damage", "Before", "After", "Completed"]
 
     public static func checklist(from t: Template, projectId: String) -> Checklist {

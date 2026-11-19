@@ -36,6 +36,11 @@ struct APIClient {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
+    /// POST JSON to the server and decode the reply (used by the photo AI helpers).
+    func postJSON<T: Decodable>(_ path: String, body: [String: Any], as type: T.Type) async throws -> T {
+        try await post(path, body: body, as: type)
+    }
+
     // MARK: Connection check
 
     /// What the server reports about itself; feature flags only arrive once the access code is accepted.

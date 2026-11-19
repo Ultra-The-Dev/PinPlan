@@ -125,3 +125,43 @@ public struct JobDocument: Codable, Hashable, Identifiable, Sendable {
         let now = isoNow(); createdAt = now; updatedAt = now
     }
 }
+
+/// A synced field-docs row: saved with a fresh `updatedAt`, removed by soft delete.
+public protocol FieldRow: Identifiable where ID == String {
+    var updatedAt: String { get set }
+    var deleted: Bool? { get set }
+}
+extension Photo: FieldRow {}
+extension PhotoComment: FieldRow {}
+extension Checklist: FieldRow {}
+extension JobLog: FieldRow {}
+extension JobDocument: FieldRow {}
+
+extension ProjectBundle {
+    /// Insert or replace a row (by id) and stamp it.
+    public mutating func save<T: FieldRow>(_ row: T, in list: WritableKeyPath<ProjectBundle, [T]>) {
+        var r = row
+        r.updatedAt = isoNow()
+        if let i = self[keyPath: list].firstIndex(where: { $0.id == r.id }) { self[keyPath: list][i] = r } else { self[keyPath: list].append(r) }
+        // The first photo with GPS places the job on the map.
+        if let p = r as? Photo, project.lat == nil, let lat = p.lat, let lng = p.lng { project.lat = lat; project.lng = lng; project.updatedAt = isoNow() }
+    }
+
+    /// Change rows in place (e.g. tag several photos).
+    public mutating func update<T: FieldRow>(_ ids: Set<String>, in list: WritableKeyPath<ProjectBundle, [T]>, _ change: (inout T) -> Void) {
+        let now = isoNow()
+        for i in self[keyPath: list].indices where ids.contains(self[keyPath: list][i].id) {
+            change(&self[keyPath: list][i])
+            self[keyPath: list][i].updatedAt = now
+        }
+    }
+
+    /// Soft-delete rows; deleting photos also removes their comments.
+    public mutating func remove<T: FieldRow>(_ ids: Set<String>, in list: WritableKeyPath<ProjectBundle, [T]>) {
+        update(ids, in: list) { $0.deleted = true }
+        if T.self == Photo.self {
+            let cids = Set(photoComments.filter { ids.contains($0.photoId) && $0.deleted != true }.map(\.id))
+            update(cids, in: \.photoComments) { $0.deleted = true }
+        }
+    }
+}
