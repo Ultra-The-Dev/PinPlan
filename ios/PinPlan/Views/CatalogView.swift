@@ -27,7 +27,7 @@ struct CatalogView: View {
                     Label("Only the office can change the catalog.", systemImage: "lock").font(.callout).foregroundStyle(.secondary)
                 }
             }
-            ForEach(Catalog.categories, id: \.id) { cat in
+            ForEach(Trades.allCategories(for: app.trades), id: \.id) { cat in
                 let types = app.catalog.filter { $0.category == cat.id && (showArchived || $0.archived != true) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
                     .sorted { $0.sort < $1.sort }
                 if !types.isEmpty {
@@ -83,6 +83,13 @@ private struct DeviceTypeEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State var type: DeviceType
 
+    /// Wire types for the company's trades (low voltage: the original list), "None" and the type's own.
+    private var wireChoices: [String] {
+        var list: [String] = app.trades.contains(.lowvoltage) ? Catalog.wireTypes : []
+        for w in Trades.wireTypes(for: app.trades) + ["None", type.defaultWire] where !list.contains(w) { list.append(w) }
+        return list
+    }
+
     var body: some View {
         NavigationStack {
             SentenceForm {
@@ -93,7 +100,7 @@ private struct DeviceTypeEditor: View {
                         Spacer()
                     }
                     TextField("Name", text: $type.name)
-                    Picker("Category", selection: $type.category) { ForEach(Catalog.categories, id: \.id) { Text($0.name).tag($0.id) } }
+                    Picker("Category", selection: $type.category) { ForEach(Trades.allCategories(for: app.trades), id: \.id) { Text($0.name).tag($0.id) } }
                     Picker("Measured as", selection: Binding(get: { type.unit }, set: { type.unit = $0; type.kind = $0 == .LF ? .led : .device })) {
                         Text("Each (tap to place)").tag(MeasureUnit.each)
                         Text("Linear feet (draw a run)").tag(MeasureUnit.LF)
@@ -135,7 +142,7 @@ private struct DeviceTypeEditor: View {
                     ColorPicker("Color", selection: Binding(get: { Color(hex: type.color) }, set: { type.color = $0.hexString }))
                 }
                 Section(sentence: "Defaults") {
-                    Picker("Wire", selection: $type.defaultWire) { ForEach(Catalog.wireTypes, id: \.self) { Text($0).tag($0) } }
+                    Picker("Wire", selection: $type.defaultWire) { ForEach(wireChoices, id: \.self) { Text($0).tag($0) } }
                     Picker("Mount", selection: $type.defaultMount) { ForEach(Mount.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
                 }
                 Section {

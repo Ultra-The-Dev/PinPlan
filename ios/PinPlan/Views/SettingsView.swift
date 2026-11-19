@@ -43,6 +43,11 @@ struct SettingsView: View {
                      : "Give your office staff and technicians their own sign-in. Technicians don't see prices.")
             }
             Section {
+                NavigationLink { TradeSettingsView() } label: {
+                    LabeledContent {
+                        Text(app.trades.map { Trades.pack($0).short }.joined(separator: " + "))
+                    } label: { Label("Trades", systemImage: "wrench.and.screwdriver") }
+                }
                 NavigationLink { BusinessSettingsView() } label: {
                     LabeledContent {
                         Text(app.settings.business.name.isEmpty ? "Add your details" : app.settings.business.name)
@@ -227,7 +232,7 @@ struct WireSettingsView: View {
             } footer: { Text("Home-run length is the path to the closet, plus floor heights, slack and the extra per run") }
             if app.cloud.can(.prices) {
                 Section(sentence: "Price per foot") {
-                    ForEach(Catalog.wireTypes.filter { $0 != "None" }, id: \.self) { w in
+                    ForEach(Trades.wireTypes(for: app.trades), id: \.self) { w in
                         LabeledContent(w) {
                             DoubleField(value: Binding(get: { app.settings.pricing.wirePrices[w] ?? 0 }, set: { app.settings.pricing.wirePrices[w] = $0 }))
                         }

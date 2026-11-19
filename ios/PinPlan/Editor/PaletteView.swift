@@ -20,9 +20,10 @@ struct PaletteView: View {
                     TextField("Find a device type", text: $query)
                 } icon: { Image(systemName: "magnifyingglass") }
             }
-            ForEach(Catalog.categories, id: \.id) { cat in
-                let types = app.liveCatalog.filter { $0.category == cat.id && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
-                let closets = cat.id == .infrastructure ? Catalog.closetKinds.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) } : []
+            // Sections, closets and run naming follow the company's trades (low voltage: as before).
+            ForEach(sections, id: \.id) { cat in
+                let types = app.liveCatalog.filter { $0.category == cat.id && Trades.typeVisible($0, for: app.trades) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
+                let closets = closetKinds(in: cat.id)
                 if !types.isEmpty || !closets.isEmpty {
                     Section {
                         ForEach(types) { t in row(for: t) }
@@ -37,15 +38,30 @@ struct PaletteView: View {
                     }
                 }
             }
-            if query.isEmpty || "wire run".localizedCaseInsensitiveContains(query) {
-                Section(sentence: "Wiring") {
-                    toolRow(.wire, title: "Wire run", subtitle: "device → closet", count: 0) {
+            if query.isEmpty || vocab.run.localizedCaseInsensitiveContains(query) {
+                Section(sentence: vocab.run == "Wire run" ? "Wiring" : vocab.runs) {
+                    toolRow(.wire, title: vocab.run, subtitle: vocab.runHint, count: 0) {
                         Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(.blue).frame(width: 28, height: 28)
                     }
                 }
             }
         }
         .listStyle(.sidebar)
+    }
+
+    private var vocab: TradeVocab { Trades.vocab(for: app.trades) }
+
+    /// The company's categories, plus an "Equipment" section for closet kinds whose category isn't one of them.
+    private var sections: [CategoryInfo] {
+        var list = Trades.categories(for: app.trades)
+        if let orphan = Trades.closetKinds(for: app.trades).first(where: { k in !list.contains { $0.id == k.category } }) {
+            list.append(CategoryInfo(id: orphan.category, name: "Equipment", color: orphan.color))
+        }
+        return list
+    }
+
+    private func closetKinds(in category: Category) -> [Catalog.ClosetInfo] {
+        Trades.closetKinds(for: app.trades).filter { $0.category == category && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
     }
 
     @ViewBuilder

@@ -51,7 +51,7 @@ struct BulkInspectorView: View {
                     }
                 }
                 Menu {
-                    ForEach(Catalog.wireTypes.filter { $0 != "None" && !cables.contains($0) }, id: \.self) { w in
+                    ForEach(Trades.wireTypes(for: app.trades).filter { !cables.contains($0) }, id: \.self) { w in
                         Button(w) { let list = cables + [w]; model.bulkEdit(ids) { $0.setCables(list) } }
                     }
                 } label: { Label("Add cable", systemImage: "plus") }

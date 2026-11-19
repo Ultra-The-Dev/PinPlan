@@ -162,6 +162,33 @@ final class AppModel {
 
     func saveSettings() { store.saveSettings(settings) }
 
+    // MARK: trades
+
+    /// The company's trades, primary first (nothing set = low voltage).
+    var trades: [TradeId] { Trades.normalize(settings.trades) }
+
+    /// Set the trades. Newly enabled trades add their starting catalog and wire prices; nothing is replaced or deleted.
+    /// Returns how many catalog items were added.
+    @discardableResult
+    func setTrades(_ list: [TradeId], addPacks: Bool = true) -> Int {
+        let before = trades
+        let next = Trades.normalize(list)
+        var added = 0
+        if addPacks {
+            for t in next where !before.contains(t) {
+                let add = Trades.packAdditions(t, catalog: catalog, wirePrices: settings.pricing.wirePrices, now: isoNow())
+                for d in add.types + add.unarchive {
+                    updateCatalog(d)
+                    added += 1
+                }
+                for (w, p) in add.wirePrices where settings.pricing.wirePrices[w] == nil { settings.pricing.wirePrices[w] = p }
+            }
+        }
+        settings.trades = next.map(\.rawValue)
+        saveSettings()
+        return added
+    }
+
     /// The company's saved checklist templates (cleaned up).
     var checklistTemplates: [ChecklistTemplate] { FieldDocs.normalizeTemplates(settings.checklistTemplates) }
 

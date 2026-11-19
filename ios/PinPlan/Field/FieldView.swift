@@ -84,7 +84,7 @@ struct ChecklistsView: View {
                         }
                     }
                     Section("Built in") {
-                        ForEach(FieldDocs.templates) { t in
+                        ForEach(Trades.checklists(for: app.trades)) { t in
                             Button(t.name) {
                                 let c = FieldDocs.checklist(from: t, projectId: model.bundle.project.id)
                                 model.saveRow(c, in: \.checklists)

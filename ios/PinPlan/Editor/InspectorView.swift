@@ -72,7 +72,7 @@ private struct MarkerForm: View {
                 }
             }
             Menu {
-                ForEach(Catalog.wireTypes.filter { $0 != "None" && !marker.cables.contains($0) }, id: \.self) { w in
+                ForEach(Trades.wireTypes(for: app.trades).filter { !marker.cables.contains($0) }, id: \.self) { w in
                     Button(w) { update { $0.setCables($0.cables + [w]) } }
                 }
             } label: { Label("Add cable", systemImage: "plus") }
@@ -142,6 +142,14 @@ private struct RunForm: View {
 
     private func update(_ change: @escaping (inout Run) -> Void) { model.edit { $0.updateRun(run.id, change) } }
 
+    /// The company's wire types, plus the run's own if it's from another trade.
+    private var runWireChoices: [String] {
+        var list = Trades.wireTypes(for: app.trades)
+        let w = run.wireType ?? "Cat6"
+        if !list.contains(w) { list.append(w) }
+        return list
+    }
+
     var body: some View {
         let len = Geometry.runLengthFt(run)
         Section {
@@ -168,7 +176,7 @@ private struct RunForm: View {
                 LabeledContent("Cables", value: Cables.summary(run.cables))
             } else if run.kind == .wire {
                 Picker("Wire", selection: Binding(get: { run.wireType ?? "Cat6" }, set: { v in update { $0.wireType = v } })) {
-                    ForEach(Catalog.wireTypes, id: \.self) { Text($0).tag($0) }
+                    ForEach(runWireChoices, id: \.self) { Text($0).tag($0) }
                 }
             }
             Toggle("Tentative (?)", isOn: Binding(get: { run.tentative == true }, set: { v in update { $0.tentative = v } })).tint(.orange)
@@ -180,8 +188,16 @@ private struct RunForm: View {
 }
 
 private struct ClosetForm: View {
+    @Environment(AppModel.self) private var app
     let model: EditorModel
     let closet: Closet
+
+    /// The company's closet kinds, plus this closet's own kind if it's from another trade.
+    private var kindChoices: [Catalog.ClosetInfo] {
+        var list = Trades.closetKinds(for: app.trades)
+        if !list.contains(where: { $0.id == closet.kind }) { list.append(Catalog.closetInfo(closet.kind)) }
+        return list
+    }
 
     var body: some View {
         Section {
@@ -189,7 +205,7 @@ private struct ClosetForm: View {
                 CommitField(title: "Name", value: closet.name) { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.name = v } } }.multilineTextAlignment(.trailing)
             }
             Picker("Kind", selection: Binding(get: { closet.kind }, set: { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.kind = v } } })) {
-                ForEach(Catalog.closetKinds, id: \.id) { Text($0.name).tag($0.id) }
+                ForEach(kindChoices, id: \.id) { Text($0.name).tag($0.id) }
             }
             LabeledContent("Devices home-run here", value: "\(model.bundle.liveMarkers.filter { $0.closetId == closet.id }.count)")
         }

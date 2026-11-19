@@ -148,7 +148,7 @@ struct PlanReviewView: View {
         let est = b.estimate(catalog: catalog, products: app.products, pricing: model.pricing)
         busy = "Drawing plans…"
         let images = await Task.detached(priority: .userInitiated) { ClientProposalView.render(b, catalog: catalog, store: store) }.value
-        let legend = Legend.build(takeoff: takeoff, catalog: catalog) { Self.symbolPNG($0) }
+        let legend = Legend.build(takeoff: takeoff, catalog: catalog, icon: { Self.symbolPNG($0) }, trades: app.trades)
         let token = Proposals.newToken()
         let open = live.filter { $0.status == "sent" || $0.status == "viewed" }.map(\.id)
         let business = app.settings.business

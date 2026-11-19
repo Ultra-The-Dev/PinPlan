@@ -1,6 +1,9 @@
 import Foundation
 
-public struct CategoryInfo: Sendable { public let id: Category; public let name: String; public let color: String }
+public struct CategoryInfo: Sendable {
+    public let id: Category; public let name: String; public let color: String
+    public init(id: Category, name: String, color: String) { self.id = id; self.name = name; self.color = color }
+}
 
 public enum Catalog {
     public static let categories: [CategoryInfo] = [

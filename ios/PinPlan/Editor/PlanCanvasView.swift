@@ -99,7 +99,7 @@ struct PlanCanvasView: View {
 
                 // Closets
                 if model.closetsVisible {
-                    ForEach(model.bundle.liveClosets.filter { $0.sheetId == sheet.id }) { c in
+                    ForEach(model.bundle.liveClosets.filter { $0.sheetId == sheet.id && model.isVisible(kind: $0.kind) }) { c in
                         let p = dragging[c.id] ?? CGPoint(x: c.x, y: c.y)
                         ClosetBadge(closet: c, selected: model.selection == .closet(c.id))
                             .position(screen(p.x, p.y))

@@ -172,8 +172,9 @@ struct PlanEditorView: View {
             Button { model.fitRequest += 1 } label: { Label("Fit sheet", systemImage: "arrow.up.left.and.arrow.down.right") }
             Divider()
             Menu {
-                ForEach(Layer.allCases) { l in
-                    Toggle(Catalog.layerNames[l] ?? l.rawValue, isOn: Binding(get: { !model.hiddenLayers.contains(l) }, set: { on in
+                ForEach(Trades.layers(for: app.trades)) { info in
+                    let l = info.id
+                    Toggle(info.name, isOn: Binding(get: { !model.hiddenLayers.contains(l) }, set: { on in
                         if on { model.hiddenLayers.remove(l) } else { model.hiddenLayers.insert(l) }
                     }))
                 }
