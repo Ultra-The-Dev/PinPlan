@@ -15,6 +15,9 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | Photos organised by project, grouped by day | ✅ | Photos tab (day headers, "Select day") |
 | Tags (and filter by tag) | ✅ suggested + custom tags, multi-tag filter, bulk tag | Photos tab |
 | Filter by user / search captions | ✅ | Photos tab |
+| Filter by date range | ✅ From/To on the job's photos and the company feed | Photos tab, Photos feed |
+| Bulk edit selected photos | ✅ add/remove tag, set room, link to a device, delete (one undo step) | Photos → Select |
+| Upload status | ✅ "N photos waiting to upload" with Sync now (offline / signed-out aware) | Photos tab, Documents |
 | Captions / descriptions | ✅ | Photo viewer |
 | Company-wide photo feed across all jobs | ✅ | Web: header → **Photos** (`/photos`); iPad: Projects → **All photos** |
 | Project cover photo | ✅ falls back to the newest photo when a job has no plan | Jobs list |
@@ -35,8 +38,10 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | CompanyCam | PinPlan | Where |
 |---|---|---|
 | Comments on photos | ✅ | Viewer → Comments |
+| Turn a comment into a task | ✅ "Make task" adds it to the punch list (assignee, due date); the item links back to the photo | Viewer → Comments |
 | Team members on projects | ✅ (already existed: team access via Supabase membership) | Settings → Account |
 | Activity timeline / project feed | ✅ photos, comments, checklist items, logs, documents, Billdu docs | Job → **Field → Timeline** |
+| Timeline filters | ✅ by type, person and search, loads 100 at a time | Field → Timeline |
 | @mentions / push notifications | ➖ needs a push service; the timeline shows who did what |
 
 ## 4. Checklists
@@ -44,6 +49,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | CompanyCam | PinPlan | Where |
 |---|---|---|
 | Checklist templates | ✅ Pre-wire walkthrough, Trim-out, Equipment rack, Final walkthrough & handoff (+ blank) | Field → Checklists |
+| Company checklist templates | ✅ "Save as template" on any checklist; rename/delete in Settings | Checklists; Settings → Checklist templates |
 | Require a photo on an item | ✅ item isn't complete until it has one (amber warning if ticked without) | Checklist item camera button |
 | Who completed what, when | ✅ | Item subtitle + timeline |
 | Tasks / punch list: assign to a person, due date | ✅ any item can be assigned and dated; **Punch list** template | Item person icon (web) / swipe or long-press (iPad) |
@@ -55,6 +61,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 |---|---|---|
 | Daily logs with that day's photos | ✅ | Field → Daily logs |
 | AI-written daily log from photos | ✅ "Draft from photos" (Claude via the server) | `/api/photos/summary` |
+| Daily log PDF | ✅ one log or a date range, branded, with that day's photos | Field → Daily logs → Download PDF |
 | Daily log PDF (one log or a date range, with photos + mark-up) | ✅ web "Download PDF", iOS "Share PDF" | Field → Daily logs |
 | Documents/files on a project | ✅ any file up to 25 MB, synced | Field → Documents |
 
@@ -66,6 +73,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | Shareable report link for the client | ✅ `/r?t=…`, no login | Photo report → Share link |
 | Showcase / client gallery | ✅ the report link and plan review link |
 | Plan review for the client (PinPlan extra) | ✅ plans + legend, no prices; client approves or requests changes | Takeoff → Plan review / Send plan to client |
+| Client pins on the plan | ✅ when requesting changes the client drops numbered pins with notes; the installer sees them on the plans | Plan review link / Plan review panel |
 
 ## 7. AI
 
@@ -80,6 +88,8 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 |---|---|---|
 | Project labels / status filters | ✅ labels (suggested + custom), label filter on the jobs list | Job tab; jobs list |
 | Map of all projects | ✅ coloured by status (web: Leaflet/OpenStreetMap; iPad: Apple Maps) | Web: header → **Map**; iPad: Projects → **Jobs map** |
+| Map filters | ✅ status and label filters, job list beside the map | Map |
+| Job dashboard (PinPlan extra) | ✅ "Job health" card: devices, checklist %, open/overdue tasks, photos, last log, estimate; plus a "Next step" hint | Job tab |
 | Project location | ✅ from first GPS photo, "use my location", or a photo's location | Job tab |
 
 ## 9. Platform
