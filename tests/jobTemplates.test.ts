@@ -8,6 +8,7 @@ import {
   DUPLICATE_CHUNK,
   duplicateImageIds,
   duplicateJob,
+  estimateKeyRef,
   parseTemplatesFile,
   registerTemplatePart,
   templateParts,
@@ -342,6 +343,40 @@ describe("validateTemplate", () => {
       checklists: [{ name: "C", items: [{ text: "ok" }] }],
       estimateLines: [{ key: "custom:a" }],
     });
+  });
+
+  it("keeps only pricing fields the estimate understands", () => {
+    const v = validateTemplate({
+      project: { pricing: { markupPct: "30", taxPct: 8, laborMode: "weird", includeTentative: true, wirePrices: { Cat6: 0.4, Bad: "x" }, hack: 1 } },
+    });
+    expect(v.payload.project.pricing).toEqual({ taxPct: 8, includeTentative: true, wirePrices: { Cat6: 0.4 } });
+    expect(validateTemplate({ project: { pricing: { nope: 1 } } }).payload.project.pricing).toBeUndefined();
+  });
+
+  it("checks the product or device type behind every kind of estimate key", () => {
+    expect(estimateKeyRef("dev:cam")).toEqual({ type: "cam" });
+    expect(estimateKeyRef("optlabor:cam")).toEqual({ type: "cam" });
+    expect(estimateKeyRef("labor:prod:p1")).toEqual({ product: "p1" });
+    expect(estimateKeyRef("optprod:p1")).toEqual({ product: "p1" });
+    expect(estimateKeyRef("labor:wire:Cat6")).toBeNull();
+    expect(estimateKeyRef("wire:Cat6")).toBeNull();
+    expect(estimateKeyRef("closet:mdf")).toBeNull();
+    expect(estimateKeyRef("custom:x")).toBeNull();
+    const t = {
+      payload: {
+        version: 1 as const,
+        project: {},
+        checklists: [],
+        estimateLines: [
+          { key: "prod:gone", description: "Old camera", unitPrice: 5 },
+          { key: "labor:retired", description: "Labor — retired", unitPrice: 5 },
+          { key: "prod:p1", unitPrice: 7 },
+        ],
+      },
+    };
+    const r = applyTemplate(t, project({ id: "new" }), NOW, idGen(), { deviceTypeIds: new Set(["cam"]), productIds: new Set(["p1"]) });
+    expect(r.estimateLines.map((l) => l.key)).toEqual(["prod:p1"]);
+    expect(r.warnings).toHaveLength(2);
   });
 
   it("exports and imports templates with fresh ids", () => {

@@ -97,8 +97,34 @@ const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
 function compact<T extends Record<string, unknown>>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null)) as T;
 }
-const isComputedTypeKey = (key: string) => key.startsWith("dev:") || key.startsWith("opt:");
-const typeIdOf = (key: string) => key.slice(key.indexOf(":") + 1);
+// Estimate line keys that point at a product or a device type (src/lib/estimate.ts). Longest prefixes first.
+const PRODUCT_KEY_PREFIXES = ["labor:prod:", "optlabor:prod:", "prod:", "optprod:"];
+const TYPE_KEY_PREFIXES = ["dev:", "opt:", "labor:", "optlabor:"];
+
+/** What an estimate line key refers to: a product, a device type, or nothing to check (custom, wire, closet). */
+export function estimateKeyRef(key: string): { product: string } | { type: string } | null {
+  if (key.startsWith("labor:wire:")) return null;
+  for (const p of PRODUCT_KEY_PREFIXES) if (key.startsWith(p)) return { product: key.slice(p.length) };
+  for (const p of TYPE_KEY_PREFIXES) if (key.startsWith(p)) return { type: key.slice(p.length) };
+  return null;
+}
+
+const PRICING_NUMBERS = ["markupPct", "taxPct", "wireSlackPct", "wireDropFt", "floorHeightFt"] as const;
+
+/** Only the pricing fields the estimate understands, with the right types (templates can come from a file). */
+function cleanPricing(v: unknown): JobTemplatePayload["project"]["pricing"] {
+  if (!isObj(v)) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const k of PRICING_NUMBERS) if (num(v[k]) != null) out[k] = v[k];
+  if (v.laborMode === "combined" || v.laborMode === "separate") out.laborMode = v.laborMode;
+  if (typeof v.includeTentative === "boolean") out.includeTentative = v.includeTentative;
+  if (str(v.currency)) out.currency = v.currency;
+  if (isObj(v.wirePrices)) {
+    const wp = Object.fromEntries(Object.entries(v.wirePrices).filter(([k, x]) => !!k && num(x) != null));
+    if (Object.keys(wp).length) out.wirePrices = wp;
+  }
+  return Object.keys(out).length ? (out as JobTemplatePayload["project"]["pricing"]) : undefined;
+}
 
 // ---------------- capture ----------------
 
@@ -223,7 +249,7 @@ export function validateTemplate(raw: unknown): TemplateValidation {
     ? Object.fromEntries(Object.entries(p.productChoices).filter(([k, v]) => !!k && typeof v === "string" && !!v))
     : null;
   const project: JobTemplatePayload["project"] = compact({
-    pricing: isObj(p.pricing) ? (p.pricing as JobTemplatePayload["project"]["pricing"]) : undefined,
+    pricing: cleanPricing(p.pricing),
     productChoices: choices && Object.keys(choices).length ? (choices as Record<string, string>) : undefined,
     labels: strings(p.labels)?.length ? strings(p.labels) : undefined,
     notes: str(p.notes) ?? undefined,
@@ -270,13 +296,18 @@ export function buildChecklists(list: JobTemplateChecklist[], ctx: Pick<Template
 /** Estimate lines for a new job. Lines for device types this company no longer has are skipped with a warning. */
 export function buildEstimateLines(
   list: JobTemplateEstimateLine[],
-  ctx: Pick<TemplateApplyContext, "project" | "now" | "newId" | "includePrices" | "deviceTypeIds" | "warnings">,
+  ctx: Pick<TemplateApplyContext, "project" | "now" | "newId" | "includePrices" | "deviceTypeIds" | "productIds" | "warnings">,
 ): EstimateLine[] {
   const out: EstimateLine[] = [];
   const seen = new Set<string>();
   for (const l of list) {
-    if (isComputedTypeKey(l.key) && ctx.deviceTypeIds && !ctx.deviceTypeIds.has(typeIdOf(l.key))) {
+    const ref = estimateKeyRef(l.key);
+    if (ref && "type" in ref && ctx.deviceTypeIds && !ctx.deviceTypeIds.has(ref.type)) {
       ctx.warnings.push(`Skipped the estimate line “${l.description || l.key}”: its device type isn't in your catalog any more.`);
+      continue;
+    }
+    if (ref && "product" in ref && ctx.productIds && !ctx.productIds.has(ref.product)) {
+      ctx.warnings.push(`Skipped the estimate line “${l.description || l.key}”: that product was deleted.`);
       continue;
     }
     const price = ctx.includePrices ? (l.unitPrice ?? null) : null;

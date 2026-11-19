@@ -4,7 +4,7 @@
 import { Check, ChevronDown, Download, LayoutTemplate, Pencil, Trash, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { downloadBlob } from "@/lib/download";
-import { templatesFile, templateSummary } from "@/lib/jobTemplates";
+import { templatesFile, templateSummary, validateTemplate } from "@/lib/jobTemplates";
 import { deleteTemplate, importTemplates, updateTemplate, useJobTemplates } from "@/lib/jobTemplatesDb";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
@@ -17,7 +17,8 @@ function Row({ t }: { t: JobTemplate }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(t.name);
   const [description, setDescription] = useState(t.description ?? "");
-  const p = t.payload;
+  // Synced rows can come from another app version: show a normalised copy, never crash on its shape.
+  const p = validateTemplate(t.payload).payload;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();

@@ -15,6 +15,7 @@ import {
   type CaptureOptions,
   type DuplicateOptions,
 } from "./jobTemplates";
+import { getSupabase, PLANS_BUCKET } from "./supabase";
 import type { JobTemplate, Project } from "./types";
 
 export const TEMPLATES_EVENT = "pinplan:job-templates";
@@ -137,8 +138,18 @@ export async function duplicateJobInDb(projectId: string, opts: Omit<DuplicateOp
   const imageMap: Record<string, string> = {};
   for (const id of imageIds) {
     const img = await db().images.get(id);
-    // Not on this device (never downloaded): the copy points at the original image, which sync can still fetch.
     if (img) imageMap[id] = await saveImage(img.blob, img.width, img.height);
+    else {
+      // Not on this device yet (never downloaded): fetch it from the original job's cloud folder so the copy owns it.
+      // Offline or not uploaded: the copy points at the original image id (this device still shows it once it arrives).
+      const sheet = bundle.sheets.find((s) => s.imageId === id);
+      const blob = await getSupabase()
+        ?.storage.from(PLANS_BUCKET)
+        .download(`${projectId}/${id}`)
+        .then((r) => r.data)
+        .catch(() => null);
+      if (blob && sheet) imageMap[id] = await saveImage(blob, sheet.width, sheet.height);
+    }
     tick(1, "Copying plans…");
   }
 
