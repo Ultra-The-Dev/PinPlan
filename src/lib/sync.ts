@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
-import { dedupeQueue, PUSH_ORDER, remoteWins, TABLES, toLocal, toRemote } from "./syncMap";
+import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
 import type { Sheet } from "./types";
 
 export interface SyncStatus {
@@ -48,6 +48,8 @@ const TICK_MS = 15_000;
 let running: Promise<void> | null = null;
 let failures = 0;
 let nextAttemptAt = 0;
+/** Cloud tables/columns found missing during this sync (the latest migration hasn't been run on the project yet). */
+const schemaGaps = { tables: new Set<string>(), columns: new Map<string, Set<string>>() };
 
 function setStatus(p: Partial<SyncStatus>) {
   useSyncStatus.setState(p);
@@ -103,12 +105,28 @@ async function push(): Promise<void> {
     }
     const spec = TABLES[table];
     const rows = (await db().table(table).bulkGet(items.map((i) => i.rowId))).filter(Boolean) as Record<string, unknown>[];
-    for (let i = 0; i < rows.length; i += CHUNK) {
+    let skipped = false;
+    for (let i = 0; i < rows.length && !skipped; i += CHUNK) {
       const payload = rows.slice(i, i + CHUNK).map((r) => toRemote(table, r));
-      const { error } = await sb.from(spec.remote).upsert(payload, { onConflict: spec.conflict });
-      if (error) throw new Error(`${spec.remote}: ${error.message}`);
+      // The cloud database may be a migration behind: send what it has, and keep a missing table's rows queued.
+      for (;;) {
+        const { error } = await sb.from(spec.remote).upsert(withoutColumns(payload, schemaGaps.columns.get(spec.remote)), { onConflict: spec.conflict });
+        if (!error) break;
+        const gap = schemaGap(error);
+        const cols = schemaGaps.columns.get(spec.remote) ?? new Set<string>();
+        if (gap?.kind === "column" && !cols.has(gap.column) && gap.column in payload[0]) {
+          schemaGaps.columns.set(spec.remote, cols.add(gap.column));
+          continue;
+        }
+        if (gap?.kind === "table") {
+          schemaGaps.tables.add(spec.remote);
+          skipped = true;
+          break;
+        }
+        throw new Error(`${spec.remote}: ${error.message}`);
+      }
     }
-    await db().syncQueue.bulkDelete(seqsFor(table));
+    if (!skipped) await db().syncQueue.bulkDelete(seqsFor(table));
   }
 }
 
@@ -157,48 +175,72 @@ function setWatermark(userId: string, table: string, v: string) {
   }
 }
 
-async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: string[] }> {
+interface PullResult {
+  tables: Set<SyncTable>;
+  projectIds: Set<string>;
+}
+
+async function pull(userId: string, changed: PullResult): Promise<void> {
   const sb = getSupabase()!;
-  const changedTables = new Set<SyncTable>();
-  const projectIds = new Set<string>();
+  const changedTables = changed.tables;
+  const projectIds = changed.projectIds;
   const sheetsNeedingImages: { sheet: Sheet; path: string }[] = [];
   const filesNeeded: { id: string; path: string; width: number; height: number; mime: string }[] = [];
 
   for (const table of PUSH_ORDER) {
     const spec = TABLES[table];
-    let wm = getWatermark(userId, table);
+    if (schemaGaps.tables.has(spec.remote)) continue;
+    let cur = { since: pullStart(getWatermark(userId, table)), skip: 0 };
     for (;;) {
-      const { data, error } = await sb.from(spec.remote).select("*").gt("synced_at", wm).order("synced_at", { ascending: true }).limit(PAGE);
+      const { data, error } = await sb
+        .from(spec.remote)
+        .select("*")
+        .gte("synced_at", cur.since)
+        .order("synced_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(cur.skip, cur.skip + PAGE - 1);
+      if (error && schemaGap(error)?.kind === "table") {
+        schemaGaps.tables.add(spec.remote);
+        break;
+      }
       if (error) throw new Error(`pull ${spec.remote}: ${error.message}`);
       const rows = (data ?? []) as Record<string, unknown>[];
       if (!rows.length) break;
       const tbl = db().table(table);
-      const existing = (await tbl.bulkGet(rows.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
       const writes: Record<string, unknown>[] = [];
-      rows.forEach((raw, i) => {
-        const local = toLocal(table, raw);
-        const cur = existing[i];
-        if (!remoteWins(cur as { updatedAt?: string } | undefined, local as { updatedAt?: string })) return;
-        // Keep local-only fields.
-        if (table === "sheets" && cur?.imageUrl) local.imageUrl = cur.imageUrl;
-        writes.push(local);
+      // Read and write in one transaction so a local edit made meanwhile isn't overwritten by an older remote row.
+      await db().transaction("rw", tbl, async () => {
+        const existing = (await tbl.bulkGet(rows.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
+        rows.forEach((raw, i) => {
+          const local = toLocal(table, raw);
+          const have = existing[i];
+          if (!remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) return;
+          // Keep local-only fields.
+          if (table === "sheets" && have?.imageUrl) local.imageUrl = have.imageUrl;
+          writes.push(local);
+        });
+        if (writes.length) await tbl.bulkPut(writes);
+      });
+      // A sheet's image_path is set after its row was pushed (that bumps synced_at but not updated_at), so look at every
+      // pulled sheet, not only the rows that won: otherwise a plan image that finished uploading later is never fetched.
+      if (table === "sheets")
+        for (const raw of rows)
+          if (typeof raw.image_path === "string" && !raw.deleted) sheetsNeedingImages.push({ sheet: toLocal("sheets", raw) as unknown as Sheet, path: raw.image_path });
+      for (const local of writes) {
         if (typeof local.projectId === "string") projectIds.add(local.projectId);
         if (table === "projects") projectIds.add(local.id as string);
-        if (table === "sheets" && typeof raw.image_path === "string" && !local.deleted)
-          sheetsNeedingImages.push({ sheet: local as unknown as Sheet, path: raw.image_path });
         // Job photos and documents are stored at <project>/<file id>.
         if (table === "photos" && !local.deleted)
           filesNeeded.push({ id: String(local.imageId), path: `${local.projectId}/${local.imageId}`, width: Number(local.width) || 0, height: Number(local.height) || 0, mime: "image/jpeg" });
         if (table === "documents" && !local.deleted)
           filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream") });
-      });
-      if (writes.length) {
-        await tbl.bulkPut(writes);
-        changedTables.add(table);
       }
-      wm = String(rows[rows.length - 1].synced_at);
-      setWatermark(userId, table, wm);
-      if (rows.length < PAGE) break;
+      if (writes.length) changedTables.add(table);
+      const next = nextPullPage(cur, rows, PAGE);
+      cur = { since: next.since, skip: next.skip };
+      // Never move the saved watermark back (the lookback re-reads rows older than it).
+      if (!(Date.parse(cur.since) < Date.parse(getWatermark(userId, table)))) setWatermark(userId, table, cur.since);
+      if (next.done) break;
     }
   }
 
@@ -207,6 +249,8 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
     const { data, error } = await sb.storage.from(PLANS_BUCKET).download(path);
     if (error || !data) continue; // retried on the next pull of this sheet; image may still be uploading
     await db().images.put({ id: sheet.imageId, blob: data, width: sheet.width, height: sheet.height, mime: data.type || "image/jpeg" });
+    changedTables.add("sheets");
+    projectIds.add(sheet.projectId);
   }
 
   // Also retry files that weren't uploaded yet the last time (a few per sync).
@@ -215,6 +259,17 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
     if (!known.has(p.imageId)) filesNeeded.push({ id: p.imageId, path: `${p.projectId}/${p.imageId}`, width: p.width, height: p.height, mime: "image/jpeg" });
   for (const d of await db().documents.filter((x) => !x.deleted).toArray())
     if (!known.has(d.fileId)) filesNeeded.push({ id: d.fileId, path: `${d.projectId}/${d.fileId}`, width: 0, height: 0, mime: d.mime });
+  // Plan images whose download failed earlier (a pulled sheet is only looked at again when its row changes).
+  const sheetImages = new Map<string, string>();
+  const tried = new Set(sheetsNeedingImages.map((x) => x.sheet.imageId));
+  for (const sh of await db().sheets.filter((x) => !x.deleted && !!x.imageId).toArray())
+    if (!known.has(sh.imageId) && !tried.has(sh.imageId)) {
+      sheetImages.set(sh.imageId, sh.projectId);
+      filesNeeded.push({ id: sh.imageId, path: `${sh.projectId}/${sh.imageId}`, width: sh.width, height: sh.height, mime: "image/jpeg" });
+    }
+  // Device photos (marker.photoId) are uploaded to <project>/<image id> too, but were never fetched on other devices.
+  for (const m of await db().markers.filter((x) => !x.deleted && !!x.photoId).toArray())
+    if (!known.has(m.photoId!)) filesNeeded.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
   let tries = 0;
   for (const f of filesNeeded) {
     if (await db().images.get(f.id)) continue;
@@ -222,9 +277,19 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
     const { data, error } = await sb.storage.from(PLANS_BUCKET).download(f.path);
     if (error || !data) continue; // may still be uploading from the other device; retried on its next change
     await db().images.put({ id: f.id, blob: data, width: f.width, height: f.height, mime: data.type || f.mime });
+    const sheetProject = sheetImages.get(f.id);
+    if (sheetProject) {
+      changedTables.add("sheets");
+      projectIds.add(sheetProject);
+    }
   }
+}
 
-  return { tables: [...changedTables], projectIds: [...projectIds] };
+/** A note for the sync badge when the cloud database is behind the app (its rows stay queued, nothing is lost). */
+function schemaWarning(): string | null {
+  const parts = [...schemaGaps.tables, ...[...schemaGaps.columns].flatMap(([t, cols]) => [...cols].map((c) => `${t}.${c}`))];
+  if (!parts.length) return null;
+  return `Cloud database needs the latest migration (supabase/migrations) — not synced yet: ${parts.join(", ")}`;
 }
 
 // ---------------- orchestration ----------------
@@ -243,19 +308,23 @@ async function runSync(force = false): Promise<void> {
     if (!st.online || !st.signedIn || !st.userId) return;
     if (!force && Date.now() < nextAttemptAt) return;
     setStatus({ syncing: true });
+    schemaGaps.tables.clear();
+    schemaGaps.columns.clear();
+    const changed: PullResult = { tables: new Set(), projectIds: new Set() };
     try {
       await push();
-      const changed = await pull(st.userId);
+      await pull(st.userId, changed);
       failures = 0;
       nextAttemptAt = 0;
-      setStatus({ lastSyncAt: new Date().toISOString(), error: null });
-      if (changed.tables.length && typeof window !== "undefined")
-        window.dispatchEvent(new CustomEvent(SYNCED_EVENT, { detail: changed }));
+      setStatus({ lastSyncAt: new Date().toISOString(), error: schemaWarning() });
     } catch (e) {
       failures += 1;
       nextAttemptAt = Date.now() + Math.min(5 * 60_000, 5_000 * 2 ** failures);
       setStatus({ error: e instanceof Error ? e.message : String(e) });
     } finally {
+      // Tell open pages about whatever was written, even when a later table failed.
+      if (changed.tables.size && typeof window !== "undefined")
+        window.dispatchEvent(new CustomEvent(SYNCED_EVENT, { detail: { tables: [...changed.tables], projectIds: [...changed.projectIds] } }));
       setStatus({ syncing: false });
       await refreshPending();
     }
