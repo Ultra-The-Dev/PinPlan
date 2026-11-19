@@ -8,6 +8,7 @@ import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
 import type { Sheet } from "./types";
+import { finishPendingInvite, loadTeam, useTeam } from "./team";
 
 export interface SyncStatus {
   configured: boolean;
@@ -101,6 +102,11 @@ async function push(): Promise<void> {
         const stale = Date.now() - new Date(it.queuedAt).getTime() > 86_400_000;
         if (done || stale) await db().syncQueue.bulkDelete(snapshot.filter((s) => s.table === "images" && s.rowId === it.rowId).map((s) => s.seq!));
       }
+      continue;
+    }
+    // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
+    if (table === "estimateLines" && useTeam.getState().role === "tech") {
+      await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }
     const spec = TABLES[table];
@@ -312,6 +318,8 @@ async function runSync(force = false): Promise<void> {
     schemaGaps.columns.clear();
     const changed: PullResult = { tables: new Set(), projectIds: new Set() };
     try {
+      // Know the role before pushing, so a technician's device never sends what the database would refuse.
+      await loadTeam(st.userId).catch(() => undefined);
       await push();
       await pull(st.userId, changed);
       failures = 0;
@@ -357,12 +365,14 @@ export function startSync(): () => void {
     sb.auth.getSession().then(({ data }) => {
       const u = data.session?.user;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
+      void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).catch(() => undefined);
       void runSync(true);
     });
     const { data } = sb.auth.onAuthStateChange((_evt, session) => {
       const u = session?.user;
       const prev = useSyncStatus.getState().userId;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
+      if (u?.id !== prev) void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).catch(() => undefined);
       if (u && u.id !== prev) void runSync(true);
     });
     unsubAuth = () => data.subscription.unsubscribe();
