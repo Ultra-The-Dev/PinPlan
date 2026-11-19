@@ -1,22 +1,34 @@
 "use client";
-// Every job's photos in one feed (newest first): filter by job, tag, person or dates; open one on its job.
+// Every job's photos in one feed (newest first): filter by job, job label, tag, person or dates; open one on its job.
 import { Camera, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/db";
 import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
+import { hasLabel, jobLabelList, jobTitle, labelOptions } from "@/lib/jobFilters";
 import type { Photo, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import DateRange from "./DateRange";
 
 function Thumb({ photo, job }: { photo: Photo; job?: Project }) {
   const url = useBlobUrl(photo.imageId);
+  const labels = job ? jobLabelList(job) : [];
   return (
     <Link href={`/project?id=${photo.projectId}&tab=photos&photo=${photo.id}`} className="group relative block aspect-square overflow-hidden rounded-xl bg-slate-100 hover:ring-2 hover:ring-slate-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt={photo.caption ?? ""} loading="lazy" className="h-full w-full object-cover" />}
+      {labels.length > 0 && (
+        <div className="absolute inset-x-0 top-0 flex flex-wrap gap-1 p-1.5">
+          {labels.slice(0, 2).map((l) => (
+            <span key={l} className="chip max-w-full truncate bg-white/90 text-[10px] text-slate-700 shadow-sm">
+              {l}
+            </span>
+          ))}
+          {labels.length > 2 && <span className="chip bg-white/90 text-[10px] text-slate-500 shadow-sm">+{labels.length - 2}</span>}
+        </div>
+      )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pt-6 pb-1.5 text-[11px] leading-tight text-white">
-        <div className="truncate font-semibold">{job?.address || job?.clientName || "Job"}</div>
+        <div className="truncate font-semibold">{job ? jobTitle(job, "Job") : "Job"}</div>
         <div className="truncate opacity-80">{[photo.takenBy, new Date(photo.takenAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })].filter(Boolean).join(" · ")}</div>
       </div>
     </Link>
@@ -27,6 +39,7 @@ export default function PhotoFeed() {
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [jobs, setJobs] = useState<Map<string, Project>>(new Map());
   const [job, setJob] = useState("");
+  const [label, setLabel] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [person, setPerson] = useState("");
   const [text, setText] = useState("");
@@ -40,12 +53,32 @@ export default function PhotoFeed() {
       setPhotos((await db().photos.toArray()).filter((p) => !p.deleted && ids.has(p.projectId)));
     })();
   }, []);
-  const live = useMemo(() => (photos ?? []).filter((p) => !job || p.projectId === job), [photos, job]);
+  const live = useMemo(() => {
+    const ok = (id: string) => {
+      if (job && id !== job) return false;
+      if (!label) return true;
+      const j = jobs.get(id);
+      return !!j && hasLabel(j, label);
+    };
+    return (photos ?? []).filter((p) => ok(p.projectId));
+  }, [photos, jobs, job, label]);
   const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
   const groups = useMemo(() => photosByDay(shown), [shown]);
-  const options = useMemo(() => tagOptions(live).slice(0, 14), [live]);
+  // Keep selected tags visible even when a job/label change drops them from the options, so they can still be cleared.
+  const options = useMemo(() => {
+    const top = tagOptions(live).slice(0, 14);
+    return [...top, ...tags.filter((t) => !top.includes(t))];
+  }, [live, tags]);
   const people = useMemo(() => [...new Set((photos ?? []).map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [photos]);
-  const jobList = [...jobs.values()].filter((j) => (photos ?? []).some((p) => p.projectId === j.id));
+  const withPhotos = useMemo(() => new Set((photos ?? []).map((p) => p.projectId)), [photos]);
+  const labels = useMemo(() => labelOptions([...jobs.values()].filter((j) => withPhotos.has(j.id))), [jobs, withPhotos]);
+  const jobList = [...jobs.values()].filter((j) => withPhotos.has(j.id) && (!label || hasLabel(j, label)));
+  // Picking a label the chosen job doesn't carry would show nothing, so drop the job choice instead.
+  const pickLabel = (l: string) => {
+    setLabel(l);
+    const j = jobs.get(job);
+    if (l && j && !hasLabel(j, l)) setJob("");
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
@@ -63,10 +96,20 @@ export default function PhotoFeed() {
             <option value="">All jobs</option>
             {jobList.map((j) => (
               <option key={j.id} value={j.id}>
-                {j.address || j.clientName || "Untitled job"}
+                {jobTitle(j)}
               </option>
             ))}
           </select>
+          {labels.length > 0 && (
+            <select className="input h-9 w-auto max-w-48" value={label} onChange={(e) => pickLabel(e.target.value)} aria-label="Job label">
+              <option value="">All labels</option>
+              {labels.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          )}
           {people.length > 1 && (
             <select className="input h-9 w-auto" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Taken by">
               <option value="">Everyone</option>
@@ -94,12 +137,12 @@ export default function PhotoFeed() {
           <p className="mt-1 text-sm text-slate-500">Open a job and use its Photos tab to take or add photos.</p>
         </div>
       ) : shown.length === 0 ? (
-        <p className="card p-8 text-center text-sm text-slate-500">
-          No photos match these filters.{" "}
-          <button className="font-medium text-brand-600" onClick={() => (setJob(""), setTags([]), setPerson(""), setText(""), setFrom(""), setTo(""))}>
+        <div className="px-1 py-10 text-center text-sm text-slate-500">
+          <p>No photos match these filters.</p>
+          <button className="mt-2 font-medium text-brand-600 hover:underline" onClick={() => { setJob(""); setLabel(""); setTags([]); setPerson(""); setText(""); setFrom(""); setTo(""); }}>
             Clear filters
           </button>
-        </p>
+        </div>
       ) : (
         groups.map((g) => (
           <section key={g.day}>

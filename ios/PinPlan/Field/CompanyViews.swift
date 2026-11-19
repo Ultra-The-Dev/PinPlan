@@ -9,12 +9,24 @@ struct AllPhotosView: View {
     let onOpen: (String) -> Void
     @State private var search = ""
     @State private var tag: String?
+    /// Only this job's photos; nil = every job.
+    @State private var jobId: String?
 
     private struct Item: Identifiable { let photo: Photo; let job: String; var id: String { photo.id } }
 
+    private static func title(_ p: Project) -> String {
+        p.address.isEmpty ? (p.clientName.isEmpty ? "Untitled job" : p.clientName) : p.address
+    }
+
+    /// Jobs that have at least one photo, A–Z, for the job picker.
+    private var jobsWithPhotos: [ProjectBundle] {
+        app.projects.filter { $0.project.deleted != true && !$0.livePhotos.isEmpty }
+            .sorted { Self.title($0.project).localizedCaseInsensitiveCompare(Self.title($1.project)) == .orderedAscending }
+    }
+
     private var all: [Item] {
-        app.projects.filter { $0.project.deleted != true }.flatMap { b in
-            b.livePhotos.map { Item(photo: $0, job: b.project.address.isEmpty ? (b.project.clientName.isEmpty ? "Untitled job" : b.project.clientName) : b.project.address) }
+        app.projects.filter { $0.project.deleted != true && (jobId == nil || $0.project.id == jobId) }.flatMap { b in
+            b.livePhotos.map { Item(photo: $0, job: Self.title(b.project)) }
         }
     }
 
@@ -74,7 +86,20 @@ struct AllPhotosView: View {
             .searchable(text: $search, prompt: "Job, caption, room, person")
             .navigationTitle("All photos")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Picker("Job", selection: $jobId) {
+                        Text("All jobs").tag(String?.none)
+                        ForEach(jobsWithPhotos, id: \.project.id) { b in
+                            Text(Self.title(b.project)).tag(String?.some(b.project.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(jobsWithPhotos.count < 2 && jobId == nil)
+                }
+            }
+            .onChange(of: jobId) { _, _ in tag = nil }
         }
     }
 }
@@ -85,20 +110,53 @@ struct JobsMapView: View {
     @Environment(\.dismiss) private var dismiss
     let onOpen: (String) -> Void
 
-    /// Fit all jobs; a single job gets a neighbourhood-level zoom instead of street level.
+    /// Statuses shown on the map; empty = every status.
+    @State private var statuses: Set<ProjectStatus> = []
+    @State private var position: MapCameraPosition = .automatic
+
+    /// Fit all jobs (with some padding); a single job gets a neighbourhood-level zoom instead of street level.
     static func start(_ placed: [ProjectBundle]) -> MapCameraPosition {
-        guard placed.count == 1, let lat = placed[0].project.lat, let lng = placed[0].project.lng else { return .automatic }
-        return .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: lat, longitude: lng), span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)))
+        let coords: [CLLocationCoordinate2D] = placed.compactMap { b in
+            guard let lat = b.project.lat, let lng = b.project.lng else { return nil }
+            return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        }
+        guard let first = coords.first else { return .automatic }
+        var minLat: Double = first.latitude, maxLat: Double = first.latitude
+        var minLng: Double = first.longitude, maxLng: Double = first.longitude
+        for c in coords {
+            minLat = min(minLat, c.latitude); maxLat = max(maxLat, c.latitude)
+            minLng = min(minLng, c.longitude); maxLng = max(maxLng, c.longitude)
+        }
+        let latSpan: Double = min(max((maxLat - minLat) * 1.4, 0.04), 170.0)
+        let lngSpan: Double = min(max((maxLng - minLng) * 1.4, 0.04), 360.0)
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2.0, longitude: (minLng + maxLng) / 2.0)
+        return .region(MKCoordinateRegion(center: center, span: MKCoordinateSpan(latitudeDelta: latSpan, longitudeDelta: lngSpan)))
     }
 
     private func color(_ s: ProjectStatus) -> Color { s == .estimate ? .orange : s == .approved ? .brand : .green }
 
+    private var allPlaced: [ProjectBundle] {
+        app.projects.filter { $0.project.deleted != true && $0.project.lat != nil && $0.project.lng != nil }
+    }
+
+    private func shown(_ list: [ProjectBundle], _ filter: Set<ProjectStatus>) -> [ProjectBundle] {
+        filter.isEmpty ? list : list.filter { filter.contains($0.project.status) }
+    }
+
+    private func toggle(_ s: ProjectStatus) {
+        var next = statuses
+        if next.contains(s) { next.remove(s) } else { next.insert(s) }
+        statuses = next
+        let fit = shown(allPlaced, next)
+        if !fit.isEmpty { withAnimation { position = Self.start(fit) } }
+    }
+
     var body: some View {
-        let placed = app.projects.filter { $0.project.deleted != true && $0.project.lat != nil && $0.project.lng != nil }
-        let unplaced = app.projects.filter { $0.project.deleted != true && ($0.project.lat == nil || $0.project.lng == nil) }
+        let placed = shown(allPlaced, statuses)
+        let unplaced = shown(app.projects.filter { $0.project.deleted != true && ($0.project.lat == nil || $0.project.lng == nil) }, statuses)
         NavigationStack {
             VStack(spacing: 0) {
-                Map(initialPosition: Self.start(placed)) {
+                Map(position: $position) {
                     ForEach(placed, id: \.project.id) { b in
                         Annotation(b.project.address.isEmpty ? b.project.clientName : b.project.address,
                                    coordinate: CLLocationCoordinate2D(latitude: b.project.lat!, longitude: b.project.lng!)) {
@@ -112,11 +170,36 @@ struct JobsMapView: View {
                     }
                 }
                 .mapControls { MapUserLocationButton(); MapCompass() }
-                HStack(spacing: 14) {
-                    ForEach([ProjectStatus.estimate, .approved, .installed], id: \.self) { s in
-                        Label(s.rawValue.capitalized, systemImage: "circle.fill").font(.caption).foregroundStyle(color(s))
+                .onAppear { position = Self.start(placed) }
+                .overlay(alignment: .top) {
+                    if placed.isEmpty && !statuses.isEmpty && !allPlaced.isEmpty {
+                        Text("No matching jobs on the map").font(.footnote.weight(.medium))
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(.regularMaterial, in: Capsule()).padding(.top, 10)
                     }
-                    Spacer()
+                }
+                HStack(spacing: 8) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            // Status legend doubles as a filter: tap to show only those statuses.
+                            ForEach([ProjectStatus.estimate, .approved, .installed], id: \.self) { s in
+                                let on = statuses.contains(s)
+                                Button { toggle(s) } label: {
+                                    Label(s.rawValue.capitalized, systemImage: "circle.fill").font(.caption.weight(.medium))
+                                        .foregroundStyle(on ? Color.white : color(s))
+                                        .padding(.horizontal, 9).padding(.vertical, 5)
+                                        .background(on ? color(s) : Color(.secondarySystemFill), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                                .accessibilityLabel("Show \(s.rawValue) jobs")
+                            }
+                            if !statuses.isEmpty {
+                                Button("All") { statuses = []; let all = allPlaced; if !all.isEmpty { withAnimation { position = Self.start(all) } } }
+                                    .font(.caption)
+                            }
+                        }
+                    }
                     if !unplaced.isEmpty {
                         Menu("\(unplaced.count) not on the map") {
                             ForEach(unplaced, id: \.project.id) { b in
@@ -133,7 +216,7 @@ struct JobsMapView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
             .overlay {
-                if placed.isEmpty {
+                if allPlaced.isEmpty {
                     ContentUnavailableView("No jobs on the map yet", systemImage: "map",
                                            description: Text("Take a photo on site with location on, or set the location on the job’s Job tab."))
                         .background(.regularMaterial)
