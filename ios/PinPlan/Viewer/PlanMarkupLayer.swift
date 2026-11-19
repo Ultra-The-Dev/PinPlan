@@ -90,6 +90,7 @@ private struct ClosetsLayer: View {
 }
 
 /// Immediate-mode drawing of runs and devices into a GraphicsContext.
+@MainActor
 struct PlanPainter {
     let viewport: PlanViewport
     let model: EditorModel

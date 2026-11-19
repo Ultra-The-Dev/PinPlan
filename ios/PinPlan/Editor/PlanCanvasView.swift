@@ -421,6 +421,7 @@ private struct MarkerAccessibilityLayer: View {
     }
 }
 
+@MainActor
 extension MarkerAccessibilityLayer {
     func label(_ m: Marker, name: String, photos: Bool) -> String {
         var parts = ["\(name) \(m.label)"]
