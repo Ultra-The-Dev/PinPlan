@@ -22,6 +22,7 @@ import type {
   Project,
   Run,
   SalesDoc,
+  ScheduleItem,
   Sheet,
   StoredImage,
   Suggestion,
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "scheduleItems";
 
 export interface SyncItem {
   seq?: number;
@@ -70,6 +72,7 @@ class PinPlanDB extends Dexie {
   salesDocs!: EntityTable<SalesDoc, "id">;
   salesPayments!: EntityTable<DocPayment, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
+  scheduleItems!: EntityTable<ScheduleItem, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
@@ -104,6 +107,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v29: job schedule (phases with dependencies; docs/schedule-lookahead.md).
+    this.version(29).stores({ scheduleItems: "id, projectId, start, updatedAt" });
   }
 }
 
@@ -256,6 +261,7 @@ export interface ProjectBundle {
   checklists: Checklist[];
   jobLogs: JobLog[];
   documents: JobDocument[];
+  scheduleItems: ScheduleItem[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -263,7 +269,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, scheduleItems] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -274,6 +280,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.checklists.where("projectId").equals(projectId).toArray(),
     d.jobLogs.where("projectId").equals(projectId).toArray(),
     d.documents.where("projectId").equals(projectId).toArray(),
+    d.scheduleItems.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -287,6 +294,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    scheduleItems: live(scheduleItems).sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0)),
   };
 }
 

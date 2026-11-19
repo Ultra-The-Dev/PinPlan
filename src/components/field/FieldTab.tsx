@@ -1,7 +1,9 @@
 "use client";
 // Field: checklists (with photo-required items), daily logs, documents and the job timeline.
-import { BookOpen, ClipboardCheck, FileStack, History } from "lucide-react";
+import { BookOpen, CalendarRange, ClipboardCheck, FileStack, History } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import ScheduleView from "../schedule/ScheduleView";
 import Checklists from "./Checklists";
 import DailyLogs from "./DailyLogs";
 import Documents from "./Documents";
@@ -12,13 +14,16 @@ const SECTIONS = [
   { id: "logs", label: "Daily logs", icon: BookOpen },
   { id: "docs", label: "Documents", icon: FileStack },
   { id: "timeline", label: "Timeline", icon: History },
+  { id: "schedule", label: "Schedule", icon: CalendarRange },
 ] as const;
 
 export default function FieldTab() {
-  const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("checklists");
+  // ?section=schedule (from the crew board) opens that section.
+  const asked = useSearchParams().get("section");
+  const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>(() => SECTIONS.find((s) => s.id === asked)?.id ?? "checklists");
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6">
+      <div className={`mx-auto ${section === "schedule" ? "max-w-6xl" : "max-w-4xl"} space-y-5 px-4 py-6 sm:px-6`}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="mr-auto">
             <h2 className="page-title">Field</h2>
@@ -38,6 +43,7 @@ export default function FieldTab() {
         {section === "logs" && <DailyLogs />}
         {section === "docs" && <Documents />}
         {section === "timeline" && <Timeline />}
+        {section === "schedule" && <ScheduleView />}
       </div>
     </div>
   );

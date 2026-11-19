@@ -1,5 +1,5 @@
 "use client";
-import { Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
+import { CalendarRange, Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/lib/team";
@@ -25,6 +25,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
     { href: "/", label: "Projects", icon: FolderOpen },
     { href: "/photos", label: "Photos", icon: Camera },
     { href: "/tasks", label: "Tasks", icon: ClipboardList },
+    { href: "/schedule", label: "Crew", icon: CalendarRange },
     { href: "/map", label: "Map", icon: Map },
     { href: "/invoices", label: "Invoices", icon: ReceiptText, office: true },
     { href: "/catalog", label: "Catalog", icon: Package, office: true },

@@ -62,6 +62,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     shareToken: "tok", shareHash: "h", sentAt: ts, viewedAt: ts, respondedAt: ts, signerName: "s", signature: "data:", clientNote: "c", paidAt: "2026-11-20", voidedAt: ts,
     createdAt: ts, updatedAt: ts, deleted: false,
   },
+  scheduleItems: { id: "si", projectId: "p", name: "Trim", phase: "trim", start: "2026-11-23", end: "2026-11-25", crew: ["Sam"], hoursPlanned: 24, progress: 50, color: "#2563eb", dependsOn: [{ id: "x", lagDays: 1 }], sheetIds: ["s"], notes: "n", sort: 1, workdaysOnly: true, createdAt: ts, updatedAt: ts, deleted: false },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);

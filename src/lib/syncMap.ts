@@ -260,6 +260,27 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // Job schedule (docs/schedule-lookahead.md). `start`/`end` are reserved words in SQL, hence start_date/end_date.
+  scheduleItems: {
+    remote: "schedule_items",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      name: "name",
+      phase: "phase",
+      start: "start_date",
+      end: "end_date",
+      crew: "crew",
+      hoursPlanned: "hours_planned",
+      progress: "progress",
+      color: "color",
+      dependsOn: "depends_on",
+      sheetIds: "sheet_ids",
+      notes: "notes",
+      sort: "sort_order",
+      workdaysOnly: "workdays_only",
+    },
+  },
 };
 
 
@@ -280,6 +301,7 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "scheduleItems",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
