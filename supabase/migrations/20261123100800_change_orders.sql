@@ -48,34 +48,32 @@ create trigger change_orders_synced_at before insert or update on public.change_
   for each row execute function public.set_synced_at();
 create index if not exists change_orders_synced_at_idx on public.change_orders (synced_at);
 
--- ---------- an approved change order is final; a client's answer can't be overwritten by a stale device ----------
+-- ---------- an answered change order is final; a stale device can't move one backwards ----------
 -- Devices push whole rows (last write wins). A tablet that edited a change order offline must not undo the client's
--- signature, so once a change order is approved its content and answer stay as they are (only the server, with the
--- service role, can change them), and a rejected one can only be voided. The kept row is stamped newer than the
--- device's copy, so the device's next pull takes it back.
+-- signature or reopen a withdrawn link, so (only the server, with the service role, is exempt):
+--   * an approved or void change order stays exactly as it is (void is terminal: "revise" makes a new row);
+--   * once sent, a change order never goes back to draft (a stale draft copy would kill the client's link);
+--   * a rejected one can only be voided, and the client's answer is kept.
+-- The kept row is stamped newer than the device's copy, so the device's next pull takes it back.
 create or replace function public.change_orders_guard() returns trigger
 language plpgsql set search_path = public as $$
+declare stamp timestamptz;
 begin
   if coalesce(auth.role(), '') = 'service_role' or current_user not in ('authenticated', 'anon') then return new; end if;
-  if old.status = 'approved' then
-    if row(new.status, new.lines, new.markup_pct, new.tax_pct, new.number, new.title, new.responded_at, new.approved_name,
-           new.signature_image_id, new.client_comment, new.share_token, new.public_view, new.deleted)
-       is distinct from
-       row(old.status, old.lines, old.markup_pct, old.tax_pct, old.number, old.title, old.responded_at, old.approved_name,
-           old.signature_image_id, old.client_comment, old.share_token, old.public_view, old.deleted) then
-      new.status := old.status; new.lines := old.lines; new.markup_pct := old.markup_pct; new.tax_pct := old.tax_pct;
-      new.number := old.number; new.title := old.title; new.responded_at := old.responded_at;
-      new.approved_name := old.approved_name; new.signature_image_id := old.signature_image_id;
-      new.client_comment := old.client_comment; new.share_token := old.share_token; new.public_view := old.public_view;
-      new.deleted := old.deleted;
-      new.updated_at := greatest(new.updated_at + interval '1 millisecond', now());
+  stamp := greatest(new.updated_at + interval '1 millisecond', now());
+  if old.status in ('approved', 'void')
+     or (old.status <> 'draft' and new.status = 'draft')
+     or (old.status = 'rejected' and new.status not in ('rejected', 'void')) then
+    if (to_jsonb(new) - array['updated_at', 'synced_at']) is distinct from (to_jsonb(old) - array['updated_at', 'synced_at']) then
+      new := old;
+      new.updated_at := stamp;
     end if;
   elsif old.status = 'rejected' and old.responded_at is not null then
-    if new.status not in ('rejected', 'void') or new.responded_at is distinct from old.responded_at
-       or new.approved_name is distinct from old.approved_name or new.client_comment is distinct from old.client_comment then
-      if new.status not in ('rejected', 'void') then new.status := old.status; end if;
+    if new.responded_at is distinct from old.responded_at or new.approved_name is distinct from old.approved_name
+       or new.client_comment is distinct from old.client_comment or new.signature_image_id is distinct from old.signature_image_id then
       new.responded_at := old.responded_at; new.approved_name := old.approved_name; new.client_comment := old.client_comment;
-      new.updated_at := greatest(new.updated_at + interval '1 millisecond', now());
+      new.signature_image_id := old.signature_image_id;
+      new.updated_at := stamp;
     end if;
   end if;
   return new;

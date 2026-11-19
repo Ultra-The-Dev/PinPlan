@@ -33,6 +33,7 @@ interface CoRow {
   responded_at: string | null;
   approved_name: string | null;
   client_comment: string | null;
+  updated_at?: string | null;
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -41,7 +42,7 @@ const fail = (error: string, status: number) => json({ error }, status);
 
 async function findByToken(token: string): Promise<CoRow | null> {
   const r = await serviceFetch(
-    `/rest/v1/change_orders?share_token=eq.${encodeURIComponent(token)}&select=id,project_id,status,deleted,public_view,responded_at,approved_name,client_comment&limit=1`,
+    `/rest/v1/change_orders?share_token=eq.${encodeURIComponent(token)}&select=id,project_id,status,deleted,public_view,responded_at,approved_name,client_comment,updated_at&limit=1`,
   );
   if (!r.ok) throw new Error(`lookup failed (${r.status})`);
   return ((await r.json()) as CoRow[])[0] ?? null;
@@ -162,6 +163,10 @@ export async function POST(req: Request) {
   }
 
   const now = new Date().toISOString();
+  // Devices keep the newer copy (last write wins on updated_at). An office device whose clock runs ahead stamped the
+  // sent row later than "now" here, so stamp the answer past the stored time or that device would never see it.
+  const prev = Date.parse(row.updated_at ?? "");
+  const stamp = Number.isFinite(prev) && prev >= Date.parse(now) ? new Date(prev + 1).toISOString() : now;
   try {
     // Only while it is still waiting on the client, so two answers can't both land.
     const r = await serviceFetch(`/rest/v1/change_orders?id=eq.${encodeURIComponent(row.id)}&status=eq.sent&deleted=is.false`, {
@@ -173,7 +178,7 @@ export async function POST(req: Request) {
         responded_at: now,
         signature_image_id: signatureImageId,
         client_comment: comment || null,
-        updated_at: now,
+        updated_at: stamp,
       }),
     });
     if (!r.ok) return fail("Couldn't save your answer. Please try again.", 502);

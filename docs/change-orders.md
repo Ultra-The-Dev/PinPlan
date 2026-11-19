@@ -107,9 +107,11 @@ confirming those devices on the plan never counts them twice.
 
 - RLS: select / insert / update for project members who are **not** techs (`is_project_member(project_id) and not
   is_tech()`, like `estimate_lines`). No delete policy (soft deletes). `anon` has no access; clients go through the route.
-- `change_orders_guard`: for app writes, an approved row keeps its status, lines, prices, number, title, answer, link and
-  `deleted` flag; a rejected row keeps its answer and can only become void. The kept row is stamped newer so the
-  device that pushed a stale copy pulls the right one back.
+- `change_orders_guard`: for app writes, an approved or void row is kept exactly as it is (every column), a row that
+  was sent never goes back to draft (a stale offline draft would kill the client's link), and a rejected row keeps
+  its answer and can only become void. The kept row is stamped newer so the device that pushed a stale copy pulls
+  the right one back. The route likewise stamps the client's answer past the stored `updated_at`, so an office device
+  whose clock runs ahead still takes it.
 - `job_write_guard` (read-only when the subscription lapsed) and the `synced_at` trigger + index, like every job table.
 
 ## Invoicing hook

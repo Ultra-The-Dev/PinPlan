@@ -195,6 +195,7 @@ function ApproveDialog({ code, onDone, onCancel }: { code: string; onDone: (r: {
         aria-label="Mark approved"
         className="card animate-in w-full max-w-md space-y-3 rounded-b-none p-5 shadow-pop sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.key === "Escape" && onCancel()}
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -782,8 +783,11 @@ export default function ChangeOrderEditor(props: {
             <button
               className="btn"
               onClick={() => {
-                const name = window.prompt("Rejected by (optional)") ?? "";
-                const comment = window.prompt("Reason (optional)") ?? "";
+                // Cancel on either prompt leaves the change order as it is.
+                const name = window.prompt("Rejected by (optional)");
+                if (name == null) return;
+                const comment = window.prompt("Reason (optional)");
+                if (comment == null) return;
                 void act("reject", { name, comment });
               }}
             >

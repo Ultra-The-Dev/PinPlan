@@ -439,6 +439,16 @@ describe("public change order route", () => {
     expect((await POST(post({ t: TOKEN, decision: "reject", name: "Pat", comment: "no" }))).status).toBe(409);
   });
 
+  it("stamps the answer newer than a sent row from a device whose clock runs ahead", async () => {
+    const ahead = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    row.updated_at = ahead;
+    const { POST } = await import("@/app/api/change-orders/public/route");
+    const r = await POST(post({ t: TOKEN, decision: "reject", name: "Pat", comment: "No" }, "5.5.5.5"));
+    expect(r.status).toBe(200);
+    expect(Date.parse(String(row.updated_at))).toBeGreaterThan(Date.parse(ahead));
+    expect(Date.parse(String(row.responded_at))).toBeLessThan(Date.parse(ahead));
+  });
+
   it("reject needs no signature", async () => {
     const { POST } = await import("@/app/api/change-orders/public/route");
     const r = await POST(post({ t: TOKEN, decision: "reject", name: "Pat", comment: "Too much" }));
