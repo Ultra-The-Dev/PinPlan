@@ -5,6 +5,8 @@ import { CATEGORIES, CLOSET_KINDS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
 import { useEditor } from "@/lib/store";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
 import { computeTakeoff, countOf, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
 import OrderList from "./OrderList";
@@ -17,6 +19,8 @@ export default function TakeoffTab() {
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   const [busy, setBusy] = useState<string | null>(null);
   const [clientBusy, setClientBusy] = useState<string | null>(null);
+  // Plan reviews go to the client: office work, like proposals.
+  const office = can(useRole(), "prices");
   if (!project) return null;
   const cols: { name: string; b: TakeoffBucket }[] = [...takeoff.floors.map((f) => ({ name: f.name, b: f })), { name: "Total", b: takeoff.total }];
 
@@ -73,9 +77,11 @@ export default function TakeoffTab() {
           </button>
         </div>
 
+        {office && (
         <div className="mb-5">
           <PlanReviewPanel onPdf={() => void clientPdf()} pdfBusy={clientBusy} />
         </div>
+        )}
 
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <SummaryCard icon={Camera} label="Cameras" value={countOf(takeoff.total, ["cam-indoor", "cam-outdoor"])} sub={`${takeoff.total.counts["cam-outdoor"] ?? 0} outdoor`} color="text-red-600 bg-red-50" />

@@ -2,6 +2,9 @@
 import { Camera, ClipboardList, FolderOpen, Map, Package, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
+import RoleBadge from "./RoleBadge";
 import SyncBadge from "./SyncBadge";
 
 export function Logo({ compact }: { compact?: boolean }) {
@@ -16,15 +19,16 @@ export function Logo({ compact }: { compact?: boolean }) {
 
 export default function AppHeader({ children }: { children?: React.ReactNode }) {
   const path = usePathname();
+  const role = useRole();
   const nav = [
     { href: "/", label: "Projects", icon: FolderOpen },
     { href: "/photos", label: "Photos", icon: Camera },
     { href: "/tasks", label: "Tasks", icon: ClipboardList },
     { href: "/map", label: "Map", icon: Map },
-    { href: "/catalog", label: "Catalog", icon: Package },
-    { href: "/products", label: "Products", icon: Tags },
+    { href: "/catalog", label: "Catalog", icon: Package, office: true },
+    { href: "/products", label: "Products", icon: Tags, office: true },
     { href: "/settings", label: "Settings", icon: Settings },
-  ];
+  ].filter((n) => !n.office || can(role, "editCatalog"));
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur sm:px-5">
       <Logo />
@@ -38,6 +42,11 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
           </Link>
         ))}
       </nav>
+      {role === "tech" && (
+        <Link href="/settings#team" title="You’re a technician on your company team" aria-label="Your role: technician">
+          <RoleBadge role="tech" />
+        </Link>
+      )}
       <SyncBadge />
     </header>
   );

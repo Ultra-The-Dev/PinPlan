@@ -121,3 +121,21 @@ describe("next step", () => {
     expect(s.next.text).toBe("3 overdue tasks");
   });
 });
+
+describe("jobSummary for technicians (no prices)", () => {
+  it("never points a tech at the estimate, proposals or invoices", () => {
+    const est = jobSummary(base({ prices: false, estimate: { total: 0, unpriced: 3 }, proposals: [{ kind: "proposal", status: "declined", createdAt: ts }] }));
+    expect(est.next).toMatchObject({ kind: "officePricing", tab: "plan" });
+    const dueToday = jobSummary(base({ prices: false, checklists: [list("c", [{ id: "1", text: "Rough-in", due: today }])] }));
+    expect(dueToday.next).toMatchObject({ kind: "tasksToday", tab: "field" });
+    const installed = jobSummary(base({ prices: false, project: project({ status: "installed" }) }));
+    expect(installed.next.kind).toBe("done");
+    const approved = jobSummary(base({ prices: false, project: project({ status: "approved" }) }));
+    expect(approved.next.kind).toBe("startChecklist");
+  });
+
+  it("office users still get the pricing steps", () => {
+    expect(jobSummary(base({ estimate: { total: 0, unpriced: 3 } })).next.kind).toBe("priceEstimate");
+    expect(jobSummary(base({ project: project({ status: "installed" }) })).next.kind).toBe("invoice");
+  });
+});

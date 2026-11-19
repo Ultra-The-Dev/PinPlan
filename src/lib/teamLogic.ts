@@ -79,3 +79,38 @@ export function sortMembers<T extends { role: TeamRole; name: string; email?: st
 export function memberLabel(m: { name?: string | null; email?: string | null }): string {
   return m.name?.trim() || m.email?.split("@")[0] || "Team member";
 }
+
+/** Initials for a member's avatar: "Jordan Lee" → "JL", "pat@x.com" → "P". */
+export function memberInitials(m: { name?: string | null; email?: string | null }): string {
+  const words = memberLabel(m).split(/[\s._-]+/).filter(Boolean);
+  return ((words[0]?.[0] ?? "?") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase();
+}
+
+/** The text sent with an invite (copied, shared or texted). */
+export function inviteMessage(opts: { team: string; from?: string; role: "admin" | "tech"; code: string; link: string }): string {
+  const who = opts.from?.trim() ? `${opts.from.trim()} invited you` : "You're invited";
+  const as = opts.role === "admin" ? "the office" : "the crew";
+  return `${who} to join ${opts.team.trim() || "our team"} on PinPlan (${as}). Open ${opts.link} to set up your login — or enter code ${formatCode(opts.code)} on the Join page.`;
+}
+
+/** An sms: link that opens Messages with the text filled in (the "?&body=" form works on iPhone and Android). */
+export function smsHref(body: string, to = ""): string {
+  return `sms:${encodeURIComponent(to)}?&body=${encodeURIComponent(body)}`;
+}
+
+export const PASSWORD_MIN = 8;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Checks a new worker's sign-up form. Returns a message for the first problem, or null when it's fine. */
+export function signupProblem(f: { email: string; password: string; name?: string; code?: string }): string | null {
+  if (f.code !== undefined) {
+    const c = normalizeCode(f.code);
+    if (c.length < 8 || c.length > 64) return "Enter the invite code you were sent.";
+  }
+  if ((f.name ?? "").trim().length > 80) return "Keep your name under 80 characters.";
+  const email = f.email.trim();
+  if (!EMAIL_RE.test(email) || email.length > 254) return "Enter a valid email address.";
+  if (f.password.length < PASSWORD_MIN) return `Use a password of at least ${PASSWORD_MIN} characters.`;
+  if (f.password.length > 72) return "Use a password of 72 characters or fewer.";
+  return null;
+}

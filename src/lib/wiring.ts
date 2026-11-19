@@ -248,7 +248,13 @@ export function materialList(data: WiringInput, catalog: DeviceType[], products:
   return rows;
 }
 
-export function materialCsv(rows: MaterialRow[]): string {
+/** `prices: false` leaves out the cost columns (technicians don't see prices). */
+export function materialCsv(rows: MaterialRow[], opts: { prices?: boolean } = {}): string {
+  if (opts.prices === false) {
+    const out: (string | number)[][] = [["Supplier", "Item", "SKU", "Qty", "Unit", "Note"]];
+    for (const r of rows) out.push([r.supplier, r.item, r.sku, r.qty, r.unit, r.note]);
+    return toCsv(out);
+  }
   const out: (string | number)[][] = [["Supplier", "Item", "SKU", "Qty", "Unit", "Unit cost", "Total", "Note"]];
   for (const r of rows) out.push([r.supplier, r.item, r.sku, r.qty, r.unit, r.unitCost, r.total, r.note]);
   return toCsv(out);

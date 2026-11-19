@@ -9,6 +9,7 @@ import { addTemplate, allChecklistTemplates, checklistFromTemplate, checklistPro
 import { getAuthor, importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
+import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { Checklist, ChecklistItem, Photo } from "@/lib/types";
 import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
@@ -67,9 +68,10 @@ function TaskFields({ item, names, onChange, onClose }: { item: ChecklistItem; n
 function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
   const { saveRow, removeRows, project, jobLogs, checklists } = useEditor();
   const { email } = useSyncStatus();
+  const members = useTeam((s) => s.members);
   const [editing, setEditing] = useState<string | null>(null);
   const today = localDay(new Date().toISOString());
-  const names = teamNames({ photos, jobLogs, checklists }, getAuthor(email));
+  const names = teamNames({ photos, jobLogs, checklists, members }, getAuthor(email));
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState("");
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);

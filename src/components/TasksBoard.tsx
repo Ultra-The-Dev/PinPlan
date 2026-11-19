@@ -7,6 +7,7 @@ import { db, nowIso, put } from "@/lib/db";
 import { localDay, openTasks, TASK_BUCKETS, teamNames, type OpenTask } from "@/lib/fieldDocs";
 import { getAuthor } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
+import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { Checklist, Photo, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
@@ -33,6 +34,7 @@ function TaskPhoto({ photo, href }: { photo: Photo; href: string }) {
 
 export default function TasksBoard() {
   const { email } = useSyncStatus();
+  const members = useTeam((s) => s.members);
   const me = getAuthor(email);
   const [projects, setProjects] = useState<Project[]>([]);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
@@ -66,7 +68,7 @@ export default function TasksBoard() {
 
   const filter = who === "__me" ? me : who === "__all" ? null : who;
   const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
-  const names = useMemo(() => teamNames({ checklists: checklists ?? [] }, me), [checklists, me]);
+  const names = useMemo(() => teamNames({ checklists: checklists ?? [], members }, me), [checklists, members, me]);
   const mineCount = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: me }).length : 0), [projects, checklists, today, me]);
 
   async function complete(t: OpenTask) {

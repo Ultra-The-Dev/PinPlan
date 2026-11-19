@@ -1,6 +1,7 @@
 // Field documentation helpers: checklist templates and progress, tags, the job timeline and photo filters.
 // Mirrors PinPlanCore/FieldDocsLogic.swift.
 import type { Checklist, ChecklistItem, ChecklistTemplate, JobDocument, JobLog, Photo, PhotoComment, Project } from "./types";
+import { memberLabel } from "./teamLogic";
 
 export type { ChecklistTemplate } from "./types";
 
@@ -340,8 +341,11 @@ export function addTaskFromComment(
   return { checklist: { ...base, items: [...base.items, item], updatedAt: now }, item, created: !existing };
 }
 
-/** Names seen on the jobs (photo takers, log authors, checklist people) for the assignee picker. */
-export function teamNames(input: { photos?: Photo[]; jobLogs?: JobLog[]; checklists?: Checklist[] }, me?: string): string[] {
+/** Names seen on the jobs (photo takers, log authors, checklist people) and the company team, for the assignee picker. */
+export function teamNames(
+  input: { photos?: Photo[]; jobLogs?: JobLog[]; checklists?: Checklist[]; members?: { name?: string | null; email?: string | null }[] },
+  me?: string,
+): string[] {
   // One entry per person, whatever the capitalisation (first spelling seen wins).
   const s = new Map<string, string>();
   const add = (n?: string | null) => {
@@ -349,6 +353,7 @@ export function teamNames(input: { photos?: Photo[]; jobLogs?: JobLog[]; checkli
     if (t && !s.has(t.toLowerCase())) s.set(t.toLowerCase(), t);
   };
   add(me);
+  for (const m of input.members ?? []) add(memberLabel(m));
   for (const p of input.photos ?? []) add(p.takenBy);
   for (const l of input.jobLogs ?? []) add(l.author);
   for (const c of input.checklists ?? []) for (const i of c.items) for (const n of [i.doneBy, i.assignee]) add(n);

@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/server/auth";
+import { requireOffice } from "@/lib/server/auth";
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
 import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
@@ -42,7 +42,7 @@ async function findOrCreateClient(client: BillduClient, p: SendBody["project"]):
 }
 
 export async function POST(req: Request) {
-  const auth = await requireUser(req);
+  const auth = await requireOffice(req);
   if (!auth.ok) return auth.response;
   let body: SendBody;
   try {
