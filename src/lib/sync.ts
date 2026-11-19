@@ -116,7 +116,8 @@ async function push(changed?: PullResult): Promise<void> {
     }
     // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
     // Job templates are the office's too (technicians only start jobs from them).
-    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "jobTemplates" || table === "changeOrders") && useTeam.getState().role === "tech") {
+    // Technicians can't write prices or plan links (the database refuses): drop those edits instead of blocking every sync.
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "jobTemplates" || table === "changeOrders" || table === "sheetLinks") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }

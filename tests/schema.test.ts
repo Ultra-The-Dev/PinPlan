@@ -44,7 +44,7 @@ const ts = "2026-11-12T00:00:00.000Z";
 // One fully-populated local row per synced table (every optional field set).
 const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
   projects: { id: "p", clientName: "c", clientEmail: "e", clientPhone: "t", address: "a", status: "estimate", notes: "n", billduClientId: 1, billduDocs: [], pricing: {}, productChoices: { wap: "pr" }, labels: ["Pre-wire"], lat: 40.7, lng: -73.9, createdAt: ts, updatedAt: ts, deleted: false },
-  sheets: { id: "s", projectId: "p", name: "Attic", pageNumber: 1, order: 0, imageId: "i", imageUrl: "local-only", width: 10, height: 10, pxPerFt: 2, pxPerInch: 72, scaleLabel: "1/4", createdAt: ts, updatedAt: ts, deleted: false },
+  sheets: { id: "s", projectId: "p", name: "Attic", pageNumber: 1, order: 0, imageId: "i", imageUrl: "local-only", width: 10, height: 10, pxPerFt: 2, pxPerInch: 72, scaleLabel: "1/4", number: "E-101", title: "FIRST FLOOR POWER PLAN", discipline: "Electrical", tags: ["Phase 1"], createdAt: ts, updatedAt: ts, deleted: false },
   deviceTypes: { id: "d", name: "n", category: "security", symbol: "C", icon: "camera", abbrev: "CAM", shape: "circle", color: "#000", unit: "each", unitPrice: 1, laborPrice: 1, defaultWire: "Cat6", defaultMount: "ceiling", kind: "device", billduProductId: 1, sort: 0, archived: false, updatedAt: ts, deleted: false },
   products: { id: "pr", deviceTypeId: "wap", brand: "Ubiquiti", model: "U7 Pro", sku: "U7-Pro", unitPrice: 189, laborPrice: 95, notes: "n", archived: false, updatedAt: ts, deleted: false },
   markers: { id: "m", projectId: "p", sheetId: "s", deviceTypeId: "d", x: 0.5, y: 0.5, label: "l", room: "r", mount: "ceiling", wireType: "Cat6", wires: ["HDMI", "Cat6"], productId: "pr", closetId: "c", circuit: "12", tentative: true, notes: "n", photoId: "ph", install: { status: "installed", by: "a", at: ts, photoIds: ["ph"], test: null, history: [] }, createdAt: ts, updatedAt: ts, deleted: false },
@@ -69,6 +69,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     answer: "a", answeredBy: "Pat", answeredAt: ts, shareToken: "tok", sentAt: ts, closedAt: ts, createdBy: "Sam", sender: { company: "Acme" }, createdAt: ts, updatedAt: ts, deleted: false,
   },
   scheduleItems: { id: "si", projectId: "p", name: "Trim", phase: "trim", start: "2026-11-23", end: "2026-11-25", crew: ["Sam"], hoursPlanned: 24, progress: 50, color: "#2563eb", dependsOn: [{ id: "x", lagDays: 1 }], sheetIds: ["s"], notes: "n", sort: 1, workdaysOnly: true, createdAt: ts, updatedAt: ts, deleted: false },
+  sheetLinks: { id: "sl", projectId: "p", sheetId: "s", x: 0.1, y: 0.2, w: 0.05, h: 0.02, target: { kind: "sheet", sheetId: "s2" }, label: "E-501", auto: true, createdAt: ts, updatedAt: ts, deleted: false },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
   jobTemplates: { id: "jt", name: "LV standard", description: "d", trades: ["lowvoltage"], payload: { version: 1, project: {}, checklists: [], estimateLines: [] }, createdBy: "0b6c7f2e-8d1a-4f55-9a2b-1c3d4e5f6a7b", createdAt: ts, updatedAt: ts, deleted: false },
   changeOrders: {

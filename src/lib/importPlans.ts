@@ -14,6 +14,71 @@ export interface RenderedPage {
   pxPerInch: number;
   /** Text found on the page (title-block hint for naming). */
   text: string;
+  /**
+   * Positioned text (relative 0–1 boxes, y from the top) for the sheet index and callout links. Transient: used during
+   * import and not stored. Empty for scanned PDFs.
+   */
+  items?: PageTextItem[];
+}
+
+/** One text run on a page: a relative 0–1 box (y measured from the top of the page). */
+export interface PageTextItem {
+  str: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The relative box of a PDF.js text item: its text-space rect (baseline origin, advance `width` along the text
+ * direction, `height` up) mapped through the viewport transform, then divided by the viewport size. Handles rotated
+ * pages and vertical text by taking the bounding box of the four mapped corners. Pure (tested).
+ */
+export function textItemBox(
+  item: { transform: number[]; width: number; height: number },
+  vpTransform: number[],
+  vpWidth: number,
+  vpHeight: number,
+): { x: number; y: number; w: number; h: number } {
+  const [a, b, c, d, e, f] = item.transform;
+  const along = Math.hypot(a, b) || 1;
+  const upLen = Math.hypot(c, d) || 1;
+  const h = item.height || upLen;
+  const dir = { x: a / along, y: b / along };
+  const up = { x: c / upLen, y: d / upLen };
+  const corners = [
+    { x: e, y: f },
+    { x: e + dir.x * item.width, y: f + dir.y * item.width },
+    { x: e + up.x * h, y: f + up.y * h },
+    { x: e + dir.x * item.width + up.x * h, y: f + dir.y * item.width + up.y * h },
+  ];
+  const [m0, m1, m2, m3, m4, m5] = vpTransform;
+  const xs = corners.map((p) => m0 * p.x + m2 * p.y + m4);
+  const ys = corners.map((p) => m1 * p.x + m3 * p.y + m5);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  return { x: x0 / vpWidth, y: y0 / vpHeight, w: (Math.max(...xs) - x0) / vpWidth, h: (Math.max(...ys) - y0) / vpHeight };
+}
+
+/** Positioned text runs of a PDF.js text content, relative to the viewport. Blank runs are dropped. */
+export function pageTextItems(
+  content: { items: unknown[] },
+  viewport: { transform: number[]; width: number; height: number },
+): PageTextItem[] {
+  const out: PageTextItem[] = [];
+  for (const it of content.items as { str?: string; transform?: number[]; width?: number; height?: number }[]) {
+    if (typeof it.str !== "string" || !it.str.trim() || !Array.isArray(it.transform)) continue;
+    const box = textItemBox({ transform: it.transform, width: it.width ?? 0, height: it.height ?? 0 }, viewport.transform, viewport.width, viewport.height);
+    if (![box.x, box.y, box.w, box.h].every(Number.isFinite)) continue;
+    out.push({ str: it.str, ...box });
+  }
+  return out;
+}
+
+/** The PDF.js module with its worker set up (shared by plan import and the sheet index text pass). */
+export async function loadPdfjs() {
+  return pdfjs();
 }
 
 async function pdfjs() {
@@ -41,14 +106,16 @@ export async function renderPdf(file: File | Blob, onProgress?: (done: number, t
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
     let text = "";
+    let items: PageTextItem[] = [];
     try {
       const tc = await page.getTextContent();
       text = tc.items.map((it) => ("str" in it ? it.str : "")).join(" ").replace(/\s+/g, " ").trim();
+      items = pageTextItems(tc, viewport);
     } catch {
       /* scanned PDFs have no text layer */
     }
     const blob = await canvasToBlob(canvas, "image/jpeg", 0.9);
-    pages.push({ blob, width: canvas.width, height: canvas.height, pageNumber: i, pxPerInch: 72 * scale, text });
+    pages.push({ blob, width: canvas.width, height: canvas.height, pageNumber: i, pxPerInch: 72 * scale, text, items });
     canvas.width = canvas.height = 0;
     page.cleanup();
     onProgress?.(i, doc.numPages);

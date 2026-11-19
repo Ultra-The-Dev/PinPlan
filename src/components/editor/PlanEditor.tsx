@@ -40,8 +40,9 @@ import SheetPill from "./viewer/SheetPill";
 import ZoomControls from "./viewer/ZoomControls";
 import "./overlays";
 import { AI_ENABLED } from "@/lib/features";
-// Plan overlays (register themselves): saved measurements.
+// Plan overlays (register themselves): saved measurements, sheet links.
 import "@/components/measure/registerOverlay";
+import "../sheetIndex/registerOverlay";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }

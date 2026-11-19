@@ -118,6 +118,36 @@ export interface Sheet {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+  /** Sheet index (docs/sheet-index-links.md): printed sheet number ("E-101"), title, discipline and tags. */
+  number?: string | null;
+  title?: string | null;
+  discipline?: string | null;
+  tags?: string[] | null;
+}
+
+/** Where a plan hyperlink goes. */
+export type SheetLinkTarget =
+  | { kind: "sheet"; sheetId: string; x?: number; y?: number }
+  | { kind: "document"; documentId: string }
+  | { kind: "photo"; photoId: string }
+  | { kind: "url"; url: string };
+
+/** A tappable area on a sheet (relative 0–1 rect) that opens another sheet, a job document, a photo or a web page. */
+export interface SheetLink {
+  id: string;
+  projectId: string;
+  sheetId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  target: SheetLinkTarget;
+  label?: string | null;
+  /** Found from callout text (sheet numbers), not drawn by hand. */
+  auto?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
 }
 
 export interface DeviceType {

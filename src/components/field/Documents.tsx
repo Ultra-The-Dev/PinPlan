@@ -6,6 +6,7 @@ import { db, newId, nowIso, saveImage } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import DocumentBacklinks from "../sheetIndex/DocumentBacklinks";
 import UploadStatus from "../UploadStatus";
 
 const MAX_MB = 25;
@@ -75,6 +76,7 @@ export default function Documents() {
                 <div className="text-xs text-slate-500">
                   {size(d.size)} · {new Date(d.createdAt).toLocaleDateString()}
                 </div>
+                <DocumentBacklinks documentId={d.id} />
               </div>
               <button
                 className="btn btn-sm"
