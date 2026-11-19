@@ -1,12 +1,8 @@
 // Field documentation helpers: checklist templates and progress, tags, the job timeline and photo filters.
 // Mirrors PinPlanCore/FieldDocsLogic.swift.
-import type { Checklist, ChecklistItem, JobDocument, JobLog, Photo, PhotoComment, Project } from "./types";
+import type { Checklist, ChecklistItem, ChecklistTemplate, JobDocument, JobLog, Photo, PhotoComment, Project } from "./types";
 
-export interface ChecklistTemplate {
-  id: string;
-  name: string;
-  items: { text: string; requiresPhoto?: boolean }[];
-}
+export type { ChecklistTemplate } from "./types";
 
 /** Starting checklists for low-voltage / smart-home work. */
 export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
@@ -80,6 +76,59 @@ export function checklistFromTemplate(t: ChecklistTemplate, projectId: string, n
     updatedAt: now,
   };
 }
+
+// ---------------- company checklist templates (saved in settings) ----------------
+
+/** Trimmed, non-empty item list (only text + photo rule — never who ticked it, assignees or due dates). */
+const templateItems = (items: { text?: string | null; requiresPhoto?: boolean | null }[]) =>
+  items.map((i) => ({ text: (i.text ?? "").trim(), requiresPhoto: !!i.requiresPhoto })).filter((i) => i.text);
+
+/** Turn a job's checklist into a reusable company template. Job-specific state (done, photos, assignee, due, notes) is dropped. */
+export function templateFromChecklist(c: Pick<Checklist, "name" | "items">, name: string, newId: () => string, now = new Date().toISOString()): ChecklistTemplate {
+  return { id: newId(), name: name.trim() || c.name.trim() || "Checklist", items: templateItems(c.items), custom: true, createdAt: now, updatedAt: now };
+}
+
+/** Clean up templates read from settings (old or hand-edited data): drops broken rows and duplicate ids, fixes items, marks them custom. */
+export function normalizeTemplates(raw: unknown): ChecklistTemplate[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ChecklistTemplate[] = [];
+  const seen = new Set<string>();
+  for (const t of raw as Partial<ChecklistTemplate>[]) {
+    if (!t || typeof t !== "object" || typeof t.id !== "string" || !t.id || seen.has(t.id) || typeof t.name !== "string" || !t.name.trim()) continue;
+    seen.add(t.id);
+    const items = Array.isArray(t.items) ? templateItems(t.items.filter((i) => i && typeof i.text === "string")) : [];
+    out.push({ id: t.id, name: t.name.trim(), items, custom: true, ...(t.createdAt ? { createdAt: t.createdAt } : {}), ...(t.updatedAt ? { updatedAt: t.updatedAt } : {}) });
+  }
+  return out;
+}
+
+/** Templates to start a checklist from: the company's own (A→Z) first, then the built-ins. */
+export function allChecklistTemplates(custom: ChecklistTemplate[] | null | undefined): ChecklistTemplate[] {
+  const mine = normalizeTemplates(custom).sort((a, b) => a.name.localeCompare(b.name));
+  return [...mine, ...CHECKLIST_TEMPLATES];
+}
+
+/** "Trim-out" → "Trim-out (2)" when that name is taken (case-insensitive; `exceptId` is the template being renamed). */
+export function uniqueTemplateName(name: string, existing: ChecklistTemplate[], exceptId?: string): string {
+  const base = name.trim() || "Checklist";
+  const taken = new Set(existing.filter((t) => t.id !== exceptId).map((t) => t.name.trim().toLowerCase()));
+  if (!taken.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n++) if (!taken.has(`${base} (${n})`.toLowerCase())) return `${base} (${n})`;
+}
+
+/** Add a template to the saved list, keeping names unique. */
+export function addTemplate(list: ChecklistTemplate[], t: ChecklistTemplate): ChecklistTemplate[] {
+  return [...list, { ...t, name: uniqueTemplateName(t.name, list) }];
+}
+
+/** Rename one saved template (name kept unique). Unknown ids or blank names leave the list unchanged. */
+export function renameTemplate(list: ChecklistTemplate[], id: string, name: string, now = new Date().toISOString()): ChecklistTemplate[] {
+  if (!name.trim() || !list.some((t) => t.id === id)) return list;
+  const next = uniqueTemplateName(name, list, id);
+  return list.map((t) => (t.id === id ? { ...t, name: next, updatedAt: now } : t));
+}
+
+export const removeTemplate = (list: ChecklistTemplate[], id: string) => list.filter((t) => t.id !== id);
 
 /** Photos taken for one checklist item. */
 export const itemPhotos = (photos: Photo[], checklistId: string, itemId: string) =>

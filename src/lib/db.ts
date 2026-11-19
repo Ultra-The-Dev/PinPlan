@@ -1,9 +1,11 @@
 import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
 import { DEFAULT_SETTINGS, seedCatalog } from "./catalog";
+import { normalizeTemplates } from "./fieldDocs";
 import type {
   AppSettings,
   BusinessSettings,
+  ChecklistTemplate,
   Closet,
   DeviceType,
   EstimateLine,
@@ -163,11 +165,31 @@ export async function getSettings(): Promise<AppSettings> {
       ...s.pricing,
       wirePrices: { ...DEFAULT_SETTINGS.pricing.wirePrices, ...s.pricing?.wirePrices },
     },
+    checklistTemplates: normalizeTemplates(s.checklistTemplates),
   };
 }
 
+/**
+ * Save settings forms. Checklist templates are kept as stored (they are only changed by `saveChecklistTemplates`),
+ * so a settings form opened earlier can't bring back a deleted template or drop a newly saved one.
+ */
 export async function saveSettings(s: AppSettings) {
-  await db().settings.put({ ...s, updatedAt: nowIso() });
+  const stored = await db().settings.get("app");
+  await db().settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], updatedAt: nowIso() });
+}
+
+/** Company checklist templates (saved from jobs, managed in Settings). */
+export async function getChecklistTemplates(): Promise<ChecklistTemplate[]> {
+  return (await getSettings()).checklistTemplates ?? [];
+}
+
+/** Replace the saved checklist templates with `update(current)` (read-modify-write on the latest stored copy). */
+export async function saveChecklistTemplates(update: (cur: ChecklistTemplate[]) => ChecklistTemplate[]): Promise<ChecklistTemplate[]> {
+  const s = await getSettings();
+  const next = normalizeTemplates(update(s.checklistTemplates ?? []));
+  await db().settings.put({ ...s, checklistTemplates: next, updatedAt: nowIso() });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("pinplan:checklist-templates"));
+  return next;
 }
 
 export interface ProjectBundle {

@@ -1,16 +1,19 @@
 "use client";
 // Checklists from templates (pre-wire, trim-out, rack, final walkthrough) or from scratch. Photo-required items
-// only count once they have a photo, which can be taken right from the item.
-import { CalendarDays, Camera, Check, ChevronDown, Plus, Trash, UserRound } from "lucide-react";
+// only count once they have a photo, which can be taken right from the item. Any checklist can be saved as a company
+// template ("Save as template"); saved templates show first in "Start a checklist" and are managed in Settings.
+import { BookmarkPlus, CalendarDays, Camera, Check, ChevronDown, Plus, Trash, UserRound } from "lucide-react";
 import { useRef, useState } from "react";
-import { newId, nowIso } from "@/lib/db";
-import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, itemComplete, itemPhotos, localDay, taskBucket, teamNames } from "@/lib/fieldDocs";
+import { newId, nowIso, saveChecklistTemplates } from "@/lib/db";
+import { addTemplate, allChecklistTemplates, checklistFromTemplate, checklistProgress, itemComplete, itemPhotos, localDay, taskBucket, teamNames, templateFromChecklist } from "@/lib/fieldDocs";
 import { getAuthor, importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { toast } from "@/lib/toast";
 import type { Checklist, ChecklistItem, Photo } from "@/lib/types";
+import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
 import { useBlobUrl } from "@/lib/useImage";
+import Dialog from "../Dialog";
 import PhotoViewer from "../photos/PhotoViewer";
 
 function Mini({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
@@ -72,7 +75,24 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photoFor, setPhotoFor] = useState<string | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const prog = checklistProgress(c, photos);
+
+  async function saveAsTemplate(name: string) {
+    const t = templateFromChecklist(c, name, newId);
+    let saved = t.name;
+    try {
+      await saveChecklistTemplates((cur) => {
+        const next = addTemplate(cur, t);
+        saved = next[next.length - 1].name;
+        return next;
+      });
+      setSavingTemplate(false);
+      toast(`Saved “${saved}” as a template`, "success");
+    } catch {
+      toast("Couldn't save the template", "error");
+    }
+  }
   // Patch the latest copy from the store, so quick taps on two items don't overwrite each other.
   const setItem = (id: string, patch: Partial<ChecklistItem>) => {
     const cur = useEditor.getState().checklists.find((x) => x.id === c.id) ?? c;
@@ -190,6 +210,16 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
             </button>
             <button
               type="button"
+              className="btn btn-sm btn-ghost text-slate-500"
+              title="Save as template"
+              aria-label="Save as template"
+              disabled={c.items.length === 0}
+              onClick={() => setSavingTemplate(true)}
+            >
+              <BookmarkPlus />
+            </button>
+            <button
+              type="button"
               className="btn btn-sm btn-ghost text-slate-400 hover:text-red-600"
               title="Delete checklist"
               aria-label="Delete checklist"
@@ -201,6 +231,16 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
         </div>
       )}
       {viewer && <PhotoViewer photos={viewer.list} startId={viewer.id} onClose={() => setViewer(null)} />}
+      {savingTemplate && (
+        <Dialog
+          title="Save as template"
+          description={`Saves the ${c.items.length} item${c.items.length === 1 ? "" : "s"} and their photo rules (not ticks, photos, assignees or due dates) so you can start this checklist on any job.`}
+          fields={[{ name: "name", label: "Template name", initial: c.name }]}
+          submitLabel="Save template"
+          onSubmit={(v) => void saveAsTemplate(v.name ?? "")}
+          onCancel={() => setSavingTemplate(false)}
+        />
+      )}
     </section>
   );
 }
@@ -208,6 +248,7 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
 export default function Checklists() {
   const { project, checklists, photos, saveRow } = useEditor();
   const [name, setName] = useState("");
+  const templates = allChecklistTemplates(useChecklistTemplates().templates);
   if (!project) return null;
   const live = checklists.filter((c) => !c.deleted);
   const add = (c: Checklist) => void saveRow("checklists", c);
@@ -216,9 +257,14 @@ export default function Checklists() {
       <div className="card p-4">
         <div className="text-sm font-medium">Start a checklist</div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {CHECKLIST_TEMPLATES.map((t) => (
-            <button key={t.id} className="btn btn-sm" onClick={() => add(checklistFromTemplate(t, project.id, newId))}>
-              <Plus /> {t.name}
+          {templates.map((t) => (
+            <button
+              key={`${t.custom ? "c" : "b"}-${t.id}`}
+              className={`btn btn-sm ${t.custom ? "btn-on" : ""}`}
+              title={t.custom ? `Your template · ${t.items.length} item${t.items.length === 1 ? "" : "s"}` : undefined}
+              onClick={() => add(checklistFromTemplate(t, project.id, newId))}
+            >
+              {t.custom ? <BookmarkPlus /> : <Plus />} {t.name}
             </button>
           ))}
         </div>

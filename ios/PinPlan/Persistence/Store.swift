@@ -10,6 +10,8 @@ struct AppSettings: Codable, Equatable {
     /// Hosted PinPlan server (the web app) used for Billdu and AI scan; secrets stay on that server.
     var serverURL = ""
     var accessCode = ""
+    /// Company checklist templates saved from jobs ("Save as template"). Optional so older settings.json files still decode.
+    var checklistTemplates: [ChecklistTemplate]? = nil
 }
 
 /// File-based, offline-first storage in the app's Documents folder:
