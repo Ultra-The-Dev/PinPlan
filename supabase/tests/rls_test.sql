@@ -49,8 +49,10 @@ update public.projects set address = 'hacked' where id = 'p1';
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select pg_temp.check((select address from public.projects where id = 'p1') = '12 Maple Ridge Rd', 'other user cannot update project');
 
--- A shares the project with C; C can now read and add markers.
+-- The job is shared with C (sharing rows are written by the database / server only); C can now read and add markers.
+reset role;
 insert into public.project_members (project_id, user_id, role) values ('p1', '00000000-0000-0000-0000-00000000000c', 'editor');
+set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 select pg_temp.check((select count(*) from public.projects) = 1, 'member sees shared project');
 insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)

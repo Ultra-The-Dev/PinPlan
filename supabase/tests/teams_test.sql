@@ -98,4 +98,6 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1');
 select public.remove_team_member('00000000-0000-0000-0000-0000000000f2');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2');
 select pg_temp.check((select count(*) from public.projects where id = 'tp1') = 0, 'removed tech loses access');
-select pg_temp.check((select count(*) from public.projects where id = 'tp2') = 1, 'removed tech keeps the job they own');
+select pg_temp.check((select count(*) from public.projects where id = 'tp2') = 0, 'removed tech''s own job stays with the company');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1');
+select pg_temp.check((select owner_id from public.projects where id = 'tp2') = '00000000-0000-0000-0000-0000000000f1', 'the owner now owns the removed tech''s job');

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { downloadBlob, slug } from "@/lib/download";
 import { mapSections, reportComments, reportSections, snapshotSections, type ReportGroupBy } from "@/lib/photoReport";
 import { newToken } from "@/lib/proposal";
+import { revokePhotoReport } from "@/lib/proposalCloud";
 import { renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
@@ -137,6 +138,18 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
     }
   }
 
+  async function stopSharing(url: string) {
+    const token = new URL(url).searchParams.get("t");
+    if (!token) return;
+    try {
+      await revokePhotoReport(token);
+      setLink(null);
+      toast("Link stopped. It no longer opens.", "success");
+    } catch (e) {
+      toast(`Couldn't stop the link: ${(e as Error).message}`, "error");
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label="Photo report" className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
@@ -200,6 +213,9 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
             <span className="min-w-0 flex-1 truncate">{link}</span>
             <button className="btn btn-sm" onClick={() => void navigator.clipboard.writeText(link)}>
               <Copy /> Copy
+            </button>
+            <button className="btn btn-sm btn-ghost" title="The link stops working and its photos are deleted from the cloud" onClick={() => void stopSharing(link)}>
+              Stop sharing
             </button>
           </div>
         )}

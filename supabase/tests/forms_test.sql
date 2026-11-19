@@ -49,7 +49,9 @@ select pg_temp.check(true, 'tech can re-send the same submitted row');
 select pg_temp.check(pg_temp.fails($$update public.job_forms set status = 'draft' where id = 'jf1'$$), 'tech cannot reopen');
 select pg_temp.check(pg_temp.fails($$update public.job_forms set "values" = '{}' where id = 'jf1'$$), 'tech cannot change a submitted form');
 select pg_temp.check(pg_temp.fails($$update public.job_forms set deleted = true where id = 'jf1'$$), 'tech cannot delete a submitted form');
-select pg_temp.check(pg_temp.fails($$delete from public.job_forms where id = 'jf1'$$), 'tech cannot hard-delete a submitted form');
+-- Real deletes are office work: the tech's delete matches nothing (20261124100100_security_hardening.sql).
+delete from public.job_forms where id = 'jf1';
+select pg_temp.check((select count(*) from public.job_forms where id = 'jf1') = 1, 'tech cannot hard-delete a submitted form');
 insert into public.job_forms (id, project_id, template_id, name, template, status) values ('jf2', 'fp1', 'jha', 'JHA', '{}', 'draft');
 update public.job_forms set deleted = true where id = 'jf2';
 select pg_temp.check((select deleted from public.job_forms where id = 'jf2'), 'tech deletes a draft');
