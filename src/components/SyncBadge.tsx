@@ -5,7 +5,7 @@ import { useSyncStatus } from "@/lib/sync";
 
 /** Small header indicator: offline / local only / pending N / synced. */
 export default function SyncBadge() {
-  const { configured, signedIn, authReady, online, syncing, pending, error } = useSyncStatus();
+  const { configured, signedIn, authReady, online, syncing, pending, error, readOnly } = useSyncStatus();
   // Sync state only exists in the browser; render a neutral badge for the server/hydration pass.
   const hydrated = useSyncExternalStore(
     () => () => {},
@@ -24,6 +24,9 @@ export default function SyncBadge() {
   } else if (!signedIn) {
     text = "Not signed in";
     cls = "bg-slate-100 text-slate-600";
+  } else if (readOnly) {
+    text = pending ? `Read-only · ${pending} kept here` : "Read-only";
+    cls = "bg-amber-100 text-amber-800";
   } else if (error) {
     text = "Sync error";
     cls = "bg-red-100 text-red-700";
@@ -38,7 +41,7 @@ export default function SyncBadge() {
     cls = "bg-emerald-100 text-emerald-700";
   }
   return (
-    <Link href="/settings#account" title={error ?? text} aria-label={`Sync: ${text}`} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${cls}`}>
+    <Link href={readOnly ? "/settings#billing" : "/settings#account"} title={readOnly ? "Your company's PinPlan subscription is inactive: changes stay on this device until it's restarted." : (error ?? text)} aria-label={`Sync: ${text}`} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${syncing ? "animate-pulse" : ""}`} />
       <span className="hidden sm:inline">{text}</span>
     </Link>

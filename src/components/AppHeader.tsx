@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
+import BillingBanner from "./BillingBanner";
 import RoleBadge from "./RoleBadge";
 import SyncBadge from "./SyncBadge";
 
@@ -30,6 +31,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
     { href: "/settings", label: "Settings", icon: Settings },
   ].filter((n) => !n.office || can(role, "editCatalog"));
   return (
+    <>
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur sm:px-5">
       <Logo />
       <div className="min-w-0 flex-1">{children}</div>
@@ -49,5 +51,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
       )}
       <SyncBadge />
     </header>
+    <BillingBanner />
+    </>
   );
 }

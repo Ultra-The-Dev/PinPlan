@@ -118,6 +118,63 @@ Needs step 6 (cloud sync). Everyone gets their own login; everyone on the team w
 Change someone between Technician and Office / admin, or remove them, under **Settings → Team**. Prices are also
 protected in the database and on the server, not just hidden in the app.
 
+## 10. Billing (Stripe)
+Optional: without it PinPlan works as before (self-hosted / founder mode) and the billing buttons say billing isn't
+set up. Needs step 9 (teams): a paying customer is a company team. New teams get a 14-day free trial; teams that
+existed before the billing update are **comped** (free for good, no seat limit, never locked).
+
+How it behaves:
+- **Trial / active / past due**: everything works. Past due keeps working while Stripe retries the card.
+- **Trial ended without paying, canceled, unpaid**: the team is **read-only**: everyone can still open and export
+  every job, but changes stay on their device until the subscription is restarted (the database refuses them).
+- **Seats**: the base price includes 3 users; each extra user is a seat. When all seats are taken, a new invite can't
+  be accepted — the owner presses **Settings → Billing → Add a seat** first (Stripe prorates it). Removing someone
+  gives their seat back. Solo users (not on a team) are never billed or locked.
+
+1. Supabase **SQL Editor** → run `supabase/migrations/20261121000000_billing.sql` (safe to run again).
+2. Create a Stripe account at stripe.com. Work in **Test mode** first (the toggle at the top of the dashboard).
+3. Stripe → **Product catalog → Add product**, e.g. "PinPlan Team", with **two recurring monthly prices**:
+   - a **flat** price (e.g. $49/month) — the base, which includes 3 users;
+   - a **per-unit** price (e.g. $15/month) — one per extra user.
+   Copy each price's ID (`price_…`). Keep the display prices in `src/lib/plans.ts` in step with these.
+4. Stripe → **Developers → API keys**: copy the **Secret key** (`sk_test_…`).
+5. Stripe → **Developers → Webhooks → Add endpoint**:
+   - URL: `https://<your PinPlan address>/api/billing/webhook`
+   - Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
+     `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`
+   - Copy the endpoint's **Signing secret** (`whsec_…`).
+6. Stripe → **Settings → Billing → Customer portal**: turn on updating payment methods, viewing invoices and
+   cancelling. Leave **changing quantities and switching plans off** (seats are changed from PinPlan). Save.
+   Also in **Settings → Billing → Subscriptions and emails**, turn on Stripe's emails for failed payments and
+   card updates.
+7. Vercel → **Settings → Environment Variables** (Production), then **Redeploy**:
+
+   | Name | Value |
+   | --- | --- |
+   | `STRIPE_SECRET_KEY` | the secret key from step 4 |
+   | `STRIPE_WEBHOOK_SECRET` | the signing secret from step 5 |
+   | `STRIPE_PRICE_BASE` | the flat monthly price ID |
+   | `STRIPE_PRICE_SEAT` | the per-user monthly price ID |
+   | `SUPABASE_SERVICE_ROLE_KEY` | from step 9 (the webhook writes the team's plan with it) |
+
+   These stay on the server. Never put them in the app, a chat, an email or a `NEXT_PUBLIC_` variable.
+8. Test: web app → **Settings → Billing → Start subscription** → pay with card `4242 4242 4242 4242`, any future
+   date, any CVC. Back in PinPlan the status turns **Active** (or **Trial** with the remaining days carried over).
+   In Stripe → **Webhooks** → your endpoint, the deliveries should all show **200**.
+   Try **Add a seat** and **Manage billing & invoices**, and cancel from the portal to see the read-only banner.
+
+**Going live** (test mode → live mode checklist):
+- [ ] Activate the Stripe account (business details, bank account).
+- [ ] Switch to **Live mode** and create the same product and two prices again (test prices don't exist in live mode).
+- [ ] Add the webhook endpoint again in live mode (same URL and events) — it has a new signing secret.
+- [ ] Set up the customer portal again in live mode.
+- [ ] Replace all four `STRIPE_*` variables in Vercel with the live values (`sk_live_…`, new `whsec_…`, live
+      `price_…` IDs), then **Redeploy**.
+- [ ] Make one real subscription with your own card, check the webhook shows 200, then cancel and refund it.
+
+To give a company free access (a friend, a partner), set its row in Supabase **Table Editor → teams** to
+`plan_status = comped` and clear `seat_limit`. Only the server and the dashboard can change billing columns.
+
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).

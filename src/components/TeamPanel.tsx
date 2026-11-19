@@ -3,6 +3,7 @@
 import { CircleAlert, Copy, LogIn, LogOut, MessageSquare, Share2, Ticket, UserMinus, UserPlus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { releaseSeat } from "@/lib/billing";
 import { getAuthor } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import {
@@ -287,7 +288,8 @@ function OnTeam() {
                   title: `Remove ${memberLabel(m)}?`,
                   description: `They lose access to ${team.name || "the team"}’s jobs right away. Photos, notes and checklists they added stay on the jobs.`,
                   label: "Remove",
-                  run: () => removeMember(m.userId),
+                  // Give back the seat they used (subscribed teams), so the bill follows the team.
+                  run: () => removeMember(m.userId).then(releaseSeat),
                   done: `${memberLabel(m)} removed`,
                 })
               }
@@ -296,6 +298,11 @@ function OnTeam() {
         </ul>
       </div>
 
+      {manage && t.billing?.seatLimit != null && t.members.length >= t.billing.seatLimit && (
+        <Notice tone="amber">
+          All {t.billing.seatLimit} seats are taken, so a new invite can’t be accepted yet. <a href="#billing" className="font-medium underline">Add a seat</a> first.
+        </Notice>
+      )}
       {manage && <Invites team={team.name} from={me ? memberLabel(me) : ""} members={t.members} />}
 
       {t.role === "tech" && (

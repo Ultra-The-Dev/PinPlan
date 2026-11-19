@@ -4,6 +4,7 @@
 // Pull: fetch rows changed on the server since the last pull (server `synced_at` watermark),
 // last-write-wins by `updatedAt`, written straight into Dexie without re-queuing.
 import { create } from "zustand";
+import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
@@ -24,6 +25,8 @@ export interface SyncStatus {
   pending: number;
   lastSyncAt: string | null;
   error: string | null;
+  /** The team's subscription has lapsed: the cloud refuses edits, so they stay queued on this device (pulls go on). */
+  readOnly: boolean;
   syncNow(): Promise<void>;
 }
 
@@ -38,6 +41,7 @@ export const useSyncStatus = create<SyncStatus>(() => ({
   pending: 0,
   lastSyncAt: null,
   error: null,
+  readOnly: false,
   syncNow: () => runSync(true),
 }));
 
@@ -50,6 +54,9 @@ const TICK_MS = 15_000;
 let running: Promise<void> | null = null;
 let failures = 0;
 let nextAttemptAt = 0;
+/** The database refused a write as "PinPlan subscription inactive": don't push again before this (pulls go on). */
+let readOnlyUntil = 0;
+const READ_ONLY_RETRY_MS = 10 * 60_000;
 /** Cloud tables/columns found missing during this sync (the latest migration hasn't been run on the project yet). */
 const schemaGaps = { tables: new Set<string>(), columns: new Map<string, Set<string>>() };
 
@@ -321,11 +328,24 @@ async function runSync(force = false): Promise<void> {
     try {
       // Know the role before pushing, so a technician's device never sends what the database would refuse.
       await loadTeam(st.userId).catch(() => undefined);
-      await push();
+      // A lapsed subscription makes the team read-only: keep local edits queued (nothing is lost) and don't keep
+      // sending what the database refuses. Billing is re-read on every sync, so pushing resumes once it's active.
+      if (force) readOnlyUntil = 0;
+      let readOnly = !billingAllowsWork(useTeam.getState().billing) || Date.now() < readOnlyUntil;
+      if (!readOnly) {
+        try {
+          await push();
+        } catch (e) {
+          if (!isSubscriptionInactive(e instanceof Error ? e.message : String(e))) throw e;
+          readOnly = true;
+          readOnlyUntil = Date.now() + READ_ONLY_RETRY_MS;
+        }
+      }
+      if (!readOnly) readOnlyUntil = 0;
       await pull(st.userId, changed);
       failures = 0;
       nextAttemptAt = 0;
-      setStatus({ lastSyncAt: new Date().toISOString(), error: schemaWarning() });
+      setStatus({ lastSyncAt: new Date().toISOString(), error: schemaWarning(), readOnly });
     } catch (e) {
       failures += 1;
       nextAttemptAt = Date.now() + Math.min(5 * 60_000, 5_000 * 2 ** failures);

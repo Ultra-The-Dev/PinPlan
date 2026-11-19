@@ -1,5 +1,5 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, ListChecks, Receipt, Save, Users } from "lucide-react";
+import { Building, Cable, Calculator, CloudOff, CreditCard, ListChecks, Receipt, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { WIRE_TYPES } from "@/lib/catalog";
@@ -10,6 +10,7 @@ import type { AppSettings } from "@/lib/types";
 import AccessCodePanel from "./AccessCodePanel";
 import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
+import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 import TeamPanel from "./TeamPanel";
 
@@ -38,6 +39,7 @@ export default function SettingsForm() {
     { id: "checklists", label: "Checklists", icon: ListChecks },
     { id: "billdu", label: "Billdu", icon: Receipt, office: true },
     { id: "team", label: "Team", icon: Users },
+    { id: "billing", label: "Billing", icon: CreditCard },
     { id: "account", label: "Account & sync", icon: CloudOff },
   ].filter((n) => office || !n.office);
 
@@ -244,6 +246,7 @@ export default function SettingsForm() {
         </section>
       )}
         <TeamPanel businessName={s.business.name} />
+        <BillingPanel />
         <div className="card scroll-mt-6 p-6">
           <AccountPanel />
         </div>
