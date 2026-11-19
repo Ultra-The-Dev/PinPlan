@@ -59,9 +59,19 @@ final class EditorModel {
     var multi: [String] = []
     /// "Select several" mode: taps on devices add/remove them.
     var multiMode = false
-    var hiddenLayers: Set<Layer> = []
+    /// Plan layers and filters (remembered per job, see EditorModel+Viewer).
+    var filter = PlanFilter()
+    /// View (read, tap for details) or Edit (place, draw, move). Technicians start in View.
+    var viewerMode: PlanViewerMode = .edit
+    var hiddenLayers: Set<Layer> {
+        get { filter.hiddenLayers }
+        set { filter.hiddenLayers = newValue }
+    }
     var room = ""
-    var showLabels = false
+    var showLabels: Bool {
+        get { filter.showLabels }
+        set { filter.showLabels = newValue }
+    }
     /// Points of the run being drawn (relative coords).
     var draft: [Double] = []
     var draftMarkerId: String?
@@ -96,6 +106,7 @@ final class EditorModel {
         self.app = app
         app.openEditor = self
         activeSheetId = bundle.liveSheets.first?.id
+        loadViewerPrefs()
         if let s = bundle.liveSheets.first { Task { await loadPlanDetails(for: s) } }
     }
 
@@ -110,6 +121,8 @@ final class EditorModel {
     /// Switch tools (discarding any half-drawn run).
     func use(_ t: Tool) {
         if case .place(let id) = t { recentTypes.removeAll { $0 == id }; recentTypes.insert(id, at: 0); recentTypes = Array(recentTypes.prefix(8)) }
+        // Picking a tool (palette, plan reader…) means editing.
+        if t != .select && viewerMode == .view { viewerMode = .edit }
         guard t != tool else { return }
         tool = t
         draft = []
@@ -196,14 +209,11 @@ final class EditorModel {
 
     // MARK: visibility
 
-    func isVisible(_ m: Marker) -> Bool {
-        guard let t = app.type(m.deviceTypeId) else { return true }
-        return !hiddenLayers.contains(Layer(rawValue: t.category.rawValue) ?? .security)
-    }
-    func isVisible(_ r: Run) -> Bool { !hiddenLayers.contains(r.kind == .wire ? .wiring : .lighting) }
-    var closetsVisible: Bool { Catalog.closetKinds.contains { isVisible(kind: $0.id) } }
+    func isVisible(_ m: Marker) -> Bool { filter.shows(m, category: app.type(m.deviceTypeId)?.category) }
+    func isVisible(_ r: Run) -> Bool { filter.shows(r) }
+    var closetsVisible: Bool { filter.showClosets && Catalog.closetKinds.contains { isVisible(kind: $0.id) } }
     /// Each closet kind is on its trade's layer (equipment closets: infrastructure; panels: panels; FACP: fire…).
-    func isVisible(kind: ClosetKind) -> Bool { !hiddenLayers.contains(Layer(rawValue: Catalog.closetInfo(kind).category.rawValue) ?? .infrastructure) }
+    func isVisible(kind: ClosetKind) -> Bool { filter.shows(closetCategory: Catalog.closetInfo(kind).category) }
 
     // MARK: taps on the plan
 

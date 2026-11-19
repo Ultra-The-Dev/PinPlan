@@ -15,8 +15,8 @@ struct ScaleTip: Tip {
 }
 
 struct LongPressTip: Tip {
-    var title: Text { Text("Long-press a device") }
-    var message: Text? { Text("Quick actions: mark tentative (?), duplicate, place more like it, delete. Drag to move it.") }
+    var title: Text { Text("Press and hold a device") }
+    var message: Text? { Text("Drag it to move it, or let go for quick actions: tentative (?), duplicate, place more like it, delete.") }
     var image: Image? { Image(systemName: "hand.point.up.left") }
 }
 

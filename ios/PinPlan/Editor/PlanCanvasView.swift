@@ -1,205 +1,99 @@
 import SwiftUI
 import PinPlanCore
 
-/// Zoomable, pannable plan sheet with markup. Positions are relative (0…1); sizes of symbols stay constant on screen.
+/// The plan sheet with its markup. The sheet itself zooms and pans in a UIScrollView (PlanZoomView: native
+/// physics, tiled rendering); devices, runs, closets and overlays are drawn on top by SwiftUI from the live
+/// `PlanViewport`, so symbols stay the same size on screen. All touches on the plan arrive through the zoom
+/// view's gestures and are handled here. Positions are relative (0…1) to the sheet image.
 struct PlanCanvasView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     let model: EditorModel
     let sheet: Sheet
+    let controller: PlanViewportController
+    /// Apple Pencil places and draws; fingers only pan (iPad option).
+    var pencilDraws = false
+    /// Swipe in from a side edge: −1 previous sheet, +1 next.
+    var onEdgeSwipe: (Int) -> Void = { _ in }
 
-    @State private var scale: CGFloat = 0.2
-    @State private var offset: CGSize = .zero
-    @State private var gestureBase: (scale: CGFloat, offset: CGSize)?
-    @State private var dragging: [String: CGPoint] = [:]   // live drag positions (relative) by item id
-    @State private var size: CGSize = .zero
-    @State private var fittedKey = ""
-    @State private var appliedFocus = 0
-    @State private var detail: DetailTile?
+    /// Live positions (relative) of items being dragged, by id.
+    @State private var dragging: [String: CGPoint] = [:]
+    @State private var lifted: Lifted?
     /// Finger position while aiming in precision mode (scale line / measure).
     @State private var aim: CGPoint?
-    @State private var detailTask: Task<Void, Never>?
-    @Environment(\.displayScale) private var displayScale
-    @Environment(\.horizontalSizeClass) private var hSize
+    /// Device whose quick actions are showing (press and hold without dragging).
+    @State private var quickMarker: String?
+    @State private var edgeHint: EdgeHint?
+    @State private var imageOnDevice = true
 
-    /// A crisp re-render of the visible part of the sheet from its vector PDF.
-    struct DetailTile { let image: UIImage; let rect: CGRect; let sheetId: String }
-
-    /// Symbols stay readable: full size when zoomed in, a little smaller at overview zoom.
-    private var symbolSize: CGFloat {
-        let fit = fitScale()
-        guard fit > 0 else { return 30 }
-        return min(30, max(18, 30 * (scale / (fit * 1.6)).squareRoot()))
+    struct Lifted: Equatable {
+        enum Kind: Equatable { case marker, closet }
+        let id: String
+        let kind: Kind
+        /// Finger-to-item offset at pick-up (view points), so the item doesn't jump under the finger.
+        let grab: CGSize
     }
+
+    struct EdgeHint: Equatable {
+        let side: Int
+        let progress: Double
+    }
+
     static let space = "plan-canvas"
 
-    private var W: CGFloat { sheet.width }
-    private var H: CGFloat { sheet.height }
+    private var source: PlanTileSource {
+        let pdfURL: URL? = sheet.sourcePdfId.flatMap { app.store.hasPDF($0) ? app.store.pdfURL($0) : nil }
+        return PlanTileSource(imageId: sheet.imageId, imageURL: PlanTileStore.sourceURL(imageId: sheet.imageId, store: app.store),
+                              sheetSize: sheet.planSize, pdfId: pdfURL == nil ? nil : sheet.sourcePdfId, pdfURL: pdfURL,
+                              pdfPage: pdfURL == nil ? nil : sheet.sourcePage, rotation: sheet.sourceRotation ?? 0)
+    }
 
     var body: some View {
-        GeometryReader { geo in
-            let image = app.store.image(sheet.imageId)
-            ZStack(alignment: .topLeading) {
-                Color(.systemGray6)
-
-                // Plan image
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .interpolation(.medium)
-                        .frame(width: W * scale, height: H * scale)
-                        .background(Color.white)
-                        .shadow(color: .black.opacity(0.15), radius: 12, y: 3)
-                        .offset(offset)
-                        .allowsHitTesting(false)
-                }
-
-                // Vector detail for the visible area when zoomed past the raster's resolution
-                if let d = detail, d.sheetId == sheet.id {
-                    Image(uiImage: d.image)
-                        .resizable()
-                        .frame(width: d.rect.width * W * scale, height: d.rect.height * H * scale)
-                        .offset(x: offset.width + d.rect.minX * W * scale, y: offset.height + d.rect.minY * H * scale)
-                        .allowsHitTesting(false)
-                }
-
-                // Gesture surface (taps, pan, pinch)
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(SpatialTapGesture(coordinateSpace: .named(Self.space)).onEnded { handleTap($0.location) })
-                    .simultaneousGesture(panGesture)
-                    .simultaneousGesture(magnifyGesture)
-
-                // Runs and the run being drawn
-                Canvas { ctx, _ in drawRuns(&ctx) }
-                    .allowsHitTesting(false)
-
-                // Run vertex handles for the selected run
-                if case .run(let rid)? = model.selection, model.tool == .select,
-                   let run = model.bundle.liveRuns.first(where: { $0.id == rid }), run.sheetId == sheet.id {
-                    ForEach(0..<(run.points.count / 2), id: \.self) { i in
-                        let key = "\(run.id)#\(i)"
-                        let p = dragging[key] ?? CGPoint(x: run.points[i * 2], y: run.points[i * 2 + 1])
-                        Circle().fill(.white).overlay(Circle().stroke(Color.brand, lineWidth: 2))
-                            .frame(width: 22, height: 22)
-                            .position(screen(p.x, p.y))
-                            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .named(Self.space))
-                                .onChanged { v in dragging[key] = relative(v.location) }
-                                .onEnded { v in
-                                    let r = relative(v.location)
-                                    dragging[key] = nil
-                                    model.edit { b in b.updateRun(run.id) { $0.points[i * 2] = r.x; $0.points[i * 2 + 1] = r.y } }
-                                })
-                    }
-                }
-
-                // Pulsing call-out for a point picked in the plan reader
-                if let h = model.highlight, h.sheetId == sheet.id {
-                    PulseRing().position(screen(h.x, h.y)).allowsHitTesting(false)
-                }
-
-                // Closets
-                if model.closetsVisible {
-                    ForEach(model.bundle.liveClosets.filter { $0.sheetId == sheet.id && model.isVisible(kind: $0.kind) }) { c in
-                        let p = dragging[c.id] ?? CGPoint(x: c.x, y: c.y)
-                        ClosetBadge(closet: c, selected: model.selection == .closet(c.id))
-                            .position(screen(p.x, p.y))
-                            .allowsHitTesting(model.tool == .select)
-                            .onTapGesture { model.selection = .closet(c.id) }
-                            .gesture(itemDrag(id: c.id) { r in model.edit { $0.updateCloset(c.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
-                    }
-                }
-
-                // Devices (a camera badge marks the ones with site photos)
-                let photoMarkers = Set(model.bundle.photos.compactMap { $0.deleted == true ? nil : $0.markerId })
-                ForEach(model.bundle.liveMarkers.filter { $0.sheetId == sheet.id && model.isVisible($0) }) { m in
-                    let p = dragging[m.id] ?? CGPoint(x: m.x, y: m.y)
-                    VStack(spacing: 1) {
-                        DeviceSymbol(type: app.type(m.deviceTypeId), size: symbolSize, tentative: m.tentative, selected: model.isSelected(m.id))
-                            .overlay(alignment: .topLeading) {
-                                if photoMarkers.contains(m.id) {
-                                    Image(systemName: "camera.fill").font(.system(size: max(7, symbolSize * 0.28), weight: .bold)).foregroundStyle(.white)
-                                        .padding(max(2, symbolSize * 0.08)).background(Color(white: 0.1), in: Circle())
-                                        .overlay(Circle().stroke(.white, lineWidth: 1))
-                                        .offset(x: -symbolSize * 0.3, y: -symbolSize * 0.3)
-                                        .accessibilityHidden(true)
-                                }
-                            }
-                        if model.showLabels {
-                            Text(m.label).font(.system(size: 9, weight: .medium)).padding(.horizontal, 3)
-                                .background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 3))
-                        }
-                    }
-                    .position(x: screen(p.x, p.y).x, y: screen(p.x, p.y).y + (model.showLabels ? 7 : 0))
-                    .allowsHitTesting(model.tool == .select)
-                    .onTapGesture { model.tapMarker(m.id) }
-                    .contextMenu { markerMenu(m) }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(app.type(m.deviceTypeId)?.name ?? "Device") \(m.label)\(m.tentative ? ", tentative" : "")\(photoMarkers.contains(m.id) ? ", has photos" : "")")
-                    .accessibilityAddTraits(.isButton)
-                    .gesture(itemDrag(id: m.id) { r in model.edit { $0.updateMarker(m.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
-                }
-
-                // Precision mode for the scale line and measuring: drag to aim with a magnifier, release to place.
-                if precisionMode {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
-                            .onChanged { v in aim = v.location }
-                            .onEnded { v in aim = nil; handleTap(v.location) })
-                        .simultaneousGesture(magnifyGesture)
-                    if let aim, let image { Loupe(image: image, point: aim, sheetSize: CGSize(width: W, height: H), scale: scale, offset: offset, bounds: size) }
+        ZStack(alignment: .topLeading) {
+            Color(.systemGray6)
+            if imageOnDevice {
+                PlanZoomView(source: source, sheetId: sheet.id, controller: controller, config: zoomConfig, handlers: handlers,
+                             accessibilityName: "Plan, \(sheet.name)")
+            } else {
+                ProgressView("Downloading the plan…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            PlanMarkupLayer(model: model, sheet: sheet, controller: controller, dragging: dragging, liftedId: lifted?.id)
+                .allowsHitTesting(false)
+            RunHandlesLayer(model: model, sheet: sheet, controller: controller, dragging: $dragging)
+            PlanOverlayHost(model: model, sheet: sheet, controller: controller)
+            if let h = model.highlight, h.sheetId == sheet.id {
+                PlanPinned(controller: controller, x: h.x, y: h.y) { PulseRing() }.allowsHitTesting(false)
+            }
+            if let id = quickMarker, let m = model.bundle.liveMarkers.first(where: { $0.id == id }), model.viewerMode == .edit {
+                PlanPinned(controller: controller, x: m.x, y: m.y, dy: -CGFloat(48)) {
+                    QuickActionsBar(model: model, marker: m) { quickMarker = nil }
                 }
             }
-            .coordinateSpace(.named(Self.space))
-            .clipped()
-            .onAppear {
-                size = geo.size
-                fitIfNeeded(force: false)
-                // A focus request made before this sheet's canvas existed (e.g. "find device" on another floor).
-                if let f = model.focus, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) }
+            if let aim, precisionMode, let image = app.store.image(sheet.imageId) {
+                Loupe(image: image, point: aim, viewport: controller.viewport)
             }
-            .onChange(of: geo.size) { old, new in
-                // Panels opening/closing: keep the zoom and the point at the centre instead of re-fitting.
-                // Still showing the whole sheet (not zoomed by the user yet): re-fit to the new space instead.
-                let oldFit = old.width > 0 ? min(old.width / W, old.height / H) * 0.95 : 0
-                if oldFit > 0, abs(scale - oldFit) < oldFit * 0.01 {
-                    size = new
-                    fitIfNeeded(force: true)
-                } else if fittedKey.hasPrefix(sheet.id), old.width > 0, new.width > 0 {
-                    offset = CGSize(width: offset.width + (new.width - old.width) / 2, height: offset.height + (new.height - old.height) / 2)
-                    size = new
-                } else {
-                    size = new
-                    fitIfNeeded(force: false)
-                }
-            }
-            .onChange(of: sheet.id) { _, _ in fitIfNeeded(force: true) }
-            .onChange(of: model.fitRequest) { _, _ in fitIfNeeded(force: true) }
-            .onChange(of: model.focus) { _, f in if let f, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) } }
-            .onChange(of: scale) { _, _ in scheduleDetail() }
-            .onChange(of: offset) { _, _ in scheduleDetail() }
-            .overlay(alignment: .bottomTrailing) { zoomControls }
-            .overlay(alignment: hSize == .compact ? .bottomLeading : .topLeading) { scaleChip.padding(.bottom, hSize == .compact ? 120 : 0) }
+            if let edgeHint { EdgeSwipeHint(hint: edgeHint, hasTarget: model.neighborSheet(edgeHint.side) != nil) }
+            if voiceOver { MarkerAccessibilityLayer(model: model, sheet: sheet, controller: controller) }
+        }
+        .coordinateSpace(.named(Self.space))
+        .clipped()
+        .task(id: sheet.imageId) { await waitForImage() }
+        .onChange(of: model.fitRequest) { _, _ in controller.fit() }
+        .onChange(of: model.focus) { _, f in applyFocus(f) }
+        .onChange(of: model.tool) { _, _ in quickMarker = nil }
+        .onChange(of: model.viewerMode) { _, _ in quickMarker = nil }
+    }
+
+    /// The sheet image may still be on its way from cloud sync: check again every couple of seconds.
+    private func waitForImage() async {
+        imageOnDevice = app.store.hasImage(sheet.imageId)
+        while !imageOnDevice && !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
+            imageOnDevice = app.store.hasImage(sheet.imageId)
         }
     }
 
-    @ViewBuilder
-    private func markerMenu(_ m: Marker) -> some View {
-        Button { model.selection = .marker(m.id) } label: { Label("Edit", systemImage: "slider.horizontal.3") }
-        Button {
-            let pricing = model.pricing
-            model.edit { $0.updateMarker(m.id, pricing: pricing) { $0.tentative.toggle() } }
-        } label: { Label(m.tentative ? "Mark confirmed" : "Mark tentative (?)", systemImage: "questionmark.circle") }
-        Button {
-            guard let t = app.type(m.deviceTypeId) else { return }
-            model.edit { $0.addMarker(type: t, sheetId: m.sheetId, x: m.x + 0.015, y: m.y + 0.015, room: m.room, tentative: m.tentative) }
-        } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
-        Button { model.use(.place(m.deviceTypeId)) } label: { Label("Place more like this", systemImage: "hand.tap") }
-        Divider()
-        Button(role: .destructive) { model.edit { $0.deleteMarker(m.id) }; if model.selection == .marker(m.id) { model.selection = nil } } label: {
-            Label("Delete", systemImage: "trash")
-        }
-    }
+    // MARK: modes
 
     private var precisionMode: Bool {
         switch model.tool {
@@ -208,150 +102,102 @@ struct PlanCanvasView: View {
         }
     }
 
-    // MARK: vector detail
+    private var editing: Bool { model.viewerMode == .edit }
 
-    private func scheduleDetail() {
-        detailTask?.cancel()
-        guard let pdfId = sheet.sourcePdfId, let pageIndex = sheet.sourcePage, size.width > 0 else { detail = nil; return }
-        // The raster already has enough pixels at this zoom.
-        if scale * displayScale <= 1.1 { detail = nil; return }
-        let visible = CGRect(x: -offset.width / (W * scale), y: -offset.height / (H * scale),
-                             width: size.width / (W * scale), height: size.height / (H * scale))
-            .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
-        guard !visible.isNull, visible.width > 0, visible.height > 0 else { return }
-        var px = CGSize(width: visible.width * W * scale * displayScale, height: visible.height * H * scale * displayScale)
-        let cap: CGFloat = 4096
-        if max(px.width, px.height) > cap { let k = cap / max(px.width, px.height); px = CGSize(width: px.width * k, height: px.height * k) }
-        let rotation = sheet.sourceRotation ?? 0
-        let url = app.store.pdfURL(pdfId)
-        let sheetId = sheet.id
-        detailTask = Task {
-            try? await Task.sleep(for: .milliseconds(220))   // wait for the gesture to settle
-            if Task.isCancelled { return }
-            let image: UIImage? = await Task.detached(priority: .userInitiated) {
-                guard let page = PDFCache.shared.page(pdfId: pdfId, index: pageIndex, url: url) else { return nil }
-                // Undo the sheet's extra quarter turns to find the region in the PDF's own orientation.
-                var r = visible
-                var outSize = px
-                for _ in 0..<rotation {
-                    r = CGRect(x: r.minY, y: 1 - r.maxX, width: r.height, height: r.width)
-                    outSize = CGSize(width: outSize.height, height: outSize.width)
-                }
-                var img = PDFRender.render(page, region: r, pixelSize: outSize)
-                for _ in 0..<rotation { img = PlanImporter.rotatedClockwise(img) }
-                return img
-            }.value
-            if Task.isCancelled { return }
-            if let image { detail = DetailTile(image: image, rect: visible, sheetId: sheetId) }
-        }
+    /// Placing or drawing: taps must land instantly, and Pencil (if chosen) is the pen.
+    private var toolDraws: Bool { editing && model.tool != .select }
+
+    private var zoomConfig: PlanZoomConfig {
+        PlanZoomConfig(doubleTapZooms: !toolDraws, precision: editing && precisionMode, pencilDraws: pencilDraws && toolDraws,
+                       liftEnabled: editing && model.tool == .select)
     }
 
-    // MARK: coordinates
-
-    private func screen(_ x: Double, _ y: Double) -> CGPoint {
-        CGPoint(x: offset.width + x * W * scale, y: offset.height + y * H * scale)
-    }
-
-    private func relative(_ p: CGPoint) -> CGPoint {
-        CGPoint(x: min(1, max(0, (p.x - offset.width) / (W * scale))), y: min(1, max(0, (p.y - offset.height) / (H * scale))))
-    }
-
-    // MARK: fit / zoom
-
-    private func fitScale() -> CGFloat { size.width > 0 ? min(size.width / W, size.height / H) * 0.95 : 0.2 }
-
-    private func fitIfNeeded(force: Bool) {
-        let key = "\(sheet.id)|\(Int(size.width))x\(Int(size.height))"
-        guard force || key != fittedKey, size.width > 0 else { return }
-        fittedKey = key
-        let s = fitScale()
-        scale = s
-        offset = CGSize(width: (size.width - W * s) / 2, height: (size.height - H * s) / 2)
-        // Apply a "find device" request that arrived before the canvas had its size.
-        if let f = model.focus, f.sheetId == sheet.id, f.n != appliedFocus { center(on: f) }
-    }
-
-    private func center(on f: FocusRequest) {
-        appliedFocus = f.n
-        let s = max(scale, fitScale() * 2.5)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            scale = s
-            offset = CGSize(width: size.width / 2 - f.x * W * s, height: size.height / 2 - f.y * H * s)
-        }
-    }
-
-    private func zoom(by factor: CGFloat, at anchor: CGPoint) {
-        let base = (scale, offset)
-        let ns = min(8, max(fitScale() * 0.5, base.0 * factor))
-        let k = ns / base.0
-        withAnimation(.easeOut(duration: 0.2)) {
-            scale = ns
-            offset = CGSize(width: anchor.x - (anchor.x - base.1.width) * k, height: anchor.y - (anchor.y - base.1.height) * k)
-        }
-    }
-
-    private var panGesture: some Gesture {
-        DragGesture(minimumDistance: 6)
-            .onChanged { v in
-                if gestureBase == nil { gestureBase = (scale, offset) }
-                offset = CGSize(width: gestureBase!.offset.width + v.translation.width, height: gestureBase!.offset.height + v.translation.height)
+    private var handlers: PlanGestureHandlers {
+        var h = PlanGestureHandlers()
+        h.tap = { loc, pencil in handleTap(loc, pencil: pencil) }
+        h.canLift = { loc in liftTarget(at: loc) != nil }
+        h.liftBegan = { loc in beginLift(at: loc) }
+        h.liftMoved = { loc in moveLift(to: loc) }
+        h.liftEnded = { loc, moved in endLift(at: loc, moved: moved) }
+        h.aim = { p in aim = p }
+        h.aimEnded = { p in
+            aim = nil
+            let v = controller.viewport
+            if v.isOnSheet(PlanPoint(p)) {
+                let r = v.relative(p)
+                model.tap(x: Double(r.x), y: Double(r.y), hitMarker: nil, hitCloset: nil)
             }
-            .onEnded { _ in gestureBase = nil }
-    }
-
-    private var magnifyGesture: some Gesture {
-        MagnifyGesture()
-            .onChanged { v in
-                if gestureBase == nil { gestureBase = (scale, offset) }
-                let base = gestureBase!
-                let anchor = CGPoint(x: v.startAnchor.x * size.width, y: v.startAnchor.y * size.height)
-                let ns = min(8, max(fitScale() * 0.5, base.scale * v.magnification))
-                let k = ns / base.scale
-                scale = ns
-                offset = CGSize(width: anchor.x - (anchor.x - base.offset.width) * k, height: anchor.y - (anchor.y - base.offset.height) * k)
-            }
-            .onEnded { _ in gestureBase = nil }
-    }
-
-    private func itemDrag(id: String, commit: @escaping (CGPoint) -> Void) -> some Gesture {
-        DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
-            .onChanged { v in if model.tool == .select { dragging[id] = relative(v.location) } }
-            .onEnded { v in
-                guard model.tool == .select else { return }
-                let r = relative(v.location)
-                dragging[id] = nil
-                commit(r)
-            }
-    }
-
-    // MARK: taps
-
-    private func handleTap(_ loc: CGPoint) {
-        let r = relative(loc)
-        // Outside the sheet?
-        let raw = CGPoint(x: (loc.x - offset.width) / (W * scale), y: (loc.y - offset.height) / (H * scale))
-        guard (0...1).contains(raw.x), (0...1).contains(raw.y) else {
-            if model.tool == .select { model.selection = nil }
-            return
         }
-        let tol = symbolSize * 0.8
-        func near(_ x: Double, _ y: Double) -> Bool { hypot(screen(x, y).x - loc.x, screen(x, y).y - loc.y) < tol }
-        let hitMarker = model.bundle.liveMarkers.first { $0.sheetId == sheet.id && near($0.x, $0.y) }?.id
-        let hitCloset = model.bundle.liveClosets.first { $0.sheetId == sheet.id && near($0.x, $0.y) }?.id
-        if model.tool == .select, let run = hitRun(loc) {
-            model.selection = .run(run)
-            return
+        h.edgeProgress = { p in edgeHint = p.map { EdgeHint(side: $0.0, progress: $0.1) } }
+        h.edgeSwipe = { side in onEdgeSwipe(side) }
+        h.firstLayout = { applyInitialView() }
+        h.settled = { v in
+            if v.isReady { ViewerPrefs.saveViewState(PlanViewState(v), sheetId: sheet.id) }
         }
-        model.tap(x: r.x, y: r.y, hitMarker: hitMarker, hitCloset: hitCloset)
+        return h
+    }
+
+    // MARK: first view, focus
+
+    private func applyInitialView() {
+        if let f = model.focus, f.sheetId == sheet.id, f.n != controller.appliedFocus {
+            applyFocus(f)
+        } else if ViewerPrefs.launchFlag("viewer-zoomed") {
+            zoomToBusiestArea()
+        } else if let s = ViewerPrefs.viewState(sheetId: sheet.id) {
+            controller.restore(s)
+        }
+    }
+
+    private func applyFocus(_ f: FocusRequest?) {
+        guard let f, f.sheetId == sheet.id, f.n != controller.appliedFocus, controller.viewport.isReady else { return }
+        controller.appliedFocus = f.n
+        let z = max(controller.viewport.zoom, controller.limits.lowerBound * 2.5)
+        controller.center(on: PlanPoint(x: f.x, y: f.y), zoom: z)
+    }
+
+    /// Screenshots: zoom into the densest cluster of devices on this sheet.
+    private func zoomToBusiestArea() {
+        let pts = model.bundle.liveMarkers.filter { $0.sheetId == sheet.id }.map { PlanPoint(x: $0.x, y: $0.y) }
+        guard let d = PlanDensity.densest(pts, cell: 0.25) else { return }
+        controller.center(on: d.center, zoom: controller.limits.lowerBound * 3, animated: false)
+    }
+
+    // MARK: hit testing
+
+    private func nearestMarker(_ loc: CGPoint) -> Marker? {
+        let v = controller.viewport
+        let size = PlanMarkerMetrics.symbolSize(zoom: v.zoom, fitZoom: controller.limits.lowerBound)
+        let tol = CGFloat(PlanMarkerMetrics.hitRadius(symbolSize: size))
+        var best: (Marker, CGFloat)?
+        for m in model.visibleMarkers(on: sheet.id, types: model.typesById) {
+            let p = v.point(m.x, m.y)
+            let d = hypot(p.x - loc.x, p.y - loc.y)
+            if d < tol, d < (best?.1 ?? .infinity) { best = (m, d) }
+        }
+        return best?.0
+    }
+
+    private func nearestCloset(_ loc: CGPoint) -> Closet? {
+        let v = controller.viewport
+        var best: (Closet, CGFloat)?
+        for c in model.visibleClosets(on: sheet.id) {
+            // The badge sits a little below its point (see ClosetBadge).
+            let p = v.point(c.x, c.y)
+            let d = hypot(p.x - loc.x, p.y + 8 - loc.y)
+            if d < 30, d < (best?.1 ?? .infinity) { best = (c, d) }
+        }
+        return best?.0
     }
 
     private func hitRun(_ loc: CGPoint) -> String? {
+        let v = controller.viewport
         var best: (String, CGFloat)?
-        for r in model.bundle.liveRuns where r.sheetId == sheet.id && model.isVisible(r) && r.points.count >= 4 {
+        for r in model.visibleRuns(on: sheet.id) {
             var i = 2
             while i + 1 < r.points.count {
-                let a = screen(r.points[i - 2], r.points[i - 1]), b = screen(r.points[i], r.points[i + 1])
-                let d = distance(loc, a, b)
+                let a = v.point(r.points[i - 2], r.points[i - 1]), b = v.point(r.points[i], r.points[i + 1])
+                let d = segmentDistance(loc, a, b)
                 if d < 16, d < (best?.1 ?? .infinity) { best = (r.id, d) }
                 i += 2
             }
@@ -359,112 +205,253 @@ struct PlanCanvasView: View {
         return best?.0
     }
 
-    private func distance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+    private func segmentDistance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
         let dx = b.x - a.x, dy = b.y - a.y
         let len2 = dx * dx + dy * dy
-        let t = len2 == 0 ? 0 : max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+        let t: CGFloat = len2 == 0 ? 0 : max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
         return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
     }
 
-    // MARK: drawing
+    // MARK: taps
 
-    private func drawRuns(_ ctx: inout GraphicsContext) {
-        for r in model.bundle.liveRuns where r.sheetId == sheet.id && model.isVisible(r) && r.points.count >= 4 {
-            let pts = livePoints(r)
-            var path = Path()
-            path.move(to: screen(pts[0], pts[1]))
-            var i = 2
-            while i + 1 < pts.count { path.addLine(to: screen(pts[i], pts[i + 1])); i += 2 }
-            let color: Color = r.kind == .wire ? wireColor(r.wireType) : Color(hex: app.type(r.deviceTypeId ?? "")?.color ?? "#d97706")
-            let selected = model.selection == .run(r.id)
-            if selected { ctx.stroke(path, with: .color(Color.brand.opacity(0.3)), style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round)) }
-            let dash: [CGFloat] = r.kind == .wire ? [7, 5] : r.kind == .stair ? [3, 3] : []
-            if r.kind == .wire && r.cables.count > 1 {
-                // A bundle: one line per cable, side by side, each in its cable's colour.
-                var screenPts: [CGPoint] = []
-                var k = 0
-                while k + 1 < pts.count { screenPts.append(screen(pts[k], pts[k + 1])); k += 2 }
-                for (offset, cable) in zip(bundleOffsets(r.cables.count, spacing: 3.6), r.cables) {
-                    let shifted = offsetPolyline(screenPts, by: offset)
-                    var p = Path()
-                    p.addLines(shifted)
-                    ctx.stroke(p, with: .color(wireColor(cable).opacity(r.tentative == true ? 0.5 : 0.95)),
-                               style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round, dash: dash))
-                }
-                if model.showLabels || selected, screenPts.count >= 2 {
-                    let mid = CGPoint(x: (screenPts[0].x + screenPts[screenPts.count - 1].x) / 2, y: (screenPts[0].y + screenPts[screenPts.count - 1].y) / 2)
-                    let resolved = ctx.resolve(Text(Cables.summary(r.cables)).font(.system(size: 10, weight: .semibold)).foregroundColor(.primary))
-                    let sz = resolved.measure(in: CGSize(width: 300, height: 30))
-                    ctx.fill(Path(roundedRect: CGRect(x: mid.x - sz.width / 2 - 4, y: mid.y - sz.height / 2 - 2, width: sz.width + 8, height: sz.height + 4), cornerRadius: 4),
-                             with: .color(.white.opacity(0.92)))
-                    ctx.draw(resolved, at: mid)
-                }
-            } else {
-                ctx.stroke(path, with: .color(color.opacity(r.tentative == true ? 0.5 : 0.95)),
-                           style: StrokeStyle(lineWidth: r.kind == .wire ? 2.5 : 5, lineCap: .round, lineJoin: .round, dash: dash))
-            }
-            if r.kind != .wire {
-                let len = Geometry.runLengthFt(r)
-                let parts = [r.zone.flatMap { $0.isEmpty ? nil : "Z\($0)" }, len.map { "\($0.clean) LF" } ?? "LF?", r.switchLabel.flatMap { $0.isEmpty ? nil : $0 }]
-                let label = parts.compactMap { $0 }.joined(separator: " · ")
-                let n = pts.count
-                let mid = screen((pts[0] + pts[n - 2]) / 2, (pts[1] + pts[n - 1]) / 2)
-                let text = Text(label).font(.system(size: 11, weight: .bold)).foregroundColor(color)
-                let resolved = ctx.resolve(text)
-                let sz = resolved.measure(in: CGSize(width: 300, height: 30))
-                let box = CGRect(x: mid.x - sz.width / 2 - 4, y: mid.y - 22, width: sz.width + 8, height: sz.height + 4)
-                ctx.fill(Path(roundedRect: box, cornerRadius: 4), with: .color(.white.opacity(0.9)))
-                ctx.draw(resolved, at: CGPoint(x: mid.x, y: mid.y - 22 + (sz.height + 4) / 2))
-            }
+    private func handleTap(_ loc: CGPoint, pencil: Bool) {
+        let v = controller.viewport
+        guard v.isReady else { return }
+        let ctx = PlanOverlayContext(viewport: v, sheet: sheet, model: model, mode: model.viewerMode, controller: controller)
+        if PlanOverlayRegistry.shared.handleTap(PlanTap(location: loc, sheetPoint: v.toSheet(PlanPoint(loc)), fromPencil: pencil, context: ctx)) { return }
+        if quickMarker != nil { quickMarker = nil; return }
+        // "Pencil draws": a finger tap while placing/drawing only dismisses, it never places.
+        if pencilDraws && toolDraws && !pencil { return }
+        guard v.isOnSheet(PlanPoint(loc)) else {
+            if model.tool == .select { model.selection = nil }
+            return
         }
-        // Run being drawn
-        let d = model.draft
-        if d.count >= 2 {
-            var path = Path()
-            path.move(to: screen(d[0], d[1]))
-            var i = 2
-            while i + 1 < d.count { path.addLine(to: screen(d[i], d[i + 1])); i += 2 }
-            ctx.stroke(path, with: .color(.orange), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [8, 6]))
-            var k = 0
-            while k + 1 < d.count {
-                let p = screen(d[k], d[k + 1])
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10)), with: .color(.orange))
-                k += 2
+        let hitM = nearestMarker(loc)?.id
+        let hitC = nearestCloset(loc)?.id
+        if !editing || model.tool == .select {
+            if let m = hitM {
+                if editing { model.tapMarker(m) } else { model.selection = .marker(m) }
+                Haptics.select()
+                return
+            }
+            if let c = hitC { model.selection = .closet(c); Haptics.select(); return }
+            if let r = hitRun(loc) { model.selection = .run(r); Haptics.select(); return }
+            if !editing { model.selection = nil; return }
+        }
+        let r = v.relative(loc)
+        model.tap(x: Double(r.x), y: Double(r.y), hitMarker: hitM, hitCloset: hitC)
+    }
+
+    // MARK: press, hold and drag
+
+    private func liftTarget(at loc: CGPoint) -> Lifted? {
+        guard editing, model.tool == .select else { return nil }
+        let v = controller.viewport
+        if let m = nearestMarker(loc) {
+            let p = v.point(m.x, m.y)
+            return Lifted(id: m.id, kind: .marker, grab: CGSize(width: p.x - loc.x, height: p.y - loc.y))
+        }
+        if let c = nearestCloset(loc) {
+            let p = v.point(c.x, c.y)
+            return Lifted(id: c.id, kind: .closet, grab: CGSize(width: p.x - loc.x, height: p.y - loc.y))
+        }
+        return nil
+    }
+
+    private func beginLift(at loc: CGPoint) {
+        guard let t = liftTarget(at: loc) else { return }
+        lifted = t
+        quickMarker = nil
+        Haptics.lift()
+    }
+
+    private func moveLift(to loc: CGPoint) {
+        guard let t = lifted else { return }
+        dragging[t.id] = controller.viewport.relative(CGPoint(x: loc.x + t.grab.width, y: loc.y + t.grab.height))
+    }
+
+    private func endLift(at loc: CGPoint, moved: Bool) {
+        guard let t = lifted else { return }
+        lifted = nil
+        let target = dragging[t.id]
+        dragging[t.id] = nil
+        guard moved, let r = target else {
+            // Held without dragging: quick actions for a device, select a closet.
+            switch t.kind {
+            case .marker: quickMarker = t.id
+            case .closet: model.selection = .closet(t.id)
+            }
+            return
+        }
+        let pricing = model.pricing
+        let x = Double(r.x), y = Double(r.y)
+        switch t.kind {
+        case .marker: model.edit { $0.updateMarker(t.id, pricing: pricing) { $0.x = x; $0.y = y } }
+        case .closet: model.edit { $0.updateCloset(t.id, pricing: pricing) { $0.x = x; $0.y = y } }
+        }
+        Haptics.tap()
+    }
+}
+
+/// Places content at a sheet-relative point, following the plan as it moves.
+struct PlanPinned<Content: View>: View {
+    let controller: PlanViewportController
+    let x: Double
+    let y: Double
+    var dy: CGFloat = 0
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        let v = controller.viewport
+        if v.isReady {
+            let p = v.point(x, y)
+            content.position(x: p.x, y: p.y + dy)
+        }
+    }
+}
+
+/// Drag handles on the selected run's points (Edit mode). These few views take touches directly; everywhere
+/// else touches go through to the plan.
+private struct RunHandlesLayer: View {
+    let model: EditorModel
+    let sheet: Sheet
+    let controller: PlanViewportController
+    @Binding var dragging: [String: CGPoint]
+
+    var body: some View {
+        if case .run(let rid)? = model.selection, model.tool == .select, model.viewerMode == .edit,
+           let run = model.bundle.liveRuns.first(where: { $0.id == rid }), run.sheetId == sheet.id, controller.sheetViewport(for: sheet.id).isReady {
+            let v = controller.viewport
+            ForEach(0..<(run.points.count / 2), id: \.self) { i in
+                let key = "\(run.id)#\(i)"
+                let p = dragging[key] ?? CGPoint(x: run.points[i * 2], y: run.points[i * 2 + 1])
+                Circle().fill(Color.white).overlay(Circle().stroke(Color.brand, lineWidth: 2))
+                    .frame(width: 22, height: 22)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+                    .position(v.point(Double(p.x), Double(p.y)))
+                    .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .named(PlanCanvasView.space))
+                        .onChanged { g in dragging[key] = controller.viewport.relative(g.location) }
+                        .onEnded { g in
+                            let r = controller.viewport.relative(g.location)
+                            dragging[key] = nil
+                            model.edit { b in b.updateRun(run.id) { $0.points[i * 2] = Double(r.x); $0.points[i * 2 + 1] = Double(r.y) } }
+                        })
+                    .accessibilityLabel("Run point \(i + 1)")
             }
         }
     }
+}
 
-    private func livePoints(_ r: Run) -> [Double] {
-        var pts = r.points
-        for i in 0..<(pts.count / 2) {
-            if let p = dragging["\(r.id)#\(i)"] { pts[i * 2] = p.x; pts[i * 2 + 1] = p.y }
+/// Press-and-hold on a device without dragging: its quick actions, floating above it.
+private struct QuickActionsBar: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+    let marker: Marker
+    let onDone: () -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            button("Edit", "slider.horizontal.3") { model.selection = .marker(marker.id) }
+            button(marker.tentative ? "Confirm" : "Tentative", "questionmark.circle") {
+                let pricing = model.pricing
+                model.edit { $0.updateMarker(marker.id, pricing: pricing) { $0.tentative.toggle() } }
+            }
+            button("Duplicate", "plus.square.on.square") {
+                guard let t = app.type(marker.deviceTypeId) else { return }
+                model.edit { $0.addMarker(type: t, sheetId: marker.sheetId, x: marker.x + 0.015, y: marker.y + 0.015, room: marker.room, tentative: marker.tentative) }
+            }
+            button("More", "hand.tap") { model.use(.place(marker.deviceTypeId)) }
+            button("Delete", "trash", role: .destructive) {
+                model.edit { $0.deleteMarker(marker.id) }
+                if model.selection == .marker(marker.id) { model.selection = nil }
+            }
         }
-        return pts
+        .padding(4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: Color.black.opacity(0.18), radius: 10, y: 3)
+        .fixedSize()
     }
 
-    // MARK: overlays
-
-    private var zoomControls: some View {
-        VStack(spacing: 0) {
-            Button { zoom(by: 1.4, at: CGPoint(x: size.width / 2, y: size.height / 2)) } label: { Image(systemName: "plus.magnifyingglass").frame(width: 44, height: 44) }
-            Divider().frame(width: 44)
-            Button { zoom(by: 1 / 1.4, at: CGPoint(x: size.width / 2, y: size.height / 2)) } label: { Image(systemName: "minus.magnifyingglass").frame(width: 44, height: 44) }
+    private func button(_ title: String, _ icon: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
+        Button(role: role) {
+            action()
+            Haptics.tap()
+            onDone()
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: icon).font(.body.weight(.semibold))
+                Text(title).font(.caption2.weight(.medium)).lineLimit(1)
+            }
+            .frame(minWidth: 52, minHeight: 44)
+            .foregroundStyle(role == .destructive ? Color.red : Color.primary)
+            .contentShape(Rectangle())
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .padding(12)
-        .padding(.bottom, 52)
+        .buttonStyle(.plain)
     }
+}
 
-    private var scaleChip: some View {
-        HStack(spacing: 6) {
-            Text("\(Int(scale * 100))%").bold().monospacedDigit()
-            Divider().frame(height: 12)
-            if sheet.pxPerFt != nil { Text("Scale \(sheet.scaleLabel ?? "set")") } else { Text("No scale set").foregroundStyle(.orange) }
+/// VoiceOver: devices on screen as buttons (the plan itself is one drawing).
+private struct MarkerAccessibilityLayer: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+    let sheet: Sheet
+    let controller: PlanViewportController
+
+    var body: some View {
+        let v = controller.sheetViewport(for: sheet.id)
+        if v.isReady {
+            let photoMarkers = Set(model.bundle.photos.compactMap { $0.deleted == true ? nil : $0.markerId })
+            let onScreen = model.visibleMarkers(on: sheet.id, types: model.typesById)
+                .filter { v.isOnScreen(PlanPoint(x: $0.x, y: $0.y)) }
+                .prefix(150)
+            ForEach(Array(onScreen)) { m in
+                let name = app.type(m.deviceTypeId)?.name ?? "Device"
+                Color.clear
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+                    .position(v.point(m.x, m.y))
+                    .accessibilityElement()
+                    .accessibilityLabel(label(m, name: name, photos: photoMarkers.contains(m.id)))
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { model.selection = .marker(m.id) }
+                    .allowsHitTesting(false)
+            }
         }
-        .font(.caption)
-        .padding(.horizontal, 10).padding(.vertical, 5)
-        .background(.regularMaterial, in: Capsule())
-        .padding(12)
+    }
+}
+
+extension MarkerAccessibilityLayer {
+    func label(_ m: Marker, name: String, photos: Bool) -> String {
+        var parts = ["\(name) \(m.label)"]
+        if m.tentative { parts.append("tentative") }
+        if !m.room.isEmpty { parts.append(m.room) }
+        if photos { parts.append("has photos") }
+        if model.isSelected(m.id) { parts.append("selected") }
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// Feedback while swiping in from a side edge to change sheets.
+private struct EdgeSwipeHint: View {
+    let hint: PlanCanvasView.EdgeHint
+    let hasTarget: Bool
+
+    var body: some View {
+        GeometryReader { geo in
+            let armed = hint.progress >= 1 && hasTarget
+            Image(systemName: hasTarget ? (hint.side < 0 ? "chevron.left" : "chevron.right") : "nosign")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(armed ? Color.white : Color.primary)
+                .frame(width: 52, height: 52)
+                .background(armed ? Color.brand : Color(.secondarySystemBackground), in: Circle())
+                .shadow(color: Color.black.opacity(0.15), radius: 6, y: 2)
+                .position(x: hint.side < 0 ? CGFloat(14 + 40 * hint.progress) : geo.size.width - CGFloat(14 + 40 * hint.progress),
+                          y: geo.size.height / 2)
+                .opacity(min(1, hint.progress * 2))
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -490,18 +477,18 @@ struct ClosetBadge: View {
 private struct Loupe: View {
     let image: UIImage
     let point: CGPoint
-    let sheetSize: CGSize
-    let scale: CGFloat
-    let offset: CGSize
-    let bounds: CGSize
+    let viewport: PlanViewport
     private let d: CGFloat = 130
-    private let zoom: CGFloat = 3
+    private let magnify: CGFloat = 3
 
     var body: some View {
-        let s = scale * zoom
+        let s = CGFloat(viewport.zoom) * magnify
+        let rel = viewport.toSheet(PlanPoint(point))
+        let W = CGFloat(viewport.sheetSize.width), H = CGFloat(viewport.sheetSize.height)
         // Position of the aimed point inside the magnified image.
-        let px = (point.x - offset.width) * zoom
-        let py = (point.y - offset.height) * zoom
+        let px = CGFloat(rel.x) * W * s
+        let py = CGFloat(rel.y) * H * s
+        let bounds = viewport.viewSize.cg
         let center = CGPoint(x: min(max(point.x, d / 2 + 4), bounds.width - d / 2 - 4),
                              y: point.y - d * 0.9 < d / 2 + 4 ? point.y + d * 0.9 : point.y - d * 0.9)
         ZStack {
@@ -509,7 +496,7 @@ private struct Loupe: View {
             Image(uiImage: image)
                 .resizable()
                 .interpolation(.high)
-                .frame(width: sheetSize.width * s, height: sheetSize.height * s)
+                .frame(width: W * s, height: H * s)
                 .offset(x: d / 2 - px, y: d / 2 - py)
                 .frame(width: d, height: d, alignment: .topLeading)
             Path { p in

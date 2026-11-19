@@ -1,0 +1,261 @@
+import SwiftUI
+import PinPlanCore
+
+// Floating controls over the plan. The plan gets the whole screen; controls float in materials at the edges.
+// The one loud element is the mode: Edit puts a safety-orange frame around the plan and fills its segment orange,
+// so nobody moves a device thinking they were only looking.
+
+/// Current sheet: previous / name (opens the sheet browser) / next.
+struct SheetPill: View {
+    let model: EditorModel
+    let onBrowse: () -> Void
+    let onStep: (Int) -> Void
+
+    var body: some View {
+        let sheet = model.activeSheet
+        let pos = SheetNav.position(of: sheet?.id, in: model.sheets)
+        HStack(spacing: 0) {
+            stepButton(-1, icon: "chevron.left", label: "Previous sheet")
+            Button(action: onBrowse) {
+                HStack(spacing: 6) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(sheet?.name ?? "Sheet").font(.subheadline.weight(.semibold)).lineLimit(1)
+                        if let pos, pos.count > 1 {
+                            Text("Sheet \(pos.index) of \(pos.count)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                    }
+                    Image(systemName: "square.grid.2x2").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 8)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(a11yName(sheet, pos))
+            .accessibilityHint("Shows all sheets")
+            stepButton(1, icon: "chevron.right", label: "Next sheet")
+        }
+        .padding(.horizontal, 2)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+    }
+
+    private func a11yName(_ sheet: Sheet?, _ pos: (index: Int, count: Int)?) -> String {
+        let name = sheet?.name ?? "Sheet"
+        guard let pos else { return name }
+        return "\(name), sheet \(pos.index) of \(pos.count)"
+    }
+
+    private func stepButton(_ delta: Int, icon: String, label: String) -> some View {
+        let enabled = model.neighborSheet(delta) != nil
+        return Button { onStep(delta) } label: {
+            Image(systemName: icon).font(.body.weight(.semibold)).frame(width: 40, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.4))
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+}
+
+/// View | Edit.
+struct ViewerModeSwitch: View {
+    let model: EditorModel
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            segment(.view, title: "View", icon: "eye")
+            segment(.edit, title: "Edit", icon: "pencil")
+        }
+        .padding(3)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Plan mode")
+    }
+
+    private func segment(_ m: PlanViewerMode, title: String, icon: String) -> some View {
+        let on = model.viewerMode == m
+        let fill: Color = m == .edit ? Color.brand : Color.ink
+        return Button {
+            model.setViewerMode(m)
+            Haptics.select()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.footnote.weight(.bold))
+                if !compact || on { Text(title).font(.subheadline.weight(.semibold)) }
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .foregroundStyle(on ? Color.white : Color.primary)
+            .background(on ? fill : Color.clear, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(on ? "Selected" : "")
+        .accessibilityHint(m == .view ? "Read the plan; nothing moves" : "Place, draw and move devices")
+    }
+}
+
+/// Edit mode's frame around the plan.
+struct EditModeFrame: View {
+    var body: some View {
+        Rectangle()
+            .strokeBorder(Color.brand.opacity(0.9), lineWidth: 3)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Floating column of view controls (bottom right).
+struct ViewerControls: View {
+    let controller: PlanViewportController
+    let filtering: Bool
+    var zoomButtons = true
+    @Binding var showLayers: Bool
+    @Binding var showMinimap: Bool
+    @Binding var fullScreen: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            control(icon: "square.3.layers.3d", label: "Layers and filters", on: filtering) { showLayers = true }
+            Divider().frame(width: 44)
+            control(icon: showMinimap ? "map.fill" : "map", label: showMinimap ? "Hide minimap" : "Show minimap", on: showMinimap) { showMinimap.toggle() }
+            Divider().frame(width: 44)
+            if zoomButtons {
+                control(icon: "plus.magnifyingglass", label: "Zoom in") { controller.zoom(by: 1.6) }
+                control(icon: "minus.magnifyingglass", label: "Zoom out") { controller.zoom(by: 1 / 1.6) }
+                Divider().frame(width: 44)
+            }
+            control(icon: "viewfinder", label: "Whole sheet") { controller.fit() }
+            control(icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                    label: fullScreen ? "Exit full screen" : "Full screen", on: fullScreen) {
+                withAnimation(.easeInOut(duration: 0.25)) { fullScreen.toggle() }
+                Haptics.select()
+            }
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+    }
+
+    private func control(icon: String, label: String, on: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.body.weight(.medium))
+                .frame(width: 46, height: 44)
+                .foregroundStyle(on ? Color.brand : Color.primary)
+                .overlay(alignment: .topTrailing) {
+                    if on && icon.hasPrefix("square.3.layers") {
+                        Circle().fill(Color.brand).frame(width: 7, height: 7).padding(8)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Zoom and sheet scale (Edit mode, bottom left).
+struct ScaleChip: View {
+    let controller: PlanViewportController
+    let sheet: Sheet
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("\(Int((controller.viewport.zoom * 100).rounded()))%").bold().monospacedDigit()
+            Divider().frame(height: 12)
+            if sheet.pxPerFt != nil { Text("Scale \(sheet.scaleLabel ?? "set")") } else { Text("No scale set").foregroundStyle(Color.orange) }
+        }
+        .font(.caption)
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(.regularMaterial, in: Capsule())
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+    }
+}
+
+/// View mode: what's under your finger, read-only, with a way into editing.
+struct SelectionPeek: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+    let selection: Selection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                content
+                Spacer(minLength: 0)
+                Button { model.selection = nil } label: {
+                    Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
+            }
+            HStack {
+                Button { model.setViewerMode(.edit) } label: { Label("Edit", systemImage: "pencil") }
+                    .buttonStyle(.borderedProminent).tint(Color.brand)
+                if case .marker(let id) = selection, photoCount(id) > 0 {
+                    Text("\(photoCount(id)) photo\(photoCount(id) == 1 ? "" : "s") on the Photos tab").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: 440, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
+        .padding(.horizontal, 12)
+    }
+
+    private func photoCount(_ markerId: String) -> Int { model.bundle.photos.filter { $0.markerId == markerId && $0.deleted != true }.count }
+
+    @ViewBuilder
+    private var content: some View {
+        switch selection {
+        case .marker(let id):
+            if let m = model.bundle.liveMarkers.first(where: { $0.id == id }) { markerInfo(m) }
+        case .closet(let id):
+            if let c = model.bundle.liveClosets.first(where: { $0.id == id }) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(c.name).font(.headline)
+                    Text(Catalog.closetInfo(c.kind).name).font(.subheadline).foregroundStyle(.secondary)
+                    if let n = c.notes, !n.isEmpty { Text(n).font(.footnote).lineLimit(3) }
+                }
+            }
+        case .run(let id):
+            if let r = model.bundle.liveRuns.first(where: { $0.id == id }) { runInfo(r) }
+        }
+    }
+
+    private func markerInfo(_ m: Marker) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            DeviceSymbol(type: app.type(m.deviceTypeId), size: 34, tentative: m.tentative)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(m.label)  \(app.type(m.deviceTypeId)?.name ?? "Device")").font(.headline).lineLimit(2)
+                Text(detailLine(m)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                if !m.notes.isEmpty { Text(m.notes).font(.footnote).lineLimit(3) }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func detailLine(_ m: Marker) -> String {
+        var parts: [String] = []
+        if !m.room.isEmpty { parts.append(m.room) }
+        parts.append(m.mount.rawValue.capitalized)
+        if !m.cables.isEmpty { parts.append(Cables.summary(m.cables)) }
+        if m.tentative { parts.append("Tentative") }
+        return parts.joined(separator: ", ")
+    }
+
+    private func runInfo(_ r: Run) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(r.kind == .wire ? "Wire run" : r.kind == .stair ? "Stair run" : "LED run").font(.headline)
+            let len = Geometry.runLengthFt(r).map { "\($0.clean) ft" } ?? "No length yet"
+            Text(r.kind == .wire ? "\(Cables.summary(r.cables)), \(len)" : len).font(.subheadline).foregroundStyle(.secondary)
+        }
+    }
+}

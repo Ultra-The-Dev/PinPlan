@@ -2,124 +2,259 @@ import SwiftUI
 import TipKit
 import PinPlanCore
 
+/// The plan: a full-bleed sheet with floating controls. View mode (default for technicians) is for reading the
+/// plan — tap a device for its details; Edit mode adds the device palette, tools, dragging and the inspector.
 struct PlanEditorView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Bindable var model: EditorModel
     @State private var showPalette = true
     @State private var showCounts = false
     @State private var showScan = false
     @State private var scaleInput = false
     @State private var showReader = false
+    @State private var showBrowser = false
+    @State private var showLayers = false
+    @State private var fullScreen = false
+    @State private var viewport = PlanViewportController()
+    @State private var showMinimap = false
+    @AppStorage("viewer.minimap") private var savedMinimap = false
+    @AppStorage("viewer.pencilDraws") private var pencilDraws = false
 
     private var regular: Bool { hSize == .regular }
+    private var editing: Bool { model.viewerMode == .edit }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if regular && showPalette {
+        presentations(mainContent)
+        .onAppear(perform: appeared)
+        .onChange(of: model.activeSheet?.id) { _, id in if let id { model.noteSheetViewed(id) } }
+        .onChange(of: model.viewerMode) { _, m in if m == .view { showPalette = false } else if regular { showPalette = true } }
+        // Remembered on this device (a screenshot flag doesn't change the saved choice).
+        .onChange(of: showMinimap) { _, on in if !ViewerPrefs.launchFlag("minimap") { savedMinimap = on } }
+    }
+
+    private var mainContent: some View {
+        let bars: Visibility = fullScreen ? .hidden : .automatic
+        return HStack(spacing: 0) {
+            if regular && showPalette && editing && !fullScreen {
                 PaletteView(model: model).frame(width: 290)
                 Divider()
             }
-            ZStack {
-                if let sheet = model.activeSheet {
-                    PlanCanvasView(model: model, sheet: sheet).id(sheet.id)
-                }
-                VStack(spacing: 8) {
-                    if !regular { compactBar }
-                    if let hint { HintCapsule(text: hint) }
-                    if model.tool == .select {
-                        if model.activeSheet?.pxPerFt == nil { TipView(ScaleTip()).frame(maxWidth: 420).padding(.horizontal) }
-                        else if !model.bundle.liveMarkers.isEmpty { TipView(LongPressTip()).frame(maxWidth: 420).padding(.horizontal) }
-                    }
-                    if model.tool.isDrawing && model.tool != .measure { drawingBar }
-                    Spacer()
-                    if case .place = model.tool {
-                        // Placing stays on so you can drop several; this is the obvious way back to select / move / delete.
-                        Button { model.use(.select) } label: { Label("Done placing", systemImage: "checkmark") }
-                            .buttonStyle(.borderedProminent)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                    if !model.tool.isDrawing { QuickDock(model: model) }
-                    if model.sheets.count > 1 { floorSwitcher }
-                }
-                .padding(.top, 10).padding(.bottom, 12)
-                if let toast = model.toast {
-                    VStack {
-                        Spacer()
-                        Text(toast).font(.subheadline.weight(.medium)).foregroundStyle(.white)
-                            .padding(.horizontal, 14).padding(.vertical, 9).background(Color.ink.opacity(0.92), in: Capsule())
-                            .padding(.bottom, 70)
-                    }
-                    // Rises a little from the bottom as it appears; leaves a bit faster than it arrives.
-                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
-                }
-            }
-            if regular, let sel = model.selection {
-                Divider()
-                VStack(spacing: 0) {
-                    HStack {
-                        Text(model.isBulk ? "\(model.multi.count) devices" : "Edit").font(.headline)
-                        Spacer()
-                        Button { model.clearSelection() } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
-                    }
-                    .padding(.horizontal).padding(.vertical, 10)
-                    if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) }
-                }
-                .frame(width: 340)
-                .background(Color(.systemGroupedBackground))
-            } else if regular && showReader, let sheet = model.activeSheet {
-                Divider()
-                PlanInsightsView(model: model, sheet: sheet) { showReader = false }.frame(width: 360)
-            } else if regular && showCounts {
-                Divider()
-                CountsPanel(model: model) { showCounts = false }.frame(width: 320)
-            }
+            canvasArea
+            if !fullScreen { sidePanel }
         }
         .animation(.easeOut(duration: 0.22), value: model.selection)
         .animation(.easeOut(duration: 0.2), value: model.toast)
-        .background {
-            // Hardware keyboard shortcuts (iPad): Esc = select tool, Delete = delete selection, M = measure, F = fit, L = labels.
-            Group {
-                Button("") { model.use(.select); model.selection = nil }.keyboardShortcut(.escape, modifiers: [])
-                Button("") { model.deleteSelection() }.keyboardShortcut(.delete, modifiers: [])
-                Button("") { model.use(.measure) }.keyboardShortcut("m", modifiers: [])
-                Button("") { model.fitRequest += 1 }.keyboardShortcut("f", modifiers: [])
-                Button("") { model.showLabels.toggle() }.keyboardShortcut("l", modifiers: [])
-            }
-            .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
-        }
+        .animation(.easeOut(duration: 0.2), value: model.viewerMode)
+        .background { keyboardShortcuts }
         .toolbar { toolbar }
-        .sheet(isPresented: Binding(get: { !regular && model.selection != nil }, set: { if !$0 { model.selection = nil } })) {
-            if let sel = model.selection {
-                NavigationStack {
-                    Group { if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) } }
-                        .navigationTitle(model.isBulk ? "\(model.multi.count) devices" : "Edit").navigationBarTitleDisplayMode(.inline)
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.clearSelection() } } }
-                }
-                .presentationDetents([.medium, .large])
+        .toolbar(bars, for: .navigationBar)
+        .toolbar(bars, for: .tabBar)
+        .statusBarHidden(fullScreen)
+        .persistentSystemOverlays(bars)
+    }
+
+    private func appeared() {
+        if !regular || !editing { showPalette = false }
+        if ProcessInfo.processInfo.arguments.contains("--reader") { showReader = true; showPalette = regular && editing }
+        // Screenshot / automation hooks.
+        if ViewerPrefs.launchFlag("viewer-zoomed"),
+           let busiest = model.sheets.max(by: { a, b in markerCount(a.id) < markerCount(b.id) }) {
+            model.setActiveSheet(busiest.id)
+        }
+        showMinimap = savedMinimap || ViewerPrefs.launchFlag("minimap")
+        if ViewerPrefs.launchFlag("sheet-browser") || ViewerPrefs.launchFlag("layers") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                if ViewerPrefs.launchFlag("sheet-browser") { showBrowser = true }
+                if ViewerPrefs.launchFlag("layers") { showLayers = true }
             }
         }
-        .sheet(isPresented: Binding(get: { !regular && showPalette }, set: { showPalette = $0 })) {
-            NavigationStack { PaletteView(model: model) { showPalette = false }.navigationTitle("Devices").navigationBarTitleDisplayMode(.inline) }
-                .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: Binding(get: { !regular && showCounts }, set: { showCounts = $0 })) {
-            CountsPanel(model: model, inSheet: true) { showCounts = false }.presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: Binding(get: { !regular && showReader }, set: { showReader = $0 })) {
+    }
+
+    private func markerCount(_ sheetId: String) -> Int { model.bundle.liveMarkers.filter { $0.sheetId == sheetId }.count }
+
+    private func step(_ delta: Int) {
+        if model.goToSheet(delta: delta) { Haptics.select() } else { Haptics.limit() }
+    }
+
+    // MARK: canvas and floating chrome
+
+    private var canvasArea: some View {
+        ZStack {
             if let sheet = model.activeSheet {
-                PlanInsightsView(model: model, sheet: sheet, inSheet: true) { showReader = false }
-                    .presentationDetents([.medium, .large])
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                PlanCanvasView(model: model, sheet: sheet, controller: viewport, pencilDraws: pencilDraws && regular) { side in step(side) }
+                    .id(sheet.id)
             }
+            if editing { EditModeFrame() }
+            topChrome
+            bottomChrome
+            toastView
         }
-        .sheet(item: $model.pending) { p in PendingInputSheet(model: model, pending: p) }
-        .sheet(isPresented: $scaleInput) { if let s = model.activeSheet { ScaleSheet(model: model, sheet: s) } }
-        .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
-        .onAppear {
-            if !regular { showPalette = false }
-            if ProcessInfo.processInfo.arguments.contains("--reader") { showReader = true; showPalette = regular }
+        .overlay(alignment: .bottomTrailing) {
+            ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
+                           showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
+                .padding(12)
+                .padding(.bottom, regular ? 0 : 56)
+                .popover(isPresented: $showLayers) { layersPanel }
         }
+        .overlay(alignment: regular ? .bottomLeading : .topLeading) {
+            VStack(alignment: .leading, spacing: 8) {
+                if showMinimap, let sheet = model.activeSheet {
+                    PlanMinimap(model: model, sheet: sheet, controller: viewport, maxSide: regular ? 220 : 140)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottomLeading)))
+                }
+                if editing && regular, let sheet = model.activeSheet { ScaleChip(controller: viewport, sheet: sheet) }
+            }
+            .padding(12)
+            .padding(.top, regular ? 0 : (editing && !fullScreen ? 112 : 64))
+            .animation(.easeOut(duration: 0.2), value: showMinimap)
+        }
+    }
+
+    @ViewBuilder
+    private var layersPanel: some View {
+        if let sheet = model.activeSheet {
+            LayersPanel(model: model, sheet: sheet) { showLayers = false }
+                .frame(minWidth: regular ? 360 : nil, minHeight: regular ? 560 : nil)
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    private var topChrome: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                SheetPill(model: model, onBrowse: { showBrowser = true }, onStep: step)
+                Spacer(minLength: 4)
+                ViewerModeSwitch(model: model, compact: !regular)
+            }
+            .padding(.horizontal, 12)
+            if !regular && !fullScreen { compactBar }
+            if editing, let hint { HintCapsule(text: hint) }
+            if editing && model.tool == .select && !fullScreen {
+                if model.activeSheet?.pxPerFt == nil { TipView(ScaleTip()).frame(maxWidth: 420).padding(.horizontal) }
+                else if !model.bundle.liveMarkers.isEmpty { TipView(LongPressTip()).frame(maxWidth: 420).padding(.horizontal) }
+            }
+            if editing && model.tool.isDrawing && model.tool != .measure { drawingBar }
+            Spacer()
+        }
+        .padding(.top, 10)
+    }
+
+    private var bottomChrome: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            if !editing, let sel = model.selection {
+                SelectionPeek(model: model, selection: sel)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            if editing, case .place = model.tool {
+                // Placing stays on so you can drop several; this is the obvious way back to select / move / delete.
+                Button { model.use(.select) } label: { Label("Done placing", systemImage: "checkmark") }
+                    .buttonStyle(.borderedProminent)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            if editing && !model.tool.isDrawing { QuickDock(model: model).padding(.horizontal, regular ? 0 : 60) }
+        }
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast = model.toast {
+            VStack {
+                Spacer()
+                Text(toast).font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 9).background(Color.ink.opacity(0.92), in: Capsule())
+                    .padding(.bottom, 70)
+            }
+            // Rises a little from the bottom as it appears; leaves a bit faster than it arrives.
+            .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+            .allowsHitTesting(false)
+        }
+    }
+
+    // MARK: side panels (iPad)
+
+    @ViewBuilder
+    private var sidePanel: some View {
+        if regular && editing, let sel = model.selection {
+            Divider()
+            VStack(spacing: 0) {
+                HStack {
+                    Text(model.isBulk ? "\(model.multi.count) devices" : "Edit").font(.headline)
+                    Spacer()
+                    Button { model.clearSelection() } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
+                        .accessibilityLabel("Close")
+                }
+                .padding(.horizontal).padding(.vertical, 10)
+                if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) }
+            }
+            .frame(width: 340)
+            .background(Color(.systemGroupedBackground))
+        } else if regular && showReader, let sheet = model.activeSheet {
+            Divider()
+            PlanInsightsView(model: model, sheet: sheet) { showReader = false }.frame(width: 360)
+        } else if regular && showCounts {
+            Divider()
+            CountsPanel(model: model) { showCounts = false }.frame(width: 320)
+        }
+    }
+
+    // MARK: sheets and dialogs
+
+    private func presentations<Content: View>(_ content: Content) -> some View {
+        content
+            .sheet(isPresented: Binding(get: { !regular && editing && model.selection != nil }, set: { if !$0 { model.selection = nil } })) {
+                if let sel = model.selection {
+                    NavigationStack {
+                        Group { if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) } }
+                            .navigationTitle(model.isBulk ? "\(model.multi.count) devices" : "Edit").navigationBarTitleDisplayMode(.inline)
+                            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.clearSelection() } } }
+                    }
+                    .presentationDetents([.medium, .large])
+                }
+            }
+            .sheet(isPresented: Binding(get: { !regular && showPalette && editing }, set: { showPalette = $0 })) {
+                NavigationStack { PaletteView(model: model) { showPalette = false }.navigationTitle("Devices").navigationBarTitleDisplayMode(.inline) }
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: Binding(get: { !regular && showCounts }, set: { showCounts = $0 })) {
+                CountsPanel(model: model, inSheet: true) { showCounts = false }.presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: Binding(get: { !regular && showReader }, set: { showReader = $0 })) {
+                if let sheet = model.activeSheet {
+                    PlanInsightsView(model: model, sheet: sheet, inSheet: true) { showReader = false }
+                        .presentationDetents([.medium, .large])
+                        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                }
+            }
+            .sheet(isPresented: $showBrowser) {
+                SheetBrowserView(model: model) { s in model.setActiveSheet(s.id) }
+            }
+            .sheet(item: $model.pending) { p in PendingInputSheet(model: model, pending: p) }
+            .sheet(isPresented: $scaleInput) { if let s = model.activeSheet { ScaleSheet(model: model, sheet: s) } }
+            .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
+    }
+
+    // Hardware keyboard (iPad): Esc = select tool, Delete = delete selection, M = measure, F = fit, L = labels,
+    // E = View/Edit, B = sheet browser, [ and ] = previous / next sheet, + and − zoom.
+    private var keyboardShortcuts: some View {
+        Group {
+            Button("") { model.use(.select); model.selection = nil }.keyboardShortcut(.escape, modifiers: [])
+            Button("") { if editing { model.deleteSelection() } }.keyboardShortcut(.delete, modifiers: [])
+            Button("") { model.use(.measure) }.keyboardShortcut("m", modifiers: [])
+            Button("") { viewport.fit() }.keyboardShortcut("f", modifiers: [])
+            Button("") { model.showLabels.toggle(); model.saveFilter() }.keyboardShortcut("l", modifiers: [])
+            Button("") { model.setViewerMode(editing ? .view : .edit); Haptics.select() }.keyboardShortcut("e", modifiers: [])
+            Button("") { showBrowser = true }.keyboardShortcut("b", modifiers: [])
+            Button("") { step(-1) }.keyboardShortcut("[", modifiers: [])
+            Button("") { step(1) }.keyboardShortcut("]", modifiers: [])
+            Button("") { viewport.zoom(by: 1.6) }.keyboardShortcut("=", modifiers: .command)
+            Button("") { viewport.zoom(by: 1 / 1.6) }.keyboardShortcut("-", modifiers: .command)
+        }
+        .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
     }
 
     private var hint: String? {
@@ -130,7 +265,7 @@ struct PlanEditorView: View {
         case .led: return "Tap along the LED run, then Finish"
         case .wire: return "Tap a device, the path, then a closet"
         case .stair: return "Tap the bottom and top of the stair"
-        case .calibrate: return model.draft.isEmpty ? "Press and drag to aim at one end of a known dimension" : "Now aim at the other end · pinch to zoom"
+        case .calibrate: return model.draft.isEmpty ? "Press and drag to aim at one end of a known dimension" : "Now aim at the other end · two fingers to pan and zoom"
         case .measure:
             if model.draft.count == 4, let s = model.activeSheet, let ft = Geometry.polylineFt(model.draft, sheet: s) {
                 return "\(Geometry.formatFeetInches(ft)) (\(ft.clean) ft) · tap to measure again"
@@ -142,13 +277,17 @@ struct PlanEditorView: View {
     /// iPhone: the editor's actions as a floating bar (the navigation bar belongs to the tab view).
     private var compactBar: some View {
         HStack(spacing: 2) {
-            Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)).lineLimit(1).fixedSize() }
-                .buttonStyle(.borderedProminent).controlSize(.small)
+            if editing {
+                Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)).lineLimit(1).fixedSize() }
+                    .buttonStyle(.borderedProminent).controlSize(.small).tint(Color.brand)
+            }
             Spacer(minLength: 4)
             Group {
-                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo).accessibilityLabel("Undo")
-                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo).accessibilityLabel("Redo")
-                toolsMenu
+                if editing {
+                    Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo).accessibilityLabel("Undo")
+                    Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo).accessibilityLabel("Redo")
+                    toolsMenu
+                }
                 Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }.accessibilityLabel("Read the plan")
                 Button { showCounts = true } label: { Image(systemName: "list.number") }.accessibilityLabel("Floor counts")
                 if Features.ai {
@@ -161,6 +300,7 @@ struct PlanEditorView: View {
         .background(.regularMaterial, in: Capsule())
         .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
         .padding(.horizontal, 12)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 
     private var toolsMenu: some View {
@@ -170,19 +310,15 @@ struct PlanEditorView: View {
             Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
             Divider()
             Button { model.autoHomeRuns(sheetOnly: true) } label: { Label("Draw home runs (this floor)", systemImage: "cable.connector") }
-            Button { model.showLabels.toggle() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
-            Button { model.fitRequest += 1 } label: { Label("Fit sheet", systemImage: "arrow.up.left.and.arrow.down.right") }
-            Divider()
-            Menu {
-                ForEach(Trades.layers(for: app.trades)) { info in
-                    let l = info.id
-                    Toggle(info.name, isOn: Binding(get: { !model.hiddenLayers.contains(l) }, set: { on in
-                        if on { model.hiddenLayers.remove(l) } else { model.hiddenLayers.insert(l) }
-                    }))
-                }
-                Button("Show all") { model.hiddenLayers = [] }
-            } label: { Label("Layers", systemImage: "square.3.layers.3d") }
+            Button { model.showLabels.toggle(); model.saveFilter() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
+            Button { showLayers = true } label: { Label("Layers and filters…", systemImage: "square.3.layers.3d") }
+            Button { viewport.fit() } label: { Label("Fit sheet", systemImage: "viewfinder") }
+            if regular {
+                Divider()
+                Toggle(isOn: $pencilDraws) { Label("Apple Pencil draws, finger pans", systemImage: "applepencil") }
+            }
         } label: { Image(systemName: "ellipsis.circle") }
+        .accessibilityLabel("Tools")
     }
 
     private var drawingBar: some View {
@@ -199,36 +335,21 @@ struct PlanEditorView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var floorSwitcher: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(model.sheets) { s in
-                    Button { model.setActiveSheet(s.id) } label: {
-                        Text(s.name).font(.subheadline.weight(.semibold)).padding(.horizontal, 14).padding(.vertical, 8)
-                            .foregroundStyle(s.id == model.activeSheet?.id ? .white : .primary)
-                            .background(s.id == model.activeSheet?.id ? Color.ink : .clear, in: RoundedRectangle(cornerRadius: 10))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(4)
-        }
-        .fixedSize(horizontal: true, vertical: false)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-    }
-
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarLeading) {
-            Button { showPalette.toggle() } label: { Label("Devices", systemImage: regular ? "sidebar.left" : "plus.circle.fill") }
+            if editing {
+                Button { showPalette.toggle() } label: { Label("Devices", systemImage: regular ? "sidebar.left" : "plus.circle.fill") }
+            }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
-                .disabled(!model.canUndo).keyboardShortcut("z", modifiers: .command)
-            Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
-                .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
-            toolsMenu
+            if editing {
+                Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                    .disabled(!model.canUndo).keyboardShortcut("z", modifiers: .command)
+                Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+                    .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
+                toolsMenu
+            }
             Button { showReader.toggle(); showCounts = false; model.selection = nil } label: { Label("Read plan", systemImage: "doc.text.magnifyingglass") }
             Button { showCounts.toggle(); showReader = false; model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
             if Features.ai {
