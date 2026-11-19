@@ -328,4 +328,49 @@ public enum FieldDocs {
         for d in b.project.billduDocs { ev.append(Event(at: d.createdAt, kind: .billdu, text: "Billdu \(d.type) \(d.serial ?? "#\(d.id)")\(d.label.map { " (\($0))" } ?? "")")) }
         return ev.filter { !$0.at.isEmpty }.sorted { $0.at > $1.at }
     }
+
+    // MARK: timeline filters (same as src/lib/fieldDocs.ts)
+
+    /// Filter chips for the timeline; none on = every kind (including "Job created").
+    public enum TimelineFilter: String, CaseIterable, Identifiable, Sendable {
+        case photos, comments, checklists, logs, documents, billdu
+        public var id: String { rawValue }
+        public var title: String {
+            switch self { case .photos: "Photos"; case .comments: "Comments"; case .checklists: "Checklists"; case .logs: "Logs"; case .documents: "Documents"; case .billdu: "Billdu" }
+        }
+        public var kind: Event.Kind {
+            switch self { case .photos: .photos; case .comments: .comment; case .checklists: .checklist; case .logs: .log; case .documents: .document; case .billdu: .billdu }
+        }
+    }
+
+    /// How many events the timeline shows at first (and adds per "Load more").
+    public static let timelinePage = 100
+
+    /// Events matching every active filter: kind chips (any of them), person (case-insensitive) and text. Order is kept.
+    public static func filterTimeline(_ events: [Event], kinds: Set<TimelineFilter> = [], who: String? = nil, text: String = "") -> [Event] {
+        let ks = Set(kinds.map(\.kind))
+        let w = who?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        let q = text.trimmingCharacters(in: .whitespaces).lowercased()
+        return events.filter { e in
+            (ks.isEmpty || ks.contains(e.kind))
+                && (w.isEmpty || e.who?.trimmingCharacters(in: .whitespaces).lowercased() == w)
+                && (q.isEmpty || "\(e.text) \(e.who ?? "")".lowercased().contains(q))
+        }
+    }
+
+    /// People on the timeline, one per person whatever the capitalisation, sorted.
+    public static func timelinePeople(_ events: [Event]) -> [String] {
+        var seen: [String: String] = [:]
+        for e in events {
+            guard let t = e.who?.trimmingCharacters(in: .whitespaces), !t.isEmpty, seen[t.lowercased()] == nil else { continue }
+            seen[t.lowercased()] = t
+        }
+        return seen.values.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// The first `limit` events and how many are left for "Load more".
+    public static func pageTimeline(_ events: [Event], limit: Int = timelinePage) -> (shown: [Event], remaining: Int) {
+        let n = max(0, limit)
+        return (Array(events.prefix(n)), max(0, events.count - n))
+    }
 }

@@ -214,4 +214,32 @@ final class FieldDocsTests: XCTestCase {
         b.photoComments = [PhotoComment(projectId: "p", photoId: "a", author: "Sam", text: "on a"), PhotoComment(projectId: "p", photoId: "b", author: "Sam", text: "on b")]
         XCTAssertEqual(FieldDocs.timeline(b).filter { $0.kind == .comment }.map(\.text), ["Commented: “on a”"])
     }
+
+    func testTimelineFiltersAndPaging() {
+        typealias E = FieldDocs.Event
+        let ev = [
+            E(at: "2026-11-19T12:00:00.000Z", kind: .photos, text: "3 photos added", who: "Jane"),
+            E(at: "2026-11-19T11:00:00.000Z", kind: .comment, text: "Commented: “Move the AP”", who: "mike"),
+            E(at: "2026-11-19T10:00:00.000Z", kind: .checklist, text: "Trim-out: Cameras mounted", who: "jane "),
+            E(at: "2026-11-18T10:00:00.000Z", kind: .log, text: "Daily log: Rough-in", who: "Mike"),
+            E(at: "2026-11-17T10:00:00.000Z", kind: .document, text: "Document added: plans.pdf"),
+            E(at: "2026-11-16T10:00:00.000Z", kind: .billdu, text: "Billdu estimate #12"),
+            E(at: "2026-11-10T10:00:00.000Z", kind: .created, text: "Job created"),
+        ]
+        XCTAssertEqual(FieldDocs.TimelineFilter.allCases.map(\.title), ["Photos", "Comments", "Checklists", "Logs", "Documents", "Billdu"])
+        XCTAssertEqual(FieldDocs.filterTimeline(ev), ev)
+        XCTAssertEqual(FieldDocs.filterTimeline(ev, kinds: [.billdu, .comments]).map(\.kind), [.comment, .billdu])
+        XCTAssertEqual(FieldDocs.filterTimeline(ev, who: "JANE").map(\.kind), [.photos, .checklist])
+        XCTAssertEqual(FieldDocs.filterTimeline(ev, kinds: [.logs], who: "mike").map(\.text), ["Daily log: Rough-in"])
+        XCTAssertEqual(FieldDocs.filterTimeline(ev, text: "MIKE").map(\.kind), [.comment, .log])
+        XCTAssertEqual(FieldDocs.timelinePeople(ev), ["Jane", "mike"])
+
+        let many = (0..<250).map { E(at: String(1000 - $0), kind: .log, text: "#\($0)") }
+        let p1 = FieldDocs.pageTimeline(many)
+        XCTAssertEqual(p1.shown.count, 100)
+        XCTAssertEqual(p1.shown.first?.text, "#0")
+        XCTAssertEqual(p1.remaining, 150)
+        XCTAssertEqual(FieldDocs.pageTimeline(many, limit: 300).remaining, 0)
+        XCTAssertEqual(FieldDocs.pageTimeline(ev, limit: -5).remaining, ev.count)
+    }
 }
