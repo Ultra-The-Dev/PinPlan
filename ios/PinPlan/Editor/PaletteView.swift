@@ -60,7 +60,7 @@ struct PaletteView: View {
         return list
     }
 
-    private func closetKinds(in category: Category) -> [Catalog.ClosetInfo] {
+    private func closetKinds(in category: PinPlanCore.Category) -> [Catalog.ClosetInfo] {
         Trades.closetKinds(for: app.trades).filter { $0.category == category && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
     }
 
