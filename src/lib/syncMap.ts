@@ -334,6 +334,27 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       sender: "sender",
     },
   },
+  // Job schedule (docs/schedule-lookahead.md). `start`/`end` are reserved words in SQL, hence start_date/end_date.
+  scheduleItems: {
+    remote: "schedule_items",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      name: "name",
+      phase: "phase",
+      start: "start_date",
+      end: "end_date",
+      crew: "crew",
+      hoursPlanned: "hours_planned",
+      progress: "progress",
+      color: "color",
+      dependsOn: "depends_on",
+      sheetIds: "sheet_ids",
+      notes: "notes",
+      sort: "sort_order",
+      workdaysOnly: "workdays_only",
+    },
+  },
 };
 
 
@@ -357,6 +378,7 @@ export const PUSH_ORDER: SyncTable[] = [
   "jobTemplates",
   "changeOrders",
   "rfis",
+  "scheduleItems",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt", "answeredAt", "closedAt"]);

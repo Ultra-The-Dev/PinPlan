@@ -11,6 +11,7 @@ import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { Checklist, Photo, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
+import ThisWeekStrip from "./schedule/ThisWeekStrip";
 
 const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
@@ -98,6 +99,8 @@ export default function TasksBoard() {
             ))}
         </select>
       </div>
+
+      <ThisWeekStrip me={me} />
 
       {checklists && tasks.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">

@@ -67,6 +67,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     toName: "Pat", toEmail: "pat@gc.com", toCompany: "GC", cc: ["a@b.c"], due: "2026-11-25", sheetId: "s", x: 0.5, y: 0.5, markerId: "m", taskId: "t", photoIds: ["ph"], documentIds: ["doc"],
     answer: "a", answeredBy: "Pat", answeredAt: ts, shareToken: "tok", sentAt: ts, closedAt: ts, createdBy: "Sam", sender: { company: "Acme" }, createdAt: ts, updatedAt: ts, deleted: false,
   },
+  scheduleItems: { id: "si", projectId: "p", name: "Trim", phase: "trim", start: "2026-11-23", end: "2026-11-25", crew: ["Sam"], hoursPlanned: 24, progress: 50, color: "#2563eb", dependsOn: [{ id: "x", lagDays: 1 }], sheetIds: ["s"], notes: "n", sort: 1, workdaysOnly: true, createdAt: ts, updatedAt: ts, deleted: false },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
   jobTemplates: { id: "jt", name: "LV standard", description: "d", trades: ["lowvoltage"], payload: { version: 1, project: {}, checklists: [], estimateLines: [] }, createdBy: "0b6c7f2e-8d1a-4f55-9a2b-1c3d4e5f6a7b", createdAt: ts, updatedAt: ts, deleted: false },
   changeOrders: {

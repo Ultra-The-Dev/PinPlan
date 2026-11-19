@@ -25,6 +25,7 @@ import type {
   Rfi,
   Run,
   SalesDoc,
+  ScheduleItem,
   Sheet,
   StoredImage,
   Suggestion,
@@ -49,7 +50,8 @@ export type SyncTable =
   | "salesPayments"
   | "jobTemplates"
   | "changeOrders"
-  | "rfis";
+  | "rfis"
+  | "scheduleItems";
 
 export interface SyncItem {
   seq?: number;
@@ -81,6 +83,7 @@ class PinPlanDB extends Dexie {
   changeOrders!: EntityTable<ChangeOrder, "id">;
   rfis!: EntityTable<Rfi, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
+  scheduleItems!: EntityTable<ScheduleItem, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
@@ -121,6 +124,8 @@ class PinPlanDB extends Dexie {
     this.version(28).stores({ changeOrders: "id, projectId, status, updatedAt" });
     // v27: RFIs (docs/rfis.md). Version numbers are spaced out so features built in parallel don't collide.
     this.version(27).stores({ rfis: "id, projectId, status, updatedAt" });
+    // v29: job schedule (phases with dependencies; docs/schedule-lookahead.md).
+    this.version(29).stores({ scheduleItems: "id, projectId, start, updatedAt" });
   }
 }
 
@@ -277,6 +282,8 @@ export interface ProjectBundle {
   changeOrders?: ChangeOrder[];
   /** RFIs (newest first). Optional so older bundles and backups still type-check. */
   rfis?: Rfi[];
+  /** Schedule phases (by start date). Optional so older bundles and backups still type-check. */
+  scheduleItems?: ScheduleItem[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -284,7 +291,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis, scheduleItems] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -297,6 +304,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.documents.where("projectId").equals(projectId).toArray(),
     d.changeOrders.where("projectId").equals(projectId).toArray(),
     d.rfis.where("projectId").equals(projectId).toArray(),
+    d.scheduleItems.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -312,6 +320,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     changeOrders: live(changeOrders).sort((a, b) => a.number - b.number || a.createdAt.localeCompare(b.createdAt)),
     rfis: live(rfis).sort((a, b) => b.number - a.number),
+    scheduleItems: live(scheduleItems).sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0)),
   };
 }
 

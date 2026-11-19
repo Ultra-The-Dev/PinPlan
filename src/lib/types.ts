@@ -908,3 +908,36 @@ export interface Rfi {
   updatedAt: string;
   deleted?: boolean;
 }
+
+/** A dependency on another schedule item: this item starts after `id` ends (finish-to-start), plus `lagDays`. */
+export interface ScheduleDep {
+  id: string;
+  lagDays?: number;
+}
+
+/** A phase on a job's schedule (Pre-wire, Rough-in, Trim…). Dates are local days, YYYY-MM-DD; `end` is inclusive. */
+export interface ScheduleItem {
+  id: string;
+  projectId: string;
+  name: string;
+  /** Template phase key ("prewire", "trim"…) or null for a custom item. */
+  phase?: string | null;
+  start: string;
+  end: string;
+  /** Team member names (same names as checklist assignees). */
+  crew?: string[];
+  /** Total planned hours for the crew (spread evenly across the item's workdays and people). */
+  hoursPlanned?: number | null;
+  /** 0–100. */
+  progress?: number;
+  color?: string | null;
+  dependsOn?: ScheduleDep[];
+  sheetIds?: string[];
+  notes?: string | null;
+  sort?: number;
+  /** Skip Saturdays and Sundays when counting days (default true). */
+  workdaysOnly?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

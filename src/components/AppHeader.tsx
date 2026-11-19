@@ -1,5 +1,5 @@
 "use client";
-import { Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
+import { CalendarRange, Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/lib/team";
@@ -25,6 +25,8 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
     { href: "/", label: "Projects", icon: FolderOpen },
     { href: "/photos", label: "Photos", icon: Camera },
     { href: "/tasks", label: "Tasks", icon: ClipboardList },
+    // Office phones already fill the bar: the crew board is reached from Tasks and the job schedule there.
+    { href: "/schedule", label: "Crew", icon: CalendarRange, wide: can(role, "editCatalog") },
     { href: "/map", label: "Map", icon: Map },
     { href: "/invoices", label: "Invoices", icon: ReceiptText, office: true },
     { href: "/catalog", label: "Catalog", icon: Package, office: true },
@@ -39,7 +41,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
       {/* Phones: icons only, tighter tabs so all seven fit at 375 px (and scroll rather than push the page wider). */}
       <nav className="seg min-w-0 overflow-x-auto" aria-label="Main">
         {nav.map((n) => (
-          <Link key={n.href} href={n.href} className={`tab px-2 md:px-3 ${path === n.href ? "tab-active" : ""}`} aria-label={n.label} title={n.label} aria-current={path === n.href ? "page" : undefined}>
+          <Link key={n.href} href={n.href} className={`tab px-2 md:px-3 ${path === n.href ? "tab-active" : ""} ${"wide" in n && n.wide && path !== n.href ? "max-sm:hidden" : ""}`} aria-label={n.label} title={n.label} aria-current={path === n.href ? "page" : undefined}>
             <n.icon />
             <span className="hidden md:inline">{n.label}</span>
           </Link>
