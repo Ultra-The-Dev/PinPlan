@@ -211,6 +211,7 @@ struct DailyLogsView: View {
     let model: EditorModel
     @State private var editing: JobLog?
     @State private var viewer: PhotoViewerItem?
+    @State private var exporting: LogExportItem?
 
     var body: some View {
         let logs = model.bundle.liveLogs
@@ -239,10 +240,20 @@ struct DailyLogsView: View {
                 .swipeActions {
                     Button("Delete", role: .destructive) { model.removeRows([l.id], in: \.jobLogs) }
                     Button("Edit") { editing = l }
+                    Button("PDF") { exporting = LogExportItem(log: l) }.tint(Color.indigo)
+                }
+                .contextMenu {
+                    Button { editing = l } label: { Label("Edit", systemImage: "pencil") }
+                    Button { exporting = LogExportItem(log: l) } label: { Label("Share PDF", systemImage: "doc.richtext") }
                 }
             }
         }
         .toolbar {
+            if !logs.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { exporting = LogExportItem(log: nil) } label: { Label("Export PDF", systemImage: "doc.richtext") }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     editing = JobLog(projectId: model.bundle.project.id, date: FieldDocs.localDay(isoNow()), author: FieldAuthor.name(app))
@@ -250,9 +261,12 @@ struct DailyLogsView: View {
             }
         }
         .sheet(item: $editing) { l in LogEditor(model: model, log: l) }
+        .sheet(item: $exporting) { x in DailyLogExportSheet(model: model, single: x.log).presentationDetents([.medium, .large]) }
         .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
     }
 }
+
+private struct LogExportItem: Identifiable { let log: JobLog?; var id: String { log?.id ?? "range" } }
 
 struct LogEditor: View {
     @Environment(AppModel.self) private var app
