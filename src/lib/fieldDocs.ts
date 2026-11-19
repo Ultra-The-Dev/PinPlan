@@ -61,6 +61,11 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
       { text: "Client sign-off" },
     ],
   },
+  {
+    id: "punch",
+    name: "Punch list",
+    items: [],
+  },
 ];
 
 export const SUGGESTED_TAGS = ["Pre-wire", "Trim-out", "Rack", "Camera", "Wi-Fi", "Audio", "TV", "Lighting", "Issue", "Damage", "Before", "After", "Completed"];
@@ -136,6 +141,68 @@ export function localDay(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export type TaskBucket = "overdue" | "today" | "week" | "later" | "none";
+export const TASK_BUCKETS: { id: TaskBucket; name: string }[] = [
+  { id: "overdue", name: "Overdue" },
+  { id: "today", name: "Today" },
+  { id: "week", name: "Next 7 days" },
+  { id: "later", name: "Later" },
+  { id: "none", name: "No due date" },
+];
+
+export interface OpenTask {
+  project: Project;
+  checklist: Checklist;
+  item: ChecklistItem;
+  bucket: TaskBucket;
+}
+
+/** Days from `today` to `due` (both YYYY-MM-DD). */
+export function daysUntil(due: string, today: string): number {
+  return Math.round((Date.UTC(+due.slice(0, 4), +due.slice(5, 7) - 1, +due.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86400000);
+}
+
+export function taskBucket(due: string | null | undefined, today: string): TaskBucket {
+  if (!due) return "none";
+  const d = daysUntil(due, today);
+  return d < 0 ? "overdue" : d === 0 ? "today" : d <= 7 ? "week" : "later";
+}
+
+/**
+ * Open (not ticked) checklist items that are tasks — assigned to someone or with a due date — across jobs.
+ * `who` keeps only that person's tasks. Sorted by due date (no date last), then job.
+ */
+export function openTasks(input: { projects: Project[]; checklists: Checklist[] }, opts: { today: string; who?: string | null }): OpenTask[] {
+  const jobs = new Map(input.projects.filter((p) => !p.deleted).map((p) => [p.id, p]));
+  const who = opts.who?.trim().toLowerCase();
+  const out: OpenTask[] = [];
+  for (const c of input.checklists) {
+    const project = jobs.get(c.projectId);
+    if (c.deleted || !project) continue;
+    for (const item of c.items) {
+      if (item.done || (!item.assignee && !item.due)) continue;
+      if (who && item.assignee?.trim().toLowerCase() !== who) continue;
+      out.push({ project, checklist: c, item, bucket: taskBucket(item.due, opts.today) });
+    }
+  }
+  return out.sort((a, b) => (a.item.due ?? "9999").localeCompare(b.item.due ?? "9999") || (a.project.address || "").localeCompare(b.project.address || ""));
+}
+
+/** Names seen on the jobs (photo takers, log authors, checklist people) for the assignee picker. */
+export function teamNames(input: { photos?: Photo[]; jobLogs?: JobLog[]; checklists?: Checklist[] }, me?: string): string[] {
+  // One entry per person, whatever the capitalisation (first spelling seen wins).
+  const s = new Map<string, string>();
+  const add = (n?: string | null) => {
+    const t = n?.trim();
+    if (t && !s.has(t.toLowerCase())) s.set(t.toLowerCase(), t);
+  };
+  add(me);
+  for (const p of input.photos ?? []) add(p.takenBy);
+  for (const l of input.jobLogs ?? []) add(l.author);
+  for (const c of input.checklists ?? []) for (const i of c.items) for (const n of [i.doneBy, i.assignee]) add(n);
+  return [...s.values()].sort((a, b) => a.localeCompare(b));
 }
 
 export interface TimelineEvent {

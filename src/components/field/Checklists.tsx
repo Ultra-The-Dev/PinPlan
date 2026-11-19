@@ -1,10 +1,10 @@
 "use client";
 // Checklists from templates (pre-wire, trim-out, rack, final walkthrough) or from scratch. Photo-required items
 // only count once they have a photo, which can be taken right from the item.
-import { Camera, Check, ChevronDown, Plus, Trash } from "lucide-react";
+import { CalendarDays, Camera, Check, ChevronDown, Plus, Trash, UserRound } from "lucide-react";
 import { useRef, useState } from "react";
 import { newId, nowIso } from "@/lib/db";
-import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, itemComplete, itemPhotos } from "@/lib/fieldDocs";
+import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, itemComplete, itemPhotos, localDay, taskBucket, teamNames } from "@/lib/fieldDocs";
 import { getAuthor, importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
@@ -23,9 +23,50 @@ function Mini({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
   );
 }
 
+const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+/** Assignee + due date for an item (turns it into a task on that person's list). */
+function TaskFields({ item, names, onChange, onClose }: { item: ChecklistItem; names: string[]; onChange: (p: Partial<ChecklistItem>) => void; onClose: () => void }) {
+  const [who, setWho] = useState(item.assignee ?? "");
+  const [due, setDue] = useState(item.due ?? "");
+  const listId = `names-${item.id}`;
+  return (
+    <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2.5">
+      <label className="text-xs">
+        <span className="label">Assigned to</span>
+        <input className="input h-8 w-40" list={listId} placeholder="Name" value={who} onChange={(e) => setWho(e.target.value)} />
+        <datalist id={listId}>
+          {names.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+      </label>
+      <label className="text-xs">
+        <span className="label">Due</span>
+        <input type="date" className="input h-8 w-40" value={due} onChange={(e) => setDue(e.target.value)} />
+      </label>
+      <button
+        className="btn btn-sm btn-brand"
+        onClick={() => {
+          onChange({ assignee: who.trim() || null, due: due || null });
+          onClose();
+        }}
+      >
+        Save
+      </button>
+      <button className="btn btn-sm btn-ghost" onClick={onClose}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
-  const { saveRow, removeRows, project } = useEditor();
+  const { saveRow, removeRows, project, jobLogs, checklists } = useEditor();
   const { email } = useSyncStatus();
+  const [editing, setEditing] = useState<string | null>(null);
+  const today = localDay(new Date().toISOString());
+  const names = teamNames({ photos, jobLogs, checklists }, getAuthor(email));
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState("");
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
@@ -82,6 +123,16 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                     <div className={`text-sm ${i.done ? "text-slate-500" : ""}`}>{i.text}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
                       {i.requiresPhoto && <span className={ps.length ? "text-emerald-700" : "text-amber-700"}>{ps.length ? `${ps.length} photo${ps.length > 1 ? "s" : ""}` : "Photo required"}</span>}
+                      {i.assignee && (
+                        <span className="inline-flex items-center gap-1 text-slate-600">
+                          <UserRound className="h-3 w-3" /> {i.assignee}
+                        </span>
+                      )}
+                      {i.due && (
+                        <span className={`inline-flex items-center gap-1 ${!i.done && taskBucket(i.due, today) === "overdue" ? "font-medium text-red-600" : !i.done && taskBucket(i.due, today) === "today" ? "font-medium text-amber-700" : "text-slate-600"}`}>
+                          <CalendarDays className="h-3 w-3" /> {dueText(i.due)}
+                        </span>
+                      )}
                       {i.done && i.doneAt && (
                         <span>
                           ✓ {i.doneBy ? `${i.doneBy}, ` : ""}
@@ -89,6 +140,7 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                         </span>
                       )}
                     </div>
+                    {editing === i.id && <TaskFields item={i} names={names} onChange={(p) => void setItem(i.id, p)} onClose={() => setEditing(null)} />}
                     {ps.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {ps.map((p) => (
@@ -97,6 +149,14 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                       </div>
                     )}
                   </div>
+                  <button
+                    className={`btn btn-sm btn-ghost ${i.assignee || i.due ? "text-brand-600" : "text-slate-500"}`}
+                    title="Assign and set a due date"
+                    aria-label="Assign and set a due date"
+                    onClick={() => setEditing(editing === i.id ? null : i.id)}
+                  >
+                    <UserRound />
+                  </button>
                   <button
                     className="btn btn-sm btn-ghost text-slate-500"
                     title="Take or add a photo for this item"

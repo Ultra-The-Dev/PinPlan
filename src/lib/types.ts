@@ -291,6 +291,10 @@ export interface ChecklistItem {
   doneBy?: string | null;
   doneAt?: string | null;
   note?: string | null;
+  /** Who should do it (a team member's name) — makes the item a task on their list. */
+  assignee?: string | null;
+  /** Due date (YYYY-MM-DD). */
+  due?: string | null;
 }
 
 export interface Checklist {
