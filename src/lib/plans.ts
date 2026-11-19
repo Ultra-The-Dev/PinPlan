@@ -41,12 +41,18 @@ export function monthlyPrice(plan: Plan, users: number): number {
   return plan.basePrice + Math.max(0, users - plan.includedSeats) * plan.seatPrice;
 }
 
-/** Subscription states, as stored on `teams.plan_status` (mirrors Stripe's subscription status). */
-export type PlanStatus = "trialing" | "active" | "past_due" | "canceled" | "unpaid" | "incomplete" | "none";
+/** Subscription states, as stored on `teams.plan_status` (mirrors Stripe's subscription status).
+ *  "comped": free for good (teams from before billing, e.g. the founder's company). "none": no billing record. */
+export type PlanStatus = "trialing" | "active" | "past_due" | "canceled" | "unpaid" | "incomplete" | "comped" | "none";
 
-/** Can the team use the app normally? Past-due keeps working (Stripe retries the card); the rest are read-only. */
+/** Can the team use the app normally? Past-due keeps working (Stripe retries the card); the rest are read-only.
+ *  Mirrors `plan_allows_work()` in supabase/migrations/20261121000000_billing.sql. */
 export function planAllowsWork(status: PlanStatus | null | undefined, trialEndsAt: string | null | undefined, now = new Date()): boolean {
-  if (status === "active" || status === "past_due") return true;
-  if (status === "trialing" || status === "none" || !status) return !!trialEndsAt && new Date(trialEndsAt).getTime() > now.getTime();
+  if (status === "active" || status === "past_due" || status === "comped") return true;
+  const inTrial = !!trialEndsAt && new Date(trialEndsAt).getTime() > now.getTime();
+  // A Stripe trial carries its own end date; a trialing team without one has no deadline.
+  if (status === "trialing") return !trialEndsAt || inTrial;
+  // The first payment is still pending: keep working while the team's own trial runs.
+  if (status === "incomplete" || status === "none" || !status) return inTrial;
   return false;
 }

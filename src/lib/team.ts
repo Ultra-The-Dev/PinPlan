@@ -2,6 +2,7 @@
 // The signed-in user's company team: who's on it, their role, and the calls that manage it.
 // The role is cached on this device so the app hides the right things offline too.
 import { create } from "zustand";
+import { parseTeamBilling, type TeamBilling } from "./billingLogic";
 import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
 import { newInviteCode, normalizeCode, teamErrorMessage, type TeamRole } from "./teamLogic";
@@ -36,13 +37,15 @@ export interface TeamState {
   team: Team | null;
   role: TeamRole | null;
   members: TeamMember[];
+  /** The team's subscription (from `team_billing()`); null when not on a team or the billing update isn't in the database. */
+  billing: TeamBilling | null;
   /** The database doesn't have the team tables yet (migration not run). */
   needsMigration: boolean;
   error: string | null;
 }
 
 const CACHE_KEY = "pinplan.team";
-const empty: TeamState = { ready: false, userId: null, team: null, role: null, members: [], needsMigration: false, error: null };
+const empty: TeamState = { ready: false, userId: null, team: null, role: null, members: [], billing: null, needsMigration: false, error: null };
 
 function readCache(): Partial<TeamState> | null {
   try {
@@ -55,7 +58,7 @@ function readCache(): Partial<TeamState> | null {
 function writeCache(s: TeamState) {
   try {
     if (!s.userId) localStorage.removeItem(CACHE_KEY);
-    else localStorage.setItem(CACHE_KEY, JSON.stringify({ userId: s.userId, team: s.team, role: s.role, members: s.members }));
+    else localStorage.setItem(CACHE_KEY, JSON.stringify({ userId: s.userId, team: s.team, role: s.role, members: s.members, billing: s.billing }));
   } catch {
     /* storage unavailable */
   }
@@ -65,6 +68,12 @@ export const useTeam = create<TeamState>(() => empty);
 
 /** The current user's role, or null when not on a team (full access). */
 export const useRole = () => useTeam((s) => s.role);
+
+/** The team's billing, or null (solo, or billing not set up). */
+export const useBilling = () => useTeam((s) => s.billing);
+
+/** Reload the team (and its billing) for the signed-in user, e.g. after checkout. */
+export const reloadTeam = () => reload();
 
 const isMissingSchema = (e: { code?: string; message?: string } | null) =>
   !!e && (e.code === "PGRST205" || e.code === "PGRST202" || e.code === "42P01" || /Could not find the (table|function)/i.test(e.message ?? ""));
@@ -95,9 +104,10 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
     noteTeamForSync(userId, null);
     return s;
   }
-  const [t, m] = await Promise.all([
+  const [t, m, b] = await Promise.all([
     sb.from("teams").select("id, name, owner_id").eq("id", me.data.team_id).maybeSingle(),
     sb.from("team_members").select("user_id, role, name, email, created_at").eq("team_id", me.data.team_id),
+    sb.rpc("team_billing"),
   ]);
   if (t.error || m.error) {
     useTeam.setState({ ready: true, userId, error: (t.error ?? m.error)!.message });
@@ -109,6 +119,8 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
     team: t.data ? { id: t.data.id, name: t.data.name, ownerId: t.data.owner_id } : null,
     role: me.data.role as TeamRole,
     members: (m.data ?? []).map((r) => ({ userId: r.user_id, role: r.role as TeamRole, name: r.name ?? "", email: r.email ?? null, createdAt: r.created_at })),
+    // Without the billing update in the database there's no billing (never lock); on another error keep what we had.
+    billing: b.error ? (isMissingSchema(b.error) ? null : (useTeam.getState().billing ?? null)) : parseTeamBilling(b.data),
     needsMigration: false,
     error: null,
   };
