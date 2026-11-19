@@ -1,24 +1,6 @@
 "use client";
-import {
-  Cable,
-  ChevronDown,
-  Hand,
-  Layers,
-  ListChecks,
-  Maximize,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Redo2,
-  Ruler,
-  RulerDimensionLine,
-  Search,
-  Sparkles,
-  Tag,
-  Undo2,
-  X,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Cable, ChevronDown, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles, Undo2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { closetMeta, PANEL_KINDS } from "@/lib/catalog";
@@ -33,16 +15,29 @@ function formatFeetInches(ft: number) {
   }
   return `${f}'-${i}" (${ft.toFixed(1)} ft)`;
 }
+import { activeFilterCount, layerCounts } from "@/lib/planFilter";
+import { PlanViewport } from "@/lib/planViewport";
 import { markerCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
+import { useRole, useTeam } from "@/lib/team";
+import { tileClient } from "@/lib/tiles/tileClient";
 import { deviceSpec, hasTrade, tradeLayers, tradeVocab, tradeWireTypes } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
+import type { Layer as LayerId } from "@/lib/types";
+import { useViewer } from "@/lib/viewerStore";
 import Dialog, { type DialogField } from "../Dialog";
 import ScanPanel from "../ScanPanel";
 import Inspector from "./Inspector";
 import Palette from "./Palette";
 import PlanCanvas, { type CanvasHit } from "./PlanCanvas";
+import LayersPanel from "./viewer/LayersPanel";
+import Minimap from "./viewer/Minimap";
+import ModeToggle from "./viewer/ModeToggle";
+import PlanToolbar from "./viewer/PlanToolbar";
+import SheetBrowser from "./viewer/SheetBrowser";
+import SheetPill from "./viewer/SheetPill";
+import ZoomControls from "./viewer/ZoomControls";
 import { AI_ENABLED } from "@/lib/features";
 
 type Pending =
@@ -79,14 +74,87 @@ export default function PlanEditor() {
   const [pending, setPending] = useState<Pending>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
-  const [showLabels, setShowLabels] = useState(false);
   const wide = useMedia(WIDE_EDITOR);
+  // Below 900 px (phones, small tablets) the minimap starts hidden; below 640 px the sheet browser is full screen.
+  const narrow = useMedia("(max-width: 899px)");
+  const phone = useMedia("(max-width: 639px)");
   // Phones and narrow tablets open on the plan; the device menu slides in from the Devices button.
   const [paletteOpen, setPaletteOpen] = useState(() => window.matchMedia(WIDE_EDITOR).matches);
   const [panel, setPanel] = useState<"counts" | "scan" | null>(() => (typeof window !== "undefined" && window.matchMedia(WIDE_EDITOR).matches ? "counts" : null));
-  const [layersOpen, setLayersOpen] = useState(false);
   const [find, setFind] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [vp] = useState(() => new PlanViewport());
+  // The toolbar's place depends on the plan area's own width (the device menu and side panel take room too).
+  const [planWidth, setPlanWidth] = useState(0);
+  const ro = useRef<ResizeObserver | null>(null);
+  const planRef = useCallback((el: HTMLDivElement | null) => {
+    ro.current?.disconnect();
+    if (!el) return;
+    ro.current = new ResizeObserver(() => setPlanWidth(el.clientWidth));
+    ro.current.observe(el);
+    setPlanWidth(el.clientWidth);
+  }, []);
+  const toolbarTop = planWidth >= 1000;
+  const toolbarRow = !toolbarTop && planWidth < 760;
+  useEffect(() => () => vp.destroy(), [vp]);
+
+  // Viewer preferences (this device, this user): mode, minimap, layers & filters, per-sheet views, recent sheets.
+  const role = useRole();
+  const userId = useTeam((s) => s.userId);
+  const viewer = useViewer();
+  useEffect(() => {
+    viewer.hydrate(userId ?? "local");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+  // Technicians start in view only; everyone else where they left it (edit by default).
+  const mode = viewer.mode ?? (role === "tech" ? "view" : "edit");
+  const editing = mode === "edit";
+  const filters = viewer.filters;
+  const showLabels = filters.labels;
+  const setShowLabels = (u: (v: boolean) => boolean) => viewer.setFilters({ labels: u(filters.labels) });
+  const minimap = viewer.minimap ?? !narrow;
+  const { fullscreen, browserOpen, layersOpen } = viewer;
+  const setLayersOpen = (u: (o: boolean) => boolean) => viewer.setLayersOpen(u(layersOpen));
+  const sheetIndex = Math.max(0, sheets.findIndex((s) => s.id === sheet?.id));
+  const step = (d: -1 | 1) => {
+    const next = sheets[sheetIndex + d];
+    if (next) setActiveSheet(next.id);
+  };
+  const toggleFullscreen = (on = !fullscreen) => {
+    viewer.setFullscreen(on);
+    // Real full screen where the browser allows it (not iPhone Safari): the CSS one covers the app chrome anyway.
+    try {
+      if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => undefined);
+      if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => undefined);
+    } catch {
+      /* not allowed */
+    }
+  };
+  useEffect(() => {
+    const onFs = () => !document.fullscreenElement && useViewer.getState().fullscreen && useViewer.getState().setFullscreen(false);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFs);
+      useViewer.getState().setFullscreen(false);
+    };
+  }, []);
+
+  // View only: no tool that changes the plan (measuring is fine).
+  useEffect(() => {
+    if (!editing && tool.kind !== "select" && tool.kind !== "measure") setTool({ kind: "select" });
+  }, [editing, tool.kind, setTool]);
+
+  // Recently viewed, and build the neighbours' tiles in the background so stepping to them is instant.
+  const projectId = st.project?.id;
+  useEffect(() => {
+    if (!sheet || !projectId) return;
+    useViewer.getState().markViewed(projectId, sheet.id);
+    const t = setTimeout(() => {
+      for (const n of [sheets[sheetIndex + 1], sheets[sheetIndex - 1]]) if (n) tileClient().prefetch(n.imageId);
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet?.id, projectId]);
 
   useEffect(() => {
     if (!activeSheetId && sheets[0]) setActiveSheet(sheets[0].id);
@@ -97,27 +165,62 @@ export default function PlanEditor() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+      const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
+      const k = e.key.toLowerCase();
+      if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0")) {
+        // ⌘+ / ⌘− / ⌘0 zoom the plan, not the page.
         e.preventDefault();
+        if (e.key === "0") vp.fit();
+        else vp.zoomBy(e.key === "-" ? 1 / 1.5 : 1.5);
+      } else if ((e.metaKey || e.ctrlKey) && k === "z") {
+        e.preventDefault();
+        if (!editing) return;
         if (e.shiftKey) redo();
         else undo();
-      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+      } else if ((e.metaKey || e.ctrlKey) && k === "y") {
         e.preventDefault();
-        redo();
+        if (editing) redo();
       } else if (e.key === "Escape") {
-        if (draft.length) setDraft([]);
-        else setTool({ kind: "select" });
-      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "v") {
+        if (useViewer.getState().browserOpen || useViewer.getState().layersOpen) {
+          viewer.setBrowserOpen(false);
+          viewer.setLayersOpen(false);
+        } else if (draft.length) setDraft([]);
+        else if (tool.kind !== "select") setTool({ kind: "select" });
+        else if (fullscreen) toggleFullscreen(false);
+      } else if (plain && (e.key === "+" || e.key === "=")) {
+        vp.zoomBy(1.5);
+      } else if (plain && (e.key === "-" || e.key === "_")) {
+        vp.zoomBy(1 / 1.5);
+      } else if (plain && e.key === "0") {
+        vp.fit("sheet");
+      } else if (plain && e.key === "1") {
+        vp.actualSize();
+      } else if (plain && k === "w") {
+        vp.fit("width");
+      } else if (plain && e.key.startsWith("Arrow")) {
+        e.preventDefault();
+        const d = e.shiftKey ? 320 : 100;
+        const t = vp.transform;
+        const dx = e.key === "ArrowLeft" ? d : e.key === "ArrowRight" ? -d : 0;
+        const dy = e.key === "ArrowUp" ? d : e.key === "ArrowDown" ? -d : 0;
+        vp.animateTo({ ...t, x: t.x + dx, y: t.y + dy }, 140);
+      } else if (plain && e.key === "[") {
+        step(-1);
+      } else if (plain && e.key === "]") {
+        step(1);
+      } else if (plain && k === "e") {
+        viewer.setMode(editing ? "view" : "edit");
+      } else if (plain && k === "v") {
         setTool({ kind: "select" });
-      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "f") {
-        setFitKey((k) => k + 1);
-      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "m") {
+      } else if (plain && k === "f") {
+        setFitKey((n) => n + 1);
+      } else if (plain && k === "m") {
         setTool({ kind: "measure" });
-      } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "l") {
+      } else if (plain && k === "l") {
         setShowLabels((v) => !v);
       } else if (e.key === "Enter") {
         finishDraft();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && useEditor.getState().selection) {
+      } else if (editing && (e.key === "Delete" || e.key === "Backspace") && useEditor.getState().selection) {
         e.preventDefault();
         useEditor.getState().deleteSelected();
       }
@@ -348,157 +451,196 @@ export default function PlanEditor() {
   const findResults = q ? st.markers.filter((m) => m.label.toLowerCase().includes(q) || m.room.toLowerCase().includes(q)).slice(0, 50) : [];
   const rightPanel = selection ? "inspect" : panel;
 
+  // Layers & filters panel data: counts on this sheet, the types and rooms placed here, the selected device's type.
+  const sheetMarkers = st.markers.filter((m) => m.sheetId === sheet.id);
+  const catOf = (typeId: string) => (typesById.get(typeId)?.category ?? "security") as LayerId;
+  const perLayer = layerCounts(
+    sheetMarkers,
+    st.runs.filter((r) => r.sheetId === sheet.id),
+    catOf,
+  );
+  const typeRows = (() => {
+    const m = new Map<string, { count: number; tentative: number }>();
+    for (const x of sheetMarkers) {
+      const e = m.get(x.deviceTypeId) ?? { count: 0, tentative: 0 };
+      e.count++;
+      if (x.tentative) e.tentative++;
+      m.set(x.deviceTypeId, e);
+    }
+    return [...m.entries()].flatMap(([id, c]) => (typesById.get(id) ? [{ type: typesById.get(id)!, ...c }] : [])).sort((x, y) => x.type.name.localeCompare(y.type.name));
+  })();
+  const rooms = Array.from(new Set(sheetMarkers.map((m) => m.room.trim()).filter(Boolean))).sort();
+  const selectedMarker = selection?.table === "markers" ? st.markers.find((m) => m.id === selection.id) : undefined;
+  const nHidden = hiddenLayers.filter((l) => LAYERS.some((x) => x.id === l)).length + (filters.closets ? 0 : 1);
+  const nFilters = activeFilterCount(filters);
+  const layersBadge = nHidden + nFilters ? String(nHidden + nFilters) : null;
+  const perSheet: Record<string, number> = {};
+  for (const m of st.markers) perSheet[m.sheetId] = (perSheet[m.sheetId] ?? 0) + 1;
+
+  const toolbar = (
+    <PlanToolbar
+      editing={editing}
+      wideLabels={false}
+      tool={tool.kind}
+      canUndo={past.length > 0}
+      canRedo={future.length > 0}
+      onUndo={undo}
+      onRedo={redo}
+      onSelectTool={() => setTool({ kind: "select" })}
+      scaleSet={!!sheet.pxPerFt}
+      onScale={() => setPending({ kind: "scale" })}
+      onMeasure={() => setTool(tool.kind === "measure" ? { kind: "select" } : { kind: "measure" })}
+      layersBadge={layersBadge}
+      layersOpen={layersOpen}
+      onLayers={() => setLayersOpen((o) => !o)}
+      labels={showLabels}
+      onLabels={() => setShowLabels((v) => !v)}
+      onHomeRuns={async () => {
+        const n = await useEditor.getState().autoHomeRuns(sheet.id);
+        toast(n ? `Drew ${n} home runs` : useEditor.getState().closets.length ? "No wired devices on this sheet" : "Place an equipment closet first", n ? "success" : "info");
+      }}
+      countsOpen={panel === "counts" && !selection}
+      onCounts={() => setPanel(panel === "counts" ? null : "counts")}
+      ai={AI_ENABLED ? { open: panel === "scan" && !selection, onClick: () => setPanel(panel === "scan" ? null : "scan") } : null}
+      fullscreen={fullscreen}
+      onFullscreen={() => toggleFullscreen()}
+    />
+  );
+  const showPalette = editing && paletteOpen;
+
   return (
-    <div className="relative flex h-full bg-slate-100">
-      {/* Device menu */}
-      {!wide && paletteOpen && <div className="absolute inset-0 z-20 bg-slate-900/20" onClick={() => setPaletteOpen(false)} />}
+    <div className={`flex bg-slate-100 ${fullscreen ? "fixed inset-0 z-[60]" : "relative h-full"}`} data-testid="plan-editor" data-mode={mode}>
+      {/* Device menu (edit mode) */}
+      {!wide && showPalette && <div className="absolute inset-0 z-20 bg-slate-900/20" onClick={() => setPaletteOpen(false)} />}
       <aside
-        className={`${paletteOpen ? "w-64" : "w-0"} shrink-0 overflow-hidden border-r border-slate-200 bg-white transition-[width] duration-200 ${
+        className={`${showPalette ? "w-64" : "w-0"} shrink-0 overflow-hidden border-r border-slate-200 bg-white transition-[width] duration-200 motion-reduce:transition-none ${
           wide ? "" : "absolute inset-y-0 left-0 z-30 shadow-pop"
         }`}
+        aria-hidden={!showPalette}
       >
-        <div className="h-full w-64">
-          <Palette />
-        </div>
+        <div className="h-full w-64">{editing && <Palette />}</div>
       </aside>
 
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        {/* Toolbar */}
-        <div className="flex h-12 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-2">
-          <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPaletteOpen((o) => !o)} title={paletteOpen ? "Hide device menu" : "Show device menu"}>
-            {paletteOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
-          </button>
-          <div className="min-w-0 truncate pl-1 text-sm font-semibold text-slate-800">{sheet.name}</div>
-          <div className="flex-1" />
-          <button className={`btn btn-sm ${tool.kind === "select" ? "btn-on" : ""}`} onClick={() => setTool({ kind: "select" })} title="Select / move (V or Esc)">
-            <Hand />
-            <span className="hidden 2xl:inline">Select</span>
-          </button>
-          <button className="btn btn-sm btn-icon" disabled={!past.length} onClick={undo} title="Undo (⌘Z)" aria-label="Undo">
-            <Undo2 />
-          </button>
-          <button className="btn btn-sm btn-icon" disabled={!future.length} onClick={redo} title="Redo (⇧⌘Z)" aria-label="Redo">
-            <Redo2 />
-          </button>
-          <span className="toolbar-sep" />
-          <button className={`btn btn-sm ${tool.kind === "calibrate" ? "btn-on" : sheet.pxPerFt ? "" : "border-amber-300 bg-amber-50 text-amber-800"}`} onClick={() => setPending({ kind: "scale" })} title="Set the sheet scale">
-            <Ruler />
-            <span className="hidden 2xl:inline">{sheet.pxPerFt ? "Scale" : "Set scale"}</span>
-          </button>
-          <button className={`btn btn-sm btn-icon ${tool.kind === "measure" ? "btn-on" : ""}`} onClick={() => setTool(tool.kind === "measure" ? { kind: "select" } : { kind: "measure" })} title="Measure a distance (M)" aria-label="Measure">
-            <RulerDimensionLine />
-          </button>
-          <div className="relative">
-            <button className={`btn btn-sm ${hiddenLayers.length ? "btn-on" : ""}`} onClick={() => setLayersOpen((o) => !o)} title="Show / hide trades">
-              <Layers />
-              <span className="hidden 2xl:inline">Layers</span>
-              {hiddenLayers.length ? <span className="text-[11px]">{LAYERS.length - hiddenLayers.length}/{LAYERS.length}</span> : null}
-            </button>
-            {layersOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setLayersOpen(false)} />
-                <div className="card animate-in absolute top-10 right-0 z-30 w-60 p-2 shadow-pop">
-                  <div className="section-title px-2 pt-1 pb-2">Layers</div>
-                  {LAYERS.map((l) => (
-                    <div key={l.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
-                      <label className="flex flex-1 cursor-pointer items-center gap-2">
-                        <input type="checkbox" className="accent-brand-600" checked={!hiddenLayers.includes(l.id)} onChange={() => toggleLayer(l.id)} />
-                        {l.name}
-                      </label>
-                      <button className="text-xs font-medium text-brand-600 hover:underline" onClick={() => setOnlyLayer(l.id)}>
-                        Only
-                      </button>
-                    </div>
-                  ))}
-                  <button className="btn btn-sm mt-1 w-full" onClick={() => setOnlyLayer(null)}>
-                    Show all
-                  </button>
-                </div>
-              </>
+      <div ref={planRef} className="relative min-w-0 flex-1" data-testid="plan-view">
+        <PlanCanvas
+          sheet={sheet}
+          draft={draft}
+          fitKey={fitKey}
+          showLabels={showLabels}
+          onTapImage={onTapImage}
+          onDoubleTap={() => drawing && finishDraft()}
+          viewport={vp}
+          editing={editing}
+          filters={filters}
+          onEdgeSwipe={step}
+        />
+        {/* Edit mode frames the plan in orange, so it's obvious taps change things. */}
+        {editing && <div className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_0_3px_var(--color-brand-500)]" aria-hidden />}
+
+        {/* Top: sheet title (opens the browser) on the left, tools and mode on the right. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-2 sm:p-3">
+          <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            {editing && wide && (
+              <button
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/90 text-slate-600 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900"
+                onClick={() => setPaletteOpen((o) => !o)}
+                title={paletteOpen ? "Hide device menu" : "Show device menu"}
+                aria-label={paletteOpen ? "Hide device menu" : "Show device menu"}
+                data-plan-ui
+              >
+                {paletteOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </button>
             )}
+            <SheetPill sheet={sheet} index={sheetIndex} count={sheets.length} onOpen={() => viewer.setBrowserOpen(true)} onStep={step} compact={phone} />
           </div>
-          <button className={`btn btn-sm btn-icon ${showLabels ? "btn-on" : ""}`} onClick={() => setShowLabels((v) => !v)} title="Show device labels (L)" aria-label="Labels">
-            <Tag />
-          </button>
-          <button className="btn btn-sm btn-icon" onClick={() => setFitKey((k) => k + 1)} title="Fit sheet to screen (F)" aria-label="Fit">
-            <Maximize />
-          </button>
-          <span className="toolbar-sep" />
-          <button
-            className="btn btn-sm"
-            title="Draw home runs from every device on this sheet to its closet"
-            onClick={async () => {
-              const n = await useEditor.getState().autoHomeRuns(sheet.id);
-              toast(n ? `Drew ${n} home runs` : useEditor.getState().closets.length ? "No wired devices on this sheet" : "Place an equipment closet first", n ? "success" : "info");
-            }}
-          >
-            <Cable />
-            <span className="hidden 2xl:inline">Home runs</span>
-          </button>
-          <button className={`btn btn-sm ${panel === "counts" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "counts" ? null : "counts")} title="Floor counts">
-            <ListChecks />
-            <span className="hidden 2xl:inline">Counts</span>
-          </button>
-          {AI_ENABLED && (
-          <button className={`btn btn-sm ${panel === "scan" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "scan" ? null : "scan")} title="AI scan assist">
-            <Sparkles />
-            <span className="hidden 2xl:inline">AI scan</span>
-          </button>
-          )}
+          <div className="flex-1" />
+          <div className="pointer-events-auto flex shrink-0 items-center gap-2">
+            {toolbarTop && toolbar}
+            <ModeToggle mode={mode} onChange={viewer.setMode} compact={phone} />
+          </div>
         </div>
 
-        <div className="relative min-h-0 flex-1">
-          <PlanCanvas sheet={sheet} draft={draft} fitKey={fitKey} showLabels={showLabels} onTapImage={onTapImage} onDoubleTap={() => drawing && finishDraft()} />
-          {!wide && !paletteOpen && (
-            <button
-              className={`btn btn-brand absolute left-3 z-10 h-11 px-4 text-sm shadow-pop ${sheets.length > 1 ? "bottom-16" : "bottom-3"}`}
-              onClick={() => setPaletteOpen(true)}
-            >
-              <Plus />
-              Devices
-            </button>
-          )}
-          {sheets.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 z-10 flex max-w-[calc(100%-200px)] -translate-x-1/2 overflow-x-auto rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
-              {sheets.map((s, i) => (
-                <button
-                  key={s.id}
-                  className={`tab h-8 px-3 text-[13px] ${s.id === sheet.id ? "bg-ink text-white shadow-sm hover:bg-ink hover:text-white" : ""}`}
-                  onClick={() => setActiveSheet(s.id)}
-                  title={`Floor ${i + 1}`}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </div>
-          )}
-          {hint && (
-            <div className="pointer-events-none absolute top-12 left-1/2 flex max-w-[90%] -translate-x-1/2 items-center gap-2 truncate rounded-md bg-ink/90 px-3.5 py-1.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-              {hint}
-            </div>
-          )}
-          {tool.kind !== "select" && !drawing && (
-            <button className="btn btn-sm absolute top-3 right-3 shadow-soft" onClick={() => setTool({ kind: "select" })}>
-              <X /> Done
-            </button>
-          )}
-          {(tool.kind === "led" || tool.kind === "wire" || tool.kind === "stair" || tool.kind === "calibrate") && (
-            <div className="absolute top-[88px] left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur">
-              <button className="btn btn-sm btn-ghost" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
-                <Undo2 /> Point
+        {hint && (
+          <div className="absolute top-[64px] left-1/2 z-10 flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur sm:top-[72px]" data-plan-ui>
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
+            <span className="min-w-0 truncate py-1">{hint}</span>
+            {tool.kind !== "select" && !drawing ? (
+              <button className="ml-1 flex h-8 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25" onClick={() => setTool({ kind: "select" })}>
+                <X className="h-3.5 w-3.5" /> Done
               </button>
-              {(tool.kind === "led" || tool.kind === "wire") && (
-                <button className="btn btn-sm btn-brand" onClick={() => finishDraft()} disabled={draft.length < 4}>
-                  Finish
+            ) : (
+              <span className="w-2" />
+            )}
+          </div>
+        )}
+        {drawing && (
+          <div className="absolute top-[112px] left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur sm:top-[120px]" data-plan-ui>
+            <button className="btn btn-sm btn-ghost" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
+              <Undo2 /> Point
+            </button>
+            {(tool.kind === "led" || tool.kind === "wire") && (
+              <button className="btn btn-sm btn-brand" onClick={() => finishDraft()} disabled={draft.length < 4}>
+                Finish
+              </button>
+            )}
+            <button className="btn btn-sm btn-ghost" onClick={() => (draft.length ? setDraft([]) : setTool({ kind: "select" }))}>
+              <X /> Cancel
+            </button>
+          </div>
+        )}
+
+        {/* Bottom: minimap and the device menu button on the left, zoom on the right; the toolbar between them or below when the plan area is narrow. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
+          <div className="flex items-end justify-between gap-2">
+            <div className="pointer-events-auto flex flex-col items-start gap-2">
+              {minimap && <Minimap viewport={vp} imageId={sheet.imageId} onClose={() => viewer.setMinimap(false)} max={phone ? 120 : 168} />}
+              {editing && !wide && !paletteOpen && (
+                <button className="btn btn-brand h-11 px-4 text-sm shadow-pop" onClick={() => setPaletteOpen(true)} data-plan-ui>
+                  <Plus />
+                  Devices
                 </button>
               )}
-              <button className="btn btn-sm btn-ghost" onClick={() => (draft.length ? setDraft([]) : setTool({ kind: "select" }))}>
-                <X /> Cancel
-              </button>
             </div>
-          )}
+            {!toolbarTop && !toolbarRow && <div className="pointer-events-auto min-w-0 overflow-x-auto rounded-xl">{toolbar}</div>}
+            <div className="pointer-events-auto">
+              <ZoomControls viewport={vp} minimap={minimap} onMinimap={viewer.setMinimap} compact={phone} />
+            </div>
+          </div>
+          {toolbarRow && <div className="pointer-events-auto mx-auto max-w-full overflow-x-auto rounded-xl">{toolbar}</div>}
         </div>
+
+        {browserOpen && (
+          <SheetBrowser
+            sheets={sheets}
+            activeId={sheet.id}
+            recent={(projectId && viewer.recent[projectId]) || []}
+            counts={perSheet}
+            full={phone}
+            onPick={(id) => {
+              setActiveSheet(id);
+              viewer.setBrowserOpen(false);
+            }}
+            onClose={() => viewer.setBrowserOpen(false)}
+          />
+        )}
+        {layersOpen && (
+          <LayersPanel
+            layers={LAYERS}
+            hiddenLayers={hiddenLayers}
+            toggleLayer={toggleLayer}
+            onlyLayer={setOnlyLayer}
+            layerCounts={perLayer}
+            closetCount={st.closets.filter((c) => c.sheetId === sheet.id).length}
+            filters={filters}
+            setFilters={viewer.setFilters}
+            resetFilters={viewer.resetFilters}
+            types={typeRows}
+            rooms={rooms}
+            selectedType={selectedMarker ? (typesById.get(selectedMarker.deviceTypeId) ?? null) : null}
+            full={phone}
+            onClose={() => viewer.setLayersOpen(false)}
+          />
+        )}
       </div>
 
       {/* Right panel */}
