@@ -26,18 +26,22 @@ function CellInner({
   numeric,
   className = "",
   placeholder,
+  label,
 }: {
   value: string | number;
   onCommit: (v: string) => void;
   numeric?: boolean;
   className?: string;
   placeholder?: string;
+  /** Accessible name (the cells have no visible label of their own). */
+  label?: string;
 }) {
   // Parent remounts the cell (key) when the committed value changes.
   const [v, setV] = useState(String(value));
   return (
     <input
       value={v}
+      aria-label={label}
       placeholder={placeholder}
       inputMode={numeric ? "decimal" : undefined}
       onChange={(e) => setV(e.target.value)}
@@ -323,22 +327,22 @@ export default function EstimateTab() {
                   <div key={l.key} className={`py-2.5 ${l.included ? "" : "text-slate-400"}`}>
                     <div className="flex items-center gap-2">
                       {l.optional && (
-                        <input type="checkbox" className="accent-brand-600" title="Include in total" checked={l.included} onChange={(e) => upsert(l.key, { include: e.target.checked })} />
+                        <input type="checkbox" className="accent-brand-600" title="Include in total" aria-label={`Include in total: ${l.description}`} checked={l.included} onChange={(e) => upsert(l.key, { include: e.target.checked })} />
                       )}
                       <div className="min-w-0 flex-1">
-                        <Cell value={l.description} onCommit={(v) => upsert(l.key, { description: v || null })} />
+                        <Cell label="Description" value={l.description} onCommit={(v) => upsert(l.key, { description: v || null })} />
                       </div>
-                      <button className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label="Remove line" onClick={() => upsert(l.key, { removed: true })}>
+                      <button className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={`Remove line: ${l.description}`} onClick={() => upsert(l.key, { removed: true })}>
                         <Trash />
                       </button>
                     </div>
                     <div className="mt-1 flex items-center gap-1 text-sm text-slate-500">
                       <div className="w-16">
-                        <Cell numeric value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
+                        <Cell numeric label={`Quantity: ${l.description}`} value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
                       </div>
                       <span>{l.unit} ×</span>
                       <div className="w-24">
-                        <Cell numeric value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
+                        <Cell numeric label={`Unit price: ${l.description}`} value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
                       </div>
                       <span className="ml-auto font-medium text-slate-900 tabular-nums">{formatMoney(l.total, cur)}</span>
                     </div>
@@ -386,33 +390,33 @@ export default function EstimateTab() {
                     <tr key={l.key} className={`group border-t border-slate-100 ${l.included ? "" : "text-slate-400"}`}>
                       <td className="px-3 py-1 text-center">
                         {l.optional ? (
-                          <input type="checkbox" className="accent-brand-600" title="Include in total" checked={l.included} onChange={(e) => upsert(l.key, { include: e.target.checked })} />
+                          <input type="checkbox" className="accent-brand-600" title="Include in total" aria-label={`Include in total: ${l.description}`} checked={l.included} onChange={(e) => upsert(l.key, { include: e.target.checked })} />
                         ) : null}
                       </td>
                       <td className="px-2 py-1">
                         <div className="flex items-center gap-1.5">
-                          <Cell value={l.description} onCommit={(v) => upsert(l.key, { description: v || null })} />
+                          <Cell label="Description" value={l.description} onCommit={(v) => upsert(l.key, { description: v || null })} />
                           {l.optional && <span className="chip shrink-0 bg-amber-50 text-amber-700">optional</span>}
                           {l.overridden && !l.key.startsWith("custom:") && <span className="chip shrink-0 bg-brand-50 text-brand-700">edited</span>}
                         </div>
                       </td>
                       <td className="px-2 py-1">
-                        <Cell numeric value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
+                        <Cell numeric label={`Quantity: ${l.description}`} value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
                       </td>
                       <td className="px-2 py-1">
-                        <Cell value={l.unit} onCommit={(v) => upsert(l.key, { unit: v || null })} />
+                        <Cell label={`Unit: ${l.description}`} value={l.unit} onCommit={(v) => upsert(l.key, { unit: v || null })} />
                       </td>
                       <td className="px-2 py-1">
-                        <Cell numeric value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
+                        <Cell numeric label={`Unit price: ${l.description}`} value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
                       </td>
                       <td className="px-3 py-1 text-right font-medium tabular-nums">{formatMoney(l.total, cur)}</td>
                       <td className="px-2 py-1 text-right whitespace-nowrap">
                         {l.overridden && !l.key.startsWith("custom:") && (
-                          <button className="btn btn-sm btn-icon btn-ghost" title="Reset to the takeoff value" aria-label="Reset" onClick={() => removeOverride(l.key)}>
+                          <button className="btn btn-sm btn-icon btn-ghost" title="Reset to the takeoff value" aria-label={`Reset to the takeoff value: ${l.description}`} onClick={() => removeOverride(l.key)}>
                             <RotateCcw />
                           </button>
                         )}
-                        <button className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" title="Remove line" aria-label="Remove line" onClick={() => upsert(l.key, { removed: true })}>
+                        <button className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" title="Remove line" aria-label={`Remove line: ${l.description}`} onClick={() => upsert(l.key, { removed: true })}>
                           <Trash />
                         </button>
                       </td>

@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor } from "@/lib/store";
 import type { ProjectStatus } from "@/lib/types";
 import { Camera, ClipboardCheck, FileText, HardHat, Info, ListChecks, MapPin, Receipt } from "lucide-react";
@@ -54,6 +54,17 @@ export default function ProjectView() {
 
   const setTab = (t: string) => router.replace(`/project?id=${id}&tab=${t}`);
 
+  // On phones the tab strip scrolls; keep the open tab in view (e.g. a link straight to ?tab=field).
+  const navRef = useRef<HTMLElement>(null);
+  const ready = loaded && project?.id === id;
+  useEffect(() => {
+    const nav = navRef.current;
+    const el = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !el) return;
+    const left = el.offsetLeft - nav.offsetLeft;
+    if (left < nav.scrollLeft || left + el.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left - (nav.clientWidth - el.offsetWidth) / 2;
+  }, [tab, ready]);
+
   if (!loaded || project?.id !== id) {
     if (loaded && !project)
       return (
@@ -93,9 +104,9 @@ export default function ProjectView() {
           </select>
         </div>
         <div className="flex-1" />
-        <nav className="seg max-w-[60vw] overflow-x-auto">
+        <nav ref={navRef} className="seg max-w-[60vw] overflow-x-auto" aria-label="Job sections">
           {TABS.map((t) => (
-            <button key={t.id} className={`tab ${tab === t.id ? "tab-active" : ""}`} onClick={() => setTab(t.id)} title={t.label} aria-label={t.label}>
+            <button key={t.id} className={`tab ${tab === t.id ? "tab-active" : ""}`} onClick={() => setTab(t.id)} title={t.label} aria-label={t.label} aria-current={tab === t.id ? "page" : undefined}>
               <t.icon />
               <span className="hidden lg:inline">{t.label}</span>
               {t.id === "sheets" && sheets.length > 0 && <span className="hidden text-xs text-slate-400 lg:inline">{sheets.length}</span>}

@@ -3,6 +3,7 @@
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
+import { localDay } from "@/lib/fieldDocs";
 import type { BusinessSettings, Project } from "@/lib/types";
 
 const INK = "#161616";
@@ -97,7 +98,8 @@ function Table({ lines, currency }: { lines: ComputedLine[]; currency: string })
 }
 
 function estimateNumber(project: Project, date: Date) {
-  const ymd = date.toISOString().slice(2, 10).replace(/-/g, "");
+  // The installer's calendar day (toISOString is UTC, so an evening estimate got tomorrow's number).
+  const ymd = localDay(date.toISOString()).slice(2).replace(/-/g, "");
   return `EST-${ymd}-${project.id.slice(0, 4).toUpperCase()}`;
 }
 

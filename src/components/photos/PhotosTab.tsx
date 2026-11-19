@@ -23,7 +23,8 @@ function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { pho
     <button
       className={`group relative aspect-square overflow-hidden rounded-xl bg-slate-100 ring-offset-2 transition ${selected ? "ring-2 ring-brand-500" : "hover:ring-2 hover:ring-slate-300"}`}
       onClick={selecting ? onToggle : onOpen}
-      aria-label={photo.caption || "Open photo"}
+      aria-label={selecting ? `Select photo${photo.caption ? `: ${photo.caption}` : ""}` : photo.caption || "Open photo"}
+      aria-pressed={selecting ? selected : undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />}
@@ -120,7 +121,7 @@ export default function PhotosTab() {
         e.preventDefault();
         setDrag(true);
       }}
-      onDragLeave={() => setDrag(false)}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDrag(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDrag(false);
@@ -180,7 +181,7 @@ export default function PhotosTab() {
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-48 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input className="input h-9 pl-9" placeholder="Search captions, rooms, tags" value={text} onChange={(e) => setText(e.target.value)} />
+                <input className="input h-9 pl-9" type="search" placeholder="Search captions, rooms, tags" aria-label="Search photos" value={text} onChange={(e) => setText(e.target.value)} />
               </div>
               {people.length > 1 && (
                 <select className="input h-9 w-auto" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Taken by">
@@ -190,7 +191,7 @@ export default function PhotosTab() {
                   ))}
                 </select>
               )}
-              <button className={`btn btn-sm ${selecting ? "btn-on" : ""}`} onClick={() => (setSelecting((s) => !s), setSel([]))}>
+              <button className={`btn btn-sm ${selecting ? "btn-on" : ""}`} aria-pressed={selecting} onClick={() => (setSelecting((s) => !s), setSel([]))}>
                 <CheckSquare /> {selecting ? "Done" : "Select"}
               </button>
               <button className="btn btn-sm" onClick={() => setReport(true)}>
@@ -200,7 +201,7 @@ export default function PhotosTab() {
             <div className="flex flex-wrap gap-1.5">
               <Tag className="mt-1 h-4 w-4 text-slate-400" />
               {options.slice(0, 16).map((t) => (
-                <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} onClick={() => toggleTag(t)}>
+                <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} aria-pressed={tags.includes(t)} onClick={() => toggleTag(t)}>
                   {t}
                 </button>
               ))}
@@ -218,6 +219,7 @@ export default function PhotosTab() {
             <span className="mr-auto font-medium">{sel.length} selected</span>
             <select
               className="h-8 rounded-lg bg-white/10 px-2 text-sm"
+              aria-label="Add a tag to the selected photos"
               value=""
               onChange={async (e) => {
                 const t = e.target.value;

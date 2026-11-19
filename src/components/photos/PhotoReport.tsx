@@ -115,7 +115,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-label="Photo report" className="card animate-in w-full max-w-lg space-y-4 p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Photo report" className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <h2 className="text-base font-semibold">Photo report</h2>
@@ -139,7 +139,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
           <span className="label">Photos per page</span>
           <div className="seg w-fit">
             {([1, 2, 4] as const).map((n) => (
-              <button key={n} className={`tab ${perPage === n ? "tab-active" : ""}`} onClick={() => setPerPage(n)}>
+              <button key={n} className={`tab ${perPage === n ? "tab-active" : ""}`} aria-pressed={perPage === n} aria-label={`${n} per page`} onClick={() => setPerPage(n)}>
                 {n}
               </button>
             ))}

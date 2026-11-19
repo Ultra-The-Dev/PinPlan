@@ -14,17 +14,37 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const dirty = useRef(false);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
   useEffect(() => {
     const c = ref.current!;
-    const dpr = window.devicePixelRatio || 1;
-    c.width = c.offsetWidth * dpr;
-    c.height = c.offsetHeight * dpr;
-    const ctx = c.getContext("2d")!;
-    ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#1c1917";
+    let w = 0;
+    // Size the bitmap to the box, and again when the box changes (phone rotated, window resized): otherwise the
+    // stretched canvas draws away from the finger. Resizing wipes the bitmap, so the signature starts over.
+    const fit = () => {
+      if (!c.offsetWidth || c.offsetWidth === w) return;
+      const first = w === 0;
+      w = c.offsetWidth;
+      const dpr = window.devicePixelRatio || 1;
+      c.width = c.offsetWidth * dpr;
+      c.height = c.offsetHeight * dpr;
+      const ctx = c.getContext("2d")!;
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#1c1917";
+      if (!first && dirty.current) {
+        dirty.current = false;
+        onChangeRef.current(null);
+      }
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(c);
+    return () => ro.disconnect();
   }, []);
   const pos = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
@@ -164,7 +184,7 @@ export default function ClientProposal() {
               <div className="text-xl font-extrabold tracking-tight text-[var(--brand)]">{s.business.name || "Proposal"}</div>
             )}
           </div>
-          <div className="text-right text-sm leading-relaxed text-slate-500">
+          <div className="min-w-0 text-right text-sm leading-relaxed break-words text-slate-500">
             {s.business.phone && (
               <a href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`} className="block font-semibold text-[var(--brand)]">
                 {s.business.phone}
@@ -182,7 +202,7 @@ export default function ClientProposal() {
       <section className="relative overflow-hidden bg-[var(--brand)] text-white print:bg-white print:text-black" style={{ backgroundImage: `radial-gradient(60% 120% at 100% 0%, ${accent}33 0%, transparent 60%), linear-gradient(180deg, #13294f 0%, ${brand} 100%)` }}>
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
           {s.business.tagline && <div className="text-xs font-semibold tracking-[0.14em] text-[var(--accent)] uppercase">{s.business.tagline}</div>}
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">{s.title}</h1>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight break-words text-balance sm:text-4xl">{s.title}</h1>
           <dl className="mt-5 grid gap-x-8 gap-y-1.5 text-sm text-white/80 sm:grid-cols-2 print:text-slate-600">
             <div className="flex gap-2">
               <dt className="text-white/55">Prepared for</dt>
@@ -203,11 +223,11 @@ export default function ClientProposal() {
               </div>
             )}
           </dl>
-          <div className="mt-7 grid grid-cols-3 gap-3">
+          <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-3">
             {s.scope.map((x) => (
-              <div key={x.label} className="rounded-2xl bg-white/[0.07] px-4 py-3 ring-1 ring-white/15 print:ring-slate-300">
-                <div className="text-xs text-white/60 print:text-slate-500">{x.label}</div>
-                <div className="mt-0.5 text-2xl font-extrabold text-[var(--accent)] tabular-nums print:text-black">{x.value}</div>
+              <div key={x.label} className="min-w-0 rounded-2xl bg-white/[0.07] px-3 py-3 ring-1 ring-white/15 sm:px-4 print:ring-slate-300">
+                <div className="truncate text-xs text-white/60 print:text-slate-500">{x.label}</div>
+                <div className="mt-0.5 text-lg font-extrabold break-words text-[var(--accent)] tabular-nums sm:text-2xl print:text-black">{x.value}</div>
               </div>
             ))}
           </div>
@@ -329,7 +349,7 @@ export default function ClientProposal() {
                     .filter((l) => l.group === g)
                     .map((l) => (
                       <li key={l.key} className="flex gap-3 text-sm">
-                        <span className="min-w-0 flex-1">
+                        <span className="min-w-0 flex-1 break-words">
                           {l.description}
                           {s.detail === "lines" && (
                             <span className="block text-xs text-slate-500 tabular-nums sm:hidden">
@@ -477,7 +497,14 @@ export default function ClientProposal() {
                 </label>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <div className="mt-4 flex gap-3">
-                  <button className="btn" onClick={() => setDeclining(false)}>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      // The signature pad comes back empty, so don't keep a signature the client can't see.
+                      setSignature(null);
+                      setDeclining(false);
+                    }}
+                  >
                     Back
                   </button>
                   <button className={review ? "btn btn-brand" : "btn btn-danger"} disabled={busy || (review && !note.trim())} onClick={() => void respond(false)}>
@@ -495,7 +522,7 @@ export default function ClientProposal() {
             <div className="font-bold text-white print:text-black">{s.business.name}</div>
             {s.business.serviceArea && <div>{s.business.serviceArea}</div>}
           </div>
-          <div className="text-right">
+          <div className="min-w-0 text-right break-words">
             Questions? {s.business.phone ? <a className="font-semibold text-[var(--accent)]" href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`}>{s.business.phone}</a> : null}
             {s.business.email ? (
               <>

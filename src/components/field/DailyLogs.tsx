@@ -19,7 +19,12 @@ const dayText = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(unde
 function Thumb({ photo, onClick, selected }: { photo: Photo; onClick: () => void; selected?: boolean }) {
   const url = useBlobUrl(photo.imageId);
   return (
-    <button onClick={onClick} className={`relative h-16 w-16 overflow-hidden rounded-lg bg-slate-100 ${selected === undefined ? "ring-1 ring-slate-200" : selected ? "ring-2 ring-brand-500" : "opacity-60 ring-1 ring-slate-200"}`} aria-label="Photo">
+    <button
+      onClick={onClick}
+      className={`relative h-16 w-16 overflow-hidden rounded-lg bg-slate-100 ${selected === undefined ? "ring-1 ring-slate-200" : selected ? "ring-2 ring-brand-500" : "opacity-60 ring-1 ring-slate-200"}`}
+      aria-label={selected === undefined ? `Open photo${photo.caption ? `: ${photo.caption}` : ""}` : `Include photo in this log${photo.caption ? `: ${photo.caption}` : ""}`}
+      aria-pressed={selected}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>
@@ -101,14 +106,21 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
             multiple
             className="hidden"
             onChange={async (e) => {
-              if (!project || !e.target.files) return;
-              for (const f of [...e.target.files]) {
-                const p = await importPhoto(f, { projectId: project.id, author: getAuthor(email) });
-                await saveRow("photos", p);
-                // Keep the log's day; the photo is linked even if it was taken on another day.
-                setL((x) => ({ ...x, photoIds: [...(x.photoIds ?? []), p.id] }));
+              const input = e.currentTarget;
+              if (!project || !input.files) return;
+              const files = [...input.files];
+              // Clear now so picking the same file again still fires a change.
+              input.value = "";
+              for (const f of files) {
+                try {
+                  const p = await importPhoto(f, { projectId: project.id, author: getAuthor(email) });
+                  await saveRow("photos", p);
+                  // Keep the log's day; the photo is linked even if it was taken on another day.
+                  setL((x) => ({ ...x, photoIds: [...(x.photoIds ?? []), p.id] }));
+                } catch (err) {
+                  toast(`${f.name}: ${(err as Error).message}`, "error");
+                }
               }
-              e.target.value = "";
             }}
           />
           <button className="btn btn-sm btn-ghost text-brand-600" onClick={() => fileRef.current?.click()}>
@@ -161,7 +173,8 @@ export default function DailyLogs() {
   return (
     <div className="space-y-4">
       {editing ? (
-        <Editor log={editing} onDone={() => setEditing(null)} />
+        // Keyed: picking "edit" on another log while one is open must load that log, not keep the old draft.
+        <Editor key={editing.id} log={editing} onDone={() => setEditing(null)} />
       ) : (
         <button className="btn btn-brand" onClick={startNew}>
           <Plus /> New daily log

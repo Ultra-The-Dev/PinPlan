@@ -82,8 +82,8 @@ export default function AccountPanel() {
           }}
         >
           <p className="text-sm text-slate-600">Sign in to sync plans across devices and share them with your crew.</p>
-          <input className="input" type="email" required placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="input" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="input" type="email" required placeholder="Email" aria-label="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="input" type="password" placeholder="Password" aria-label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy || !password} className="btn btn-primary">
               Sign in
@@ -180,8 +180,8 @@ function SetPassword() {
       <div className="text-sm font-medium">Set or change password</div>
       <p className="text-xs text-slate-500">Signed in with a magic link? Set a password here to sign in on the iPad and iPhone app.</p>
       <div className="flex flex-wrap gap-2">
-        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="New password (8+ characters)" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="Repeat password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="New password (8+ characters)" aria-label="New password" value={pw} onChange={(e) => setPw(e.target.value)} />
+        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="Repeat password" aria-label="Repeat new password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
         <button className="btn" disabled={busy || !valid}>
           {busy ? "Saving…" : "Set password"}
         </button>

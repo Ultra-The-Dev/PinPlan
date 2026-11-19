@@ -24,9 +24,10 @@ export default function FieldTab() {
             <h2 className="page-title">Field</h2>
             <p className="mt-1 text-sm text-slate-500">Checklists, daily logs, documents and everything that happened on the job.</p>
           </div>
-          <nav className="seg">
+          <nav className="seg" aria-label="Field sections">
             {SECTIONS.map((s) => (
-              <button key={s.id} className={`tab ${section === s.id ? "tab-active" : ""}`} onClick={() => setSection(s.id)}>
+              // Labels are hidden on phones, so the name comes from aria-label.
+              <button key={s.id} className={`tab ${section === s.id ? "tab-active" : ""}`} onClick={() => setSection(s.id)} aria-label={s.label} aria-pressed={section === s.id} title={s.label}>
                 <s.icon />
                 <span className="hidden sm:inline">{s.label}</span>
               </button>

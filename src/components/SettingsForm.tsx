@@ -119,25 +119,25 @@ export default function SettingsForm() {
               ] as const
             ).map(([k, label]) => (
               <div key={k}>
-                <label className="label">{label}</label>
-                <input className="input" value={b[k]} onChange={(e) => setB(k, e.target.value)} />
+                <label className="label" htmlFor={`set-${k}`}>{label}</label>
+                <input id={`set-${k}`} className="input" value={b[k]} onChange={(e) => setB(k, e.target.value)} />
               </div>
             ))}
             <div className="sm:col-span-2">
-              <label className="label">Address</label>
-              <input className="input" value={b.address} onChange={(e) => setB("address", e.target.value)} />
+              <label className="label" htmlFor="set-address">Address</label>
+              <input id="set-address" className="input" value={b.address} onChange={(e) => setB("address", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label">Tagline</label>
-              <input className="input" placeholder="Smart Home · Lighting · AV & Home Theater · Security" value={b.tagline ?? ""} onChange={(e) => setB("tagline", e.target.value)} />
+              <label className="label" htmlFor="set-tagline">Tagline</label>
+              <input id="set-tagline" className="input" placeholder="Smart Home · Lighting · AV & Home Theater · Security" value={b.tagline ?? ""} onChange={(e) => setB("tagline", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label">Service area</label>
-              <input className="input" placeholder="Serving New York City & the Tri-State Area" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
+              <label className="label" htmlFor="set-service-area">Service area</label>
+              <input id="set-service-area" className="input" placeholder="Serving New York City & the Tri-State Area" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label">Estimate terms</label>
-              <textarea className="input min-h-20" value={b.estimateTerms} onChange={(e) => setB("estimateTerms", e.target.value)} />
+              <label className="label" htmlFor="set-estimate-terms">Estimate terms</label>
+              <textarea id="set-estimate-terms" className="input min-h-20" value={b.estimateTerms} onChange={(e) => setB("estimateTerms", e.target.value)} />
             </div>
           </section>
 
@@ -147,20 +147,20 @@ export default function SettingsForm() {
               <p className="text-sm text-slate-500">New estimates start from these; each project can override markup, tax and labor.</p>
             </div>
             <div>
-              <label className="label">Markup on materials %</label>
-              <input className="input" type="number" step="0.1" value={p.markupPct} onChange={(e) => setP("markupPct", Number(e.target.value) || 0)} />
+              <label className="label" htmlFor="set-markup-on-materials">Markup on materials %</label>
+              <input id="set-markup-on-materials" className="input" type="number" step="0.1" value={p.markupPct} onChange={(e) => setP("markupPct", Number(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="label">Sales tax %</label>
-              <input className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
+              <label className="label" htmlFor="set-sales-tax">Sales tax %</label>
+              <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="label">Currency</label>
-              <input className="input" value={p.currency} maxLength={3} onChange={(e) => setP("currency", e.target.value.toUpperCase())} />
+              <label className="label" htmlFor="set-currency">Currency</label>
+              <input id="set-currency" className="input" value={p.currency} maxLength={3} onChange={(e) => setP("currency", e.target.value.toUpperCase())} />
             </div>
             <div>
-              <label className="label">Labor on estimate</label>
-              <select className="input" value={p.laborMode} onChange={(e) => setP("laborMode", e.target.value as "combined" | "separate")}>
+              <label className="label" htmlFor="set-labor-on-estimate">Labor on estimate</label>
+              <select id="set-labor-on-estimate" className="input" value={p.laborMode} onChange={(e) => setP("laborMode", e.target.value as "combined" | "separate")}>
                 <option value="combined">Combined (“— installed” price)</option>
                 <option value="separate">Separate labor lines</option>
               </select>
@@ -177,21 +177,22 @@ export default function SettingsForm() {
               <p className="text-sm text-slate-500">How home-run lengths are estimated from the plan, and the price per foot of each cable.</p>
             </div>
             <div>
-              <label className="label">Slack / service loop %</label>
-              <input className="input" type="number" value={p.wireSlackPct} onChange={(e) => setP("wireSlackPct", Number(e.target.value) || 0)} />
+              <label className="label" htmlFor="set-slack-service-loop">Slack / service loop %</label>
+              <input id="set-slack-service-loop" className="input" type="number" value={p.wireSlackPct} onChange={(e) => setP("wireSlackPct", Number(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="label">Extra ft per home run</label>
-              <input className="input" type="number" value={p.wireDropFt} onChange={(e) => setP("wireDropFt", Number(e.target.value) || 0)} />
+              <label className="label" htmlFor="set-extra-ft-per-home-run">Extra ft per home run</label>
+              <input id="set-extra-ft-per-home-run" className="input" type="number" value={p.wireDropFt} onChange={(e) => setP("wireDropFt", Number(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="label">Floor-to-floor height ft</label>
-              <input className="input" type="number" value={p.floorHeightFt} onChange={(e) => setP("floorHeightFt", Number(e.target.value) || 0)} />
+              <label className="label" htmlFor="set-floor-to-floor-height-ft">Floor-to-floor height ft</label>
+              <input id="set-floor-to-floor-height-ft" className="input" type="number" value={p.floorHeightFt} onChange={(e) => setP("floorHeightFt", Number(e.target.value) || 0)} />
             </div>
             {WIRE_TYPES.filter((w) => w !== "None").map((w) => (
               <div key={w}>
-                <label className="label">{w} $/ft</label>
+                <label className="label" htmlFor={`set-wire-${w}`}>{w} $/ft</label>
                 <input
+                  id={`set-wire-${w}`}
                   className="input"
                   type="number"
                   step="0.01"

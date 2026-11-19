@@ -54,7 +54,7 @@ export default function PhotoFeed() {
         <div className="card flex flex-wrap items-center gap-2 p-3">
           <div className="relative min-w-48 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input h-9 pl-9" placeholder="Search captions, rooms, tags" value={text} onChange={(e) => setText(e.target.value)} />
+            <input className="input h-9 pl-9" type="search" placeholder="Search captions, rooms, tags" aria-label="Search photos" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <select className="input h-9 w-auto max-w-56" value={job} onChange={(e) => setJob(e.target.value)} aria-label="Job">
             <option value="">All jobs</option>
@@ -74,7 +74,7 @@ export default function PhotoFeed() {
           )}
           <div className="flex basis-full flex-wrap gap-1.5">
             {options.map((t) => (
-              <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} onClick={() => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]))}>
+              <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} aria-pressed={tags.includes(t)} onClick={() => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]))}>
                 {t}
               </button>
             ))}
@@ -93,7 +93,7 @@ export default function PhotoFeed() {
         groups.map((g) => (
           <section key={g.day}>
             <h3 className="mb-2 px-1 font-semibold">
-              {new Date(`${g.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} <span className="text-xs font-normal text-slate-400">{g.photos.length}</span>
+              {new Date(`${g.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +g.day.slice(0, 4) ? undefined : "numeric" })} <span className="text-xs font-normal text-slate-400">{g.photos.length}</span>
             </h3>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               {g.photos.map((p) => (

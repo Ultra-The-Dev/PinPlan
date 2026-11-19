@@ -29,9 +29,10 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur sm:px-5">
       <Logo />
       <div className="min-w-0 flex-1">{children}</div>
-      <nav className="seg">
+      {/* Phones: icons only, tighter tabs so all seven fit at 375 px (and scroll rather than push the page wider). */}
+      <nav className="seg min-w-0 overflow-x-auto" aria-label="Main">
         {nav.map((n) => (
-          <Link key={n.href} href={n.href} className={`tab ${path === n.href ? "tab-active" : ""}`}>
+          <Link key={n.href} href={n.href} className={`tab px-2 md:px-3 ${path === n.href ? "tab-active" : ""}`} aria-label={n.label} title={n.label} aria-current={path === n.href ? "page" : undefined}>
             <n.icon />
             <span className="hidden md:inline">{n.label}</span>
           </Link>
