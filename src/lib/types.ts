@@ -849,3 +849,62 @@ export interface ChangeOrder {
   updatedAt: string;
   deleted?: boolean;
 }
+
+/** RFI (request for information) to the GC / architect / owner. See docs/rfis.md. */
+export type RfiStatus = "draft" | "open" | "answered" | "closed" | "void";
+export type RfiImpact = "yes" | "no" | "tbd";
+
+/** Who the RFI comes from, frozen when it is sent so the no-login answer page can show it. No prices. */
+export interface RfiSender {
+  company?: string | null;
+  contact?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logo?: string | null;
+  brandColor?: string | null;
+}
+
+export interface Rfi {
+  id: string;
+  projectId: string;
+  /** Per-job number, shown as RFI-007. */
+  number: number;
+  subject: string;
+  question: string;
+  /** Our proposed answer ("Suggest FACP in garage by panel"). */
+  suggestion?: string | null;
+  status: RfiStatus;
+  /** Who has to act next: us (the installer) or them (the GC / architect / owner). */
+  ballInCourt: "us" | "them";
+  priority?: "low" | "normal" | "high" | null;
+  costImpact?: RfiImpact | null;
+  scheduleImpact?: RfiImpact | null;
+  toName?: string | null;
+  toEmail?: string | null;
+  toCompany?: string | null;
+  cc?: string[] | null;
+  /** Answer needed by (YYYY-MM-DD). */
+  due?: string | null;
+  /** Spot on the plan (relative 0–1 like markers), optionally a device. */
+  sheetId?: string | null;
+  x?: number | null;
+  y?: number | null;
+  markerId?: string | null;
+  taskId?: string | null;
+  photoIds?: string[] | null;
+  documentIds?: string[] | null;
+  answer?: string | null;
+  answeredBy?: string | null;
+  answeredAt?: string | null;
+  /** Secret for the no-login answer link (/q?t=…). */
+  shareToken?: string | null;
+  sentAt?: string | null;
+  closedAt?: string | null;
+  createdBy?: string | null;
+  /** Company details frozen at send time for the answer page. */
+  sender?: RfiSender | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
