@@ -93,11 +93,15 @@ struct PlanEditorView: View {
             toastView
         }
         .overlay(alignment: .bottomTrailing) {
-            ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
-                           showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
-                .padding(12)
-                .padding(.bottom, regular ? 0 : 56)
-                .popover(isPresented: $showLayers) { layersPanel }
+            VStack(alignment: .trailing, spacing: 12) {
+                // Plan overlays' own buttons (tasks…), stacked above the viewer controls.
+                if let sheet = model.activeSheet { PlanOverlayControlsHost(model: model, sheet: sheet, controller: viewport) }
+                ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
+                               showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
+                    .popover(isPresented: $showLayers) { layersPanel }
+            }
+            .padding(12)
+            .padding(.bottom, regular ? 0 : 56)
         }
         .overlay(alignment: regular ? .bottomLeading : .topLeading) {
             VStack(alignment: .leading, spacing: 8) {

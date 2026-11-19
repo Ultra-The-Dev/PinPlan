@@ -34,6 +34,16 @@ struct PlanOverlayContext {
     func isOnScreen(_ x: Double, _ y: Double, margin: Double = 40) -> Bool { viewport.isOnScreen(PlanPoint(x: x, y: y), margin: margin) }
 }
 
+/// What an overlay's floating controls get. No viewport on purpose: controls don't redraw while the plan moves.
+@MainActor
+struct PlanControlsContext {
+    let sheet: Sheet
+    let model: EditorModel
+    let mode: PlanViewerMode
+    /// Commands: centre on a point, show a rect, fit…
+    let controller: PlanViewportController
+}
+
 /// A tap on the plan, offered to overlays before the viewer handles it.
 struct PlanTap {
     /// View coordinates (points).
@@ -57,11 +67,15 @@ struct PlanOverlay: Identifiable {
     let content: @MainActor (PlanOverlayContext) -> AnyView
     /// Taps on the plan, before selection/placement. Return true to consume it.
     var onTap: (@MainActor (PlanTap) -> Bool)? = nil
+    /// Buttons for the feature, shown in the viewer's floating controls column (trailing edge, in `modes`).
+    /// Present sheets from here too: this view stays put while the plan moves.
+    var controls: (@MainActor (PlanControlsContext) -> AnyView)? = nil
 
     init(id: String, zIndex: Double = 0, allowsHitTesting: Bool = false, modes: Set<PlanViewerMode> = [.view, .edit],
-         content: @escaping @MainActor (PlanOverlayContext) -> AnyView, onTap: (@MainActor (PlanTap) -> Bool)? = nil) {
+         content: @escaping @MainActor (PlanOverlayContext) -> AnyView, onTap: (@MainActor (PlanTap) -> Bool)? = nil,
+         controls: (@MainActor (PlanControlsContext) -> AnyView)? = nil) {
         self.id = id; self.zIndex = zIndex; self.allowsHitTesting = allowsHitTesting; self.modes = modes
-        self.content = content; self.onTap = onTap
+        self.content = content; self.onTap = onTap; self.controls = controls
     }
 }
 
@@ -108,6 +122,25 @@ struct PlanOverlayHost: View {
                     o.content(ctx)
                         .allowsHitTesting(o.allowsHitTesting)
                 }
+            }
+        }
+    }
+}
+
+/// The overlays' floating controls, one column on the plan's trailing edge (PlanEditorView). Ordered by zIndex,
+/// top to bottom.
+struct PlanOverlayControlsHost: View {
+    let model: EditorModel
+    let sheet: Sheet
+    let controller: PlanViewportController
+
+    var body: some View {
+        let mode = model.viewerMode
+        let all = PlanOverlayRegistry.shared.overlays.filter { $0.controls != nil && $0.modes.contains(mode) }
+        if !all.isEmpty {
+            let ctx = PlanControlsContext(sheet: sheet, model: model, mode: mode, controller: controller)
+            VStack(alignment: .trailing, spacing: 8) {
+                ForEach(all) { o in o.controls?(ctx) }
             }
         }
     }

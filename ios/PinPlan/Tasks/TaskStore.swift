@@ -1,7 +1,7 @@
 import SwiftUI
 import PinPlanCore
 
-// Tasks pinned on the plan: shared UI state (drop mode, selection, filters) and the edits, kept out of EditorModel.
+// Tasks pinned on the plan (Tasks/TaskPinsOverlay.swift): shared UI state (drop mode, selection, filters) and the edits, kept out of EditorModel.
 // Pure rules live in PinPlanCore (Tasks.swift), shared with the web app.
 
 /// A spot picked on the plan for a new task (sheetId nil = general task).
@@ -15,6 +15,13 @@ struct TaskDraft: Identifiable {
 
 /// Opens a task's detail sheet.
 struct TaskRef: Identifiable, Hashable { let id: String }
+
+/// A pin being dragged on the plan (Edit mode): its live, sheet-relative spot.
+struct TaskPinDrag: Equatable {
+    let id: String
+    var x: Double
+    var y: Double
+}
 
 @MainActor
 @Observable
@@ -36,6 +43,7 @@ final class TaskOverlayState {
     var filter = TaskFilter()
     var showPins = true
     var greyOthers = false
+    var dragging: TaskPinDrag?
 }
 
 enum TaskDates {

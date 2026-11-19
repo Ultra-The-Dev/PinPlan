@@ -89,10 +89,8 @@ public enum SyncMap {
 
     /// Parents before children so foreign keys and row security pass.
     public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines,
-                                                 .photos, .photoComments, .checklists, .jobLogs, .documents, .forms]
-    private static let timestampLike: Set<String> = ["takenAt", "submittedAt"]
-                                                 .photos, .photoComments, .checklists, .jobLogs, .documents, .tasks]
-    private static let timestampLike: Set<String> = ["takenAt", "closedAt", "verifiedAt"]
+                                                 .photos, .photoComments, .checklists, .jobLogs, .documents, .forms, .tasks]
+    private static let timestampLike: Set<String> = ["takenAt", "submittedAt", "closedAt", "verifiedAt"]
 
     private static let boolDefaults: Set<String> = ["deleted", "tentative", "removed", "archived"]
     private static let timestampKeys: Set<String> = ["createdAt", "updatedAt"]

@@ -27,7 +27,7 @@ struct FormSignatureSheet: View {
                     TextField("Role (optional) — customer, inspector…", text: $role)
                 }
                 Section {
-                    SignatureCanvas(drawing: $drawing)
+                    FormSignatureCanvas(drawing: $drawing)
                         .frame(height: 200)
                         .background(Color.white, in: RoundedRectangle(cornerRadius: 10))
                         .overlay(alignment: .bottomLeading) {
@@ -69,7 +69,7 @@ struct FormSignatureSheet: View {
 }
 
 /// PencilKit canvas for a signature (finger or pencil).
-struct SignatureCanvas: UIViewRepresentable {
+struct FormSignatureCanvas: UIViewRepresentable {
     @Binding var drawing: PKDrawing
 
     func makeUIView(context: Context) -> PKCanvasView {
@@ -92,8 +92,8 @@ struct SignatureCanvas: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     final class Coordinator: NSObject, PKCanvasViewDelegate {
-        let parent: SignatureCanvas
-        init(_ p: SignatureCanvas) { parent = p }
+        let parent: FormSignatureCanvas
+        init(_ p: FormSignatureCanvas) { parent = p }
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) { parent.drawing = canvasView.drawing }
     }
 }

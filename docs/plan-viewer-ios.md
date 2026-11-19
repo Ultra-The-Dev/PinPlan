@@ -14,7 +14,7 @@ hyperlinks, revision compare…).
 | `ios/PinPlan/Viewer/PlanTileStore.swift` | Builds and caches tile pyramids, previews and thumbnails in `Caches/PlanTiles/`. |
 | `ios/PinPlan/Viewer/PlanViewportController.swift` | The live `PlanViewport` (observable) plus commands: `fit`, `center(on:zoom:)`, `show(_:)`, `zoom(by:)`, `pan(toCenter:)`. |
 | `ios/PinPlan/Viewer/PlanMarkupLayer.swift` | Devices and runs in one `Canvas` pass (symbols resolved once and stamped, culled to the screen), closets. |
-| `ios/PinPlan/Viewer/PlanOverlay.swift` | **The overlay extension point** (below). |
+| `ios/PinPlan/Viewer/PlanOverlay.swift` | **The overlay extension point** (below): `PlanOverlay`, `PlanOverlayRegistry`, `PlanOverlayHost` (drawing) and `PlanOverlayControlsHost` (buttons). |
 | `ios/PinPlan/Viewer/ViewerChrome.swift`, `SheetBrowserView.swift`, `PlanMinimap.swift`, `LayersPanel.swift` | Floating controls, View/Edit switch, sheet browser, minimap, layers & filters. |
 | `ios/PinPlan/Viewer/EditorModel+Viewer.swift`, `ViewerSupport.swift` | Mode, remembered filters and recents, haptics, CG ↔ core conversions. |
 | `ios/PinPlan/Editor/PlanCanvasView.swift` | Puts it together: zoom view + markup + overlays, taps, press-and-hold drag, precision aiming. |
@@ -61,25 +61,28 @@ Keyboard (iPad): `E` View/Edit, `B` sheets, `[` `]` previous/next sheet, `⌘=` 
 
 ## Drawing on the plan: overlays
 
-Register a `PlanOverlay` once (app start, or when your feature turns on). Its content is a SwiftUI view built from a
+Register a `PlanOverlay` once (app start — `PinPlanApp.init`, inside `MainActor.assumeIsolated` — or when your
+feature turns on). Its content is a SwiftUI view built from a
 `PlanOverlayContext` and redrawn every frame while the plan moves.
 
 ```swift
-PlanOverlayRegistry.shared.register(PlanOverlay(id: "tasks", zIndex: 20, allowsHitTesting: false) { ctx in
+PlanOverlayRegistry.shared.register(PlanOverlay(id: "tasks", zIndex: 30, content: { ctx in
     AnyView(TaskPinsLayer(ctx: ctx))
-} onTap: { tap in
+}, onTap: { tap in
     // tap.sheetPoint is sheet-relative; tap.location is in view points.
-    guard let pin = TaskPins.hit(tap.location, ctx: tap.context) else { return false }
+    guard let pin = TaskOverlays.hit(tap.location, ctx: tap.context) else { return false }
     open(pin)
     return true                 // consumed: the viewer won't select or place anything
-})
+}, controls: { ctx in
+    AnyView(TaskPlanControls(ctx: ctx))   // optional: buttons in the floating controls column
+}))
 
 struct TaskPinsLayer: View {
     let ctx: PlanOverlayContext
     var body: some View {
         Canvas { g, _ in
-            for pin in ctx.model.bundle.tasks where pin.sheetId == ctx.sheet.id && ctx.isOnScreen(pin.x, pin.y) {
-                let p = ctx.point(pin.x, pin.y)            // constant size on screen
+            for pin in ctx.model.bundle.liveTasks where pin.sheetId == ctx.sheet.id && ctx.isOnScreen(pin.x ?? 0, pin.y ?? 0) {
+                let p = ctx.point(pin.x ?? 0, pin.y ?? 0)  // constant size on screen
                 g.fill(Path(ellipseIn: CGRect(x: p.x - 9, y: p.y - 9, width: 18, height: 18)), with: .color(.blue))
             }
         }
@@ -101,7 +104,27 @@ struct TaskPinsLayer: View {
 `PlanOverlay` options: `zIndex` (draw order; overlays sit above devices and runs, below the floating controls),
 `allowsHitTesting` (leave `false` for pure drawings so the plan keeps panning; set `true` for buttons on pins —
 only the views you draw take touches), `modes` (`[.view, .edit]` by default), `onTap` (called topmost first,
-before selection and placement; return `true` to consume).
+before selection and placement; return `true` to consume), `controls` (below).
+
+### Buttons for your feature: `controls`
+
+`controls: (PlanControlsContext) -> AnyView` adds your buttons to the viewer's floating controls column (trailing
+edge, stacked above the zoom / layers controls, in the overlay's `modes`, ordered by `zIndex`). `PlanControlsContext`
+has `sheet`, `model`, `mode` and `controller` but no viewport, so the buttons don't redraw while the plan moves.
+Present your sheets from this view (it stays put). Keep it small: one labelled primary button and a few icons in a
+material pill, like `ViewerControls`.
+
+### Example: task pins (`ios/PinPlan/Tasks/TaskPinsOverlay.swift`)
+
+* `tasks` overlay (View and Edit): pins drawn in one `Canvas`; `onTap` first places an armed drop ("+ Task", or
+  place / duplicate from a task), else opens the pin under the finger. In Edit mode with a placing or drawing tool,
+  pin taps go to the tool. Its `controls` are "+ Task", show/hide pins, filters and the sheet's task list.
+* `tasks-drag` overlay (Edit only, `allowsHitTesting: true`): one touch target on the selected pin with a
+  `DragGesture` in `PlanCanvasView.space` — the same pattern as the run point handles — so only that pin captures
+  touches and everything else still pans.
+
+Install progress (`ios/PinPlan/Progress/ProgressOverlay.swift`) is the other example: rings in a `Canvas`, walk-mode
+taps through `onTap`.
 
 Rules of thumb: store positions sheet-relative (0–1) like markers; draw with `ctx.point`, never cache view
 coordinates; cull to the screen; draw many items in one `Canvas` rather than one view each; keep work in the
