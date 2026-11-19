@@ -50,8 +50,23 @@ export interface PlanOverlay {
   onTap?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
   /** A double-tap/double-click on the plan, before the editor's (zoom in). Return true when handled. */
   onDoubleTap?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
-  /** True while the overlay owns plan input (e.g. drawing): devices, closets and run points can't be dragged then. */
+  /**
+   * True while the overlay owns plan input (e.g. drawing): devices, closets and run points can't be dragged then, and
+   * (with onDragStart) a still press doesn't turn into a long-press, so a pause before drawing still draws.
+   */
   capturing?: (ctx: PlanOverlayContext) => boolean;
+  /**
+   * One finger / the mouse moved past the tap slop: return true to own this drag (draw, move a pin…) instead of the
+   * plan panning or a device moving. `e` is where the press began. Overlays are asked top-down, before the editor.
+   * A second finger cancels the drag (onDragEnd with cancelled = true) and pinch-zooms.
+   */
+  onDragStart?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
+  /** The owned drag moved (every pointer move). */
+  onDragMove?: (e: PlanTapEvent, ctx: PlanOverlayContext) => void;
+  /** The owned drag ended: released, or cancelled (pointer cancel, second finger) — then don't save anything. */
+  onDragEnd?: (e: PlanTapEvent, ctx: PlanOverlayContext, cancelled: boolean) => void;
+  /** Long-press (touch / pen) or right-click (mouse) on the plan, before the editor's. Return true when handled. */
+  onLongPress?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
 }
 
 const registry = new Map<string, PlanOverlay>();

@@ -33,6 +33,18 @@ export interface GestureHandlers {
   onHover?(hit: PlanHit | null, screen: Point): void;
   /** Space bar held: every drag pans. */
   forcePan(): boolean;
+  /**
+   * A one-pointer press just moved past the tap slop: return true to hand this drag to someone else (a plan overlay
+   * drawing or moving its own things) instead of panning / dragging a device. `start` is where the press began.
+   */
+  claimDrag?(start: TapInfo): boolean;
+  claimedDragMove?(screen: Point): void;
+  /** The claimed drag ended: released (cancelled false), or cancelled (pointer cancel, or a second finger → pinch). */
+  claimedDragEnd?(screen: Point, cancelled: boolean): void;
+  /** True while a still press must not turn into a long-press (an overlay is waiting to draw with it). */
+  holdLongPress?(): boolean;
+  /** Right-click with a mouse (the desktop long-press). Return true to suppress the browser menu. */
+  onContextMenu?(e: TapInfo): boolean;
 }
 
 const SLOP: Record<string, number> = { mouse: 4, pen: 6, touch: 10 };
@@ -57,6 +69,7 @@ type State =
   | { kind: "pinch"; prev: { center: Point; dist: number }; t0: number; travel: number; ids: [number, number] }
   | { kind: "afterPinch" }
   | { kind: "drag"; id: number; hit: PlanHit }
+  | { kind: "claimed"; id: number; last: Point }
   | { kind: "edge"; id: number; edge: -1 | 1 };
 
 export class PlanGestures {
@@ -108,7 +121,12 @@ export class PlanGestures {
   private prevent = (e: Event) => e.preventDefault();
   private contextMenu = (e: MouseEvent) => {
     // Long-press on touch opens the browser menu otherwise.
-    if (this.state.kind !== "idle" || (e as PointerEvent).pointerType === "touch") e.preventDefault();
+    if (this.state.kind !== "idle" || (e as PointerEvent).pointerType === "touch") return e.preventDefault();
+    if (this.ignored(e) || !this.h.onContextMenu) return;
+    this.rect = this.el.getBoundingClientRect();
+    const p = this.local(e);
+    const info = this.tapInfo(p, this.h.hitAt(p, "mouse"), "mouse", { shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
+    if (this.h.onContextMenu(info)) e.preventDefault();
   };
 
   private local(e: { clientX: number; clientY: number }): Point {
@@ -156,6 +174,8 @@ export class PlanGestures {
       }
     } else if (this.ptrs.size === 2 && this.state.kind !== "drag") {
       this.clearTimer();
+      // A second finger during an overlay's drag (drawing) cancels it and pinches instead.
+      if (this.state.kind === "claimed") this.h.claimedDragEnd?.(this.state.last, true);
       const ids = [...this.ptrs.keys()] as [number, number];
       this.state = { kind: "pinch", prev: this.pair(ids), t0: e.timeStamp, travel: 0, ids };
     }
@@ -173,6 +193,8 @@ export class PlanGestures {
     if (s.kind !== "press" || s.id !== id) return;
     const p = this.ptrs.get(id);
     if (!p) return;
+    // Pausing before drawing must not become a long-press: stay a press, so the move can still start the drag.
+    if (this.h.holdLongPress?.()) return;
     navigator.vibrate?.(12);
     if (s.hit && this.h.canDrag(s.hit)) {
       this.state = { kind: "drag", id, hit: s.hit };
@@ -200,6 +222,12 @@ export class PlanGestures {
         const dy = p.y - ptr.sy;
         if (Math.hypot(dx, dy) <= (SLOP[e.pointerType] ?? 6)) return;
         this.clearTimer();
+        // Overlays first (drawing a markup, moving a task pin…): they start where the press began.
+        if (this.h.claimDrag?.(this.tapInfo({ x: ptr.sx, y: ptr.sy }, s.hit, e.pointerType, s.mods))) {
+          this.state = { kind: "claimed", id: s.id, last: p };
+          this.h.claimedDragMove?.(p);
+          return;
+        }
         if (s.edge && Math.abs(dx) > Math.abs(dy)) {
           this.state = { kind: "edge", id: s.id, edge: s.edge };
           return;
@@ -233,6 +261,12 @@ export class PlanGestures {
       }
       case "drag":
         if (s.id === e.pointerId) this.h.onDragMove(s.hit, p);
+        return;
+      case "claimed":
+        if (s.id === e.pointerId) {
+          s.last = p;
+          this.h.claimedDragMove?.(p);
+        }
         return;
       default:
         return;
@@ -275,6 +309,12 @@ export class PlanGestures {
         if (s.id === e.pointerId) {
           this.state = { kind: "idle" };
           this.h.onDragEnd(s.hit, cancelled ? { x: ptr.sx, y: ptr.sy } : p);
+        }
+        break;
+      case "claimed":
+        if (s.id === e.pointerId) {
+          this.state = { kind: "idle" };
+          this.h.claimedDragEnd?.(cancelled ? s.last : p, cancelled);
         }
         break;
       case "edge":

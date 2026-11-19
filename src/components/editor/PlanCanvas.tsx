@@ -8,9 +8,9 @@ import { Circle, Layer, Line, Rect, Stage } from "react-konva";
 import { closetMeta } from "@/lib/catalog";
 import { AI_ENABLED } from "@/lib/features";
 import { DEFAULT_FILTERS, closetVisibility, markerVisibility, runVisibility, type PlanFilters, type Visibility } from "@/lib/planFilter";
-import { PlanGestures, type GestureHandlers } from "@/lib/planGestures";
+import { PlanGestures, type GestureHandlers, type TapInfo } from "@/lib/planGestures";
 import { MOUSE_HIT, TOUCH_HIT, hitTestPlan, type HitInput, type PlanHit } from "@/lib/planHit";
-import { usePlanOverlays, type PlanOverlay, type PlanOverlayContext } from "@/lib/planOverlays";
+import { usePlanOverlays, type PlanOverlay, type PlanOverlayContext, type PlanTapEvent } from "@/lib/planOverlays";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import { iconFor } from "@/lib/symbols";
@@ -198,6 +198,16 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const space = useRef(false);
 
   const overlayCtx = (): PlanOverlayContext => ({ sheet, viewport: vp, editing, tool: useEditor.getState().tool });
+  /** The overlay event for a point on the plan. */
+  const overlayEvent = (screen: Point, info?: Pick<TapInfo, "pointerType" | "shiftKey" | "hit">): PlanTapEvent => {
+    const sheetPx = vp.screenToSheetPx(screen);
+    const hit = info?.hit;
+    return { rel: { x: sheetPx.x / W, y: sheetPx.y / H }, sheetPx, screen, pointerType: info?.pointerType ?? "mouse", shiftKey: !!info?.shiftKey, hit: hit ? { kind: hit.kind, id: hit.id } : null };
+  };
+  /** Enabled overlays, topmost first (the order taps are offered in). */
+  const liveOverlays = (ctx: PlanOverlayContext) => [...overlays].reverse().filter((o) => o.enabled?.(ctx) ?? true);
+  /** The overlay that owns the current drag (onDragStart returned true), with the press's pointer details. */
+  const claimed = useRef<{ o: PlanOverlay; info: Pick<TapInfo, "pointerType" | "shiftKey" | "hit"> } | null>(null);
 
   const hitAt = (screen: Point, pointerType: string) =>
     hitTestPlan(hitRef.current, { width: W, height: H }, vp.screenToSheetPx(screen), vp.transform.scale, pointerType === "touch" ? TOUCH_HIT : MOUSE_HIT, vp.sizeFactor);
@@ -243,12 +253,39 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
     hitAt,
     canDrag: (hit) => editing && useEditor.getState().tool.kind === "select" && (hit.kind === "marker" || hit.kind === "closet" || hit.kind === "handle") && !overlays.some((o) => o.capturing?.(overlayCtx())),
     forcePan: () => space.current,
-    onTap(info) {
-      const sheetPx = vp.screenToSheetPx(info.screen);
-      const rel = { x: sheetPx.x / W, y: sheetPx.y / H };
+    claimDrag(start) {
       const ctx = overlayCtx();
-      const ev = { rel, sheetPx, screen: info.screen, pointerType: info.pointerType, shiftKey: info.shiftKey, hit: info.hit ? { kind: info.hit.kind, id: info.hit.id } : null };
-      for (const o of [...overlays].reverse()) if (o.onTap && (o.enabled?.(ctx) ?? true) && o.onTap(ev, ctx)) return;
+      const ev = overlayEvent(start.screen, start);
+      for (const o of liveOverlays(ctx))
+        if (o.onDragStart?.(ev, ctx)) {
+          claimed.current = { o, info: start };
+          return true;
+        }
+      return false;
+    },
+    claimedDragMove(screen) {
+      const c = claimed.current;
+      c?.o.onDragMove?.(overlayEvent(screen, c.info), overlayCtx());
+    },
+    claimedDragEnd(screen, cancelled) {
+      const c = claimed.current;
+      claimed.current = null;
+      c?.o.onDragEnd?.(overlayEvent(screen, c.info), overlayCtx(), cancelled);
+    },
+    holdLongPress() {
+      const ctx = overlayCtx();
+      return liveOverlays(ctx).some((o) => !!o.onDragStart && !!o.capturing?.(ctx));
+    },
+    onContextMenu(info) {
+      const ctx = overlayCtx();
+      const ev = overlayEvent(info.screen, info);
+      return liveOverlays(ctx).some((o) => !!o.onLongPress?.(ev, ctx));
+    },
+    onTap(info) {
+      const ctx = overlayCtx();
+      const ev = overlayEvent(info.screen, info);
+      const { rel, sheetPx } = ev;
+      for (const o of liveOverlays(ctx)) if (o.onTap?.(ev, ctx)) return;
       const st = useEditor.getState();
       // View only allows measuring, nothing that changes the plan.
       if (st.tool.kind === "select" || (!editing && st.tool.kind !== "measure")) {
@@ -265,15 +302,17 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
       onTapImage(rel.x, rel.y, snapHit(sheetPx));
     },
     onDoubleTap(info) {
-      const sp = vp.screenToSheetPx(info.screen);
       const dctx = overlayCtx();
-      const dev = { rel: { x: sp.x / W, y: sp.y / H }, sheetPx: sp, screen: info.screen, pointerType: info.pointerType, shiftKey: info.shiftKey, hit: info.hit ? { kind: info.hit.kind, id: info.hit.id } : null };
-      for (const o of [...overlays].reverse()) if (o.onDoubleTap && (o.enabled?.(dctx) ?? true) && o.onDoubleTap(dev, dctx)) return;
+      const dev = overlayEvent(info.screen, info);
+      for (const o of liveOverlays(dctx)) if (o.onDoubleTap?.(dev, dctx)) return;
       const k = useEditor.getState().tool.kind;
       if (editing && DRAWING.has(k)) return onDoubleTap();
       if (k === "select" || !editing) vp.zoomBy(2, info.screen, 280);
     },
     onLongPress(info) {
+      const lctx = overlayCtx();
+      const lev = overlayEvent(info.screen, info);
+      for (const o of liveOverlays(lctx)) if (o.onLongPress?.(lev, lctx)) return;
       const h = info.hit;
       const st = useEditor.getState();
       if (h?.kind === "marker") st.select({ table: "markers", id: h.id });
@@ -333,7 +372,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
     onHover(hit) {
       const el = wrapRef.current;
       if (!el || drag.current) return;
-      el.style.cursor = space.current ? "grab" : hit ? (handlers.canDrag(hit) ? "move" : "pointer") : "";
+      el.style.cursor = space.current ? "grab" : handlers.holdLongPress?.() ? "crosshair" : hit ? (handlers.canDrag(hit) ? "move" : "pointer") : "";
     },
   };
   const handlersRef = useRef(handlers);
