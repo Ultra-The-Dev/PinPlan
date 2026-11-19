@@ -7,9 +7,13 @@
 //
 // Same pattern as the proposal / quote answer: one answer per link, only while it is waiting on the client. The
 // signature PNG is stored like every job file (plans bucket, <project>/<image id>), so the office devices pull it.
+// After an answer the office is emailed once (src/app/api/notify/answers.ts); a failed email never fails the answer.
+// Answers are limited per IP and per link in memory and, when the database has answer_rate_hit, across every server.
 import { randomBytes } from "node:crypto";
 import { connection } from "next/server";
 import { clientIp, rateLimiter } from "@/lib/server/email";
+import { durableLimited, keyHash } from "@/lib/server/sendGuard";
+import { notifyChangeOrderAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
 import type { PublicCoResponse } from "@/lib/changeOrders";
 import type { ChangeOrderPublicView, ChangeOrderStatus } from "@/lib/types";
@@ -23,6 +27,12 @@ const HOUR = 60 * 60 * 1000;
 const perIpRead = rateLimiter(HOUR, 300);
 const perIp = rateLimiter(HOUR, 30);
 const perToken = rateLimiter(HOUR, 10);
+
+/** The shared (database) limit: per IP and per link. When it can't answer, the in-memory limits above still apply. */
+async function overDurableLimit(req: Request, token: string): Promise<boolean> {
+  const [ip, link] = await Promise.all([durableLimited(keyHash("co-ip", clientIp(req)), HOUR, 30), durableLimited(keyHash("co-link", token), HOUR, 10)]);
+  return ip === true || link === true;
+}
 
 interface CoRow {
   id: string;
@@ -136,6 +146,7 @@ export async function POST(req: Request) {
     if (!png) return fail("The signature isn't a valid image.", 400);
     if (png.length > MAX_SIGNATURE_BYTES) return fail("The signature image is too large.", 413);
   }
+  if (await overDurableLimit(req, token)) return fail("Too many requests. Please wait a few minutes and try again.", 429);
 
   let row: CoRow | null;
   try {
@@ -184,6 +195,8 @@ export async function POST(req: Request) {
     if (!r.ok) return fail("Couldn't save your answer. Please try again.", 502);
     const updated = ((await r.json()) as (CoRow & { project_id: string })[])[0];
     if (!updated) return fail("This change order has already been answered.", 409);
+    // Tell the office (never fails the client's answer).
+    await notifyChangeOrderAnswer(req, row.id);
     return await present({ ...row, ...updated, public_view: updated.public_view ?? row.public_view });
   } catch {
     return fail("Couldn't save your answer. Please try again.", 502);

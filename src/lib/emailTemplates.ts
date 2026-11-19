@@ -11,20 +11,32 @@ export interface EmailContent {
   text: string;
 }
 
-// Brand palette (src/app/globals.css).
+// Blueprint Ink palette (docs/brand.md): ink navy text on cool paper, action blue for the one button, teal for approved.
 const C = {
-  brand: "#c2410c", // brand-600
-  brandDark: "#9a3412", // brand-700
-  brandSoft: "#fff7ed", // brand-50
-  brandLine: "#fed7aa", // brand-200
-  ink: "#161616",
-  text: "#2a2724", // slate-800
-  muted: "#77706a", // slate-500
-  line: "#e2ded7", // slate-200
-  page: "#f7f5f2", // slate-50
-  card: "#ffffff",
+  brand: "#0b6fe0", // action blue (white text 4.9:1)
+  brandDark: "#0958b5", // action deep
+  brandSoft: "#eaf3fe", // a light wash of highlight blue
+  brandLine: "#cfe6ff", // highlight
+  ink: "#0f2340", // ink navy
+  text: "#1f3352",
+  muted: "#526580", // pencil (5.6:1 on paper)
+  line: "#c9d6e5", // rule
+  page: "#f2f6fa", // paper
+  card: "#ffffff", // sheet
+  approved: "#0b7f72", // approved teal
 };
-const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+// Dark scheme: deep blueprint paper with light linework; action blue brightened to electric for links.
+const D = {
+  page: "#081629",
+  card: "#0f2340",
+  line: "#22385a",
+  ink: "#f2f6fa",
+  text: "#d5e0ec",
+  muted: "#a9bcd4", // on dark
+  link: "#33a9ff", // electric
+  soft: "#13294a",
+};
+const FONT = "Archivo,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace";
 
 // ---------------------------------------------------------------- escaping
@@ -48,6 +60,28 @@ export function safeUrl(u: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+const LINK_REMOVED = "[link removed]";
+// Bare domains ("evil.com/login", "bit.ly/x") on common and abused endings; "full.Thanks" typed without a space stays.
+const BARE_DOMAIN =
+  /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com|net|org|info|biz|io|co|us|ca|uk|eu|de|fr|au|nz|in|me|ly|app|dev|xyz|link|site|online|shop|store|page|top|click|live|pro|ru|cn|tk|gq|ml|ga|cf|ai|so|to|gl|gd|cc|ws|sh|gg|tv|ms|be|im|li|lu|cx)\b(?::\d+)?(?:\/\S*)?/gi;
+/**
+ * Free-trial companies can't put links in the message to their client (a free account must not be a way to mail
+ * strangers a phishing link). Removes web addresses, bare domains and email addresses.
+ */
+export function stripLinks(s: string): string {
+  return s
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, LINK_REMOVED)
+    .replace(/\bwww\.\S+/gi, LINK_REMOVED)
+    .replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}\b/gi, LINK_REMOVED)
+    .replace(BARE_DOMAIN, LINK_REMOVED);
+}
+
+/** Only https links (a pay-online link must never be plain http); null otherwise. */
+export function httpsUrl(u: string | null | undefined): string | null {
+  const ok = safeUrl(u);
+  return ok && ok.startsWith("https://") ? ok : null;
 }
 
 /** One line of user text for a subject or heading: no line breaks, collapsed spaces, capped length. */
@@ -122,8 +156,8 @@ export const blocks = {
       html:
         td(
           `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate"><tr>` +
-            `<td align="center" bgcolor="${C.brand}" style="border-radius:8px;background:${C.brand}">` +
-            `<a href="${h}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:${FONT};font-size:16px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;border:1px solid ${C.brand};mso-padding-alt:0">${esc(label)}</a>` +
+            `<td align="center" bgcolor="${C.brand}" style="border-radius:10px;background:${C.brand}">` +
+            `<a href="${h}" target="_blank" style="display:inline-block;padding:14px 26px;font-family:${FONT};font-size:16px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:10px;border:1px solid ${C.brand};border-bottom:2px solid ${C.brandDark};mso-padding-alt:0">${esc(label)}</a>` +
             `</td></tr></table>`,
           "padding:4px 0 12px 0",
         ) +
@@ -138,8 +172,8 @@ export const blocks = {
     return {
       html: td(
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
-          `<td align="center" bgcolor="${C.brandSoft}" class="pp-code" style="padding:18px 12px;border:1px solid ${C.brandLine};border-radius:12px;background:${C.brandSoft}">` +
-          `<div class="pp-muted" style="font-family:${FONT};font-size:12px;letter-spacing:1px;text-transform:uppercase;color:${C.muted};padding-bottom:6px">${esc(caption)}</div>` +
+          `<td align="center" bgcolor="${C.brandSoft}" class="pp-code" style="padding:18px 12px;border:1px solid ${C.brandLine};border-radius:4px;background:${C.brandSoft}">` +
+          `<div class="pp-muted" style="font-family:${FONT};font-size:13px;color:${C.muted};padding-bottom:6px">${esc(caption)}</div>` +
           `<div class="pp-ink pp-code-text" style="font-family:${MONO};font-size:32px;line-height:1.2;font-weight:700;letter-spacing:3px;color:${C.ink}">${esc(code)}</div>` +
           `</td></tr></table>`,
       ),
@@ -166,7 +200,7 @@ export const blocks = {
       html: td(
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
           `<td class="pp-quote" style="padding:12px 16px;border-left:4px solid ${C.brand};background:${C.page};border-radius:4px">` +
-          `<div class="pp-muted" style="font-family:${FONT};font-size:12px;letter-spacing:1px;text-transform:uppercase;color:${C.muted};padding-bottom:6px">${esc(label)}</div>` +
+          `<div class="pp-muted" style="font-family:${FONT};font-size:13px;font-weight:600;color:${C.muted};padding-bottom:6px">${esc(label)}</div>` +
           `<div class="pp-text" style="font-family:${FONT};font-size:15px;line-height:1.55;color:${C.text}">${multiline(body)}</div>` +
           `</td></tr></table>`,
       ),
@@ -211,7 +245,7 @@ export function layout(opts: { subject: string; preheader: string; company?: str
   const body = opts.blocks.map((b) => b.html).join("");
   const header = sender
     ? `<span class="pp-ink" style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.ink}">${esc(sender)}</span>`
-    : `<span style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.brand}">${esc(PRODUCT_NAME)}</span>` +
+    : `<span class="pp-ink" style="font-family:${FONT};font-size:20px;font-weight:800;letter-spacing:-0.3px;color:${C.ink}">${esc(PRODUCT_NAME)}</span>` +
       (company ? `<span class="pp-muted" style="font-family:${FONT};font-size:14px;color:${C.muted}">&nbsp;&nbsp;·&nbsp;&nbsp;${esc(company)}</span>` : "");
   const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -233,23 +267,23 @@ export function layout(opts: { subject: string; preheader: string; company?: str
     .pp-code-text { font-size:26px !important; letter-spacing:2px !important; }
   }
   @media (prefers-color-scheme: dark) {
-    .pp-bg { background:#0e0d0c !important; }
-    .pp-card { background:#1c1a18 !important; border-color:#433f3a !important; }
-    .pp-ink, .pp-strong { color:#f7f5f2 !important; }
-    .pp-text { color:#e2ded7 !important; }
-    .pp-muted { color:#a19a90 !important; }
-    .pp-rule { border-color:#433f3a !important; }
-    .pp-code { background:#2a2724 !important; border-color:#9a3412 !important; }
-    .pp-quote { background:#2a2724 !important; }
-    .pp-link { color:#fdba74 !important; }
+    .pp-bg { background:${D.page} !important; }
+    .pp-card { background:${D.card} !important; border-color:${D.line} !important; }
+    .pp-ink, .pp-strong { color:${D.ink} !important; }
+    .pp-text { color:${D.text} !important; }
+    .pp-muted { color:${D.muted} !important; }
+    .pp-rule { border-color:${D.line} !important; }
+    .pp-code { background:${D.soft} !important; border-color:${C.brand} !important; }
+    .pp-quote { background:${D.soft} !important; }
+    .pp-link { color:${D.link} !important; }
   }
-  [data-ogsc] .pp-ink, [data-ogsc] .pp-strong { color:#f7f5f2 !important; }
-  [data-ogsc] .pp-text { color:#e2ded7 !important; }
-  [data-ogsc] .pp-muted { color:#a19a90 !important; }
-  [data-ogsc] .pp-link { color:#fdba74 !important; }
-  [data-ogsb] .pp-bg { background:#0e0d0c !important; }
-  [data-ogsb] .pp-card { background:#1c1a18 !important; }
-  [data-ogsb] .pp-code, [data-ogsb] .pp-quote { background:#2a2724 !important; }
+  [data-ogsc] .pp-ink, [data-ogsc] .pp-strong { color:${D.ink} !important; }
+  [data-ogsc] .pp-text { color:${D.text} !important; }
+  [data-ogsc] .pp-muted { color:${D.muted} !important; }
+  [data-ogsc] .pp-link { color:${D.link} !important; }
+  [data-ogsb] .pp-bg { background:${D.page} !important; }
+  [data-ogsb] .pp-card { background:${D.card} !important; }
+  [data-ogsb] .pp-code, [data-ogsb] .pp-quote { background:${D.soft} !important; }
 </style>
 </head>
 <body class="pp-bg" style="margin:0;padding:0;background:${C.page};">
@@ -259,7 +293,7 @@ export function layout(opts: { subject: string; preheader: string; company?: str
 <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
 <tr><td style="padding:4px 4px 16px 4px">${header}</td></tr>
-<tr><td class="pp-card pp-pad" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:14px;padding:32px 36px 20px 36px">
+<tr><td class="pp-card pp-pad" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:4px;padding:32px 36px 20px 36px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${body}</table>
 </td></tr>
 <tr><td class="pp-muted" style="padding:16px 8px 8px 8px;font-family:${FONT};font-size:12px;line-height:1.5;color:${C.muted};text-align:center">${esc(opts.footer)}</td></tr>
@@ -477,7 +511,7 @@ export function trialEndingEmail(o: TrialEndingEmail): EmailContent {
         { b: company || "your team" },
         ` ends ${when}${ends ? ` (${ends})` : ""}. Add a payment method to keep everyone working${line(o.planName) ? ` on ${line(o.planName)}` : ""}.`,
       ),
-      blocks.button("Choose a plan", o.billingUrl),
+      blocks.button("Start subscription", o.billingUrl),
       blocks.small("If you don't, your jobs stay safe and read-only. You can subscribe any time to pick up where you left off."),
     ],
     footer: `You're receiving this because you own ${company ? `${company}'s` : "a"} ${PRODUCT_NAME} account.`,
@@ -553,6 +587,7 @@ export function documentEmail(o: DocumentEmail): EmailContent {
   const due = fmtDate(o.dueDate);
   const valid = fmtDate(o.validUntil);
   const balance = typeof o.balanceDue === "number" ? o.balanceDue : o.total;
+  const pay = o.docKind === "invoice" && o.kind !== "receipt" && balance > 0 ? httpsUrl(o.payUrl) : null;
   const out: Block[] = [];
   let subject: string;
   let preheader: string;
@@ -595,7 +630,7 @@ export function documentEmail(o: DocumentEmail): EmailContent {
         o.docKind === "quote"
           ? `Here is your ${title.toLowerCase()}. You can review it online, download a PDF and accept it with your signature.`
           : o.docKind === "invoice"
-            ? `Here is your invoice. You can view it online and download a PDF${o.payUrl ? ", or pay online" : ""}.`
+            ? `Here is your invoice. You can view it online and download a PDF${pay ? ", or pay online" : ""}.`
             : "Here is your credit note.",
       ),
     );
@@ -616,7 +651,11 @@ export function documentEmail(o: DocumentEmail): EmailContent {
   }
   if (o.message?.trim()) out.push(blocks.quote(`Message from ${company}`, o.message.trim().slice(0, 4000)));
   out.push(blocks.button(o.docKind === "quote" && o.kind === "document" ? "Review & accept" : `View ${title.toLowerCase()}`, o.url));
-  if (o.docKind === "invoice" && o.kind !== "receipt" && o.payUrl && balance > 0) out.push(blocks.button(`Pay ${money(balance, cur)} online`, o.payUrl));
+  if (pay) {
+    out.push(blocks.button(`Pay ${money(balance, cur)} online`, pay));
+    // Say where the money goes, so a client can tell a real pay link from a fake one.
+    out.push(blocks.small("The payment page is on ", { b: new URL(pay).hostname }, `, chosen by ${company}.`));
+  }
   out.push(blocks.small("Questions? Just reply to this email."));
   return layout({ subject, preheader, sender: company, blocks: out, footer: `Sent on behalf of ${company} with ${PRODUCT_NAME}.` });
 }
@@ -654,7 +693,7 @@ export function documentResponseEmail(o: DocumentResponseEmail): EmailContent {
     ]),
   ];
   if (o.note?.trim()) out.push(blocks.quote("Note from the client", o.note.trim().slice(0, 4000)));
-  out.push(blocks.para(accepted ? "Next: create the deposit invoice from the quote and schedule the work." : "Open the job to see their answer."), blocks.button("Open in PinPlan", o.url));
+  out.push(blocks.para(accepted ? "Next: create the deposit invoice from the quote and schedule the work." : "Open the job to see their answer."), blocks.button(`Open in ${PRODUCT_NAME}`, o.url));
   return layout({
     subject: `${accepted ? "Accepted" : "Declined"}: ${name} — ${job}`,
     preheader: `${who} ${accepted ? "accepted" : "declined"} ${name}.`,
@@ -662,4 +701,156 @@ export function documentResponseEmail(o: DocumentResponseEmail): EmailContent {
     blocks: out,
     footer: `${PRODUCT_NAME} sent this because a client answered a link from ${line(o.companyName) || "your company"}.`,
   });
+}
+
+// ---------------------------------------------------------------- change order / RFI answered (to the office)
+
+export interface ChangeOrderResponseEmail {
+  outcome: "approved" | "rejected";
+  /** "CO-003" */
+  code: string;
+  title?: string | null;
+  /** The name they typed when answering. */
+  signerName?: string | null;
+  clientName?: string | null;
+  jobName: string;
+  total?: number | null;
+  currency?: string;
+  comment?: string | null;
+  respondedAt?: string | null;
+  url: string;
+  companyName?: string | null;
+}
+
+/** To the office: a client approved (signed) or rejected a change order from its link. */
+export function changeOrderResponseEmail(o: ChangeOrderResponseEmail): EmailContent {
+  const job = line(o.jobName) || "your job";
+  const code = line(o.code, 20) || "Change order";
+  const title = line(o.title, 80);
+  const name = title ? `${code} ${title}` : code;
+  const who = line(o.signerName, 60) || line(o.clientName, 60) || "Your client";
+  const approved = o.outcome === "approved";
+  const company = line(o.companyName);
+  const out: Block[] = [
+    blocks.heading(approved ? `${code} approved` : `${code} rejected`),
+    blocks.para({ b: who }, approved ? " approved and signed change order " : " rejected change order ", { b: name }, " for ", { b: job }, "."),
+    blocks.details([
+      ["Client", line(o.clientName, 80)],
+      ["Job", job],
+      [approved ? "Signed by" : "Answered by", line(o.signerName, 80)],
+      ["Total", typeof o.total === "number" && Number.isFinite(o.total) ? money(o.total, o.currency || "USD") : ""],
+      [approved ? "Approved on" : "Answered on", fmtDate(o.respondedAt)],
+    ]),
+  ];
+  if (o.comment?.trim()) out.push(blocks.quote("Comment from the client", o.comment.trim().slice(0, 4000)));
+  out.push(
+    blocks.para(approved ? "Next: schedule the extra work. The change is now part of the job's contract total." : "Open the job to see their comment, then revise and send it again if needed."),
+    blocks.button("Open the change order", o.url),
+  );
+  return layout({
+    subject: `${approved ? "Approved" : "Rejected"}: ${name} — ${job}`,
+    preheader: `${who} ${approved ? "approved" : "rejected"} ${code}.`,
+    company,
+    blocks: out,
+    footer: `${PRODUCT_NAME} sent this because a client answered a link from ${company || "your company"}.`,
+  });
+}
+
+export interface RfiAnsweredEmail {
+  /** "RFI-007" */
+  code: string;
+  subject?: string | null;
+  question?: string | null;
+  answer: string;
+  /** The name they typed when answering. */
+  answeredBy?: string | null;
+  /** Who it was sent to (GC, architect…), as written on the RFI. */
+  toCompany?: string | null;
+  jobName: string;
+  answeredAt?: string | null;
+  url: string;
+  companyName?: string | null;
+}
+
+/** To the office: someone answered an RFI from its link. */
+export function rfiAnsweredEmail(o: RfiAnsweredEmail): EmailContent {
+  const job = line(o.jobName) || "your job";
+  const code = line(o.code, 20) || "RFI";
+  const subj = line(o.subject, 100);
+  const name = subj ? `${code}: ${subj}` : code;
+  const who = line(o.answeredBy, 60) || "Someone";
+  const company = line(o.companyName);
+  const out: Block[] = [
+    blocks.heading(`${code} answered`),
+    blocks.para({ b: who }, line(o.toCompany, 60) ? ` (${line(o.toCompany, 60)})` : "", " answered ", { b: name }, " on ", { b: job }, "."),
+    blocks.details([
+      ["Job", job],
+      ["Answered by", line(o.answeredBy, 80)],
+      ["Answered on", fmtDate(o.answeredAt)],
+    ]),
+  ];
+  if (o.question?.trim()) out.push(blocks.quote("Your question", o.question.trim().slice(0, 2000)));
+  out.push(blocks.quote("Their answer", o.answer.trim().slice(0, 5000) || "(no answer text)"));
+  out.push(blocks.para("Open the RFI to close it, or ask a follow-up."), blocks.button("Open the RFI", o.url));
+  return layout({
+    subject: `Answered: ${name} — ${job}`,
+    preheader: `${who} answered ${code}.`,
+    company,
+    blocks: out,
+    footer: `${PRODUCT_NAME} sent this because someone answered an RFI link from ${company || "your company"}.`,
+  });
+}
+
+// ---------------------------------------------------------------- Supabase Auth's own emails
+
+/**
+ * The emails Supabase Auth sends (sign-up, invite, sign-in link, password reset, email change, re-authentication) in
+ * the same look, as pasted into Supabase → Authentication → Email Templates. Kept in supabase/templates/<name>.html
+ * (a test checks the files match). Supabase fills in the {{ .Placeholders }}.
+ */
+export function authEmailTemplates(): Record<string, { subject: string; html: string }> {
+  const MARK = "https://confirmation-url.invalid/";
+  const footer = `Sent by ${PRODUCT_NAME}. You're receiving this because someone used this address on ${PRODUCT_NAME}.`;
+  const page = (subject: string, preheader: string, body: Block[]) => ({
+    subject,
+    html: layout({ subject, preheader, blocks: body, footer }).html.split(esc(MARK)).join("{{ .ConfirmationURL }}"),
+  });
+  return {
+    "confirm-signup": page(`Confirm your ${PRODUCT_NAME} email`, "One tap to finish setting up your account.", [
+      blocks.heading("Confirm your email"),
+      blocks.para(`Tap the button to confirm {{ .Email }} and finish setting up your ${PRODUCT_NAME} account.`),
+      blocks.button("Confirm my email", MARK),
+      blocks.small(`If you didn't sign up for ${PRODUCT_NAME}, you can ignore this email.`),
+    ]),
+    invite: page(`You're invited to ${PRODUCT_NAME}`, "Accept the invite to set up your login.", [
+      blocks.heading(`You're invited to ${PRODUCT_NAME}`),
+      blocks.para(`You've been invited to create a ${PRODUCT_NAME} account for {{ .Email }}. Tap the button to accept and choose a password.`),
+      blocks.button("Accept the invite", MARK),
+      blocks.small("If you weren't expecting this, you can ignore this email."),
+    ]),
+    "magic-link": page(`Your ${PRODUCT_NAME} sign-in link`, "Tap to sign in. The link works once.", [
+      blocks.heading(`Sign in to ${PRODUCT_NAME}`),
+      blocks.para("Tap the button to sign in as {{ .Email }}. The link works once and expires soon."),
+      blocks.button("Sign in", MARK),
+      blocks.small("If you didn't ask to sign in, you can ignore this email. Nobody can sign in without this link."),
+    ]),
+    "reset-password": page(`Reset your ${PRODUCT_NAME} password`, "Choose a new password for your account.", [
+      blocks.heading("Reset your password"),
+      blocks.para("Someone (hopefully you) asked to reset the password for {{ .Email }}. Tap the button to choose a new one."),
+      blocks.button("Choose a new password", MARK),
+      blocks.small("If you didn't ask, ignore this email. Your password stays the same."),
+    ]),
+    "change-email": page(`Confirm your new ${PRODUCT_NAME} email`, "Confirm the change to your login email.", [
+      blocks.heading("Confirm your new email"),
+      blocks.para(`Tap the button to change your ${PRODUCT_NAME} login from {{ .Email }} to {{ .NewEmail }}.`),
+      blocks.button("Confirm the new email", MARK),
+      blocks.small("If you didn't ask for this, don't tap the button, and change your password in Settings."),
+    ]),
+    reauthentication: page(`Your ${PRODUCT_NAME} confirmation code`, "Enter the code to confirm it's you.", [
+      blocks.heading("Confirm it's you"),
+      blocks.para(`Enter this code in ${PRODUCT_NAME} to finish changing your account settings.`),
+      blocks.code("{{ .Token }}", "Your code"),
+      blocks.small("The code works once and expires soon. If you didn't ask for it, change your password."),
+    ]),
+  };
 }

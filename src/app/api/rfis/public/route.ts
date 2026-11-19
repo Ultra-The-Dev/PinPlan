@@ -4,7 +4,12 @@
 //   POST { t, answer, name }       → records the answer (status answered, ball with us) and bumps updated_at so the
 //                                    office's next sync pulls it; 409 when the RFI isn't waiting for an answer.
 // 501 when the server has no service key (sharing needs cloud sync; the app falls back to email).
+// After an answer whoever raised it is emailed once (src/app/api/notify/answers.ts); a failed email never fails the
+// answer. Answers are limited per IP and per link in memory and, when the database has answer_rate_hit, across every
+// server instance.
 import { clientIp, rateLimiter } from "@/lib/server/email";
+import { durableLimited, keyHash } from "@/lib/server/sendGuard";
+import { notifyRfiAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
 import { publicRfiView, SHARE_TOKEN_RE, transition, type PublicRfiPhoto, type PublicRfiPlan } from "@/lib/rfis";
 import { toLocal, toRemote } from "@/lib/syncMap";
@@ -116,6 +121,8 @@ export async function POST(req: Request) {
   if (!serviceConfigured()) return json({ error: "Answer links need cloud sync on this server.", code: "not_configured" }, 501);
   if (answersPerIp.limited(clientIp(req)) || answersPerToken.limited(token))
     return json({ error: "Too many tries. Wait a few minutes and try again.", code: "rate_limited" }, 429);
+  const [ipOver, linkOver] = await Promise.all([durableLimited(keyHash("rfi-ip", clientIp(req)), HOUR, 30), durableLimited(keyHash("rfi-link", token), HOUR, 10)]);
+  if (ipOver === true || linkOver === true) return json({ error: "Too many tries. Wait a few minutes and try again.", code: "rate_limited" }, 429);
 
   try {
     const raw = await findByToken(token);
@@ -140,6 +147,8 @@ export async function POST(req: Request) {
     if (!r.ok) return json({ error: "Couldn't save your answer. Try again in a minute.", code: "unavailable" }, 502);
     const saved = ((await r.json()) as Record<string, unknown>[])[0];
     if (!saved) return json({ error: "This RFI has already been answered.", code: "not_open" }, 409);
+    // Tell whoever raised it (never fails the answer).
+    await notifyRfiAnswer(req, rfi.id, now);
     const view = await buildView(saved).catch(() => null);
     return json({ ok: true, view });
   } catch {

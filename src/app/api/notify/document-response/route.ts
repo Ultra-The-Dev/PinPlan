@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import type { DocSnapshot } from "@/lib/documents";
 import { documentResponseEmail } from "@/lib/emailTemplates";
+import { logNotification } from "@/lib/server/sendGuard";
 import { appOrigin, clientIp, emailConfigured, rateLimiter, sendEmail, validEmail } from "@/lib/server/email";
 import { getAuthUser, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
 
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
   if (!TOKEN_RE.test(token)) return Response.json({ ok: false }, { status: 400 });
   if (!emailConfigured() || !serviceConfigured()) return nothing();
   if (perIp.limited(clientIp(req)) || perToken.limited(token)) return Response.json({ ok: false }, { status: 429 });
+  // Links in the email need the site address (PINPLAN_APP_URL in production): without it, don't claim or send.
+  const origin = appOrigin(req);
+  if (!origin) {
+    console.warn("[notify] PINPLAN_APP_URL is not set: answer email skipped");
+    return nothing();
+  }
 
   // Claim the notification atomically (only an answered link not yet notified), so repeats can't send twice.
   const stamp = new Date().toISOString();
@@ -92,7 +99,7 @@ export async function POST(req: Request) {
     currency: doc.currency,
     note: doc.client_note,
     respondedAt: doc.responded_at,
-    url: `${appOrigin(req)}/project?id=${encodeURIComponent(link.project_id)}&tab=billing&doc=${encodeURIComponent(link.document_id)}`,
+    url: `${origin}/project?id=${encodeURIComponent(link.project_id)}&tab=billing&doc=${encodeURIComponent(link.document_id)}`,
     companyName: s.business?.name,
   });
   const clientEmail = s.client?.email?.trim() ?? "";
@@ -107,5 +114,6 @@ export async function POST(req: Request) {
     await release();
     return Response.json({ ok: false }, { status: 502 });
   }
+  await logNotification(link.owner_id, to, sent.id);
   return Response.json({ ok: true });
 }
