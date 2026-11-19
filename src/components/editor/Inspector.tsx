@@ -14,6 +14,7 @@ import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import SymbolIcon from "./SymbolIcon";
 import PhotoViewer from "../photos/PhotoViewer";
+import DeviceInstallSection from "../progress/DeviceInstallSection";
 import { getAuthor, importPhoto } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import { useBlobUrl } from "@/lib/useImage";
@@ -430,6 +431,7 @@ function MarkerInspector({ id }: { id: string }) {
           />
         </label>
       </div>
+      <DeviceInstallSection marker={m} />
       <SitePhotos markerId={m.id} sheetId={m.sheetId} room={m.room} />
       <SelectMore id={m.id} />
       <div className="grid grid-cols-2 gap-2 pt-1">
@@ -528,6 +530,7 @@ function RunInspector({ id }: { id: string }) {
         <label className="label">Notes</label>
         <NotesField value={r.notes ?? ""} onCommit={(v) => updateRun(r.id, { notes: v })} />
       </div>
+      <DeviceInstallSection run={r} />
       <p className="text-xs text-slate-500">Drag the white handles to reshape the run.</p>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("runs", r.id)}>
         <Trash /> Delete run

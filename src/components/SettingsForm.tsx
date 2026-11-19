@@ -16,6 +16,7 @@ import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 import DocSettingsPanel from "./documents/DocSettingsPanel";
 import TeamPanel from "./TeamPanel";
 import TradeSettings from "./TradeSettings";
+import InstallSettings from "./progress/InstallSettings";
 
 export default function SettingsForm() {
   const [s, setS] = useState<AppSettings | null>(null);
@@ -228,6 +229,7 @@ export default function SettingsForm() {
               </div>
             ))}
           </section>
+          {office && <InstallSettings value={s.installPhotoRequired} onChange={(v) => setS({ ...s, installPhotoRequired: v })} />}
 
           <div
             className={`sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-xl px-4 py-3 transition ${dirty ? "bg-ink/95 shadow-pop backdrop-blur" : ""}`}

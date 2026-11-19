@@ -171,6 +171,8 @@ export interface Marker {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+  /** Install progress (roughed → installed → tested → verified), with history and photo proof. Never counted. */
+  install?: InstallState | null;
 }
 
 export interface Run {
@@ -203,6 +205,8 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+  /** Install progress (wire runs: roughed = pulled, installed = terminated, tested = certified). Never counted. */
+  install?: InstallState | null;
 }
 
 /** A specific product (brand + model) for a device type, e.g. a Ubiquiti G5 Turret for "Indoor camera".
@@ -457,6 +461,8 @@ export interface AppSettings {
   /** Quotes / invoices / credit notes (Settings → Invoicing). Missing on older settings: DEFAULT_DOC_SETTINGS applies.
    *  The company-wide copy lives in the cloud (`document_settings`); this is this device's cache of it. */
   documents?: DocumentSettings;
+  /** Install statuses that need a photo before they can be set (Settings → Install progress). Missing = ["installed"]. */
+  installPhotoRequired?: InstallStatus[];
   updatedAt: string;
 }
 
@@ -674,4 +680,19 @@ export interface DocumentSettings {
   signatureOnQuotes: boolean;
   reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
   updatedAt?: string;
+}
+
+// ---------------- install progress (see src/lib/installProgress.ts) ----------------
+
+export type InstallStatus = "planned" | "roughed" | "installed" | "tested" | "verified" | "issue";
+
+export interface InstallState {
+  status: InstallStatus;
+  by?: string | null;
+  at?: string | null;
+  /** Photos taken as proof (Photo ids; the photos also carry markerId). */
+  photoIds?: string[];
+  /** Test record: pass/fail plus a reading (dB loss, ohms, psi…). */
+  test?: { pass: boolean; value?: string | null; note?: string | null } | null;
+  history?: { status: InstallStatus; by?: string | null; at: string; note?: string | null }[];
 }

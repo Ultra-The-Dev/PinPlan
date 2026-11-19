@@ -38,6 +38,7 @@ import PlanToolbar from "./viewer/PlanToolbar";
 import SheetBrowser from "./viewer/SheetBrowser";
 import SheetPill from "./viewer/SheetPill";
 import ZoomControls from "./viewer/ZoomControls";
+import "./overlays";
 import { AI_ENABLED } from "@/lib/features";
 
 type Pending =

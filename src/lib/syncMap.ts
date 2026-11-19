@@ -112,6 +112,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       tentative: "tentative",
       notes: "notes",
       photoId: "photo_id",
+      install: "install",
     },
   },
   runs: {
@@ -136,6 +137,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       circuit: "circuit",
       tentative: "tentative",
       notes: "notes",
+      install: "install",
     },
   },
   closets: {
