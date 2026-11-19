@@ -1,4 +1,4 @@
-import { requireOffice } from "@/lib/server/auth";
+import { resolveBillduCaller } from "@/lib/server/billduCreds";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import { billduUnit } from "@/lib/billdu/mapping";
 import { money } from "@/lib/estimate";
@@ -14,7 +14,7 @@ interface ProductIn {
 
 /** Create Billdu Products for catalog device types that don't have one yet. Returns {deviceTypeId: billduProductId}. */
 export async function POST(req: Request) {
-  const auth = await requireOffice(req);
+  const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
   let body: { deviceTypes?: ProductIn[]; taxPct?: number; laborMode?: "combined" | "separate"; markupPct?: number };
   try {
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
   const types = body.deviceTypes ?? [];
   if (!Array.isArray(types)) return jsonError("deviceTypes must be an array", 400);
-  const client = await getClientOrError();
+  const client = await getClientOrError(auth.caller);
   if (client instanceof Response) return client;
   const mk = 1 + (body.markupPct ?? 0) / 100;
   const created: Record<string, number> = {};
