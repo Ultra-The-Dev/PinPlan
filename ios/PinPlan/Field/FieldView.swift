@@ -3,23 +3,31 @@ import QuickLook
 import UniformTypeIdentifiers
 import PinPlanCore
 
-/// Field documentation for the job: checklists, daily logs, documents and the timeline.
+/// Field documentation for the job: checklists, daily logs, documents, the timeline, tasks, forms, RFIs and the
+/// schedule. Technicians get a Today card on top (TodayCard.swift); everyone gets one quiet "More on the web" row.
 struct FieldView: View {
-    enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", tasks = "Tasks", forms = "Forms"; var id: String { rawValue } }
+    enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", tasks = "Tasks", forms = "Forms", rfis = "RFIs", schedule = "Schedule"; var id: String { rawValue } }
+    @Environment(AppModel.self) private var app
+    @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
     @State private var section: Part = {
         // Screenshot hook: `--field logs|documents|timeline`.
         let a = ProcessInfo.processInfo.arguments
         if let i = a.firstIndex(of: "--field"), a.indices.contains(i + 1) {
-            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; case "tasks": return .tasks; case "forms": return .forms; default: break }
+            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; case "tasks": return .tasks; case "forms": return .forms; case "rfis": return .rfis; case "schedule": return .schedule; default: break }
         }
         return .checklists
     }()
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Section", selection: $section) { ForEach(Part.allCases) { Text($0.rawValue).tag($0) } }
-                .pickerStyle(.segmented)
+            // Technicians get Today on top; everyone gets the quiet row to what only the web does.
+            VStack(spacing: 6) {
+                if app.cloud.role == .tech { TodayCard(model: model) { section = $0 } }
+                MoreOnWebRow(model: model)
+            }
+            .padding([.horizontal, .top])
+            sectionPicker
                 .padding([.horizontal, .top])
                 .padding(.bottom, 8)
             switch section {
@@ -29,7 +37,38 @@ struct FieldView: View {
             case .timeline: TimelineView(model: model)
             case .forms: FormsListView(model: model)
             case .tasks: TaskListView(model: model)
+            case .rfis: RfiListView(model: model)
+            case .schedule: ScheduleLookaheadView(model: model)
             }
+        }
+    }
+
+    /// Segments on iPad; on iPhone a scrolling row of chips (eight segments don't fit).
+    @ViewBuilder private var sectionPicker: some View {
+        if hSize == .compact {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(Part.allCases) { p in
+                            Button { section = p } label: {
+                                Text(p.rawValue)
+                                    .font(.subheadline.weight(section == p ? .semibold : .regular))
+                                    .padding(.horizontal, 12)
+                                    .frame(minHeight: 36)
+                                    .background(section == p ? Color.brand : Color(.tertiarySystemFill), in: Capsule())
+                                    .foregroundStyle(section == p ? Color.white : Color.primary)
+                            }
+                            .buttonStyle(.plain)
+                            .id(p)
+                            .accessibilityAddTraits(section == p ? .isSelected : [])
+                        }
+                    }
+                }
+                .onAppear { proxy.scrollTo(section, anchor: .center) }
+            }
+        } else {
+            Picker("Section", selection: $section) { ForEach(Part.allCases) { Text($0.rawValue).tag($0) } }
+                .pickerStyle(.segmented)
         }
     }
 }

@@ -21,6 +21,9 @@ enum TaskOverlays {
         registry.register(PlanOverlay(id: "tasks-drag", zIndex: 31, allowsHitTesting: true, modes: [.edit], content: { ctx in
             AnyView(TaskPinHandle(ctx: ctx))
         }))
+        // The office's markups, measurements and plan links (read-only), registered with the tasks so app start
+        // needs no extra line.
+        OfficeOverlays.register()
     }
 
     /// An armed drop places the task (new, copy or move). Otherwise a tap on a pin opens it; a tap elsewhere just
