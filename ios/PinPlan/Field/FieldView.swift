@@ -302,7 +302,10 @@ struct DailyLogsView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { editing = l }
                 .swipeActions {
-                    Button("Delete", role: .destructive) { model.removeRows([l.id], in: \.jobLogs) }
+                    // A signed report is locked like an edit: only its author/signer or the office can delete it.
+                    if DailyReportLogic.editAccess(l, role: app.cloud.role, me: FieldAuthor.name(app)) != .denied {
+                        Button("Delete", role: .destructive) { model.removeRows([l.id], in: \.jobLogs) }
+                    }
                     Button("Edit") { editing = l }
                     Button("PDF") { exporting = LogExportItem(log: l) }.tint(Color.indigo)
                 }

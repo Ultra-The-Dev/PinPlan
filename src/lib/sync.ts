@@ -260,7 +260,7 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
           filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream") });
         // Daily report signatures are stored at <project>/<image id> too.
         const sig = table === "jobLogs" && !local.deleted ? (local as unknown as JobLog).report?.signature?.imageId : null;
-        if (sig) filesNeeded.push({ id: sig, path: `${local.projectId}/${sig}`, width: 0, height: 0, mime: "image/png" });
+        if (sig) filesNeeded.push({ id: sig, path: `${local.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg" });
       }
       if (writes.length) changedTables.add(table);
       const next = nextPullPage(cur, rows, PAGE);
@@ -297,6 +297,11 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
   // Device photos (marker.photoId) are uploaded to <project>/<image id> too, but were never fetched on other devices.
   for (const m of await db().markers.filter((x) => !x.deleted && !!x.photoId).toArray())
     if (!known.has(m.photoId!)) filesNeeded.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
+  // Daily report signatures whose download failed earlier (still uploading from the other device).
+  for (const l of await db().jobLogs.filter((x) => !x.deleted && !!x.report?.signature?.imageId).toArray()) {
+    const sig = l.report!.signature!.imageId;
+    if (!known.has(sig)) filesNeeded.push({ id: sig, path: `${l.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg" });
+  }
   let tries = 0;
   for (const f of filesNeeded) {
     if (await db().images.get(f.id)) continue;

@@ -267,6 +267,11 @@ describe("completeness and editing rules", () => {
     expect(editAccess(signed, { role: "tech", me: "ana ruiz" })).toBe("confirm");
     expect(editAccess(signed, { role: "tech", me: "ben" })).toBe("denied");
     expect(editAccess(signed, { role: "tech", me: "" })).toBe("denied");
+    // Several names for the same person (this device's name and the team name).
+    expect(editAccess(signed, { role: "tech", me: ["ben", "Ana Ruiz"] })).toBe("confirm");
+    expect(editAccess(signed, { role: "tech", me: ["ben", null, ""] })).toBe("denied");
+    // An author-less log signed by someone else stays locked for other techs.
+    expect(editAccess({ author: null, report: { signature: sig } }, { role: "tech", me: ["", null] })).toBe("denied");
   });
 
   it("suggests team members then recent crew", () => {

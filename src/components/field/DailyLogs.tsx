@@ -301,11 +301,18 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
       const author = l.author || getAuthor(email);
       const { report: cleaned, duplicates } = cleanReport(r);
       if (sig) {
-        const blob = await (await fetch(sig)).blob();
-        const bmp = await createImageBitmap(blob);
-        const size = { w: bmp.width, h: bmp.height };
+        // Ink on white (the pad gives a transparent PNG, which disappears on a dark background on the iPad).
+        const bmp = await createImageBitmap(await (await fetch(sig)).blob());
+        const c = document.createElement("canvas");
+        c.width = bmp.width;
+        c.height = bmp.height;
+        const ctx = c.getContext("2d")!;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(bmp, 0, 0);
         bmp.close();
-        const imageId = await saveImage(blob, size.w, size.h);
+        const blob = await new Promise<Blob>((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error("Couldn't save the signature"))), "image/jpeg", 0.9));
+        const imageId = await saveImage(blob, c.width, c.height);
         cleaned.signature = { name: sigName.trim() || author, imageId, signedAt: nowIso() };
       }
       // Older free-text logs stay as they were unless something structured was added.
@@ -552,6 +559,8 @@ export default function DailyLogs() {
   const { project, jobLogs, photos, removeRows } = useEditor();
   const { email } = useSyncStatus();
   const role = useRole();
+  const members = useTeam((s) => s.members);
+  const userId = useTeam((s) => s.userId);
   const [editing, setEditing] = useState<JobLog | null>(null);
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -564,8 +573,11 @@ export default function DailyLogs() {
     setWeekly(false);
     setEditing({ id: newId(), projectId: project.id, date: today(), title: "", body: "", photoIds: [], report: emptyReport(), createdAt: now, updatedAt: now });
   };
+  // Who I am for signed logs: the name on this device and my name on the team (logs from the iPad use the team name).
+  const myMember = members.find((m) => m.userId === userId);
+  const me = [getAuthor(email), myMember ? memberLabel(myMember) : null];
   const edit = (l: JobLog) => {
-    const access = editAccess(l, { role, me: getAuthor(email) });
+    const access = editAccess(l, { role, me });
     if (access === "denied") return toast(`Signed by ${l.report?.signature?.name ?? l.author} — only they or the office can change it`, "info");
     if (access === "confirm" && !confirm("This log is signed. Editing it clears the signature — sign again when you're done. Continue?")) return;
     setEditing(access === "confirm" ? { ...l, report: { ...l.report, signature: null } } : l);
@@ -621,7 +633,15 @@ export default function DailyLogs() {
                 <button className="btn btn-sm btn-icon btn-ghost" aria-label="Edit log" onClick={() => edit(l)}>
                   <Pencil />
                 </button>
-                <button className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" aria-label="Delete log" onClick={() => confirm("Delete this log?") && void removeRows("jobLogs", [l.id])}>
+                <button
+                  className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600"
+                  aria-label="Delete log"
+                  onClick={() => {
+                    // A signed report is locked like an edit: only its author/signer or the office can delete it.
+                    if (editAccess(l, { role, me }) === "denied") return toast(`Signed by ${l.report?.signature?.name ?? l.author} — only they or the office can delete it`, "info");
+                    if (confirm(l.report?.signature ? "Delete this signed log?" : "Delete this log?")) void removeRows("jobLogs", [l.id]);
+                  }}
+                >
                   <Trash />
                 </button>
               </div>

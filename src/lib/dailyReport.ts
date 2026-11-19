@@ -375,12 +375,18 @@ export function reportCompleteness(r: DailyReport | null | undefined): ReportSec
 
 /** Can this person edit the log? Unsigned logs: anyone (techs included). Signed logs: the author or the office (owner,
  *  admin, or working alone), after confirming that editing clears the signature. */
-export function editAccess(log: Pick<JobLog, "author" | "report">, who: { role: "owner" | "admin" | "tech" | null | undefined; me: string | null | undefined }): "edit" | "confirm" | "denied" {
+export function editAccess(
+  log: Pick<JobLog, "author" | "report">,
+  who: { role: "owner" | "admin" | "tech" | null | undefined; me: string | (string | null | undefined)[] | null | undefined },
+): "edit" | "confirm" | "denied" {
   const sig = log.report?.signature;
   if (!sig) return "edit";
   if (who.role !== "tech") return "confirm";
-  const me = nameKey(who.me ?? "");
-  if (me && (me === nameKey(log.author ?? "") || me === nameKey(sig.name ?? ""))) return "confirm";
+  // `me` can be several names for the same person (the name on this device and the name on the team).
+  const mine = new Set((Array.isArray(who.me) ? who.me : [who.me]).map((m) => nameKey(typeof m === "string" ? m : "")).filter(Boolean));
+  const author = nameKey(typeof log.author === "string" ? log.author : "");
+  const signer = nameKey(typeof sig.name === "string" ? sig.name : "");
+  if ((author && mine.has(author)) || (signer && mine.has(signer))) return "confirm";
   return "denied";
 }
 

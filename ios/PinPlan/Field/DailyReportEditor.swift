@@ -197,12 +197,12 @@ struct DailyReportEditor: View {
                 ForEach(conditionChoices, id: \.self) { c in Label(c, systemImage: DailyReportLogic.weatherSymbol(c)).tag(c) }
             }
             HStack {
-                DecimalField(title: "High °F", value: report.weather?.tempHighF) { v in setWeather { $0.tempHighF = v } }
-                DecimalField(title: "Low °F", value: report.weather?.tempLowF) { v in setWeather { $0.tempLowF = v } }
+                DecimalField(title: "High °F", value: report.weather?.tempHighF, onChange: { v in setWeather { $0.tempHighF = v } })
+                DecimalField(title: "Low °F", value: report.weather?.tempLowF, onChange: { v in setWeather { $0.tempLowF = v } })
             }
             HStack {
-                DecimalField(title: "Precip (in)", value: report.weather?.precipIn) { v in setWeather { $0.precipIn = v } }
-                DecimalField(title: "Wind (mph)", value: report.weather?.windMph) { v in setWeather { $0.windMph = v } }
+                DecimalField(title: "Precip (in)", value: report.weather?.precipIn, onChange: { v in setWeather { $0.precipIn = v } })
+                DecimalField(title: "Wind (mph)", value: report.weather?.windMph, onChange: { v in setWeather { $0.windMph = v } })
             }
             if hasLocation && weatherState != .later {
                 Button { Task { await fillWeather(replace: true) } } label: { Label("Auto-fill", systemImage: "arrow.clockwise") }
@@ -546,7 +546,7 @@ private struct CrewRowView: View {
             TextField("Name", text: $row.name).textContentType(.name)
             Stepper(value: Binding(get: { row.hours }, set: { row.hours = DailyReportLogic.clampHours($0) }), in: 0...24, step: 0.5) {
                 HStack(spacing: 6) {
-                    DecimalField(title: "Hours", value: row.hours, parse: { DailyReportLogic.parseHours($0) }) { v in row.hours = v ?? 0 }
+                    DecimalField(title: "Hours", value: row.hours, parse: { DailyReportLogic.parseHours($0) }, onChange: { v in row.hours = v ?? 0 })
                         .frame(width: 56)
                         .multilineTextAlignment(.trailing)
                     Text("h").foregroundStyle(.secondary)
