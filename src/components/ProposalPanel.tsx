@@ -41,7 +41,8 @@ export default function ProposalPanel({ estimate, takeoff, pricing }: { estimate
   const refresh = useCallback(async () => {
     if (!projectId || !signedIn) return;
     try {
-      setRows(await listProposals(projectId));
+      // Plan reviews (no prices) have their own card on the Takeoff tab.
+      setRows((await listProposals(projectId)).filter((r) => r.snapshot.kind !== "review"));
     } catch (e) {
       toast(explainCloudError((e as Error).message), "error");
     }

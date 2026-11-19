@@ -1,6 +1,7 @@
 // Client proposals: a frozen snapshot of the estimate (plus marked-up plan images) that a client opens by link,
 // picks optional items, signs and accepts. The same JSON is written by the iPad app (Proposal.swift).
 import type { Estimate, ComputedLine } from "./estimate";
+import type { LegendItem } from "./legend";
 import type { Takeoff } from "./takeoff";
 import type { BusinessSettings, DeviceType, Project, Sheet } from "./types";
 
@@ -21,6 +22,10 @@ export interface ProposalLine {
 
 export interface ProposalSnapshot {
   version: 1;
+  /** "review": the plan only (no prices) for the client to check device locations; missing = a priced proposal. */
+  kind?: "proposal" | "review";
+  /** What each symbol on the plans means (plan reviews; proposals may include it too). */
+  legend?: LegendItem[];
   title: string;
   message: string;
   createdAt: string;
@@ -62,7 +67,8 @@ export function buildSnapshot(input: {
   sheets: Sheet[];
   catalog: DeviceType[];
   takeoff: Takeoff;
-  estimate: Estimate;
+  /** Not needed for a plan review. */
+  estimate?: Estimate;
   business: BusinessSettings;
   currency: string;
   taxPct: number;
@@ -77,7 +83,10 @@ export function buildSnapshot(input: {
   /** Site address, to turn a logo path like "/brand/logo.png" into a full URL. */
   origin?: string;
   now?: Date;
+  kind?: ProposalSnapshot["kind"];
+  legend?: LegendItem[];
 }): ProposalSnapshot {
+  const review = input.kind === "review";
   const now = input.now ?? new Date();
   const name = (id: string) => input.catalog.find((d) => d.id === id)?.name ?? id;
   const t = input.takeoff.total;
@@ -103,7 +112,7 @@ export function buildSnapshot(input: {
     ],
     order: sheetById.get(f.sheetId)?.order ?? 0,
   }));
-  const lines: ProposalLine[] = input.estimate.lines
+  const lines: ProposalLine[] = review || !input.estimate ? [] : input.estimate.lines
     .filter((l) => l.qty !== 0 || l.total !== 0)
     .map((l) => ({
       key: l.key,
@@ -119,15 +128,17 @@ export function buildSnapshot(input: {
   const valid = input.validDays ? new Date(now.getTime() + input.validDays * 86400000).toISOString().slice(0, 10) : null;
   return {
     version: 1,
-    title: input.title?.trim() || `Proposal — ${input.project.address || input.project.clientName || "your project"}`,
+    ...(review ? { kind: "review" as const } : {}),
+    ...(input.legend?.length ? { legend: input.legend } : {}),
+    title: input.title?.trim() || `${review ? "Preliminary plan" : "Proposal"} — ${input.project.address || input.project.clientName || "your project"}`,
     message: input.message?.trim() ?? "",
     createdAt: now.toISOString(),
-    validUntil: valid,
+    validUntil: review ? null : valid,
     currency: input.currency,
-    taxPct: input.taxPct,
+    taxPct: review ? 0 : input.taxPct,
     detail: input.detail,
-    depositPct: input.depositPct && input.depositPct > 0 && input.depositPct < 100 ? input.depositPct : null,
-    terms: input.terms ?? input.business.estimateTerms ?? "",
+    depositPct: !review && input.depositPct && input.depositPct > 0 && input.depositPct < 100 ? input.depositPct : null,
+    terms: review ? "" : (input.terms ?? input.business.estimateTerms ?? ""),
     business: {
       name: input.business.name,
       address: input.business.address,

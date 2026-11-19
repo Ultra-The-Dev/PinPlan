@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
+import { buildLegend } from "@/lib/legend";
 import { buildSnapshot, newToken, proposalTotals, sectionTotals } from "@/lib/proposal";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { Marker, Project, Sheet } from "@/lib/types";
@@ -45,5 +46,34 @@ describe("client proposal snapshot", () => {
     const a = newToken();
     expect(a).toMatch(/^[A-Za-z0-9]{22,}$/);
     expect(newToken()).not.toBe(a);
+  });
+});
+
+describe("plan review (no prices) with a legend", () => {
+  const markers = [mk("w1", "wap"), mk("w2", "wap"), mk("s1", "speaker", true), mk("c1", "cam-outdoor")];
+  const takeoff = computeTakeoff({ sheets, markers, runs: [], closets: [] });
+  const legend = buildLegend(takeoff, catalog, (d) => `icon:${d.id}`);
+  const snap = buildSnapshot({
+    kind: "review", legend, project, sheets, catalog, takeoff, business: { ...DEFAULT_SETTINGS.business, name: "Bright AV" }, currency: "USD", taxPct: 10,
+    validDays: 30, detail: "lines", depositPct: 50, images: { s1: "https://x/s1.jpg" }, now: new Date("2026-11-15T12:00:00Z"),
+  });
+
+  it("explains every symbol on the plan, in category order, with counts", () => {
+    expect(legend.map((l) => l.key)).toEqual(["cam-outdoor", "wap", "speaker"]);
+    expect(legend[1]).toMatchObject({ name: "Wi-Fi access point", count: "2", icon: "icon:wap" });
+    expect(legend[1].description).toMatch(/Wi-Fi/);
+    expect(legend[2].count).toBe("1 optional");
+  });
+
+  it("carries the plans and legend but no prices, terms, deposit or expiry", () => {
+    expect(snap.kind).toBe("review");
+    expect(snap.title).toBe("Preliminary plan — 12 Maple Ridge Rd");
+    expect(snap.lines).toEqual([]);
+    expect(snap.terms).toBe("");
+    expect(snap.depositPct).toBeNull();
+    expect(snap.validUntil).toBeNull();
+    expect(snap.legend).toHaveLength(3);
+    expect(snap.floors[0].image).toBe("https://x/s1.jpg");
+    expect(JSON.stringify(snap)).not.toMatch(/unitPrice|"total"/);
   });
 });

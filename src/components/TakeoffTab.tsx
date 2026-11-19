@@ -8,12 +8,15 @@ import { useEditor } from "@/lib/store";
 import { computeTakeoff, countOf, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
 import OrderList from "./OrderList";
+import PlanReviewPanel from "./PlanReviewPanel";
+import { CLIENT_LAYERS } from "@/lib/proposalCloud";
 
 export default function TakeoffTab() {
   const st = useEditor();
   const { project, sheets, markers, runs, closets, catalog } = st;
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [clientBusy, setClientBusy] = useState<string | null>(null);
   if (!project) return null;
   const cols: { name: string; b: TakeoffBucket }[] = [...takeoff.floors.map((f) => ({ name: f.name, b: f })), { name: "Total", b: takeoff.total }];
 
@@ -43,6 +46,17 @@ export default function TakeoffTab() {
     }
   }
 
+  async function clientPdf() {
+    setClientBusy("Preparing…");
+    try {
+      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "client", layers: CLIENT_LAYERS, onProgress: setClientBusy, business: st.settings?.business.name });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      setClientBusy(null);
+    }
+  }
+
   return (
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -57,6 +71,10 @@ export default function TakeoffTab() {
           <button className="btn btn-brand" disabled={!!busy || !sheets.length} onClick={pdf}>
             <FileText /> {busy ?? "Marked-up plans PDF"}
           </button>
+        </div>
+
+        <div className="mb-5">
+          <PlanReviewPanel onPdf={() => void clientPdf()} pdfBusy={clientBusy} />
         </div>
 
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

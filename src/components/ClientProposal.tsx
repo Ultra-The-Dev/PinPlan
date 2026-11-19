@@ -121,6 +121,7 @@ export default function ClientProposal() {
   if (!p || !s || !totals || !sections) return <p className="p-10 text-center text-slate-500">Loading your proposal…</p>;
 
   const cur = s.currency;
+  const review = s.kind === "review";
   const answered = p.status === "accepted" || p.status === "declined";
   const locked = answered || p.expired;
   const base = s.lines.filter((l) => !l.optional);
@@ -216,7 +217,21 @@ export default function ClientProposal() {
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         {answered && (
           <div className={`mb-6 rounded-2xl px-5 py-4 ring-1 ${p.status === "accepted" ? "bg-emerald-50 text-emerald-900 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
-            {p.status === "accepted" ? (
+            {review ? (
+              p.status === "accepted" ? (
+                <div>
+                  <div className="flex items-center gap-2 font-bold">
+                    <Check className="h-5 w-5" /> Layout approved by {p.clientName} on {fmtDate(p.respondedAt)}
+                  </div>
+                  <p className="mt-1 text-sm">Thank you! {s.business.name || "We"} will follow up with pricing for this layout.</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="font-bold">Thanks — we got your change request ({fmtDate(p.respondedAt)}).</div>
+                  <p className="mt-1 text-sm">{s.business.name || "We"} will update the plan and send you a new version to review.</p>
+                </div>
+              )
+            ) : p.status === "accepted" ? (
               <>
                 <div className="flex items-center gap-2 font-bold">
                   <Check className="h-5 w-5" /> Accepted by {p.clientName} on {fmtDate(p.respondedAt)}
@@ -242,9 +257,42 @@ export default function ClientProposal() {
           <section className="card mb-6 border-l-4 border-[var(--accent)] p-6 text-[15px] leading-relaxed whitespace-pre-line text-slate-700">{s.message}</section>
         )}
 
+        {s.legend && s.legend.length > 0 && (
+          <section className="card mt-6 break-inside-avoid p-6 sm:p-8">
+            <h2 className="text-lg font-extrabold text-[var(--brand)]">What the symbols mean</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Each symbol on the plans below is one item.{s.legend.some((l) => /optional/.test(l.count)) ? " Items marked “?” are optional — tell us if you want them." : ""}
+            </p>
+            <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              {s.legend.map((l) => (
+                <li key={l.key} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center">
+                    {l.icon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={l.icon} alt="" className="h-8 w-8" />
+                    ) : l.key.startsWith("led:") ? (
+                      <span className="h-1.5 w-8 rounded-full" style={{ background: l.color }} />
+                    ) : (
+                      <span className="h-6 w-6 rounded" style={{ background: l.color }} />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="font-semibold">{l.name}</span>
+                      <span className="shrink-0 font-semibold text-[var(--brand)] tabular-nums">{l.count}</span>
+                    </span>
+                    <span className="block text-slate-500">{l.description}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {s.floors.some((f) => f.image || f.items.length) && (
           <section className="mt-6">
-            <h2 className="mb-3 px-1 text-lg font-extrabold text-[var(--brand)]">Your plans</h2>
+            <h2 className="mb-3 px-1 text-lg font-extrabold text-[var(--brand)]">{review ? "Where everything goes" : "Your plans"}</h2>
+            {review && <p className="-mt-2 mb-3 px-1 text-sm text-slate-500">Tap a plan to open it full size and zoom in.</p>}
             <div className="space-y-5">
               {s.floors.map((f) => (
                 <figure key={f.name} className="card overflow-hidden break-inside-avoid">
@@ -266,6 +314,7 @@ export default function ClientProposal() {
           </section>
         )}
 
+        {!review && (
         <section className="card mt-6 p-6 sm:p-8">
           <h2 className="text-lg font-extrabold text-[var(--brand)]">Investment</h2>
           <div className="mt-3 divide-y divide-slate-100">
@@ -359,6 +408,7 @@ export default function ClientProposal() {
             )}
           </dl>
         </section>
+        )}
 
         {s.terms && (
           <section className="mt-6 px-1 text-sm leading-relaxed text-slate-600">
@@ -371,7 +421,8 @@ export default function ClientProposal() {
           <section className="card mt-6 p-6 sm:p-8 print:hidden">
             {!declining ? (
               <>
-                <h2 className="text-lg font-extrabold text-[var(--brand)]">Approve this proposal</h2>
+                <h2 className="text-lg font-extrabold text-[var(--brand)]">{review ? "Does this layout look right?" : "Approve this proposal"}</h2>
+                {review && <p className="mt-1 text-sm text-slate-500">Approve it, or ask for changes — move a camera, add a speaker, anything.</p>}
                 <label className="mt-4 block text-sm">
                   <span className="label">Your full name</span>
                   <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -382,10 +433,14 @@ export default function ClientProposal() {
                 </div>
                 <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
                   <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-                  <span>
-                    I approve the work described above for <strong>{formatMoney(totals.total, cur)}</strong>
-                    {s.terms ? " and agree to the terms" : ""}.
-                  </span>
+                  {review ? (
+                    <span>I’ve reviewed the plan and approve where everything is placed. I understand pricing will follow.</span>
+                  ) : (
+                    <span>
+                      I approve the work described above for <strong>{formatMoney(totals.total, cur)}</strong>
+                      {s.terms ? " and agree to the terms" : ""}.
+                    </span>
+                  )}
                 </label>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -395,27 +450,38 @@ export default function ClientProposal() {
                     disabled={busy || !name.trim() || !signature || !agree}
                     onClick={() => void respond(true)}
                   >
-                    <Check /> {busy ? "Sending…" : `Accept — ${formatMoney(totals.total, cur)}`}
+                    <Check /> {busy ? "Sending…" : review ? "Approve layout" : `Accept — ${formatMoney(totals.total, cur)}`}
                   </button>
-                  <button className="btn btn-ghost text-slate-500" onClick={() => setDeclining(true)}>
-                    Decline
+                  <button className={review ? "btn" : "btn btn-ghost text-slate-500"} onClick={() => setDeclining(true)}>
+                    {review ? "Request changes" : "Decline"}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <h2 className="text-lg font-semibold">Decline this proposal</h2>
+                <h2 className="text-lg font-semibold">{review ? "What would you like changed?" : "Decline this proposal"}</h2>
+                {review && (
+                  <label className="mt-4 block text-sm">
+                    <span className="label">Your name</span>
+                    <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                  </label>
+                )}
                 <label className="mt-4 block text-sm">
-                  <span className="label">Anything we should know? (optional)</span>
-                  <textarea className="input min-h-20" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Timing, budget, scope changes…" />
+                  <span className="label">{review ? "Changes (by floor and room helps)" : "Anything we should know? (optional)"}</span>
+                  <textarea
+                    className="input min-h-28"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={review ? "e.g. 2nd floor: move the bedroom TV to the other wall; add a speaker in the office…" : "Timing, budget, scope changes…"}
+                  />
                 </label>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <div className="mt-4 flex gap-3">
                   <button className="btn" onClick={() => setDeclining(false)}>
                     Back
                   </button>
-                  <button className="btn btn-danger" disabled={busy} onClick={() => void respond(false)}>
-                    {busy ? "Sending…" : "Decline proposal"}
+                  <button className={review ? "btn btn-brand" : "btn btn-danger"} disabled={busy || (review && !note.trim())} onClick={() => void respond(false)}>
+                    {busy ? "Sending…" : review ? "Send change request" : "Decline proposal"}
                   </button>
                 </div>
               </>

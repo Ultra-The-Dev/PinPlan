@@ -24,7 +24,14 @@ interface Data {
  */
 export async function exportSheetsPdf(
   data: Data,
-  opts: { mode: "takeoff" | "crew"; layers?: Layer[] | null; onProgress?: (s: string) => void; /** false: only return the PDF */ download?: boolean },
+  opts: {
+    /** "client": devices and lighting only (no wiring), titled as a preliminary plan for the client to review. */
+    mode: "takeoff" | "crew" | "client";
+    layers?: Layer[] | null;
+    onProgress?: (s: string) => void;
+    /** false: only return the PDF */ download?: boolean;
+    business?: string;
+  },
 ): Promise<Blob> {
   const { renderSheetsPdf } = await import("@/components/SheetsPdf");
   const takeoff = computeTakeoff(data);
@@ -34,7 +41,7 @@ export async function exportSheetsPdf(
   const pages = [];
   for (const sheet of data.sheets) {
     opts.onProgress?.(`Rendering ${sheet.name}…`);
-    const canvas = await renderSheet(sheet, data, { layers, labels: opts.mode === "crew" });
+    const canvas = await renderSheet(sheet, data, { layers, labels: opts.mode === "crew", symbolScale: opts.mode === "client" ? 1.6 : undefined });
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.85);
     canvas.width = canvas.height = 0;
     const f = takeoff.floors.find((x) => x.sheetId === sheet.id)!;
@@ -94,11 +101,9 @@ export async function exportSheetsPdf(
   opts.onProgress?.("Building PDF…");
   const layerNames = layers ? LAYERS.filter((l) => layers.includes(l.id)).map((l) => l.name).join(", ") : "All layers";
   const title = `${data.project.address || "Project"}${data.project.clientName ? ` — ${data.project.clientName}` : ""}`;
-  const blob = await renderSheetsPdf({
-    title,
-    subtitle: `${opts.mode === "crew" ? `Crew wiring sheets · ${layerNames}` : "Marked-up plan"} · ${new Date().toLocaleDateString()}`,
-    pages,
-  });
-  if (opts.download !== false) downloadBlob(blob, `${slug(data.project.address || "project")}-${opts.mode === "crew" ? "crew-wiring" : "marked-plans"}.pdf`);
+  const kind = opts.mode === "crew" ? `Crew wiring sheets · ${layerNames}` : opts.mode === "client" ? `Preliminary plan for your review${opts.business ? ` · ${opts.business}` : ""}` : "Marked-up plan";
+  const blob = await renderSheetsPdf({ title, subtitle: `${kind} · ${new Date().toLocaleDateString()}`, pages });
+  const suffix = opts.mode === "crew" ? "crew-wiring" : opts.mode === "client" ? "plan-review" : "marked-plans";
+  if (opts.download !== false) downloadBlob(blob, `${slug(data.project.address || "project")}-${suffix}.pdf`);
   return blob;
 }

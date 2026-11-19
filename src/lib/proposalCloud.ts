@@ -34,7 +34,7 @@ export interface PublicProposal {
 
 const BUCKET = "proposals";
 /** Layers a client sees on the plan: devices and lighting, not the crew's wiring. */
-const CLIENT_LAYERS: Layer[] = ["security", "network", "audio", "video", "smarthome", "lighting", "shades", "infrastructure"];
+export const CLIENT_LAYERS: Layer[] = ["security", "network", "audio", "video", "smarthome", "lighting", "shades", "infrastructure"];
 
 function need() {
   const sb = getSupabase();
