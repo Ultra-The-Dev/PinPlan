@@ -1,7 +1,7 @@
 "use client";
 import type Konva from "konva";
 import { ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { categoryOf, closetMeta } from "@/lib/catalog";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
@@ -11,6 +11,7 @@ import { drawSymbolContent, iconFor, symbolPath, wireColor } from "@/lib/symbols
 import { useSheetImage } from "@/lib/useImage";
 import type { Closet, DeviceType, Layer as LayerId, Marker, Run, Sheet } from "@/lib/types";
 import GhostLayer from "../GhostLayer";
+import { useOverlayCapture } from "./overlays/registry";
 
 const R = 14; // marker radius in screen px
 
@@ -26,9 +27,12 @@ interface Props {
   showLabels: boolean;
   onTapImage: (x: number, y: number, hit: CanvasHit) => void;
   onDoubleTap: () => void;
+  /** Plan overlays (markups, …), drawn in sheet pixels above the devices. */
+  renderOverlays?: (scale: number) => ReactNode;
 }
 
-export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImage, onDoubleTap }: Props) {
+export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImage, onDoubleTap, renderOverlays }: Props) {
+  const overlayCapture = useOverlayCapture((s) => s.capture);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -177,7 +181,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
         scaleY={scale}
         x={view.x}
         y={view.y}
-        draggable
+        draggable={!overlayCapture}
         onDragEnd={(e) => {
           if (e.target === stageRef.current) setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
         }}
@@ -255,6 +259,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
               ))}
             </>
           )}
+          {renderOverlays?.(scale)}
         </Layer>
       </Stage>
       <div className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-md bg-white/90 px-3 py-1 text-xs text-slate-600 shadow-soft ring-1 ring-slate-200 backdrop-blur">

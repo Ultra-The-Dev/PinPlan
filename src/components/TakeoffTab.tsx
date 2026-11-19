@@ -6,6 +6,7 @@ import { allCategoriesFor, hasTrade, primaryTrade, tradeCategory, tradeClosetKin
 import { useTrades } from "@/lib/useTrades";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
+import { db } from "@/lib/db";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
@@ -21,6 +22,7 @@ export default function TakeoffTab() {
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);
   const [busy, setBusy] = useState<string | null>(null);
   const [clientBusy, setClientBusy] = useState<string | null>(null);
+  const [withMarkups, setWithMarkups] = useState(true);
   // Plan reviews go to the client: office work, like proposals.
   const office = can(useRole(), "prices");
   const trades = useTrades();
@@ -57,7 +59,9 @@ export default function TakeoffTab() {
   async function pdf() {
     setBusy("Preparing…");
     try {
-      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", onProgress: setBusy, trades });
+      // Plan markups (redlines) on top, if asked; private ones never print.
+      const markups = withMarkups ? await db().planMarkups.where("projectId").equals(project!.id).toArray() : null;
+      await exportSheetsPdf({ project: project!, sheets, markers, runs, closets, catalog }, { mode: "takeoff", onProgress: setBusy, trades, markups });
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
@@ -87,6 +91,10 @@ export default function TakeoffTab() {
           <button className="btn" onClick={() => downloadText(takeoffCsv(takeoff, catalog), `${slug(project.address)}-takeoff.csv`)}>
             <Download /> CSV
           </button>
+          <label className="flex h-9 cursor-pointer items-center gap-1.5 text-sm text-slate-600" title="Draw plan markups (redlines, clouds, notes) on the PDF. Private markups never print.">
+            <input type="checkbox" className="accent-brand-600" checked={withMarkups} onChange={(e) => setWithMarkups(e.target.checked)} data-testid="pdf-markups" />
+            Include markups
+          </label>
           <button className="btn btn-brand" disabled={!!busy || !sheets.length} onClick={pdf}>
             <FileText /> {busy ?? "Marked-up plans PDF"}
           </button>

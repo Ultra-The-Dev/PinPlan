@@ -260,6 +260,25 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // Plan markups (docs/plan-markups.md): redlines drawn on a sheet; never counted.
+  planMarkups: {
+    remote: "plan_markups",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      sheetId: "sheet_id",
+      kind: "kind",
+      points: "points",
+      text: "text",
+      color: "color",
+      width: "width",
+      fontSize: "font_size",
+      layer: "layer",
+      private: "private",
+      author: "author",
+      authorId: "author_id",
+    },
+  },
 };
 
 
@@ -280,10 +299,11 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "planMarkups",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
-const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
+const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false, private: false };
 /** Columns that are NOT NULL in the database: what to send when the row has nothing. */
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
 
@@ -297,6 +317,7 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   }
   if (table === "projects" && !Array.isArray(out.billdu_docs)) out.billdu_docs = [];
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
+  if (table === "planMarkups" && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
   return out;
@@ -319,6 +340,7 @@ export function toLocal(table: SyncTable, row: Record<string, unknown>): Record<
   }
   if (table === "projects" && !Array.isArray(out.billduDocs)) out.billduDocs = [];
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
+  if (table === "planMarkups" && !Array.isArray(out.points)) out.points = [];
   return out;
 }
 

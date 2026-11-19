@@ -18,6 +18,7 @@ import type {
   Marker,
   Photo,
   PhotoComment,
+  PlanMarkup,
   Product,
   Project,
   Run,
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "planMarkups";
 
 export interface SyncItem {
   seq?: number;
@@ -70,6 +72,8 @@ class PinPlanDB extends Dexie {
   salesDocs!: EntityTable<SalesDoc, "id">;
   salesPayments!: EntityTable<DocPayment, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
+  /** Plan markups (redlines, clouds, notes): drawn on sheets, never counted. */
+  planMarkups!: EntityTable<PlanMarkup, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
@@ -104,6 +108,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v22: plan markups (docs/plan-markups.md). Version numbers are spread out between features built in parallel.
+    this.version(22).stores({ planMarkups: "id, projectId, sheetId, updatedAt" });
   }
 }
 
@@ -256,6 +262,7 @@ export interface ProjectBundle {
   checklists: Checklist[];
   jobLogs: JobLog[];
   documents: JobDocument[];
+  planMarkups?: PlanMarkup[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -287,6 +294,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    planMarkups: live(await d.planMarkups.where("projectId").equals(projectId).toArray()),
   };
 }
 
