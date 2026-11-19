@@ -139,6 +139,13 @@ struct PlanCanvasView: View {
                     .gesture(itemDrag(id: m.id) { r in model.edit { $0.updateMarker(m.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
                 }
 
+                // Plan overlays (tasks…): drawn over the plan image at its on-screen size, in the same pan / zoom.
+                ForEach(PlanOverlayRegistry.providers.indices, id: \.self) { i in
+                    PlanOverlayRegistry.providers[i].layer(PlanOverlayContext(sheet: sheet, imageSize: CGSize(width: W * scale, height: H * scale), zoom: scale), model: model)
+                        .frame(width: W * scale, height: H * scale, alignment: .topLeading)
+                        .offset(offset)
+                }
+
                 // Precision mode for the scale line and measuring: drag to aim with a magnifier, release to place.
                 if precisionMode {
                     Color.clear
@@ -334,6 +341,8 @@ struct PlanCanvasView: View {
             if model.tool == .select { model.selection = nil }
             return
         }
+        // Plan overlays get the tap first (e.g. dropping a task).
+        if PlanOverlayRegistry.providers.contains(where: { $0.handleTap(relative: raw, model: model) }) { return }
         let tol = symbolSize * 0.8
         func near(_ x: Double, _ y: Double) -> Bool { hypot(screen(x, y).x - loc.x, screen(x, y).y - loc.y) < tol }
         let hitMarker = model.bundle.liveMarkers.first { $0.sheetId == sheet.id && near($0.x, $0.y) }?.id

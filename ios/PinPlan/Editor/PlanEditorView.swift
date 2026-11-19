@@ -24,6 +24,12 @@ struct PlanEditorView: View {
                 if let sheet = model.activeSheet {
                     PlanCanvasView(model: model, sheet: sheet).id(sheet.id)
                 }
+                // Plan overlay buttons (tasks…), one floating strip.
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(PlanOverlayRegistry.providers.indices, id: \.self) { i in PlanOverlayRegistry.providers[i].toolbar(model: model) }
+                }
+                .padding(.leading, 10).padding(.top, regular ? 56 : 120)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 VStack(spacing: 8) {
                     if !regular { compactBar }
                     if let hint { HintCapsule(text: hint) }

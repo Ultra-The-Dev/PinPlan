@@ -392,6 +392,8 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
     public var checklists: [Checklist] = []
     public var jobLogs: [JobLog] = []
     public var documents: [JobDocument] = []
+    /// Tasks pinned on the plan (Tasks.swift). Never counted in the takeoff or estimate.
+    public var tasks: [PlanTask] = []
 
     public init(project: Project, sheets: [Sheet] = [], markers: [Marker] = [], runs: [Run] = [], closets: [Closet] = [], estimateLines: [EstimateLine] = []) {
         self.project = project; self.sheets = sheets; self.markers = markers; self.runs = runs; self.closets = closets; self.estimateLines = estimateLines
@@ -399,6 +401,7 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case project, sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents
+        case tasks
     }
 
     /// Jobs saved before field documentation existed load with empty photo/checklist/log lists.
@@ -415,6 +418,7 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
         checklists = try c.decodeIfPresent([Checklist].self, forKey: .checklists) ?? []
         jobLogs = try c.decodeIfPresent([JobLog].self, forKey: .jobLogs) ?? []
         documents = try c.decodeIfPresent([JobDocument].self, forKey: .documents) ?? []
+        tasks = try c.decodeIfPresent([PlanTask].self, forKey: .tasks) ?? []
     }
 
     public var livePhotos: [Photo] { photos.filter { $0.deleted != true }.sorted { $0.takenAt > $1.takenAt } }
@@ -430,6 +434,8 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
     public var liveMarkers: [Marker] { markers.filter { $0.deleted != true } }
     public var liveRuns: [Run] { runs.filter { $0.deleted != true } }
     public var liveClosets: [Closet] { closets.filter { $0.deleted != true } }
+    /// Live plan tasks by number (offline duplicates: oldest first).
+    public var liveTasks: [PlanTask] { tasks.filter { $0.deleted != true }.sorted { ($0.number, $0.createdAt) < ($1.number, $1.createdAt) } }
 }
 
 // MARK: - helpers
@@ -444,4 +450,118 @@ public func isoNow() -> String {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return f.string(from: Date())
+}
+
+// MARK: - tasks pinned on the plan (same JSON as the web app's PlanTask, src/lib/types.ts)
+
+/// open → in progress → ready (for review) → done (tech: Completed) → verified (office).
+public enum TaskStatus: String, Codable, CaseIterable, Sendable, Identifiable {
+    case open, in_progress, ready, done, verified
+    public var id: String { rawValue }
+}
+
+/// One line of a task's history.
+public struct TaskEvent: Codable, Hashable, Identifiable, Sendable {
+    public enum Kind: String, Codable, Sendable { case created, comment, status, assign, field, photo, checklist }
+    public var id: String
+    public var at: String
+    public var by: String
+    public var kind: Kind
+    public var text: String?
+    public var from: String?
+    public var to: String?
+    public init(id: String = newId(10), at: String, by: String, kind: Kind, text: String? = nil, from: String? = nil, to: String? = nil) {
+        self.id = id; self.at = at; self.by = by; self.kind = kind; self.text = text; self.from = from; self.to = to
+    }
+    private enum CodingKeys: String, CodingKey { case id, at, by, kind, text, from, to }
+    /// Lenient: an event kind added later reads as a field change instead of failing the whole task.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? newId(10)
+        at = (try? c.decode(String.self, forKey: .at)) ?? ""
+        by = (try? c.decode(String.self, forKey: .by)) ?? ""
+        kind = (try? c.decode(String.self, forKey: .kind)).flatMap(Kind.init(rawValue:)) ?? .field
+        text = try? c.decodeIfPresent(String.self, forKey: .text)
+        from = try? c.decodeIfPresent(String.self, forKey: .from)
+        to = try? c.decodeIfPresent(String.self, forKey: .to)
+    }
+}
+
+/// A task: pinned on a sheet (x/y), on a sheet with no spot (sheetId only), or general (no sheet).
+public struct PlanTask: Codable, Hashable, Identifiable, Sendable {
+    public var id: String
+    public var projectId: String
+    /// #12 — max in the job + 1 (offline duplicates are tolerated).
+    public var number: Int
+    public var title: String
+    public var description: String?
+    public var status: TaskStatus
+    /// 1 = P1 (high) … 3 = P3.
+    public var priority: Int?
+    public var category: String?
+    public var assignee: String?
+    public var watchers: [String]?
+    /// YYYY-MM-DD.
+    public var due: String?
+    public var startDate: String?
+    public var sheetId: String?
+    public var x: Double?
+    public var y: Double?
+    public var markerId: String?
+    public var room: String?
+    public var tags: [String]?
+    public var checklist: [ChecklistItem]?
+    /// Job photos (bundle.photos) attached to the task.
+    public var photoIds: [String]?
+    public var activity: [TaskEvent]?
+    public var createdBy: String?
+    public var closedAt: String?
+    public var verifiedBy: String?
+    public var verifiedAt: String?
+    public var createdAt: String
+    public var updatedAt: String
+    public var deleted: Bool?
+
+    public init(id: String = newId(), projectId: String, number: Int, title: String, status: TaskStatus = .open, createdAt: String = isoNow()) {
+        self.id = id; self.projectId = projectId; self.number = number; self.title = title; self.status = status
+        self.createdAt = createdAt; self.updatedAt = createdAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, projectId, number, title, description, status, priority, category, assignee, watchers, due, startDate, sheetId, x, y
+        case markerId, room, tags, checklist, photoIds, activity, createdBy, closedAt, verifiedBy, verifiedAt, createdAt, updatedAt, deleted
+    }
+
+    /// Lenient: missing or unknown values fall back (a status added later reads as open) so one odd row never breaks a job.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        projectId = (try? c.decode(String.self, forKey: .projectId)) ?? ""
+        number = (try? c.decode(Int.self, forKey: .number)) ?? (try? c.decode(Double.self, forKey: .number)).map { Int($0) } ?? 0
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        description = try? c.decodeIfPresent(String.self, forKey: .description)
+        status = (try? c.decode(String.self, forKey: .status)).flatMap(TaskStatus.init(rawValue:)) ?? .open
+        priority = (try? c.decodeIfPresent(Int.self, forKey: .priority)) ?? nil
+        category = try? c.decodeIfPresent(String.self, forKey: .category)
+        assignee = try? c.decodeIfPresent(String.self, forKey: .assignee)
+        watchers = try? c.decodeIfPresent([String].self, forKey: .watchers)
+        due = try? c.decodeIfPresent(String.self, forKey: .due)
+        startDate = try? c.decodeIfPresent(String.self, forKey: .startDate)
+        sheetId = try? c.decodeIfPresent(String.self, forKey: .sheetId)
+        x = try? c.decodeIfPresent(Double.self, forKey: .x)
+        y = try? c.decodeIfPresent(Double.self, forKey: .y)
+        markerId = try? c.decodeIfPresent(String.self, forKey: .markerId)
+        room = try? c.decodeIfPresent(String.self, forKey: .room)
+        tags = try? c.decodeIfPresent([String].self, forKey: .tags)
+        checklist = try? c.decodeIfPresent([ChecklistItem].self, forKey: .checklist)
+        photoIds = try? c.decodeIfPresent([String].self, forKey: .photoIds)
+        activity = try? c.decodeIfPresent([TaskEvent].self, forKey: .activity)
+        createdBy = try? c.decodeIfPresent(String.self, forKey: .createdBy)
+        closedAt = try? c.decodeIfPresent(String.self, forKey: .closedAt)
+        verifiedBy = try? c.decodeIfPresent(String.self, forKey: .verifiedBy)
+        verifiedAt = try? c.decodeIfPresent(String.self, forKey: .verifiedAt)
+        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        updatedAt = (try? c.decode(String.self, forKey: .updatedAt)) ?? createdAt
+        deleted = try? c.decodeIfPresent(Bool.self, forKey: .deleted)
+    }
 }
