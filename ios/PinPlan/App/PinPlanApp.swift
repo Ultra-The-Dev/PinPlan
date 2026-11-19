@@ -8,6 +8,7 @@ struct PinPlanApp: App {
     init() {
         TipsSetup.configure()
         MainActor.assumeIsolated { ProgressOverlays.register() }
+        PlanOverlayRegistry.register(TasksOverlayProvider())
     }
 
     var body: some Scene {

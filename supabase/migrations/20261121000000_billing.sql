@@ -123,7 +123,9 @@ begin
                            -- added by 20261123100400_measurements.sql (which also installs its trigger itself)
                            'measurements',
                            -- added by 20261123100500_sheet_links.sql (which also installs its trigger itself)
-                           'sheet_links'] loop
+                           'sheet_links',
+                           -- added by 20261123100100_plan_tasks.sql (which also installs its trigger itself)
+                           'tasks'] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists %I_write_guard on public.%I', t, t);
       execute format('create trigger %I_write_guard before insert or update on public.%I for each row execute function public.job_write_guard()', t, t);

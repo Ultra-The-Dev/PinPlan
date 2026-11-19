@@ -21,6 +21,7 @@ import type {
   Measurement,
   Photo,
   PhotoComment,
+  PlanTask,
   Product,
   Project,
   Rfi,
@@ -57,7 +58,8 @@ export type SyncTable =
   | "scheduleItems"
   | "forms"
   | "measurements"
-  | "sheetLinks";
+  | "sheetLinks"
+  | "tasks";
 
 export interface SyncItem {
   seq?: number;
@@ -91,6 +93,8 @@ class PinPlanDB extends Dexie {
   measurements!: EntityTable<Measurement, "id">;
   /** Hyperlinks on plans (docs/sheet-index-links.md). */
   sheetLinks!: EntityTable<SheetLink, "id">;
+  /** Tasks pinned on the plan (punch / issues). */
+  tasks!: EntityTable<PlanTask, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   scheduleItems!: EntityTable<ScheduleItem, "id">;
   images!: EntityTable<StoredImage, "id">;
@@ -143,6 +147,8 @@ class PinPlanDB extends Dexie {
     this.version(24).stores({ measurements: "id, projectId, sheetId, updatedAt" });
     // v25: hyperlinks on plans (sheet index; version numbers leave room for parallel features).
     this.version(25).stores({ sheetLinks: "id, projectId, sheetId, updatedAt" });
+    // v21: tasks pinned on the plan (version numbers leave room for features built in parallel).
+    this.version(21).stores({ tasks: "id, projectId, sheetId, status, assignee, updatedAt" });
   }
 }
 
@@ -307,6 +313,8 @@ export interface ProjectBundle {
   measurements?: Measurement[];
   /** Sheet index links. Optional so older bundles and backups still type-check. */
   sheetLinks?: SheetLink[];
+  /** Tasks pinned on the plan. Optional so older bundles and backups still type-check. */
+  tasks?: PlanTask[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -314,7 +322,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis, scheduleItems, forms, sheetLinks] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis, scheduleItems, forms, sheetLinks, tasks] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -330,6 +338,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.scheduleItems.where("projectId").equals(projectId).toArray(),
     d.forms.where("projectId").equals(projectId).toArray(),
     d.sheetLinks.where("projectId").equals(projectId).toArray(),
+    d.tasks.where("projectId").equals(projectId).toArray(),
   ]);
   const measurements = await d.measurements.where("projectId").equals(projectId).toArray();
   return {
@@ -350,6 +359,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     forms: live(forms).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     measurements: live(measurements).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     sheetLinks: live(sheetLinks),
+    tasks: live(tasks).sort((a, b) => a.number - b.number || a.createdAt.localeCompare(b.createdAt)),
   };
 }
 

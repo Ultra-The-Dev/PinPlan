@@ -26,6 +26,8 @@ public struct BackupFile: Codable, Sendable {
         public var jobLogs: [JobLog]?
         public var documents: [JobDocument]?
         public var forms: [JobForm]?
+        /// Tasks pinned on the plan (missing in older backups).
+        public var tasks: [PlanTask]?
         public var images: [Image]
         /// Entries in `images` that are job documents (any file type; the web app keeps them with the images).
         public var documentFileIds: Set<String> { Set((documents ?? []).map(\.fileId)) }
@@ -34,12 +36,14 @@ public struct BackupFile: Codable, Sendable {
             b.photos = photos ?? []; b.photoComments = photoComments ?? []; b.checklists = checklists ?? []
             b.jobLogs = jobLogs ?? []; b.documents = documents ?? []
             b.forms = forms ?? []
+            b.tasks = tasks ?? []
             return b
         }
         public init(bundle b: ProjectBundle, images: [Image]) {
             project = b.project; sheets = b.sheets; markers = b.markers; runs = b.runs; closets = b.closets; estimateLines = b.estimateLines; self.images = images
             photos = b.photos; photoComments = b.photoComments; checklists = b.checklists; jobLogs = b.jobLogs; documents = b.documents
             forms = b.forms
+            tasks = b.tasks
         }
     }
 

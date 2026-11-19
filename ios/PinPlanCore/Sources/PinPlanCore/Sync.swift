@@ -5,6 +5,7 @@ public enum SyncTable: String, CaseIterable, Codable, Sendable {
     case projects, deviceTypes, products, sheets, closets, markers, runs, estimateLines
     case photos, photoComments, checklists, jobLogs, documents
     case forms
+    case tasks
 }
 
 public struct TableSpec: Sendable {
@@ -77,12 +78,21 @@ public enum SyncMap {
             ("signatures", "signatures"), ("sheetId", "sheet_id"), ("x", "x"), ("y", "y"), ("markerId", "marker_id"), ("photoIds", "photo_ids"),
             ("submittedBy", "submitted_by"), ("submittedAt", "submitted_at"), ("createdBy", "created_by"),
         ]),
+        .tasks: TableSpec(remote: "tasks", conflict: "id", columns: child + [
+            ("number", "number"), ("title", "title"), ("description", "description"), ("status", "status"), ("priority", "priority"),
+            ("category", "category"), ("assignee", "assignee"), ("watchers", "watchers"), ("due", "due"), ("startDate", "start_date"),
+            ("sheetId", "sheet_id"), ("x", "x"), ("y", "y"), ("markerId", "marker_id"), ("room", "room"), ("tags", "tags"),
+            ("checklist", "checklist"), ("photoIds", "photo_ids"), ("activity", "activity"), ("createdBy", "created_by"),
+            ("closedAt", "closed_at"), ("verifiedBy", "verified_by"), ("verifiedAt", "verified_at"),
+        ]),
     ]
 
     /// Parents before children so foreign keys and row security pass.
     public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines,
                                                  .photos, .photoComments, .checklists, .jobLogs, .documents, .forms]
     private static let timestampLike: Set<String> = ["takenAt", "submittedAt"]
+                                                 .photos, .photoComments, .checklists, .jobLogs, .documents, .tasks]
+    private static let timestampLike: Set<String> = ["takenAt", "closedAt", "verifiedAt"]
 
     private static let boolDefaults: Set<String> = ["deleted", "tentative", "removed", "archived"]
     private static let timestampKeys: Set<String> = ["createdAt", "updatedAt"]
@@ -98,6 +108,11 @@ public enum SyncMap {
         if t == .forms {
             if out["status"] is NSNull { out["status"] = "draft" }
             if out["values"] is NSNull { out["values"] = [String: Any]() }
+        }
+        if t == .tasks {
+            if out["status"] is NSNull { out["status"] = "open" }
+            if out["title"] is NSNull { out["title"] = "" }
+            if out["number"] is NSNull { out["number"] = 0 }
         }
         return out
     }
@@ -230,6 +245,7 @@ public struct SyncState: Sendable {
             for x in b.jobLogs { add(.jobLogs, x.id, pid, x) }
             for x in b.documents { add(.documents, x.id, pid, x) }
             for x in b.forms { add(.forms, x.id, pid, x) }
+            for x in b.tasks { add(.tasks, x.id, pid, x) }
         }
         for d in catalog { add(.deviceTypes, d.id, nil, d) }
         for p in products { add(.products, p.id, nil, p) }
@@ -271,6 +287,7 @@ public struct SyncState: Sendable {
             case .jobLogs: return pick(b.jobLogs)
             case .documents: return pick(b.documents)
             case .forms: return pick(b.forms)
+            case .tasks: return pick(b.tasks)
             default: return nil
             }
         }
@@ -330,6 +347,7 @@ public struct SyncState: Sendable {
             case .jobLogs: ok = put(&b.jobLogs)
             case .documents: ok = put(&b.documents)
             case .forms: ok = put(&b.forms)
+            case .tasks: ok = put(&b.tasks)
             default: break
             }
             bundles[pid] = b
