@@ -4,12 +4,15 @@ import PinPlanCore
 struct JobView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
+    /// Switches the job's tab (for the "Next step" shortcut).
+    let go: (ProjectTab) -> Void
     @State private var share: SharedFile?
     @State private var error: String?
 
     var body: some View {
         let p = model.bundle.project
         SentenceForm {
+            JobHealthSection(model: model, go: go)
             Section(sentence: "Job") {
                 LabeledContent("Address") { CommitField(title: "Address", value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
                 Picker("Status", selection: Binding(get: { p.status }, set: { v in model.editSilently { $0.project.status = v } })) {
@@ -124,4 +127,92 @@ struct JobLocationSection: View {
         }
     }
     private func set(_ lat: Double, _ lng: Double) { model.editSilently { $0.project.lat = lat; $0.project.lng = lng; $0.project.updatedAt = isoNow() } }
+}
+
+/// Job health at a glance and the one thing to do next. Local data only (no cloud calls).
+struct JobHealthSection: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+    let go: (ProjectTab) -> Void
+
+    var body: some View {
+        let today = FieldDocs.localDay(isoNow())
+        let e = model.bundle.estimate(catalog: app.catalog, products: app.products, pricing: model.pricing)
+        let unpriced = e.lines.filter { $0.included && $0.unitPrice == 0 && $0.qty > 0 }.count
+        let s = JobSummary.make(model.bundle, estimate: (total: e.total, unpriced: unpriced), today: today)
+        let urgent = s.next.kind == .overdueTasks || s.next.kind == .reviseProposal
+        Section {
+            if s.next.kind == .done {
+                nextRow(s.next, urgent: false, chevron: false)
+            } else {
+                Button { act(s.next) } label: { nextRow(s.next, urgent: urgent, chevron: true) }
+                    .buttonStyle(.plain)
+            }
+            LabeledContent("Devices", value: devicesText(s))
+            LabeledContent("Checklists", value: s.itemsTotal > 0 ? "\(s.checklistPct)% · \(s.itemsDone) of \(s.itemsTotal) done" : "None started")
+            LabeledContent("Open tasks") {
+                Text(tasksText(s)).foregroundStyle(s.overdueTasks > 0 ? Color.red : Color.secondary)
+            }
+            LabeledContent("Photos", value: s.photos > 0 ? "\(s.photos) · last \(ago(FieldDocs.localDay(s.lastPhotoAt ?? ""), today: today))" : "None yet")
+            LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? "None yet")
+            LabeledContent("Estimate") {
+                Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
+                    .foregroundStyle(unpriced > 0 ? Color.red : Color.secondary)
+            }
+        } header: { Text("Job health").textCase(nil) }
+    }
+
+    private func nextRow(_ n: JobSummary.NextStep, urgent: Bool, chevron: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: n.kind == .done ? "checkmark.seal.fill" : urgent ? "exclamationmark.triangle.fill" : "arrow.right.circle.fill")
+                .font(.title2)
+                .foregroundStyle(n.kind == .done ? Color.green : urgent ? Color.red : Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Next step").font(.caption).foregroundStyle(Color.secondary)
+                Text(n.text).font(.body.weight(.semibold)).foregroundStyle(Color.primary)
+            }
+            Spacer(minLength: 0)
+            if chevron { Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Color.secondary) }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private func act(_ n: JobSummary.NextStep) {
+        switch n.kind {
+        case .markApproved: setStatus(.approved)
+        case .markInstalled: setStatus(.installed)
+        default: go(n.tab == "info" ? ProjectTab.job : (ProjectTab(rawValue: n.tab) ?? ProjectTab.job))
+        }
+    }
+
+    private func setStatus(_ st: ProjectStatus) {
+        model.editSilently { $0.project.status = st; $0.project.updatedAt = isoNow() }
+    }
+
+    private func devicesText(_ s: JobSummary) -> String {
+        var parts: [String] = ["\(s.devices)"]
+        if s.tentative > 0 { parts.append("\(s.tentative) tentative") }
+        if s.ledRuns > 0 { parts.append("\(s.ledRuns) LED run\(s.ledRuns == 1 ? "" : "s")") }
+        return parts.joined(separator: " · ")
+    }
+
+    private func tasksText(_ s: JobSummary) -> String {
+        if s.overdueTasks > 0 { return "\(s.openTasks) · \(s.overdueTasks) overdue" }
+        if s.dueToday > 0 { return "\(s.openTasks) · \(s.dueToday) due today" }
+        return s.openTasks > 0 ? "\(s.openTasks)" : "All clear"
+    }
+
+    /// "today", "yesterday", "3 days ago" or a short date, for a YYYY-MM-DD day.
+    private func ago(_ day: String, today: String) -> String {
+        let d: Int = FieldDocs.daysUntil(today, today: day)
+        if d == 0 { return "today" }
+        if d == 1 { return "yesterday" }
+        if d > 1 && d < 14 { return "\(d) days ago" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        guard let date = f.date(from: day) else { return day }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
 }
