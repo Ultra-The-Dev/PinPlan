@@ -154,7 +154,7 @@ export default function CrewTab() {
                   <td>{m.room}</td>
                   <td>{cableSummary(markerCables(m))}</td>
                   <td>{closetName(m.closetId)}</td>
-                  <td className="text-right tabular-nums">{len != null ? `${len} ft` : drawn ? "no scale" : "—"}</td>
+                  <td className="text-right tabular-nums">{len != null ? `${Math.round(len * 10) / 10} ft` : drawn ? "no scale" : "—"}</td>
                 </tr>
               ))}
               {!schedule.length && (

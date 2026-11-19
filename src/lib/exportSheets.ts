@@ -99,7 +99,7 @@ export async function exportSheetsPdf(
             m.mount,
             m.wireType,
             closetName(m.closetId),
-            len != null ? `${len} ft` : "",
+            len != null ? `${Math.round(len * 10) / 10} ft` : "",
             m.notes || "",
           ];
         });

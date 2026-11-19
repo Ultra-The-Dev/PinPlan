@@ -113,7 +113,7 @@ export default function TakeoffTab() {
           <SummaryCard icon={ToggleRight} label="Switches" value={catCount("switching")} color="text-indigo-600 bg-indigo-50" />
           <SummaryCard icon={Lightbulb} label="Fixtures" value={catCount("lighting")} sub={takeoff.total.ledTotalFt ? `+ ${takeoff.total.ledTotalFt} LF linear` : undefined} color="text-amber-600 bg-amber-50" />
           <SummaryCard icon={Flame} label="Life safety" value={catCount("fire")} color="text-rose-600 bg-rose-50" />
-          <SummaryCard icon={Zap} label="Circuits" value={circuitCount} sub={`${closets.filter((c) => c.kind === "panel" || c.kind === "subpanel").length} panels`} color="text-slate-700 bg-slate-100" />
+          <SummaryCard icon={Zap} label="Circuits" value={circuitCount} sub={((n) => `${n} panel${n === 1 ? "" : "s"}`)(closets.filter((c) => c.kind === "panel" || c.kind === "subpanel").length)} color="text-slate-700 bg-slate-100" />
           <SummaryCard icon={Cable} label="Wire" value={`${wireFt}`} unit="ft" sub={`${wireRunCount} home runs`} color="text-slate-600 bg-slate-100" />
         </div>
         ) : (

@@ -96,7 +96,7 @@ export default function PanelSchedule() {
                 <tbody>
                   {p.circuits.map((c, i) => (
                     <tr key={i} className={c.number === "unassigned" ? "bg-amber-50/60" : ""}>
-                      <td className="font-mono text-xs font-semibold">{circuitLabel(c)}</td>
+                      <td className="font-mono text-xs font-semibold whitespace-nowrap">{circuitLabel(c)}</td>
                       <td className="whitespace-nowrap">
                         {breakerLabel(c)}
                         {c.volts >= 208 && <span className="ml-1 text-xs text-slate-500">{c.volts} V</span>}

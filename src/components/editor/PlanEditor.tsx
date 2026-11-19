@@ -535,7 +535,7 @@ export default function PlanEditor() {
                 </div>
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   <Stat label="Devices" value={floorCounts.reduce((n, [, v]) => n + v, 0)} />
-                  <Stat label="LED" value={`${floor.ledTotalFt} LF`} sub={`${floor.ledZones} zones`} />
+                  <FloorSecondStat floor={floor} />
                 </div>
                 <div className="relative mb-3">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -632,6 +632,16 @@ export default function PlanEditor() {
       )}
     </div>
   );
+}
+
+/** Floor count's second tile: LED for low voltage (as before), else the trade's wire / pipe footage. */
+function FloorSecondStat({ floor }: { floor: { ledTotalFt: number; ledZones: number; wireFt: Record<string, number>; wireRuns: Record<string, number> } }) {
+  const trades = useTrades();
+  if (hasTrade(trades, "lowvoltage")) return <Stat label="LED" value={`${floor.ledTotalFt} LF`} sub={`${floor.ledZones} zones`} />;
+  const vocab = tradeVocab(trades);
+  const ft = Math.round(Object.values(floor.wireFt).reduce((a, b) => a + b, 0));
+  const runs = Object.values(floor.wireRuns).reduce((a, b) => a + b, 0);
+  return <Stat label={vocab.wire} value={`${ft} ft`} sub={`${runs} ${vocab.runs.toLowerCase()}`} />;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {

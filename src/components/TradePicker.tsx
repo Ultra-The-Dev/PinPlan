@@ -36,20 +36,27 @@ export default function TradePicker({ value, onChange, disabled, compact }: { va
               aria-pressed={on}
               data-trade={p.id}
               onClick={() => toggle(p.id)}
-              className={`flex w-full items-start gap-3 rounded-xl text-left ${compact ? "p-2.5" : "p-3.5"}`}
+              title={compact ? `${p.name}: ${p.examples}` : undefined}
+              className={`flex w-full rounded-xl text-left ${compact ? "items-center gap-2 p-2" : "items-start gap-3 p-3.5"}`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: p.color }}>
-                <Icon className="h-5 w-5" />
+              <span className={`flex shrink-0 items-center justify-center rounded-lg text-white ${compact ? "h-7 w-7" : "h-9 w-9"}`} style={{ background: p.color }}>
+                <Icon className={compact ? "h-4 w-4" : "h-5 w-5"} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                  {compact ? p.short : p.name}
-                </span>
+                <span className={`block font-semibold leading-tight text-slate-900 ${compact ? "text-[13px]" : "text-sm"}`}>{compact ? p.short : p.name}</span>
                 {!compact && <span className="mt-0.5 block text-xs leading-snug text-slate-500">{p.examples}</span>}
               </span>
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ${on ? "text-white ring-transparent" : "ring-slate-300"}`} style={on ? { background: p.color } : undefined}>
-                {on && <Check className="h-3.5 w-3.5" />}
-              </span>
+              {compact ? (
+                on && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-sm" style={{ background: p.color }}>
+                    <Check className="h-3 w-3" />
+                  </span>
+                )
+              ) : (
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 ${on ? "text-white ring-transparent" : "ring-slate-300"}`} style={on ? { background: p.color } : undefined}>
+                  {on && <Check className="h-3.5 w-3.5" />}
+                </span>
+              )}
             </button>
             {on && value.length > 1 && (
               <div className={`-mt-1 flex ${compact ? "px-2.5 pb-2" : "px-3.5 pb-3"}`}>
