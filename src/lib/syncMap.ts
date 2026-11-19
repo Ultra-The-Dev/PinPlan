@@ -260,6 +260,43 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // RFIs (docs/rfis.md). The no-login answer page writes answer/answered_by/answered_at through the server.
+  rfis: {
+    remote: "rfis",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      number: "number",
+      subject: "subject",
+      question: "question",
+      suggestion: "suggestion",
+      status: "status",
+      ballInCourt: "ball_in_court",
+      priority: "priority",
+      costImpact: "cost_impact",
+      scheduleImpact: "schedule_impact",
+      toName: "to_name",
+      toEmail: "to_email",
+      toCompany: "to_company",
+      cc: "cc",
+      due: "due",
+      sheetId: "sheet_id",
+      x: "x",
+      y: "y",
+      markerId: "marker_id",
+      taskId: "task_id",
+      photoIds: "photo_ids",
+      documentIds: "document_ids",
+      answer: "answer",
+      answeredBy: "answered_by",
+      answeredAt: "answered_at",
+      shareToken: "share_token",
+      sentAt: "sent_at",
+      closedAt: "closed_at",
+      createdBy: "created_by",
+      sender: "sender",
+    },
+  },
 };
 
 
@@ -280,12 +317,14 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "rfis",
 ];
 
-const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
+const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt", "answeredAt", "closedAt"]);
 const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
 /** Columns that are NOT NULL in the database: what to send when the row has nothing. */
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
+const RFI_DEFAULTS: Record<string, unknown> = { number: 0, subject: "", question: "", status: "draft", ball_in_court: "us" };
 
 /** Local row -> remote row. Unknown keys are dropped; undefined becomes null. */
 export function toRemote(table: SyncTable, row: Record<string, unknown>): Record<string, unknown> {
@@ -299,6 +338,7 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
+  if (table === "rfis") for (const [k, v] of Object.entries(RFI_DEFAULTS)) if (out[k] == null) out[k] = v;
   return out;
 }
 

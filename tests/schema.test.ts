@@ -62,6 +62,11 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     shareToken: "tok", shareHash: "h", sentAt: ts, viewedAt: ts, respondedAt: ts, signerName: "s", signature: "data:", clientNote: "c", paidAt: "2026-11-20", voidedAt: ts,
     createdAt: ts, updatedAt: ts, deleted: false,
   },
+  rfis: {
+    id: "rf", projectId: "p", number: 7, subject: "FACP", question: "Where?", suggestion: "Garage", status: "open", ballInCourt: "them", priority: "high", costImpact: "tbd", scheduleImpact: "no",
+    toName: "Pat", toEmail: "pat@gc.com", toCompany: "GC", cc: ["a@b.c"], due: "2026-11-25", sheetId: "s", x: 0.5, y: 0.5, markerId: "m", taskId: "t", photoIds: ["ph"], documentIds: ["doc"],
+    answer: "a", answeredBy: "Pat", answeredAt: ts, shareToken: "tok", sentAt: ts, closedAt: ts, createdBy: "Sam", sender: { company: "Acme" }, createdAt: ts, updatedAt: ts, deleted: false,
+  },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
