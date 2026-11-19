@@ -108,4 +108,26 @@ describe("health endpoint", () => {
     expect(me).toMatchObject({ authorized: true, ai: true, billdu: true });
     expect(JSON.stringify(me)).not.toContain("sk-ant-test");
   });
+
+  it("reports config presence as booleans only, and database reachability (503 when down)", async () => {
+    const { GET } = await import("@/app/api/health/route");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://db.example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-secret-value");
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_value");
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
+    const stranger = await GET(get());
+    expect(stranger.status).toBe(200);
+    expect(await stranger.json()).toEqual({ ok: true, app: "pinplan", authMode: "supabase", authorized: false, database: "ok" });
+    const me = await (await GET(get({ "x-pinplan-access": "s3cret" }))).json();
+    expect(me.config).toMatchObject({ supabase: true, serviceRoleKey: true, stripe: true, resend: false });
+    expect(JSON.stringify(me)).not.toMatch(/service-secret-value|sk_test_value|anon-key/);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("down"); }));
+    const down = await GET(get());
+    expect(down.status).toBe(503);
+    expect(await down.json()).toMatchObject({ ok: false, database: "unreachable" });
+    vi.unstubAllGlobals();
+  });
 });
