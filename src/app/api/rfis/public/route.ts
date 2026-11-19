@@ -126,7 +126,11 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     const next = transition(rfi, "answer", name, now, { answer });
     const remote = toRemote("rfis", next as unknown as Record<string, unknown>);
-    const patch = { answer: remote.answer, answered_by: remote.answered_by, answered_at: now, status: remote.status, ball_in_court: remote.ball_in_court, updated_at: now };
+    // updated_at must beat the row's current stamp even when the device that last saved it has a clock running ahead
+    // of this server: otherwise that device keeps its own (older) copy and never shows the answer.
+    const prev = Date.parse(String(raw.updated_at ?? ""));
+    const stamp = Number.isFinite(prev) && prev >= Date.parse(now) ? new Date(prev + 1).toISOString() : now;
+    const patch = { answer: remote.answer, answered_by: remote.answered_by, answered_at: now, status: remote.status, ball_in_court: remote.ball_in_court, updated_at: stamp };
     // Only while it is still open, so two answers at once can't both land.
     const r = await serviceFetch(`/rest/v1/rfis?id=eq.${encodeURIComponent(rfi.id)}&status=eq.open&deleted=is.false`, {
       method: "PATCH",

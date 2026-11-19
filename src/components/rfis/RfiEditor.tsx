@@ -273,7 +273,10 @@ export default function RfiEditor({ rfi, isNew, onClose }: { rfi: Rfi; isNew: bo
     }
   }
 
-  async function setPhotoIds(ids: string[]) {
+  async function setPhotoIds(picked: string[]) {
+    // Someone who may only add photos (a tech on a sent RFI) can't take off the ones already there.
+    const ids = editable ? picked : [...new Set([...(r.photoIds ?? []), ...picked])];
+    if (ids.join() === (r.photoIds ?? []).join()) return;
     if (!editable && saved) await persist({ ...r, photoIds: ids }, "Photos updated");
     else set({ photoIds: ids });
   }

@@ -58,21 +58,54 @@ drop trigger if exists rfis_write_guard on public.rfis;
 create trigger rfis_write_guard before insert or update on public.rfis
   for each row execute function public.job_write_guard();
 
--- ---------- an answer that arrived through the link is never lost to a device that hadn't seen it yet ----------
--- A device that edited the RFI offline pushes its whole row (last write wins), which would blank the answer. The app
--- never clears answered_at itself (reopen keeps the old answer), so a push without it means "stale copy": keep the
--- answer, and stamp the row newer so that device pulls it back.
+-- ---------- a stale offline copy never undoes what already happened on the server ----------
+-- A device that edited the RFI offline pushes its whole row (last write wins). The app only ever moves an RFI forward
+-- in ways a stale copy can't express, so a push that would
+--   * blank an answer (the app never clears answered_at: reopen keeps the old answer),
+--   * turn a sent RFI back into a draft or drop its share link (nothing un-sends),
+--   * bring a void RFI back (void is final)
+-- is a stale copy: keep what the server has, and stamp the row newer so that device pulls it back.
 create or replace function public.rfis_keep_answer() returns trigger
 language plpgsql set search_path = public as $$
+declare stale boolean := false;
 begin
-  if current_user = 'authenticated' and old.answered_at is not null and new.answered_at is null and not new.deleted
-     and new.status in ('draft', 'open') then
+  if current_user <> 'authenticated' then return new; end if;
+  -- Only drafts are deleted in the app: deleting a draft that was sent meanwhile is a stale copy too.
+  if new.deleted and not old.deleted and new.status = 'draft' and old.status <> 'draft' then
+    new.deleted := false;
+  end if;
+  if new.deleted then return new; end if;
+  if old.answered_at is not null and new.answered_at is null then
     new.answer := old.answer;
     new.answered_by := old.answered_by;
     new.answered_at := old.answered_at;
-    new.status := 'answered';
-    new.ball_in_court := 'us';
-    new.updated_at := greatest(now(), new.updated_at + interval '1 millisecond');
+    if new.status in ('draft', 'open') then
+      new.status := 'answered';
+      new.ball_in_court := 'us';
+    end if;
+    stale := true;
+  end if;
+  if old.status <> 'draft' and new.status = 'draft' then
+    new.status := old.status;
+    new.ball_in_court := old.ball_in_court;
+    new.sent_at := coalesce(new.sent_at, old.sent_at);
+    new.closed_at := coalesce(new.closed_at, old.closed_at);
+    stale := true;
+  end if;
+  if old.status = 'void' and new.status <> 'void' then
+    new.status := 'void';
+    new.ball_in_court := old.ball_in_court;
+    new.closed_at := old.closed_at;
+    stale := true;
+  end if;
+  if old.share_token is not null and new.share_token is null then
+    new.share_token := old.share_token;
+    new.sent_at := coalesce(new.sent_at, old.sent_at);
+    new.sender := coalesce(new.sender, old.sender);
+    stale := true;
+  end if;
+  if stale then
+    new.updated_at := greatest(now(), new.updated_at + interval '1 millisecond', old.updated_at + interval '1 millisecond');
   end if;
   return new;
 end $$;

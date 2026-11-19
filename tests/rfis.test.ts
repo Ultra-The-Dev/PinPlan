@@ -250,6 +250,11 @@ describe("sync mapping", () => {
     expect(sql).toMatch(/create unique index if not exists rfis_share_token_key on public\.rfis \(share_token\)/);
     expect(sql).toMatch(/execute function public\.job_write_guard\(\)/);
     expect(sql).not.toMatch(/to anon/);
+    // Stale offline copies can't blank an answer, un-send, un-void or delete a sent RFI.
+    expect(sql).toMatch(/old\.answered_at is not null and new\.answered_at is null/);
+    expect(sql).toMatch(/old\.status <> 'draft' and new\.status = 'draft'/);
+    expect(sql).toMatch(/old\.status = 'void' and new\.status <> 'void'/);
+    expect(sql).toMatch(/old\.share_token is not null and new\.share_token is null/);
   });
 });
 
@@ -358,6 +363,16 @@ describe("api/rfis/public", () => {
     expect(j.view).toMatchObject({ status: "answered", answer: "Yes, IC-rated", answeredBy: "Pat Rivera" });
     // A second answer is refused.
     expect((await POST(post({ t: TOKEN, answer: "No", name: "Someone" }))).status).toBe(409);
+  });
+
+  it("stamps the answer newer than the row even when the last device's clock ran ahead", async () => {
+    const ahead = new Date(Date.now() + 3_600_000).toISOString();
+    current = row({ updated_at: ahead });
+    const { POST } = await import("@/app/api/rfis/public/route");
+    expect((await POST(post({ t: TOKEN, answer: "Yes", name: "Pat" }, "3.3.3.3"))).status).toBe(200);
+    const patch = calls.find((c) => c.method === "PATCH")!;
+    expect(Date.parse(String(patch.body!.updated_at))).toBeGreaterThan(Date.parse(ahead));
+    expect(Date.parse(String(patch.body!.answered_at))).toBeLessThan(Date.parse(ahead));
   });
 
   it("validates the answer and name before touching the database", async () => {

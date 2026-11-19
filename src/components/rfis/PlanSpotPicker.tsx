@@ -83,6 +83,17 @@ export default function PlanSpotPicker({
     setSpot(best ? { sheetId, x: best.x, y: best.y, markerId: best.id } : { sheetId, x, y, markerId: null });
   }
 
+  // Keyboard: arrows move the spot (Shift for bigger steps), starting from the middle of the sheet.
+  function key(e: React.KeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? 0.05 : 0.01;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const from = spot && spot.sheetId === sheetId ? spot : { x: 0.5, y: 0.5 };
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    setSpot({ sheetId, x: clamp(from.x + d[0]), y: clamp(from.y + d[1]), markerId: null });
+  }
+
   const linked = spot?.markerId ? markers.find((m) => m.id === spot.markerId) : null;
   const zi = ZOOMS.indexOf(zoom);
   return (
@@ -118,7 +129,15 @@ export default function PlanSpotPicker({
           <p className="p-10 text-center text-white/70">Loading the plan…</p>
         ) : (
           <div className="p-3" style={{ width: `${zoom * 100}%`, minWidth: "100%" }}>
-            <div className="relative cursor-crosshair bg-white shadow-lg" style={{ aspectRatio: `${img.img.naturalWidth} / ${img.img.naturalHeight}` }} onClick={tap}>
+            <div
+              className="relative cursor-crosshair bg-white shadow-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-400"
+              style={{ aspectRatio: `${img.img.naturalWidth} / ${img.img.naturalHeight}` }}
+              onClick={tap}
+              onKeyDown={key}
+              tabIndex={0}
+              role="application"
+              aria-label={`${sheet.name}: tap the spot, or use the arrow keys to move it`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img.url} alt={sheet.name} draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
               {onSheet.map((m) => (

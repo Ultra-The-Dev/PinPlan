@@ -98,9 +98,14 @@ Numbering is per device + sync: two people creating RFIs offline on the same job
 
 - RLS `rfis_member`: `is_project_member(project_id)` for everything. `anon` has no access at all.
 - `rfis_write_guard`: the billing read-only lock (`job_write_guard()`), installed by this migration.
-- `rfis_keep_answer`: an app push that blanks `answered_at` (a device that edited an older copy offline) keeps the
-  stored answer, sets answered / ball with us, and stamps `updated_at` newer so that device pulls it back. The app
-  never clears `answered_at` itself (reopen keeps it), so this only catches stale copies.
+- `rfis_keep_answer`: a stale offline copy (an app push from a device that hadn't seen the latest server row) never
+  undoes what already happened: a push that blanks `answered_at` keeps the stored answer (and, if it says draft/open,
+  sets answered / ball with us); a push that turns a sent RFI back into a draft, drops its share token, brings a void
+  RFI back, or deletes a draft that was sent meanwhile keeps the server's status/token. In every such case
+  `updated_at` is stamped newer so that device pulls the row back. The app never clears `answered_at` (reopen keeps
+  it), never un-sends and never un-voids, so this only catches stale copies. iOS must follow the same rules.
+- The answer route stamps `updated_at` past the row's current value even when the last saving device's clock ran
+  ahead of the server, so every device pulls the answer.
 
 ## Public answer route
 
