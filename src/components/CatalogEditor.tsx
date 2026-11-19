@@ -1,6 +1,6 @@
 "use client";
 import { Archive, ArchiveArrowUp, Download, Pencil, Plus, Search, Upload, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { applyPriceList, catalogToCsv, type PriceImportResult } from "@/lib/catalogCsv";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
@@ -11,6 +11,7 @@ import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
 import { toast } from "@/lib/toast";
 import type { Category, DeviceType, Mount, Shape, Unit } from "@/lib/types";
 import SymbolIcon from "./editor/SymbolIcon";
+import Modal from "./ui/Modal";
 import { DEVICE_ICONS } from "@/lib/deviceIcons";
 import { iconFor } from "@/lib/symbols";
 import { createElement } from "react";
@@ -33,10 +34,10 @@ function PriceInput({ value, onCommit, label }: { value: number; onCommit: (n: n
   const [v, setV] = useState(String(value));
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sm text-slate-400">$</span>
+      <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sm text-slate-500">$</span>
       <input
         aria-label={label}
-        className={`input h-9 w-28 pl-6 text-right tabular-nums ${value === 0 ? "text-slate-400" : ""}`}
+        className={`input h-9 w-28 pl-6 text-right tabular-nums ${value === 0 ? "text-slate-500" : ""}`}
         inputMode="decimal"
         value={v}
         onChange={(e) => setV(e.target.value)}
@@ -128,9 +129,9 @@ export default function CatalogEditor() {
         </div>
         <div className="relative w-56">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9" placeholder="Search" aria-label="Search device types" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => onPriceFile(e.target.files?.[0])} />
+        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" aria-label="Price list file" onChange={(e) => onPriceFile(e.target.files?.[0])} />
         <button className="btn" onClick={() => downloadText(catalogToCsv(types), "pinplan-price-list.csv")} title="Download the catalog as a CSV price list">
           <Download /> Price list
         </button>
@@ -162,13 +163,13 @@ export default function CatalogEditor() {
             <div className="mb-2 flex items-center gap-2 px-1">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: cat.color }} />
               <h2 className="font-semibold">{cat.name}</h2>
-              <span className="text-xs text-slate-400">{rows.length}</span>
+              <span className="text-xs text-slate-500">{rows.length}</span>
               <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => newType(cat.id)}>
                 <Plus /> Add type
               </button>
             </div>
             <div className="card divide-y divide-slate-100">
-              <div className="hidden grid-cols-[40px_1fr_70px_120px_120px_140px_80px] items-center gap-3 px-4 py-2 text-[11px] font-semibold text-slate-400 sm:grid">
+              <div className="hidden grid-cols-[40px_1fr_70px_120px_120px_140px_80px] items-center gap-3 px-4 py-2 text-[11px] font-semibold text-slate-500 sm:grid">
                 <span />
                 <span>Device</span>
                 <span>Unit</span>
@@ -182,7 +183,7 @@ export default function CatalogEditor() {
                   {t.kind === "led" ? <span className="mx-auto block h-1.5 w-7 rounded" style={{ background: t.color }} /> : <SymbolIcon type={t} size={32} />}
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{t.name}</div>
-                    <div className="truncate text-xs text-slate-400">
+                    <div className="truncate text-xs text-slate-500">
                       {t.abbrev}-1-01 · {t.defaultMount}
                       {t.billduProductId ? ` · Billdu #${t.billduProductId}` : ""}
                     </div>
@@ -210,7 +211,7 @@ export default function CatalogEditor() {
                   </div>
                 </div>
               ))}
-              {!rows.length && <p className="px-4 py-4 text-sm text-slate-400">No device types.</p>}
+              {!rows.length && <p className="px-4 py-4 text-sm text-slate-500">No device types.</p>}
             </div>
           </section>
         );
@@ -235,11 +236,12 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
   const [d, setD] = useState(t);
   const trades = useTrades();
   const set = <K extends keyof DeviceType>(k: K, v: DeviceType[K]) => setD({ ...d, [k]: v });
+  const id = useId();
+  const f = (name: string) => `${id}-${name}`;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onCancel}>
+    <Modal onClose={onCancel} labelledBy={f("title")}>
       <form
         className="card animate-in grid max-h-[92vh] w-full max-w-lg gap-4 overflow-y-auto p-6 shadow-pop sm:grid-cols-2"
-        onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
           if (d.name.trim()) onSave({ ...d, name: d.name.trim() });
@@ -250,7 +252,9 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
             {d.kind === "led" ? <span className="block h-2 w-9 rounded" style={{ background: d.color }} /> : <SymbolIcon type={d} size={44} />}
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold">{isNew ? "New device type" : "Edit device type"}</h2>
+            <h2 id={f("title")} className="text-lg font-semibold">
+              {isNew ? "New device type" : "Edit device type"}
+            </h2>
             <p className="text-xs text-slate-500">Labels look like {d.abbrev || "DEV"}-1-01</p>
           </div>
           <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
@@ -258,12 +262,16 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
           </button>
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Name</label>
-          <input className="input" autoFocus value={d.name} placeholder="e.g. Doorbell camera" onChange={(e) => set("name", e.target.value)} />
+          <label className="label" htmlFor={f("name")}>
+            Name
+          </label>
+          <input id={f("name")} className="input" autoFocus value={d.name} placeholder="e.g. Doorbell camera" onChange={(e) => set("name", e.target.value)} />
         </div>
         <div>
-          <label className="label">Category</label>
-          <select className="input" value={d.category} onChange={(e) => set("category", e.target.value as Category)}>
+          <label className="label" htmlFor={f("category")}>
+            Category
+          </label>
+          <select id={f("category")} className="input" value={d.category} onChange={(e) => set("category", e.target.value as Category)}>
             {allCategoriesFor(trades).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -272,16 +280,20 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
           </select>
         </div>
         <div>
-          <label className="label">Measured as</label>
-          <select className="input" value={d.unit} onChange={(e) => setD({ ...d, unit: e.target.value as Unit, kind: e.target.value === "LF" ? "led" : "device" })}>
+          <label className="label" htmlFor={f("unit")}>
+            Measured as
+          </label>
+          <select id={f("unit")} className="input" value={d.unit} onChange={(e) => setD({ ...d, unit: e.target.value as Unit, kind: e.target.value === "LF" ? "led" : "device" })}>
             <option value="each">Each (tap to place)</option>
             <option value="LF">Linear feet (draw a run)</option>
           </select>
         </div>
         {d.kind !== "led" && (
           <div className="sm:col-span-2">
-            <label className="label">Icon</label>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Icon">
+            <span id={f("icon")} className="label">
+              Icon
+            </span>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={f("icon")}>
               {[...Object.keys(DEVICE_ICONS), "letters"].map((k) => {
                 const on = (iconFor(d) ?? "letters") === k;
                 return (
@@ -305,47 +317,63 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         )}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Symbol</label>
-            <input className="input text-center font-semibold" maxLength={3} value={d.symbol} onChange={(e) => set("symbol", e.target.value.toUpperCase())} />
+            <label className="label" htmlFor={f("symbol")}>
+              Symbol
+            </label>
+            <input id={f("symbol")} className="input text-center font-semibold" maxLength={3} value={d.symbol} onChange={(e) => set("symbol", e.target.value.toUpperCase())} />
           </div>
           <div>
-            <label className="label">Label prefix</label>
-            <input className="input" maxLength={6} value={d.abbrev} onChange={(e) => set("abbrev", e.target.value.toUpperCase())} />
+            <label className="label" htmlFor={f("abbrev")}>
+              Label prefix
+            </label>
+            <input id={f("abbrev")} className="input" maxLength={6} value={d.abbrev} onChange={(e) => set("abbrev", e.target.value.toUpperCase())} />
           </div>
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <div>
-            <label className="label">Shape</label>
-            <select className="input capitalize" value={d.shape} onChange={(e) => set("shape", e.target.value as Shape)}>
+            <label className="label" htmlFor={f("shape")}>
+              Shape
+            </label>
+            <select id={f("shape")} className="input capitalize" value={d.shape} onChange={(e) => set("shape", e.target.value as Shape)}>
               {SHAPES.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">Color</label>
-            <input type="color" className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" value={d.color} onChange={(e) => set("color", e.target.value)} />
+            <label className="label" htmlFor={f("color")}>
+              Color
+            </label>
+            <input id={f("color")} type="color" className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" value={d.color} onChange={(e) => set("color", e.target.value)} />
           </div>
         </div>
         <div>
-          <label className="label">Price ({d.unit === "LF" ? "per LF" : "each"})</label>
-          <input className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.unitPrice} onChange={(e) => set("unitPrice", Number(e.target.value) || 0)} />
+          <label className="label" htmlFor={f("price")}>
+            Price ({d.unit === "LF" ? "per LF" : "each"})
+          </label>
+          <input id={f("price")} className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.unitPrice} onChange={(e) => set("unitPrice", Number(e.target.value) || 0)} />
         </div>
         <div>
-          <label className="label">Labor ({d.unit === "LF" ? "per LF" : "each"})</label>
-          <input className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.laborPrice} onChange={(e) => set("laborPrice", Number(e.target.value) || 0)} />
+          <label className="label" htmlFor={f("labor")}>
+            Labor ({d.unit === "LF" ? "per LF" : "each"})
+          </label>
+          <input id={f("labor")} className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.laborPrice} onChange={(e) => set("laborPrice", Number(e.target.value) || 0)} />
         </div>
         <div>
-          <label className="label">Default wire</label>
-          <select className="input" value={d.defaultWire} onChange={(e) => set("defaultWire", e.target.value)}>
+          <label className="label" htmlFor={f("wire")}>
+            Default wire
+          </label>
+          <select id={f("wire")} className="input" value={d.defaultWire} onChange={(e) => set("defaultWire", e.target.value)}>
             {Array.from(new Set([...(hasTrade(trades, "lowvoltage") ? WIRE_TYPES : []), ...tradeWireTypes(trades), "None", d.defaultWire])).map((w) => (
               <option key={w}>{w}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="label">Default mount</label>
-          <select className="input capitalize" value={d.defaultMount} onChange={(e) => set("defaultMount", e.target.value as Mount)}>
+          <label className="label" htmlFor={f("mount")}>
+            Default mount
+          </label>
+          <select id={f("mount")} className="input capitalize" value={d.defaultMount} onChange={(e) => set("defaultMount", e.target.value as Mount)}>
             {MOUNTS.map((m) => (
               <option key={m}>{m}</option>
             ))}
@@ -360,18 +388,21 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
 function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onApply: () => void; onCancel: () => void }) {
   const n = res.updated.length + res.created.length;
+  const id = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onCancel}>
-      <div className="card animate-in w-full max-w-lg space-y-4 p-6 shadow-pop" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Import prices">
+    <Modal onClose={onCancel} labelledBy={`${id}-title`}>
+      <div className="card animate-in w-full max-w-lg space-y-4 p-6 shadow-pop">
         <div className="flex items-start">
           <div className="flex-1">
-            <h2 className="text-lg font-semibold">Import prices</h2>
+            <h2 id={`${id}-title`} className="text-lg font-semibold">
+              Import prices
+            </h2>
             <p className="text-sm text-slate-500">Review the changes before applying them.</p>
           </div>
           <button className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
@@ -411,7 +442,7 @@ function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onA
             {res.unmatched.length > 0 && <div>Not matched (add a valid category to create them): {res.unmatched.join(", ")}</div>}
           </div>
         )}
-        <p className="text-xs text-slate-400">Columns: id or name, price, labor (optional: category, unit, default_wire). Download the price list for a ready-made template.</p>
+        <p className="text-xs text-slate-500">Columns: id or name, price, labor (optional: category, unit, default_wire). Download the price list for a ready-made template.</p>
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onCancel}>
             Cancel
@@ -421,6 +452,6 @@ function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onA
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

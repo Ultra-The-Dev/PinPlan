@@ -6,6 +6,7 @@ import { containRect } from "@/lib/fit";
 import { ANNOTATION_COLORS } from "@/lib/photos";
 import type { PhotoShape } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
+import Modal from "../ui/Modal";
 import AnnotationSvg from "./AnnotationSvg";
 
 const TOOLS: { id: PhotoShape["kind"]; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -59,26 +60,26 @@ export default function Annotator(props: { imageId: string; width: number; heigh
   // Fit the photo to the screen, keeping its shape.
   const aspect = props.width / props.height;
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-slate-950/95 text-white">
+    <Modal onClose={props.onCancel} label="Mark up photo" closeOnBackdrop={false} className="fixed inset-0 flex flex-col bg-slate-950/95 text-white">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2">
         <button className="btn btn-sm btn-ghost text-white hover:bg-white/10" onClick={props.onCancel} aria-label="Cancel">
           <X />
         </button>
-        <div className="flex gap-1 rounded-xl bg-white/10 p-1">
+        <div className="flex gap-1 rounded-xl bg-white/10 p-1" role="group" aria-label="Tool">
           {TOOLS.map((t) => (
             <button key={t.id} title={t.label} aria-label={t.label} aria-pressed={tool === t.id} onClick={() => setTool(t.id)} className={`flex h-9 w-9 items-center justify-center rounded-lg ${tool === t.id ? "bg-white text-slate-900" : "hover:bg-white/10"}`}>
               <t.icon className="h-4 w-4" />
             </button>
           ))}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5" role="group" aria-label="Colour">
           {ANNOTATION_COLORS.map((c) => (
-            <button key={c} aria-label={`Colour ${c}`} onClick={() => setColor(c)} className={`h-7 w-7 rounded-full ring-2 ${color === c ? "ring-white" : "ring-white/20"}`} style={{ background: c }} />
+            <button key={c} aria-label={`Colour ${c}`} aria-pressed={color === c} onClick={() => setColor(c)} className={`h-7 w-7 rounded-full ring-2 ${color === c ? "ring-white" : "ring-white/20"}`} style={{ background: c }} />
           ))}
         </div>
-        <div className="flex gap-1">
-          {WIDTHS.map((w) => (
-            <button key={w} aria-label="Line width" onClick={() => setWidth(w)} className={`flex h-8 w-8 items-center justify-center rounded-lg ${width === w ? "bg-white/20" : "hover:bg-white/10"}`}>
+        <div className="flex gap-1" role="group" aria-label="Line width">
+          {WIDTHS.map((w, i) => (
+            <button key={w} aria-label={["Thin", "Medium", "Thick"][i] ?? "Line width"} aria-pressed={width === w} onClick={() => setWidth(w)} className={`flex h-8 w-8 items-center justify-center rounded-lg ${width === w ? "bg-white/20" : "hover:bg-white/10"}`}>
               <span className="block rounded-full bg-white" style={{ width: 4 + w * 900, height: 4 + w * 900 }} />
             </button>
           ))}
@@ -101,7 +102,7 @@ export default function Annotator(props: { imageId: string; width: number; heigh
           <AnnotationSvg shapes={draft ? [...shapes, draft] : shapes} w={props.width} h={props.height} />
         </div>
       </div>
-      <p className="pb-3 text-center text-xs text-white/60">{tool === "text" ? "Tap where the text goes" : "Drag on the photo"} · the original photo is kept</p>
-    </div>
+      <p className="pb-3 text-center text-xs text-white/70">{tool === "text" ? "Tap where the text goes" : "Drag on the photo"} · the original photo is kept</p>
+    </Modal>
   );
 }

@@ -137,7 +137,7 @@ function PhotoFigure({ p, brand, onOpen, bare }: { p: Snap["photos"][number]; br
         {p.label && <div className="text-[11px] font-bold tracking-wide uppercase" style={{ color: brand }}>{p.label}</div>}
         {p.caption && <div className="font-semibold">{p.caption}</div>}
         <div className="text-slate-500">{p.meta}</div>
-        {p.tags?.length > 0 && <div className="mt-1 text-xs text-slate-400">{p.tags.join(" · ")}</div>}
+        {p.tags?.length > 0 && <div className="mt-1 text-xs text-slate-500">{p.tags.join(" · ")}</div>}
         {comments.length > 0 && (
           <ul className="mt-2 space-y-1 border-l-2 border-[#e3e7f1] pl-3 text-[13px] text-slate-700">
             {comments.map((c, i) => (

@@ -252,7 +252,7 @@ export default function PublicChangeOrder() {
               {!rejecting && (
                 <div>
                   <span className="label">Signature</span>
-                  <SignaturePad onChange={setSignature} />
+                  <SignaturePad onChange={setSignature} name={name} />
                 </div>
               )}
               <div>

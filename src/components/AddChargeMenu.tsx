@@ -2,7 +2,7 @@
 // "Add charge" on the estimate: extra labor, prewire per device (counted from the plan), closet build-out…
 import { Plus } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { chargeKey, countOf, DEFAULT_CHARGES, type QuickCharge } from "@/lib/charges";
 import { formatMoney } from "@/lib/estimate";
 import type { TakeoffBucket } from "@/lib/takeoff";
@@ -20,23 +20,41 @@ export default function AddChargeMenu(props: {
   // Fixed on screen above the button, so tables that scroll sideways don't clip it.
   const [pos, setPos] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  // A plain disclosure (button + list of buttons), not an ARIA menu: Tab moves through the choices, Escape or a
+  // click outside closes it and focus goes back to the button.
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      button.current?.focus();
+    };
     window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", key);
+    };
   }, [open]);
 
   const add = (c: QuickCharge) => {
     // Per-device charges leave qty empty so it follows the plan; the rest start at 1.
     props.onAdd(chargeKey(c, nanoid(8)), { description: c.name, unit: c.unit, unitPrice: c.price, qty: c.countFrom?.length ? null : 1, sort: sortStamp() });
     setOpen(false);
+    button.current?.focus();
   };
 
   return (
     <div ref={ref} className="relative inline-block">
       <button
+        ref={button}
+        type="button"
         className="btn btn-sm btn-ghost text-brand-600"
+        aria-controls={open ? panelId : undefined}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - 428)), bottom: window.innerHeight - r.top + 4 });
@@ -47,11 +65,18 @@ export default function AddChargeMenu(props: {
         <Plus /> Add charge — labor, prewire…
       </button>
       {open && (
-        <div role="menu" className="card animate-in fixed z-50 max-h-[70vh] w-[min(92vw,420px)] overflow-y-auto p-1.5 shadow-pop" style={{ left: pos.left, bottom: pos.bottom }}>
+        <div
+          id={panelId}
+          className="card animate-in fixed z-50 max-h-[70vh] w-[min(92vw,420px)] overflow-y-auto p-1.5 shadow-pop" style={{ left: pos.left, bottom: pos.bottom }}
+          onBlur={(e) => {
+            // Tabbing out of the list closes it.
+            if (e.relatedTarget && !ref.current?.contains(e.relatedTarget as Node)) setOpen(false);
+          }}
+        >
           {DEFAULT_CHARGES.map((c) => {
             const n = c.countFrom ? countOf(props.total, c.countFrom) : null;
             return (
-              <button key={c.id} role="menuitem" className="flex w-full items-baseline gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add(c)}>
+              <button key={c.id} type="button" className="flex w-full items-baseline gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add(c)}>
                 <span className="min-w-0 flex-1">
                   {c.name}
                   {n != null && <span className="block text-xs text-slate-500">× {n} from the plan — updates as you place devices</span>}
@@ -61,7 +86,7 @@ export default function AddChargeMenu(props: {
             );
           })}
           <div className="my-1 h-px bg-slate-100" />
-          <button role="menuitem" className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add({ id: "custom", name: "Custom item", unit: "each", price: 0 })}>
+          <button type="button" className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add({ id: "custom", name: "Custom item", unit: "each", price: 0 })}>
             Custom line
           </button>
         </div>

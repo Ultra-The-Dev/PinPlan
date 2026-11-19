@@ -1,7 +1,7 @@
 "use client";
 // Brand/model product library: the specific products a device type (or cable) can be installed with.
 import { Archive, ArchiveArrowUp, Download, Pencil, Plus, Search, Trash, Upload, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { getCatalog, getProducts, newId, nowIso, put, putMany, remove } from "@/lib/db";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
@@ -10,6 +10,7 @@ import { wireColor } from "@/lib/symbols";
 import { toast } from "@/lib/toast";
 import type { DeviceType, Product } from "@/lib/types";
 import SymbolIcon from "./editor/SymbolIcon";
+import Modal from "./ui/Modal";
 
 export function blankProduct(deviceTypeId: string): Product {
   return { id: newId(), deviceTypeId, brand: "", model: "", sku: null, unitPrice: 0, laborPrice: 0, notes: null, updatedAt: nowIso() };
@@ -36,20 +37,20 @@ export function ProductDialog(props: {
     return Number.isFinite(v) && v >= 0 ? v : 0;
   };
   const valid = !!(p.brand.trim() || p.model.trim());
+  const id = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={props.onCancel}>
+    <Modal onClose={props.onCancel} labelledBy={`${id}-title`}>
       <form
-        role="dialog"
-        aria-label={props.isNew ? "New product" : "Edit product"}
         className="card animate-in w-full max-w-md space-y-4 p-5 shadow-pop"
-        onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
           if (valid) props.onSave({ ...p, brand: p.brand.trim(), model: p.model.trim(), sku: p.sku?.trim() || null, notes: p.notes?.trim() || null, unitPrice: n(price), laborPrice: n(labor) });
         }}
       >
         <div className="flex items-start gap-3">
-          <h2 className="flex-1 text-base font-semibold">{props.isNew ? "New product" : "Edit product"}</h2>
+          <h2 id={`${id}-title`} className="flex-1 text-base font-semibold">
+            {props.isNew ? "New product" : "Edit product"}
+          </h2>
           <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-2" aria-label="Close" onClick={props.onCancel}>
             <X />
           </button>
@@ -110,7 +111,7 @@ export function ProductDialog(props: {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
@@ -186,9 +187,9 @@ export default function ProductsEditor() {
         </div>
         <div className="relative w-56">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9" placeholder="Search" aria-label="Search products" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <input ref={fileRef} type="file" accept=".csv,.tsv,text/csv,text/plain" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+        <input ref={fileRef} type="file" accept=".csv,.tsv,text/csv,text/plain" className="hidden" aria-label="Price list file" onChange={(e) => onFile(e.target.files?.[0])} />
         <button className="btn" onClick={() => fileRef.current?.click()} title="Import a price list: device type, brand, model, SKU, price, labor, notes">
           <Upload /> Import price list
         </button>
@@ -220,7 +221,7 @@ export default function ProductsEditor() {
                 <div className="mb-2 flex items-center gap-2 px-1">
                   {d && d.kind !== "led" ? <SymbolIcon type={d} size={22} /> : <span className="block h-1.5 w-5 rounded" style={{ background: d?.color ?? wireColor(cableTypeFromKey(key) ?? "") }} />}
                   <h2 className="font-semibold">{typeKeyName(key, catalog)}</h2>
-                  <span className="text-xs text-slate-400">{items.length}</span>
+                  <span className="text-xs text-slate-500">{items.length}</span>
                   <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => setEditing(blankProduct(key))}>
                     <Plus /> Add
                   </button>
@@ -230,14 +231,14 @@ export default function ProductsEditor() {
                     <div key={p.id} className={`flex items-center gap-3 px-4 py-2.5 ${p.archived ? "opacity-50" : ""}`}>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{productTitle(p)}</div>
-                        <div className="truncate text-xs text-slate-400">{[p.sku, p.notes].filter(Boolean).join(" · ") || " "}</div>
+                        <div className="truncate text-xs text-slate-500">{[p.sku, p.notes].filter(Boolean).join(" · ") || " "}</div>
                       </div>
                       <div className="text-right text-sm tabular-nums">
                         <div>
                           {formatMoney(p.unitPrice)}
-                          <span className="text-slate-400">{per}</span>
+                          <span className="text-slate-500">{per}</span>
                         </div>
-                        <div className="text-xs text-slate-400">+ {formatMoney(p.laborPrice)} labor</div>
+                        <div className="text-xs text-slate-500">+ {formatMoney(p.laborPrice)} labor</div>
                       </div>
                       <div className="flex gap-1">
                         <button className="btn btn-sm btn-icon btn-ghost" aria-label={`Edit ${productTitle(p)}`} title="Edit" onClick={() => setEditing(p)}>
@@ -246,7 +247,7 @@ export default function ProductsEditor() {
                         <button className="btn btn-sm btn-icon btn-ghost" aria-label={p.archived ? "Restore" : "Archive"} title={p.archived ? "Restore" : "Archive (hide from pickers)"} onClick={() => save({ ...p, archived: !p.archived }, true)}>
                           {p.archived ? <ArchiveArrowUp /> : <Archive />}
                         </button>
-                        <button className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={`Delete ${productTitle(p)}`} title="Delete" onClick={() => del(p)}>
+                        <button className="btn btn-sm btn-icon btn-ghost text-slate-500" aria-label={`Delete ${productTitle(p)}`} title="Delete" onClick={() => del(p)}>
                           <Trash />
                         </button>
                       </div>
@@ -264,9 +265,11 @@ export default function ProductsEditor() {
       )}
 
       {preview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={() => setPreview(null)}>
-          <div role="dialog" aria-label="Import price list" className="card animate-in flex max-h-[80vh] w-full max-w-lg flex-col p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-base font-semibold">Import price list</h2>
+        <Modal onClose={() => setPreview(null)} labelledBy="products-import-title">
+          <div className="card animate-in flex max-h-[80vh] w-full max-w-lg flex-col p-5 shadow-pop">
+            <h2 id="products-import-title" className="text-base font-semibold">
+              Import price list
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               {preview.products.length} product{preview.products.length === 1 ? "" : "s"} found. Ones you already have (same brand and model) get the new prices.
             </p>
@@ -274,7 +277,7 @@ export default function ProductsEditor() {
               {preview.products.map((p) => (
                 <div key={p.id} className="flex gap-3 px-3 py-2 text-sm">
                   <span className="min-w-0 flex-1 truncate">
-                    {productTitle(p)} <span className="text-slate-400">· {typeKeyName(p.deviceTypeId, catalog)}</span>
+                    {productTitle(p)} <span className="text-slate-500">· {typeKeyName(p.deviceTypeId, catalog)}</span>
                   </span>
                   <span className="tabular-nums">{formatMoney(p.unitPrice)}</span>
                 </div>
@@ -294,7 +297,7 @@ export default function ProductsEditor() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {editing && (

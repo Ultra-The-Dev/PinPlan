@@ -1,6 +1,9 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { detectPageCorners, warpToRect, type Pt } from "@/lib/perspective";
+import Modal from "./ui/Modal";
+
+const CORNER_NAMES = ["top left", "top right", "bottom right", "bottom left"];
 
 /** Straighten and crop a phone photo of a plan: auto-detect page edges, then adjust the 4 corners by hand. */
 export default function PhotoStraighten({ image, name, onDone }: { image: HTMLImageElement; name: string; onDone: (c: HTMLCanvasElement | null) => void }) {
@@ -68,18 +71,37 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
     onDone(out);
   }
 
+  // Keyboard: Tab to a corner, arrow keys move it (Shift for bigger steps).
+  function nudge(i: number, e: React.KeyboardEvent) {
+    const step = Math.max(W, H) * (e.shiftKey ? 0.02 : 0.004);
+    const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[e.key];
+    if (!d) return;
+    e.preventDefault();
+    setCorners((cs) => cs.map((c, j) => (j === i ? { x: Math.max(0, Math.min(W, c.x + d[0])), y: Math.max(0, Math.min(H, c.y + d[1])) } : c)));
+  }
+
   const handle = Math.max(W, H) * 0.018;
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 p-3 text-white">
+    <Modal
+      onClose={() => !busy && onDone(null)}
+      labelledBy="straighten-title"
+      describedBy="straighten-hint"
+      closeOnBackdrop={false}
+      className="fixed inset-0 flex flex-col bg-slate-900/90 p-3 text-white"
+    >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="mr-auto">
-          <div className="font-semibold">Straighten photo</div>
-          <div className="text-xs text-slate-300">{name} — drag the 4 corners onto the page corners</div>
+          <h2 id="straighten-title" className="font-semibold">
+            Straighten photo
+          </h2>
+          <div id="straighten-hint" className="text-xs text-slate-300">
+            {name} — drag the 4 corners onto the page corners (or Tab to a corner and use the arrow keys)
+          </div>
         </div>
-        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 270) % 360)}>
+        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 270) % 360)} aria-label="Rotate left">
           ⟲ Rotate
         </button>
-        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 90) % 360)}>
+        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 90) % 360)} aria-label="Rotate right">
           ⟳ Rotate
         </button>
         <button className="btn btn-sm" disabled={busy} onClick={auto}>
@@ -98,7 +120,9 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
           Straighten &amp; save
         </button>
       </div>
-      {status && <div className="mb-2 text-sm text-amber-200">{status}</div>}
+      <div className="mb-2 text-sm text-amber-200 empty:mb-0" role="status">
+        {status}
+      </div>
       <div className="flex min-h-0 flex-1 items-center justify-center">
         <svg
           ref={svgRef}
@@ -113,7 +137,7 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
           onPointerUp={() => (drag.current = null)}
           onPointerLeave={() => (drag.current = null)}
         >
-          <image href={previewUrl} width={W} height={H} />
+          <image href={previewUrl} width={W} height={H} aria-hidden />
           <polygon points={corners.map((c) => `${c.x},${c.y}`).join(" ")} fill="rgba(245,158,11,0.15)" stroke="#f59e0b" strokeWidth={handle / 4} />
           {corners.map((c, i) => (
             <circle
@@ -125,6 +149,11 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
               stroke="#fff"
               strokeWidth={handle / 5}
               style={{ cursor: "grab" }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Corner ${CORNER_NAMES[i]}: arrow keys move it`}
+              className="outline-none focus-visible:stroke-sky-300"
+              onKeyDown={(e) => nudge(i, e)}
               onPointerDown={(e) => {
                 (e.target as Element).setPointerCapture?.(e.pointerId);
                 drag.current = i;
@@ -133,6 +162,6 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
           ))}
         </svg>
       </div>
-    </div>
+    </Modal>
   );
 }

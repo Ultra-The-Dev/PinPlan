@@ -6,6 +6,7 @@ import { categoryOf } from "@/lib/catalog";
 import { priceDeviceLine, type CoPricing } from "@/lib/changeOrders";
 import { formatMoney } from "@/lib/estimate";
 import type { DeviceType, Product } from "@/lib/types";
+import Modal from "../ui/Modal";
 
 export default function DevicePicker(props: {
   catalog: DeviceType[];
@@ -27,8 +28,8 @@ export default function DevicePicker(props: {
   }, [props.catalog, q]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={props.onClose}>
-      <div role="dialog" aria-label="Add a device" className="card animate-in flex max-h-[85vh] w-full max-w-md flex-col rounded-b-none shadow-pop sm:rounded-b-xl" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={props.onClose} label="Add a device" className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4">
+      <div className="card animate-in flex max-h-[85vh] w-full max-w-md flex-col rounded-b-none shadow-pop sm:rounded-b-xl">
         <div className="flex items-center gap-2 border-b border-slate-100 p-3">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -59,6 +60,6 @@ export default function DevicePicker(props: {
           {!list.length && <li className="p-6 text-center text-sm text-slate-500">No device matches “{q}”.</li>}
         </ul>
       </div>
-    </div>
+    </Modal>
   );
 }

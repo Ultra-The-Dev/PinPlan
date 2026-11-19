@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import type { ChangeOrder, DeviceType, Marker, Project, Sheet } from "@/lib/types";
+import Modal from "../ui/Modal";
 
 const dayOf = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 
@@ -81,11 +82,13 @@ export default function AddFromPlanDialog(props: {
   const chosen = markers.filter((m) => sel.has(m.id));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={props.onClose}>
-      <div role="dialog" aria-label="Add from plan" className="card animate-in flex max-h-[88vh] w-full max-w-lg flex-col rounded-b-none shadow-pop sm:rounded-b-xl" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={props.onClose} labelledBy="co-add-from-plan-title" className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4">
+      <div className="card animate-in flex max-h-[88vh] w-full max-w-lg flex-col rounded-b-none shadow-pop sm:rounded-b-xl">
         <div className="flex items-start gap-3 border-b border-slate-100 p-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">Add from plan</h2>
+            <h2 id="co-add-from-plan-title" className="text-base font-semibold">
+              Add from plan
+            </h2>
             <p className="mt-0.5 text-sm text-slate-500">Tentative (?) devices, and devices placed after the job was last priced.</p>
           </div>
           <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={props.onClose} aria-label="Close">
@@ -106,7 +109,7 @@ export default function AddFromPlanDialog(props: {
               setSince(e.target.value ? `${e.target.value}T23:59:59.999Z` : null);
             }}
           />
-          {sinceLoaded && !since && <span className="text-xs text-slate-400">No proposal or quote sent yet — showing tentative devices</span>}
+          {sinceLoaded && !since && <span className="text-xs text-slate-500">No proposal or quote sent yet — showing tentative devices</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {groups.length === 0 ? (
@@ -158,6 +161,6 @@ export default function AddFromPlanDialog(props: {
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

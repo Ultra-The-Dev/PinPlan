@@ -10,6 +10,7 @@ import { renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
+import Modal from "../ui/Modal";
 import { toast } from "@/lib/toast";
 import type { Photo } from "@/lib/types";
 import type { ReportPhoto } from "./PhotoReportPdf";
@@ -138,11 +139,13 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Photo report" className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} labelledBy="photo-report-title" className="fixed inset-0 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:items-center">
+      <div className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto p-5 shadow-pop">
         <div className="flex items-start gap-3">
           <div className="flex-1">
-            <h2 className="text-base font-semibold">Photo report</h2>
+            <h2 id="photo-report-title" className="text-base font-semibold">
+              Photo report
+            </h2>
             <p className="text-sm text-slate-500">
               {photos.length} photo{photos.length === 1 ? "" : "s"} {range && `· ${range}`} · with your branding, captions and mark-up
             </p>
@@ -160,18 +163,22 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
           <textarea className="input min-h-16" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Pre-wire is complete and ready for insulation…" />
         </label>
         <div className="text-sm">
-          <span className="label">Photos per page</span>
-          <div className="seg w-fit">
+          <span id="photo-report-per-page" className="label">
+            Photos per page
+          </span>
+          <div className="seg w-fit" role="group" aria-labelledby="photo-report-per-page">
             {([1, 2, 4] as const).map((n) => (
-              <button key={n} className={`tab ${perPage === n ? "tab-active" : ""}`} aria-pressed={perPage === n} aria-label={`${n} per page`} onClick={() => setPerPage(n)}>
+              <button key={n} className={`tab ${perPage === n ? "tab-active" : ""}`} aria-pressed={perPage === n} onClick={() => setPerPage(n)}>
                 {n}
               </button>
             ))}
           </div>
         </div>
         <div className="text-sm">
-          <span className="label">Group photos</span>
-          <div className="seg w-fit">
+          <span id="photo-report-group" className="label">
+            Group photos
+          </span>
+          <div className="seg w-fit" role="group" aria-labelledby="photo-report-group">
             {(
               [
                 ["none", "In order"],
@@ -198,7 +205,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         {link && (
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
             <span className="min-w-0 flex-1 truncate">{link}</span>
-            <button className="btn btn-sm" onClick={() => void navigator.clipboard.writeText(link)}>
+            <button className="btn btn-sm" onClick={() => void navigator.clipboard.writeText(link).then(() => toast("Link copied"), () => toast("Couldn't copy — select the link and copy it", "error"))}>
               <Copy /> Copy
             </button>
           </div>
@@ -216,6 +223,6 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
