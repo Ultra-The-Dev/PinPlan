@@ -187,3 +187,27 @@ grant execute on function public.project_owner(text) to authenticated, service_r
 grant execute on function public.plan_allows_work(text, timestamptz) to anon, authenticated, service_role;
 
 notify pgrst, 'reload schema';
+
+-- ---------- founder accounts ----------
+-- Accounts that existed before billing went live (the founder's own) are comped when they start a team later,
+-- so the company that built PinPlan is never put on a trial. The launch time is recorded once, on the first run.
+create table if not exists public.billing_settings (
+  id boolean primary key default true check (id),
+  launched_at timestamptz not null default now()
+);
+alter table public.billing_settings enable row level security;
+insert into public.billing_settings (id) values (true) on conflict (id) do nothing;
+
+create or replace function public.teams_founder_comp() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select u.created_at from auth.users u where u.id = new.owner_id) < (select launched_at from public.billing_settings where id) then
+    new.plan_status := 'comped';
+    new.trial_ends_at := null;
+  end if;
+  return new;
+end $$;
+-- Fires after teams_billing_guard (triggers run in name order), so it has the last word on a new team.
+drop trigger if exists teams_founder_comp on public.teams;
+create trigger teams_founder_comp before insert on public.teams
+  for each row execute function public.teams_founder_comp();
