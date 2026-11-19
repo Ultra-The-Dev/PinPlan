@@ -103,12 +103,83 @@ public enum FieldDocs {
         return used + suggestedTags.filter { n[$0] == nil }
     }
 
-    public static func filter(_ photos: [Photo], tags: Set<String> = [], takenBy: String? = nil, text: String = "") -> [Photo] {
+    /// `from` / `to` are local days (YYYY-MM-DD), inclusive, either end open; a reversed range is read the right way round.
+    public static func filter(_ photos: [Photo], tags: Set<String> = [], takenBy: String? = nil, text: String = "",
+                              from: String? = nil, to: String? = nil, timeZone: TimeZone = .current) -> [Photo] {
         let q = text.trimmingCharacters(in: .whitespaces).lowercased()
+        var lo: String? = (from?.isEmpty ?? true) ? nil : from
+        var hi: String? = (to?.isEmpty ?? true) ? nil : to
+        if let a = lo, let b = hi, a > b { lo = b; hi = a }
         return photos.filter { p in
-            p.deleted != true && tags.isSubset(of: Set(p.tags ?? [])) && (takenBy == nil || p.takenBy == takenBy)
-                && (q.isEmpty || "\(p.caption ?? "") \(p.room ?? "") \((p.tags ?? []).joined(separator: " "))".lowercased().contains(q))
+            guard p.deleted != true && tags.isSubset(of: Set(p.tags ?? [])) && (takenBy == nil || p.takenBy == takenBy) else { return false }
+            if lo != nil || hi != nil {
+                let day = localDay(p.takenAt, timeZone: timeZone)
+                if let lo, day < lo { return false }
+                if let hi, day > hi { return false }
+            }
+            return q.isEmpty || "\(p.caption ?? "") \(p.room ?? "") \((p.tags ?? []).joined(separator: " "))".lowercased().contains(q)
         }
+    }
+
+    // MARK: bulk edit (same as bulkEditPhotos in src/lib/fieldDocs.ts)
+
+    /// One change applied to every selected photo.
+    public enum PhotoBulkEdit: Sendable {
+        /// Set the room (nil or blank clears it).
+        case room(String?)
+        /// Link to a device (its sheet, and its room when it has one); nil unlinks.
+        case device(Marker?)
+        case removeTag(String)
+    }
+
+    /// Applies the change to one photo; returns whether anything changed.
+    @discardableResult
+    public static func apply(_ e: PhotoBulkEdit, to p: inout Photo) -> Bool {
+        let before = p
+        switch e {
+        case .room(let r):
+            let room = r?.trimmingCharacters(in: .whitespaces) ?? ""
+            p.room = room.isEmpty ? nil : room
+        case .device(let m):
+            if let m {
+                p.markerId = m.id
+                p.sheetId = m.sheetId
+                let room = m.room.trimmingCharacters(in: .whitespaces)
+                if !room.isEmpty { p.room = room }
+            } else {
+                p.markerId = nil
+            }
+        case .removeTag(let t):
+            if let tags = p.tags, tags.contains(t) { p.tags = tags.filter { $0 != t } }
+        }
+        return p != before
+    }
+
+    /// The selected live photos that actually change, already changed.
+    public static func bulkEdit(_ photos: [Photo], ids: Set<String>, _ e: PhotoBulkEdit) -> [Photo] {
+        photos.compactMap { p in
+            guard p.deleted != true, ids.contains(p.id) else { return nil }
+            var q = p
+            return apply(e, to: &q) ? q : nil
+        }
+    }
+
+    /// Tags on any of these photos, most used first (for "remove tag" on a selection).
+    public static func tagsInUse(_ photos: [Photo]) -> [String] {
+        var n: [String: Int] = [:]
+        for p in photos where p.deleted != true { for t in Set(p.tags ?? []) { n[t, default: 0] += 1 } }
+        return n.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map(\.key)
+    }
+
+    /// Rooms used on the job (photos, then devices), case-insensitively unique, alphabetical — suggestions for "set room".
+    public static func roomOptions(_ photos: [Photo], markers: [Marker] = []) -> [String] {
+        var seen: [String: String] = [:]
+        let all: [String?] = photos.filter { $0.deleted != true }.map(\.room) + markers.filter { $0.deleted != true }.map(\.room)
+        for r in all {
+            let t = (r ?? "").trimmingCharacters(in: .whitespaces)
+            if !t.isEmpty && seen[t.lowercased()] == nil { seen[t.lowercased()] = t }
+        }
+        return seen.values.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     // MARK: tasks (same as src/lib/fieldDocs.ts)

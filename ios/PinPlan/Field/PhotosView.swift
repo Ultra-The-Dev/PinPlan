@@ -81,7 +81,7 @@ struct PhotoAddMenu<LabelView: View>: View {
     }
 }
 
-/// The job's photos, CompanyCam-style: grouped by day, filter by tag/person/text, tap to view, select to tag/report/delete.
+/// The job's photos, CompanyCam-style: grouped by day, filter by tag/person/text, tap to view, select to tag/set room/link device/report/delete.
 struct PhotosView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
@@ -96,6 +96,8 @@ struct PhotosView: View {
     @State private var nameDraft = ""
     @State private var askName = false
     @State private var stampLocation = LocationOnce.enabled
+    @State private var askRoom = false
+    @State private var roomDraft = ""
 
     private var all: [Photo] { model.bundle.livePhotos }
     private var shown: [Photo] { FieldDocs.filter(all, tags: tags, takenBy: person, text: search) }
@@ -166,6 +168,14 @@ struct PhotosView: View {
         .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
         .sheet(item: Binding(get: { report.map { ReportItem(photos: $0) } }, set: { report = $0?.photos })) { r in
             PhotoReportSheet(model: model, photos: r.photos)
+        }
+        .alert("Room for \(selected.count) photo\(selected.count == 1 ? "" : "s")", isPresented: $askRoom) {
+            TextField("e.g. Kitchen", text: $roomDraft)
+            Button("Set") {
+                let r = roomDraft.trimmingCharacters(in: .whitespaces)
+                if !r.isEmpty { bulk(.room(r), done: "Room set to “\(r)”") }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $tagging) {
             TagPicker(options: FieldDocs.tagOptions(all)) { t in
@@ -243,6 +253,7 @@ struct PhotosView: View {
             Text("\(selected.count) selected").font(.subheadline.weight(.semibold))
             Spacer()
             Button { tagging = true } label: { Label("Tag", systemImage: "tag") }.disabled(selected.isEmpty)
+            editMenu.disabled(selected.isEmpty)
             Button { report = all.filter { selected.contains($0.id) } } label: { Label("Report", systemImage: "doc.richtext") }.disabled(selected.isEmpty)
             Button(role: .destructive) {
                 model.removeRows(selected, in: \.photos)
@@ -252,6 +263,44 @@ struct PhotosView: View {
         .labelStyle(.titleAndIcon)
         .padding()
         .background(.bar)
+    }
+}
+
+extension PhotosView {
+    /// Set room / link device / remove tag for every selected photo.
+    private var editMenu: some View {
+        let picked = all.filter { selected.contains($0.id) }
+        let selTags = FieldDocs.tagsInUse(picked)
+        let rooms = FieldDocs.roomOptions(all, markers: model.bundle.liveMarkers)
+        let devices = model.bundle.liveMarkers.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+        return Menu {
+            Menu {
+                ForEach(rooms, id: \.self) { r in Button(r) { bulk(.room(r), done: "Room set to “\(r)”") } }
+                Button { roomDraft = ""; askRoom = true } label: { Label("New room…", systemImage: "plus") }
+                Button(role: .destructive) { bulk(.room(nil), done: "Room cleared") } label: { Label("Clear room", systemImage: "xmark") }
+            } label: { Label("Set room", systemImage: "door.left.hand.open") }
+            if !devices.isEmpty {
+                Menu {
+                    ForEach(devices, id: \.id) { m in
+                        Button(model.deviceName(m.id) ?? m.label) { bulk(.device(m), done: "Linked to \(model.deviceName(m.id) ?? m.label)") }
+                    }
+                    Button(role: .destructive) { bulk(.device(nil), done: "Unlinked from devices") } label: { Label("No device", systemImage: "xmark") }
+                } label: { Label("Link to device", systemImage: "mappin") }
+            }
+            if !selTags.isEmpty {
+                Menu {
+                    ForEach(selTags, id: \.self) { t in Button(t) { bulk(.removeTag(t), done: "Removed “\(t)”") } }
+                } label: { Label("Remove tag", systemImage: "tag.slash") }
+            }
+        } label: { Label("Edit", systemImage: "square.and.pencil") }
+    }
+
+    /// Saves only the photos that change, as one undo step.
+    private func bulk(_ edit: FieldDocs.PhotoBulkEdit, done: String) {
+        let changed = FieldDocs.bulkEdit(all, ids: selected, edit)
+        guard !changed.isEmpty else { model.say("Nothing to change"); return }
+        model.saveRows(changed, in: \.photos)
+        model.say("\(done) · \(changed.count) photo\(changed.count == 1 ? "" : "s")")
     }
 }
 

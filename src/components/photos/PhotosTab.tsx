@@ -1,9 +1,9 @@
 "use client";
-// Job photos: take or upload, grouped by day, filter by tag / person / device, select many to tag, report or delete.
+// Job photos: take or upload, grouped by day, filter by tag / person / dates / text, select many to tag, set room or device, report or delete.
 import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, UserRound, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
+import { bulkEditPhotos, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
 import { currentPosition, getAuthor, importPhoto, setAuthor } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
@@ -12,8 +12,12 @@ import type { Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import PhotoViewer from "./PhotoViewer";
 import PhotoReport from "./PhotoReport";
+import DateRange from "./DateRange";
 
 const GPS_KEY = "pinplan.photoLocation";
+// Sentinel option values in the bulk-edit menus (never a real room or device id).
+const NEW = "\u2063new";
+const CLEAR = "\u2063clear";
 const dayLabel = (day: string) =>
   new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +day.slice(0, 4) ? undefined : "numeric" });
 
@@ -47,7 +51,7 @@ function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { pho
 }
 
 export default function PhotosTab() {
-  const { project, photos, photoComments, markers, saveRow, removeRows } = useEditor();
+  const { project, photos, photoComments, markers, catalog, saveRow, removeRows, commit } = useEditor();
   const { email } = useSyncStatus();
   const [, bumpAuthor] = useState(0);
   // ?photo=<id> opens that photo (links from the company photo feed).
@@ -56,6 +60,8 @@ export default function PhotosTab() {
   const [tags, setTags] = useState<string[]>([]);
   const [person, setPerson] = useState("");
   const [text, setText] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [selecting, setSelecting] = useState(false);
   const [sel, setSel] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -72,9 +78,18 @@ export default function PhotosTab() {
   const camRef = useRef<HTMLInputElement>(null);
 
   const live = useMemo(() => photos.filter((p) => !p.deleted), [photos]);
-  const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text }), [live, tags, person, text]);
+  const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
   const groups = useMemo(() => photosByDay(shown), [shown]);
   const options = useMemo(() => tagOptions(live), [live]);
+  const rooms = useMemo(() => roomOptions(live, markers), [live, markers]);
+  const devices = useMemo(
+    () =>
+      markers
+        .filter((m) => !m.deleted)
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+        .map((m) => ({ m, name: [m.label, catalog.find((d) => d.id === m.deviceTypeId)?.name].filter(Boolean).join(" · ") })),
+    [markers, catalog],
+  );
   const people = useMemo(() => [...new Set(live.map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [live]);
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -112,6 +127,17 @@ export default function PhotosTab() {
   const toggleTag = (t: string) => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]));
   const toggleSel = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const selected = live.filter((p) => sel.includes(p.id));
+  const selTags = tagsInUse(selected);
+  const nPhotos = `${sel.length} photo${sel.length === 1 ? "" : "s"}`;
+
+  /** One change to every selected photo, saved as a single undo step. */
+  async function bulk(edit: PhotoBulkEdit, done: string) {
+    const changed = bulkEditPhotos(live, sel, edit);
+    if (!changed.length) return toast("Nothing to change — the selected photos already match", "info");
+    const byId = new Map(live.map((p) => [p.id, p]));
+    await commit(changed.map((after) => ({ table: "photos" as const, before: byId.get(after.id) ?? null, after })));
+    toast(`${done} (${changed.length} photo${changed.length === 1 ? "" : "s"})`, "success");
+  }
 
   return (
     <div
@@ -190,6 +216,7 @@ export default function PhotosTab() {
                   ))}
                 </select>
               )}
+              <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
               <button className={`btn btn-sm ${selecting ? "btn-on" : ""}`} onClick={() => (setSelecting((s) => !s), setSel([]))}>
                 <CheckSquare /> {selecting ? "Done" : "Select"}
               </button>
@@ -204,8 +231,8 @@ export default function PhotosTab() {
                   {t}
                 </button>
               ))}
-              {(tags.length > 0 || person || text) && (
-                <button className="chip bg-white text-slate-500 ring-1 ring-slate-200" onClick={() => (setTags([]), setPerson(""), setText(""))}>
+              {(tags.length > 0 || person || text || from || to) && (
+                <button className="chip bg-white text-slate-500 ring-1 ring-slate-200" onClick={() => (setTags([]), setPerson(""), setText(""), setFrom(""), setTo(""))}>
                   Clear filters
                 </button>
               )}
@@ -219,6 +246,7 @@ export default function PhotosTab() {
             <select
               className="h-8 rounded-lg bg-white/10 px-2 text-sm"
               value=""
+              aria-label="Add tag to selected"
               onChange={async (e) => {
                 const t = e.target.value;
                 if (!t) return;
@@ -231,6 +259,65 @@ export default function PhotosTab() {
                 <option key={t}>{t}</option>
               ))}
             </select>
+            {selTags.length > 0 && (
+              <select
+                className="h-8 rounded-lg bg-white/10 px-2 text-sm"
+                value=""
+                aria-label="Remove tag from selected"
+                onChange={(e) => {
+                  const t = e.target.value;
+                  if (t) void bulk({ kind: "removeTag", tag: t }, `Removed “${t}”`);
+                }}
+              >
+                <option value="">Remove tag…</option>
+                {selTags.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            )}
+            <select
+              className="h-8 max-w-40 rounded-lg bg-white/10 px-2 text-sm"
+              value=""
+              aria-label="Set room for selected"
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                if (v === CLEAR) return void bulk({ kind: "room", room: null }, "Room cleared");
+                const room = v === NEW ? prompt(`Room for ${nPhotos}`)?.trim() : v;
+                if (room) void bulk({ kind: "room", room }, `Room set to “${room}”`);
+              }}
+            >
+              <option value="">Set room…</option>
+              {rooms.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+              <option value={NEW}>New room…</option>
+              <option value={CLEAR}>Clear room</option>
+            </select>
+            {devices.length > 0 && (
+              <select
+                className="h-8 max-w-44 rounded-lg bg-white/10 px-2 text-sm"
+                value=""
+                aria-label="Link selected to a device"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  if (v === CLEAR) return void bulk({ kind: "device", marker: null }, "Unlinked from devices");
+                  const d = devices.find((x) => x.m.id === v);
+                  if (d) void bulk({ kind: "device", marker: d.m }, `Linked to ${d.name}`);
+                }}
+              >
+                <option value="">Link to device…</option>
+                {devices.map(({ m, name }) => (
+                  <option key={m.id} value={m.id}>
+                    {name}
+                  </option>
+                ))}
+                <option value={CLEAR}>No device</option>
+              </select>
+            )}
             <button className="btn btn-sm" onClick={() => setReport(true)}>
               <FileText /> Report
             </button>

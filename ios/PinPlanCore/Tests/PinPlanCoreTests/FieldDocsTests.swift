@@ -48,6 +48,58 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(FieldDocs.filter(b.photos, tags: ["Camera"], text: "porch").count, 1)
     }
 
+    func testDateRangeFilter() {
+        let ny = TimeZone(identifier: "America/New_York")!
+        var a = Photo(projectId: "p", imageId: "a", width: 1, height: 1, takenAt: "2026-11-19T15:00:00.000Z"); a.id = "a"
+        var b = Photo(projectId: "p", imageId: "b", width: 1, height: 1, takenAt: "2026-11-19T03:00:00.000Z"); b.id = "b"  // Nov 18 in New York
+        var c = Photo(projectId: "p", imageId: "c", width: 1, height: 1, takenAt: "2026-11-17T15:00:00.000Z"); c.id = "c"; c.deleted = true
+        let all = [a, b, c]
+        func ids(_ from: String?, _ to: String?) -> [String] { FieldDocs.filter(all, from: from, to: to, timeZone: ny).map(\.id) }
+        XCTAssertEqual(ids(nil, nil), ["a", "b"])
+        XCTAssertEqual(ids("2026-11-19", nil), ["a"])
+        XCTAssertEqual(ids(nil, "2026-11-18"), ["b"])
+        XCTAssertEqual(ids("2026-11-18", "2026-11-19"), ["a", "b"])
+        XCTAssertEqual(ids("2026-11-19", "2026-11-18"), ["a", "b"])   // reversed range
+        XCTAssertEqual(ids("2026-11-17", "2026-11-17"), [])           // deleted photo never shows
+        XCTAssertEqual(ids("", ""), ["a", "b"])
+        XCTAssertEqual(FieldDocs.filter(all, tags: ["Camera"], from: "2026-11-18", timeZone: ny).count, 0)
+    }
+
+    func testBulkEditPhotos() {
+        var a = Photo(projectId: "p", imageId: "a", width: 1, height: 1); a.id = "a"; a.tags = ["Camera", "Pre-wire"]
+        var b = Photo(projectId: "p", imageId: "b", width: 1, height: 1); b.id = "b"; b.tags = ["Camera"]; b.room = "Garage"
+        var c = Photo(projectId: "p", imageId: "c", width: 1, height: 1); c.id = "c"; c.deleted = true; c.tags = ["Camera"]
+        var d = Photo(projectId: "p", imageId: "d", width: 1, height: 1); d.id = "d"; d.room = "Garage"; d.markerId = "m1"; d.sheetId = "s1"
+        let all = [a, b, c, d]
+        let ids: Set<String> = ["a", "b", "c", "d"]
+
+        let room = FieldDocs.bulkEdit(all, ids: ids, .room(" Garage "))
+        XCTAssertEqual(room.map(\.id), ["a"])
+        XCTAssertEqual(room.first?.room, "Garage")
+        XCTAssertEqual(FieldDocs.bulkEdit(all, ids: ["b", "d"], .room("")).map(\.room), [nil, nil])
+
+        let kitchen = Marker(id: "m2", projectId: "p", sheetId: "s2", deviceTypeId: "cam", x: 0.5, y: 0.5, label: "C1", room: "Kitchen")
+        let linked = FieldDocs.bulkEdit(all, ids: ["a", "b"], .device(kitchen))
+        XCTAssertEqual(linked.map(\.markerId), ["m2", "m2"])
+        XCTAssertEqual(linked.map(\.sheetId), ["s2", "s2"])
+        XCTAssertEqual(linked.map(\.room), ["Kitchen", "Kitchen"])
+        let noRoom = Marker(id: "m3", projectId: "p", sheetId: "s2", deviceTypeId: "cam", x: 0.5, y: 0.5, label: "C2")
+        XCTAssertEqual(FieldDocs.bulkEdit(all, ids: ["b"], .device(noRoom)).first?.room, "Garage")
+        let same = Marker(id: "m1", projectId: "p", sheetId: "s1", deviceTypeId: "cam", x: 0.5, y: 0.5, label: "C3", room: "Garage")
+        XCTAssertEqual(FieldDocs.bulkEdit(all, ids: ["d"], .device(same)).count, 0)
+        XCTAssertEqual(FieldDocs.bulkEdit(all, ids: ["a", "d"], .device(nil)).map(\.id), ["d"])
+
+        let untagged = FieldDocs.bulkEdit(all, ids: ids, .removeTag("Camera"))
+        XCTAssertEqual(untagged.map(\.id), ["a", "b"])
+        XCTAssertEqual(untagged.map { $0.tags ?? [] }, [["Pre-wire"], []])
+        XCTAssertEqual(FieldDocs.bulkEdit(all, ids: ids, .removeTag("Nope")).count, 0)
+
+        XCTAssertEqual(FieldDocs.tagsInUse(all), ["Camera", "Pre-wire"])
+        var gone = kitchen; gone.room = "Attic"; gone.deleted = true
+        var lower = d; lower.id = "e"; lower.room = "garage"
+        XCTAssertEqual(FieldDocs.roomOptions([b, lower], markers: [kitchen, gone]), ["Garage", "Kitchen"])
+    }
+
     func testLocalDayAndGrouping() {
         let ny = TimeZone(identifier: "America/New_York")!
         XCTAssertEqual(FieldDocs.localDay("2026-11-19T03:30:00.000Z", timeZone: ny), "2026-11-18")

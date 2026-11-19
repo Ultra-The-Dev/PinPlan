@@ -110,21 +110,76 @@ export interface PhotoFilter {
   takenBy?: string | null;
   /** YYYY-MM-DD */
   day?: string | null;
+  /** Date range, inclusive, as local days (YYYY-MM-DD) — same days the gallery groups by. Either end may be open. */
+  from?: string | null;
+  to?: string | null;
   markerId?: string | null;
   text?: string;
 }
 
 export function filterPhotos(photos: Photo[], f: PhotoFilter): Photo[] {
   const q = f.text?.trim().toLowerCase();
+  // A reversed range (From after To) is read the right way round.
+  const [from, to] = f.from && f.to && f.from > f.to ? [f.to, f.from] : [f.from, f.to];
   return photos.filter(
     (p) =>
       !p.deleted &&
+      (!from || localDay(p.takenAt) >= from) &&
+      (!to || localDay(p.takenAt) <= to) &&
       (!f.tags?.length || f.tags.every((t) => p.tags?.includes(t))) &&
       (!f.takenBy || p.takenBy === f.takenBy) &&
       (!f.day || p.takenAt.slice(0, 10) === f.day) &&
       (!f.markerId || p.markerId === f.markerId) &&
       (!q || `${p.caption ?? ""} ${p.room ?? ""} ${(p.tags ?? []).join(" ")}`.toLowerCase().includes(q)),
   );
+}
+
+/** One change applied to many photos at once (Photos tab select mode). */
+export type PhotoBulkEdit =
+  | { kind: "room"; room: string | null }
+  /** Link to a device (its sheet, and its room when it has one), or unlink with `null`. */
+  | { kind: "device"; marker: { id: string; sheetId: string; room?: string | null } | null }
+  | { kind: "removeTag"; tag: string };
+
+/** The photos that actually change, already changed. Pure; the caller saves them in one undo step. */
+export function bulkEditPhotos(photos: Photo[], ids: Iterable<string>, e: PhotoBulkEdit): Photo[] {
+  const want = new Set(ids);
+  const out: Photo[] = [];
+  for (const p of photos) {
+    if (p.deleted || !want.has(p.id)) continue;
+    let next: Photo = p;
+    if (e.kind === "room") {
+      const room = e.room?.trim() || null;
+      if ((p.room ?? null) !== room) next = { ...p, room };
+    } else if (e.kind === "device") {
+      const m = e.marker;
+      if (!m) {
+        if (p.markerId) next = { ...p, markerId: null };
+      } else {
+        const room = m.room?.trim() || p.room || null;
+        if (p.markerId !== m.id || p.sheetId !== m.sheetId || (p.room ?? null) !== room) next = { ...p, markerId: m.id, sheetId: m.sheetId, room };
+      }
+    } else if (p.tags?.includes(e.tag)) next = { ...p, tags: p.tags.filter((t) => t !== e.tag) };
+    if (next !== p) out.push(next);
+  }
+  return out;
+}
+
+/** Tags on any of these photos, most used first (for "remove tag" on a selection). */
+export function tagsInUse(photos: Photo[]): string[] {
+  const n = new Map<string, number>();
+  for (const p of photos) if (!p.deleted) for (const t of new Set(p.tags ?? [])) n.set(t, (n.get(t) ?? 0) + 1);
+  return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
+}
+
+/** Rooms already used on the job (photos, then devices), alphabetical, case-insensitively unique — suggestions for "set room". */
+export function roomOptions(photos: Photo[], markers: { room?: string | null; deleted?: boolean }[] = []): string[] {
+  const s = new Map<string, string>();
+  for (const x of [...photos, ...markers]) {
+    const r = x.deleted ? "" : (x.room?.trim() ?? "");
+    if (r && !s.has(r.toLowerCase())) s.set(r.toLowerCase(), r);
+  }
+  return [...s.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
 /** Photos grouped by the local day they were taken (newest first). */

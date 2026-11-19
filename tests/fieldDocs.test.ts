@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addTaskFromComment, CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, commentTask, daysUntil, findPunchList, filterPhotos, openTasks, photosByDay, tagOptions, taskBucket, taskItemFromComment, teamNames, timeline } from "@/lib/fieldDocs";
+import { addTaskFromComment, bulkEditPhotos, CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, commentTask, daysUntil, filterPhotos, findPunchList, localDay, openTasks, photosByDay, roomOptions, tagOptions, tagsInUse, taskBucket, taskItemFromComment, teamNames, timeline } from "@/lib/fieldDocs";
 import type { Checklist, ChecklistItem, Photo, Project } from "@/lib/types";
 
 const ts = "2026-11-19T15:00:00.000Z";
@@ -30,6 +30,49 @@ describe("photos", () => {
     expect(filterPhotos([a, b, c], { tags: ["Camera", "Pre-wire"] })).toEqual([a]);
     expect(filterPhotos([a, b, c], { takenBy: "mike" })).toEqual([b]);
     expect(filterPhotos([a, b, c], { text: "garage" })).toEqual([b]);
+  });
+
+  it("filters by a date range of local days, inclusive, either end open", () => {
+    const da = localDay(a.takenAt);
+    const db = localDay(b.takenAt);
+    expect(da > db).toBe(true);
+    expect(filterPhotos([a, b, c], { from: da })).toEqual([a]);
+    expect(filterPhotos([a, b, c], { to: db })).toEqual([b]);
+    expect(filterPhotos([a, b, c], { from: db, to: da })).toEqual([a, b]);
+    expect(filterPhotos([a, b, c], { from: da, to: db })).toEqual([a, b]); // reversed range still works
+    expect(filterPhotos([a, b, c], { from: da, to: da })).toEqual([a]);
+    expect(filterPhotos([a, b, c], { from: "2030-01-01" })).toEqual([]);
+    expect(filterPhotos([a, b, c], { from: null, to: "" })).toEqual([a, b]);
+    expect(filterPhotos([a, b, c], { from: db, tags: ["Pre-wire"] })).toEqual([a]);
+  });
+
+  it("bulk edits only the selected live photos that change", () => {
+    const d = photo({ tags: ["Camera", "Issue"], room: "Garage", markerId: "m1", sheetId: "s1" });
+    const all = [a, b, c, d];
+    const ids = [a.id, b.id, c.id, d.id];
+    // room: deleted c skipped, d already has it
+    const r = bulkEditPhotos(all, ids, { kind: "room", room: " Garage " });
+    expect(r.map((p) => p.id)).toEqual([a.id]);
+    expect(r[0].room).toBe("Garage");
+    expect(a.room).toBeUndefined(); // inputs untouched
+    expect(bulkEditPhotos(all, [b.id, d.id], { kind: "room", room: "" }).map((p) => p.room)).toEqual([null, null]);
+    // device: sets marker + sheet, takes the device's room, keeps the photo's room when the device has none
+    const dv = bulkEditPhotos(all, [a.id, b.id], { kind: "device", marker: { id: "m2", sheetId: "s2", room: "Kitchen" } });
+    expect(dv.map((p) => [p.markerId, p.sheetId, p.room])).toEqual([["m2", "s2", "Kitchen"], ["m2", "s2", "Kitchen"]]);
+    expect(bulkEditPhotos(all, [b.id], { kind: "device", marker: { id: "m2", sheetId: "s2", room: "" } })[0].room).toBe("Garage");
+    expect(bulkEditPhotos(all, [d.id], { kind: "device", marker: { id: "m1", sheetId: "s1", room: "Garage" } })).toEqual([]);
+    // unlink
+    expect(bulkEditPhotos(all, [a.id, d.id], { kind: "device", marker: null }).map((p) => [p.id, p.markerId])).toEqual([[d.id, null]]);
+    // remove tag
+    const rt = bulkEditPhotos(all, ids, { kind: "removeTag", tag: "Camera" });
+    expect(rt.map((p) => [p.id, p.tags])).toEqual([[a.id, ["Pre-wire"]], [b.id, []], [d.id, ["Issue"]]]);
+    expect(bulkEditPhotos(all, ids, { kind: "removeTag", tag: "Nope" })).toEqual([]);
+  });
+
+  it("lists tags on a selection and room suggestions", () => {
+    const d = photo({ tags: ["Camera", "Issue"], room: "garage" });
+    expect(tagsInUse([a, b, c, d])).toEqual(["Camera", "Issue", "Pre-wire"]);
+    expect(roomOptions([a, b, c, d], [{ room: "Kitchen" }, { room: "Attic", deleted: true }, { room: " " }])).toEqual(["Garage", "Kitchen"]);
   });
 
   it("lists used tags first, then suggestions", () => {
