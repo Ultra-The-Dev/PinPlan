@@ -28,6 +28,7 @@ import { downloadText } from "@/lib/download";
 import { SYNCED_EVENT } from "@/lib/sync";
 import type { DocDisplayStatus, DocKind, Project, SalesDoc } from "@/lib/types";
 import { KindChip, Modal, StatusChip } from "./ui";
+import ExportForAccountant from "../integrations/ExportForAccountant";
 
 type StatusFilter = "all" | "open" | DocDisplayStatus | "reminder";
 
@@ -121,6 +122,7 @@ export default function InvoicesPage() {
         <button className="btn" onClick={() => downloadText(paymentsCsv(payments.filter((p) => byProject.has(p.projectId)), new Map(all.map((d) => [d.id, d]))), `pinplan-payments-${day}.csv`)}>
           <Download /> Payments CSV
         </button>
+        <ExportForAccountant docs={all} payments={payments.filter((p) => byProject.has(p.projectId))} />
         <button className="btn btn-brand" onClick={() => setPicking(true)}>
           <FilePlus2 /> New invoice
         </button>
