@@ -198,7 +198,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
   jobLogs: {
     remote: "job_logs",
     conflict: "id",
-    columns: { ...childOf, date: "log_date", title: "title", body: "body", author: "author", photoIds: "photo_ids" },
+    columns: { ...childOf, date: "log_date", title: "title", body: "body", author: "author", photoIds: "photo_ids", report: "report" },
   },
   documents: {
     remote: "job_documents",

@@ -12,7 +12,7 @@
 // - img-src: sheet/photo blobs and data: URLs, OpenStreetMap tiles (Leaflet map), Supabase public proposal images, and
 //   any https: image: proposal/report snapshots store absolute logo/image URLs, which must keep working after a domain
 //   change (e.g. a proposal published on *.vercel.app, opened after moving to the custom domain). Images can't run code.
-// - connect-src: Supabase REST/auth/storage (https) and realtime (wss).
+// - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather).
 // - style/font: inline styles (Konva, react-pdf, Leaflet) and Google Fonts on the client proposal/report pages.
 // - object-src/frame-src blob:: generated PDFs and documents open from blob: URLs.
 // Set CSP_REPORT_ONLY=1 to send the policy as Content-Security-Policy-Report-Only instead (debugging a regression).
@@ -45,7 +45,7 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
     "style-src": list("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", live && "https://vercel.live"),
     "img-src": list("'self'", "blob:", "data:", "https:", sb),
     "font-src": list("'self'", "data:", "https://fonts.gstatic.com", live && "https://vercel.live https://assets.vercel.com"),
-    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
+    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, "https://api.open-meteo.com https://archive-api.open-meteo.com", env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
     "worker-src": "'self' blob:",
     "media-src": "'self' blob: data:",
     "object-src": "'self' blob:",

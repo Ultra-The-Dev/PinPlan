@@ -52,7 +52,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
   photos: { id: "ph", projectId: "p", imageId: "i", width: 4032, height: 3024, takenAt: ts, takenBy: "a@b.c", lat: 40.7, lng: -73.9, caption: "c", tags: ["pre-wire"], annotations: [], markerId: "m", sheetId: "s", room: "Den", beforeId: "ph0", checklistId: "cl", checklistItemId: "it", createdAt: ts, updatedAt: ts, deleted: false },
   photoComments: { id: "pc", projectId: "p", photoId: "ph", author: "a", text: "t", createdAt: ts, updatedAt: ts, deleted: false },
   checklists: { id: "cl", projectId: "p", name: "Pre-wire", items: [], createdAt: ts, updatedAt: ts, deleted: false },
-  jobLogs: { id: "jl", projectId: "p", date: "2026-11-19", title: "t", body: "b", author: "a", photoIds: ["ph"], createdAt: ts, updatedAt: ts, deleted: false },
+  jobLogs: { id: "jl", projectId: "p", date: "2026-11-19", title: "t", body: "b", author: "a", photoIds: ["ph"], report: { crew: [{ name: "Ana", hours: 8 }] }, createdAt: ts, updatedAt: ts, deleted: false },
   documents: { id: "doc", projectId: "p", name: "permit.pdf", mime: "application/pdf", size: 10, fileId: "f", createdAt: ts, updatedAt: ts, deleted: false },
   estimateLines: { id: "e", projectId: "p", key: "dev:d", description: "x", qty: 1, unit: "each", unitPrice: 1, removed: false, include: true, sort: 1, updatedAt: ts, deleted: false },
   salesDocs: {

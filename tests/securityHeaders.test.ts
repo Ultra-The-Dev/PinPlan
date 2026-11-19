@@ -24,6 +24,14 @@ describe("security headers", () => {
     expect(csp).not.toMatch(/ws: wss:/);
   });
 
+  it("lets the daily log fetch its weather from Open-Meteo (forecast and archive), nothing broader", () => {
+    const csp = contentSecurityPolicy({});
+    expect(csp).toMatch(/connect-src [^;]*https:\/\/api\.open-meteo\.com/);
+    expect(csp).toMatch(/connect-src [^;]*https:\/\/archive-api\.open-meteo\.com/);
+    expect(csp).not.toMatch(/connect-src [^;]*\*\.open-meteo/);
+    expect(csp).not.toMatch(/connect-src [^;]*https: /);
+  });
+
   it("can switch to report-only, and loosens connect-src for the dev server only", () => {
     expect(get(securityHeaders({ reportOnly: true }), "Content-Security-Policy-Report-Only")).toBeTruthy();
     expect(contentSecurityPolicy({ dev: true })).toMatch(/connect-src [^;]*ws: wss:/);

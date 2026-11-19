@@ -1,20 +1,44 @@
 "use client";
-// Daily logs: what happened on site each day, with photos from that day.
-import { FileDown, ImagePlus, Pencil, Plus, Sparkles, Trash } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+// Daily logs: a structured daily report for each day on site (weather, crew & hours, work, deliveries, equipment,
+// delays, safety, visitors, photos, notes, signature). Older logs are a title and free text and still show as before.
+import { BadgeCheck, CalendarRange, Copy, Hammer, ImagePlus, Images, FileDown, Hourglass, Pencil, Plus, ShieldAlert, ShieldCheck, Signature, Sparkles, StickyNote, Trash, Truck, UserCheck, Users, Wrench, CloudSun, TriangleAlert } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { dailyLogFileName, logDays, logPhotos, logsInRange } from "@/lib/dailyLogReport";
-import { db, newId, nowIso } from "@/lib/db";
+import { dailyLogFileName, logDays, logPhotos, logsInRange, rangeSummary, reportPdfSections } from "@/lib/dailyLogReport";
+import {
+  cleanReport,
+  copyFromPrevious,
+  crewSuggestions,
+  duplicateCrewNames,
+  editAccess,
+  emptyReport,
+  hoursText,
+  isStructured,
+  previousLog,
+  reportCompleteness,
+  reportHasContent,
+  SECTION_LABELS,
+  totals,
+  weatherLine,
+  type DailyWeather,
+} from "@/lib/dailyReport";
+import { db, newId, nowIso, saveImage } from "@/lib/db";
 import { downloadBlob, slug } from "@/lib/download";
 import { localDay } from "@/lib/fieldDocs";
 import { getAuthor, importPhoto, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
+import { useRole, useTeam } from "@/lib/team";
+import { memberLabel } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
-import type { JobLog, Photo } from "@/lib/types";
+import type { DailyReport, JobLog, Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
+import { fetchDailyWeather, isOnline } from "@/lib/weather";
+import SignaturePad from "../SignaturePad";
 import PhotoViewer from "../photos/PhotoViewer";
 import type { DailyLogPdfEntry } from "./DailyLogPdf";
+import { CrewRows, DelayRows, LineList, SafetyFields, Section, WeatherFields, WeatherIcon, WorkRows, type WeatherStatus } from "./DailyReportForm";
+import WeeklyHours from "./WeeklyHours";
 import { AI_ENABLED } from "@/lib/features";
 
 const today = () => localDay(new Date().toISOString());
@@ -33,7 +57,7 @@ const toDataUrl = (b: Blob) =>
 
 /** Build and download a branded PDF of the given logs, each with its photos (mark-up drawn in). */
 function useLogPdf() {
-  const { project, settings, photos } = useEditor();
+  const { project, settings, photos, sheets } = useEditor();
   const [busy, setBusy] = useState<string | null>(null);
   async function download(logs: JobLog[]) {
     if (!project || !settings || !logs.length || busy) return;
@@ -41,22 +65,43 @@ function useLogPdf() {
       const total = logs.reduce((n, l) => n + logPhotos(l, photos).length, 0);
       let done = 0;
       const entries: DailyLogPdfEntry[] = [];
+      const sheetName = (id: string) => sheets.find((s) => s.id === id && !s.deleted)?.name;
       for (const l of logs) {
         const ps: DailyLogPdfEntry["photos"] = [];
         for (const p of logPhotos(l, photos)) {
           setBusy(`Preparing photo ${++done} of ${total}…`);
-          const rec = await db().images.get(p.imageId);
-          if (!rec) continue;
-          const blob = await renderPhoto(rec.blob, p.annotations, 1400);
-          ps.push({ src: await toDataUrl(blob), width: p.width, height: p.height, caption: p.caption, meta: [time(p.takenAt), p.takenBy, p.room, ...(p.tags ?? [])].filter(Boolean).join(" · ") });
+          // A photo whose image isn't on this device (or can't be drawn) is left out rather than failing the PDF.
+          try {
+            const rec = await db().images.get(p.imageId);
+            if (!rec) continue;
+            const blob = await renderPhoto(rec.blob, p.annotations, 1400);
+            ps.push({ src: await toDataUrl(blob), width: p.width, height: p.height, caption: p.caption, meta: [time(p.takenAt), p.takenBy, p.room, ...(p.tags ?? [])].filter(Boolean).join(" · ") });
+          } catch {
+            continue;
+          }
         }
-        entries.push({ day: dayText(l.date), title: l.title, author: l.author, body: l.body, photos: ps });
+        const sections = reportPdfSections(l, sheetName);
+        let report: DailyLogPdfEntry["report"] = null;
+        if (sections) {
+          let signatureSrc: string | null = null;
+          if (sections.signature) {
+            const rec = await db()
+              .images.get(sections.signature.imageId)
+              .catch(() => undefined);
+            if (rec) signatureSrc = await toDataUrl(rec.blob);
+          }
+          const signedAt = sections.signature ? new Date(sections.signature.signedAt).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+          report = { ...sections, signatureSrc, signedAt };
+        }
+        entries.push({ day: dayText(l.date), title: l.title, author: l.author, body: l.body, photos: ps, report });
       }
       setBusy("Building the PDF…");
       const d = logDays(logs)!;
       const range = d.first === d.last ? shortDay(d.first) : `${shortDay(d.first)} – ${shortDay(d.last)}`;
+      const sum = logs.length > 1 ? rangeSummary(logs) : null;
+      const summary = sum ? { ...sum, rows: sum.rows.map((r) => ({ ...r, day: shortDay(r.date) })) } : null;
       const { renderDailyLogPdf } = await import("./DailyLogPdf");
-      const out = await renderDailyLogPdf({ title: logs.length === 1 ? "Daily log" : "Daily logs", business: settings.business, clientName: project.clientName, address: project.address, dateRange: range, logs: entries });
+      const out = await renderDailyLogPdf({ title: logs.length === 1 ? "Daily log" : "Daily logs", business: settings.business, clientName: project.clientName, address: project.address, dateRange: range, logs: entries, summary });
       downloadBlob(out, dailyLogFileName(slug(project.address || project.clientName || "job"), logs));
     } catch (e) {
       toast(`PDF failed: ${(e as Error).message}`, "error");
@@ -132,16 +177,102 @@ async function photoPayload(photos: Photo[]) {
   return out;
 }
 
-function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
-  const { saveRow, photos, project } = useEditor();
-  const { email } = useSyncStatus();
+type SectionId = "weather" | "crew" | "work" | "deliveries" | "equipment" | "delays" | "safety" | "visitors" | "photos" | "notes" | "signature";
+
+const hasWeather = (w: DailyWeather | undefined) => !!weatherLine(w);
+const count = (n: number, one: string, many = `${one}s`) => (n ? `${n} ${n === 1 ? one : many}` : "");
+
+function SignedImage({ imageId }: { imageId: string }) {
+  const url = useBlobUrl(imageId);
+  // eslint-disable-next-line @next/next/no-img-element
+  return url ? <img src={url} alt="Signature" className="h-20 max-w-full rounded-lg bg-white object-contain ring-1 ring-slate-200" /> : <div className="h-20 w-48 rounded-lg bg-slate-50 ring-1 ring-slate-200" />;
+}
+
+function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: () => void }) {
+  const { saveRow, photos, project, sheets, jobLogs } = useEditor();
+  const { email, online } = useSyncStatus();
+  const members = useTeam((s) => s.members);
   const [l, setL] = useState(log);
+  const [r, setR] = useState<DailyReport>(() => ({ ...emptyReport(), ...(log.report ?? {}) }));
   const [busy, setBusy] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  // A signature drawn in this session (PNG data URL); stored as an image when the log is saved.
+  const [sig, setSig] = useState<string | null>(null);
+  const [sigName, setSigName] = useState(() => log.report?.signature?.name || log.author || getAuthor(email));
+  const [wx, setWx] = useState<WeatherStatus>("idle");
   const fileRef = useRef<HTMLInputElement>(null);
+  const weatherReq = useRef(0);
   // This day's photos, plus any already linked to the log from another day.
   const dayPhotos = useMemo(() => photos.filter((p) => !p.deleted && (localDay(p.takenAt) === l.date || (l.photoIds ?? []).includes(p.id))), [photos, l.date, l.photoIds]);
   const chosen = new Set(l.photoIds ?? []);
   const toggle = (id: string) => setL((x) => ({ ...x, photoIds: chosen.has(id) ? (x.photoIds ?? []).filter((y) => y !== id) : [...(x.photoIds ?? []), id] }));
+  const patch = (p: Partial<DailyReport>) => setR((x) => ({ ...x, ...p }));
+
+  const [open, setOpen] = useState<Record<SectionId, boolean>>(() => {
+    const x = log.report ?? {};
+    return {
+      weather: true,
+      crew: true,
+      work: true,
+      deliveries: !!x.deliveries?.length,
+      equipment: !!x.equipment?.length,
+      delays: !!x.delays?.length,
+      safety: true,
+      visitors: !!x.visitors?.length,
+      photos: true,
+      notes: true,
+      signature: true,
+    };
+  });
+  const flip = (k: SectionId) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+
+  const hasLocation = project?.lat != null && project?.lng != null;
+  /** Fill the weather for `date` from Open-Meteo. Typed-in weather is kept unless `replace`. */
+  async function fillWeather(date: string, replace = false) {
+    if (!project || project.lat == null || project.lng == null) return setWx("nolocation");
+    if (!isOnline()) return setWx("offline");
+    const req = ++weatherReq.current;
+    setWx("loading");
+    const w = await fetchDailyWeather(project.lat, project.lng, date, today());
+    if (req !== weatherReq.current) return;
+    if (!w) return setWx(isOnline() ? "unavailable" : "offline");
+    setR((x) => (replace || !hasWeather(x.weather) || x.weather?.source === "auto" ? { ...x, weather: w } : x));
+    setWx("idle");
+  }
+  // New reports (and reports saved without weather) fill it on open; older free-text logs only on request.
+  const autoWeather = isNew || (isStructured(log) && !hasWeather(log.report?.weather));
+  useEffect(() => {
+    if (autoWeather) void Promise.resolve().then(() => fillWeather(log.date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the editor opens
+  }, []);
+  // Back online with the weather still to do ("Fill weather later").
+  useEffect(() => {
+    if (online && (wx === "offline" || wx === "later") && !hasWeather(r.weather)) void Promise.resolve().then(() => fillWeather(l.date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the connection comes back
+  }, [online]);
+
+  const suggestions = useMemo(() => crewSuggestions(members.map(memberLabel), jobLogs), [members, jobLogs]);
+  const prev = previousLog(jobLogs, l.date, l.id);
+  const prevLabel = prev ? (prev.date === addDaysLocal(l.date, -1) ? "Copy from yesterday" : `Copy from ${shortDay(prev.date)}`) : "Copy from yesterday";
+  function copyPrev() {
+    if (!prev) return;
+    const c = copyFromPrevious(prev);
+    if (!c.crew?.length && !c.equipment?.length && !c.delays?.length) return toast(`Nothing to copy from ${shortDay(prev.date)}`, "info");
+    setR((x) => {
+      const crew = (x.crew ?? []).filter((m) => m.name.trim());
+      const have = new Set(crew.map((m) => m.name.trim().toLowerCase()));
+      const delays = (x.delays ?? []).filter((d) => d.reason.trim());
+      const reasons = new Set(delays.map((d) => d.reason.trim().toLowerCase()));
+      return {
+        ...x,
+        crew: [...crew, ...(c.crew ?? []).filter((m) => !have.has(m.name.toLowerCase()))],
+        equipment: [...new Set([...(x.equipment ?? []).map((e) => e.trim()).filter(Boolean), ...(c.equipment ?? [])])],
+        delays: [...delays, ...(c.delays ?? []).filter((d) => !reasons.has(d.reason.toLowerCase()))],
+      };
+    });
+    setOpen((o) => ({ ...o, crew: true, equipment: o.equipment || !!c.equipment?.length, delays: o.delays || !!c.delays?.length }));
+    toast(`Copied ${[count(c.crew?.length ?? 0, "person", "people"), count(c.equipment?.length ?? 0, "equipment item"), count(c.delays?.length ?? 0, "ongoing delay")].filter(Boolean).join(", ")} from ${shortDay(prev.date)}`, "success");
+  }
 
   async function aiDraft() {
     const list = dayPhotos.filter((p) => chosen.size === 0 || chosen.has(p.id));
@@ -163,25 +294,123 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
     }
   }
 
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const author = l.author || getAuthor(email);
+      const { report: cleaned, duplicates } = cleanReport(r);
+      if (sig) {
+        const blob = await (await fetch(sig)).blob();
+        const bmp = await createImageBitmap(blob);
+        const size = { w: bmp.width, h: bmp.height };
+        bmp.close();
+        const imageId = await saveImage(blob, size.w, size.h);
+        cleaned.signature = { name: sigName.trim() || author, imageId, signedAt: nowIso() };
+      }
+      // Older free-text logs stay as they were unless something structured was added.
+      const report = isNew || isStructured(log) || reportHasContent(cleaned) ? cleaned : log.report;
+      if (duplicates.length) toast(`Merged duplicate crew: ${duplicates.join(", ")} (hours added together)`, "info");
+      await saveRow("jobLogs", { ...l, title: l.title?.trim() || null, body: l.body.trim(), author, report });
+      onDone();
+    } catch (e) {
+      toast(`Couldn't save the log: ${(e as Error).message}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const t = totals(r);
+  const dupes = duplicateCrewNames(r.crew ?? []);
+  const signedNow = r.signature ?? (sig ? { name: sigName, imageId: "", signedAt: "" } : null);
+  const missing = reportCompleteness({ ...r, signature: signedNow });
+  const canSave = !!l.body.trim() || !!l.title?.trim() || reportHasContent(r) || !!sig;
+  const lines = (xs: string[] | undefined) => (xs ?? []).filter((x) => x.trim()).length;
+  const delayCount = (r.delays ?? []).filter((d) => d.reason.trim()).length;
+  const workCount = (r.work ?? []).filter((w) => w.text.trim()).length;
+
   return (
-    <div className="card space-y-3 p-4">
+    <div className="card space-y-3 p-4" aria-label={isNew ? "New daily log" : "Edit daily log"}>
       <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
         <label className="text-sm">
           <span className="label">Day</span>
-          <input type="date" className="input" value={l.date} onChange={(e) => setL({ ...l, date: e.target.value })} />
+          <input
+            type="date"
+            className="input"
+            value={l.date}
+            onChange={(e) => {
+              const date = e.target.value;
+              setL({ ...l, date });
+              // Follow the new day unless the weather was typed in by hand.
+              if (date && (!hasWeather(r.weather) || r.weather?.source === "auto")) void fillWeather(date, true);
+            }}
+          />
         </label>
         <label className="text-sm">
           <span className="label">Title</span>
           <input className="input" placeholder="e.g. Rough-in, 2nd floor" value={l.title ?? ""} onChange={(e) => setL({ ...l, title: e.target.value })} />
         </label>
       </div>
-      <label className="block text-sm">
-        <span className="label">What happened</span>
-        <textarea className="input min-h-32" placeholder="Crew on site, work done, issues, what's next…" value={l.body} onChange={(e) => setL({ ...l, body: e.target.value })} />
-      </label>
-      <div>
-        <div className="mb-1.5 flex items-center gap-2">
-          <span className="label mb-0">Photos from this day</span>
+
+      <Section title="Weather" icon={CloudSun} summary={weatherLine(r.weather) || (wx === "loading" ? "Getting weather…" : "")} open={open.weather} onToggle={() => flip("weather")} missing={missing.includes("weather")}>
+        <WeatherFields
+          weather={r.weather ?? {}}
+          onChange={(w) => patch({ weather: w })}
+          status={wx}
+          canAuto={hasLocation}
+          onAutoFill={() => void fillWeather(l.date, true)}
+          onLater={() => {
+            setWx("later");
+            setOpen((o) => ({ ...o, weather: false }));
+          }}
+        />
+      </Section>
+
+      <Section title="Crew & hours" icon={Users} summary={t.crew ? `${count(t.crew, "person", "people")} · ${hoursText(t.manHours)}` : ""} open={open.crew} onToggle={() => flip("crew")} missing={missing.includes("crew")}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500" data-testid="crew-total">
+            {t.crew ? `${count(t.crew, "person", "people")} · ${t.manHours} man-hours` : "Who was on site and how long."}
+          </span>
+          <div className="flex-1" />
+          <button type="button" className="btn btn-sm" disabled={!prev} onClick={copyPrev} title={prev ? `Crew, equipment and ongoing delays from ${shortDay(prev.date)}` : "No earlier log to copy from"}>
+            <Copy /> {prevLabel}
+          </button>
+        </div>
+        <CrewRows crew={r.crew ?? []} onChange={(crew) => patch({ crew })} suggestions={suggestions} />
+        {dupes.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-700" role="status">
+            <TriangleAlert className="h-3.5 w-3.5" aria-hidden /> {dupes.join(", ")} {dupes.length === 1 ? "is" : "are"} listed more than once — the hours are added together when you save.
+          </p>
+        )}
+      </Section>
+
+      <Section title="Work performed" icon={Hammer} summary={count(workCount, "line")} open={open.work} onToggle={() => flip("work")} missing={missing.includes("work")}>
+        <WorkRows work={r.work ?? []} onChange={(work) => patch({ work })} sheets={sheets.filter((s) => !s.deleted)} />
+      </Section>
+
+      <Section title="Materials delivered" icon={Truck} summary={count(lines(r.deliveries), "delivery", "deliveries")} open={open.deliveries} onToggle={() => flip("deliveries")}>
+        <LineList items={r.deliveries ?? []} onChange={(deliveries) => patch({ deliveries })} placeholder="e.g. 4 boxes Cat6 from ADI" addLabel="Add delivery" />
+      </Section>
+
+      <Section title="Equipment" icon={Wrench} summary={count(lines(r.equipment), "item")} open={open.equipment} onToggle={() => flip("equipment")}>
+        <LineList items={r.equipment ?? []} onChange={(equipment) => patch({ equipment })} placeholder="e.g. Scissor lift" addLabel="Add equipment" />
+      </Section>
+
+      <Section title="Delays" icon={Hourglass} summary={delayCount ? `${count(delayCount, "delay")}${t.delayHours ? ` · ${hoursText(t.delayHours)} lost` : ""}` : ""} open={open.delays} onToggle={() => flip("delays")}>
+        <DelayRows delays={r.delays ?? []} onChange={(delays) => patch({ delays })} />
+      </Section>
+
+      <Section title="Safety" icon={r.safety?.incident ? ShieldAlert : ShieldCheck} summary={r.safety ? (r.safety.incident ? "Incident" : "No incidents") : ""} open={open.safety} onToggle={() => flip("safety")} missing={missing.includes("safety")}>
+        <SafetyFields safety={r.safety} onChange={(safety) => patch({ safety })} />
+      </Section>
+
+      <Section title="Visitors & inspections" icon={UserCheck} summary={count(lines(r.visitors), "visitor")} open={open.visitors} onToggle={() => flip("visitors")}>
+        <LineList items={r.visitors ?? []} onChange={(visitors) => patch({ visitors })} placeholder="e.g. City inspector — rough-in passed" addLabel="Add visitor" />
+      </Section>
+
+      <Section title="Photos" icon={Images} summary={count(chosen.size, "photo")} open={open.photos} onToggle={() => flip("photos")}>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">Photos from this day — tap to include them.</span>
           <input
             ref={fileRef}
             type="file"
@@ -206,7 +435,8 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
               }
             }}
           />
-          <button className="btn btn-sm btn-ghost text-brand-600" onClick={() => fileRef.current?.click()}>
+          <div className="flex-1" />
+          <button type="button" className="btn btn-sm btn-ghost text-brand-600" onClick={() => fileRef.current?.click()}>
             <ImagePlus /> Add
           </button>
         </div>
@@ -219,54 +449,142 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
         ) : (
           <p className="text-xs text-slate-500">No photos taken on this day yet.</p>
         )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {AI_ENABLED && (
-        <button className="btn btn-sm" disabled={!!busy} onClick={() => void aiDraft()} title="Draft the log from this day's photos (AI)">
-          <Sparkles /> {busy ?? "Draft from photos"}
-        </button>
+      </Section>
+
+      <Section title="Notes" icon={StickyNote} summary={l.body.trim().slice(0, 48)} open={open.notes} onToggle={() => flip("notes")}>
+        <textarea className="input min-h-24" aria-label="Notes" placeholder="Anything else: issues, what's next, instructions for tomorrow…" value={l.body} onChange={(e) => setL({ ...l, body: e.target.value })} />
+      </Section>
+
+      <Section title="Signature" icon={Signature} summary={r.signature ? `Signed by ${r.signature.name}` : sig ? "Signed" : ""} open={open.signature} onToggle={() => flip("signature")} missing={missing.includes("signature")}>
+        {r.signature ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <SignedImage imageId={r.signature.imageId} />
+            <div className="text-xs text-slate-500">
+              <div className="font-medium text-slate-700">{r.signature.name}</div>
+              {new Date(r.signature.signedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            </div>
+            <button type="button" className="btn btn-sm ml-auto" onClick={() => patch({ signature: null })}>
+              Sign again
+            </button>
+          </div>
+        ) : (
+          <>
+            <label className="block text-sm">
+              <span className="label">Foreman</span>
+              <input className="input" value={sigName} onChange={(e) => setSigName(e.target.value)} placeholder="Name" autoComplete="name" />
+            </label>
+            <SignaturePad onChange={setSig} />
+          </>
         )}
-        <div className="flex-1" />
-        <button className="btn btn-sm" onClick={onDone}>
-          Cancel
-        </button>
-        <button
-          className="btn btn-sm btn-brand"
-          disabled={!l.body.trim() && !l.title?.trim()}
-          onClick={async () => {
-            await saveRow("jobLogs", { ...l, title: l.title?.trim() || null, body: l.body.trim(), author: l.author || getAuthor(email) });
-            onDone();
-          }}
-        >
-          Save log
-        </button>
+      </Section>
+
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 space-y-2 rounded-b-xl border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
+        {missing.length > 0 && (
+          <p className="text-xs text-slate-500">
+            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400 align-middle" /> Not filled in yet: {missing.map((m) => SECTION_LABELS[m]).join(", ")}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {AI_ENABLED && (
+          <button className="btn btn-sm" disabled={!!busy} onClick={() => void aiDraft()} title="Draft the log from this day's photos (AI)">
+            <Sparkles /> {busy ?? "Draft from photos"}
+          </button>
+          )}
+          <div className="flex-1" />
+          <button className="btn btn-sm" onClick={onDone}>
+            Cancel
+          </button>
+          <button className="btn btn-sm btn-brand" disabled={!canSave || saving} onClick={() => void save()}>
+            {saving ? "Saving…" : "Save log"}
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+/** YYYY-MM-DD `n` days from `d` (calendar days, no time zone drift). */
+function addDaysLocal(d: string, n: number): string {
+  const x = new Date(`${d}T12:00:00`);
+  x.setDate(x.getDate() + n);
+  return localDay(x.toISOString());
+}
+
+/** One-line badges for a structured log in the list: weather, crew and man-hours, delays, safety, signature. */
+function ReportBadges({ log }: { log: JobLog }) {
+  if (!isStructured(log)) return null;
+  const r = log.report!;
+  const t = totals(r);
+  const w = r.weather;
+  const temp = w?.tempHighF != null ? `${w.tempHighF}°${w.tempLowF != null ? ` / ${w.tempLowF}°` : ""}` : "";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {hasWeather(w) && (
+        <span className="chip bg-sky-50 text-sky-800" title={weatherLine(w)}>
+          <WeatherIcon summary={w?.summary} className="h-3.5 w-3.5" /> {[w?.summary, temp].filter(Boolean).join(" · ")}
+        </span>
+      )}
+      {t.manHours > 0 && (
+        <span className="chip bg-brand-50 text-brand-700" data-testid="log-manhours">
+          <Users className="h-3.5 w-3.5" aria-hidden /> {count(t.crew, "person", "people")} · {t.manHours} man-hours
+        </span>
+      )}
+      {t.delayHours > 0 && (
+        <span className="chip bg-amber-50 text-amber-800">
+          <Hourglass className="h-3.5 w-3.5" aria-hidden /> {hoursText(t.delayHours)} delay
+        </span>
+      )}
+      {r.safety?.incident && (
+        <span className="chip bg-red-50 text-red-700">
+          <ShieldAlert className="h-3.5 w-3.5" aria-hidden /> Incident
+        </span>
+      )}
+      {r.signature && (
+        <span className="chip bg-emerald-50 text-emerald-700" title={`Signed by ${r.signature.name}`}>
+          <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Signed
+        </span>
+      )}
     </div>
   );
 }
 
 export default function DailyLogs() {
   const { project, jobLogs, photos, removeRows } = useEditor();
+  const { email } = useSyncStatus();
+  const role = useRole();
   const [editing, setEditing] = useState<JobLog | null>(null);
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [weekly, setWeekly] = useState(false);
   const { busy, download } = useLogPdf();
   if (!project) return null;
   const live = jobLogs.filter((l) => !l.deleted);
   const startNew = () => {
     const now = nowIso();
-    setEditing({ id: newId(), projectId: project.id, date: today(), title: "", body: "", photoIds: [], createdAt: now, updatedAt: now });
+    setWeekly(false);
+    setEditing({ id: newId(), projectId: project.id, date: today(), title: "", body: "", photoIds: [], report: emptyReport(), createdAt: now, updatedAt: now });
+  };
+  const edit = (l: JobLog) => {
+    const access = editAccess(l, { role, me: getAuthor(email) });
+    if (access === "denied") return toast(`Signed by ${l.report?.signature?.name ?? l.author} — only they or the office can change it`, "info");
+    if (access === "confirm" && !confirm("This log is signed. Editing it clears the signature — sign again when you're done. Continue?")) return;
+    setEditing(access === "confirm" ? { ...l, report: { ...l.report, signature: null } } : l);
   };
   return (
     <div className="space-y-4">
       {editing ? (
         // Keyed: picking "edit" on another log while one is open must load that log, not keep the old draft.
-        <Editor key={editing.id} log={editing} onDone={() => setEditing(null)} />
+        <Editor key={editing.id} log={editing} isNew={!jobLogs.some((x) => x.id === editing.id)} onDone={() => setEditing(null)} />
       ) : (
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-brand" onClick={startNew}>
             <Plus /> New daily log
           </button>
+          {live.length > 0 && (
+            <button className="btn" onClick={() => setWeekly((x) => !x)} aria-expanded={weekly}>
+              <CalendarRange /> Weekly hours
+            </button>
+          )}
           {live.length > 0 && (
             <button className="btn" onClick={() => setExporting((x) => !x)} aria-expanded={exporting}>
               <FileDown /> Download PDF
@@ -274,17 +592,19 @@ export default function DailyLogs() {
           )}
         </div>
       )}
+      {weekly && !editing && <WeeklyHours logs={live} today={today()} job={project.address || project.clientName} onClose={() => setWeekly(false)} />}
       {exporting && !editing && live.length > 0 && <RangeExport logs={live} busy={busy} onDownload={(list) => void download(list)} onClose={() => setExporting(false)} />}
       {busy && !exporting && (
         <p className="text-sm text-slate-500" role="status">
           {busy}
         </p>
       )}
-      {live.length === 0 && !editing && <p className="text-sm text-slate-500">Keep a short record of each day on site — the crew, what got done, issues and next steps — with that day’s photos.</p>}
+      {live.length === 0 && !editing && <p className="text-sm text-slate-500">Keep a daily report for each day on site — weather, crew and hours, work done, deliveries, delays and safety — signed, with that day’s photos.</p>}
       {live
         .filter((l) => l.id !== editing?.id)
         .map((l) => {
           const ps = (l.photoIds ?? []).map((id) => photos.find((p) => p.id === id && !p.deleted)).filter((p): p is Photo => !!p);
+          const work = (l.report?.work ?? []).filter((w) => w.text?.trim());
           return (
             <article key={l.id} className="card p-4">
               <div className="flex items-start gap-3">
@@ -298,13 +618,22 @@ export default function DailyLogs() {
                 <button className="btn btn-sm btn-icon btn-ghost" aria-label="Download log as PDF" title="Download PDF" disabled={!!busy} onClick={() => void download([l])}>
                   <FileDown />
                 </button>
-                <button className="btn btn-sm btn-icon btn-ghost" aria-label="Edit log" onClick={() => setEditing(l)}>
+                <button className="btn btn-sm btn-icon btn-ghost" aria-label="Edit log" onClick={() => edit(l)}>
                   <Pencil />
                 </button>
                 <button className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" aria-label="Delete log" onClick={() => confirm("Delete this log?") && void removeRows("jobLogs", [l.id])}>
                   <Trash />
                 </button>
               </div>
+              <ReportBadges log={l} />
+              {work.length > 0 && (
+                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-slate-700">
+                  {work.slice(0, 3).map((w, i) => (
+                    <li key={i}>{w.text}</li>
+                  ))}
+                  {work.length > 3 && <li className="list-none text-xs text-slate-500">+{work.length - 3} more</li>}
+                </ul>
+              )}
               {l.body && <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate-700">{l.body}</p>}
               {ps.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">

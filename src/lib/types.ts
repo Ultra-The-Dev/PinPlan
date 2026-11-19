@@ -369,6 +369,8 @@ export interface JobLog {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+  /** Structured daily report (weather, crew & hours, work, delays, safety, signature). Null/absent on older free-text logs. */
+  report?: DailyReport | null;
 }
 
 /** A file attached to a job (permit, spec sheet, contract…). Bytes live in the `images` table / storage. */
@@ -674,4 +676,27 @@ export interface DocumentSettings {
   signatureOnQuotes: boolean;
   reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
   updatedAt?: string;
+}
+
+/** The structured part of a daily log (src/lib/dailyReport.ts). Every section is optional so old and partial reports load. */
+export interface DailyReport {
+  weather?: {
+    summary?: string;
+    tempHighF?: number | null;
+    tempLowF?: number | null;
+    precipIn?: number | null;
+    windMph?: number | null;
+    source?: "auto" | "manual";
+    /** Filled from the forecast (the log's day was in the future when it was fetched). */
+    forecast?: boolean;
+  };
+  crew?: { name: string; hours: number; role?: string | null }[];
+  work?: { text: string; sheetId?: string | null; area?: string | null }[];
+  deliveries?: string[];
+  equipment?: string[];
+  /** `ongoing` delays carry over to the next day's report ("Copy from yesterday"). */
+  delays?: { reason: string; hours?: number | null; ongoing?: boolean }[];
+  safety?: { incident: boolean; notes?: string | null };
+  visitors?: string[];
+  signature?: { name: string; imageId: string; signedAt: string } | null;
 }
