@@ -27,6 +27,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | Draw: arrows, freehand, shapes, text, colours | ✅ arrow, draw, box, circle, text; 6 colours, 3 widths, undo, clear | Viewer → **Mark up** |
 | Non-destructive (original kept) | ✅ shapes stored separately, relative 0–1 coords, same on both apps | `PhotoShape` in `types.ts` / `FieldDocs.swift` |
 | Export / share the marked-up photo | ✅ | Viewer → Save with mark-up (web) / Share (iPad) |
+| Photos pinned to a spot on the plan (PinPlan extra) | ✅ devices with site photos show a camera badge on the plan; the device panel lists them and adds more | Plan → tap a device |
 | Before & after comparison | ✅ link an "after" to its "before", side-by-side compare | Viewer |
 
 ## 3. Collaboration

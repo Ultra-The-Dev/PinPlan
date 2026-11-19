@@ -85,6 +85,12 @@ struct JobsMapView: View {
     @Environment(\.dismiss) private var dismiss
     let onOpen: (String) -> Void
 
+    /// Fit all jobs; a single job gets a neighbourhood-level zoom instead of street level.
+    static func start(_ placed: [ProjectBundle]) -> MapCameraPosition {
+        guard placed.count == 1, let lat = placed[0].project.lat, let lng = placed[0].project.lng else { return .automatic }
+        return .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: lat, longitude: lng), span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)))
+    }
+
     private func color(_ s: ProjectStatus) -> Color { s == .estimate ? .orange : s == .approved ? .brand : .green }
 
     var body: some View {
@@ -92,7 +98,7 @@ struct JobsMapView: View {
         let unplaced = app.projects.filter { $0.project.deleted != true && ($0.project.lat == nil || $0.project.lng == nil) }
         NavigationStack {
             VStack(spacing: 0) {
-                Map(initialPosition: .automatic) {
+                Map(initialPosition: Self.start(placed)) {
                     ForEach(placed, id: \.project.id) { b in
                         Annotation(b.project.address.isEmpty ? b.project.clientName : b.project.address,
                                    coordinate: CLLocationCoordinate2D(latitude: b.project.lat!, longitude: b.project.lng!)) {

@@ -11,6 +11,11 @@ import { toast } from "@/lib/toast";
 import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import SymbolIcon from "./SymbolIcon";
+import PhotoViewer from "../photos/PhotoViewer";
+import { getAuthor, importPhoto } from "@/lib/photos";
+import { useSyncStatus } from "@/lib/sync";
+import { useBlobUrl } from "@/lib/useImage";
+import type { Photo } from "@/lib/types";
 import type { ClosetKind, Mount } from "@/lib/types";
 
 /** Text/number field that commits on blur or Enter (so typing doesn't flood undo history). */
@@ -389,6 +394,7 @@ function MarkerInspector({ id }: { id: string }) {
           />
         </label>
       </div>
+      <SitePhotos markerId={m.id} sheetId={m.sheetId} room={m.room} />
       <SelectMore id={m.id} />
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button className="btn" onClick={() => duplicate()}>
@@ -519,5 +525,55 @@ function ClosetInspector({ id }: { id: string }) {
         <Trash /> Delete closet
       </button>
     </>
+  );
+}
+
+function SiteThumb({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+  const url = useBlobUrl(photo.imageId);
+  return (
+    <button onClick={onOpen} className="h-14 w-14 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={photo.caption || "Open photo"}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+    </button>
+  );
+}
+
+/** Job photos linked to this device (the camera badge on the plan); add one straight from here. */
+function SitePhotos({ markerId, sheetId, room }: { markerId: string; sheetId: string; room: string }) {
+  const { photos, project, saveRow } = useEditor();
+  const { email } = useSyncStatus();
+  const [viewer, setViewer] = useState<string | null>(null);
+  const list = photos.filter((p) => !p.deleted && p.markerId === markerId).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+  return (
+    <div>
+      <label className="label">Site photos ({list.length})</label>
+      {list.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {list.map((p) => (
+            <SiteThumb key={p.id} photo={p} onOpen={() => setViewer(p.id)} />
+          ))}
+        </div>
+      )}
+      <label className="btn btn-sm cursor-pointer">
+        <Camera /> Add site photo
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            if (!project || !e.target.files) return;
+            for (const f of [...e.target.files]) {
+              const p = await importPhoto(f, { projectId: project.id, author: getAuthor(email), extra: { markerId, sheetId, room: room || null } });
+              await saveRow("photos", p);
+            }
+            e.target.value = "";
+            toast("Photo added to this device", "success");
+          }}
+        />
+      </label>
+      {viewer && <PhotoViewer photos={list} startId={viewer} onClose={() => setViewer(null)} />}
+    </div>
   );
 }

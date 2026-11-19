@@ -109,11 +109,21 @@ struct PlanCanvasView: View {
                     }
                 }
 
-                // Devices
+                // Devices (a camera badge marks the ones with site photos)
+                let photoMarkers = Set(model.bundle.photos.compactMap { $0.deleted == true ? nil : $0.markerId })
                 ForEach(model.bundle.liveMarkers.filter { $0.sheetId == sheet.id && model.isVisible($0) }) { m in
                     let p = dragging[m.id] ?? CGPoint(x: m.x, y: m.y)
                     VStack(spacing: 1) {
                         DeviceSymbol(type: app.type(m.deviceTypeId), size: symbolSize, tentative: m.tentative, selected: model.isSelected(m.id))
+                            .overlay(alignment: .topLeading) {
+                                if photoMarkers.contains(m.id) {
+                                    Image(systemName: "camera.fill").font(.system(size: max(7, symbolSize * 0.28), weight: .bold)).foregroundStyle(.white)
+                                        .padding(max(2, symbolSize * 0.08)).background(Color(white: 0.1), in: Circle())
+                                        .overlay(Circle().stroke(.white, lineWidth: 1))
+                                        .offset(x: -symbolSize * 0.3, y: -symbolSize * 0.3)
+                                        .accessibilityHidden(true)
+                                }
+                            }
                         if model.showLabels {
                             Text(m.label).font(.system(size: 9, weight: .medium)).padding(.horizontal, 3)
                                 .background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 3))
@@ -124,7 +134,7 @@ struct PlanCanvasView: View {
                     .onTapGesture { model.tapMarker(m.id) }
                     .contextMenu { markerMenu(m) }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(app.type(m.deviceTypeId)?.name ?? "Device") \(m.label)\(m.tentative ? ", tentative" : "")")
+                    .accessibilityLabel("\(app.type(m.deviceTypeId)?.name ?? "Device") \(m.label)\(m.tentative ? ", tentative" : "")\(photoMarkers.contains(m.id) ? ", has photos" : "")")
                     .accessibilityAddTraits(.isButton)
                     .gesture(itemDrag(id: m.id) { r in model.edit { $0.updateMarker(m.id, pricing: model.pricing) { $0.x = r.x; $0.y = r.y } } })
                 }

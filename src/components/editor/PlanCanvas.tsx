@@ -37,7 +37,13 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const W = sheet.width;
   const H = sheet.height;
 
-  const { markers, runs, closets, catalog, tool, selection, multi, multiMode, toggleMulti, hiddenLayers, select, updateMarker, updateRun, updateCloset } = useEditor();
+  const { markers, runs, closets, catalog, photos, tool, selection, multi, multiMode, toggleMulti, hiddenLayers, select, updateMarker, updateRun, updateCloset } = useEditor();
+  // Site photos linked to each device: shown as a small camera badge on the plan.
+  const photoCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of photos) if (!p.deleted && p.markerId) m.set(p.markerId, (m.get(p.markerId) ?? 0) + 1);
+    return m;
+  }, [photos]);
   const typeById = useMemo(() => new Map(catalog.map((d) => [d.id, d])), [catalog]);
   const visible = (l: LayerId) => !hiddenLayers.includes(l);
 
@@ -230,6 +236,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
               H={H}
               inv={inv}
               showLabel={showLabels}
+              photos={photoCount.get(m.id) ?? 0}
               selected={multi.length ? multi.includes(m.id) : selection?.id === m.id}
               draggable={selectMode}
               onSelect={(add) => (add || multiMode ? toggleMulti(m.id) : select({ table: "markers", id: m.id }))}
@@ -274,6 +281,8 @@ function MarkerShape(props: {
   H: number;
   inv: number;
   showLabel: boolean;
+  /** Site photos linked to this device. */
+  photos: number;
   selected: boolean;
   draggable: boolean;
   /** add = shift/⌘/ctrl held: add to the multi-selection. */
@@ -339,6 +348,15 @@ function MarkerShape(props: {
         }}
       />
       {m.tentative && <Text text="?" x={R} y={-R - 6} fontStyle="bold" fontSize={15} fill="#b91c1c" listening={false} />}
+      {props.photos > 0 && (
+        // Camera badge: this device has site photos (open them from the inspector).
+        <Group x={-R - 1} y={-R - 1} listening={false}>
+          <Circle radius={7.5} fill="#0f172a" stroke="#fff" strokeWidth={1.5} />
+          <Rect x={-4} y={-2.5} width={8} height={5.5} cornerRadius={1.2} fill="#fff" />
+          <Rect x={-1.6} y={-4} width={3.2} height={1.8} cornerRadius={0.6} fill="#fff" />
+          <Circle radius={1.6} y={0.3} fill="#0f172a" />
+        </Group>
+      )}
       {m.closetId === null && type?.defaultWire && type.defaultWire !== "None" ? null : null}
       {props.showLabel && (
         <Text text={m.label} y={R + 3} width={80} offsetX={40} align="center" fontSize={10} fill="#0f172a" listening={false} />
