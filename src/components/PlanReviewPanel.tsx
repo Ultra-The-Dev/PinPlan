@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { explainCloudError } from "@/lib/cloudCheck";
 import { buildLegend } from "@/lib/legend";
-import { buildSnapshot, newToken, parseClientNote, proposalUrl, type ProposalSnapshot } from "@/lib/proposal";
+import { buildSnapshot, floorLabels, newToken, parseClientNote, proposalUrl, type ProposalSnapshot } from "@/lib/proposal";
 import { listProposals, publishProposal, revokeProposal, type ProposalRow } from "@/lib/proposalCloud";
 import { symbolDataUrl } from "@/lib/renderSheet";
 import { useEditor } from "@/lib/store";
@@ -27,7 +27,8 @@ const when = (iso: string | null) =>
 /** The client's note: free text, their numbered pins as a list, and the pins drawn over the plan they were dropped on. */
 function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["floors"] }) {
   const { text, pins } = parseClientNote(note);
-  const pinned = floors.filter((f) => f.image && pins.some((p) => p.floor === f.name));
+  const labels = floorLabels(floors.map((f) => f.name));
+  const pinned = floors.map((f, i) => ({ name: labels[i], image: f.image })).filter((f) => f.image && pins.some((p) => p.floor === f.name));
   return (
     <div className="space-y-2 text-sm text-slate-800">
       {text && <blockquote className="border-l-2 border-amber-400 pl-3 whitespace-pre-line">“{text}”</blockquote>}

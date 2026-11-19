@@ -4,7 +4,7 @@ import { Check, Eraser, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
-import { GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
+import { floorLabels, GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
 import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
 import { supabaseConfigured } from "@/lib/supabase";
 
@@ -97,7 +97,8 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
     inputs.current[focus.current]?.focus({ preventScroll: true });
     focus.current = null;
   }, [pins.length]);
-  const withImage = floors.filter((f) => f.image);
+  const labels = floorLabels(floors.map((f) => f.name));
+  const withImage = floors.map((f, i) => ({ name: labels[i], image: f.image })).filter((f) => f.image);
   if (!withImage.length) return null;
   const set = (i: number, note: string) => onChange(pins.map((p, j) => (j === i ? { ...p, note } : p)));
   return (

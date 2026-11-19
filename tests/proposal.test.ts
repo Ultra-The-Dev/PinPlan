@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
 import { buildLegend } from "@/lib/legend";
-import { buildSnapshot, newToken, packClientNote, parseClientNote, proposalTotals, sectionTotals } from "@/lib/proposal";
+import { buildSnapshot, floorLabels, newToken, packClientNote, parseClientNote, proposalTotals, sectionTotals } from "@/lib/proposal";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { Marker, Project, Sheet } from "@/lib/types";
 
@@ -111,5 +111,12 @@ describe("client review pins in the note", () => {
     expect(parseClientNote("Please move the TV to the other wall.\nThanks!")).toEqual({ text: "Please move the TV to the other wall.\nThanks!", pins: [] });
     expect(parseClientNote(null)).toEqual({ text: "", pins: [] });
     expect(parseClientNote("Office, pin 2 at (5%, 95%): add a dimmer").pins).toEqual([{ floor: "Office", n: 2, x: 0.05, y: 0.95, note: "add a dimmer" }]);
+  });
+
+  it("gives repeated or blank floor names unique labels so pins land on one plan", () => {
+    expect(floorLabels(["1st Fl", "1st Fl", "2nd Fl", "", "1st Fl (2)", "1st Fl"])).toEqual(["1st Fl", "1st Fl (2)", "2nd Fl", "Plan", "1st Fl (2) (2)", "1st Fl (3)"]);
+    // Labels survive the pack/parse round trip, so the installer's view matches pins to the same plan.
+    const labels = floorLabels(["Main", "Main"]);
+    expect(parseClientNote(packClientNote("", [{ floor: labels[1], x: 0.5, y: 0.5, note: "here" }])).pins[0].floor).toBe("Main (2)");
   });
 });

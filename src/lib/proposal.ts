@@ -193,6 +193,18 @@ export interface ClientPin {
   note: string;
 }
 
+/** Unique, single-line floor labels for pins (a repeated name gets " (2)", " (3)"…), so two floors with the same name don't share pins. */
+export function floorLabels(names: string[]): string[] {
+  const used = new Set<string>();
+  return names.map((raw) => {
+    const name = raw.replace(/[\r\n]+/g, " ").trim() || "Plan";
+    let label = name;
+    for (let k = 2; used.has(label); k++) label = `${name} (${k})`;
+    used.add(label);
+    return label;
+  });
+}
+
 /** Header line that starts the pinned comments inside a packed client note. */
 export const PIN_HEADER = "Pinned on the plan:";
 const PIN_LINE = /^(.+?), pin (\d+) at \((\d{1,3}(?:\.\d+)?)%, (\d{1,3}(?:\.\d+)?)%\):[ \t]*(.*)$/;
