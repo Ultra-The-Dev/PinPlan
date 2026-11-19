@@ -4,6 +4,7 @@ import { useState } from "react";
 import { exportProjectBackup } from "@/lib/backup";
 import { formatMoney } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
+import JobHealth from "./JobHealth";
 import { toast } from "@/lib/toast";
 import { currentPosition, mapsLink } from "@/lib/photos";
 
@@ -128,6 +129,7 @@ export default function ProjectInfo() {
   return (
     <div className="h-full overflow-auto">
       <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <JobHealth />
         <form
           className="card space-y-4 p-6"
           onSubmit={async (e) => {

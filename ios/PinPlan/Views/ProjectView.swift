@@ -95,7 +95,7 @@ struct ProjectView: View {
         case .takeoff: TakeoffView(model: model)
         case .estimate: EstimateView(model: model)
         case .crew: CrewView(model: model)
-        case .job: JobView(model: model)
+        case .job: JobView(model: model) { self.tab = $0 }
         case .photos: PhotosView(model: model)
         case .field: FieldView(model: model)
         }
