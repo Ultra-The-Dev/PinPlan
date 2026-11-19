@@ -114,8 +114,8 @@ async function push(): Promise<void> {
       }
       continue;
     }
-    // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
-    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments") && useTeam.getState().role === "tech") {
+    // Technicians can't write prices or plan links (the database refuses): drop those edits instead of blocking every sync.
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "sheetLinks") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }

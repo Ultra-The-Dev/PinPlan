@@ -92,9 +92,10 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())}>
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Review sheet names"
         className="card animate-in flex max-h-[92dvh] w-full flex-col rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:max-w-3xl sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}

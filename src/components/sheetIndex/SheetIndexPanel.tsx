@@ -92,9 +92,10 @@ function SheetIndexPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())}>
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Sheet index"
         className="card animate-in flex max-h-[94dvh] w-full flex-col rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:max-w-4xl sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
@@ -285,7 +286,11 @@ function IndexRow({ sheet, office, selected, onToggle, dup, links }: { sheet: Sh
           }}
           onKeyDown={enter}
         />
-        {links > 0 && <span className="chip shrink-0 bg-red-50 text-red-600">{links}</span>}
+        {links > 0 && (
+          <span className="chip shrink-0 bg-red-50 text-red-600" title={`${links} link${links === 1 ? "" : "s"} on this sheet`} aria-label={`${links} link${links === 1 ? "" : "s"} on this sheet`}>
+            {links}
+          </span>
+        )}
       </div>
     </li>
   );

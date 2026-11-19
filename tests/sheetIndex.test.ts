@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageTextItems, textItemBox } from "@/lib/importPlans";
+import type { SheetLinkTarget } from "@/lib/types";
 import {
   brokenReason,
   dedupeLinks,
@@ -16,6 +17,7 @@ import {
   parseSheetTitle,
   proposeSheetMeta,
   rectFromCorners,
+  rotateLinkCW,
   sheetDisplayName,
   sheetNumberKey,
   type TextItem,
@@ -275,5 +277,30 @@ describe("fixture PDF (tests/fixtures/sheet-links.pdf)", () => {
       ["3/E-501", "p2"],
     ]);
     expect(l2.map((l) => [l.label, l.target.sheetId])).toEqual([["E-101", "p1"]]);
+  });
+});
+
+describe("rotateLinkCW", () => {
+  const base = { id: "l", sheetId: "s1", x: 0.1, y: 0.2, w: 0.3, h: 0.05, target: { kind: "sheet", sheetId: "s2" } as SheetLinkTarget };
+  it("turns a box on the rotated sheet like markers (x, y → 1 − y, x)", () => {
+    const r = rotateLinkCW(base, "s1")!;
+    expect(r.x).toBeCloseTo(0.75);
+    expect(r.y).toBeCloseTo(0.1);
+    expect(r.w).toBeCloseTo(0.05);
+    expect(r.h).toBeCloseTo(0.3);
+    // Four turns bring it back.
+    let back = base;
+    for (let i = 0; i < 4; i++) back = rotateLinkCW(back, "s1")!;
+    expect(back.x).toBeCloseTo(base.x);
+    expect(back.y).toBeCloseTo(base.y);
+    expect(back.w).toBeCloseTo(base.w);
+  });
+  it("turns a target point into the rotated sheet and leaves other links alone", () => {
+    const into = { ...base, target: { kind: "sheet", sheetId: "s1b", x: 0.2, y: 0.9 } as SheetLinkTarget };
+    const r = rotateLinkCW(into, "s1b")!;
+    expect(r.x).toBe(base.x);
+    expect(r.target).toEqual({ kind: "sheet", sheetId: "s1b", x: expect.closeTo(0.1), y: 0.2 });
+    expect(rotateLinkCW(base, "other")).toBeNull();
+    expect(rotateLinkCW({ ...base, target: { kind: "url", url: "https://x.io" } }, "s2")).toBeNull();
   });
 });

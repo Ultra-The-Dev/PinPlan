@@ -68,10 +68,12 @@ export default function LinkTargetPicker(props: {
       // Close on a tap that starts on the backdrop: the click a touch browser sends after the tap that opened the picker doesn't count.
       onPointerDown={(e) => (backdropDown.current = e.target === e.currentTarget)}
       onClick={(e) => e.target === e.currentTarget && backdropDown.current && props.onCancel()}
+      onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), props.onCancel())}
       data-plan-ui
     >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label={props.title}
         className="card animate-in flex max-h-[85dvh] w-full flex-col rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:max-w-md sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}

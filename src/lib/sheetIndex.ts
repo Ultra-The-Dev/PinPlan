@@ -381,6 +381,18 @@ export function rectFromCorners(a: { x: number; y: number }, b: { x: number; y: 
   return { x: x0, y: y0, w: c(Math.max(a.x, b.x)) - x0, h: c(Math.max(a.y, b.y)) - y0 };
 }
 
+/**
+ * A link after its sheet image is turned 90° clockwise (the same mapping as markers: x, y → 1 − y, x): its box when it
+ * sits on `sheetId`, and its target point when it points into `sheetId`. Null when the link isn't affected. Pure.
+ */
+export function rotateLinkCW<T extends Rect & { sheetId: string; target: SheetLinkTarget }>(link: T, sheetId: string): T | null {
+  let next: T | null = null;
+  if (link.sheetId === sheetId) next = { ...link, x: 1 - link.y - link.h, y: link.x, w: link.h, h: link.w };
+  const t = link.target;
+  if (t && t.kind === "sheet" && t.sheetId === sheetId && t.x != null && t.y != null) next = { ...(next ?? link), target: { ...t, x: 1 - t.y, y: t.x } };
+  return next;
+}
+
 /** Why a link can't be followed (target deleted or gone), or null when it works. */
 export function brokenReason(
   link: Pick<SheetLink, "target">,

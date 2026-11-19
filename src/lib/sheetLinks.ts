@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { db, newId, nowIso, put, putMany } from "./db";
-import { dedupeLinks, type ProposedLink, type Rect } from "./sheetIndex";
+import { dedupeLinks, rotateLinkCW, type ProposedLink, type Rect } from "./sheetIndex";
 import { useEditor } from "./store";
 import { SYNCED_EVENT } from "./sync";
 import type { SheetLink, SheetLinkTarget } from "./types";
@@ -41,6 +41,8 @@ interface LinksState extends Prefs {
   addProposed(links: ProposedLink[]): Promise<number>;
   update(id: string, patch: Partial<Pick<SheetLink, "target" | "label" | "x" | "y" | "w" | "h">>): Promise<void>;
   remove(ids: string[]): Promise<void>;
+  /** Turn the links on a sheet (and points into it) with its image, after the sheet was rotated 90° clockwise. */
+  rotateSheetCW(projectId: string, sheetId: string): Promise<void>;
   setDrawing(on: boolean): void;
   setPending(p: LinksState["pending"]): void;
   setEditing(id: string | null): void;
@@ -54,6 +56,20 @@ interface LinksState extends Prefs {
 }
 
 let loadSeq = 0;
+/** A load started by useJobLinks: the many components that mount together (sheet cards, documents) share it. */
+let mountLoad: { projectId: string; p: Promise<void> } | null = null;
+
+function loadOnMount(projectId: string): Promise<void> {
+  if (mountLoad?.projectId === projectId) return mountLoad.p;
+  const p = useSheetLinks
+    .getState()
+    .load(projectId)
+    .finally(() => {
+      if (mountLoad?.p === p) mountLoad = null;
+    });
+  mountLoad = { projectId, p };
+  return p;
+}
 
 export const useSheetLinks = create<LinksState>((set, get) => ({
   visible: true,
@@ -78,6 +94,8 @@ export const useSheetLinks = create<LinksState>((set, get) => ({
     }
     if (seq !== loadSeq) return;
     const same = get().projectId === projectId;
+    // A row from a newer app version may carry a target this one can't read: keep it stored, but don't show it.
+    rows = rows.filter((l) => !!l.target && typeof l.target === "object" && typeof l.target.kind === "string");
     set({ projectId, all: rows, links: rows.filter((l) => !l.deleted), ...(same ? {} : { back: [], drawing: false, pending: null, editingId: null }) });
   },
 
@@ -110,6 +128,15 @@ export const useSheetLinks = create<LinksState>((set, get) => ({
     const next = { ...cur, ...patch, ...(patch.x != null || patch.w != null ? clampRect({ ...cur, ...patch }) : {}) };
     const saved = await put("sheetLinks", next);
     set((s) => ({ all: s.all.map((l) => (l.id === id ? saved : l)), links: s.links.map((l) => (l.id === id ? saved : l)) }));
+  },
+
+  async rotateSheetCW(projectId, sheetId) {
+    // From the database, so deleted rows turn too (they still stop re-detection from bringing a link back).
+    const rows = await db().sheetLinks.where("projectId").equals(projectId).toArray();
+    const turned = rows.map((l) => rotateLinkCW(l, sheetId)).filter((l): l is SheetLink => !!l);
+    if (!turned.length) return;
+    await putMany("sheetLinks", turned);
+    if (get().projectId === projectId) await get().load(projectId);
   },
 
   async remove(ids) {
@@ -198,7 +225,7 @@ export function useJobLinks(): SheetLink[] {
     useSheetLinks.getState().hydratePrefs();
   }, []);
   useEffect(() => {
-    if (pid) void useSheetLinks.getState().load(pid);
+    if (pid) void loadOnMount(pid);
   }, [pid]);
   return links;
 }

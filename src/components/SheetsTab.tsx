@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { db, newId, nowIso, put, saveImage } from "@/lib/db";
 import { canvasToBlob, guessFloorName, loadPhoto, renderPdf } from "@/lib/importPlans";
 import { findScale } from "@/lib/geometry";
+import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -121,6 +122,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       const blob = await canvasToBlob(c, "image/jpeg", 0.9);
       const imageId = await saveImage(blob, c.width, c.height);
       await rotateSheetCW(sheet.id, imageId, c.width, c.height);
+      await useSheetLinks.getState().rotateSheetCW(sheet.projectId, sheet.id);
       c.width = c.height = 0;
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
