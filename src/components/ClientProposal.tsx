@@ -4,7 +4,7 @@ import { Check, Eraser, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
-import { GROUP_LABELS, proposalTotals, sectionTotals, type ProposalLine } from "@/lib/proposal";
+import { GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
 import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
 import { supabaseConfigured } from "@/lib/supabase";
 
@@ -87,6 +87,80 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   );
 }
 
+/** Plan review change request: tap a plan to drop numbered pins, one note per pin. */
+function PinPad({ floors, pins, onChange }: { floors: { name: string; image: string | null }[]; pins: ClientPin[]; onChange: (pins: ClientPin[]) => void }) {
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const focus = useRef<number | null>(null);
+  useEffect(() => {
+    // Jump to the note box of a pin that was just dropped.
+    if (focus.current == null) return;
+    inputs.current[focus.current]?.focus({ preventScroll: true });
+    focus.current = null;
+  }, [pins.length]);
+  const withImage = floors.filter((f) => f.image);
+  if (!withImage.length) return null;
+  const set = (i: number, note: string) => onChange(pins.map((p, j) => (j === i ? { ...p, note } : p)));
+  return (
+    <div className="mt-4">
+      <span className="label">Point at the plan (optional)</span>
+      <p className="-mt-0.5 mb-2 text-xs text-slate-500">Tap a spot to drop a numbered pin, then say what should change there. Tap a pin’s × to remove it.</p>
+      <div className="space-y-3">
+        {withImage.map((f) => (
+          <figure key={f.name} className="overflow-hidden rounded-xl ring-1 ring-slate-200">
+            <div
+              className="relative cursor-crosshair select-none"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                if (!r.width || !r.height) return;
+                const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+                const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+                onChange([...pins, { floor: f.name, x, y, note: "" }]);
+                focus.current = pins.length;
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.image!} alt={`${f.name} plan — tap to add a pin`} className="block w-full bg-white" draggable={false} />
+              {pins.map((p, i) =>
+                p.floor === f.name ? (
+                  <span
+                    key={i}
+                    className="pointer-events-none absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md ring-2 ring-white"
+                    style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+                  >
+                    {i + 1}
+                  </span>
+                ) : null,
+              )}
+            </div>
+            <figcaption className="border-t border-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">{f.name}</figcaption>
+          </figure>
+        ))}
+      </div>
+      {pins.length > 0 && (
+        <ol className="mt-3 space-y-2">
+          {pins.map((p, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">{i + 1}</span>
+              <input
+                ref={(el) => {
+                  inputs.current[i] = el;
+                }}
+                className="input min-w-0 flex-1"
+                placeholder={`${p.floor}: what should change here?`}
+                value={p.note}
+                onChange={(e) => set(i, e.target.value)}
+              />
+              <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-500" aria-label={`Remove pin ${i + 1}`} title="Remove pin" onClick={() => onChange(pins.filter((_, j) => j !== i))}>
+                <X />
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default function ClientProposal() {
   const token = useSearchParams().get("t") ?? "";
   const [p, setP] = useState<PublicProposal | null | undefined>(undefined);
@@ -97,6 +171,7 @@ export default function ClientProposal() {
   const [agree, setAgree] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [note, setNote] = useState("");
+  const [pins, setPins] = useState<ClientPin[]>([]);
   const [busy, setBusy] = useState(false);
   const topRef = useRef<HTMLElement>(null);
 
@@ -132,7 +207,7 @@ export default function ClientProposal() {
     setBusy(true);
     setError(null);
     try {
-      setP(await respondToProposal(token, { accept, name, signature, options: chosen, note }));
+      setP(await respondToProposal(token, { accept, name, signature, options: chosen, note: review && !accept ? packClientNote(note, pins) : note }));
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
       setError((e as Error).message);
@@ -467,7 +542,7 @@ export default function ClientProposal() {
                   </label>
                 )}
                 <label className="mt-4 block text-sm">
-                  <span className="label">{review ? "Changes (by floor and room helps)" : "Anything we should know? (optional)"}</span>
+                  <span className="label">{review ? "Changes (by floor and room helps — or pin them on the plan below)" : "Anything we should know? (optional)"}</span>
                   <textarea
                     className="input min-h-28"
                     value={note}
@@ -475,12 +550,13 @@ export default function ClientProposal() {
                     placeholder={review ? "e.g. 2nd floor: move the bedroom TV to the other wall; add a speaker in the office…" : "Timing, budget, scope changes…"}
                   />
                 </label>
+                {review && <PinPad floors={s.floors} pins={pins} onChange={setPins} />}
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <div className="mt-4 flex gap-3">
                   <button className="btn" onClick={() => setDeclining(false)}>
                     Back
                   </button>
-                  <button className={review ? "btn btn-brand" : "btn btn-danger"} disabled={busy || (review && !note.trim())} onClick={() => void respond(false)}>
+                  <button className={review ? "btn btn-brand" : "btn btn-danger"} disabled={busy || (review && !note.trim() && !pins.length)} onClick={() => void respond(false)}>
                     {busy ? "Sending…" : review ? "Send change request" : "Decline proposal"}
                   </button>
                 </div>

@@ -131,6 +131,39 @@ public enum Proposals {
 
     static func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
 
+    /// A spot the client pinned on a plan review, read back from the note ("1st Fl, pin 1 at (42%, 31%): move TV").
+    /// x, y are 0–1 relative to that floor's plan image. Same format as packClientNote/parseClientNote in src/lib/proposal.ts.
+    public struct ClientPin: Hashable, Sendable {
+        public var n: Int
+        public var floor: String
+        public var x: Double
+        public var y: Double
+        public var note: String
+    }
+
+    static let pinHeader = "Pinned on the plan:"
+    static let pinLine = try! NSRegularExpression(pattern: #"^(.+?), pin (\d+) at \((\d{1,3}(?:\.\d+)?)%, (\d{1,3}(?:\.\d+)?)%\):[ \t]*(.*)$"#)
+
+    /// Splits a client note into its free text and any plan pins written by the web client page. Plain notes give no pins.
+    public static func parseClientNote(_ note: String?) -> (text: String, pins: [ClientPin]) {
+        var pins: [ClientPin] = []
+        var rest: [String] = []
+        for raw in (note ?? "").components(separatedBy: "\n") {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let ns = line as NSString
+            if let m = pinLine.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) {
+                let g = { (i: Int) -> String in ns.substring(with: m.range(at: i)) }
+                let x: Double = min(100, Double(g(3)) ?? 0) / 100
+                let y: Double = min(100, Double(g(4)) ?? 0) / 100
+                pins.append(ClientPin(n: Int(g(2)) ?? pins.count + 1, floor: g(1).trimmingCharacters(in: .whitespaces), x: x, y: y,
+                                      note: g(5).trimmingCharacters(in: .whitespaces)))
+            } else if line != pinHeader {
+                rest.append(raw.trimmingCharacters(in: CharacterSet(charactersIn: "\r")))
+            }
+        }
+        return (rest.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), pins)
+    }
+
     public static func snapshot(bundle b: ProjectBundle, catalog: [DeviceType], takeoff: Takeoff, estimate: Estimate, business: BusinessSettings,
                                 currency: String, taxPct: Double, title: String = "", message: String = "", validDays: Int?,
                                 detail: ProposalSnapshot.Detail, depositPct: Double?, images: [String: String] = [:], origin: String? = nil, now: Date = Date(),

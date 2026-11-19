@@ -73,12 +73,14 @@ struct PlanReviewView: View {
 
     @ViewBuilder private func row(_ r: CloudSync.ProposalRow) -> some View {
         if r.status == "accepted" {
-            Label("\(r.client_name ?? "The client") approved the layout\(r.client_note.map { ": “\($0)”" } ?? ""). Next: price it and send the proposal from the Estimate tab.", systemImage: "checkmark.seal.fill")
+            Label("\(r.client_name ?? "The client") approved the layout. Next: price it and send the proposal from the Estimate tab.", systemImage: "checkmark.seal.fill")
                 .foregroundStyle(.green)
+            if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if r.status == "declined" {
-            Label("\(r.client_name ?? "The client") asked for changes\(r.client_note.map { ": “\($0)”" } ?? "."). Update the plan, then send an updated plan.", systemImage: "exclamationmark.bubble.fill")
+            Label("\(r.client_name ?? "The client") asked for changes. Update the plan, then send an updated plan.", systemImage: "exclamationmark.bubble.fill")
                 .foregroundStyle(.orange)
+            if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if let url = link(r.id) {
             ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
@@ -89,6 +91,33 @@ struct PlanReviewView: View {
         }
         if r.status == "sent" || r.status == "viewed" {
             Button("Withdraw", role: .destructive) { Task { try? await app.cloud.withdrawProposal(r.id); await refresh() } }
+        }
+    }
+
+    /// The client's note: their text, then each pin they dropped on the plan (numbered like on the web page).
+    @ViewBuilder private func clientNote(_ note: String) -> some View {
+        let parsed = Proposals.parseClientNote(note)
+        if !parsed.text.isEmpty {
+            Text("“\(parsed.text)”")
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        ForEach(Array(parsed.pins.enumerated()), id: \.offset) { _, pin in
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(pin.n)")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.white)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Color.red))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pin.note.isEmpty ? "(no note)" : pin.note)
+                        .font(.callout)
+                        .foregroundStyle(pin.note.isEmpty ? Color.secondary : Color.primary)
+                    Text("\(pin.floor) · \(Int((pin.x * 100).rounded()))% across, \(Int((pin.y * 100).rounded()))% down")
+                        .font(.caption)
+                        .foregroundStyle(Color.secondary)
+                }
+            }
         }
     }
 
