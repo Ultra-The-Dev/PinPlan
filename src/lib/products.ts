@@ -1,6 +1,7 @@
 // Products (brand + model per device type), per-job choices, cable bundles and cable products.
 // Mirrors PinPlanCore (Products.swift / Cables.swift) so a backup moved between the web and iPad apps prices the same.
 import { WIRE_TYPES } from "./catalog";
+import { ALL_WIRE_TYPES } from "./trades";
 import { parseCsv } from "./catalogCsv";
 import { toCsv, type Takeoff } from "./takeoff";
 import type { DeviceType, Marker, Product, Project, Run } from "./types";
@@ -73,7 +74,7 @@ export function matchCable(text: string): string | null {
   const norm = (s: string) => s.toLowerCase().replace(/cable/g, "").replace(/wire/g, "").replace(/[^a-z0-9/+]/g, "");
   const t = norm(text);
   if (!t) return null;
-  return CABLE_TYPES.find((w) => norm(w) === t) ?? null;
+  return CABLE_TYPES.find((w) => norm(w) === t) ?? ALL_WIRE_TYPES.find((w) => norm(w) === t) ?? null;
 }
 
 // ---------------- products ----------------

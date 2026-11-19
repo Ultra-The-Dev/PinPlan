@@ -1,5 +1,7 @@
 // Plan reader: prompts, JSON schemas and validation for "explain this sheet" and "ask about this sheet".
 // Pure (no SDK) so it can be unit-tested and shared by the route.
+import { isLowVoltageOnly, scanHints, tradeWho } from "./trades";
+import type { TradeId } from "./types";
 
 export const NOTE_CATEGORIES = ["lowVoltage", "electrical", "lighting", "av", "security", "network", "shades", "general"] as const;
 export type NoteCategory = (typeof NOTE_CATEGORIES)[number];
@@ -91,21 +93,31 @@ const SYSTEM_BASE = `You read architectural floor plans for a low-voltage / smar
 Coordinates: x and y are fractions of the image width and height (0 = left/top, 1 = right/bottom) for where the item appears on the sheet.
 Only report what is actually printed or clearly drawn on the sheet. If something is unclear, say so instead of guessing. Never invent dimensions.`;
 
-export function buildExplainPrompt(context: { sheetName?: string; knownScale?: string | null }) {
-  return `${SYSTEM_BASE}
+/** The opening for the company's trades (low voltage only: SYSTEM_BASE as always). */
+function systemBase(trades?: TradeId[]): string {
+  if (!trades || isLowVoltageOnly(trades)) return SYSTEM_BASE;
+  return `You read architectural floor plans for ${tradeWho(trades)}.
+${scanHints(trades)}
+Coordinates: x and y are fractions of the image width and height (0 = left/top, 1 = right/bottom) for where the item appears on the sheet.
+Only report what is actually printed or clearly drawn on the sheet. If something is unclear, say so instead of guessing. Never invent dimensions.`;
+}
+
+export function buildExplainPrompt(context: { sheetName?: string; knownScale?: string | null; trades?: TradeId[] }) {
+  const lv = !context.trades || isLowVoltageOnly(context.trades);
+  return `${systemBase(context.trades)}
 
 Read this sheet${context.sheetName ? ` ("${context.sheetName}")` : ""}${context.knownScale ? `; its scale is ${context.knownScale}` : ""} and return:
 - sheetTitle and sheetType (e.g. "1st floor plan", "LED lighting plan", "reflected ceiling plan", "elevation").
 - scale exactly as printed, or null if none / "NTS".
-- summary: 3-6 plain-language sentences an installer can act on — what the sheet shows and what matters for low-voltage work.
+- summary: 3-6 plain-language sentences an installer can act on — what the sheet shows and what matters for ${lv ? "low-voltage work" : "their trade's work"}.
 - rooms: each labelled room with its printed size (e.g. "14'-6\\" × 12'-0\\"") or null.
 - dimensions: each printed dimension string as written, its value in decimal feet, and what it measures (e.g. "kitchen wall", "stair run") or null.
 - notes: every note, callout or legend line relevant to the work (LED zones/LF/switch labels, device symbols, ceiling heights, millwork, power/driver locations, conduit, closets), categorised.
 - verify: short bullet questions/risks to confirm on site or with the architect (missing dimensions, unclear symbols, conflicts).`;
 }
 
-export function buildAskPrompt(question: string, context: { sheetName?: string; knownScale?: string | null }) {
-  return `${SYSTEM_BASE}
+export function buildAskPrompt(question: string, context: { sheetName?: string; knownScale?: string | null; trades?: TradeId[] }) {
+  return `${systemBase(context.trades)}
 
 The installer is looking at this sheet${context.sheetName ? ` ("${context.sheetName}")` : ""}${context.knownScale ? ` (scale ${context.knownScale})` : ""} and asks:
 """${question.slice(0, 2000)}"""

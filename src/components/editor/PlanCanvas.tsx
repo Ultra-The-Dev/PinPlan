@@ -3,7 +3,7 @@ import type Konva from "konva";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
-import { CLOSET_KINDS, categoryOf } from "@/lib/catalog";
+import { categoryOf, closetMeta } from "@/lib/catalog";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
 import { cableSummary, runCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
@@ -162,7 +162,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
 
   const sheetMarkers = markers.filter((m) => m.sheetId === sheet.id && visible(typeById.get(m.deviceTypeId)?.category ?? "security"));
   const sheetRuns = runs.filter((r) => r.sheetId === sheet.id && visible(r.kind === "wire" ? "wiring" : "lighting"));
-  const sheetClosets = closets.filter((c) => c.sheetId === sheet.id && visible("infrastructure"));
+  const sheetClosets = closets.filter((c) => c.sheetId === sheet.id && visible(closetMeta(c.kind).category));
   const selectMode = tool.kind === "select";
 
   const toPx = (pts: number[]) => pts.map((v, i) => (i % 2 === 0 ? v * W : v * H));
@@ -384,7 +384,7 @@ function ClosetShape(props: {
   onPressEnd: () => void;
 }) {
   const { closet: c, W, H, inv } = props;
-  const meta = CLOSET_KINDS.find((k) => k.id === c.kind)!;
+  const meta = closetMeta(c.kind);
   const s = 18;
   return (
     <Group
@@ -420,7 +420,7 @@ function ClosetShape(props: {
     >
       {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#ea580c" strokeWidth={3} cornerRadius={8} />}
       <Rect x={-s} y={-s} width={2 * s} height={2 * s} cornerRadius={6} fill={meta.color} shadowColor="#000" shadowOpacity={0.3} shadowBlur={4} />
-      <Text text={meta.abbrev} width={2 * s} height={2 * s} offsetX={s} offsetY={s} align="center" verticalAlign="middle" fontStyle="bold" fontSize={13} fill="#fff" listening={false} />
+      <Text text={meta.abbrev} width={2 * s} height={2 * s} offsetX={s} offsetY={s} align="center" verticalAlign="middle" fontStyle="bold" fontSize={meta.abbrev.length > 3 ? 10 : 13} fill="#fff" listening={false} />
       <Text text={c.name} y={s + 3} width={140} offsetX={70} align="center" fontSize={11} fontStyle="bold" fill={meta.color} listening={false} />
     </Group>
   );

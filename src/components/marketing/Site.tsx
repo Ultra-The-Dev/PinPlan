@@ -90,7 +90,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="space-y-3">
           <Brand />
-          <p className="max-w-xs text-sm text-slate-500">Floor-plan device mapping, estimating and field documentation for low-voltage installers.</p>
+          <p className="max-w-xs text-sm text-slate-500">Floor-plan device mapping, estimating and field documentation for low-voltage, electrical and specialty contractors.</p>
         </div>
         {cols.map((c) => (
           <div key={c.title}>

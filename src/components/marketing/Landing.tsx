@@ -1,40 +1,49 @@
 // /welcome: what PinPlan does for an installer, in their words. Static (server) markup with small client islands.
 import {
   ArrowRight,
+  Cable,
+  Cctv,
+  Lightbulb,
+  Network,
+  Speaker,
   Calculator,
   Camera,
-  Cctv,
   CheckCircle2,
   ClipboardCheck,
+  Droplets,
   FileSignature,
+  Flame,
   Layers,
-  Lightbulb,
   MapPin,
   Monitor,
-  Network,
   Receipt,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  Speaker,
+  Sun,
   Tablet,
   Users,
+  Wind,
   WifiOff,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { PLANS, TRIAL_DAYS, monthlyPrice } from "@/lib/plans";
 import PlanIllustration, { TakeoffCard } from "./PlanIllustration";
 import { DeletedNotice, Faq, SitePage, TryDemoLink } from "./Site";
 
+// The trade packs (src/lib/trades.ts): each comes with its own device menu, wire types and checklists.
 const TRADES = [
-  { icon: Cctv, label: "Security cameras" },
-  { icon: Network, label: "Network & Wi-Fi" },
-  { icon: Speaker, label: "Audio / video" },
-  { icon: Lightbulb, label: "Smart home & lighting" },
+  { icon: Cable, label: "Low voltage & AV" },
+  { icon: Zap, label: "Electrical" },
+  { icon: Flame, label: "Fire alarm" },
+  { icon: Wind, label: "HVAC" },
+  { icon: Droplets, label: "Plumbing" },
+  { icon: Sun, label: "Solar & EV" },
 ];
 
 const FLOW = [
-  { icon: MapPin, title: "Pin devices", body: "Drop cameras, APs, speakers and keypads right on the floor plan." },
+  { icon: MapPin, title: "Pin devices", body: "Drop cameras, receptacles, detectors or fixtures — whatever your trade installs — right on the floor plan." },
   { icon: Layers, title: "Per-floor takeoff", body: "Counts and cable footage for every floor, always in step with the plan." },
   { icon: Calculator, title: "Priced estimate", body: "Your catalog prices, markup, labor and wire by the foot." },
   { icon: FileSignature, title: "Proposal & e-sign", body: "A branded link your client signs on their phone." },
@@ -52,7 +61,7 @@ export default function Landing() {
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-14 sm:px-6 sm:pt-16 lg:grid-cols-[1.05fr_1fr] lg:gap-12 lg:pb-20">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-soft ring-1 ring-slate-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand-500" /> For low-voltage installers
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-500" /> For low-voltage, electrical & specialty contractors
             </span>
             <h1 className="mt-5 text-[2.15rem] leading-[1.08] font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-[3.4rem]">
               Pin it on the plan.

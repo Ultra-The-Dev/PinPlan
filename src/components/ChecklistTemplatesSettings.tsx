@@ -4,7 +4,9 @@
 import { Camera, Check, ChevronDown, Pencil, Trash, X } from "lucide-react";
 import { useState } from "react";
 import { saveChecklistTemplates } from "@/lib/db";
-import { CHECKLIST_TEMPLATES, removeTemplate, renameTemplate } from "@/lib/fieldDocs";
+import { removeTemplate, renameTemplate } from "@/lib/fieldDocs";
+import { tradeChecklists } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import { toast } from "@/lib/toast";
 import type { ChecklistTemplate } from "@/lib/types";
 import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
@@ -102,6 +104,7 @@ function TemplateRow({ t }: { t: ChecklistTemplate }) {
 
 export default function ChecklistTemplatesSettings() {
   const { templates, loaded } = useChecklistTemplates();
+  const builtIns = tradeChecklists(useTrades());
   if (!loaded) return <p className="text-sm text-slate-500">Loading…</p>;
   const mine = [...templates].sort((a, b) => a.name.localeCompare(b.name));
   return (
@@ -117,7 +120,7 @@ export default function ChecklistTemplatesSettings() {
           ))}
         </ul>
       )}
-      <p className="text-xs text-slate-500">Built in: {CHECKLIST_TEMPLATES.map((t) => t.name).join(", ")}.</p>
+      <p className="text-xs text-slate-500">Built in: {builtIns.map((t) => t.name).join(", ")}.</p>
     </div>
   );
 }

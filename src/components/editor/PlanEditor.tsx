@@ -21,7 +21,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
-import { CLOSET_KINDS, LAYERS } from "@/lib/catalog";
+import { closetMeta, PANEL_KINDS } from "@/lib/catalog";
 import { MIN_CALIBRATION_PX, parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
 
 function formatFeetInches(ft: number) {
@@ -36,6 +36,8 @@ function formatFeetInches(ft: number) {
 import { markerCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
+import { deviceSpec, hasTrade, tradeLayers, tradeVocab, tradeWireTypes } from "@/lib/trades";
+import { useTrades } from "@/lib/useTrades";
 import Dialog, { type DialogField } from "../Dialog";
 import ScanPanel from "../ScanPanel";
 import Inspector from "./Inspector";
@@ -52,6 +54,10 @@ type Pending =
 export default function PlanEditor() {
   const st = useEditor();
   const { sheets, activeSheetId, setActiveSheet, tool, setTool, selection, undo, redo, past, future, hiddenLayers, toggleLayer, setOnlyLayer } = st;
+  // Layer toggles and wording follow the company's trades (low voltage only: exactly the original list).
+  const trades = useTrades();
+  const LAYERS = tradeLayers(trades);
+  const vocab = tradeVocab(trades);
   const sheet = sheets.find((s) => s.id === activeSheetId) ?? sheets[0];
   // The draft (points being drawn) belongs to the current tool + sheet; switching either discards it.
   const draftKey = `${JSON.stringify(tool)}|${activeSheetId}`;
@@ -212,10 +218,18 @@ export default function PlanEditor() {
       setDraft([]);
     } else if (tool.kind === "wire") {
       const marker = s.markers.find((m) => m.id === snap.markerId);
+      const closet = s.closets.find((c) => c.id === snap.closetId);
+      // Electrical: a run to a panel is a circuit — start it with the device's usual breaker, voltage and poles.
+      const spec = marker ? deviceSpec(s.catalog.find((d) => d.id === marker.deviceTypeId)) : null;
+      const circuit =
+        hasTrade(trades, "electrical") && closet && PANEL_KINDS.includes(closet.kind)
+          ? { number: marker?.circuit ?? null, breakerA: spec?.breakerA ?? null, volts: spec?.volts ?? 120, poles: spec?.poles ?? 1 }
+          : null;
       const r = await s.addRun({
         kind: "wire",
         points: pts,
-        wireType: (marker && markerCables(marker)[0]) || "Cat6",
+        ...(circuit ? { circuit } : {}),
+        wireType: (marker && markerCables(marker)[0]) || tradeWireTypes(trades)[0] || "Cat6",
         wireTypes: marker && markerCables(marker).length > 1 ? markerCables(marker) : null,
         markerId: snap.markerId ?? null,
         closetId: snap.closetId ?? null,
@@ -224,7 +238,7 @@ export default function PlanEditor() {
       if (marker && snap.closetId && marker.closetId !== snap.closetId) await s.updateMarker(marker.id, { closetId: snap.closetId });
       setDraft([]);
       setDraftSnap(() => ({}));
-      if (r) toast(`Wire run added${r.measuredFt != null ? ` · ${r.measuredFt.toFixed(1)} ft` : ""}`);
+      if (r) toast(`${vocab.run} added${r.measuredFt != null ? ` · ${r.measuredFt.toFixed(1)} ft` : ""}`);
     }
   }
 
@@ -311,11 +325,11 @@ export default function PlanEditor() {
     tool.kind === "place"
       ? `Tap to place ${typesById.get(tool.deviceTypeId)?.name}${st.room.trim() ? ` · ${st.room.trim()}` : ""}`
       : tool.kind === "closet"
-        ? `Tap to place the ${CLOSET_KINDS.find((c) => c.id === tool.closetKind)?.name.toLowerCase()}`
+        ? `Tap to place the ${closetMeta(tool.closetKind).name.toLowerCase()}`
         : tool.kind === "led"
           ? "Tap along the LED run · double-tap or Finish"
           : tool.kind === "wire"
-            ? "Tap a device, the path, then a closet"
+            ? `Tap a device, the path, then a ${vocab.closet}`
             : tool.kind === "stair"
               ? "Tap the bottom and top of the stair"
               : tool.kind === "calibrate"

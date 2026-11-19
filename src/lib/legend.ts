@@ -1,8 +1,9 @@
 // Plan legend for clients: what each symbol on the plan means, with a plain-English line and how many there are.
 // Pure — symbol images are passed in so this also runs in tests.
-import { CATEGORIES, CLOSET_KINDS } from "./catalog";
+import { CLOSET_KINDS } from "./catalog";
 import type { Takeoff } from "./takeoff";
-import type { DeviceType } from "./types";
+import { allCategoriesFor, DEFAULT_TRADES, packDescription, tradeCategory } from "./trades";
+import type { DeviceType, TradeId } from "./types";
 
 export interface LegendItem {
   /** Device type id, "closet:<kind>" or "led:<id>". */
@@ -40,23 +41,16 @@ export const CLIENT_DESCRIPTIONS: Record<string, string> = {
   shade: "Motorized curtain or shade.",
 };
 
-const CATEGORY_TEXT: Record<string, string> = {
-  security: "Security",
-  network: "Network",
-  audio: "Audio",
-  video: "Video",
-  smarthome: "Smart home",
-  lighting: "Lighting",
-  shades: "Shades",
-  infrastructure: "Equipment",
-};
+/** The category's name for a homeowner, in the company's trade wording ("Receptacles", "Life safety"…). */
+const categoryText = (category: string, trades: TradeId[]) => (category === "infrastructure" ? "Equipment" : tradeCategory(category, trades).name);
 
-const describe = (d: DeviceType) => CLIENT_DESCRIPTIONS[d.id] ?? `${CATEGORY_TEXT[d.category] ?? "Device"} — ${d.name}.`;
+const describeFor = (d: DeviceType, trades: TradeId[]) => CLIENT_DESCRIPTIONS[d.id] ?? packDescription(d.id) ?? `${categoryText(d.category, trades)} — ${d.name}.`;
 
 /** Everything a client sees on the plan, grouped by category order, with counts ("3", "2 + 1 optional", "45 LF"). */
-export function buildLegend(takeoff: Takeoff, catalog: DeviceType[], icon: (d: DeviceType) => string | undefined): LegendItem[] {
+export function buildLegend(takeoff: Takeoff, catalog: DeviceType[], icon: (d: DeviceType) => string | undefined, trades: TradeId[] = DEFAULT_TRADES): LegendItem[] {
   const t = takeoff.total;
-  const order = new Map(CATEGORIES.map((c, i) => [c.id as string, i]));
+  const order = new Map(allCategoriesFor(trades).map((c, i) => [c.id as string, i]));
+  const describe = (d: DeviceType) => describeFor(d, trades);
   const out: (LegendItem & { o: number })[] = [];
   for (const d of catalog) {
     if (d.kind === "led") {
@@ -67,7 +61,7 @@ export function buildLegend(takeoff: Takeoff, catalog: DeviceType[], icon: (d: D
         key: `led:${d.id}`,
         name: d.name,
         description: describe(d),
-        category: CATEGORY_TEXT[d.category] ?? d.category,
+        category: categoryText(d.category, trades),
         color: d.color,
         count: opt ? (ft ? `${ft} LF + ${opt} LF optional` : `${opt} LF optional`) : `${ft} LF`,
         o: order.get(d.category) ?? 99,
@@ -82,7 +76,7 @@ export function buildLegend(takeoff: Takeoff, catalog: DeviceType[], icon: (d: D
       key: d.id,
       name: d.name,
       description: describe(d),
-      category: CATEGORY_TEXT[d.category] ?? d.category,
+      category: categoryText(d.category, trades),
       icon: icon(d),
       color: d.color,
       count: opt ? (firm ? `${firm} + ${opt} optional` : `${opt} optional`) : String(firm),
@@ -95,7 +89,7 @@ export function buildLegend(takeoff: Takeoff, catalog: DeviceType[], icon: (d: D
       out.push({
         key: `closet:${k.id}`,
         name: k.name,
-        description: "Where the equipment and cables come together.",
+        description: k.description,
         category: "Equipment",
         color: k.color,
         count: String(n),

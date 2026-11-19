@@ -103,10 +103,11 @@ export function normalizeTemplates(raw: unknown): ChecklistTemplate[] {
   return out;
 }
 
-/** Templates to start a checklist from: the company's own (A→Z) first, then the built-ins. */
-export function allChecklistTemplates(custom: ChecklistTemplate[] | null | undefined): ChecklistTemplate[] {
+/** Templates to start a checklist from: the company's own (A→Z) first, then the built-ins (default: low voltage's;
+ *  other trades pass their packs' built-ins — tradeChecklists in trades.ts). */
+export function allChecklistTemplates(custom: ChecklistTemplate[] | null | undefined, builtIns: ChecklistTemplate[] = CHECKLIST_TEMPLATES): ChecklistTemplate[] {
   const mine = normalizeTemplates(custom).sort((a, b) => a.name.localeCompare(b.name));
-  return [...mine, ...CHECKLIST_TEMPLATES];
+  return [...mine, ...builtIns];
 }
 
 /** "Trim-out" → "Trim-out (2)" when that name is taken (case-insensitive; `exceptId` is the template being renamed). */

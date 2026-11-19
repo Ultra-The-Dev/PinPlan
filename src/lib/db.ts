@@ -194,7 +194,8 @@ export async function saveSettings(s: AppSettings) {
   const d = db();
   await d.transaction("rw", d.settings, async () => {
     const stored = await d.settings.get("app");
-    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], updatedAt: nowIso() });
+    // Trades are written only by saveTrades (useTrades.ts): an older settings form can't undo a trade change.
+    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, updatedAt: nowIso() });
   });
 }
 

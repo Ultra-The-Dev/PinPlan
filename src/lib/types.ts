@@ -9,7 +9,21 @@ export type Category =
   | "smarthome"
   | "lighting"
   | "shades"
-  | "infrastructure";
+  | "infrastructure"
+  // Other trades (see src/lib/trades.ts). One fixed superset shared by the database, the web app and the iPad app;
+  // readers must tolerate ids they don't know (fall back to "general").
+  | "power"
+  | "switching"
+  | "panels"
+  | "fire"
+  | "hvac"
+  | "plumbing"
+  | "solar"
+  | "ev"
+  | "general";
+
+/** A trade pack: which categories, catalog, wire types, closets and checklists a company works with. */
+export type TradeId = "lowvoltage" | "electrical" | "fire" | "hvac" | "plumbing" | "solar" | "general";
 
 /** Layers the crew can toggle. One per category plus wiring. */
 export type Layer = Category | "wiring";
@@ -19,7 +33,34 @@ export type Mount = "ceiling" | "wall" | "exterior" | "floor" | "cabinet" | "oth
 export type Shape = "circle" | "square" | "triangle" | "diamond" | "hexagon" | "star";
 export type ProjectStatus = "estimate" | "approved" | "installed";
 export type RunKind = "led" | "stair" | "wire";
-export type ClosetKind = "equipment" | "switch" | "rack";
+/** Where runs end. The first three are low voltage; the rest belong to other trades (panels, FACP, air handler…). */
+export type ClosetKind =
+  | "equipment"
+  | "switch"
+  | "rack"
+  | "panel"
+  | "subpanel"
+  | "facp"
+  | "nac"
+  | "airhandler"
+  | "condenser"
+  | "waterheater"
+  | "manifold"
+  | "inverter";
+
+/** Electrical circuit details on a wire run (a circuit's home run to its panel). All optional. */
+export interface CircuitInfo {
+  /** Breaker space(s) in the panel, e.g. "12" or "3/5" for a 2-pole breaker. */
+  number?: string | null;
+  /** Breaker size in amps (15, 20, 30, 40, 50…). */
+  breakerA?: number | null;
+  /** 120 or 240 (208/277 also allowed). */
+  volts?: number | null;
+  /** 1, 2 or 3 poles. */
+  poles?: number | null;
+  /** What the circuit feeds ("Kitchen counter receptacles"). Defaults to the rooms of its devices. */
+  description?: string | null;
+}
 
 export interface BillduDocRef {
   id: number;
@@ -122,6 +163,8 @@ export interface Marker {
   /** This device's product when it differs from the job's choice for its type. */
   productId?: string | null;
   closetId?: string | null;
+  /** Electrical: the panel circuit number this device is on (e.g. "12"). Its panel is closetId. */
+  circuit?: string | null;
   tentative: boolean;
   notes: string;
   photoId?: string | null;
@@ -153,6 +196,8 @@ export interface Run {
   /** For wire home runs: the device and closet they connect. */
   markerId?: string | null;
   closetId?: string | null;
+  /** Electrical jobs: the run is a circuit's home run (circuit number, breaker, voltage, poles). */
+  circuit?: CircuitInfo | null;
   tentative?: boolean;
   notes?: string;
   createdAt: string;
@@ -406,5 +451,8 @@ export interface AppSettings {
   /** Which defaults blank business fields fall back to: "neutral" on installs from the SaaS onwards; missing on
    *  the founder's older installs, which keep the founder's company details. */
   brandDefaults?: "founder" | "neutral";
+  /** The company's trades, primary first (e.g. ["electrical", "lowvoltage"]). Missing or empty = low voltage only.
+   *  Written only by saveTrades (src/lib/useTrades.ts); mirrored on the team so every member shares it. */
+  trades?: TradeId[];
   updatedAt: string;
 }

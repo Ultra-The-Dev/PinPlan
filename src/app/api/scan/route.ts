@@ -2,6 +2,8 @@ import { requireUser } from "@/lib/server/auth";
 import { limitAi } from "@/lib/server/rateLimit";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildScanPrompt, parseScanResult, SCAN_SCHEMA, TITLE_SCHEMA, type ScanCatalogEntry } from "@/lib/scanParse";
+import { parseTrades } from "@/lib/trades";
+import type { TradeId } from "@/lib/types";
 
 // AI scan assist: sends one sheet image to Claude (vision) and returns suggestions as strict JSON.
 // Results are only suggestions; the client shows them as ghost markers the user must accept.
@@ -29,6 +31,7 @@ export async function POST(request: Request) {
   let mime = "image/jpeg";
   let catalog: ScanCatalogEntry[] = [];
   let mode: "full" | "title" = "full";
+  let trades: TradeId[] = parseTrades(null);
   try {
     const ct = request.headers.get("content-type") || "";
     if (ct.includes("multipart/form-data")) {
@@ -39,12 +42,14 @@ export async function POST(request: Request) {
       mime = file.type || mime;
       catalog = JSON.parse(String(form.get("catalog") || "[]"));
       mode = form.get("mode") === "title" ? "title" : "full";
+      trades = parseTrades(JSON.parse(String(form.get("trades") || "[]")));
     } else {
       const body = await request.json();
       imageBase64 = String(body.imageBase64 || "").replace(/^data:[^;]+;base64,/, "");
       mime = body.mime || mime;
       catalog = Array.isArray(body.catalog) ? body.catalog : [];
       mode = body.mode === "title" ? "title" : "full";
+      trades = parseTrades(body.trades);
     }
   } catch {
     return Response.json({ error: "Bad request: expected an image, a catalog and a mode." }, { status: 400 });
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mime as ImageMime, data: imageBase64 } },
-            { type: "text", text: buildScanPrompt(catalog, mode) },
+            { type: "text", text: buildScanPrompt(catalog, mode, trades) },
           ],
         },
       ],

@@ -1,5 +1,6 @@
 "use client";
 // Publishing proposals to Supabase, and reading/answering them from the client page.
+import { LAYERS } from "./catalog";
 import { renderSheet } from "./renderSheet";
 import { getSupabase } from "./supabase";
 import type { ProposalSnapshot, ProposalStatus } from "./proposal";
@@ -34,7 +35,7 @@ export interface PublicProposal {
 
 const BUCKET = "proposals";
 /** Layers a client sees on the plan: devices and lighting, not the crew's wiring. */
-export const CLIENT_LAYERS: Layer[] = ["security", "network", "audio", "video", "smarthome", "lighting", "shades", "infrastructure"];
+export const CLIENT_LAYERS: Layer[] = LAYERS.map((l) => l.id).filter((l) => l !== "wiring"); // every trade's categories
 
 function need() {
   const sb = getSupabase();

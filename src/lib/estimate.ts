@@ -1,4 +1,4 @@
-import { CLOSET_KINDS } from "./catalog";
+import { closetMeta } from "./catalog";
 import { countOf, linkedTypes } from "./charges";
 import { CABLE_PREFIX, cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
 import { computeTakeoff, type Takeoff } from "./takeoff";
@@ -151,8 +151,8 @@ export function buildEstimate(
 
   for (const k of Object.keys(t.closets) as ClosetKind[]) {
     if (!t.closets[k]) continue;
-    const meta = CLOSET_KINDS.find((c) => c.id === k)!;
-    push({ key: `closet:${k}`, description: meta.name, qty: t.closets[k], unit: "each", unitPrice: 0, optional: false, group: "infrastructure" });
+    const meta = closetMeta(k);
+    push({ key: `closet:${k}`, description: meta.name, qty: t.closets[k] ?? 0, unit: "each", unitPrice: 0, optional: false, group: "infrastructure" });
   }
 
   if (pricing.laborMode === "separate") {
