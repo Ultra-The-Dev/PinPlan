@@ -83,7 +83,8 @@ export async function loadPdfjs() {
 
 async function pdfjs() {
   const lib = await import("pdfjs-dist");
-  lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  // Versioned file name (scripts/copy-pdf-worker.mjs) so a cached worker always matches the library.
+  lib.GlobalWorkerOptions.workerSrc = `/pdf.worker.${lib.version}.min.mjs`;
   return lib;
 }
 

@@ -70,6 +70,16 @@ export interface SyncItem {
   queuedAt: string;
 }
 
+/** A small JPEG preview of a stored image (src/lib/thumbs.ts). Local only: never synced, rebuilt on demand. */
+export interface StoredThumb {
+  /** `${imageId}@${maxSide}` */
+  id: string;
+  imageId: string;
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
 class PinPlanDB extends Dexie {
   projects!: EntityTable<Project, "id">;
   sheets!: EntityTable<Sheet, "id">;
@@ -106,6 +116,8 @@ class PinPlanDB extends Dexie {
   syncQueue!: EntityTable<SyncItem, "seq">;
   /** Filled forms and inspections (job_forms). */
   forms!: EntityTable<JobForm, "id">;
+  /** Local-only image previews for job cards and photo grids (src/lib/thumbs.ts). */
+  thumbs!: EntityTable<StoredThumb, "id">;
 
   constructor() {
     super("pinplan");
@@ -155,6 +167,8 @@ class PinPlanDB extends Dexie {
     this.version(21).stores({ tasks: "id, projectId, sheetId, status, assignee, updatedAt" });
     // v22: plan markups (docs/plan-markups.md). Version numbers are spread out between features built in parallel.
     this.version(22).stores({ planMarkups: "id, projectId, sheetId, updatedAt" });
+    // v49: local-only thumbnails of sheet and photo images (src/lib/thumbs.ts; not synced, safe to clear).
+    this.version(49).stores({ thumbs: "id, imageId" });
   }
 }
 

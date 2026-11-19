@@ -1,11 +1,13 @@
 "use client";
-// Jobs on a map (OpenStreetMap tiles via Leaflet, no API key). A job's location comes from its first geotagged
-// photo, or is set on its Job tab. Filter by status and label; the list beside the map flies to a job's pin.
+// Jobs on a map (Leaflet; tiles from NEXT_PUBLIC_MAP_TILE_URL, else OpenStreetMap — src/lib/endpoints.ts). A job's
+// location comes from its first geotagged photo, or is set on its Job tab. Filter by status and label; the list beside
+// the map flies to a job's pin. Offline, the pins and the list still work; only the background map is missing.
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { db } from "@/lib/db";
+import { mapTiles } from "@/lib/endpoints";
 import { filterJobs, isPlaced, jobLabelList, jobTitle, labelOptions, statusCounts } from "@/lib/jobFilters";
 import type { Project, ProjectStatus } from "@/lib/types";
 
@@ -50,6 +52,8 @@ export default function JobsMap() {
   const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
   const [label, setLabel] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  // Background map unavailable: offline, or tiles keep failing (bad key, provider down).
+  const [noTiles, setNoTiles] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   useEffect(() => {
     void db()
       .projects.toArray()
@@ -69,7 +73,17 @@ export default function JobsMap() {
   useEffect(() => {
     if (!el.current || !loaded) return;
     const map = L.map(el.current, { zoomControl: true, attributionControl: true });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
+    const tiles = mapTiles();
+    let failed = 0;
+    L.tileLayer(tiles.url, tiles.options)
+      .on("tileerror", () => {
+        if (++failed >= 4) setNoTiles(true);
+      })
+      .on("tileload", () => {
+        failed = 0;
+        if (navigator.onLine !== false) setNoTiles(false);
+      })
+      .addTo(map);
     map.setView([40.73, -73.95], 9);
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);
@@ -81,6 +95,21 @@ export default function JobsMap() {
       markers.clear();
     };
   }, [loaded]);
+
+  // Follow the connection: back online, try the tiles again.
+  useEffect(() => {
+    const off = () => setNoTiles(true);
+    const on = () => {
+      setNoTiles(false);
+      mapRef.current?.eachLayer((l) => (l instanceof L.TileLayer ? l.redraw() : undefined));
+    };
+    window.addEventListener("offline", off);
+    window.addEventListener("online", on);
+    return () => {
+      window.removeEventListener("offline", off);
+      window.removeEventListener("online", on);
+    };
+  }, []);
 
   // Redraw pins whenever the filtered set changes, and fit them.
   useEffect(() => {
@@ -147,7 +176,14 @@ export default function JobsMap() {
         </div>
       )}
       <div className="grid min-h-[420px] flex-1 gap-4 lg:grid-cols-[1fr_280px]">
-        <div ref={el} className="card relative z-0 min-h-[420px] overflow-hidden" />
+        <div className="relative min-h-[420px]">
+          <div ref={el} className="card relative z-0 h-full min-h-[420px] overflow-hidden" />
+          {noTiles && (
+            <p className="pointer-events-none absolute inset-x-12 bottom-8 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-xs text-slate-600 shadow-sm" role="status">
+              The map needs a connection. Your jobs and pins still work.
+            </p>
+          )}
+        </div>
         <div className="card flex max-h-[60vh] min-h-0 flex-col overflow-hidden lg:max-h-none">
           <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">On the map · {placed.length}</div>
           <ul className="min-h-0 flex-1 overflow-y-auto">

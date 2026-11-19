@@ -7,21 +7,27 @@
 // - script-src 'unsafe-eval': HEIC photo conversion (heic2any) and the photo-straightening tool (OpenCV.js) are
 //   Emscripten builds whose bindings call `new Function`. Drop it once both are replaced or rebuilt without it.
 // - 'wasm-unsafe-eval': PDF.js image decoders, react-pdf's layout engine and OpenCV run WebAssembly.
-// - https://docs.opencv.org: OpenCV.js is loaded on demand from there (src/lib/perspective.ts).
-// - worker-src blob:: PDF.js runs from /pdf.worker.min.mjs; heic2any starts its worker from a blob: URL.
+// - OpenCV.js is self-hosted (public/vendor), so no third-party script host is allowed.
+// - worker-src blob:: PDF.js runs from /pdf.worker.<version>.min.mjs; heic2any starts its worker from a blob: URL.
 // - img-src: sheet/photo blobs and data: URLs, OpenStreetMap tiles (Leaflet map), Supabase public proposal images, and
 //   any https: image: proposal/report snapshots store absolute logo/image URLs, which must keep working after a domain
 //   change (e.g. a proposal published on *.vercel.app, opened after moving to the custom domain). Images can't run code.
-// - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather).
+// - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather),
+//   plus the NEXT_PUBLIC_WEATHER_URL origin when weather goes to another https host (src/lib/endpoints.ts). Map tiles
+//   (NEXT_PUBLIC_MAP_TILE_URL) are images, already covered by img-src https:.
 // - style/font: inline styles (Konva, react-pdf, Leaflet) and Google Fonts on the client proposal/report pages.
 // - object-src/frame-src blob:: generated PDFs and documents open from blob: URLs.
 // Set CSP_REPORT_ONLY=1 to send the policy as Content-Security-Policy-Report-Only instead (debugging a regression).
+
+import { weatherOrigin } from "./endpoints";
 
 export interface HeaderEnv {
   supabaseUrl?: string;
   dev?: boolean;
   vercelPreview?: boolean;
   reportOnly?: boolean;
+  /** NEXT_PUBLIC_WEATHER_URL (defaults to the build's env). */
+  weatherUrl?: string;
 }
 
 function origin(url: string | undefined): string | null {
@@ -38,14 +44,15 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
   const sbWs = sb ? sb.replace(/^http/, "ws") : null;
   // Vercel's preview-deployment toolbar (comments/feedback) only exists on preview URLs.
   const live = env.vercelPreview;
+  const weather = weatherOrigin(env.weatherUrl ?? process.env.NEXT_PUBLIC_WEATHER_URL);
   const list = (...xs: (string | null | false | undefined)[]) => xs.filter(Boolean).join(" ");
   const directives: Record<string, string> = {
     "default-src": "'self'",
-    "script-src": list("'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", "https://docs.opencv.org", live && "https://vercel.live"),
+    "script-src": list("'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", live && "https://vercel.live"),
     "style-src": list("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", live && "https://vercel.live"),
     "img-src": list("'self'", "blob:", "data:", "https:", sb),
     "font-src": list("'self'", "data:", "https://fonts.gstatic.com", live && "https://vercel.live https://assets.vercel.com"),
-    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, "https://api.open-meteo.com https://archive-api.open-meteo.com", env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
+    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, "https://api.open-meteo.com https://archive-api.open-meteo.com", weather, env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
     "worker-src": "'self' blob:",
     "media-src": "'self' blob: data:",
     "object-src": "'self' blob:",
