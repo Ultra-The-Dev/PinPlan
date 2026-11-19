@@ -5,7 +5,7 @@ final class InstallProgressTests: XCTestCase {
     private let ts = "2026-11-19T10:00:00.000Z"
     private let later = "2026-11-19T11:00:00.000Z"
 
-    private func type(_ id: String, _ cat: Category, kind: DeviceKind = .device) -> DeviceType {
+    private func type(_ id: String, _ cat: PinPlanCore.Category, kind: DeviceKind = .device) -> DeviceType {
         DeviceType(id: id, name: id, category: cat, symbol: "X", abbrev: "X", shape: .circle, color: "#000", unit: .each, unitPrice: 1, laborPrice: 1,
                    defaultWire: "Cat6", defaultMount: .ceiling, kind: kind, billduProductId: nil, sort: 0, archived: nil, updatedAt: ts)
     }
