@@ -61,7 +61,8 @@ export default function ProjectView() {
     const nav = navRef.current;
     const el = nav?.querySelector<HTMLElement>('[aria-current="page"]');
     if (!nav || !el) return;
-    const left = el.offsetLeft - nav.offsetLeft;
+    // Measured on screen, so it doesn't depend on which ancestor is the offsetParent.
+    const left = el.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
     if (left < nav.scrollLeft || left + el.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left - (nav.clientWidth - el.offsetWidth) / 2;
   }, [tab, ready]);
 

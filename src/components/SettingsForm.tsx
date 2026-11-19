@@ -190,9 +190,9 @@ export default function SettingsForm() {
             </div>
             {WIRE_TYPES.filter((w) => w !== "None").map((w) => (
               <div key={w}>
-                <label className="label" htmlFor={`set-wire-${w}`}>{w} $/ft</label>
+                <label className="label" htmlFor={`set-wire-${w.replace(/[^a-zA-Z0-9]+/g, "-")}`}>{w} $/ft</label>
                 <input
-                  id={`set-wire-${w}`}
+                  id={`set-wire-${w.replace(/[^a-zA-Z0-9]+/g, "-")}`}
                   className="input"
                   type="number"
                   step="0.01"

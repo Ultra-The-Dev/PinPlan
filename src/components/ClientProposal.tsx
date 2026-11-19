@@ -152,7 +152,7 @@ export default function ClientProposal() {
     setBusy(true);
     setError(null);
     try {
-      setP(await respondToProposal(token, { accept, name, signature, options: chosen, note }));
+      setP(await respondToProposal(token, { accept, name, signature: accept ? signature : null, options: chosen, note }));
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
       setError((e as Error).message);
