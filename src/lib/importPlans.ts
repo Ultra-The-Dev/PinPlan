@@ -72,7 +72,9 @@ export function guessFloorName(text: string, fallback: string): string {
     [/\bSITE\s*PLAN\b/, "Site plan"],
   ];
   // A sheet title ("2ND FLOOR PLAN", "ATTIC PLAN") beats a passing mention in the notes ("ATTIC ACCESS", "STAIRS TO BASEMENT").
-  for (const [re, name] of patterns) if (new RegExp(`${re.source}\\.?\\s*(?:FLOOR\\s*)?PLAN\\b`).test(t)) return name;
+  // Patterns that already end in PLAN ("SITE PLAN") are titles as they stand.
+  const title = (re: RegExp) => (/PLAN\\b$/.test(re.source) ? re : new RegExp(`${re.source}\\.?\\s*(?:FLOOR\\s*)?PLAN\\b`));
+  for (const [re, name] of patterns) if (title(re).test(t)) return name;
   for (const [re, name] of patterns) if (re.test(t)) return name;
   return fallback;
 }
