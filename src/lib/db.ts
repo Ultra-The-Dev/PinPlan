@@ -18,6 +18,7 @@ import type {
   Marker,
   Photo,
   PhotoComment,
+  PlanTask,
   Product,
   Project,
   Run,
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "tasks";
 
 export interface SyncItem {
   seq?: number;
@@ -69,6 +71,8 @@ class PinPlanDB extends Dexie {
   /** Quotes, invoices and credit notes (not to be confused with `documents`, the job's attached files). */
   salesDocs!: EntityTable<SalesDoc, "id">;
   salesPayments!: EntityTable<DocPayment, "id">;
+  /** Tasks pinned on the plan (punch / issues). */
+  tasks!: EntityTable<PlanTask, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
@@ -104,6 +108,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v21: tasks pinned on the plan (version numbers leave room for features built in parallel).
+    this.version(21).stores({ tasks: "id, projectId, sheetId, status, assignee, updatedAt" });
   }
 }
 
@@ -256,6 +262,7 @@ export interface ProjectBundle {
   checklists: Checklist[];
   jobLogs: JobLog[];
   documents: JobDocument[];
+  tasks: PlanTask[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -263,7 +270,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, tasks] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -274,6 +281,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.checklists.where("projectId").equals(projectId).toArray(),
     d.jobLogs.where("projectId").equals(projectId).toArray(),
     d.documents.where("projectId").equals(projectId).toArray(),
+    d.tasks.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -287,6 +295,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    tasks: live(tasks).sort((a, b) => a.number - b.number || a.createdAt.localeCompare(b.createdAt)),
   };
 }
 

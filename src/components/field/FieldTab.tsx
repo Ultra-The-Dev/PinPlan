@@ -1,21 +1,26 @@
 "use client";
 // Field: checklists (with photo-required items), daily logs, documents and the job timeline.
-import { BookOpen, ClipboardCheck, FileStack, History } from "lucide-react";
+import { BookOpen, ClipboardCheck, FileStack, History, ListTodo } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Checklists from "./Checklists";
 import DailyLogs from "./DailyLogs";
 import Documents from "./Documents";
 import Timeline from "./Timeline";
+import TaskList from "../tasks/TaskList";
 
 const SECTIONS = [
   { id: "checklists", label: "Checklists", icon: ClipboardCheck },
   { id: "logs", label: "Daily logs", icon: BookOpen },
   { id: "docs", label: "Documents", icon: FileStack },
   { id: "timeline", label: "Timeline", icon: History },
+  { id: "tasks", label: "Tasks", icon: ListTodo },
 ] as const;
 
 export default function FieldTab() {
-  const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>("checklists");
+  // A task filter (&tf=) or task link in the address opens the Tasks section.
+  const params = useSearchParams();
+  const [section, setSection] = useState<(typeof SECTIONS)[number]["id"]>(params.has("tf") || params.has("task") ? "tasks" : "checklists");
   return (
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6">
@@ -38,6 +43,7 @@ export default function FieldTab() {
         {section === "logs" && <DailyLogs />}
         {section === "docs" && <Documents />}
         {section === "timeline" && <Timeline />}
+        {section === "tasks" && <TaskList />}
       </div>
     </div>
   );

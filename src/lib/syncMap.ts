@@ -260,6 +260,37 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // Tasks pinned on the plan (src/lib/tasks.ts). Photos stay in `photos`; the task lists their ids.
+  tasks: {
+    remote: "tasks",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      number: "number",
+      title: "title",
+      description: "description",
+      status: "status",
+      priority: "priority",
+      category: "category",
+      assignee: "assignee",
+      watchers: "watchers",
+      due: "due",
+      startDate: "start_date",
+      sheetId: "sheet_id",
+      x: "x",
+      y: "y",
+      markerId: "marker_id",
+      room: "room",
+      tags: "tags",
+      checklist: "checklist",
+      photoIds: "photo_ids",
+      activity: "activity",
+      createdBy: "created_by",
+      closedAt: "closed_at",
+      verifiedBy: "verified_by",
+      verifiedAt: "verified_at",
+    },
+  },
 };
 
 
@@ -280,9 +311,10 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "tasks",
 ];
 
-const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
+const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt", "closedAt", "verifiedAt"]);
 const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
 /** Columns that are NOT NULL in the database: what to send when the row has nothing. */
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
@@ -299,6 +331,11 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
+  if (table === "tasks") {
+    if (out.status == null) out.status = "open";
+    if (out.title == null) out.title = "";
+    if (out.number == null) out.number = 0;
+  }
   return out;
 }
 

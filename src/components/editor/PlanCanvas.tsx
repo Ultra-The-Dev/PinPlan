@@ -1,7 +1,7 @@
 "use client";
 import type Konva from "konva";
 import { ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { categoryOf, closetMeta } from "@/lib/catalog";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
@@ -11,6 +11,7 @@ import { drawSymbolContent, iconFor, symbolPath, wireColor } from "@/lib/symbols
 import { useSheetImage } from "@/lib/useImage";
 import type { Closet, DeviceType, Layer as LayerId, Marker, Run, Sheet } from "@/lib/types";
 import GhostLayer from "../GhostLayer";
+import { useOverlayCapture } from "./overlays/registry";
 
 const R = 14; // marker radius in screen px
 
@@ -26,14 +27,17 @@ interface Props {
   showLabels: boolean;
   onTapImage: (x: number, y: number, hit: CanvasHit) => void;
   onDoubleTap: () => void;
+  /** Plan overlays (overlays/registry.ts), drawn in image pixels above markers and runs. */
+  renderOverlays?: (scale: number) => ReactNode;
 }
 
-export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImage, onDoubleTap }: Props) {
+export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImage, onDoubleTap, renderOverlays }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [viewState, setViewState] = useState<{ key: string; scale: number; x: number; y: number; focusN?: number }>({ key: "", scale: 0.2, x: 0, y: 0 });
   const image = useSheetImage(sheet.imageId);
+  const capture = useOverlayCapture((s) => s.capture);
   const W = sheet.width;
   const H = sheet.height;
 
@@ -139,7 +143,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
     if (pinch.current) return;
     const p = imagePoint();
     if (!p) return;
-    if (tool.kind === "select") {
+    if (selectMode) {
       if (e.target === stageRef.current || e.target.name() === "plan-image") select(null);
       return;
     }
@@ -163,7 +167,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   const sheetMarkers = markers.filter((m) => m.sheetId === sheet.id && visible(typeById.get(m.deviceTypeId)?.category ?? "security"));
   const sheetRuns = runs.filter((r) => r.sheetId === sheet.id && visible(r.kind === "wire" ? "wiring" : "lighting"));
   const sheetClosets = closets.filter((c) => c.sheetId === sheet.id && visible(closetMeta(c.kind).category));
-  const selectMode = tool.kind === "select";
+  const selectMode = tool.kind === "select" && !capture;
 
   const toPx = (pts: number[]) => pts.map((v, i) => (i % 2 === 0 ? v * W : v * H));
 
@@ -177,7 +181,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
         scaleY={scale}
         x={view.x}
         y={view.y}
-        draggable
+        draggable={!capture}
         onDragEnd={(e) => {
           if (e.target === stageRef.current) setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
         }}
@@ -247,6 +251,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
             />
           ))}
           <GhostLayer sheetId={sheet.id} width={W} height={H} scale={scale} />
+          {renderOverlays?.(scale)}
           {draft.length >= 2 && (
             <>
               <Line points={toPx(draft)} stroke="#f59e0b" strokeWidth={3 * inv} dash={[8 * inv, 6 * inv]} listening={false} />

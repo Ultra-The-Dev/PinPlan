@@ -1,15 +1,16 @@
 "use client";
 // Tasks across every job: open checklist / punch-list items that are assigned to someone, have a due date or came from a photo comment.
-import { CalendarDays, Camera, Check, ClipboardList, UserRound } from "lucide-react";
+import { CalendarDays, Camera, Check, ClipboardList, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { db, nowIso, put } from "@/lib/db";
+import { db, newId, nowIso, put } from "@/lib/db";
 import { localDay, openTasks, TASK_BUCKETS, teamNames, type OpenTask } from "@/lib/fieldDocs";
 import { getAuthor } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
-import type { Checklist, Photo, Project } from "@/lib/types";
+import { applyTaskChange, openPlanTasksFor, priorityInfo, statusInfo, type OpenPlanTask } from "@/lib/tasks";
+import type { Checklist, Photo, PlanTask, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 
 const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -38,6 +39,8 @@ export default function TasksBoard() {
   const me = getAuthor(email);
   const [projects, setProjects] = useState<Project[]>([]);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
+  // Tasks pinned on plans (src/lib/tasks.ts), shown next to the checklist tasks.
+  const [planTasks, setPlanTasks] = useState<PlanTask[]>([]);
   const [photos, setPhotos] = useState<Map<string, Photo>>(new Map());
   const [who, setWho] = useState<string>("__me");
   const [today, setToday] = useState("");
@@ -50,6 +53,7 @@ export default function TasksBoard() {
     const ids = [...new Set(cs.flatMap((c) => c.items.map((i) => i.photoId).filter((x): x is string => !!x)))];
     const ps = ids.length ? await db().photos.bulkGet(ids) : [];
     setPhotos(new Map(ps.filter((p): p is Photo => !!p && !p.deleted).map((p) => [p.id, p])));
+    setPlanTasks((await db().tasks.toArray()).filter((t) => !t.deleted));
     setChecklists(cs);
   }, []);
   useEffect(() => {
@@ -68,8 +72,28 @@ export default function TasksBoard() {
 
   const filter = who === "__me" ? me : who === "__all" ? null : who;
   const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
-  const names = useMemo(() => teamNames({ checklists: checklists ?? [], members }, me), [checklists, members, me]);
-  const mineCount = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: me }).length : 0), [projects, checklists, today, me]);
+  const jobs = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const planOpen = useMemo(
+    () => (today ? openPlanTasksFor(filter, planTasks.filter((t) => jobs.has(t.projectId)), today) : []),
+    [planTasks, jobs, today, filter],
+  );
+  const names = useMemo(() => {
+    const ns = teamNames({ checklists: checklists ?? [], members }, me);
+    for (const t of planTasks) if (t.assignee?.trim() && !ns.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) ns.push(t.assignee.trim());
+    return ns.sort((a, b) => a.localeCompare(b));
+  }, [checklists, members, me, planTasks]);
+  const mineCount = useMemo(
+    () => (checklists && today ? openTasks({ projects, checklists }, { today, who: me }).length + openPlanTasksFor(me, planTasks.filter((t) => jobs.has(t.projectId)), today).length : 0),
+    [projects, checklists, today, me, planTasks, jobs],
+  );
+
+  async function completePlanTask(t: OpenPlanTask) {
+    // Fresh copy, so a quick second tick doesn't overwrite the first.
+    const cur = (await db().tasks.get(t.task.id)) ?? t.task;
+    await put("tasks", applyTaskChange(cur, { status: "done" }, me, nowIso(), newId));
+    toast(`Completed: #${t.task.number} ${t.task.title}`, "success");
+    await load();
+  }
 
   async function complete(t: OpenTask) {
     // Read the checklist fresh: ticking two items quickly must not overwrite the first with a stale copy.
@@ -84,7 +108,7 @@ export default function TasksBoard() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <h1 className="page-title">Tasks</h1>
-          <p className="mt-1 text-sm text-slate-500">Open checklist and punch-list items with someone assigned or a due date, across every job.</p>
+          <p className="mt-1 text-sm text-slate-500">Open plan tasks, and checklist and punch-list items with someone assigned or a due date, across every job.</p>
         </div>
         <select className="input h-9 w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose tasks">
           <option value="__me">Mine ({me}) · {mineCount}</option>
@@ -99,7 +123,7 @@ export default function TasksBoard() {
         </select>
       </div>
 
-      {checklists && tasks.length === 0 && (
+      {checklists && tasks.length === 0 && planOpen.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <ClipboardList className="h-8 w-8 text-slate-300" />
           <div className="font-medium">No open tasks{filter ? ` for ${filter}` : ""}</div>
@@ -111,11 +135,12 @@ export default function TasksBoard() {
 
       {TASK_BUCKETS.map((b) => {
         const list = tasks.filter((t) => t.bucket === b.id);
-        if (!list.length) return null;
+        const plan = planOpen.filter((t) => t.bucket === b.id);
+        if (!list.length && !plan.length) return null;
         return (
           <section key={b.id}>
             <h2 className={`mb-2 px-1 text-xs font-semibold tracking-wide uppercase ${BUCKET_STYLE[b.id]}`}>
-              {b.name} · {list.length}
+              {b.name} · {list.length + plan.length}
             </h2>
             <ul className="card divide-y divide-slate-100">
               {list.map((t) => (
@@ -163,10 +188,60 @@ export default function TasksBoard() {
                   {t.item.photoId && photos.get(t.item.photoId) && <TaskPhoto photo={photos.get(t.item.photoId)!} href={`/project?id=${t.project.id}&tab=photos`} />}
                 </li>
               ))}
+              {plan.map((t) => (
+                <PlanTaskRow key={t.task.id} t={t} project={jobs.get(t.task.projectId)!} onComplete={() => void completePlanTask(t)} />
+              ))}
             </ul>
           </section>
         );
       })}
     </div>
+  );
+}
+
+/** A task pinned on a plan: tick to mark it Completed (the office verifies it); the title opens it on the job. */
+function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Project; onComplete: () => void }) {
+  const s = statusInfo(t.task.status);
+  const p = priorityInfo(t.task.priority);
+  const href = `/project?id=${project.id}&tab=field&tf=&task=${t.task.id}`;
+  return (
+    <li className="flex items-start gap-3 px-4 py-3">
+      <button
+        className="group mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500 focus-visible:ring-emerald-500"
+        onClick={onComplete}
+        aria-label={`Mark completed: #${t.task.number} ${t.task.title}`}
+        title="Mark completed"
+      >
+        <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <Link href={href} className="text-sm font-medium hover:underline">
+          <span className="mr-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white tabular-nums" style={{ background: s.color }}>
+            {t.task.number}
+          </span>
+          {t.task.title}
+        </Link>
+        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
+          <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${project.id}&tab=field`}>
+            {project.address || project.clientName || "Job"}
+          </Link>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" /> {s.label}
+            {t.task.room ? ` · ${t.task.room}` : ""}
+          </span>
+          {p && <span style={{ color: p.color }}>{p.label}</span>}
+          {t.task.assignee && (
+            <span className="inline-flex items-center gap-1">
+              <UserRound className="h-3 w-3" /> {t.task.assignee}
+            </span>
+          )}
+          {t.task.due && (
+            <span className={`inline-flex items-center gap-1 ${BUCKET_STYLE[t.bucket]}`}>
+              <CalendarDays className="h-3 w-3" /> {dueText(t.task.due)}
+            </span>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }

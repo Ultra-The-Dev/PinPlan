@@ -675,3 +675,57 @@ export interface DocumentSettings {
   reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
   updatedAt?: string;
 }
+
+// ---------------- tasks pinned on the plan (punch / issues; see src/lib/tasks.ts) ----------------
+
+/** open → in_progress → ready (for review) → done (tech: Completed) → verified (office). */
+export type TaskStatus = "open" | "in_progress" | "ready" | "done" | "verified";
+/** 1 = high (P1) … 3 = low (P3). */
+export type TaskPriority = 1 | 2 | 3;
+
+/** One line of a task's history. */
+export interface TaskEvent {
+  id: string;
+  at: string;
+  by: string;
+  kind: "created" | "comment" | "status" | "assign" | "field" | "photo" | "checklist";
+  text?: string;
+  from?: string;
+  to?: string;
+}
+
+/** A task: pinned on a sheet (x/y), on a sheet with no spot (sheetId only), or general (no sheet). Never counts in the takeoff. */
+export interface PlanTask {
+  id: string;
+  projectId: string;
+  /** #12 — max in the job + 1, given on the device that made it (offline duplicates are tolerated). */
+  number: number;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority?: TaskPriority | null;
+  /** Trade / category name ("Electrical") or free text. */
+  category?: string | null;
+  assignee?: string | null;
+  watchers?: string[] | null;
+  /** YYYY-MM-DD. */
+  due?: string | null;
+  startDate?: string | null;
+  sheetId?: string | null;
+  x?: number | null;
+  y?: number | null;
+  markerId?: string | null;
+  room?: string | null;
+  tags?: string[] | null;
+  checklist?: ChecklistItem[] | null;
+  /** Job photos (photos table) attached to the task, oldest first. */
+  photoIds?: string[] | null;
+  activity?: TaskEvent[] | null;
+  createdBy?: string | null;
+  closedAt?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

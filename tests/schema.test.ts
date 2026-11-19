@@ -63,6 +63,11 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     createdAt: ts, updatedAt: ts, deleted: false,
   },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
+  tasks: {
+    id: "tk", projectId: "p", number: 3, title: "Loose cover", description: "d", status: "done", priority: 1, category: "Electrical", assignee: "Mike", watchers: ["Ann"],
+    due: "2026-11-20", startDate: "2026-11-18", sheetId: "s", x: 0.4, y: 0.6, markerId: "m", room: "Lobby", tags: ["lobby"], checklist: [], photoIds: ["ph"], activity: [],
+    createdBy: "Ann", closedAt: ts, verifiedBy: "Office", verifiedAt: ts, createdAt: ts, updatedAt: ts, deleted: false,
+  },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);
