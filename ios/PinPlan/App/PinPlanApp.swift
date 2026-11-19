@@ -5,7 +5,10 @@ import TipKit
 struct PinPlanApp: App {
     @State private var app = AppModel()
 
-    init() { TipsSetup.configure() }
+    init() {
+        TipsSetup.configure()
+        MainActor.assumeIsolated { ProgressOverlays.register() }
+    }
 
     var body: some Scene {
         WindowGroup {

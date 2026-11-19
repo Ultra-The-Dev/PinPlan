@@ -124,6 +124,9 @@ final class InstallProgressTests: XCTestCase {
         XCTAssertEqual(list.last?.note, "Box missing")
         XCTAssertEqual(InstallProgress.nearest([(0, 0), (10, 0), (30, 0)], to: (8, 0), within: 24), 1)
         XCTAssertNil(InstallProgress.nearest([(100, 0)], to: (0, 0), within: 24))
+        XCTAssertEqual(InstallProgress.distance(to: [0, 0, 10, 0, 10, 10], from: (12, 5)), 2, accuracy: 1e-9)
+        XCTAssertEqual(InstallProgress.distance(to: [0, 0, 10, 0], from: (5, 3)), 3, accuracy: 1e-9)
+        XCTAssertEqual(InstallProgress.distance(to: [], from: (0, 0)), .infinity)
     }
 
     func testTakeoffUnchangedWithInstall() {

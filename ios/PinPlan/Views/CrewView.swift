@@ -42,6 +42,7 @@ struct CrewView: View {
                     }
                 }
             }
+            ProgressDashboardView(model: model)
             Section(sentence: "Home-run schedule") {
                 ForEach(rows) { m in
                     let run = model.bundle.liveRuns.first { $0.kind == .wire && $0.markerId == m.id }

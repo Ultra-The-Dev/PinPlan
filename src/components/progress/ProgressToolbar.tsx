@@ -208,7 +208,7 @@ function Snackbar() {
   };
   return (
     <div
-      className="pointer-events-auto absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[6] flex max-w-[94%] -translate-x-1/2 items-center gap-1 rounded-xl bg-ink/95 py-1 pr-1 pl-3.5 text-sm text-white shadow-pop"
+      className="pointer-events-auto absolute bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[6] flex max-w-[94%] -translate-x-1/2 items-center gap-1 rounded-xl bg-ink/95 py-1 pr-1 pl-3.5 text-sm text-white shadow-pop"
       data-plan-ui
       role="status"
       data-testid="progress-snack"
@@ -261,7 +261,7 @@ function PhotoPrompt() {
         }}
       />
       {pending && (
-        <div className="pointer-events-auto absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[7] flex w-[min(420px,94%)] -translate-x-1/2 items-center gap-2 rounded-xl bg-white p-2 pl-3.5 text-sm shadow-pop ring-1 ring-slate-200" data-plan-ui>
+        <div className="pointer-events-auto absolute bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[7] flex w-[min(420px,94%)] -translate-x-1/2 items-center gap-2 rounded-xl bg-white p-2 pl-3.5 text-sm shadow-pop ring-1 ring-slate-200" data-plan-ui>
           <span className="min-w-0 flex-1">
             Photo needed to mark <span className="font-semibold">{pending.label}</span> {STATUS_LABELS[pending.to].toLowerCase()}
           </span>

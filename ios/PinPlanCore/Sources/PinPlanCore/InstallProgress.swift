@@ -263,6 +263,24 @@ public enum InstallProgress {
         return best
     }
 
+    /// Shortest distance from `p` to a polyline given as flat [x0, y0, x1, y1, …] (same units); infinity if empty.
+    public static func distance(to polyline: [Double], from p: (x: Double, y: Double)) -> Double {
+        guard polyline.count >= 2 else { return .infinity }
+        if polyline.count < 4 { return ((polyline[0] - p.x) * (polyline[0] - p.x) + (polyline[1] - p.y) * (polyline[1] - p.y)).squareRoot() }
+        var best = Double.infinity
+        var i = 0
+        while i + 3 < polyline.count {
+            let ax = polyline[i], ay = polyline[i + 1], bx = polyline[i + 2], by = polyline[i + 3]
+            let dx = bx - ax, dy = by - ay
+            let len2 = dx * dx + dy * dy
+            let t = len2 == 0 ? 0 : max(0, min(1, ((p.x - ax) * dx + (p.y - ay) * dy) / len2))
+            let cx = ax + t * dx, cy = ay + t * dy
+            best = min(best, ((p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)).squareRoot())
+            i += 2
+        }
+        return best
+    }
+
     /// "Pass · 0.4 dB" / "Fail".
     public static func testText(_ t: InstallState.Test?) -> String {
         guard let t else { return "" }
