@@ -279,6 +279,8 @@ export function pendingUploadCount(items: { table: string; rowId: string }[], fi
   const queued = new Set<string>();
   for (const it of items) if (it.table === "images" && want.has(it.rowId)) queued.add(it.rowId);
   return queued.size;
+}
+
 /** What a Supabase error says is missing from the cloud schema (a migration that hasn't been run yet), if anything. */
 export type SchemaGap = { kind: "table" } | { kind: "column"; column: string } | null;
 
