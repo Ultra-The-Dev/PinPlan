@@ -1,0 +1,104 @@
+// POST /api/documents/email { documentId, token, to, kind: "document" | "reminder" | "receipt", message? }
+// Emails a client their quote / invoice / credit note (a link to view it online, download the PDF, accept or pay), a
+// payment reminder or a receipt. Office only. The document and its link are read with the caller's own token, so
+// row-level security decides whether they may (technicians and other companies can't see them).
+import { documentUrl, payUrl, PAYMENT_METHODS, type DocSnapshot } from "@/lib/documents";
+import { documentEmail } from "@/lib/emailTemplates";
+import { requireOffice } from "@/lib/server/auth";
+import { appOrigin, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { anonKey, bearer, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
+
+const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
+const perUser = rateLimiter(60 * 60 * 1000, 60);
+const TOKEN_RE = /^[A-Za-z0-9_-]{20,128}$/;
+
+interface DocRow {
+  id: string;
+  kind: "quote" | "invoice" | "credit_note";
+  number: string | null;
+  status: string;
+  total: number;
+  amount_paid: number;
+  balance_due: number;
+  currency: string;
+  due_date: string | null;
+  valid_until: string | null;
+  client: { name?: string; email?: string } | null;
+  deleted: boolean;
+}
+
+export async function POST(req: Request) {
+  if (!emailConfigured()) return emailUnavailable("Copy the client link and send it yourself instead.");
+  if (!supabaseUrl() || !anonKey()) return json({ error: "Client links need cloud sync, which isn't set up on this server.", code: "unavailable" }, 501);
+  const auth = await requireOffice(req);
+  if (!auth.ok) return auth.response;
+  const token = bearer(req);
+  if (!auth.userId || !token) return json({ error: "Sign in to email clients.", code: "sign_in_required" }, 401);
+
+  let body: { documentId?: unknown; token?: unknown; to?: unknown; kind?: unknown; message?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid request.", code: "bad_request" }, 400);
+  }
+  const documentId = typeof body.documentId === "string" ? body.documentId : "";
+  const link = typeof body.token === "string" ? body.token : "";
+  const to = typeof body.to === "string" ? body.to.trim() : "";
+  const kind = body.kind === "reminder" || body.kind === "receipt" ? body.kind : "document";
+  const message = typeof body.message === "string" ? body.message.slice(0, 4000) : "";
+  if (!documentId || documentId.length > 64 || !TOKEN_RE.test(link)) return json({ error: "Publish the client link first.", code: "bad_request" }, 400);
+  if (!validEmail(to)) return json({ error: "Enter a valid email address.", code: "bad_request" }, 400);
+  if (perUser.limited(`user:${auth.userId}`)) return json({ error: "That's a lot of emails for one hour. Try again later.", code: "rate_limited" }, 429);
+
+  let snap: DocSnapshot;
+  let doc: DocRow;
+  let last: { amount: number; paid_on: string; method: string } | undefined;
+  try {
+    const [l, d] = await Promise.all([
+      userFetch(token, `/rest/v1/document_links?id=eq.${encodeURIComponent(link)}&select=id,document_id,status,snapshot`),
+      userFetch(token, `/rest/v1/sales_documents?id=eq.${encodeURIComponent(documentId)}&select=id,kind,number,status,total,amount_paid,balance_due,currency,due_date,valid_until,client,deleted`),
+    ]);
+    if (l.status === 404 || d.status === 404) return json({ error: "Invoicing isn't set up on this server's database yet.", code: "unavailable" }, 501);
+    if (!l.ok || !d.ok) return json({ error: "Couldn't load the document. Try again.", code: "upstream" }, 502);
+    const lr = ((await l.json()) as { document_id: string; status: string; snapshot: DocSnapshot }[])[0];
+    const dr = ((await d.json()) as DocRow[])[0];
+    if (!lr || !dr || dr.deleted || lr.document_id !== dr.id) return json({ error: "That document wasn't found on your team.", code: "not_found" }, 404);
+    if (lr.status !== "active") return json({ error: "That link was withdrawn. Publish a new one.", code: "link_revoked" }, 409);
+    if (dr.status === "void") return json({ error: "That document is void.", code: "void" }, 409);
+    snap = lr.snapshot;
+    doc = dr;
+    if (kind === "receipt") {
+      const p = await userFetch(token, `/rest/v1/sales_document_payments?document_id=eq.${encodeURIComponent(documentId)}&voided=eq.false&deleted=eq.false&amount=gt.0&order=paid_on.desc,created_at.desc&limit=1&select=amount,paid_on,method`);
+      if (p.ok) last = ((await p.json()) as { amount: number; paid_on: string; method: string }[])[0];
+    }
+  } catch {
+    return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
+  }
+  if (kind !== "document" && doc.kind !== "invoice") return json({ error: "Reminders and receipts are for invoices.", code: "bad_request" }, 400);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const content = documentEmail({
+    kind,
+    docKind: doc.kind,
+    title: snap.title,
+    number: doc.number ?? snap.number,
+    companyName: snap.business?.name,
+    clientName: doc.client?.name ?? snap.client?.name,
+    total: doc.total,
+    balanceDue: doc.balance_due,
+    amountPaid: doc.amount_paid,
+    currency: doc.currency,
+    dueDate: doc.due_date,
+    validUntil: doc.valid_until,
+    overdue: doc.kind === "invoice" && !!doc.due_date && doc.due_date < today && doc.balance_due > 0,
+    url: documentUrl(appOrigin(req), link),
+    payUrl: doc.kind === "invoice" ? payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency }) : null,
+    message,
+    lastPayment: last ? { amount: last.amount, date: last.paid_on, method: PAYMENT_METHODS.find((m) => m.id === last.method)?.label ?? last.method } : null,
+  });
+  // Replies go to the company.
+  const replyTo = snap.business?.email?.trim() ?? "";
+  const sent = await sendEmail({ to, ...content, replyTo: validEmail(replyTo) ? replyTo : undefined, tags: { type: `document_${kind}` } });
+  if (!sent.ok) return sendFailure(sent);
+  return json({ ok: true });
+}

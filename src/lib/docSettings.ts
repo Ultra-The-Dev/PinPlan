@@ -3,6 +3,7 @@
 // same for the whole office — number formats, terms, taxes, payment details — so the company's copy is kept in the
 // cloud (`document_settings`, one row per company, readable by the office, written by the owner and admins) and this
 // device keeps a cache in AppSettings.documents. Newest `updatedAt` wins. Number counters live only on the server.
+import { useEffect, useState } from "react";
 import { db, getSettings, nowIso, saveDocumentSettings } from "./db";
 import { normalizeDocSettings } from "./documents";
 import { getSupabase } from "./supabase";
@@ -80,4 +81,20 @@ export async function setNextNumber(kind: DocKind, next: number): Promise<Record
   const { data, error } = await sb.rpc("set_document_next_number", { p_kind: kind, p_next: next });
   if (error) throw new Error(error.message);
   return data as Record<DocKind, Numbering>;
+}
+
+/** The company invoicing settings, kept current when they're saved or synced. Null until read. */
+export function useDocSettings(): DocumentSettings | null {
+  const [s, setS] = useState<DocumentSettings | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () => void getDocSettings().then((x) => live && setS(x));
+    load();
+    window.addEventListener(DOC_SETTINGS_EVENT, load);
+    return () => {
+      live = false;
+      window.removeEventListener(DOC_SETTINGS_EVENT, load);
+    };
+  }, []);
+  return s;
 }
