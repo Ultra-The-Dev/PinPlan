@@ -29,10 +29,33 @@ public enum Layer: String, Codable, CaseIterable, Sendable, Identifiable {
 }
 
 public enum MeasureUnit: String, Codable, Sendable { case each, LF }
-public enum Mount: String, Codable, CaseIterable, Sendable { case ceiling, wall, exterior, floor, cabinet, other }
-public enum MarkerShape: String, Codable, CaseIterable, Sendable { case circle, square, triangle, diamond, hexagon, star }
-public enum ProjectStatus: String, Codable, CaseIterable, Sendable { case estimate, approved, installed }
-public enum RunKind: String, Codable, Sendable { case led, stair, wire }
+// Decoding of the enums below is tolerant: a value this build doesn't know (from a newer web app) reads as a fallback
+// instead of failing the whole row, so cloud sync never drops a device, run or job over one new value.
+public enum Mount: String, Codable, CaseIterable, Sendable {
+    case ceiling, wall, exterior, floor, cabinet, other
+    /// Unknown mounts read as `.other`.
+    public init(from decoder: Decoder) throws { self = Mount(rawValue: tolerantRaw(decoder)) ?? .other }
+}
+public enum MarkerShape: String, Codable, CaseIterable, Sendable {
+    case circle, square, triangle, diamond, hexagon, star
+    /// Unknown shapes read as `.circle`.
+    public init(from decoder: Decoder) throws { self = MarkerShape(rawValue: tolerantRaw(decoder)) ?? .circle }
+}
+public enum ProjectStatus: String, Codable, CaseIterable, Sendable {
+    case estimate, approved, installed
+    /// Unknown statuses read as `.estimate`.
+    public init(from decoder: Decoder) throws { self = ProjectStatus(rawValue: tolerantRaw(decoder)) ?? .estimate }
+}
+public enum RunKind: String, Codable, Sendable {
+    case led, stair, wire
+    /// Unknown kinds read as `.wire` (a plain run on the plan).
+    public init(from decoder: Decoder) throws { self = RunKind(rawValue: tolerantRaw(decoder)) ?? .wire }
+}
+
+/// The raw string of a single-value enum; "" when it isn't a string (so the caller's fallback applies).
+func tolerantRaw(_ decoder: Decoder) -> String {
+    (try? decoder.singleValueContainer().decode(String.self)) ?? ""
+}
 /// Where runs end: low-voltage closets, plus other trades' panels and equipment. Unknown ids read as `.equipment`.
 public enum ClosetKind: String, Codable, CaseIterable, Sendable, Identifiable {
     case equipment, `switch`, rack
@@ -57,7 +80,11 @@ public struct CircuitInfo: Codable, Hashable, Sendable {
         self.number = number; self.breakerA = breakerA; self.volts = volts; self.poles = poles; self.description = description
     }
 }
-public enum DeviceKind: String, Codable, Sendable { case device, led }
+public enum DeviceKind: String, Codable, Sendable {
+    case device, led
+    /// Unknown kinds read as `.device`.
+    public init(from decoder: Decoder) throws { self = DeviceKind(rawValue: tolerantRaw(decoder)) ?? .device }
+}
 public enum LaborMode: String, Codable, Sendable { case combined, separate }
 
 public struct BillduDocRef: Codable, Hashable, Sendable {
@@ -128,6 +155,15 @@ public struct Sheet: Codable, Hashable, Identifiable, Sendable {
     public var sourcePage: Int?
     /// Quarter turns clockwise applied to the sheet since import (so the PDF detail can be drawn rotated).
     public var sourceRotation: Int?
+    /// Sheet index (docs/sheet-index-links.md): printed sheet number ("E-101"), title, discipline and tags.
+    public var number: String?
+    public var title: String?
+    public var discipline: String?
+    public var tags: [String]?
+    /// Label of the current drawing revision, e.g. "Rev B" (docs/sheet-revisions.md).
+    public var revisionLabel: String?
+    /// Earlier drawings this sheet replaced, newest first (as the web app wrote them).
+    public var revisions: [SheetRevision]?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -137,6 +173,94 @@ public struct Sheet: Codable, Hashable, Identifiable, Sendable {
         self.imageId = imageId; self.width = width; self.height = height; self.pxPerInch = pxPerInch; self.pxPerFt = pxPerFt
         let now = isoNow(); self.createdAt = now; self.updatedAt = now
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, projectId, name, pageNumber, order, imageId, imageUrl, width, height, pxPerFt, pxPerInch, scaleLabel
+        case sourcePdfId, sourcePage, sourceRotation, number, title, discipline, tags, revisionLabel, revisions
+        case createdAt, updatedAt, deleted
+    }
+
+    /// The core fields must be there; the sheet index and revision fields are lenient (an odd value is dropped, not the sheet).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        projectId = try c.decode(String.self, forKey: .projectId)
+        name = try c.decode(String.self, forKey: .name)
+        pageNumber = try c.decode(Int.self, forKey: .pageNumber)
+        order = try c.decode(Int.self, forKey: .order)
+        imageId = try c.decode(String.self, forKey: .imageId)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        width = try c.decode(Double.self, forKey: .width)
+        height = try c.decode(Double.self, forKey: .height)
+        pxPerFt = try c.decodeIfPresent(Double.self, forKey: .pxPerFt)
+        pxPerInch = try c.decodeIfPresent(Double.self, forKey: .pxPerInch)
+        scaleLabel = try c.decodeIfPresent(String.self, forKey: .scaleLabel)
+        sourcePdfId = try c.decodeIfPresent(String.self, forKey: .sourcePdfId)
+        sourcePage = try c.decodeIfPresent(Int.self, forKey: .sourcePage)
+        sourceRotation = try c.decodeIfPresent(Int.self, forKey: .sourceRotation)
+        number = (try? c.decodeIfPresent(String.self, forKey: .number)) ?? nil
+        title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? nil
+        discipline = (try? c.decodeIfPresent(String.self, forKey: .discipline)) ?? nil
+        tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? nil
+        revisionLabel = (try? c.decodeIfPresent(String.self, forKey: .revisionLabel)) ?? nil
+        revisions = ((try? c.decodeIfPresent([Lenient<SheetRevision>].self, forKey: .revisions)) ?? nil)?.compactMap(\.value)
+        createdAt = try c.decode(String.self, forKey: .createdAt)
+        updatedAt = try c.decode(String.self, forKey: .updatedAt)
+        deleted = try c.decodeIfPresent(Bool.self, forKey: .deleted)
+    }
+}
+
+/// An earlier drawing of a sheet (stored as JSON in `sheets.revisions`; same fields as the web app's SheetRevision).
+public struct SheetRevision: Codable, Hashable, Sendable, Identifiable {
+    public var id: String
+    public var label: String
+    public var imageId: String
+    public var imageUrl: String?
+    public var width: Double
+    public var height: Double
+    public var pxPerFt: Double?
+    public var pxPerInch: Double?
+    public var scaleLabel: String?
+    public var uploadedAt: String
+    public var uploadedBy: String?
+    public var note: String?
+    public var replacedAt: String?
+    public var replacedBy: String?
+    /// Affine transform [a, b, c, d, e, f] applied to the markup when the next drawing replaced this one.
+    public var transformToNext: [Double]?
+
+    public init(id: String = newId(), label: String, imageId: String, width: Double, height: Double, uploadedAt: String = isoNow()) {
+        self.id = id; self.label = label; self.imageId = imageId; self.width = width; self.height = height; self.uploadedAt = uploadedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, imageId, imageUrl, width, height, pxPerFt, pxPerInch, scaleLabel, uploadedAt, uploadedBy, note, replacedAt, replacedBy, transformToNext
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        imageId = try c.decode(String.self, forKey: .imageId)
+        id = (try? c.decode(String.self, forKey: .id)) ?? imageId
+        label = (try? c.decode(String.self, forKey: .label)) ?? ""
+        imageUrl = (try? c.decodeIfPresent(String.self, forKey: .imageUrl)) ?? nil
+        width = (try? c.decode(Double.self, forKey: .width)) ?? 0
+        height = (try? c.decode(Double.self, forKey: .height)) ?? 0
+        pxPerFt = (try? c.decodeIfPresent(Double.self, forKey: .pxPerFt)) ?? nil
+        pxPerInch = (try? c.decodeIfPresent(Double.self, forKey: .pxPerInch)) ?? nil
+        scaleLabel = (try? c.decodeIfPresent(String.self, forKey: .scaleLabel)) ?? nil
+        uploadedAt = (try? c.decode(String.self, forKey: .uploadedAt)) ?? ""
+        uploadedBy = (try? c.decodeIfPresent(String.self, forKey: .uploadedBy)) ?? nil
+        note = (try? c.decodeIfPresent(String.self, forKey: .note)) ?? nil
+        replacedAt = (try? c.decodeIfPresent(String.self, forKey: .replacedAt)) ?? nil
+        replacedBy = (try? c.decodeIfPresent(String.self, forKey: .replacedBy)) ?? nil
+        transformToNext = (try? c.decodeIfPresent([Double].self, forKey: .transformToNext)) ?? nil
+    }
+}
+
+/// Decodes one element of a list leniently: an element this build can't read becomes nil instead of failing the list.
+public struct Lenient<T: Decodable>: Decodable {
+    public let value: T?
+    public init(from decoder: Decoder) throws { value = try? T(from: decoder) }
 }
 
 public struct DeviceType: Codable, Hashable, Identifiable, Sendable {
@@ -336,22 +460,9 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         return b
     }()
 
-    /// The founder's company, Smart Living Solutions (smartlivingny.com). Only for the founder's own devices and
-    /// team (comped billing) — never shown to other customers.
-    public static let founder: BusinessSettings = {
-        var b = BusinessSettings()
-        b.name = "Smart Living Solutions"
-        b.address = "New York, NY"
-        b.phone = "(646) 290-1922"
-        b.email = "smartlivingny@gmail.com"
-        b.website = "smartlivingny.com"
-        b.tagline = "Smart Home · Lighting · AV & Home Theater · Security"
-        b.logo = "/brand/smart-living-logo.png"
-        b.brandColor = "#0a1b54"
-        b.accentColor = "#13e57c"
-        b.serviceArea = "Serving New York City, Long Island, Westchester & the Tri-State Area"
-        return b
-    }()
+    /// The founder's defaults. They used to carry the founder's real business details; those now live only in the
+    /// founder's own settings (entered in Settings like every other company), so this is the same as `neutral`.
+    public static let founder: BusinessSettings = neutral
 
     /// The defaults that fill blank fields: the founder's company or neutral ones.
     public static func defaults(founder: Bool) -> BusinessSettings { founder ? Self.founder : Self.neutral }
@@ -400,20 +511,44 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
     public var forms: [JobForm] = []
     /// Tasks pinned on the plan (Tasks.swift). Never counted in the takeoff or estimate.
     public var tasks: [PlanTask] = []
+    /// Made on the web and pulled by cloud sync (FieldSync.swift): plan markups, schedule, RFIs, saved measurements and
+    /// plan links. Never counted in the takeoff or estimate.
+    public var planMarkups: [PlanMarkup] = []
+    public var scheduleItems: [ScheduleItem] = []
+    public var rfis: [Rfi] = []
+    public var measurements: [Measurement] = []
+    public var sheetLinks: [SheetLink] = []
+    /// Quotes, invoices, credit notes and payments (SalesDocs.swift). Office only; read-only here.
+    public var salesDocs: [SalesDoc] = []
+    public var salesPayments: [SalesPayment] = []
+    /// Lists this build doesn't know (from a newer web app or backup), kept as they came and written back unchanged.
+    public var otherArrays: [String: JSONValue] = [:]
 
     public init(project: Project, sheets: [Sheet] = [], markers: [Marker] = [], runs: [Run] = [], closets: [Closet] = [], estimateLines: [EstimateLine] = []) {
         self.project = project; self.sheets = sheets; self.markers = markers; self.runs = runs; self.closets = closets; self.estimateLines = estimateLines
     }
 
-    private enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case project, sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents
         case forms
         case tasks
+        case planMarkups, scheduleItems, rfis, measurements, sheetLinks, salesDocs, salesPayments
     }
+
+    /// Every key a bundle (or a backup's project entry) knows; other top-level lists go to `otherArrays`.
+    static let knownKeys: Set<String> = Set(CodingKeys.allCases.map(\.rawValue))
 
     /// Jobs saved before field documentation existed load with empty photo/checklist/log lists.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        planMarkups = (try? c.decodeIfPresent([Lenient<PlanMarkup>].self, forKey: .planMarkups))?.compactMap(\.value) ?? []
+        scheduleItems = (try? c.decodeIfPresent([Lenient<ScheduleItem>].self, forKey: .scheduleItems))?.compactMap(\.value) ?? []
+        rfis = (try? c.decodeIfPresent([Lenient<Rfi>].self, forKey: .rfis))?.compactMap(\.value) ?? []
+        measurements = (try? c.decodeIfPresent([Lenient<Measurement>].self, forKey: .measurements))?.compactMap(\.value) ?? []
+        sheetLinks = (try? c.decodeIfPresent([Lenient<SheetLink>].self, forKey: .sheetLinks))?.compactMap(\.value) ?? []
+        salesDocs = (try? c.decodeIfPresent([Lenient<SalesDoc>].self, forKey: .salesDocs))?.compactMap(\.value) ?? []
+        salesPayments = (try? c.decodeIfPresent([Lenient<SalesPayment>].self, forKey: .salesPayments))?.compactMap(\.value) ?? []
+        otherArrays = Self.otherArrays(decoder, known: Self.knownKeys)
         project = try c.decode(Project.self, forKey: .project)
         sheets = try c.decodeIfPresent([Sheet].self, forKey: .sheets) ?? []
         markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []
@@ -427,6 +562,48 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
         documents = try c.decodeIfPresent([JobDocument].self, forKey: .documents) ?? []
         forms = (try? c.decodeIfPresent([JobForm].self, forKey: .forms)) ?? []
         tasks = try c.decodeIfPresent([PlanTask].self, forKey: .tasks) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(project, forKey: .project)
+        try c.encode(sheets, forKey: .sheets)
+        try c.encode(markers, forKey: .markers)
+        try c.encode(runs, forKey: .runs)
+        try c.encode(closets, forKey: .closets)
+        try c.encode(estimateLines, forKey: .estimateLines)
+        try c.encode(photos, forKey: .photos)
+        try c.encode(photoComments, forKey: .photoComments)
+        try c.encode(checklists, forKey: .checklists)
+        try c.encode(jobLogs, forKey: .jobLogs)
+        try c.encode(documents, forKey: .documents)
+        try c.encode(forms, forKey: .forms)
+        try c.encode(tasks, forKey: .tasks)
+        // The web-made lists are written only when there is something (older files stay the same).
+        if !planMarkups.isEmpty { try c.encode(planMarkups, forKey: .planMarkups) }
+        if !scheduleItems.isEmpty { try c.encode(scheduleItems, forKey: .scheduleItems) }
+        if !rfis.isEmpty { try c.encode(rfis, forKey: .rfis) }
+        if !measurements.isEmpty { try c.encode(measurements, forKey: .measurements) }
+        if !sheetLinks.isEmpty { try c.encode(sheetLinks, forKey: .sheetLinks) }
+        if !salesDocs.isEmpty { try c.encode(salesDocs, forKey: .salesDocs) }
+        if !salesPayments.isEmpty { try c.encode(salesPayments, forKey: .salesPayments) }
+        try Self.encodeOtherArrays(otherArrays, to: encoder, known: Self.knownKeys)
+    }
+
+    /// Top-level lists in a keyed object that aren't in `known`, kept as raw JSON.
+    static func otherArrays(_ decoder: Decoder, known: Set<String>) -> [String: JSONValue] {
+        guard let all = try? decoder.container(keyedBy: AnyCodingKey.self) else { return [:] }
+        var out: [String: JSONValue] = [:]
+        for k in all.allKeys where !known.contains(k.stringValue) {
+            if let v = try? all.decode(JSONValue.self, forKey: k), case .array = v { out[k.stringValue] = v }
+        }
+        return out
+    }
+
+    static func encodeOtherArrays(_ extra: [String: JSONValue], to encoder: Encoder, known: Set<String>) throws {
+        guard !extra.isEmpty else { return }
+        var c = encoder.container(keyedBy: AnyCodingKey.self)
+        for (k, v) in extra where !known.contains(k) { try c.encode(v, forKey: AnyCodingKey(k)) }
     }
 
     public var livePhotos: [Photo] { photos.filter { $0.deleted != true }.sorted { $0.takenAt > $1.takenAt } }
@@ -448,6 +625,15 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
 }
 
 // MARK: - helpers
+
+/// A coding key for any string (unknown keys kept as they came).
+struct AnyCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int? { nil }
+    init(_ s: String) { stringValue = s }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+}
 
 private let idAlphabet = Array("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-")
 public func newId(_ length: Int = 12) -> String {

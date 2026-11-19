@@ -15,6 +15,10 @@ struct EstimateView: View {
     @State private var sending = false
     @State private var message: (ok: Bool, text: String)?
     @State private var makingPlans = false
+    /// What the server last said about Billdu ("configured", "connect", "noServer"; "" = not known yet). Kept on the
+    /// device so the card doesn't flicker on every visit.
+    @AppStorage("pinplan.billdu.status") private var billduState = ""
+    private var billduOn: Bool { billduState == "configured" }
     private var sendTitle: String { existingDoc.map { "Update \($0.type) \($0.serial ?? "#\($0.id)") in Billdu" } ?? "Send to Billdu" }
 
 
@@ -49,11 +53,11 @@ struct EstimateView: View {
                     Group {
                         if hSize == .compact {
                             VStack(spacing: 10) {
-                                sendButton(e)
+                                if billduOn { sendButton(e) }
                                 HStack { csvButton(e); pdfButton(e) }
                             }
                         } else {
-                            HStack { csvButton(e); pdfButton(e); sendButton(e) }
+                            HStack { csvButton(e); pdfButton(e); if billduOn { sendButton(e) } }
                         }
                     }
                     .controlSize(.large)
@@ -134,6 +138,47 @@ struct EstimateView: View {
                 LabeledContent { Text(Money.format(e.total, currency: cur)).font(.title3.bold()) } label: { Text("Total").bold() }
                 if e.optionalTotal > 0 { LabeledContent("Optional (“?”) not included", value: Money.format(e.optionalTotal, currency: cur)).font(.caption) }
             }
+            invoicedSection(e)
+            if !model.sheets.isEmpty {
+                Section {
+                    Button { plansPDF() } label: { Label(makingPlans ? "Making the plans PDF…" : "Plans PDF (for the client)", systemImage: "doc.richtext") }
+                        .disabled(makingPlans)
+                }
+            }
+            billduSection(e)
+        }
+        .task { await checkBilldu() }
+        .navigationDestination(isPresented: $openJobProducts) { JobProductsView(model: model) }
+        .sheet(item: $editing) { l in LineEditor(model: model, line: l) }
+        .shareSheet($share)
+    }
+
+    private var chosenProducts: Int { model.bundle.project.productChoices?.count ?? 0 }
+
+    /// How much of the estimate has been invoiced (before tax): Billdu invoices plus the job's own issued invoices
+    /// (less credit notes) made on the web.
+    @ViewBuilder private func invoicedSection(_ e: Estimate) -> some View {
+        let cur = pricing.currency
+        let billdu = model.bundle.project.billduDocs.filter { $0.type == "invoice" }.reduce(0) { $0 + $1.amount }
+        let native = app.cloud.can(.prices) ? SalesDocs.totals(model.bundle.salesDocs).invoicedBeforeTax : 0
+        let billed = max(0, billdu + native)
+        if e.subtotal > 0 && billed > 0 {
+            Section {
+                ProgressView(value: min(1, billed / e.subtotal)) {
+                    Text("Invoiced \(Money.format(billed, currency: cur)) of \(Money.format(e.subtotal, currency: cur))").font(.caption)
+                }
+                Text("Remaining \(Money.format(max(0, e.subtotal - billed), currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
+                if !model.bundle.liveSalesDocs.isEmpty {
+                    NavigationLink { QuotesInvoicesView(model: model) } label: { Label("Quotes & invoices", systemImage: "doc.text") }
+                }
+            } header: { Text("Invoiced so far").textCase(nil) }
+        }
+    }
+
+    /// Billdu: only when the PinPlan server says it is connected for this company; otherwise where to connect it.
+    @ViewBuilder private func billduSection(_ e: Estimate) -> some View {
+        let cur = pricing.currency
+        if billduOn {
             Section {
                 Picker("Document", selection: Binding(get: { docType.isEmpty ? app.settings.billduDocType : docType }, set: { docType = $0 })) {
                     Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
@@ -147,29 +192,32 @@ struct EstimateView: View {
                 if existingDoc != nil {
                     Button("Create a new document instead") { send(e, existing: nil) }.font(.callout).disabled(sending || e.subtotal <= 0)
                 }
-                if !model.sheets.isEmpty {
-                    Button { plansPDF() } label: { Label(makingPlans ? "Making the plans PDF…" : "Plans PDF (to attach in Billdu)", systemImage: "doc.richtext") }
-                        .disabled(makingPlans)
-                }
                 if let m = message { Text(m.text).foregroundStyle(m.ok ? .green : .red).font(.callout) }
-                let billed = model.bundle.project.billduDocs.filter { $0.type == "invoice" }.reduce(0) { $0 + $1.amount }
-                if e.subtotal > 0 {
-                    ProgressView(value: min(1, billed / e.subtotal)) { Text("Invoiced \(Money.format(billed, currency: cur)) of \(Money.format(e.subtotal, currency: cur))").font(.caption) }
-                }
                 ForEach(model.bundle.project.billduDocs, id: \.id) { d in
                     LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
-                if APIClient(settings: app.settings) == nil { ServerSetupPrompt(feature: "Sending to Billdu") }
             } header: { Text("Billdu").textCase(nil) } footer: {
-                Text(APIClient(settings: app.settings) == nil ? "You can still share the PDF or CSV" : "Sent through your PinPlan server; Billdu keys never live on this device")
+                Text("Sent through your PinPlan server; Billdu keys never live on this device")
             }
+        } else if billduState == "connect" {
+            Section {
+                Label(BilldStatus.connectText, systemImage: "link").font(.callout).foregroundStyle(.secondary)
+            } header: { Text("Billdu").textCase(nil) }
         }
-        .navigationDestination(isPresented: $openJobProducts) { JobProductsView(model: model) }
-        .sheet(item: $editing) { l in LineEditor(model: model, line: l) }
-        .shareSheet($share)
     }
 
-    private var chosenProducts: Int { model.bundle.project.productChoices?.count ?? 0 }
+    /// Ask the server whether Billdu is connected (the card shows only then).
+    private func checkBilldu() async {
+        guard let api = APIClient(settings: app.settings) else { billduState = "noServer"; return }
+        var token: String?
+        if app.cloud.signedIn { token = try? await app.cloud.accessToken() }
+        switch await api.billduStatus(token: token) {
+        case .configured: billduState = "configured"
+        case .connectOnWeb: billduState = "connect"
+        case .noServer: billduState = "noServer"
+        case .unknown: break   // offline: keep what was known
+        }
+    }
 
     private func miniStat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {

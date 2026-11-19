@@ -14,7 +14,7 @@ public struct JobSummary: Hashable, Sendable {
 
     public enum NextKind: String, Sendable {
         case addPlans, placeDevices, overdueTasks, priceEstimate, sendReview, sendProposal, awaitClient, reviseProposal, markApproved
-        case tasksToday, startChecklist, checklistPhotos, finishChecklists, markInstalled, closeTasks, invoice, done
+        case tasksToday, startChecklist, checklistPhotos, finishChecklists, markInstalled, closeTasks, invoice, officePricing, done
     }
 
     public struct NextStep: Hashable, Sendable {
@@ -51,7 +51,9 @@ public struct JobSummary: Hashable, Sendable {
     ///   - estimate: grand total and the number of included lines with no price (from the local estimate), if known.
     ///   - proposals: proposals and plan reviews when loaded; nil when not known.
     ///   - today: local day, YYYY-MM-DD.
-    public static func make(_ b: ProjectBundle, estimate: (total: Double, unpriced: Int)? = nil, proposals: [ProposalInfo]? = nil, today: String) -> JobSummary {
+    ///   - prices: false for technicians (no prices, proposals or invoices): the next step stays on field work.
+    public static func make(_ b: ProjectBundle, estimate: (total: Double, unpriced: Int)? = nil, proposals: [ProposalInfo]? = nil, today: String,
+                            prices: Bool = true) -> JobSummary {
         var s = JobSummary()
         s.sheets = b.sheets.filter { $0.deleted != true }.count
         let markers = b.markers.filter { $0.deleted != true }
@@ -83,7 +85,7 @@ public struct JobSummary: Hashable, Sendable {
             s.proposal = latest(proposals, review: false)
             s.review = latest(proposals, review: true)
         }
-        s.next = nextStep(s, project: b.project, proposalsKnown: proposals != nil)
+        s.next = nextStep(s, project: b.project, proposalsKnown: proposals != nil, prices: prices)
         return s
     }
 
@@ -94,11 +96,21 @@ public struct JobSummary: Hashable, Sendable {
     static func plural(_ n: Int, _ one: String, _ many: String? = nil) -> String { "\(n) \(n == 1 ? one : (many ?? one + "s"))" }
 
     /// The single most useful thing to do next on the job.
-    public static func nextStep(_ s: JobSummary, project: Project, proposalsKnown: Bool) -> NextStep {
+    public static func nextStep(_ s: JobSummary, project: Project, proposalsKnown: Bool, prices: Bool = true) -> NextStep {
         func step(_ k: NextKind, _ text: String, _ tab: String) -> NextStep { NextStep(kind: k, text: text, tab: tab) }
         if s.sheets == 0 { return step(.addPlans, "Add the floor plans", "sheets") }
         if s.devices == 0 && s.ledRuns == 0 { return step(.placeDevices, "Pin devices on the plan", "plan") }
         if s.overdueTasks > 0 { return step(.overdueTasks, plural(s.overdueTasks, "overdue task"), "field") }
+        if !prices {
+            // Technicians: estimates, proposals and invoices are the office's job.
+            if project.status == .estimate {
+                if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "field") }
+                return step(.officePricing, "With the office for pricing — check the plan and devices", "plan")
+            }
+            if project.status == .installed {
+                return s.openTasks > 0 ? step(.closeTasks, "Close out \(plural(s.openTasks, "open task"))", "field") : step(.done, "All wrapped up", "info")
+            }
+        }
         let unpriced = s.estimateTotal != nil && (s.unpricedLines > 0 || (s.estimateTotal ?? 0) <= 0)
         let billed = !project.billduDocs.isEmpty
 

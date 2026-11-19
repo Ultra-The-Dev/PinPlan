@@ -79,7 +79,21 @@ For TestFlight / App Store: set your bundle id in `project.yml` (`PRODUCT_BUNDLE
 ## Billdu and AI scan
 Billdu credentials and the Anthropic key never live on the device. The app calls your deployed PinPlan web app:
 set its address (and the team access code, if used) in **Settings → PinPlan server**. Without a server everything
-else works, and you can share the estimate PDF/CSV instead.
+else works, and you can share the estimate PDF/CSV instead. The Billdu card on the estimate shows only when the server
+says Billdu is connected (`GET /api/billdu/credentials`); otherwise it says to connect Billdu on the web
+(Settings → Connected apps).
+
+## Cloud sync
+Same tables and rules as the web app (`PinPlanCore/Sync.swift` mirrors `src/lib/syncMap.ts`):
+- Pulls page by `synced_at >= watermark − 30 s`, ordered by `(synced_at, id)` with offsets (`SyncPaging.swift`), so
+  rows that share a timestamp are never skipped. Each table is pulled on its own: a table the database doesn't have yet
+  is skipped, and one that errors keeps what was fetched. Rows that couldn't be applied are fetched again by id.
+- Joining or changing teams clears the pull watermarks once (everything comes down again).
+- The ledger file records its account. Signing in with another account on a device that holds the previous account's
+  jobs stops syncing until those jobs are removed from the device (they are never pushed into the new account).
+- Pulled only (made on the web): plan markups, schedule, measurements, plan links, and — for the office — quotes,
+  invoices and payments (Job → Quotes & invoices, read-only). RFIs: drafts made on the device go up.
+- Technicians never send catalog, product or price rows (the database refuses them).
 
 ## CI
 - `.github/workflows/ios.yml` builds the app for the iOS Simulator and runs the core tests on every change under `ios/`.

@@ -164,6 +164,15 @@ public enum PanelSchedule {
         return out
     }
 
+    /// A number as the schedule shows it: "20", "1.5" (no trailing zeros), "" for nil.
+    public static func number(_ v: Double?) -> String { Wiring.num(v) }
+
+    /// One line under a panel: "12 devices · 3600 VA · 15 A at 240 V".
+    public static func totalLine(_ p: Panel) -> String {
+        let n = p.circuits.reduce(0) { $0 + $1.devices }
+        return "\(n) device\(n == 1 ? "" : "s") · \(number(p.totalVA)) VA · \(number(p.amps240)) A at 240 V"
+    }
+
     public static func csv(_ panels: [Panel]) -> String {
         var rows: [[String]] = [["Panel", "Circuit", "Breaker A", "Poles", "Volts", "Description", "Devices", "Device count", "Wire", "Wire ft", "Load VA"]]
         for p in panels {
