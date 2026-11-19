@@ -120,6 +120,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     currency: "USD",
   },
   billduDocType: "estimate",
+  // Saved with "Save as template" on a job's checklist; managed in Settings → Checklist templates.
+  checklistTemplates: [],
   updatedAt: now(),
 };
 

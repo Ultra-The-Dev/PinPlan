@@ -385,10 +385,23 @@ export interface BusinessSettings {
   serviceArea?: string;
 }
 
+/** A checklist to start jobs from: built-in, or saved by the company ("Save as template"). */
+export interface ChecklistTemplate {
+  id: string;
+  name: string;
+  items: { text: string; requiresPhoto?: boolean }[];
+  /** Saved by the user (lives in settings); built-ins leave this unset. */
+  custom?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface AppSettings {
   id: "app";
   business: BusinessSettings;
   pricing: PricingSettings;
   billduDocType: "estimate" | "order" | "invoice";
+  /** Company checklist templates saved from jobs (optional: older settings don't have it). Written only by saveChecklistTemplates. */
+  checklistTemplates?: ChecklistTemplate[];
   updatedAt: string;
 }

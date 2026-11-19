@@ -35,6 +35,7 @@ struct FieldView: View {
 // MARK: - Checklists
 
 struct ChecklistsView: View {
+    @Environment(AppModel.self) private var app
     let model: EditorModel
     @State private var naming = false
     @State private var name = ""
@@ -72,10 +73,22 @@ struct ChecklistsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    ForEach(FieldDocs.templates) { t in
-                        Button(t.name) {
-                            let c = FieldDocs.checklist(from: t, projectId: model.bundle.project.id)
-                            model.saveRow(c, in: \.checklists)
+                    let mine: [FieldDocs.Template] = FieldDocs.allTemplates(custom: app.checklistTemplates).filter { $0.custom }
+                    if !mine.isEmpty {
+                        Section("Your templates") {
+                            ForEach(mine) { t in
+                                Button {
+                                    model.saveRow(FieldDocs.checklist(from: t, projectId: model.bundle.project.id), in: \.checklists)
+                                } label: { Label(t.name, systemImage: "bookmark") }
+                            }
+                        }
+                    }
+                    Section("Built in") {
+                        ForEach(FieldDocs.templates) { t in
+                            Button(t.name) {
+                                let c = FieldDocs.checklist(from: t, projectId: model.bundle.project.id)
+                                model.saveRow(c, in: \.checklists)
+                            }
                         }
                     }
                     Divider()
@@ -101,6 +114,9 @@ struct ChecklistDetail: View {
     @State private var newItem = ""
     @State private var viewer: PhotoViewerItem?
     @State private var assigning: ChecklistItem?
+    @State private var savingTemplate = false
+    @State private var templateName = ""
+    @State private var savedTemplateName: String?
 
     var body: some View {
         if let c = model.bundle.liveChecklists.first(where: { $0.id == id }) {
@@ -118,7 +134,28 @@ struct ChecklistDetail: View {
                 }
             }
             .navigationTitle(c.name)
-            .toolbar { EditButton() }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        templateName = c.name
+                        savingTemplate = true
+                    } label: { Label("Save as template", systemImage: "bookmark") }
+                    .disabled(c.items.isEmpty)
+                }
+                ToolbarItem(placement: .topBarTrailing) { EditButton() }
+            }
+            .alert("Save as template", isPresented: $savingTemplate) {
+                TextField("Template name", text: $templateName)
+                Button("Save") { saveTemplate(c) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Saves the items and which ones need a photo — not ticks, photos, assignees or due dates — so you can start this checklist on any job.")
+            }
+            .alert("Template saved", isPresented: Binding(get: { savedTemplateName != nil }, set: { if !$0 { savedTemplateName = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("“\(savedTemplateName ?? "")” is now under New checklist on every job. Rename or delete it in Settings → Checklist templates.")
+            }
             .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
             .sheet(item: $assigning) { item in
                 TaskEditor(item: item, names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app))) { who, due in
@@ -137,6 +174,17 @@ struct ChecklistDetail: View {
         var x = c
         f(&x)
         model.saveRow(x, in: \.checklists)
+    }
+
+    private func saveTemplate(_ c: Checklist) {
+        let t = FieldDocs.template(from: c, name: templateName)
+        var saved = t.name
+        app.updateChecklistTemplates { cur in
+            let next = FieldDocs.addTemplate(cur, t)
+            saved = next.last?.name ?? t.name
+            return next
+        }
+        savedTemplateName = saved
     }
 
     private func add(_ c: Checklist) {

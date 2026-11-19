@@ -100,6 +100,44 @@ public struct Checklist: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+/// A company checklist template saved from a job ("Save as template"); kept in the app settings.
+/// Same JSON shape as the web app's `ChecklistTemplate`. Decoding is lenient so a bad entry can never break loading settings.
+public struct ChecklistTemplate: Codable, Hashable, Identifiable, Sendable {
+    public struct Item: Codable, Hashable, Sendable {
+        public var text: String
+        public var requiresPhoto: Bool?
+        public init(text: String, requiresPhoto: Bool = false) { self.text = text; self.requiresPhoto = requiresPhoto }
+        public init(from decoder: Decoder) throws {
+            // A non-object entry decodes as a blank item (dropped by normalizeTemplates) instead of failing the whole settings file.
+            guard let c = try? decoder.container(keyedBy: CodingKeys.self) else { text = ""; requiresPhoto = nil; return }
+            text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            requiresPhoto = (try? c.decodeIfPresent(Bool.self, forKey: .requiresPhoto)) ?? nil
+        }
+    }
+    public var id: String
+    public var name: String
+    public var items: [Item]
+    public var custom: Bool?
+    public var createdAt: String?
+    public var updatedAt: String?
+    public init(id: String = newId(), name: String, items: [Item], custom: Bool? = true, createdAt: String? = nil, updatedAt: String? = nil) {
+        self.id = id; self.name = name; self.items = items; self.custom = custom; self.createdAt = createdAt; self.updatedAt = updatedAt
+    }
+    public init(from decoder: Decoder) throws {
+        // A non-object entry decodes as an id-less template (dropped by normalizeTemplates), so settings.json still loads.
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
+            id = ""; name = ""; items = []; custom = nil; createdAt = nil; updatedAt = nil
+            return
+        }
+        id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+        name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+        items = (try? c.decodeIfPresent([Item].self, forKey: .items)) ?? []
+        custom = (try? c.decodeIfPresent(Bool.self, forKey: .custom)) ?? nil
+        createdAt = (try? c.decodeIfPresent(String.self, forKey: .createdAt)) ?? nil
+        updatedAt = (try? c.decodeIfPresent(String.self, forKey: .updatedAt)) ?? nil
+    }
+}
+
 public struct JobLog: Codable, Hashable, Identifiable, Sendable {
     public var id: String
     public var projectId: String

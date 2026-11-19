@@ -1,5 +1,5 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, Receipt, Save } from "lucide-react";
+import { Building, Cable, Calculator, CloudOff, ListChecks, Receipt, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { WIRE_TYPES } from "@/lib/catalog";
@@ -8,6 +8,7 @@ import type { AppSettings } from "@/lib/types";
 import AccessCodePanel from "./AccessCodePanel";
 import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
+import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 
 export default function SettingsForm() {
   const [s, setS] = useState<AppSettings | null>(null);
@@ -29,6 +30,7 @@ export default function SettingsForm() {
     { id: "business", label: "Business", icon: Building },
     { id: "pricing", label: "Pricing", icon: Calculator },
     { id: "wire", label: "Wire", icon: Cable },
+    { id: "checklists", label: "Checklists", icon: ListChecks },
     { id: "billdu", label: "Billdu", icon: Receipt },
     { id: "account", label: "Account & sync", icon: CloudOff },
   ];
@@ -211,6 +213,14 @@ export default function SettingsForm() {
             </button>
           </div>
         </form>
+
+        <section id="checklists" className="card scroll-mt-6 space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold">Checklist templates</h2>
+            <p className="text-sm text-slate-500">Your own checklists, saved from a job with “Save as template”. They show first under “Start a checklist”.</p>
+          </div>
+          <ChecklistTemplatesSettings />
+        </section>
 
         <AccessCodePanel />
       <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">

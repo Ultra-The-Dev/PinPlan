@@ -162,6 +162,15 @@ final class AppModel {
 
     func saveSettings() { store.saveSettings(settings) }
 
+    /// The company's saved checklist templates (cleaned up).
+    var checklistTemplates: [ChecklistTemplate] { FieldDocs.normalizeTemplates(settings.checklistTemplates) }
+
+    /// Change the saved checklist templates and write settings right away.
+    func updateChecklistTemplates(_ f: ([ChecklistTemplate]) -> [ChecklistTemplate]) {
+        settings.checklistTemplates = FieldDocs.normalizeTemplates(f(checklistTemplates))
+        saveSettings()
+    }
+
     func restore(from url: URL) throws -> Int {
         let restored = try store.restore(from: url, catalog: &catalog, products: &products)
         store.saveCatalog(catalog)

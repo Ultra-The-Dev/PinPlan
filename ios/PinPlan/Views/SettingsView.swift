@@ -47,6 +47,11 @@ struct SettingsView: View {
                         Text("+\(app.settings.pricing.wireSlackPct.clean)% slack")
                     } label: { Label("Wire and home runs", systemImage: "cable.connector") }
                 }
+                NavigationLink { ChecklistTemplatesView() } label: {
+                    LabeledContent {
+                        Text(app.checklistTemplates.isEmpty ? "Built-in only" : "\(app.checklistTemplates.count) saved")
+                    } label: { Label("Checklist templates", systemImage: "checklist") }
+                }
             }
         }
         .navigationTitle("Settings")
@@ -57,6 +62,88 @@ struct SettingsView: View {
 
     private func host(_ raw: String) -> String {
         URL(string: raw.hasPrefix("http") ? raw : "https://\(raw)")?.host() ?? raw
+    }
+}
+
+/// The company's saved checklist templates: rename or delete. New ones come from a job's checklist ("Save as template").
+struct ChecklistTemplatesView: View {
+    @Environment(AppModel.self) private var app
+    @State private var renaming: ChecklistTemplate?
+    @State private var newName = ""
+
+    var body: some View {
+        let mine: [ChecklistTemplate] = app.checklistTemplates.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        SentenceList {
+            Section {
+                if mine.isEmpty {
+                    Text("No saved templates yet. Open a job’s checklist, set it up the way your crew works, then tap the bookmark to save it as a template.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                ForEach(mine) { t in
+                    NavigationLink {
+                        ChecklistTemplatePreview(template: t)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.name)
+                            Text(summary(t)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .swipeActions {
+                        Button("Delete", role: .destructive) { delete(t) }
+                        Button("Rename") { newName = t.name; renaming = t }
+                    }
+                    .contextMenu {
+                        Button { newName = t.name; renaming = t } label: { Label("Rename…", systemImage: "pencil") }
+                        Button(role: .destructive) { delete(t) } label: { Label("Delete", systemImage: "trash") }
+                    }
+                }
+            } header: {
+                SentenceHeader(title: "Your templates")
+            } footer: {
+                Text("They show first under New checklist on every job. Checklists already started from a template stay as they are.")
+            }
+            Section(sentence: "Built in") {
+                ForEach(FieldDocs.templates) { t in
+                    LabeledContent(t.name) { Text("\(t.items.count) items") }
+                }
+            }
+        }
+        .navigationTitle("Checklist templates")
+        .alert("Rename template", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Name", text: $newName)
+            Button("Save") {
+                if let t = renaming { app.updateChecklistTemplates { FieldDocs.renameTemplate($0, id: t.id, name: newName) } }
+                renaming = nil
+            }
+            Button("Cancel", role: .cancel) { renaming = nil }
+        }
+    }
+
+    private func summary(_ t: ChecklistTemplate) -> String {
+        let photos = t.items.filter { $0.requiresPhoto == true }.count
+        let items = "\(t.items.count) item\(t.items.count == 1 ? "" : "s")"
+        return photos > 0 ? "\(items) · \(photos) need\(photos == 1 ? "s" : "") a photo" : items
+    }
+
+    private func delete(_ t: ChecklistTemplate) {
+        app.updateChecklistTemplates { FieldDocs.removeTemplate($0, id: t.id) }
+    }
+}
+
+/// Read-only list of a saved template's items.
+struct ChecklistTemplatePreview: View {
+    let template: ChecklistTemplate
+    var body: some View {
+        List {
+            ForEach(Array(template.items.enumerated()), id: \.offset) { _, item in
+                HStack {
+                    Text(item.text)
+                    Spacer()
+                    if item.requiresPhoto == true { Image(systemName: "camera.badge.ellipsis").foregroundStyle(Color.accentColor).accessibilityLabel("Photo required") }
+                }
+            }
+        }
+        .navigationTitle(template.name)
     }
 }
 

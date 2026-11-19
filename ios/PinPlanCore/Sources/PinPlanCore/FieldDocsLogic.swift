@@ -6,6 +6,8 @@ public enum FieldDocs {
         public let id: String
         public let name: String
         public let items: [(text: String, requiresPhoto: Bool)]
+        /// Saved by the company (from settings) rather than built in.
+        public var custom: Bool = false
     }
 
     public static let templates: [Template] = [
@@ -78,6 +80,79 @@ public enum FieldDocs {
 
     public static func checklist(from t: Template, projectId: String) -> Checklist {
         Checklist(projectId: projectId, name: t.name, items: t.items.map { ChecklistItem(text: $0.text, requiresPhoto: $0.requiresPhoto) })
+    }
+
+    // MARK: company checklist templates (same as the web app's fieldDocs.ts)
+
+    private static func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Turn a job's checklist into a reusable template: only item text and the photo rule — never ticks, assignees or due dates.
+    public static func template(from c: Checklist, name: String, now: String = isoNow()) -> ChecklistTemplate {
+        let n = trimmed(name).isEmpty ? (trimmed(c.name).isEmpty ? "Checklist" : trimmed(c.name)) : trimmed(name)
+        let items = c.items.map { ChecklistTemplate.Item(text: trimmed($0.text), requiresPhoto: $0.requiresPhoto == true) }.filter { !$0.text.isEmpty }
+        return ChecklistTemplate(name: n, items: items, custom: true, createdAt: now, updatedAt: now)
+    }
+
+    /// Clean up saved templates: drops entries without an id or name and duplicate ids, trims text, drops empty items.
+    public static func normalizeTemplates(_ raw: [ChecklistTemplate]?) -> [ChecklistTemplate] {
+        var seen = Set<String>()
+        var out: [ChecklistTemplate] = []
+        for t in raw ?? [] {
+            let name = trimmed(t.name)
+            guard !t.id.isEmpty, !name.isEmpty, !seen.contains(t.id) else { continue }
+            seen.insert(t.id)
+            var x = t
+            x.name = name
+            x.custom = true
+            x.items = t.items.map { ChecklistTemplate.Item(text: trimmed($0.text), requiresPhoto: $0.requiresPhoto == true) }.filter { !$0.text.isEmpty }
+            out.append(x)
+        }
+        return out
+    }
+
+    /// A saved template as a startable one.
+    public static func startable(_ t: ChecklistTemplate) -> Template {
+        Template(id: t.id, name: t.name, items: t.items.map { (text: $0.text, requiresPhoto: $0.requiresPhoto == true) }, custom: true)
+    }
+
+    /// Templates to start a checklist from: the company's own (A→Z) first, then the built-ins.
+    public static func allTemplates(custom: [ChecklistTemplate]?) -> [Template] {
+        let mine = normalizeTemplates(custom).sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        return mine.map(startable) + templates
+    }
+
+    /// "Trim-out" → "Trim-out (2)" when that name is taken (case-insensitive; `exceptId` is the template being renamed).
+    public static func uniqueTemplateName(_ name: String, existing: [ChecklistTemplate], exceptId: String? = nil) -> String {
+        let base = trimmed(name).isEmpty ? "Checklist" : trimmed(name)
+        let taken = Set(existing.filter { $0.id != exceptId }.map { trimmed($0.name).lowercased() })
+        if !taken.contains(base.lowercased()) { return base }
+        var n = 2
+        while taken.contains("\(base) (\(n))".lowercased()) { n += 1 }
+        return "\(base) (\(n))"
+    }
+
+    /// Add a template to the saved list, keeping names unique.
+    public static func addTemplate(_ list: [ChecklistTemplate], _ t: ChecklistTemplate) -> [ChecklistTemplate] {
+        var x = t
+        x.name = uniqueTemplateName(t.name, existing: list)
+        return list + [x]
+    }
+
+    /// Rename one saved template (name kept unique). Unknown ids or blank names leave the list unchanged.
+    public static func renameTemplate(_ list: [ChecklistTemplate], id: String, name: String, now: String = isoNow()) -> [ChecklistTemplate] {
+        guard !trimmed(name).isEmpty, list.contains(where: { $0.id == id }) else { return list }
+        let next = uniqueTemplateName(name, existing: list, exceptId: id)
+        return list.map { t in
+            guard t.id == id else { return t }
+            var x = t
+            x.name = next
+            x.updatedAt = now
+            return x
+        }
+    }
+
+    public static func removeTemplate(_ list: [ChecklistTemplate], id: String) -> [ChecklistTemplate] {
+        list.filter { $0.id != id }
     }
 
     public static func itemPhotos(_ photos: [Photo], checklistId: String, itemId: String) -> [Photo] {
