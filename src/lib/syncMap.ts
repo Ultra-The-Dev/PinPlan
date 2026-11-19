@@ -260,6 +260,12 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // Company job templates (docs/job-templates.md). team_id and created_by are set by the database from the signed-in user.
+  jobTemplates: {
+    remote: "job_templates",
+    conflict: "id",
+    columns: { ...common, name: "name", description: "description", trades: "trades", payload: "payload", createdBy: "created_by" },
+  },
 };
 
 
@@ -280,12 +286,15 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "jobTemplates",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
 const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
 /** Columns that are NOT NULL in the database: what to send when the row has nothing. */
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Local row -> remote row. Unknown keys are dropped; undefined becomes null. */
 export function toRemote(table: SyncTable, row: Record<string, unknown>): Record<string, unknown> {
@@ -299,6 +308,11 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   if (table === "runs" && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
+  if (table === "jobTemplates") {
+    if (out.payload == null || typeof out.payload !== "object") out.payload = { version: 1, project: {}, checklists: [], estimateLines: [] };
+    // The database sets created_by itself; anything that isn't a user id would fail the uuid column.
+    if (typeof out.created_by !== "string" || !UUID.test(out.created_by)) out.created_by = null;
+  }
   return out;
 }
 

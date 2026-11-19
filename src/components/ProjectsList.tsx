@@ -10,6 +10,7 @@ import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
 import { useSheetImage } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
+import { useTemplateStart } from "./templates/TemplatePicker";
 
 const STATUS_STYLE: Record<ProjectStatus, string> = {
   estimate: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
@@ -61,6 +62,7 @@ export default function ProjectsList() {
   const [label, setLabel] = useState<string | null>(null);
   const role = useRole();
   const restoreRef = useRef<HTMLInputElement>(null);
+  const template = useTemplateStart();
   const refresh = () => fetchRows().then(setRows);
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function ProjectsList() {
       updatedAt: nowIso(),
     };
     await put("projects", p);
-    router.push(`/project?id=${p.id}&tab=sheets`);
+    await template.applyThenOpen(p, () => router.push(`/project?id=${p.id}&tab=sheets`));
   }
 
   async function del(p: Row) {
@@ -187,6 +189,7 @@ export default function ProjectsList() {
               <label className="label" htmlFor="new-client-phone">Client phone</label>
               <input id="new-client-phone" className="input" type="tel" value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} />
             </div>
+            {template.field}
             <div className="flex justify-end gap-2 pt-1 sm:col-span-2">
               <button type="button" className="btn" onClick={() => setCreating(false)}>
                 Cancel
@@ -199,6 +202,7 @@ export default function ProjectsList() {
         </div>
       )}
 
+      {template.dialog}
       {rows === null ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (

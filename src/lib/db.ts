@@ -15,6 +15,7 @@ import type {
   Checklist,
   JobDocument,
   JobLog,
+  JobTemplate,
   Marker,
   Photo,
   PhotoComment,
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "jobTemplates";
 
 export interface SyncItem {
   seq?: number;
@@ -69,6 +71,8 @@ class PinPlanDB extends Dexie {
   /** Quotes, invoices and credit notes (not to be confused with `documents`, the job's attached files). */
   salesDocs!: EntityTable<SalesDoc, "id">;
   salesPayments!: EntityTable<DocPayment, "id">;
+  /** Company job templates (docs/job-templates.md). Not part of any job. */
+  jobTemplates!: EntityTable<JobTemplate, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
@@ -104,6 +108,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v30: company job templates (docs/job-templates.md).
+    this.version(30).stores({ jobTemplates: "id, updatedAt" });
   }
 }
 

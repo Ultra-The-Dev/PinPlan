@@ -3,7 +3,7 @@
 // Useful when running local-only (no Supabase) or to move a job between devices.
 import { db, loadProject, nowIso, putMany, type SyncTable } from "./db";
 import { downloadBlob, slug } from "./download";
-import type { DeviceType, DocPayment, Product, SalesDoc, StoredImage } from "./types";
+import type { DeviceType, DocPayment, JobTemplate, Product, SalesDoc, StoredImage } from "./types";
 
 const FORMAT = "pinplan-backup";
 
@@ -50,7 +50,9 @@ export async function exportAllBackup(): Promise<number> {
     for (const p of r.products) products.set(p.id, p);
   }
   const catalog = await db().deviceTypes.toArray();
-  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products: [...products.values()], projects };
+  // Company job templates go with a full export (docs/job-templates.md).
+  const jobTemplates = (await db().jobTemplates.toArray()).filter((t) => !t.deleted);
+  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products: [...products.values()], projects, jobTemplates };
   downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `pinplan-all-jobs-${nowIso().slice(0, 10)}.pinplan.json`);
   return projects.length;
 }
@@ -85,6 +87,7 @@ export async function importBackup(file: File): Promise<number> {
     format?: string;
     catalog?: DeviceType[];
     products?: Product[];
+    jobTemplates?: JobTemplate[];
     projects?: (Awaited<ReturnType<typeof loadProject>> & { images: ImageRecord[]; salesDocs?: SalesDoc[]; salesPayments?: DocPayment[] })[];
   };
   try {
@@ -106,6 +109,13 @@ export async function importBackup(file: File): Promise<number> {
     const have = new Set((await db().products.toArray()).filter((p) => !p.deleted).map((p) => p.id));
     const missing = data.products.filter((p) => p?.id && !have.has(p.id)).map((p) => ({ ...p, deleted: false }));
     if (missing.length) await putMany("products", missing);
+  }
+
+  // Job templates: add ones this device doesn't have.
+  if (data.jobTemplates?.length) {
+    const have = new Set((await db().jobTemplates.toArray()).filter((t) => !t.deleted).map((t) => t.id));
+    const missing = data.jobTemplates.filter((t) => t?.id && t.payload && !have.has(t.id)).map((t) => ({ ...t, deleted: false }));
+    if (missing.length) await putMany("jobTemplates", missing);
   }
 
   for (const p of data.projects) {
