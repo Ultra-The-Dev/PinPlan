@@ -4,6 +4,7 @@ import { closetMeta, LAYERS } from "./catalog";
 import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
+import { rotateSheetMeasurements } from "./measurements";
 import { markerCables } from "./products";
 import type {
   AppSettings,
@@ -534,6 +535,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       changes.push({ table: "runs", before: r, after: { ...r, points } });
     }
     await get().commit(changes);
+    await rotateSheetMeasurements(id);
   },
   async updateProject(patch) {
     const before = get().project;

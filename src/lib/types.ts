@@ -675,3 +675,32 @@ export interface DocumentSettings {
   reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
   updatedAt?: string;
 }
+
+/** What a saved measurement measures: a straight length, a multi-point run, or an area (closed polygon). */
+export type MeasurementKind = "length" | "polyline" | "area";
+
+/**
+ * A saved takeoff measurement drawn on a sheet (docs/saved-measurements.md). Only the geometry is stored: lengths and
+ * areas are always computed from `points` and the sheet's current `pxPerFt` (src/lib/measure.ts), so recalibrating
+ * the sheet updates them.
+ */
+export interface Measurement {
+  id: string;
+  projectId: string;
+  sheetId: string;
+  kind: MeasurementKind;
+  /** Relative (0–1) x,y pairs on the sheet image: 2 points for a length, 2+ for a run, 3+ for an area. */
+  points: number[];
+  /** Group label, e.g. `3/4" EMT` or "Drop ceiling". Measurements with the same label and kind are totalled together. */
+  label?: string | null;
+  color?: string | null;
+  /** Extra feet added to a length/run (vertical drops, service loops…). Ignored for areas. */
+  extraFt?: number | null;
+  /** Waste / slack allowance in % on top of (length + extra), or of the area. */
+  wastePct?: number | null;
+  notes?: string | null;
+  author?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

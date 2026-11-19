@@ -16,6 +16,7 @@ import type {
   JobDocument,
   JobLog,
   Marker,
+  Measurement,
   Photo,
   PhotoComment,
   Product,
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "measurements";
 
 export interface SyncItem {
   seq?: number;
@@ -69,6 +71,7 @@ class PinPlanDB extends Dexie {
   /** Quotes, invoices and credit notes (not to be confused with `documents`, the job's attached files). */
   salesDocs!: EntityTable<SalesDoc, "id">;
   salesPayments!: EntityTable<DocPayment, "id">;
+  measurements!: EntityTable<Measurement, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
@@ -104,6 +107,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v24: saved measurements (lengths, runs, areas) on sheets — docs/saved-measurements.md.
+    this.version(24).stores({ measurements: "id, projectId, sheetId, updatedAt" });
   }
 }
 
@@ -256,6 +261,7 @@ export interface ProjectBundle {
   checklists: Checklist[];
   jobLogs: JobLog[];
   documents: JobDocument[];
+  measurements: Measurement[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -275,6 +281,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.jobLogs.where("projectId").equals(projectId).toArray(),
     d.documents.where("projectId").equals(projectId).toArray(),
   ]);
+  const measurements = await d.measurements.where("projectId").equals(projectId).toArray();
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
     sheets: live(sheets).sort((a, b) => a.order - b.order),
@@ -287,6 +294,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    measurements: live(measurements).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };
 }
 

@@ -48,6 +48,10 @@ export interface PlanOverlay {
   html?: (ctx: PlanOverlayContext) => ReactNode;
   /** A tap/click on the plan. Return true when handled, so the editor doesn't also place/select. */
   onTap?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
+  /** A double-tap/double-click on the plan, before the editor's (zoom in). Return true when handled. */
+  onDoubleTap?: (e: PlanTapEvent, ctx: PlanOverlayContext) => boolean | void;
+  /** True while the overlay owns plan input (e.g. drawing): devices, closets and run points can't be dragged then. */
+  capturing?: (ctx: PlanOverlayContext) => boolean;
 }
 
 const registry = new Map<string, PlanOverlay>();

@@ -241,7 +241,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
 
   const handlers: GestureHandlers = {
     hitAt,
-    canDrag: (hit) => editing && useEditor.getState().tool.kind === "select" && (hit.kind === "marker" || hit.kind === "closet" || hit.kind === "handle"),
+    canDrag: (hit) => editing && useEditor.getState().tool.kind === "select" && (hit.kind === "marker" || hit.kind === "closet" || hit.kind === "handle") && !overlays.some((o) => o.capturing?.(overlayCtx())),
     forcePan: () => space.current,
     onTap(info) {
       const sheetPx = vp.screenToSheetPx(info.screen);
@@ -265,6 +265,10 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
       onTapImage(rel.x, rel.y, snapHit(sheetPx));
     },
     onDoubleTap(info) {
+      const sp = vp.screenToSheetPx(info.screen);
+      const dctx = overlayCtx();
+      const dev = { rel: { x: sp.x / W, y: sp.y / H }, sheetPx: sp, screen: info.screen, pointerType: info.pointerType, shiftKey: info.shiftKey, hit: info.hit ? { kind: info.hit.kind, id: info.hit.id } : null };
+      for (const o of [...overlays].reverse()) if (o.onDoubleTap && (o.enabled?.(dctx) ?? true) && o.onDoubleTap(dev, dctx)) return;
       const k = useEditor.getState().tool.kind;
       if (editing && DRAWING.has(k)) return onDoubleTap();
       if (k === "select" || !editing) vp.zoomBy(2, info.screen, 280);
