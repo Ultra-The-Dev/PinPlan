@@ -25,6 +25,7 @@ public struct BackupFile: Codable, Sendable {
         public var checklists: [Checklist]?
         public var jobLogs: [JobLog]?
         public var documents: [JobDocument]?
+        public var forms: [JobForm]?
         public var images: [Image]
         /// Entries in `images` that are job documents (any file type; the web app keeps them with the images).
         public var documentFileIds: Set<String> { Set((documents ?? []).map(\.fileId)) }
@@ -32,11 +33,13 @@ public struct BackupFile: Codable, Sendable {
             var b = ProjectBundle(project: project, sheets: sheets, markers: markers, runs: runs, closets: closets, estimateLines: estimateLines)
             b.photos = photos ?? []; b.photoComments = photoComments ?? []; b.checklists = checklists ?? []
             b.jobLogs = jobLogs ?? []; b.documents = documents ?? []
+            b.forms = forms ?? []
             return b
         }
         public init(bundle b: ProjectBundle, images: [Image]) {
             project = b.project; sheets = b.sheets; markers = b.markers; runs = b.runs; closets = b.closets; estimateLines = b.estimateLines; self.images = images
             photos = b.photos; photoComments = b.photoComments; checklists = b.checklists; jobLogs = b.jobLogs; documents = b.documents
+            forms = b.forms
         }
     }
 
@@ -72,7 +75,8 @@ extension ProjectBundle {
     /// Every JPEG this job keeps: plan sheets, device photos and job photos (deleted rows included, so undo still finds them).
     public var storedImageIds: [String] {
         var seen = Set<String>()
-        return (sheets.map(\.imageId) + markers.compactMap(\.photoId) + photos.map(\.imageId)).filter { !$0.isEmpty && seen.insert($0).inserted }
+        let signatures: [String] = forms.flatMap { ($0.signatures ?? []).map(\.imageId) }
+        return (sheets.map(\.imageId) + markers.compactMap(\.photoId) + photos.map(\.imageId) + signatures).filter { !$0.isEmpty && seen.insert($0).inserted }
     }
     /// Job document files (any type).
     public var storedFileIds: [String] {

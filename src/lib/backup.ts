@@ -64,6 +64,7 @@ async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof l
     ...bundle.photos.map((p) => p.imageId),
     ...bundle.documents.map((d) => d.fileId),
     ...(bundle.changeOrders ?? []).map((c) => c.signatureImageId).filter((x): x is string => !!x),
+    ...(bundle.forms ?? []).flatMap((f) => (f.signatures ?? []).map((sg) => sg.imageId)),
   ]);
   const images: ImageRecord[] = [];
   for (const id of imageIds) {
@@ -146,6 +147,7 @@ export async function importBackup(file: File): Promise<number> {
       ["changeOrders", p.changeOrders ?? []],
       ["rfis", p.rfis ?? []],
       ["scheduleItems", p.scheduleItems ?? []],
+      ["forms", p.forms ?? []],
     ];
     for (const [t, rows] of tables) if (rows?.length) await putMany(t, rows);
   }

@@ -29,6 +29,7 @@ import type {
   Sheet,
   StoredImage,
   Suggestion,
+  JobForm,
 } from "./types";
 
 /** Tables that are synced to Supabase when it is configured. */
@@ -51,7 +52,8 @@ export type SyncTable =
   | "jobTemplates"
   | "changeOrders"
   | "rfis"
-  | "scheduleItems";
+  | "scheduleItems"
+  | "forms";
 
 export interface SyncItem {
   seq?: number;
@@ -87,6 +89,8 @@ class PinPlanDB extends Dexie {
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
+  /** Filled forms and inspections (job_forms). */
+  forms!: EntityTable<JobForm, "id">;
 
   constructor() {
     super("pinplan");
@@ -126,6 +130,8 @@ class PinPlanDB extends Dexie {
     this.version(27).stores({ rfis: "id, projectId, status, updatedAt" });
     // v29: job schedule (phases with dependencies; docs/schedule-lookahead.md).
     this.version(29).stores({ scheduleItems: "id, projectId, start, updatedAt" });
+    // v26: typed forms and inspections.
+    this.version(26).stores({ forms: "id, projectId, templateId, status, updatedAt" });
   }
 }
 
@@ -232,7 +238,7 @@ export async function saveSettings(s: AppSettings) {
   await d.transaction("rw", d.settings, async () => {
     const stored = await d.settings.get("app");
     // Trades are written only by saveTrades (useTrades.ts); invoicing settings: they're only changed by saveDocumentSettings (and sync).
-    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, documents: stored?.documents ?? s.documents, updatedAt: nowIso() });
+    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, formTemplates: stored?.formTemplates ?? s.formTemplates, documents: stored?.documents ?? s.documents, updatedAt: nowIso() });
   });
 }
 
@@ -284,6 +290,8 @@ export interface ProjectBundle {
   rfis?: Rfi[];
   /** Schedule phases (by start date). Optional so older bundles and backups still type-check. */
   scheduleItems?: ScheduleItem[];
+  /** Forms and inspections. Optional so older bundles and backups still type-check. */
+  forms?: JobForm[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -291,7 +299,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis, scheduleItems] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, changeOrders, rfis, scheduleItems, forms] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -305,6 +313,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.changeOrders.where("projectId").equals(projectId).toArray(),
     d.rfis.where("projectId").equals(projectId).toArray(),
     d.scheduleItems.where("projectId").equals(projectId).toArray(),
+    d.forms.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -321,6 +330,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     changeOrders: live(changeOrders).sort((a, b) => a.number - b.number || a.createdAt.localeCompare(b.createdAt)),
     rfis: live(rfis).sort((a, b) => b.number - a.number),
     scheduleItems: live(scheduleItems).sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0)),
+    forms: live(forms).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
   };
 }
 

@@ -5,13 +5,13 @@ import PinPlanCore
 
 /// Field documentation for the job: checklists, daily logs, documents and the timeline.
 struct FieldView: View {
-    enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline"; var id: String { rawValue } }
+    enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", forms = "Forms"; var id: String { rawValue } }
     let model: EditorModel
     @State private var section: Part = {
         // Screenshot hook: `--field logs|documents|timeline`.
         let a = ProcessInfo.processInfo.arguments
         if let i = a.firstIndex(of: "--field"), a.indices.contains(i + 1) {
-            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; default: break }
+            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; case "forms": return .forms; default: break }
         }
         return .checklists
     }()
@@ -27,6 +27,7 @@ struct FieldView: View {
             case .logs: DailyLogsView(model: model)
             case .documents: DocumentsView(model: model)
             case .timeline: TimelineView(model: model)
+            case .forms: FormsListView(model: model)
             }
         }
     }

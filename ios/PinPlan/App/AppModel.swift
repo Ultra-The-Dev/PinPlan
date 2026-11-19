@@ -226,6 +226,9 @@ final class AppModel {
     /// The company's saved checklist templates (cleaned up).
     var checklistTemplates: [ChecklistTemplate] { FieldDocs.normalizeTemplates(settings.checklistTemplates) }
 
+    /// The company's form templates (cleaned up); the built-ins come from PinPlanCore.
+    var formTemplates: [FormTemplate] { Forms.normalizeTemplates(settings.formTemplates) }
+
     /// Change the saved checklist templates and write settings right away.
     func updateChecklistTemplates(_ f: ([ChecklistTemplate]) -> [ChecklistTemplate]) {
         settings.checklistTemplates = FieldDocs.normalizeTemplates(f(checklistTemplates))

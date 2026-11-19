@@ -113,7 +113,7 @@ final class SyncTests: XCTestCase {
             for (_, col) in spec.columns {
                 let created = sql.range(of: "create table (if not exists )?public.\(spec.remote) \\(", options: .regularExpression) != nil
                 XCTAssertTrue(created, "\(spec.remote) missing")
-                let pattern = "(\\n\\s+\(col)\\s)|(add column if not exists \(col)\\s)"
+                let pattern = "(\\n\\s+\"?\(col)\"?\\s)|(add column if not exists \(col)\\s)"
                 XCTAssertNotNil(sql.range(of: pattern, options: .regularExpression), "\(t).\(col) is not in the schema")
             }
         }

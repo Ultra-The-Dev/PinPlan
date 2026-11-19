@@ -117,7 +117,9 @@ begin
                            -- added by 20261123100800_change_orders.sql (which also installs its trigger itself)
                            'change_orders',
                            -- added by 20261123100900_schedule.sql (which also installs its trigger itself)
-                           'schedule_items'] loop
+                           'schedule_items',
+                           -- added by 20261123100600_forms.sql (which also installs its trigger itself)
+                           'job_forms'] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists %I_write_guard on public.%I', t, t);
       execute format('create trigger %I_write_guard before insert or update on public.%I for each row execute function public.job_write_guard()', t, t);
