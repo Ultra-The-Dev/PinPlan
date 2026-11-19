@@ -1,13 +1,16 @@
 import SwiftUI
 import PinPlanCore
 
-/// Every sheet of the job as thumbnails: search, recently viewed, device counts. Tap one to open it.
+/// Every plan (sheet) of the job as thumbnails: search, recently viewed, device counts. Tap one to open it.
+/// "Add or manage" opens the plans screen (import, rename, reorder, rotate, delete); it used to be its own tab.
 struct SheetBrowserView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
     let onPick: (Sheet) -> Void
+    /// "Add or manage": the caller opens the plans screen once this browser has closed.
+    var onManage: (() -> Void)? = nil
     @State private var query = ""
 
     var body: some View {
@@ -30,7 +33,7 @@ struct SheetBrowserView: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(query.isEmpty ? "All sheets" : "\(results.count) matching").font(.headline)
+                        Text(query.isEmpty ? "All plans" : "\(results.count) matching").font(.headline)
                         if results.isEmpty {
                             ContentUnavailableView.search(text: query)
                         } else {
@@ -42,11 +45,18 @@ struct SheetBrowserView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search sheets")
-            .navigationTitle("Sheets")
+            .background(Color.paper)
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search plans")
+            .navigationTitle("Plans")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                if let onManage {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { onManage(); dismiss() } label: { Label("Add or manage", systemImage: "doc.badge.plus").labelStyle(.titleAndIcon) }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
         }
     }
 

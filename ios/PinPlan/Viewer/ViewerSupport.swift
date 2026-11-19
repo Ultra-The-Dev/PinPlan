@@ -81,3 +81,27 @@ enum ViewerPrefs {
     /// Screenshot / automation flags (`--viewer-zoomed`, `--sheet-browser`, `--layers`, `--minimap`, `--view-mode`).
     static func launchFlag(_ name: String) -> Bool { ProcessInfo.processInfo.arguments.contains("--\(name)") }
 }
+
+extension View {
+    /// Reports this view's height as laid out (on appear and whenever it changes).
+    func measureHeight(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+        background(GeometryReader { g in
+            Color.clear
+                .onAppear { onChange(g.size.height) }
+                .onChange(of: g.size.height) { _, h in onChange(h) }
+        })
+    }
+
+    /// Wraps the view in a vertical scroll view capped at `maxHeight` when `on` (floating controls on short screens).
+    @ViewBuilder
+    func scrollable(if on: Bool, maxHeight: CGFloat) -> some View {
+        if on {
+            ScrollView(.vertical, showsIndicators: false) { self }
+                .frame(maxHeight: maxHeight)
+                .defaultScrollAnchor(.bottom)
+                .fixedSize(horizontal: true, vertical: false)
+        } else {
+            self
+        }
+    }
+}

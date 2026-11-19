@@ -23,7 +23,7 @@ struct ClientProposalView: View {
         SentenceForm {
             if !app.cloud.signedIn || !serverReady {
                 Section {
-                    Text("Proposal links need cloud sync and the PinPlan server address (the client opens the link on your web app).")
+                    Text("Client links need cloud sync and the PinPlan server address (the client opens the link on your web app).")
                         .foregroundStyle(.secondary)
                     if !app.cloud.signedIn { NavigationLink("Set up cloud sync") { CloudSyncView() } }
                     if !serverReady { NavigationLink("Set the PinPlan server") { ServerSetupView() } }
@@ -37,10 +37,10 @@ struct ClientProposalView: View {
                     if showForm { form } else {
                         Button {
                             showForm = true
-                        } label: { Label((rows ?? []).contains { $0.status != "revoked" } ? "Send an updated proposal" : "Create proposal link", systemImage: "signature") }
+                        } label: { Label((rows ?? []).contains { $0.status != "revoked" } ? "Send an updated quote" : "Get client link", systemImage: "signature") }
                     }
                 } footer: {
-                    if !showForm { Text("The client sees your business details, the scope, the plans, this estimate and your terms. Optional “?” items show as add-ons they can tick.") }
+                    if !showForm { Text("The client sees your business details, the scope, the plans, this quote and your terms. Optional items show as add-ons they can tick.") }
                 }
                 if let n = rows?.filter({ $0.status == "revoked" }).count, n > 0 {
                     Section { Text("\(n) earlier link\(n == 1 ? "" : "s") withdrawn").font(.caption).foregroundStyle(.secondary) }
@@ -48,7 +48,7 @@ struct ClientProposalView: View {
             }
             if let problem { Section { Text(problem).foregroundStyle(.red).font(.callout) } }
         }
-        .navigationTitle("Client proposal")
+        .navigationTitle("Quote for the client")
         .task { await refresh() }
         .refreshable { await refresh() }
     }
@@ -63,7 +63,7 @@ struct ClientProposalView: View {
         HStack {
             Button("Cancel") { showForm = false }.buttonStyle(.bordered)
             Spacer()
-            Button { Task { await publish() } } label: { Text(busy ?? "Publish link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
+            Button { Task { await publish() } } label: { Text(busy ?? "Get client link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
         }
     }
 
@@ -71,7 +71,7 @@ struct ClientProposalView: View {
         switch r.status {
         case "sent": return "Sent — not opened yet"
         case "viewed": return "Opened by the client"
-        case "accepted": return "Accepted"
+        case "accepted": return "Approved"
         case "declined": return "Declined"
         default: return r.status.capitalized
         }
@@ -80,17 +80,17 @@ struct ClientProposalView: View {
     @ViewBuilder private func row(_ r: CloudSync.ProposalRow) -> some View {
         let cur = r.snapshot.currency
         if r.status == "accepted" {
-            Label("\(r.client_name ?? "The client") accepted · \(Money.format(r.accepted_total ?? 0, currency: cur))", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+            Label("\(r.client_name ?? "The client") approved · \(Money.format(r.accepted_total ?? 0, currency: cur))", systemImage: "checkmark.seal.fill").foregroundStyle(Color.approved)
             let chosen = r.snapshot.lines.filter { (r.chosen_options ?? []).contains($0.key) }
             if !chosen.isEmpty { Text("Options: " + chosen.map(\.description).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
             if let sig = r.signature, let data = Data(base64Encoded: String(sig.split(separator: ",").last ?? "")), let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 60).background(.white)
             }
-            if let d = r.snapshot.depositPct { Text("Next: send the \(d.clean)% deposit invoice from the Estimate tab.").font(.caption).foregroundStyle(.secondary) }
+            if let d = r.snapshot.depositPct { Text("Next: send the \(d.clean)% deposit invoice from Money.").font(.caption).foregroundStyle(.secondary) }
         }
         if r.status == "declined" { Text("\(r.client_name ?? "The client") declined\(r.client_note.map { ": “\($0)”" } ?? ".")") }
         if let url = link(r.id) {
-            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here is your proposal — you can review it and approve it online:")) {
+            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here is your quote — you can review it and approve it online:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
             Button { UIPasteboard.general.url = url; model.say("Link copied") } label: { Label("Copy link", systemImage: "doc.on.doc") }
@@ -120,7 +120,7 @@ struct ClientProposalView: View {
             b.project.status = .approved
             b.project.updatedAt = isoNow()
         }
-        model.say("\(a.client_name ?? "The client") accepted — job approved")
+        model.say("\(a.client_name ?? "The client") approved the quote — job approved")
     }
 
     private func publish() async {
@@ -147,7 +147,7 @@ struct ClientProposalView: View {
                                    taxPct: pricing.taxPct, title: title, message: message, validDays: validDays, detail: detail, depositPct: dep, images: urls, origin: origin)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say("Proposal published — link copied") }
+            if let url = link(token) { UIPasteboard.general.url = url; model.say("Client link ready — copied") }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }

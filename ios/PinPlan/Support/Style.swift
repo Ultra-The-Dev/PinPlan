@@ -10,9 +10,7 @@ extension Color {
         Scanner(string: s).scanHexInt64(&v)
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
     }
-
-    static let brand = Color(red: 0.761, green: 0.255, blue: 0.047)   // safety orange #C2410C
-    static let ink = Color(red: 0.086, green: 0.086, blue: 0.086)     // charcoal #161616
+    // Brand colours (brand, ink, paper…) live in Theme.swift.
 }
 
 extension UIColor {
@@ -157,13 +155,13 @@ func wireColor(_ w: String?) -> Color {
 /// A Form whose section headers stay in sentence case (iOS grouped lists default to ALL CAPS).
 struct SentenceForm<Content: View>: View {
     @ViewBuilder var content: Content
-    var body: some View { Form { content }.textCase(nil).headerProminence(.increased).scrollDismissesKeyboard(.interactively) }
+    var body: some View { Form { content }.textCase(nil).headerProminence(.increased).scrollDismissesKeyboard(.interactively).paperBackground() }
 }
 
 /// A List whose section headers stay in sentence case.
 struct SentenceList<Content: View>: View {
     @ViewBuilder var content: Content
-    var body: some View { List { content }.textCase(nil).headerProminence(.increased).scrollDismissesKeyboard(.interactively) }
+    var body: some View { List { content }.textCase(nil).headerProminence(.increased).scrollDismissesKeyboard(.interactively).paperBackground() }
 }
 
 /// Section header text kept as written (grouped lists otherwise force ALL CAPS on the header).

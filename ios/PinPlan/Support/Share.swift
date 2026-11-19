@@ -85,7 +85,7 @@ struct PanelContainer<Content: View>: View {
                 Divider()
                 content
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.paper)
         }
     }
 }

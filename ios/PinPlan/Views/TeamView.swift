@@ -207,7 +207,7 @@ private struct SignedOutTeamSection: View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Work as a team").font(.headline)
-                Text("Give your office staff and technicians their own sign-in. Everyone sees the team's jobs; technicians don't see prices, estimates or proposals.")
+                Text("Give your office staff and technicians their own sign-in. Everyone sees the team's jobs; technicians don't see prices, quotes or invoices.")
                     .font(.callout).foregroundStyle(Color.secondary)
             }
             .padding(.vertical, 4)
@@ -242,7 +242,7 @@ private struct StartTeamSection: View {
         } header: {
             Text("Start your team").textCase(nil)
         } footer: {
-            Text("You'll be the owner. Your jobs, catalog and products become the team's, and you can invite office staff and technicians.")
+            Text("You'll be the owner. Your jobs and price list become the team's, and you can invite office staff and technicians.")
         }
         .onAppear {
             if company.isEmpty { company = app.settings.business.name }
@@ -653,7 +653,7 @@ private struct InviteCardView: View {
                 .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.paper)
             .task {
                 guard let api = APIClient(settings: app.settings) else { return }
                 canEmail = await api.emailConfigured()

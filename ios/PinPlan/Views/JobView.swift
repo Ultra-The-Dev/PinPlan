@@ -4,10 +4,8 @@ import PinPlanCore
 struct JobView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
-    /// Switches the job's tab (for the "Next step" shortcut).
-    let go: (ProjectTab) -> Void
-    @State private var share: SharedFile?
-    @State private var error: String?
+    /// Opens a section of the job by tab id (for the "Next step" shortcut; see ProjectTab.resolve).
+    let go: (String) -> Void
 
     var body: some View {
         let p = model.bundle.project
@@ -16,18 +14,7 @@ struct JobView: View {
             Section(sentence: "Job") {
                 LabeledContent("Address") { CommitField(title: "Address", value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
                 Picker("Status", selection: Binding(get: { p.status }, set: { v in model.editSilently { $0.project.status = v } })) {
-                    ForEach(ProjectStatus.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                }
-            }
-            Section {
-                JobLabelsRow(model: model)
-            } header: { Text("Labels").textCase(nil) } footer: {
-                Text("Filter jobs by label on the jobs list (web and iPad).")
-            }
-            JobLocationSection(model: model)
-            if app.cloud.can(.prices) {
-                Section {
-                    NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
+                    ForEach(ProjectStatus.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
             }
             Section(sentence: "Client") {
@@ -38,13 +25,51 @@ struct JobView: View {
             Section(sentence: "Notes") {
                 CommitField(title: "Notes", value: p.notes ?? "", prompt: "Gate code, site contact…") { v in model.editSilently { $0.project.notes = v } }
             }
+            // Simple by default: labels, location, brands and models, backup and connected apps sit behind More.
+            Section {
+                NavigationLink { JobMoreView(model: model) } label: {
+                    LabeledContent { Text(moreSummary(p)).lineLimit(1) } label: { Label("More", systemImage: "ellipsis.circle") }
+                }
+            }
+        }
+    }
+
+    private func moreSummary(_ p: Project) -> String {
+        var parts: [String] = []
+        if let l = p.labels, !l.isEmpty { parts.append(l.count == 1 ? "1 label" : "\(l.count) labels") }
+        if p.lat != nil { parts.append("Located") }
+        return parts.isEmpty ? "Labels, location, backup" : parts.joined(separator: " · ")
+    }
+}
+
+/// The job's less-used details: labels, location, brands and models, backup, connected apps.
+struct JobMoreView: View {
+    @Environment(AppModel.self) private var app
+    let model: EditorModel
+    @State private var share: SharedFile?
+    @State private var error: String?
+
+    var body: some View {
+        let p = model.bundle.project
+        SentenceForm {
+            Section {
+                JobLabelsRow(model: model)
+            } header: { Text("Labels").textCase(nil) } footer: {
+                Text("Filter jobs by label on the jobs list (web and iPad).")
+            }
+            JobLocationSection(model: model)
+            if app.cloud.can(.prices) {
+                Section {
+                    NavigationLink { JobProductsView(model: model) } label: { Label("Brands and models for this job", systemImage: "tag") }
+                }
+            }
             Section {
                 Button {
                     do { share = SharedFile(url: try app.store.backup(of: [model.bundle], catalog: app.catalog, products: app.products)) } catch { self.error = error.localizedDescription }
                 } label: { Label("Share backup (.pinplan.json)", systemImage: "square.and.arrow.up") }
                 if let error { Text(error).foregroundStyle(.red) }
             } header: { Text("Backup").textCase(nil) } footer: {
-                Text("One file with every sheet, device, run, photo and estimate edit. It opens in this app or the PinPlan web app.")
+                Text("One file with every plan, device, wire run, photo and price edit. It opens in this app or the PinPlan web app.")
             }
             if !p.billduDocs.isEmpty && app.cloud.can(.prices) {
                 Section(sentence: "Billdu") {
@@ -54,7 +79,20 @@ struct JobView: View {
                 }
             }
         }
+        .navigationTitle("More")
+        .navigationBarTitleDisplayMode(.inline)
         .shareSheet($share)
+    }
+}
+
+extension ProjectStatus {
+    /// The status in the app's words (docs/ux-audit.md glossary): Quoting, Approved, Installed.
+    var title: String {
+        switch self {
+        case .estimate: return "Quoting"
+        case .approved: return "Approved"
+        case .installed: return "Installed"
+        }
     }
 }
 
@@ -72,7 +110,7 @@ struct JobLabelsRow: View {
                     let on = labels.contains(l)
                     Button { set(on ? labels.filter { $0 != l } : labels + [l]) } label: {
                         Text(l).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
+                            .background(on ? Color.ink : Color(.secondarySystemFill), in: Capsule())
                             .foregroundStyle(on ? Color.white : Color.primary)
                     }
                     .buttonStyle(.plain)
@@ -135,7 +173,7 @@ struct JobLocationSection: View {
 struct JobHealthSection: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
-    let go: (ProjectTab) -> Void
+    let go: (String) -> Void
 
     var body: some View {
         let today = FieldDocs.localDay(isoNow())
@@ -144,7 +182,7 @@ struct JobHealthSection: View {
         let s = JobSummary.make(model.bundle, estimate: (total: e.total, unpriced: unpriced), today: today)
         let urgent = s.next.kind == .overdueTasks || s.next.kind == .reviseProposal
         let showPrices = app.cloud.can(.prices)
-        // Technicians don't have the Estimate tab or plan review: those steps are the office's.
+        // Technicians don't have the Money tab or plan review: those steps are the office's.
         let officeStep = !showPrices && (s.next.tab == "estimate" || s.next.kind == .sendReview)
         Section {
             if s.next.kind == .done {
@@ -163,7 +201,7 @@ struct JobHealthSection: View {
             LabeledContent("Photos", value: photosText(s, today: today))
             LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? "None yet")
             if showPrices {
-                LabeledContent("Estimate") {
+                LabeledContent("Pricing") {
                     Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
                         .foregroundStyle(unpriced > 0 ? Color.red : Color.secondary)
                 }
@@ -175,7 +213,7 @@ struct JobHealthSection: View {
         HStack(spacing: 12) {
             Image(systemName: n.kind == .done ? "checkmark.seal.fill" : urgent ? "exclamationmark.triangle.fill" : "arrow.right.circle.fill")
                 .font(.title2)
-                .foregroundStyle(n.kind == .done ? Color.green : urgent ? Color.red : Color.accentColor)
+                .foregroundStyle(n.kind == .done ? Color.approved : urgent ? Color.red : Color.brand)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Next step").font(.caption).foregroundStyle(Color.secondary)
                 Text(n.text).font(.body.weight(.semibold)).foregroundStyle(Color.primary)
@@ -198,7 +236,7 @@ struct JobHealthSection: View {
         switch n.kind {
         case .markApproved: setStatus(.approved)
         case .markInstalled: setStatus(.installed)
-        default: go(n.tab == "info" ? ProjectTab.job : (ProjectTab(rawValue: n.tab) ?? ProjectTab.job))
+        default: go(n.tab)
         }
     }
 
@@ -208,7 +246,7 @@ struct JobHealthSection: View {
 
     private func devicesText(_ s: JobSummary) -> String {
         var parts: [String] = ["\(s.devices)"]
-        if s.tentative > 0 { parts.append("\(s.tentative) tentative") }
+        if s.tentative > 0 { parts.append("\(s.tentative) optional") }
         if s.ledRuns > 0 { parts.append("\(s.ledRuns) LED run\(s.ledRuns == 1 ? "" : "s")") }
         return parts.joined(separator: " · ")
     }

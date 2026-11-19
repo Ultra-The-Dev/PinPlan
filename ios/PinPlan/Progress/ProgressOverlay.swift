@@ -4,6 +4,10 @@ import PinPlanCore
 // Install progress on the plan, through the plan overlay registry (Viewer/PlanOverlay.swift): status rings around
 // devices and status lines over runs, the Progress / Walk controls, and walk-mode taps (one tap marks a device).
 // Registered once from PinPlanApp.
+//
+// The Progress / Walk controls live in the viewer's controls slot (bottom right, beside or above the zoom and layers
+// buttons), never at the top: on iPhone the top of the plan belongs to the sheet pill and the action bar, and the
+// navigation bar sits right above them. The undo snackbar is drawn on the plan, bottom left, clear of the controls.
 
 enum ProgressOverlays {
     @MainActor static func register() {
@@ -11,9 +15,11 @@ enum ProgressOverlays {
             AnyView(ProgressRingsLayer(ctx: ctx))
         }, onTap: { tap in
             walkTap(tap)
-        }))
-        PlanOverlayRegistry.shared.register(PlanOverlay(id: "install-progress-controls", zIndex: 21, allowsHitTesting: true, content: { ctx in
+        }, controls: { ctx in
             AnyView(ProgressControls(model: ctx.model, sheet: ctx.sheet))
+        }))
+        PlanOverlayRegistry.shared.register(PlanOverlay(id: "install-progress-snack", zIndex: 21, allowsHitTesting: true, content: { ctx in
+            AnyView(ProgressSnackLayer(model: ctx.model))
         }))
     }
 
@@ -143,38 +149,31 @@ struct ProgressRingsLayer: View {
     }
 }
 
-/// The Progress / Walk controls, the walk target chips and the "3/40 installed" counter, plus the undo snackbar,
-/// the device sheet and the camera for photo-required statuses.
+/// The Progress / Walk controls for the viewer's controls slot: a "Progress" button that opens a small card with
+/// the counter ("3/40 tested"), Walk and, while walking, what a tap marks. Also presents the device sheet and the
+/// camera for photo-required statuses (this view stays put while the plan moves).
 struct ProgressControls: View {
+    @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
     let sheet: Sheet
 
     var body: some View {
         @Bindable var ui = ProgressUI.shared
-        ZStack(alignment: .topLeading) {
-            controls
-                .padding(.top, 72)
-                .padding(.leading, 12)
-            if let s = ui.snack {
-                snackbar(s)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 96)
+        controls
+            .sheet(item: $ui.sheet) { ref in
+                DeviceInstallSheet(model: model, ref: ref)
             }
-        }
-        .sheet(item: $ui.sheet) { ref in
-            DeviceInstallSheet(model: model, ref: ref)
-        }
-        .fullScreenCover(item: $ui.pendingPhoto) { pending in
-            CameraPicker { img in
-                Task { @MainActor in
-                    guard let p = model.makeInstallPhoto(img, for: pending.ref) else { return }
-                    if model.setInstall(pending.ref, to: pending.to, photo: p) {
-                        ProgressUI.shared.show(pending.ref, "\(model.installLabel(pending.ref)) → \(model.installWorkflow(pending.ref).label(pending.to)) (photo)")
+            .fullScreenCover(item: $ui.pendingPhoto) { pending in
+                CameraPicker { img in
+                    Task { @MainActor in
+                        guard let p = model.makeInstallPhoto(img, for: pending.ref) else { return }
+                        if model.setInstall(pending.ref, to: pending.to, photo: p) {
+                            ProgressUI.shared.show(pending.ref, "\(model.installLabel(pending.ref)) → \(model.installWorkflow(pending.ref).label(pending.to)) (photo)")
+                        }
                     }
                 }
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
-        }
     }
 
     private var counted: InstallStatus {
@@ -183,47 +182,65 @@ struct ProgressControls: View {
         return .tested
     }
 
+    /// Card width: fits beside the viewer controls on the narrowest phone.
+    private var cardWidth: CGFloat { hSize == .compact ? 260 : 340 }
+
     @ViewBuilder private var controls: some View {
         let ui = ProgressUI.shared
         if !ui.on {
             Button { ui.on = true } label: {
                 Label("Progress", systemImage: "circle.dashed").font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 14).frame(height: 44)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
             }
             .buttonStyle(.plain)
+            .accessibilityHint("Shows install progress on the plan")
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                topRow
+                header
+                walkRow
                 if ui.walk { targetChips }
             }
-            .padding(8)
-            .frame(maxWidth: 360, alignment: .leading)
+            .padding(10)
+            .frame(width: cardWidth, alignment: .leading)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         }
     }
 
-    private var topRow: some View {
+    /// "Progress" title, the counter and a close button.
+    private var header: some View {
         let ui = ProgressUI.shared
         let c = InstallProgress.countAtLeast(model.bundle.liveMarkers.filter { $0.sheetId == sheet.id }, catalog: model.app.catalog, counted)
-        return HStack(spacing: 8) {
-            Button { ui.on = false; ui.walk = false } label: {
-                Label("Progress", systemImage: "circle.dashed").font(.subheadline.weight(.semibold))
-            }
-            .buttonStyle(.bordered)
-            Button { ui.walk.toggle() } label: {
-                Label("Walk", systemImage: "figure.walk").font(.subheadline.weight(.semibold))
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ui.walk ? Color.brand : Color.gray)
-            Spacer(minLength: 4)
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(c.n)/\(c.total) \(InstallProgress.label(counted).lowercased())").font(.caption.weight(.semibold)).monospacedDigit()
+        return HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(c.n)/\(c.total) \(InstallProgress.label(counted).lowercased())").font(.subheadline.weight(.semibold)).monospacedDigit()
                 ProgressView(value: Double(c.n), total: Double(max(1, c.total)))
                     .tint(Color(hex: InstallProgress.color(counted)))
-                    .frame(width: 80)
             }
+            Spacer(minLength: 4)
+            Button { ui.on = false; ui.walk = false } label: {
+                Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(Color.secondary)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Hide progress")
         }
+    }
+
+    /// Walk: one tap on a device marks it. The card's one action-blue element while walking.
+    private var walkRow: some View {
+        let ui = ProgressUI.shared
+        return Button { ui.walk.toggle() } label: {
+            Label(ui.walk ? "Walking — tap devices" : "Walk the job", systemImage: "figure.walk")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 32)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(ui.walk ? Color.brand : Color.ink)
+        .accessibilityValue(ui.walk ? "On" : "Off")
     }
 
     private struct TargetOption: Identifiable {
@@ -250,10 +267,26 @@ struct ProgressControls: View {
             }
         }
     }
+}
+
+/// "Fixture 3 → Installed · Undo" after a walk tap. Bottom left of the plan, leaving the trailing controls clear.
+struct ProgressSnackLayer: View {
+    @Environment(\.horizontalSizeClass) private var hSize
+    let model: EditorModel
+
+    var body: some View {
+        if let s = ProgressUI.shared.snack {
+            snackbar(s)
+                .padding(.leading, 12)
+                .padding(.trailing, 84)   // the controls column (46 pt) and its margins
+                .padding(.bottom, hSize == .compact ? 120 : 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        }
+    }
 
     private func snackbar(_ s: ProgressUI.Snack) -> some View {
         HStack(spacing: 10) {
-            Text(s.text).font(.subheadline.weight(.semibold)).lineLimit(1)
+            Text(s.text).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
             Button("Undo") {
                 ProgressUI.shared.snack = nil
                 if model.canUndo { model.undo() }

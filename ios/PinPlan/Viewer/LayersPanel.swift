@@ -35,12 +35,12 @@ struct LayersPanel: View {
                     }
                     Toggle("Labels", isOn: binding(\.showLabels))
                 }
-                Section(sentence: "Tentative devices") {
-                    Picker("Tentative", selection: binding(\.tentative)) {
+                Section(sentence: "Optional devices") {
+                    Picker("Optional", selection: binding(\.tentative)) {
                         ForEach(TentativeFilter.allCases, id: \.self) { t in Text(t.title).tag(t) }
                     }
                     .pickerStyle(.segmented)
-                    .accessibilityLabel("Show tentative devices")
+                    .accessibilityLabel("Show optional devices")
                 }
                 RoomsSection(model: model, rooms: PlanFilter.rooms(in: markers), counts: counts)
                 TypesSection(model: model, types: types, counts: counts)

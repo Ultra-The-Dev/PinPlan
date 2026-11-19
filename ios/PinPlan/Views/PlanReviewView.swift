@@ -45,7 +45,7 @@ struct PlanReviewView: View {
                         HStack {
                             Button("Cancel") { showForm = false }.buttonStyle(.bordered)
                             Spacer()
-                            Button { Task { await publish() } } label: { Text(busy ?? "Publish link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
+                            Button { Task { await publish() } } label: { Text(busy ?? "Get client link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
                         }
                     } else {
                         Button { showForm = true } label: { Label(live.isEmpty ? "Send plan for review" : "Send an updated plan", systemImage: "eye") }
@@ -73,8 +73,8 @@ struct PlanReviewView: View {
 
     @ViewBuilder private func row(_ r: CloudSync.ProposalRow) -> some View {
         if r.status == "accepted" {
-            Label("\(r.client_name ?? "The client") approved the layout. Next: price it and send the proposal from the Estimate tab.", systemImage: "checkmark.seal.fill")
-                .foregroundStyle(.green)
+            Label("\(r.client_name ?? "The client") approved the layout. Next: price it and send the quote from Money.", systemImage: "checkmark.seal.fill")
+                .foregroundStyle(Color.approved)
             if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if r.status == "declined" {
@@ -160,7 +160,7 @@ struct PlanReviewView: View {
                                    review: true, legend: legend)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say("Plan review published — link copied") }
+            if let url = link(token) { UIPasteboard.general.url = url; model.say("Client link ready — copied") }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }

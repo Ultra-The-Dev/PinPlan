@@ -97,6 +97,8 @@ final class EditorModel {
     /// Most recently used device types (for the quick dock), most recent first.
     var recentTypes: [String] = ["cam-indoor", "wap", "speaker", "tv"]
     var toast: String?
+    /// The plan's "Add or manage plans" screen (import, rename, reorder, rotate, delete), shown over the plan.
+    var showManagePlans = false
 
     private var past: [ProjectBundle] = []
     private var future: [ProjectBundle] = []

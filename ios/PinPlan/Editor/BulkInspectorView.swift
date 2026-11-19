@@ -71,7 +71,7 @@ struct BulkInspectorView: View {
                 } label: { Label("Draw home runs", systemImage: "cable.connector") }
             }
             Section {
-                Toggle("Tentative (?)", isOn: Binding(get: { allTentative }, set: { v in model.bulkEdit(ids) { $0.tentative = v } }))
+                Toggle("Optional (?)", isOn: Binding(get: { allTentative }, set: { v in model.bulkEdit(ids) { $0.tentative = v } }))
             }
             Section {
                 Button(role: .destructive) { model.bulkDelete(ids) } label: { Label("Delete \(ms.count) devices", systemImage: "trash") }

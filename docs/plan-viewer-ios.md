@@ -19,6 +19,39 @@ hyperlinks, revision compare…).
 | `ios/PinPlan/Viewer/EditorModel+Viewer.swift`, `ViewerSupport.swift` | Mode, remembered filters and recents, haptics, CG ↔ core conversions. |
 | `ios/PinPlan/Editor/PlanCanvasView.swift` | Puts it together: zoom view + markup + overlays, taps, press-and-hold drag, precision aiming. |
 
+## Where the plan sits in the job
+
+A job has five sections, the same as on the web: **Overview · Plan · Takeoff · Money · Field** (Money is office
+only). iPhone shows them as the bottom tab bar, iPad as a segmented control in the navigation bar
+(`ios/PinPlan/Views/ProjectView.swift`, `ProjectTab`). The Plan section is this viewer. There is no separate Sheets
+tab any more: a job with no plans shows the import screen in Plan, and after that importing, renaming, reordering,
+rotating and deleting plans live in **Add or manage** in the sheet browser (also Tools → "Add or manage plans…").
+It opens `ManagePlansSheet` (`SheetsView` in a sheet) through `EditorModel.showManagePlans`. Wiring sheets (the old
+Crew tab) are a page of Takeoff; photos are part of Field. `ProjectTab.resolve(_:)` maps the old and web tab ids
+(`sheets`, `crew`, `estimate`, `photos`, `info`, `job`) to the new section and page.
+
+## Floating controls layout
+
+The plan gets the whole screen; everything else floats at the edges. Nothing sits under the navigation bar.
+
+| Where | What |
+| --- | --- |
+| Top left | Sheet pill: previous / plan name ("Plan 2 of 4", opens the browser) / next |
+| Top right | View / Edit switch (Edit adds an action-blue frame around the plan) |
+| Under the top row (iPhone) | The action bar: Devices (Edit), undo / redo, Tools, read the plan, floor counts. On iPad these are in the navigation bar |
+| Under that | Hints while placing or drawing, tips, the drawing bar |
+| Bottom right — **controls slot** | The plan overlays' buttons (`controls`: tasks, install progress) and below them `ViewerControls` (layers, minimap, zoom on iPad / VoiceOver, whole sheet, full screen) |
+| Bottom left | iPad: minimap and the zoom / scale chip. iPhone: minimap goes top left under the action bar |
+| Bottom centre | Selection card (View), "Done placing", the quick device dock (Edit), toasts |
+| Bottom left, above the dock | Install progress undo snackbar ("Fixture 3 → Installed · Undo"), kept clear of the controls slot |
+
+The controls slot (`PlanEditorView.trailingControls`) measures itself against the room between the top chrome and
+the bottom padding. When the overlays' buttons and the viewer controls fit in one column they stack (iPad, tall
+phones). When they don't (most phones once a feature card is open, every phone in landscape) the overlays' buttons
+move beside the viewer controls, and if even that column is too tall it scrolls (`scrollable(if:maxHeight:)`) — so
+the controls never grow up into the top chrome or the navigation bar, at any size class. Switching between the two
+uses `AnyLayout`, so the controls keep their state and any sheet they present.
+
 ## Why a UIScrollView
 
 Pinch anchored under the fingers, momentum and deceleration, rubber-banding at the edges and at the zoom limits,
@@ -56,7 +89,7 @@ from the published `PlanViewport`, so symbols and labels stay a constant size on
 | Scale line / measure | One finger aims with a loupe; two fingers pan and zoom |
 | Apple Pencil (option in Tools on iPad) | Pencil places and draws, fingers only pan |
 
-Keyboard (iPad): `E` View/Edit, `B` sheets, `[` `]` previous/next sheet, `⌘=` `⌘-` zoom, `F` fit, `L` labels,
+Keyboard (iPad): `E` View/Edit, `B` sheet browser, `[` `]` previous/next sheet, `⌘=` `⌘-` zoom, `F` fit, `L` labels,
 `M` measure, `Esc`, `Delete`.
 
 ## Drawing on the plan: overlays
@@ -108,11 +141,14 @@ before selection and placement; return `true` to consume), `controls` (below).
 
 ### Buttons for your feature: `controls`
 
-`controls: (PlanControlsContext) -> AnyView` adds your buttons to the viewer's floating controls column (trailing
-edge, stacked above the zoom / layers controls, in the overlay's `modes`, ordered by `zIndex`). `PlanControlsContext`
+`controls: (PlanControlsContext) -> AnyView` adds your buttons to the viewer's floating controls slot (bottom right:
+above the zoom / layers controls when there is room, beside them on short screens — see "Floating controls layout";
+in the overlay's `modes`, ordered by `zIndex`). `PlanControlsContext`
 has `sheet`, `model`, `mode` and `controller` but no viewport, so the buttons don't redraw while the plan moves.
 Present your sheets from this view (it stays put). Keep it small: one labelled primary button and a few icons in a
-material pill, like `ViewerControls`.
+material pill, like `ViewerControls`; an expanded card is at most 260 pt wide on iPhone so it fits beside the
+viewer controls on the narrowest phone. Never pin your own buttons to the top of the plan from `content`: the top
+belongs to the sheet pill and the iPhone action bar.
 
 ### Example: task pins (`ios/PinPlan/Tasks/TaskPinsOverlay.swift`)
 
@@ -124,7 +160,11 @@ material pill, like `ViewerControls`.
   touches and everything else still pans.
 
 Install progress (`ios/PinPlan/Progress/ProgressOverlay.swift`) is the other example: rings in a `Canvas`, walk-mode
-taps through `onTap`.
+taps through `onTap`, and its `controls` in the slot: a "Progress" button that opens a card with the counter
+("3/40 tested"), "Walk the job" and, while walking, what a tap marks (next step, roughed, installed, tested, issue,
+verified, details). Its undo snackbar is a separate `install-progress-snack` overlay (`allowsHitTesting: true`)
+drawn bottom left, clear of the slot. (Before, the Progress / Walk card was drawn at the top left of the plan, where
+on iPhone it covered the action bar under the navigation bar.)
 
 Rules of thumb: store positions sheet-relative (0–1) like markers; draw with `ctx.point`, never cache view
 coordinates; cull to the screen; draw many items in one `Canvas` rather than one view each; keep work in the
@@ -144,3 +184,6 @@ fit, so it survives rotation and panels), recently viewed sheets per job, layer 
 
 `--viewer-zoomed` (opens the busiest sheet zoomed into its densest cluster), `--sheet-browser`, `--layers`,
 `--minimap`, `--view-mode`. Captured by `.github/workflows/ios-screenshots.yml` on iPhone and iPad.
+`--tab <id>` opens a job section; the old ids still work through `ProjectTab.resolve` (`sheets` opens Plan with
+"Add or manage", `crew` opens Takeoff → Wiring sheets, `estimate` opens Money, `photos` opens Field → Photos,
+`job` opens Overview). Launch arguments are read in Debug builds only.

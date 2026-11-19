@@ -24,7 +24,7 @@ struct TradeSettingsView: View {
                 Section {
                     Button {
                         let n = app.setTrades(draft)
-                        message = n > 0 ? "Saved. Added \(n) catalog items." : "Saved."
+                        message = n > 0 ? "Saved. Added \(n) items to the price list." : "Saved."
                     } label: { Label("Save trades", systemImage: "checkmark.circle") }
                     .disabled(draft.isEmpty || draft == app.trades)
                 } footer: {

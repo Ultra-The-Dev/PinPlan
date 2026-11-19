@@ -12,7 +12,7 @@ struct ProductLibraryView: View {
     @State private var importing = false
 
     var body: some View {
-        if app.cloud.can(.prices) { library } else { OfficeOnlyView(what: "Products and their prices") }
+        if app.cloud.can(.prices) { library } else { OfficeOnlyView(what: "Brands and models") }
     }
 
     private var library: some View {
@@ -57,7 +57,7 @@ struct ProductLibraryView: View {
             }
         }
         .searchable(text: $query, prompt: "Brand, model or SKU")
-        .navigationTitle("Products")
+        .navigationTitle("Brands and models")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { importing = true } label: { Label("Import price list", systemImage: "square.and.arrow.down") }
@@ -223,7 +223,7 @@ struct JobProductsView: View {
         let used = usedTypes
         SentenceForm {
             Section {
-                Text("Pick the brand and model for each device on this job. Prices on the estimate follow. A single device can use another model from its edit panel.")
+                Text("Pick the brand and model for each device on this job. Prices in Money follow. A single device can use another model from its edit panel.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             if used.isEmpty {
@@ -280,7 +280,7 @@ struct JobProductsView: View {
                 }
             }
         }
-        .navigationTitle("Products for this job")
+        .navigationTitle("Brands and models for this job")
         .sheet(item: $creating) { d in
             NavigationStack {
                 ProductEditor(product: d.product, isNew: true) { p in
