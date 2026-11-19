@@ -114,13 +114,13 @@ struct PhotoReportSheet: View {
         defer { busy = nil }
         let imgs = await rendered(maxSide: perPage == 1 ? 2000 : 1400)
         busy = "Building the PDF…"
-        let logo = await PhotoReportBuilder.logo(app.settings)
+        let logo = await PhotoReportBuilder.logo(app.brandedSettings)
         var byId: [String: PhotoReportBuilder.Item] = [:]
         for (p, img) in imgs {
             byId[p.id] = PhotoReportBuilder.Item(image: img, caption: p.caption, meta: meta(p), tags: p.tags ?? [], label: label(p), comments: comments(p))
         }
         let secs: [PhotoReportLayout.Section<PhotoReportBuilder.Item>] = sections.map { s in s.map { byId[$0.id] } }.filter { !$0.cells.isEmpty }
-        let data = PhotoReportBuilder.pdf(title: title, notes: notes, project: model.bundle.project, business: app.settings.business, logo: logo,
+        let data = PhotoReportBuilder.pdf(title: title, notes: notes, project: model.bundle.project, business: app.business, logo: logo,
                                           range: PhotoReportBuilder.range(ordered), perPage: perPage, sections: secs)
         share = SharedFile(url: PDFExporter.write(data, name: "\(slug(model.bundle.project.address.isEmpty ? "job" : model.bundle.project.address))-photo-report.pdf"))
     }
@@ -144,7 +144,7 @@ struct PhotoReportSheet: View {
                 list.append(entry)
             }
             busy = "Publishing…"
-            let b = app.settings.business
+            let b = app.business
             var origin = app.settings.serverURL.trimmingCharacters(in: .whitespaces)
             if !origin.hasPrefix("http") { origin = "https://" + origin }
             while origin.hasSuffix("/") { origin.removeLast() }
@@ -195,7 +195,7 @@ enum PhotoReportBuilder {
     static func pdf(title: String, notes: String, project: Project, business: BusinessSettings, logo: UIImage?, range: String, perPage: Int,
                     sections: [PhotoReportLayout.Section<Item>]) -> Data {
         let page = CGRect(x: 0, y: 0, width: 612, height: 792)
-        let brand = UIColor(hex: business.brandColor ?? "#0a1b54")
+        let brand = UIColor(hex: business.brandColor ?? (BusinessSettings.neutral.brandColor ?? "#c2410c"))
         let L: CGFloat = 36, R = page.width - 36, W = R - L
         let halfW: CGFloat = (W - 12) / 2
         let cellW: CGFloat = perPage == 1 ? W : halfW

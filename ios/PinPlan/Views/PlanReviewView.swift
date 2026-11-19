@@ -151,7 +151,7 @@ struct PlanReviewView: View {
         let legend = Legend.build(takeoff: takeoff, catalog: catalog) { Self.symbolPNG($0) }
         let token = Proposals.newToken()
         let open = live.filter { $0.status == "sent" || $0.status == "viewed" }.map(\.id)
-        let business = app.settings.business
+        let business = app.business
         let origin = app.settings.serverURL
         do {
             try await app.cloud.publishProposal(token: token, projectId: b.project.id, images: images, build: { urls in

@@ -278,7 +278,7 @@ struct EstimateView: View {
     }
 
     private func pdf(_ e: Estimate) {
-        let data = PDFExporter.estimate(bundle: model.bundle, estimate: e, business: app.settings.business, pricing: pricing)
+        let data = PDFExporter.estimate(bundle: model.bundle, estimate: e, business: app.business, pricing: pricing)
         share = SharedFile(url: PDFExporter.write(data, name: "\(slug(model.bundle.project.address))-estimate.pdf"))
     }
 }
