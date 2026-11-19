@@ -16,7 +16,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | Tags (and filter by tag) | ✅ suggested + custom tags, multi-tag filter, bulk tag | Photos tab |
 | Filter by user / search captions | ✅ | Photos tab |
 | Captions / descriptions | ✅ | Photo viewer |
-| Company-wide photo feed across all jobs | 🌐 | Header → **Photos** (`/photos`) |
+| Company-wide photo feed across all jobs | ✅ | Web: header → **Photos** (`/photos`); iPad: Projects → **All photos** |
 | Project cover photo | ✅ falls back to the newest photo when a job has no plan | Jobs list |
 | Video / voice notes | ➖ large uploads on Supabase's free tier; photos + comments cover the need |
 
@@ -75,7 +75,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | CompanyCam | PinPlan | Where |
 |---|---|---|
 | Project labels / status filters | ✅ labels (suggested + custom), label filter on the jobs list | Job tab; jobs list |
-| Map of all projects | 🌐 Leaflet/OpenStreetMap, coloured by status | Header → **Map** (`/map`) |
+| Map of all projects | ✅ coloured by status (web: Leaflet/OpenStreetMap; iPad: Apple Maps) | Web: header → **Map**; iPad: Projects → **Jobs map** |
 | Project location | ✅ from first GPS photo, "use my location", or a photo's location | Job tab |
 
 ## 9. Platform
@@ -94,4 +94,4 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 - Database: `supabase/tests/rls_test.sql` covers photos/team/outsider access and the report link.
 - iOS: core logic tests in `PinPlanCore` (Linux + CI); app built in CI; the **iOS screenshots** workflow launches the demo job
   (which includes sample site photos, a checklist and a daily log) on iPhone and iPad simulators and captures Photos, the viewer,
-  mark-up, photo report, checklists, a checklist, daily logs, timeline and plan review.
+  mark-up, photo report, checklists, a checklist, daily logs, timeline, plan review, the all-photos feed and the jobs map.

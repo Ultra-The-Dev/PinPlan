@@ -11,6 +11,8 @@ struct ProjectsView: View {
     @State private var showSettings = false
     @State private var showProducts = false
     @State private var showCatalog = false
+    @State private var showAllPhotos = ProcessInfo.processInfo.arguments.contains("--all-photos")
+    @State private var showMap = ProcessInfo.processInfo.arguments.contains("--jobs-map")
     @State private var showRestore = false
     @State private var path: [String] = []
     @State private var message: String?
@@ -78,6 +80,8 @@ struct ProjectsView: View {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { showCatalog = true } label: { Label("Catalog", systemImage: "shippingbox") }
                     Button { showSettings = true } label: { Label("Settings", systemImage: "gearshape") }
+                    Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
+                    Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
@@ -95,6 +99,8 @@ struct ProjectsView: View {
             }
             .sheet(isPresented: $showSettings) { NavigationStack { SettingsView() } }
             .sheet(isPresented: $showCatalog) { NavigationStack { CatalogView() } }
+            .fullScreenCover(isPresented: $showAllPhotos) { AllPhotosView { id in path = [id] } }
+            .fullScreenCover(isPresented: $showMap) { JobsMapView { id in path = [id] } }
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 do {

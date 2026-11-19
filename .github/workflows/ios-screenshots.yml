@@ -8,7 +8,7 @@ on:
 jobs:
   screenshots:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen
@@ -38,7 +38,7 @@ jobs:
             t 180 xcrun simctl install "$UDID" "$APP"
             for screen in "home:" "plan:--demo --tab plan" "select:--demo --tab plan --select-first" "sheets:--demo --tab sheets" \
                           "reader:--demo --tab plan --reader" "arch:--arch-sample --tab plan --reader" "scan:--demo --tab sheets --scan-sample" "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
-                          "photos:--demo --tab photos" "photo:--demo --tab photos --open-photo" "markup:--demo --tab photos --open-photo --markup" "report:--demo --tab photos --photo-report" "checklists:--demo --tab field" "checklist:--demo --tab field --checklist" "logs:--demo --tab field --field logs" "timeline:--demo --tab field --field timeline" "review:--demo --tab takeoff --plan-review" \
+                          "photos:--demo --tab photos" "photo:--demo --tab photos --open-photo" "markup:--demo --tab photos --open-photo --markup" "report:--demo --tab photos --photo-report" "checklists:--demo --tab field" "checklist:--demo --tab field --checklist" "logs:--demo --tab field --field logs" "timeline:--demo --tab field --field timeline" "review:--demo --tab takeoff --plan-review" "allphotos:--all-photos" "map:--jobs-map" \
                           "settings:--settings" "server:--server" "catalog:--catalog" "products:--demo --products" "jobproducts:--demo --tab estimate --job-products"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               t 20 xcrun simctl terminate "$UDID" com.pinplan.app
