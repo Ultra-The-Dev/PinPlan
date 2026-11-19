@@ -392,6 +392,8 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
     public var checklists: [Checklist] = []
     public var jobLogs: [JobLog] = []
     public var documents: [JobDocument] = []
+    /// Filled forms and inspections.
+    public var forms: [JobForm] = []
 
     public init(project: Project, sheets: [Sheet] = [], markers: [Marker] = [], runs: [Run] = [], closets: [Closet] = [], estimateLines: [EstimateLine] = []) {
         self.project = project; self.sheets = sheets; self.markers = markers; self.runs = runs; self.closets = closets; self.estimateLines = estimateLines
@@ -399,6 +401,7 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case project, sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents
+        case forms
     }
 
     /// Jobs saved before field documentation existed load with empty photo/checklist/log lists.
@@ -415,12 +418,14 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
         checklists = try c.decodeIfPresent([Checklist].self, forKey: .checklists) ?? []
         jobLogs = try c.decodeIfPresent([JobLog].self, forKey: .jobLogs) ?? []
         documents = try c.decodeIfPresent([JobDocument].self, forKey: .documents) ?? []
+        forms = (try? c.decodeIfPresent([JobForm].self, forKey: .forms)) ?? []
     }
 
     public var livePhotos: [Photo] { photos.filter { $0.deleted != true }.sorted { $0.takenAt > $1.takenAt } }
     public var liveChecklists: [Checklist] { checklists.filter { $0.deleted != true }.sorted { $0.createdAt < $1.createdAt } }
     public var liveLogs: [JobLog] { jobLogs.filter { $0.deleted != true }.sorted { ($0.date, $0.createdAt) > ($1.date, $1.createdAt) } }
     public var liveDocuments: [JobDocument] { documents.filter { $0.deleted != true }.sorted { $0.createdAt > $1.createdAt } }
+    public var liveForms: [JobForm] { forms.filter { $0.deleted != true }.sorted { $0.updatedAt > $1.updatedAt } }
     public func comments(for photoId: String) -> [PhotoComment] {
         photoComments.filter { $0.photoId == photoId && $0.deleted != true }.sorted { $0.createdAt < $1.createdAt }
     }

@@ -21,7 +21,8 @@ function parseTables(src: string) {
     const cols: Record<string, { required: boolean }> = {};
     for (const raw of m[2].split("\n")) {
       const line = raw.trim().replace(/,$/, "");
-      const cm = line.match(/^(\w+)\s+(\w+)/);
+      // Reserved words are quoted ("values").
+      const cm = line.match(/^"?(\w+)"?\s+(\w+)/);
       if (!cm || /^(primary|unique|check|foreign|constraint)$/i.test(cm[1])) continue;
       const required = /not null/i.test(line) && !/default/i.test(line) && !/primary key/i.test(line);
       cols[cm[1]] = { required };
@@ -63,6 +64,11 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     createdAt: ts, updatedAt: ts, deleted: false,
   },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
+  forms: {
+    id: "jf", projectId: "p", templateId: "tm_tag", name: "T&M tag", template: { id: "tm_tag", name: "T&M tag", category: "tm", fields: [], version: 1 }, status: "submitted",
+    values: { date: "2026-11-19" }, signatures: [{ fieldId: "sig", name: "Jane", imageId: "i", signedAt: ts }], sheetId: "s", x: 0.5, y: 0.5, markerId: "m", photoIds: ["ph"],
+    submittedBy: "Mike", submittedAt: ts, createdBy: "Mike", createdAt: ts, updatedAt: ts, deleted: false,
+  },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);

@@ -4,6 +4,7 @@ import Foundation
 public enum SyncTable: String, CaseIterable, Codable, Sendable {
     case projects, deviceTypes, products, sheets, closets, markers, runs, estimateLines
     case photos, photoComments, checklists, jobLogs, documents
+    case forms
 }
 
 public struct TableSpec: Sendable {
@@ -68,12 +69,17 @@ public enum SyncMap {
             ("date", "log_date"), ("title", "title"), ("body", "body"), ("author", "author"), ("photoIds", "photo_ids"),
         ]),
         .documents: TableSpec(remote: "job_documents", conflict: "id", columns: child + [("name", "name"), ("mime", "mime"), ("size", "size"), ("fileId", "file_id")]),
+        .forms: TableSpec(remote: "job_forms", conflict: "id", columns: child + [
+            ("templateId", "template_id"), ("name", "name"), ("template", "template"), ("status", "status"), ("values", "values"),
+            ("signatures", "signatures"), ("sheetId", "sheet_id"), ("x", "x"), ("y", "y"), ("markerId", "marker_id"), ("photoIds", "photo_ids"),
+            ("submittedBy", "submitted_by"), ("submittedAt", "submitted_at"), ("createdBy", "created_by"),
+        ]),
     ]
 
     /// Parents before children so foreign keys and row security pass.
     public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines,
-                                                 .photos, .photoComments, .checklists, .jobLogs, .documents]
-    private static let timestampLike: Set<String> = ["takenAt"]
+                                                 .photos, .photoComments, .checklists, .jobLogs, .documents, .forms]
+    private static let timestampLike: Set<String> = ["takenAt", "submittedAt"]
 
     private static let boolDefaults: Set<String> = ["deleted", "tentative", "removed", "archived"]
     private static let timestampKeys: Set<String> = ["createdAt", "updatedAt"]
@@ -86,6 +92,10 @@ public enum SyncMap {
         }
         if t == .projects, !(out["billdu_docs"] is [Any]) { out["billdu_docs"] = [Any]() }
         if t == .runs, !(out["points"] is [Any]) { out["points"] = [Any]() }
+        if t == .forms {
+            if out["status"] is NSNull { out["status"] = "draft" }
+            if out["values"] is NSNull { out["values"] = [String: Any]() }
+        }
         return out
     }
 
@@ -216,6 +226,7 @@ public struct SyncState: Sendable {
             for x in b.checklists { add(.checklists, x.id, pid, x) }
             for x in b.jobLogs { add(.jobLogs, x.id, pid, x) }
             for x in b.documents { add(.documents, x.id, pid, x) }
+            for x in b.forms { add(.forms, x.id, pid, x) }
         }
         for d in catalog { add(.deviceTypes, d.id, nil, d) }
         for p in products { add(.products, p.id, nil, p) }
@@ -256,6 +267,7 @@ public struct SyncState: Sendable {
             case .checklists: return pick(b.checklists)
             case .jobLogs: return pick(b.jobLogs)
             case .documents: return pick(b.documents)
+            case .forms: return pick(b.forms)
             default: return nil
             }
         }
@@ -314,6 +326,7 @@ public struct SyncState: Sendable {
             case .checklists: ok = put(&b.checklists)
             case .jobLogs: ok = put(&b.jobLogs)
             case .documents: ok = put(&b.documents)
+            case .forms: ok = put(&b.forms)
             default: break
             }
             bundles[pid] = b

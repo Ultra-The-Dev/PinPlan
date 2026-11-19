@@ -741,6 +741,13 @@ final class CloudSync {
                 guard let data = app.store.fileData(d.fileId) else { continue }
                 try await attempt(d.fileId) { try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime) }
             }
+            // Form signatures: stored at <project>/<image id>, like the web app.
+            for f in b.liveForms {
+                for s in f.signatures ?? [] where !s.imageId.isEmpty && !ledger.uploadedImages.contains(s.imageId) {
+                    guard let data = app.store.imageData(s.imageId) else { continue }
+                    try await attempt(s.imageId) { try await client.upload(path: "\(pid)/\(s.imageId)", data: data, token: token) }
+                }
+            }
             refreshUploadBacklog(b, store: app.store)   // the "waiting to upload" count goes down job by job
         }
         // Downloads: check for the file without reading it (this runs every minute), and cap each run so a big
@@ -768,6 +775,14 @@ final class CloudSync {
                 budget -= 1
                 _ = app.store.saveImageData(data, id: p.imageId)
                 ledger.uploadedImages.insert(p.imageId)
+            }
+            for f in b.liveForms {
+                for s in f.signatures ?? [] where budget > 0 && !s.imageId.isEmpty && !app.store.hasImage(s.imageId) {
+                    guard let data = try? await client.download(path: "\(pid)/\(s.imageId)", token: token) else { continue }
+                    budget -= 1
+                    _ = app.store.saveImageData(data, id: s.imageId)
+                    ledger.uploadedImages.insert(s.imageId)
+                }
             }
             for d in b.liveDocuments where budget > 0 && !app.store.hasFile(d.fileId) {
                 guard let data = try? await client.download(path: "\(pid)/\(d.fileId)", token: token) else { continue }

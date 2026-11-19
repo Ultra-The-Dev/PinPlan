@@ -457,6 +457,8 @@ export interface AppSettings {
   /** Quotes / invoices / credit notes (Settings → Invoicing). Missing on older settings: DEFAULT_DOC_SETTINGS applies.
    *  The company-wide copy lives in the cloud (`document_settings`); this is this device's cache of it. */
   documents?: DocumentSettings;
+  /** Company form templates (Settings → Forms). Written only by saveFormTemplates (src/lib/forms/templateStore.ts). */
+  formTemplates?: FormTemplate[];
   updatedAt: string;
 }
 
@@ -674,4 +676,95 @@ export interface DocumentSettings {
   signatureOnQuotes: boolean;
   reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
   updatedAt?: string;
+}
+
+// ---------------- typed forms and inspections (see src/lib/forms/forms.ts) ----------------
+
+export type FormFieldType =
+  | "heading"
+  | "text"
+  | "longtext"
+  | "number"
+  | "date"
+  | "time"
+  | "yesno"
+  | "checkbox"
+  | "select"
+  | "multiselect"
+  | "photo"
+  | "signature"
+  | "table"
+  | "calc";
+
+export type FormCalcOp = "sum" | "avg" | "min" | "max" | "count_no";
+
+export interface FormField {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  required?: boolean;
+  /** select / multiselect choices. */
+  options?: string[];
+  /** Shown after numbers and calcs ("ft", "hrs", "MΩ"). */
+  unit?: string;
+  min?: number;
+  max?: number;
+  help?: string;
+  /** Table columns (text | number | select | yesno | date only, at most 8). */
+  columns?: FormField[];
+  /** A worked-out number: `of` is a number field id, or "<tableId>.<columnId>". */
+  calc?: { op: FormCalcOp; of: string };
+}
+
+export type FormCategory = "inspection" | "test" | "tm" | "safety" | "other";
+
+/** A form to fill on jobs: built in (src/lib/forms/builtins.ts) or the company's own (settings `formTemplates`). */
+export interface FormTemplate {
+  id: string;
+  name: string;
+  /** Trade it belongs to (TradeId); none = any trade. */
+  trade?: string;
+  category: FormCategory;
+  fields: FormField[];
+  version: number;
+  builtin?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FormSignature {
+  fieldId: string;
+  /** Who signed (may be someone else: an inspector or the customer). */
+  name: string;
+  role?: string | null;
+  /** PNG in the `images` table (saveImage). */
+  imageId: string;
+  signedAt: string;
+  /** Who collected the signature on this device. */
+  signedBy?: string | null;
+}
+
+/** A filled form on a job. `template` is a snapshot taken when the form was started, so later template edits never change it. */
+export interface JobForm {
+  id: string;
+  projectId: string;
+  templateId: string;
+  name: string;
+  template: FormTemplate;
+  status: "draft" | "submitted";
+  values: Record<string, unknown>;
+  signatures?: FormSignature[] | null;
+  /** Optional place on the plan, or a device. */
+  sheetId?: string | null;
+  x?: number | null;
+  y?: number | null;
+  markerId?: string | null;
+  /** Job photos taken for the form's photo fields. */
+  photoIds?: string[] | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
 }

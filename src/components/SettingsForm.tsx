@@ -1,5 +1,5 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, CreditCard, HardHat, ListChecks, Receipt, ReceiptText, Save, Users } from "lucide-react";
+import { Building, Cable, Calculator, ClipboardPen, CloudOff, CreditCard, HardHat, ListChecks, Receipt, ReceiptText, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { getSettings, saveSettings } from "@/lib/db";
@@ -13,6 +13,7 @@ import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
 import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
+import FormTemplatesSettings from "./forms/FormTemplatesSettings";
 import DocSettingsPanel from "./documents/DocSettingsPanel";
 import TeamPanel from "./TeamPanel";
 import TradeSettings from "./TradeSettings";
@@ -48,6 +49,7 @@ export default function SettingsForm() {
     { id: "wire", label: "Wire", icon: Cable },
     { id: "invoicing", label: "Invoicing", icon: ReceiptText, office: true },
     { id: "checklists", label: "Checklists", icon: ListChecks },
+    { id: "forms", label: "Forms", icon: ClipboardPen },
     { id: "billdu", label: "Billdu", icon: Receipt, office: true },
     { id: "team", label: "Team", icon: Users },
     { id: "billing", label: "Billing", icon: CreditCard },
@@ -255,6 +257,14 @@ export default function SettingsForm() {
             <p className="text-sm text-slate-500">Your own checklists, saved from a job with “Save as template”. They show first under “Start a checklist”.</p>
           </div>
           <ChecklistTemplatesSettings />
+        </section>
+
+        <section id="forms" className="card scroll-mt-6 space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold">Forms</h2>
+            <p className="text-sm text-slate-500">Inspections, test records, T&amp;M tags and sign-offs your crew fills on jobs (Field → Forms). Duplicate a built-in to make it yours.</p>
+          </div>
+          <FormTemplatesSettings />
         </section>
 
         <AccessCodePanel />

@@ -1,17 +1,19 @@
 "use client";
 // Field: checklists (with photo-required items), daily logs, documents and the job timeline.
-import { BookOpen, ClipboardCheck, FileStack, History } from "lucide-react";
+import { BookOpen, ClipboardCheck, ClipboardPen, FileStack, History } from "lucide-react";
 import { useState } from "react";
 import Checklists from "./Checklists";
 import DailyLogs from "./DailyLogs";
 import Documents from "./Documents";
 import Timeline from "./Timeline";
+import FormsList from "../forms/FormsList";
 
 const SECTIONS = [
   { id: "checklists", label: "Checklists", icon: ClipboardCheck },
   { id: "logs", label: "Daily logs", icon: BookOpen },
   { id: "docs", label: "Documents", icon: FileStack },
   { id: "timeline", label: "Timeline", icon: History },
+  { id: "forms", label: "Forms", icon: ClipboardPen },
 ] as const;
 
 export default function FieldTab() {
@@ -38,6 +40,7 @@ export default function FieldTab() {
         {section === "logs" && <DailyLogs />}
         {section === "docs" && <Documents />}
         {section === "timeline" && <Timeline />}
+        {section === "forms" && <FormsList />}
       </div>
     </div>
   );

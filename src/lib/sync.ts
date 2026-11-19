@@ -154,7 +154,10 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   const photo = await db().photos.filter((p) => p.imageId === imageId).first();
   if (photo) return photo.projectId;
   const doc = await db().documents.filter((d) => d.fileId === imageId).first();
-  return doc?.projectId ?? null;
+  if (doc) return doc.projectId;
+  // Signatures on forms.
+  const form = await db().forms.filter((f) => !!f.signatures?.some((s) => s.imageId === imageId)).first();
+  return form?.projectId ?? null;
 }
 
 /** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
@@ -291,6 +294,9 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
   // Device photos (marker.photoId) are uploaded to <project>/<image id> too, but were never fetched on other devices.
   for (const m of await db().markers.filter((x) => !x.deleted && !!x.photoId).toArray())
     if (!known.has(m.photoId!)) filesNeeded.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
+  // Form signatures (PNG) are stored at <project>/<image id> as well.
+  for (const f of await db().forms.filter((x) => !x.deleted && !!x.signatures?.length).toArray())
+    for (const sg of f.signatures ?? []) if (sg.imageId && !known.has(sg.imageId)) filesNeeded.push({ id: sg.imageId, path: `${f.projectId}/${sg.imageId}`, width: 0, height: 0, mime: "image/png" });
   let tries = 0;
   for (const f of filesNeeded) {
     if (await db().images.get(f.id)) continue;

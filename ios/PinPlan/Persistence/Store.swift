@@ -14,6 +14,8 @@ struct AppSettings: Codable, Equatable {
     var checklistTemplates: [ChecklistTemplate]? = nil
     /// The company's trades, primary first (TradeId raw values). Nil = low voltage only, as before.
     var trades: [String]? = nil
+    /// Company form templates (same JSON as the web app's settings `formTemplates`). Optional so older settings still decode.
+    var formTemplates: [FormTemplate]? = nil
 }
 
 /// File-based, offline-first storage in the app's Documents folder:

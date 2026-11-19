@@ -113,7 +113,9 @@ begin
   foreach t in array array['projects','sheets','closets','markers','runs','estimate_lines','photos','photo_comments',
                            'checklists','job_logs','job_documents','proposals',
                            -- added by 20261122000000_documents.sql (which also installs these triggers itself)
-                           'sales_documents','sales_document_payments','document_links'] loop
+                           'sales_documents','sales_document_payments','document_links',
+                           -- added by 20261123100600_forms.sql (which also installs its trigger itself)
+                           'job_forms'] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists %I_write_guard on public.%I', t, t);
       execute format('create trigger %I_write_guard before insert or update on public.%I for each row execute function public.job_write_guard()', t, t);

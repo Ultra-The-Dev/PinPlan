@@ -25,6 +25,7 @@ import type {
   Sheet,
   StoredImage,
   Suggestion,
+  JobForm,
 } from "./types";
 
 /** Tables that are synced to Supabase when it is configured. */
@@ -43,7 +44,8 @@ export type SyncTable =
   | "jobLogs"
   | "documents"
   | "salesDocs"
-  | "salesPayments";
+  | "salesPayments"
+  | "forms";
 
 export interface SyncItem {
   seq?: number;
@@ -73,6 +75,8 @@ class PinPlanDB extends Dexie {
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
   syncQueue!: EntityTable<SyncItem, "seq">;
+  /** Filled forms and inspections (job_forms). */
+  forms!: EntityTable<JobForm, "id">;
 
   constructor() {
     super("pinplan");
@@ -104,6 +108,8 @@ class PinPlanDB extends Dexie {
       salesDocs: "id, projectId, kind, status, updatedAt",
       salesPayments: "id, projectId, documentId",
     });
+    // v26: typed forms and inspections.
+    this.version(26).stores({ forms: "id, projectId, templateId, status, updatedAt" });
   }
 }
 
@@ -210,7 +216,7 @@ export async function saveSettings(s: AppSettings) {
   await d.transaction("rw", d.settings, async () => {
     const stored = await d.settings.get("app");
     // Trades are written only by saveTrades (useTrades.ts); invoicing settings: they're only changed by saveDocumentSettings (and sync).
-    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, documents: stored?.documents ?? s.documents, updatedAt: nowIso() });
+    await d.settings.put({ ...s, checklistTemplates: stored?.checklistTemplates ?? s.checklistTemplates ?? [], trades: stored?.trades ?? s.trades, formTemplates: stored?.formTemplates ?? s.formTemplates, documents: stored?.documents ?? s.documents, updatedAt: nowIso() });
   });
 }
 
@@ -256,6 +262,7 @@ export interface ProjectBundle {
   checklists: Checklist[];
   jobLogs: JobLog[];
   documents: JobDocument[];
+  forms: JobForm[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -263,7 +270,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents, forms] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
@@ -274,6 +281,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.checklists.where("projectId").equals(projectId).toArray(),
     d.jobLogs.where("projectId").equals(projectId).toArray(),
     d.documents.where("projectId").equals(projectId).toArray(),
+    d.forms.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -287,6 +295,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    forms: live(forms).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
   };
 }
 
