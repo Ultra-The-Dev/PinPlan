@@ -301,8 +301,11 @@ public struct TeamSnapshot: Codable, Equatable, Sendable {
     public var team: Team?
     public var role: TeamRole?
     public var members: [TeamMember]
-    public init(userId: String, team: Team? = nil, role: TeamRole? = nil, members: [TeamMember] = []) {
-        self.userId = userId; self.team = team; self.role = role; self.members = members
+    /// The team's subscription from `team_billing()`. Nil when not on a team, not loaded yet, or the database has no
+    /// billing update (then nothing is ever locked). Optional, so snapshots cached by older versions still decode.
+    public var billing: TeamBilling?
+    public init(userId: String, team: Team? = nil, role: TeamRole? = nil, members: [TeamMember] = [], billing: TeamBilling? = nil) {
+        self.userId = userId; self.team = team; self.role = role; self.members = members; self.billing = billing
     }
     /// Me, from the member list.
     public var me: TeamMember? { members.first { $0.userId == userId } }
