@@ -1,20 +1,102 @@
 "use client";
 // Daily logs: what happened on site each day, with photos from that day.
-import { ImagePlus, Pencil, Plus, Sparkles, Trash } from "lucide-react";
+import { FileDown, ImagePlus, Pencil, Plus, Sparkles, Trash } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { dailyLogFileName, logDays, logPhotos, logsInRange } from "@/lib/dailyLogReport";
 import { db, newId, nowIso } from "@/lib/db";
+import { downloadBlob, slug } from "@/lib/download";
 import { localDay } from "@/lib/fieldDocs";
-import { getAuthor, importPhoto } from "@/lib/photos";
+import { getAuthor, importPhoto, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { toast } from "@/lib/toast";
 import type { JobLog, Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import PhotoViewer from "../photos/PhotoViewer";
+import type { DailyLogPdfEntry } from "./DailyLogPdf";
 
 const today = () => localDay(new Date().toISOString());
 const dayText = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+const shortDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+const toDataUrl = (b: Blob) =>
+  new Promise<string>((r, j) => {
+    const fr = new FileReader();
+    fr.onload = () => r(String(fr.result));
+    fr.onerror = () => j(fr.error);
+    fr.readAsDataURL(b);
+  });
+
+/** Build and download a branded PDF of the given logs, each with its photos (mark-up drawn in). */
+function useLogPdf() {
+  const { project, settings, photos } = useEditor();
+  const [busy, setBusy] = useState<string | null>(null);
+  async function download(logs: JobLog[]) {
+    if (!project || !settings || !logs.length || busy) return;
+    try {
+      const total = logs.reduce((n, l) => n + logPhotos(l, photos).length, 0);
+      let done = 0;
+      const entries: DailyLogPdfEntry[] = [];
+      for (const l of logs) {
+        const ps: DailyLogPdfEntry["photos"] = [];
+        for (const p of logPhotos(l, photos)) {
+          setBusy(`Preparing photo ${++done} of ${total}…`);
+          const rec = await db().images.get(p.imageId);
+          if (!rec) continue;
+          const blob = await renderPhoto(rec.blob, p.annotations, 1400);
+          ps.push({ src: await toDataUrl(blob), width: p.width, height: p.height, caption: p.caption, meta: [time(p.takenAt), p.takenBy, p.room, ...(p.tags ?? [])].filter(Boolean).join(" · ") });
+        }
+        entries.push({ day: dayText(l.date), title: l.title, author: l.author, body: l.body, photos: ps });
+      }
+      setBusy("Building the PDF…");
+      const d = logDays(logs)!;
+      const range = d.first === d.last ? shortDay(d.first) : `${shortDay(d.first)} – ${shortDay(d.last)}`;
+      const { renderDailyLogPdf } = await import("./DailyLogPdf");
+      const out = await renderDailyLogPdf({ title: logs.length === 1 ? "Daily log" : "Daily logs", business: settings.business, clientName: project.clientName, address: project.address, dateRange: range, logs: entries });
+      downloadBlob(out, dailyLogFileName(slug(project.address || project.clientName || "job"), logs));
+    } catch (e) {
+      toast(`PDF failed: ${(e as Error).message}`, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+  return { busy, download };
+}
+
+/** Pick a date range and download those logs as one PDF. */
+function RangeExport({ logs, busy, onDownload, onClose }: { logs: JobLog[]; busy: string | null; onDownload: (list: JobLog[]) => void; onClose: () => void }) {
+  const days = logDays(logs);
+  const [from, setFrom] = useState(days?.first ?? "");
+  const [to, setTo] = useState(days?.last ?? "");
+  const picked = logsInRange(logs, from, to);
+  return (
+    <div className="card space-y-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="label">From</span>
+          <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="text-sm">
+          <span className="label">To</span>
+          <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-slate-500" aria-live="polite">{busy ?? `${picked.length} log${picked.length === 1 ? "" : "s"} with their photos and mark-up`}</span>
+        <div className="flex-1" />
+        <button className="btn btn-sm" onClick={onClose}>
+          Close
+        </button>
+        <button className="btn btn-sm btn-brand" disabled={!picked.length || !!busy} onClick={() => onDownload(picked)}>
+          <FileDown /> Download PDF
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Thumb({ photo, onClick, selected }: { photo: Photo; onClick: () => void; selected?: boolean }) {
   const url = useBlobUrl(photo.imageId);
@@ -152,6 +234,8 @@ export default function DailyLogs() {
   const { project, jobLogs, photos, removeRows } = useEditor();
   const [editing, setEditing] = useState<JobLog | null>(null);
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const { busy, download } = useLogPdf();
   if (!project) return null;
   const live = jobLogs.filter((l) => !l.deleted);
   const startNew = () => {
@@ -163,9 +247,22 @@ export default function DailyLogs() {
       {editing ? (
         <Editor log={editing} onDone={() => setEditing(null)} />
       ) : (
-        <button className="btn btn-brand" onClick={startNew}>
-          <Plus /> New daily log
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn btn-brand" onClick={startNew}>
+            <Plus /> New daily log
+          </button>
+          {live.length > 0 && (
+            <button className="btn" onClick={() => setExporting((x) => !x)} aria-expanded={exporting}>
+              <FileDown /> Download PDF
+            </button>
+          )}
+        </div>
+      )}
+      {exporting && !editing && live.length > 0 && <RangeExport logs={live} busy={busy} onDownload={(list) => void download(list)} onClose={() => setExporting(false)} />}
+      {busy && !exporting && (
+        <p className="text-sm text-slate-500" role="status">
+          {busy}
+        </p>
       )}
       {live.length === 0 && !editing && <p className="text-sm text-slate-500">Keep a short record of each day on site — the crew, what got done, issues and next steps — with that day’s photos.</p>}
       {live
@@ -182,6 +279,9 @@ export default function DailyLogs() {
                   </div>
                   {l.title && <h3 className="mt-0.5 font-semibold">{l.title}</h3>}
                 </div>
+                <button className="btn btn-sm btn-icon btn-ghost" aria-label="Download log as PDF" title="Download PDF" disabled={!!busy} onClick={() => void download([l])}>
+                  <FileDown />
+                </button>
                 <button className="btn btn-sm btn-icon btn-ghost" aria-label="Edit log" onClick={() => setEditing(l)}>
                   <Pencil />
                 </button>

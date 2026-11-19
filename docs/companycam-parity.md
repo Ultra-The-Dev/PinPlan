@@ -55,6 +55,7 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 |---|---|---|
 | Daily logs with that day's photos | ✅ | Field → Daily logs |
 | AI-written daily log from photos | ✅ "Draft from photos" (Claude via the server) | `/api/photos/summary` |
+| Daily log PDF (one log or a date range, with photos + mark-up) | ✅ web "Download PDF", iOS "Share PDF" | Field → Daily logs |
 | Documents/files on a project | ✅ any file up to 25 MB, synced | Field → Documents |
 
 ## 6. Reports & sharing
