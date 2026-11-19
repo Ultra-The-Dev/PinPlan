@@ -106,7 +106,20 @@ async function seed(page) {
   await page.waitForSelector('[role="dialog"]');
   check("click opens the editor", await page.getByRole("dialog").isVisible());
   await page.screenshot({ path: path.join(OUT, "editor.png") });
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("Escape closes the editor", (await page.getByRole("dialog").count()) === 0);
+
+  // Deleting a phase drops the links that waited on it (no "deleted phase" warning); Undo brings both back.
+  await page.getByTestId("bar-Programming").click();
+  await page.getByRole("button", { name: "Delete phase" }).click();
+  await page.waitForTimeout(400);
+  check("deleted phase is gone", (await page.getByTestId("bar-Programming").count()) === 0);
+  check("no dangling-link warning after delete", (await page.getByText(/phase that was deleted|wait on a phase/).count()) === 0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await page.waitForTimeout(400);
+  check("undo restores the deleted phase", (await page.getByTestId("bar-Programming").count()) === 1);
+  check("undo restores its arrows", (await page.locator('[data-testid="dep-arrow"]').count()) === 4);
 
   // 3. Crew board: Tom on two jobs the same day is red.
   await page.goto(`${BASE}/schedule`);
@@ -125,7 +138,7 @@ async function seed(page) {
   await page.screenshot({ path: path.join(OUT, "tasks.png"), fullPage: true });
 
   // 4. Phone: agenda list instead of the chart.
-  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, storageState: await ctx.storageState() });
+  const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, storageState: await ctx.storageState() });
   const p2 = await phone.newPage();
   p2.on("pageerror", (e) => !(/\/tasks/.test(p2.url()) && /#418/.test(e.message)) && errors.push(e.message));
   await p2.goto(`${BASE}/tasks`);

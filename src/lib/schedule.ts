@@ -268,6 +268,27 @@ export function applyAndCascade(items: ScheduleItem[], next: ScheduleItem): Sche
   return [next, ...cascade(list, next.id)];
 }
 
+/**
+ * Soft-delete `id` and drop the links other live items have to it (so deleting a phase doesn't leave a "waits on a
+ * deleted phase" warning behind). Returns the changed rows, the deleted one first; dependents keep their dates.
+ */
+export function deleteItem(items: ScheduleItem[], id: string): ScheduleItem[] {
+  const item = items.find((i) => i.id === id && !i.deleted);
+  if (!item) return [];
+  const linked = live(items)
+    .filter((i) => i.id !== id && (i.dependsOn ?? []).some((d) => d?.id === id))
+    .map((i) => ({ ...i, dependsOn: (i.dependsOn ?? []).filter((d) => d?.id !== id) }));
+  return [{ ...item, deleted: true }, ...linked];
+}
+
+/**
+ * What a crew tech may save (canEditSchedule → "progress"): only progress and notes from their edit, applied to the
+ * latest copy of the row, so a stale dialog can't overwrite dates, crew or links the office changed meanwhile.
+ */
+export function crewUpdate(latest: ScheduleItem, edited: Pick<ScheduleItem, "progress" | "notes">): ScheduleItem {
+  return { ...latest, progress: pct(edited.progress), notes: edited.notes?.trim() ? edited.notes : null };
+}
+
 /** Replace rows in a list by id (for applying a change set). */
 export function mergeRows(items: ScheduleItem[], rows: ScheduleItem[]): ScheduleItem[] {
   const m = new Map(rows.map((r) => [r.id, r]));

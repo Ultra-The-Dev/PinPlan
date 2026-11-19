@@ -2,7 +2,7 @@
 // Add / edit a schedule phase: dates, crew, hours, progress, colour, dependencies (cycles can't be picked), sheets, notes.
 // Office edits everything; a tech on the crew can update progress and notes only (canEditSchedule in schedule.ts).
 import { Link2, Plus, Trash, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addWorkdays, durationDays, isDay, rollToWorkday, wouldCycle, type ScheduleAccess } from "@/lib/schedule";
 import type { ScheduleDep, ScheduleItem, Sheet } from "@/lib/types";
 import { Avatar, DEFAULT_BAR, fmtRange, SWATCHES } from "./shared";
@@ -27,6 +27,13 @@ export default function ScheduleItemEditor(props: {
   const full = access === "all";
   const canSave = access !== "none";
   const set = (p: Partial<ScheduleItem>) => setF((cur) => ({ ...cur, ...p }));
+  const { onClose } = props;
+  // Escape closes the dialog, like the other sheets.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const wd = f.workdaysOnly !== false;
   const dur = isDay(f.start) && isDay(f.end) && f.end >= f.start ? durationDays(f) : 0;
 
@@ -69,6 +76,7 @@ export default function ScheduleItemEditor(props: {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={props.onClose}>
       <form
         role="dialog"
+        aria-modal="true"
         aria-label={props.isNew ? "Add phase" : `Edit ${f.name}`}
         className="card animate-in flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-b-none shadow-pop sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
@@ -110,7 +118,10 @@ export default function ScheduleItemEditor(props: {
               <input id="si-start" type="date" className="input" value={f.start} disabled={!full} onChange={(e) => {
                 const s = e.target.value;
                 // Keep the length when the start moves.
-                if (isDay(s) && dur) set({ start: s, end: addWorkdays(rollToWorkday(s, wd), dur - 1, wd) });
+                if (isDay(s) && dur) {
+                  const s2 = rollToWorkday(s, wd);
+                  set({ start: s2, end: addWorkdays(s2, dur - 1, wd) });
+                }
                 else set({ start: s });
               }} />
             </div>

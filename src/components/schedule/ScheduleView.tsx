@@ -5,7 +5,7 @@
 import { AlertTriangle, CalendarDays, CalendarRange, CalendarPlus, Download, LayoutTemplate, Plus, Undo2, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { db, newId, nowIso, putMany, remove } from "@/lib/db";
+import { db, newId, nowIso, putMany } from "@/lib/db";
 import { downloadText, slug } from "@/lib/download";
 import { localDay, teamNames } from "@/lib/fieldDocs";
 import { getAuthor } from "@/lib/photos";
@@ -14,8 +14,10 @@ import {
   addWorkdays,
   applyAndCascade,
   canEditSchedule,
+  crewUpdate,
   criticalPath,
   dayNum,
+  deleteItem,
   groupByWeek,
   itemStatus,
   itemsFromTemplate,
@@ -154,6 +156,13 @@ export default function ScheduleView() {
   async function saveEdit(item: ScheduleItem, isNew: boolean) {
     setEditing(null);
     const before = stored ?? [];
+    // A tech on the crew saves progress and notes only, onto the latest row, and never moves other phases.
+    if (!isNew && canEditSchedule(role, item, me) === "progress") {
+      const latest = (await db().scheduleItems.get(item.id)) ?? before.find((b) => b.id === item.id);
+      if (!latest || latest.deleted) return;
+      await save([crewUpdate(normalizeItem(latest), item)], []);
+      return;
+    }
     const rows = applyAndCascade(before.filter((i) => !i.deleted), item);
     const prev = rows.map((r) => before.find((b) => b.id === r.id)).filter((x): x is ScheduleItem => !!x);
     const pushed = rows.length - 1;
@@ -164,9 +173,11 @@ export default function ScheduleView() {
   async function del(item: ScheduleItem) {
     if (!window.confirm(`Delete “${item.name}” from the schedule?`)) return;
     setEditing(null);
-    await remove("scheduleItems", item.id);
-    setStored((cur) => (cur ?? []).map((i) => (i.id === item.id ? { ...i, deleted: true } : i)));
-    setUndo({ text: `Deleted ${item.name}`, prev: [{ ...item, deleted: false }], id: Date.now() });
+    // Also drop the links that waited on it (Undo puts them back).
+    const before = stored ?? [];
+    const rows = deleteItem(before, item.id);
+    const prev = rows.map((r) => before.find((b) => b.id === r.id)).filter((x): x is ScheduleItem => !!x);
+    await save(rows, prev.map((r) => ({ ...r, deleted: false })), `Deleted ${item.name}`);
   }
 
   async function cleanMissing() {

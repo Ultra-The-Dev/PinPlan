@@ -5,6 +5,8 @@ import {
   cascade,
   criticalPath,
   crewLoad,
+  crewUpdate,
+  deleteItem,
   durationDays,
   groupByWeek,
   itemsFromTemplate,
@@ -229,5 +231,26 @@ describe("sync mapping", () => {
     expect(toLocal("scheduleItems", { ...r, deleted: false })).toEqual({ ...row, deleted: false });
     expect(TABLES.scheduleItems.remote).toBe("schedule_items");
     expect(PUSH_ORDER.indexOf("scheduleItems")).toBeGreaterThan(PUSH_ORDER.indexOf("projects"));
+  });
+});
+
+describe("delete and crew updates", () => {
+  it("deleting a phase drops the links that waited on it (dates kept)", () => {
+    const xs = [item("a", "2026-11-23", "2026-11-24"), item("b", "2026-11-25", "2026-11-25", { dependsOn: [{ id: "a" }] }), item("c", "2026-11-26", "2026-11-27", { dependsOn: [{ id: "a", lagDays: 1 }, { id: "b" }] })];
+    const rows = byId(deleteItem(xs, "a"));
+    expect(rows.a.deleted).toBe(true);
+    expect(rows.b.dependsOn).toEqual([]);
+    expect(rows.c.dependsOn).toEqual([{ id: "b" }]);
+    expect(rows.c.start).toBe("2026-11-26");
+    expect(validateDeps(xs.map((x) => rows[x.id] ?? x)).missing).toEqual([]);
+    expect(deleteItem(xs, "nope")).toEqual([]);
+  });
+
+  it("a crew tech saves only progress and notes onto the latest row", () => {
+    const latest = item("a", "2026-11-30", "2026-12-02", { crew: ["Sam"], progress: 10 });
+    const stale = { ...item("a", "2026-11-23", "2026-11-24", { crew: [] }), progress: 140, notes: " on it " };
+    const out = crewUpdate(latest, stale);
+    expect(out).toMatchObject({ start: "2026-11-30", end: "2026-12-02", crew: ["Sam"], progress: 100, notes: " on it " });
+    expect(crewUpdate(latest, { progress: 50, notes: "  " }).notes).toBeNull();
   });
 });
