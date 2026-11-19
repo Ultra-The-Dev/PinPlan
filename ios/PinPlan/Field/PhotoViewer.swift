@@ -145,6 +145,7 @@ struct PhotoDetails: View {
     @State private var pickingBefore = false
     @State private var aiBusy = false
     @State private var aiError: String?
+    @State private var tasking: PhotoComment?
 
     var body: some View {
         let p = photo
@@ -217,6 +218,14 @@ struct PhotoDetails: View {
                         Text(c.author ?? "—").font(.caption.weight(.semibold))
                         Text(shortDate(c.createdAt)).font(.caption).foregroundStyle(.secondary)
                         Spacer()
+                        if let t = FieldDocs.commentTask(model.bundle.checklists, comment: c) {
+                            Label(t.item.done == true ? "Task done" : "Task", systemImage: "checklist")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(t.item.done == true ? Color.green : Color.accentColor)
+                        } else {
+                            Button { tasking = c } label: { Label("Make task", systemImage: "plus.square.on.square") }
+                                .font(.caption.weight(.semibold))
+                        }
                         Button { model.removeRows([c.id], in: \.photoComments) } label: { Image(systemName: "trash") }.font(.caption).foregroundStyle(.secondary)
                     }
                     Text(c.text).font(.subheadline)
@@ -235,6 +244,14 @@ struct PhotoDetails: View {
         }
         .sheet(isPresented: $pickingBefore) {
             BeforePicker(model: model, photo: p) { id in model.updateRows([p.id], in: \.photos) { $0.beforeId = id } }
+        }
+        .sheet(item: $tasking) { c in
+            // Comment → task on the job's punch list (started from the template if the job has none), linked to this photo.
+            TaskEditor(item: FieldDocs.taskItem(from: c), names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app))) { who, due in
+                let r = FieldDocs.addTask(fromComment: c, checklists: model.bundle.checklists, assignee: who, due: due)
+                model.saveRow(r.checklist, in: \.checklists)
+            }
+            .presentationDetents([.medium, .large])
         }
     }
 

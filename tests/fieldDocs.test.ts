@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, daysUntil, filterPhotos, openTasks, photosByDay, tagOptions, taskBucket, teamNames, timeline } from "@/lib/fieldDocs";
+import { addTaskFromComment, CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, commentTask, daysUntil, findPunchList, filterPhotos, openTasks, photosByDay, tagOptions, taskBucket, taskItemFromComment, teamNames, timeline } from "@/lib/fieldDocs";
 import type { Checklist, ChecklistItem, Photo, Project } from "@/lib/types";
 
 const ts = "2026-11-19T15:00:00.000Z";
@@ -93,6 +93,52 @@ describe("tasks and punch lists", () => {
   it("collects team names for the assignee picker", () => {
     expect(teamNames({ checklists }, "Me")).toEqual(["Alex", "Me", "Sam"]);
     expect(CHECKLIST_TEMPLATES.some((t) => t.id === "punch")).toBe(true);
+  });
+});
+
+describe("tasks from photo comments", () => {
+  const ts = "2026-11-19T00:00:00.000Z";
+  const now = "2026-11-19T12:00:00.000Z";
+  const comment = { id: "cm1", projectId: "a", photoId: "ph1", author: "Sam", text: "  Plate is cracked, replace  ", createdAt: ts, updatedAt: ts };
+  const ids = () => {
+    let n = 0;
+    return () => `id${++n}`;
+  };
+
+  it("builds an item linked to the photo, with optional assignee and due date", () => {
+    const item = taskItemFromComment(comment, { assignee: " Alex ", due: "2026-11-21" }, ids());
+    expect(item).toEqual({ id: "id1", text: "Plate is cracked, replace", photoId: "ph1", assignee: "Alex", due: "2026-11-21", note: "From Sam’s photo comment" });
+    const bare = taskItemFromComment({ ...comment, author: null }, { text: "Swap the plate", assignee: "  ", due: "soon" }, ids());
+    expect(bare).toMatchObject({ text: "Swap the plate", photoId: "ph1", assignee: null, due: null, note: null });
+    expect(taskItemFromComment(comment, { text: "   " }, ids()).text).toBe("Plate is cracked, replace");
+  });
+
+  it("starts the punch list from the template when the job has none", () => {
+    const other: Checklist = { id: "x", projectId: "a", name: "Trim-out", items: [], createdAt: ts, updatedAt: ts };
+    const r = addTaskFromComment([other], comment, {}, ids(), now);
+    expect(r.created).toBe(true);
+    expect(r.checklist).toMatchObject({ projectId: "a", name: "Punch list", createdAt: now, updatedAt: now });
+    expect(r.checklist.items).toEqual([r.item]);
+    expect(r.item.photoId).toBe("ph1");
+  });
+
+  it("appends to the job's existing punch list, ignoring deleted lists and other jobs", () => {
+    const punch: Checklist = { id: "p1", projectId: "a", name: "Punch list", items: [{ id: "old", text: "Old item" }], createdAt: "2026-11-02T00:00:00.000Z", updatedAt: ts };
+    const later: Checklist = { ...punch, id: "p2", createdAt: "2026-11-05T00:00:00.000Z", items: [] };
+    const gone: Checklist = { ...punch, id: "p0", createdAt: "2026-11-01T00:00:00.000Z", deleted: true };
+    const otherJob: Checklist = { ...punch, id: "pb", projectId: "b", createdAt: "2026-10-01T00:00:00.000Z" };
+    expect(findPunchList([later, gone, otherJob, punch], "a")?.id).toBe("p1");
+    const r = addTaskFromComment([later, gone, otherJob, punch], comment, { due: "2026-11-20" }, ids(), now);
+    expect(r.created).toBe(false);
+    expect(r.checklist.id).toBe("p1");
+    expect(r.checklist.items.map((i) => i.text)).toEqual(["Old item", "Plate is cracked, replace"]);
+    expect(punch.items).toHaveLength(1);
+    // The comment now shows as a task, and it appears on the Tasks page even without an assignee.
+    expect(commentTask([r.checklist], comment)?.item.id).toBe(r.item.id);
+    expect(commentTask([r.checklist], { ...comment, text: "Something else" })).toBeUndefined();
+    const projects = [{ id: "a", clientName: "", address: "1 Oak", status: "estimate" as const, billduDocs: [], createdAt: ts, updatedAt: ts }];
+    const r2 = addTaskFromComment([], comment, {}, ids(), now);
+    expect(openTasks({ projects, checklists: [r2.checklist] }, { today: "2026-11-19" }).map((t) => t.item.photoId)).toEqual(["ph1"]);
   });
 });
 

@@ -209,6 +209,13 @@ struct TasksView: View {
                 TaskChips(item: t.item)
                 if t.item.requiresPhoto == true { Text("Photo required — add it on the job").font(.caption).foregroundStyle(.orange) }
             }
+            // The photo a task was made from (photo comment → task).
+            if let pid = t.item.photoId, let photo = app.projects.first(where: { $0.project.id == t.project.id })?.photos.first(where: { $0.id == pid && $0.deleted != true }) {
+                Spacer(minLength: 0)
+                Button { dismiss(); onOpen(t.project.id) } label: { PhotoThumb(photo: photo, size: 48) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Open the job of this photo")
+            }
         }
         .padding(.vertical, 2)
     }

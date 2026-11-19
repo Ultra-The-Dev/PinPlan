@@ -1,5 +1,5 @@
 "use client";
-// Tasks across every job: open checklist / punch-list items that are assigned to someone or have a due date.
+// Tasks across every job: open checklist / punch-list items that are assigned to someone, have a due date or came from a photo comment.
 import { CalendarDays, Check, ClipboardList, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,7 +8,8 @@ import { localDay, openTasks, TASK_BUCKETS, teamNames, type OpenTask } from "@/l
 import { getAuthor } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import { toast } from "@/lib/toast";
-import type { Checklist, Project } from "@/lib/types";
+import type { Checklist, Photo, Project } from "@/lib/types";
+import { useBlobUrl } from "@/lib/useImage";
 
 const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
@@ -19,18 +20,35 @@ const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
   none: "text-slate-500",
 };
 
+/** Thumbnail of the photo a task was made from; opens the job's photos. */
+function TaskPhoto({ photo, href }: { photo: Photo; href: string }) {
+  const url = useBlobUrl(photo.imageId);
+  return (
+    <Link href={href} className="block h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label="Open the job's photos" title={photo.caption ?? "Photo this task came from"}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+    </Link>
+  );
+}
+
 export default function TasksBoard() {
   const { email } = useSyncStatus();
   const me = getAuthor(email);
   const [projects, setProjects] = useState<Project[]>([]);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
+  const [photos, setPhotos] = useState<Map<string, Photo>>(new Map());
   const [who, setWho] = useState<string>("__me");
   const [today, setToday] = useState("");
 
   const load = useCallback(async () => {
     setToday(localDay(new Date().toISOString()));
     setProjects((await db().projects.toArray()).filter((p) => !p.deleted));
-    setChecklists((await db().checklists.toArray()).filter((c) => !c.deleted));
+    const cs = (await db().checklists.toArray()).filter((c) => !c.deleted);
+    // Only the photos tasks were made from (comment → task), for their thumbnails.
+    const ids = [...new Set(cs.flatMap((c) => c.items.map((i) => i.photoId).filter((x): x is string => !!x)))];
+    const ps = ids.length ? await db().photos.bulkGet(ids) : [];
+    setPhotos(new Map(ps.filter((p): p is Photo => !!p && !p.deleted).map((p) => [p.id, p])));
+    setChecklists(cs);
   }, []);
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);
@@ -119,6 +137,7 @@ export default function TasksBoard() {
                       {t.item.requiresPhoto && <span className="text-amber-700">Photo required</span>}
                     </div>
                   </div>
+                  {t.item.photoId && photos.get(t.item.photoId) && <TaskPhoto photo={photos.get(t.item.photoId)!} href={`/project?id=${t.project.id}&tab=photos`} />}
                 </li>
               ))}
             </ul>

@@ -150,6 +150,8 @@ struct ChecklistDetail: View {
         let photos = FieldDocs.itemPhotos(model.bundle.photos, checklistId: c.id, itemId: item.id).sorted { $0.takenAt < $1.takenAt }
         let complete = FieldDocs.itemComplete(item, photoCount: photos.count)
         let needsPhoto = item.done == true && !complete
+        // A task made from a photo comment links back to that photo.
+        let from: Photo? = item.photoId.flatMap(model.photo).flatMap { f in photos.contains(where: { $0.id == f.id }) ? nil : f }
         return HStack(alignment: .top, spacing: 12) {
             Button {
                 let author = FieldAuthor.name(app)
@@ -171,9 +173,19 @@ struct ChecklistDetail: View {
                 if let by = item.doneBy, let at = item.doneAt { Text("\(by) · \(shortDate(at))").font(.caption).foregroundStyle(.secondary) }
                 if item.assignee != nil || item.due != nil { TaskChips(item: item) }
                 if needsPhoto { Text("Add a photo to finish this item").font(.caption).foregroundStyle(.orange) }
-                if !photos.isEmpty {
+                if !photos.isEmpty || from != nil {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
+                            if let from {
+                                Button { viewer = PhotoViewerItem(ids: [from.id], start: from.id) } label: {
+                                    PhotoThumb(photo: from, size: 54).overlay(alignment: .bottomTrailing) {
+                                        Image(systemName: "bubble.left.fill").font(.caption2).foregroundStyle(Color.accentColor)
+                                            .padding(3).background(Color(.systemBackground), in: Circle()).padding(2)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Photo this task came from")
+                            }
                             ForEach(photos) { p in
                                 Button { viewer = PhotoViewerItem(ids: photos.map(\.id), start: p.id) } label: { PhotoThumb(photo: p, size: 54) }.buttonStyle(.plain)
                             }

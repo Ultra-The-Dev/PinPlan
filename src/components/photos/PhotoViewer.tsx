@@ -1,16 +1,16 @@
 "use client";
 // One photo, big: mark-up, caption, tags, where it is on the plan, before/after, who/when/where, comments.
-import { ChevronLeft, ChevronRight, Columns2, Download, MapPin, MessageSquare, PenLine, Sparkles, Trash, X } from "lucide-react";
+import { CheckSquare, ChevronLeft, ChevronRight, Columns2, Download, ListPlus, MapPin, MessageSquare, PenLine, Sparkles, Trash, X } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { useEffect, useMemo, useState } from "react";
 import { db, newId, nowIso } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
-import { tagOptions } from "@/lib/fieldDocs";
+import { addTaskFromComment, commentTask, tagOptions, teamNames } from "@/lib/fieldDocs";
 import { getAuthor, mapsLink, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
-import type { Photo } from "@/lib/types";
+import type { Photo, PhotoComment } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import AnnotationSvg from "./AnnotationSvg";
 import Annotator from "./Annotator";
@@ -28,8 +28,55 @@ export function PhotoImage({ photo, className = "" }: { photo: Photo; className?
   );
 }
 
+/** "Make task" form for one comment: adds it to the job's punch list, linked back to the photo. */
+function MakeTask({ comment, names, onDone }: { comment: PhotoComment; names: string[]; onDone: () => void }) {
+  const { saveRow } = useEditor();
+  const [text, setText] = useState(comment.text.trim());
+  const [who, setWho] = useState("");
+  const [due, setDue] = useState("");
+  const listId = `task-names-${comment.id}`;
+  return (
+    <form
+      className="mt-2 space-y-2 rounded-lg bg-white p-2.5 ring-1 ring-slate-200"
+      onSubmit={(e) => {
+        e.preventDefault();
+        // Read the checklists fresh so a task made right after another one doesn't overwrite it.
+        const r = addTaskFromComment(useEditor.getState().checklists, comment, { text, assignee: who, due }, newId, nowIso());
+        void saveRow("checklists", r.checklist);
+        toast(r.created ? "Punch list started with this task" : "Added to the punch list", "success");
+        onDone();
+      }}
+    >
+      <input className="input h-8" aria-label="Task" value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs">
+          <span className="label">Assigned to</span>
+          <input className="input h-8" list={listId} placeholder="Name" value={who} onChange={(e) => setWho(e.target.value)} />
+          <datalist id={listId}>
+            {names.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        </label>
+        <label className="text-xs">
+          <span className="label">Due</span>
+          <input type="date" className="input h-8" value={due} onChange={(e) => setDue(e.target.value)} />
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <button className="btn btn-sm btn-brand" disabled={!text.trim()}>
+          <ListPlus /> Add to punch list
+        </button>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function PhotoViewer({ photos, startId, onClose }: { photos: Photo[]; startId: string; onClose: () => void }) {
-  const { markers, photoComments, saveRow, removeRows, catalog } = useEditor();
+  const { markers, photoComments, saveRow, removeRows, catalog, checklists, jobLogs } = useEditor();
   const all = useEditor((s) => s.photos);
   const { email } = useSyncStatus();
   const [id, setId] = useState(startId);
@@ -38,10 +85,12 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const [comment, setComment] = useState("");
   const [tagDraft, setTagDraft] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [tasking, setTasking] = useState<string | null>(null);
   const i = Math.max(0, photos.findIndex((p) => p.id === id));
   const p = all.find((x) => x.id === photos[i]?.id) ?? photos[i];
   const comments = useMemo(() => photoComments.filter((c) => c.photoId === p?.id && !c.deleted), [photoComments, p?.id]);
   const options = useMemo(() => tagOptions(all), [all]);
+  const names = useMemo(() => teamNames({ photos: all, jobLogs, checklists }, getAuthor(email)), [all, jobLogs, checklists, email]);
   const before = p?.beforeId ? all.find((x) => x.id === p.beforeId && !x.deleted) : undefined;
   const after = p ? all.find((x) => x.beforeId === p.id && !x.deleted) : undefined;
   const pair = before ? { before, after: p } : after ? { before: p, after } : null;
@@ -257,14 +306,29 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
             <MessageSquare className="h-3.5 w-3.5" /> Comments
           </span>
           <ul className="space-y-2">
-            {comments.map((c) => (
-              <li key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                <div className="text-xs text-slate-500">
-                  <span className="font-medium text-slate-700">{c.author || "—"}</span> · {new Date(c.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                </div>
-                <div className="whitespace-pre-line">{c.text}</div>
-              </li>
-            ))}
+            {comments.map((c) => {
+              const task = commentTask(checklists, c);
+              return (
+                <li key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium text-slate-700">{c.author || "—"}</span> · {new Date(c.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </span>
+                    {task ? (
+                      <span className={`inline-flex items-center gap-1 font-medium ${task.item.done ? "text-emerald-700" : "text-brand-600"}`} title={`On “${task.checklist.name}”`}>
+                        <CheckSquare className="h-3.5 w-3.5" /> {task.item.done ? "Task done" : "Task"}
+                      </span>
+                    ) : (
+                      <button className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline" onClick={() => setTasking(tasking === c.id ? null : c.id)}>
+                        <ListPlus className="h-3.5 w-3.5" /> Make task
+                      </button>
+                    )}
+                  </div>
+                  <div className="whitespace-pre-line">{c.text}</div>
+                  {tasking === c.id && !task && <MakeTask key={c.id} comment={c} names={names} onDone={() => setTasking(null)} />}
+                </li>
+              );
+            })}
           </ul>
           <form
             className="mt-2 flex gap-2"

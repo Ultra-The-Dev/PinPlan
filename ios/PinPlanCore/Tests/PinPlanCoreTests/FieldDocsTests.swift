@@ -105,6 +105,45 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(json["due"] as? String, "2026-11-18")
     }
 
+    func testTaskFromPhotoComment() {
+        let comment = PhotoComment(projectId: "a", photoId: "ph1", author: "Sam", text: "  Plate is cracked, replace  ")
+        let item = FieldDocs.taskItem(from: comment, assignee: " Alex ", due: "2026-11-21")
+        XCTAssertEqual(item.text, "Plate is cracked, replace")
+        XCTAssertEqual(item.photoId, "ph1")
+        XCTAssertEqual(item.assignee, "Alex")
+        XCTAssertEqual(item.due, "2026-11-21")
+        XCTAssertEqual(item.note, "From Sam’s photo comment")
+        let bare = FieldDocs.taskItem(from: comment, text: "Swap the plate", assignee: "  ", due: "soon")
+        XCTAssertEqual(bare.text, "Swap the plate")
+        XCTAssertNil(bare.assignee)
+        XCTAssertNil(bare.due)
+
+        // No punch list yet: one is started from the template.
+        let trim = Checklist(projectId: "a", name: "Trim-out", items: [])
+        let r = FieldDocs.addTask(fromComment: comment, checklists: [trim])
+        XCTAssertTrue(r.created)
+        XCTAssertEqual(r.checklist.name, "Punch list")
+        XCTAssertEqual(r.checklist.items.map(\.id), [r.item.id])
+
+        // Existing punch list (oldest live one for this job) gets the item.
+        var punch = Checklist(projectId: "a", name: "Punch list", items: [ChecklistItem(id: "old", text: "Old item")]); punch.createdAt = "2026-11-02T00:00:00.000Z"
+        var later = Checklist(projectId: "a", name: "Punch list", items: []); later.createdAt = "2026-11-05T00:00:00.000Z"
+        var gone = punch; gone.id = "gone"; gone.deleted = true; gone.createdAt = "2026-11-01T00:00:00.000Z"
+        var other = punch; other.id = "other"; other.projectId = "b"; other.createdAt = "2026-10-01T00:00:00.000Z"
+        let r2 = FieldDocs.addTask(fromComment: comment, checklists: [later, gone, other, punch], due: "2026-11-20")
+        XCTAssertFalse(r2.created)
+        XCTAssertEqual(r2.checklist.id, punch.id)
+        XCTAssertEqual(r2.checklist.items.map(\.text), ["Old item", "Plate is cracked, replace"])
+        XCTAssertEqual(FieldDocs.commentTask([r2.checklist], comment: comment)?.item.id, r2.item.id)
+
+        // Shows on the Tasks list even without an assignee; same JSON key as the web.
+        var b = ProjectBundle(project: Project(id: "a", clientName: "", address: "1 Oak"))
+        b.checklists = [r.checklist]
+        XCTAssertEqual(FieldDocs.openTasks([b], today: "2026-11-19").map(\.item.photoId), ["ph1"])
+        let json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(r.item)) as! [String: Any]
+        XCTAssertEqual(json["photoId"] as? String, "ph1")
+    }
+
     func testTimelineSkipsCommentsOnDeletedPhotos() {
         var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
         var live = Photo(projectId: "p", imageId: "ia", width: 1, height: 1); live.id = "a"

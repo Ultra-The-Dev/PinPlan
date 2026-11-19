@@ -147,19 +147,63 @@ public enum FieldDocs {
         return d < 0 ? .overdue : d == 0 ? .today : d <= 7 ? .week : .later
     }
 
-    /// Open items that are tasks (assigned or dated) across jobs; `who` keeps one person's. Sorted by due date, then job.
+    /// Open items that are tasks (assigned, dated or made from a photo comment) across jobs; `who` keeps one person's. Sorted by due date, then job.
     public static func openTasks(_ bundles: [ProjectBundle], today: String, who: String? = nil) -> [OpenTask] {
         let w = who?.trimmingCharacters(in: .whitespaces).lowercased()
         var out: [OpenTask] = []
         for b in bundles where b.project.deleted != true {
             for c in b.checklists where c.deleted != true {
-                for i in c.items where i.done != true && ((i.assignee ?? "").isEmpty == false || (i.due ?? "").isEmpty == false) {
+                for i in c.items where i.done != true && ((i.assignee ?? "").isEmpty == false || (i.due ?? "").isEmpty == false || (i.photoId ?? "").isEmpty == false) {
                     if let w, !w.isEmpty, i.assignee?.trimmingCharacters(in: .whitespaces).lowercased() != w { continue }
                     out.append(OpenTask(project: b.project, checklist: c, item: i, bucket: taskBucket(i.due, today: today)))
                 }
             }
         }
         return out.sorted { ($0.item.due ?? "9999", $0.project.address) < ($1.item.due ?? "9999", $1.project.address) }
+    }
+
+    // MARK: photo comment → task (same as src/lib/fieldDocs.ts)
+
+    public static let punchTemplateId = "punch"
+
+    /// The job's live punch list (the oldest one, if there are several).
+    public static func punchList(_ checklists: [Checklist], projectId: String) -> Checklist? {
+        let name = (templates.first { $0.id == punchTemplateId }?.name ?? "Punch list").lowercased()
+        return checklists
+            .filter { $0.deleted != true && $0.projectId == projectId && $0.name.trimmingCharacters(in: .whitespaces).lowercased() == name }
+            .min { $0.createdAt < $1.createdAt }
+    }
+
+    /// The item a comment was already turned into (same photo, same text), if any.
+    public static func commentTask(_ checklists: [Checklist], comment: PhotoComment) -> (checklist: Checklist, item: ChecklistItem)? {
+        let text = comment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        for c in checklists where c.deleted != true && c.projectId == comment.projectId {
+            if let i = c.items.first(where: { $0.photoId == comment.photoId && $0.text == text }) { return (c, i) }
+        }
+        return nil
+    }
+
+    /// A checklist item made from a photo comment: the comment's text (or an edited version), linked back to the photo.
+    public static func taskItem(from comment: PhotoComment, text: String? = nil, assignee: String? = nil, due: String? = nil) -> ChecklistItem {
+        let edited = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var item = ChecklistItem(text: edited.isEmpty ? comment.text.trimmingCharacters(in: .whitespacesAndNewlines) : edited)
+        item.photoId = comment.photoId
+        let who = (assignee ?? "").trimmingCharacters(in: .whitespaces)
+        item.assignee = who.isEmpty ? nil : who
+        if let due, dayNumber(due) != nil, due.count == 10 { item.due = due }
+        if let a = comment.author, !a.isEmpty { item.note = "From \(a)’s photo comment" }
+        return item
+    }
+
+    /// Turn a photo comment into a task on the job's "Punch list" (started from the punch template when the job has none).
+    /// Returns the checklist to save (new or updated) and the added item.
+    public static func addTask(fromComment comment: PhotoComment, checklists: [Checklist], text: String? = nil, assignee: String? = nil, due: String? = nil)
+        -> (checklist: Checklist, item: ChecklistItem, created: Bool) {
+        let item = taskItem(from: comment, text: text, assignee: assignee, due: due)
+        let existing = punchList(checklists, projectId: comment.projectId)
+        var c = existing ?? checklist(from: templates.first { $0.id == punchTemplateId } ?? Template(id: punchTemplateId, name: "Punch list", items: []), projectId: comment.projectId)
+        c.items.append(item)
+        return (c, item, existing == nil)
     }
 
     /// Names seen on the jobs, one per person whatever the capitalisation.

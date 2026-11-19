@@ -1,7 +1,7 @@
 "use client";
 // Checklists from templates (pre-wire, trim-out, rack, final walkthrough) or from scratch. Photo-required items
 // only count once they have a photo, which can be taken right from the item.
-import { CalendarDays, Camera, Check, ChevronDown, Plus, Trash, UserRound } from "lucide-react";
+import { CalendarDays, Camera, Check, ChevronDown, MessageSquare, Plus, Trash, UserRound } from "lucide-react";
 import { useRef, useState } from "react";
 import { newId, nowIso } from "@/lib/db";
 import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, itemComplete, itemPhotos, localDay, taskBucket, teamNames } from "@/lib/fieldDocs";
@@ -113,6 +113,8 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
           <ul className="divide-y divide-slate-100">
             {c.items.map((i) => {
               const ps = itemPhotos(photos, c.id, i.id);
+              // A task made from a photo comment links back to that photo.
+              const from = i.photoId ? photos.find((p) => p.id === i.photoId && !p.deleted) : undefined;
               const complete = itemComplete(i, ps.length);
               return (
                 <li key={i.id} className="flex items-start gap-3 px-4 py-3">
@@ -145,8 +147,14 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                       )}
                     </div>
                     {editing === i.id && <TaskFields item={i} names={names} onChange={(p) => void setItem(i.id, p)} onClose={() => setEditing(null)} />}
-                    {ps.length > 0 && (
+                    {(ps.length > 0 || from) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
+                        {from && !ps.some((p) => p.id === from.id) && (
+                          <span className="relative" title="Photo this task came from">
+                            <Mini photo={from} onOpen={() => setViewer({ list: [from], id: from.id })} />
+                            <MessageSquare className="pointer-events-none absolute -right-1 -bottom-1 h-4 w-4 rounded-full bg-white p-0.5 text-brand-600 ring-1 ring-slate-200" />
+                          </span>
+                        )}
                         {ps.map((p) => (
                           <Mini key={p.id} photo={p} onOpen={() => setViewer({ list: ps, id: p.id })} />
                         ))}

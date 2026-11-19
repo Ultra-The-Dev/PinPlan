@@ -171,7 +171,7 @@ export function taskBucket(due: string | null | undefined, today: string): TaskB
 }
 
 /**
- * Open (not ticked) checklist items that are tasks — assigned to someone or with a due date — across jobs.
+ * Open (not ticked) checklist items that are tasks — assigned to someone, with a due date or made from a photo comment — across jobs.
  * `who` keeps only that person's tasks. Sorted by due date (no date last), then job.
  */
 export function openTasks(input: { projects: Project[]; checklists: Checklist[] }, opts: { today: string; who?: string | null }): OpenTask[] {
@@ -182,12 +182,58 @@ export function openTasks(input: { projects: Project[]; checklists: Checklist[] 
     const project = jobs.get(c.projectId);
     if (c.deleted || !project) continue;
     for (const item of c.items) {
-      if (item.done || (!item.assignee && !item.due)) continue;
+      if (item.done || (!item.assignee && !item.due && !item.photoId)) continue;
       if (who && item.assignee?.trim().toLowerCase() !== who) continue;
       out.push({ project, checklist: c, item, bucket: taskBucket(item.due, opts.today) });
     }
   }
   return out.sort((a, b) => (a.item.due ?? "9999").localeCompare(b.item.due ?? "9999") || (a.project.address || "").localeCompare(b.project.address || ""));
+}
+
+export const PUNCH_TEMPLATE_ID = "punch";
+
+/** The job's live punch list (the oldest one, if there are several). */
+export function findPunchList(checklists: Checklist[], projectId: string): Checklist | undefined {
+  const name = CHECKLIST_TEMPLATES.find((t) => t.id === PUNCH_TEMPLATE_ID)!.name.toLowerCase();
+  return checklists
+    .filter((c) => !c.deleted && c.projectId === projectId && c.name.trim().toLowerCase() === name)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+}
+
+/** The punch-list item a comment was already turned into (same photo, same text), if any. */
+export function commentTask(checklists: Checklist[], comment: PhotoComment): { checklist: Checklist; item: ChecklistItem } | undefined {
+  const text = comment.text.trim();
+  for (const c of checklists) {
+    if (c.deleted || c.projectId !== comment.projectId) continue;
+    const item = c.items.find((i) => i.photoId === comment.photoId && i.text === text);
+    if (item) return { checklist: c, item };
+  }
+  return undefined;
+}
+
+/** A checklist item made from a photo comment: the comment's text (or an edited version), linked back to the photo. */
+export function taskItemFromComment(comment: PhotoComment, opts: { text?: string | null; assignee?: string | null; due?: string | null }, newId: () => string): ChecklistItem {
+  const text = (opts.text ?? "").trim() || comment.text.trim();
+  const assignee = opts.assignee?.trim() || null;
+  const due = opts.due && /^\d{4}-\d{2}-\d{2}$/.test(opts.due) ? opts.due : null;
+  return { id: newId(), text, photoId: comment.photoId, assignee, due, note: comment.author ? `From ${comment.author}’s photo comment` : null };
+}
+
+/**
+ * Turn a photo comment into a task on the job's "Punch list" (started from the punch template when the job has none).
+ * Returns the checklist to save (new or updated) and the added item.
+ */
+export function addTaskFromComment(
+  checklists: Checklist[],
+  comment: PhotoComment,
+  opts: { text?: string | null; assignee?: string | null; due?: string | null },
+  newId: () => string,
+  now = new Date().toISOString(),
+): { checklist: Checklist; item: ChecklistItem; created: boolean } {
+  const item = taskItemFromComment(comment, opts, newId);
+  const existing = findPunchList(checklists, comment.projectId);
+  const base = existing ?? checklistFromTemplate(CHECKLIST_TEMPLATES.find((t) => t.id === PUNCH_TEMPLATE_ID)!, comment.projectId, newId, now);
+  return { checklist: { ...base, items: [...base.items, item], updatedAt: now }, item, created: !existing };
 }
 
 /** Names seen on the jobs (photo takers, log authors, checklist people) for the assignee picker. */

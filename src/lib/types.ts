@@ -295,6 +295,8 @@ export interface ChecklistItem {
   assignee?: string | null;
   /** Due date (YYYY-MM-DD). */
   due?: string | null;
+  /** Photo this item was made from (a photo comment turned into a task). */
+  photoId?: string | null;
 }
 
 export interface Checklist {
