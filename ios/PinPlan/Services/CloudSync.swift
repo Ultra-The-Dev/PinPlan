@@ -518,33 +518,34 @@ final class CloudSync {
             }
         }
         // Downloads: check for the file without reading it (this runs every minute), and cap each run so a big
-        // first sync doesn't hold the loop for ages — the rest come on the next runs.
+        // first sync doesn't hold the loop for ages — the rest come on the next runs. Only files that actually arrive
+        // use up the budget: files missing on the server (still uploading elsewhere) mustn't starve the rest forever.
         var budget = 300
         for b in app.projects {
             let pid = b.project.id
             for s in b.liveSheets where budget > 0 && !app.store.hasImage(s.imageId) {
-                budget -= 1
                 let path = imagePaths[s.imageId] ?? "\(pid)/\(s.imageId)"
                 guard let data = try? await client.download(path: path, token: token) else { continue }   // may still be uploading elsewhere
+                budget -= 1
                 _ = app.store.saveImageData(data, id: s.imageId)
                 ledger.uploadedImages.insert(s.imageId)
             }
             // Device photos (a marker's photo) are stored at <project>/<photo id> too.
             for id in b.liveMarkers.compactMap(\.photoId) where budget > 0 && !app.store.hasImage(id) {
-                budget -= 1
                 guard let data = try? await client.download(path: "\(pid)/\(id)", token: token) else { continue }
+                budget -= 1
                 _ = app.store.saveImageData(data, id: id)
                 ledger.uploadedImages.insert(id)
             }
             for p in b.livePhotos where budget > 0 && !app.store.hasImage(p.imageId) {
-                budget -= 1
                 guard let data = try? await client.download(path: "\(pid)/\(p.imageId)", token: token) else { continue }
+                budget -= 1
                 _ = app.store.saveImageData(data, id: p.imageId)
                 ledger.uploadedImages.insert(p.imageId)
             }
             for d in b.liveDocuments where budget > 0 && !app.store.hasFile(d.fileId) {
-                budget -= 1
                 guard let data = try? await client.download(path: "\(pid)/\(d.fileId)", token: token) else { continue }
+                budget -= 1
                 app.store.saveFile(data, id: d.fileId)
                 ledger.uploadedImages.insert(d.fileId)
             }
