@@ -117,5 +117,12 @@ describe("share-link snapshot sections", () => {
       { title: NO_ROOM, cells: [[3], [4]] },
     ]);
     expect(readSnapshotSections(2, "nope")).toEqual([{ title: "", cells: [[0], [1]] }]);
+    // An index repeated inside one cell is shown once, not as a pair of the same photo.
+    expect(readSnapshotSections(2, [{ title: "", cells: [[1, 1], [0]] }])).toEqual([{ title: "", cells: [[1], [0]] }]);
+  });
+
+  it("leaves out sections whose photos all failed to upload", () => {
+    const secs = reportSections(all, { groupBy: "room", pairs: false });
+    expect(snapshotSections(secs, new Map([["d", 0]]))).toEqual([{ title: NO_ROOM, cells: [[0]] }]);
   });
 });

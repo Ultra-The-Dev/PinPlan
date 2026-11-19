@@ -138,10 +138,12 @@ export interface SnapshotSection {
 }
 
 export function snapshotSections(sections: ReportSection<Photo>[], indexOf: Map<string, number>): SnapshotSection[] {
-  return sections.map((s) => ({
-    title: s.title,
-    cells: s.cells.map((c) => c.map((p) => indexOf.get(p.id) ?? -1).filter((i) => i >= 0)).filter((c) => c.length),
-  }));
+  return sections
+    .map((s) => ({
+      title: s.title,
+      cells: s.cells.map((c) => c.map((p) => indexOf.get(p.id) ?? -1).filter((i) => i >= 0)).filter((c) => c.length),
+    }))
+    .filter((s) => s.cells.length); // a section whose photos all failed to render/upload would be a heading with nothing under it
 }
 
 /**
@@ -158,8 +160,12 @@ export function readSnapshotSections(photoCount: number, raw: unknown): Snapshot
     const cells: number[][] = [];
     for (const c of (s as SnapshotSection).cells) {
       if (!Array.isArray(c)) continue;
-      const ok = c.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < photoCount && !seen.has(i)).slice(0, 2);
-      ok.forEach((i) => seen.add(i));
+      const ok: number[] = [];
+      for (const i of c) {
+        if (ok.length >= 2 || !Number.isInteger(i) || i < 0 || i >= photoCount || seen.has(i)) continue;
+        seen.add(i);
+        ok.push(i); // also drops an index repeated inside the same cell
+      }
       if (ok.length) cells.push(ok);
     }
     const title = typeof (s as SnapshotSection).title === "string" ? (s as SnapshotSection).title : "";

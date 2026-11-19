@@ -137,8 +137,10 @@ public enum PhotoReportLayout {
 
     /// Share-link snapshot form: `[{title, cells: [[photo index]]}]`, indexes into the snapshot's flat `photos`.
     public static func snapshotSections(_ sections: [Section<Photo>], indexOf: [String: Int]) -> [[String: Any]] {
-        sections.map { s in
-            ["title": s.title, "cells": s.cells.map { $0.compactMap { indexOf[$0.id] } }.filter { !$0.isEmpty }] as [String: Any]
+        sections.compactMap { s -> [String: Any]? in
+            let cells: [[Int]] = s.cells.map { $0.compactMap { indexOf[$0.id] } }.filter { !$0.isEmpty }
+            // A section whose photos all failed to upload would be a heading with nothing under it.
+            return cells.isEmpty ? nil : ["title": s.title, "cells": cells]
         }
     }
 }

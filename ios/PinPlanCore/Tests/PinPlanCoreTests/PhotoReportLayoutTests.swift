@@ -77,5 +77,8 @@ final class PhotoReportLayoutTests: XCTestCase {
         XCTAssertEqual(snap.map { $0["title"] as? String }, ["Kitchen", "living room", PhotoReportLayout.noRoom])
         XCTAssertEqual(snap.map { $0["cells"] as? [[Int]] }, [[[0, 4]], [[1], [2]], [[3]]])
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: snap))
+        // Sections whose photos all failed to upload are left out (no heading with nothing under it).
+        let partial = PhotoReportLayout.snapshotSections(secs, indexOf: ["d": 0])
+        XCTAssertEqual(partial.map { $0["title"] as? String }, [PhotoReportLayout.noRoom])
     }
 }

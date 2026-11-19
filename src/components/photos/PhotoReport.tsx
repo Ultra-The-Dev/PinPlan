@@ -76,7 +76,12 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         list.push(r);
         byId.set(p.id, r);
       }
-      const secs = mapSections(sections().map((s) => ({ ...s, cells: s.cells.map((c) => c.filter((p) => byId.has(p.id))).filter((c) => c.length) })), (p) => byId.get(p.id)!);
+      const secs = mapSections(
+        sections()
+          .map((s) => ({ ...s, cells: s.cells.map((c) => c.filter((p) => byId.has(p.id))).filter((c) => c.length) }))
+          .filter((s) => s.cells.length),
+        (p) => byId.get(p.id)!,
+      );
       const { renderPhotoReportPdf } = await import("./PhotoReportPdf");
       const out = await renderPhotoReportPdf({ title, business: settings!.business, clientName: project!.clientName, address: project!.address, notes, dateRange: range, perPage, photos: list, sections: secs });
       downloadBlob(out, `${slug(project!.address || "job")}-photo-report.pdf`);
@@ -174,7 +179,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
                 ["day", "By day"],
               ] as const
             ).map(([v, name]) => (
-              <button key={v} className={`tab ${groupBy === v ? "tab-active" : ""}`} onClick={() => setGroupBy(v)}>
+              <button key={v} className={`tab ${groupBy === v ? "tab-active" : ""}`} aria-pressed={groupBy === v} onClick={() => setGroupBy(v)}>
                 {name}
               </button>
             ))}
