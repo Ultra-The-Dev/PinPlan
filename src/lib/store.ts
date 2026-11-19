@@ -157,8 +157,15 @@ function applyToState(state: EditorState, table: EntityTable, row: AnyRow): Part
   if (table === "sheets") (next as Sheet[]).sort((a, b) => a.order - b.order);
   if (table === "photos") (next as Photo[]).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
   if (table === "jobLogs") (next as JobLog[]).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  // Same order as loadProject, so a new row shows where it will be after a reload.
+  if (table === "photoComments" || table === "checklists") (next as (PhotoComment | Checklist)[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (table === "documents") (next as JobDocument[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return { [key]: next } as Partial<EditorState>;
 }
+
+/** Bumped by every commit, so a load that read the database before a commit doesn't put the old rows back. */
+let commitGen = 0;
+let loadSeq = 0;
 
 export const useEditor = create<EditorState>((set, get) => ({
   loaded: false,
@@ -188,7 +195,16 @@ export const useEditor = create<EditorState>((set, get) => ({
   future: [],
 
   async load(projectId) {
-    const [bundle, catalog, products, settings] = await Promise.all([loadProject(projectId), getCatalog(), getProducts(), getSettings()]);
+    const seq = ++loadSeq;
+    let bundle: Awaited<ReturnType<typeof loadProject>>, catalog: DeviceType[], products: Product[], settings: AppSettings;
+    for (let attempt = 0; ; attempt++) {
+      const gen = commitGen;
+      [bundle, catalog, products, settings] = await Promise.all([loadProject(projectId), getCatalog(), getProducts(), getSettings()]);
+      // An edit was saved while reading: read again, so it isn't undone on screen (and then overwritten by the next edit).
+      if (gen === commitGen || attempt >= 4) break;
+    }
+    // A newer load (e.g. another sync) started meanwhile: let it win.
+    if (seq !== loadSeq) return;
     if (!bundle) {
       set({ loaded: true, project: null });
       return;
@@ -289,13 +305,25 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   async commit(changes, record = true) {
+    commitGen++;
+    // Show the change right away (before the database write finishes), so an edit made meanwhile builds on it
+    // instead of on the old row: two quick edits to one row must not overwrite each other.
+    const shown: { c: Change; row: AnyRow }[] = [];
     for (const c of changes) {
       if (!c.after) continue;
-      const saved = (await put(c.table as SyncTable, c.after)) as AnyRow;
-      c.after = saved;
-      set((s) => applyToState(s, c.table, saved));
+      const row = { ...c.after, updatedAt: nowIso() } as AnyRow;
+      c.after = row;
+      shown.push({ c, row });
+      set((s) => applyToState(s, c.table, row));
     }
     if (record) set((s) => ({ past: [...s.past.slice(-99), changes], future: [] }));
+    // Start every write now, in order, so a later commit's write to the same row can't land before this one's.
+    const saved = await Promise.all(shown.map(({ c, row }) => put(c.table as SyncTable, row) as Promise<AnyRow>));
+    shown.forEach(({ c, row }, i) => {
+      c.after = saved[i];
+      // Swap in the saved copy unless a newer edit of the row is already showing.
+      set((s) => (currentRow(s, c.table, row.id) === row ? applyToState(s, c.table, saved[i]) : {}));
+    });
   },
   async undo() {
     const past = get().past;
@@ -549,6 +577,11 @@ export const useEditor = create<EditorState>((set, get) => ({
     return changes.filter((c) => c.table === "runs").length;
   },
 }));
+
+function currentRow(s: EditorState, table: EntityTable, id: string): AnyRow | undefined {
+  if (table === "projects") return s.project?.id === id ? s.project : undefined;
+  return (s[tableKey[table] as ListKey] as AnyRow[]).find((r) => r.id === id);
+}
 
 function defaultCloset(closets: Closet[], sheetId: string): Closet | undefined {
   return (

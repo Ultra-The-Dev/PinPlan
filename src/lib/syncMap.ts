@@ -271,3 +271,49 @@ export function dedupeQueue<T extends { seq?: number; table: string; rowId: stri
   for (const it of [...items].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) latest.set(`${it.table}:${it.rowId}`, it);
   return [...latest.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
 }
+
+/** What a Supabase error says is missing from the cloud schema (a migration that hasn't been run yet), if anything. */
+export type SchemaGap = { kind: "table" } | { kind: "column"; column: string } | null;
+
+export function schemaGap(error: { code?: string | null; message?: string | null } | null | undefined): SchemaGap {
+  if (!error) return null;
+  const msg = error.message ?? "";
+  // PostgREST: "Could not find the 'labels' column of 'projects' in the schema cache" (PGRST204).
+  const col = /Could not find the '([^']+)' column/i.exec(msg);
+  if (col) return { kind: "column", column: col[1] };
+  // PostgREST: "Could not find the table 'public.photos' in the schema cache" (PGRST205); Postgres: relation does not exist (42P01).
+  if (error.code === "PGRST205" || error.code === "42P01" || /Could not find the table|relation "?[\w.]+"? does not exist/i.test(msg)) return { kind: "table" };
+  return null;
+}
+
+/** Drop columns the cloud database doesn't have yet from an upsert payload. */
+export function withoutColumns(rows: Record<string, unknown>[], missing: Set<string> | undefined): Record<string, unknown>[] {
+  if (!missing?.size) return rows;
+  return rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !missing.has(k))));
+}
+
+/** Lookback on the pull watermark, so rows stamped in a transaction that committed after a later-stamped one aren't skipped. */
+export const PULL_LOOKBACK_MS = 30_000;
+
+/** Where a pull starts: a little before the saved watermark (rows seen again are no-ops under last-write-wins). */
+export function pullStart(watermark: string, lookbackMs = PULL_LOOKBACK_MS): string {
+  const t = Date.parse(watermark);
+  if (!Number.isFinite(t) || t <= lookbackMs) return watermark;
+  return new Date(t - lookbackMs).toISOString();
+}
+
+/**
+ * Paging over `synced_at >= since` ordered by (synced_at, id), skipping `skip` rows. Many rows share one `synced_at` (a bulk
+ * upsert is one transaction), so a page can end part-way through a timestamp: the next page restarts at that timestamp and
+ * skips the rows of it already seen, instead of `synced_at > last`, which would lose the rest.
+ */
+export function nextPullPage(cur: { since: string; skip: number }, rows: { synced_at?: unknown }[], pageSize: number): { since: string; skip: number; done: boolean } {
+  if (!rows.length) return { ...cur, done: true };
+  const last = String(rows[rows.length - 1].synced_at);
+  if (rows.length < pageSize) return { since: last, skip: 0, done: true };
+  let tail = 0;
+  for (let i = rows.length - 1; i >= 0 && String(rows[i].synced_at) === last; i--) tail++;
+  // The whole page sits on the cursor's own timestamp: keep counting past it.
+  if (tail === rows.length && last === cur.since) return { since: last, skip: cur.skip + tail, done: false };
+  return { since: last, skip: tail, done: false };
+}
