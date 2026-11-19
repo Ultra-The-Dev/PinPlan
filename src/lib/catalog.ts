@@ -1,4 +1,4 @@
-import type { AppSettings, Category, ClosetKind, DeviceType, Layer, Mount } from "./types";
+import type { AppSettings, BusinessSettings, Category, ClosetKind, DeviceType, Layer, Mount } from "./types";
 
 export const CATEGORIES: { id: Category; name: string; color: string }[] = [
   { id: "security", name: "Security", color: "#dc2626" },
@@ -82,10 +82,9 @@ export function seedCatalog(): DeviceType[] {
   }));
 }
 
-export const DEFAULT_SETTINGS: AppSettings = {
-  id: "app",
-  // Smart Living Solutions (smartlivingny.com). Change any of it in Settings → Your business.
-  business: {
+/** The founder's company (Smart Living Solutions, smartlivingny.com): the fallback for blank fields on the founder's
+ *  own devices and team only. Customers never see it. */
+export const FOUNDER_BUSINESS: BusinessSettings = {
     name: "Smart Living Solutions",
     address: "New York, NY",
     phone: "(646) 290-1922",
@@ -98,7 +97,29 @@ export const DEFAULT_SETTINGS: AppSettings = {
     serviceArea: "Serving New York City, Long Island, Westchester & the Tri-State Area",
     estimateTerms:
       "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates.",
-  },
+  };
+
+/** What a new customer's blank fields fall back to: nothing of anyone else's, PinPlan colours, generic terms. */
+export const NEUTRAL_BUSINESS: BusinessSettings = {
+  name: "",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+  tagline: "",
+  logo: "",
+  brandColor: "#c2410c",
+  accentColor: "#f59e0b",
+  serviceArea: "",
+  estimateTerms: FOUNDER_BUSINESS.estimateTerms,
+};
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  id: "app",
+  // A new company starts blank: its own details go in Settings → Your business (or the sign-up checklist).
+  business: NEUTRAL_BUSINESS,
+  // New installs use the neutral defaults; settings saved before this field existed keep the founder's.
+  brandDefaults: "neutral",
   pricing: {
     markupPct: 0,
     taxPct: 0,

@@ -2,7 +2,7 @@
 // First-run state kept on this device: demo mode, the company waiting for a confirmed email, and the
 // onboarding checklist (ticks + dismissed). See onboardingLogic.ts for the rules.
 import { useEffect, useState } from "react";
-import { DEFAULT_SETTINGS } from "./catalog";
+import { FOUNDER_BUSINESS } from "./catalog";
 import { db, getSettings, saveSettings } from "./db";
 import { onboardingDone, onboardingProgress, type OnboardingStepId } from "./onboardingLogic";
 import { getSupabase } from "./supabase";
@@ -142,10 +142,10 @@ export function useOnboarding(): OnboardingView {
 }
 
 /** The business settings still carry the built-in sample company, not this company's own details. */
-export const isSampleBusiness = (name: string) => !name.trim() || name.trim() === DEFAULT_SETTINGS.business.name;
+export const isSampleBusiness = (name: string) => !name.trim() || name.trim() === FOUNDER_BUSINESS.name;
 
 /** Step 1 is done once the business has its own name and phone (not the sample company's). */
-const businessReady = (b: { name: string; phone: string }) => !isSampleBusiness(b.name) && !!b.phone.trim() && b.phone !== DEFAULT_SETTINGS.business.phone;
+const businessReady = (b: { name: string; phone: string }) => !isSampleBusiness(b.name) && !!b.phone.trim() && b.phone !== FOUNDER_BUSINESS.phone;
 
 /** After sign-up: put the new company's name and email on its estimates and proposals (if this device has no business yet). */
 export async function brandNewCompany(company: string, email: string): Promise<void> {

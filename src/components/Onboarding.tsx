@@ -4,7 +4,7 @@ import { ArrowRight, Building2, Check, ChevronDown, FileUp, ImagePlus, Loader2, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DEFAULT_SETTINGS } from "@/lib/catalog";
+import { FOUNDER_BUSINESS } from "@/lib/catalog";
 import { getSettings, newId, nowIso, put, saveSettings } from "@/lib/db";
 import { dismissOnboarding, isSampleBusiness, refreshOnboarding, tickOnboarding, useOnboarding } from "@/lib/onboarding";
 import type { OnboardingStepId } from "@/lib/onboardingLogic";
@@ -174,7 +174,7 @@ function BusinessStep({ onDone }: { onDone: () => void }) {
       setS(x);
       // The sample company's details are only placeholders: start this company's form empty.
       const b = x.business;
-      const own = (k: "phone" | "email" | "website" | "logo") => (b[k] && b[k] !== DEFAULT_SETTINGS.business[k] ? (b[k] ?? "") : "");
+      const own = (k: "phone" | "email" | "website" | "logo") => (b[k] && b[k] !== FOUNDER_BUSINESS[k] ? (b[k] ?? "") : "");
       setF({ name: isSampleBusiness(b.name) ? (team?.name ?? "") : b.name, phone: own("phone"), email: own("email"), website: own("website"), logo: own("logo") });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import { nanoid } from "nanoid";
-import { DEFAULT_SETTINGS, seedCatalog } from "./catalog";
+import { DEFAULT_SETTINGS, FOUNDER_BUSINESS, NEUTRAL_BUSINESS, seedCatalog } from "./catalog";
 import { normalizeTemplates } from "./fieldDocs";
 import type {
   AppSettings,
@@ -142,6 +142,20 @@ export async function saveImage(blob: Blob, width: number, height: number): Prom
   return id;
 }
 
+/** The founder's company details on the founder's own installs and team (comped); nothing for everyone else. */
+export function businessDefaults(s: Pick<AppSettings, "brandDefaults">, founderTeam = isFounderTeam()): BusinessSettings {
+  return s.brandDefaults !== "neutral" || founderTeam ? FOUNDER_BUSINESS : NEUTRAL_BUSINESS;
+}
+
+function isFounderTeam(): boolean {
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem("pinplan.team");
+    return !!raw && (JSON.parse(raw) as { billing?: { status?: string } | null }).billing?.status === "comped";
+  } catch {
+    return false;
+  }
+}
+
 /** Ensure the catalog and settings exist (first run). */
 export async function ensureSeeded() {
   const d = db();
@@ -152,13 +166,14 @@ export async function ensureSeeded() {
 export async function getSettings(): Promise<AppSettings> {
   await ensureSeeded();
   const s = (await db().settings.get("app")) ?? DEFAULT_SETTINGS;
+  const base = businessDefaults(s);
   // Merge in defaults added in later versions.
   return {
     ...DEFAULT_SETTINGS,
     ...s,
-    // Fields left blank fall back to the company defaults (so a fresh device is already branded).
+    // Fields left blank fall back to the defaults (the founder's devices are already branded; customers start blank).
     business: Object.fromEntries(
-      Object.entries({ ...DEFAULT_SETTINGS.business, ...s.business }).map(([k, v]) => [k, v === "" ? (DEFAULT_SETTINGS.business[k as keyof BusinessSettings] ?? "") : v]),
+      Object.entries({ ...base, ...s.business }).map(([k, v]) => [k, v === "" ? (base[k as keyof BusinessSettings] ?? "") : v]),
     ) as unknown as BusinessSettings,
     pricing: {
       ...DEFAULT_SETTINGS.pricing,
@@ -166,6 +181,8 @@ export async function getSettings(): Promise<AppSettings> {
       wirePrices: { ...DEFAULT_SETTINGS.pricing.wirePrices, ...s.pricing?.wirePrices },
     },
     checklistTemplates: normalizeTemplates(s.checklistTemplates),
+    // Older installs have no marker: keep them on the founder's defaults when they're saved again.
+    brandDefaults: s.brandDefaults ?? "founder",
   };
 }
 

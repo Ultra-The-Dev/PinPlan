@@ -403,5 +403,8 @@ export interface AppSettings {
   billduDocType: "estimate" | "order" | "invoice";
   /** Company checklist templates saved from jobs (optional: older settings don't have it). Written only by saveChecklistTemplates. */
   checklistTemplates?: ChecklistTemplate[];
+  /** Which defaults blank business fields fall back to: "neutral" on installs from the SaaS onwards; missing on
+   *  the founder's older installs, which keep the founder's company details. */
+  brandDefaults?: "founder" | "neutral";
   updatedAt: string;
 }

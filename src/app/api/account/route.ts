@@ -9,6 +9,7 @@
 import { connection } from "next/server";
 import { accountDeletionPlan } from "@/lib/onboardingLogic";
 import type { TeamRole } from "@/lib/teamLogic";
+import { billingConfig, getStripe } from "@/lib/server/billing";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const anonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -84,7 +85,20 @@ export async function DELETE(req: Request) {
     for (const p of projects) await removeFolder(url, admin, "plans", p.id);
     if (!plan.transferJobsTo) await removeFolder(url, admin, "proposals", userId);
 
-    // 4. A team they own alone (members and invites cascade with it).
+    // 4. A team they own alone (members and invites cascade with it). Stop its subscription first, so a closed
+    //    account is never billed again (Stripe's own record and invoices stay, as accounting requires).
+    if (plan.deleteTeamId) {
+      const sub = (await rest<{ stripe_subscription_id: string | null }[]>(`teams?id=eq.${encodeURIComponent(plan.deleteTeamId)}&select=stripe_subscription_id`).catch(() => null))?.[0]?.stripe_subscription_id;
+      const cfg = billingConfig();
+      if (sub && cfg.ok) {
+        try {
+          await getStripe(cfg.config).subscriptions.cancel(sub, { prorate: false });
+        } catch (e) {
+          const code = (e as { code?: string }).code;
+          if (code !== "resource_missing") throw new Upstream(`stripe: ${(e as Error).message}`);
+        }
+      }
+    }
     if (plan.deleteTeamId) await rest(`teams?id=eq.${encodeURIComponent(plan.deleteTeamId)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
 
     // 5. The login. Their jobs, catalog, products, proposals and memberships go with it (on delete cascade).
