@@ -138,7 +138,7 @@ struct ClientProposalView: View {
         }
         let token = Proposals.newToken()
         let open = (rows ?? []).filter { $0.status == "sent" || $0.status == "viewed" }.map(\.id)
-        let business = app.settings.business
+        let business = app.business
         let origin = app.settings.serverURL
         let dep = Double(deposit.replacingOccurrences(of: ",", with: "."))
         do {

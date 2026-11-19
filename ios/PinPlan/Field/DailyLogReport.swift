@@ -89,13 +89,13 @@ struct DailyLogExportSheet: View {
             entries.append(DailyLogPDFBuilder.Entry(day: DailyLogPDFBuilder.longDay(l.date), title: l.title, author: l.author, body: l.body, photos: items))
         }
         busy = "Building the PDF…"
-        let logo = await PhotoReportBuilder.logo(app.settings)
+        let logo = await PhotoReportBuilder.logo(app.brandedSettings)
         var range = ""
         if let d = DailyLogReport.days(logs) {
             range = d.first == d.last ? DailyLogPDFBuilder.shortDay(d.first) : "\(DailyLogPDFBuilder.shortDay(d.first)) – \(DailyLogPDFBuilder.shortDay(d.last))"
         }
         let data = DailyLogPDFBuilder.pdf(title: logs.count == 1 ? "Daily log" : "Daily logs", range: range, project: model.bundle.project,
-                                          business: app.settings.business, logo: logo, entries: entries)
+                                          business: app.business, logo: logo, entries: entries)
         let job = model.bundle.project.address.isEmpty ? model.bundle.project.clientName : model.bundle.project.address
         share = SharedFile(url: PDFExporter.write(data, name: DailyLogReport.fileName(jobSlug: slug(job.isEmpty ? "job" : job), logs: logs)))
     }
@@ -137,7 +137,7 @@ enum DailyLogPDFBuilder {
     /// Draws into `ctx` (or only measures when it's nil) and returns the number of pages.
     private static func layout(_ ctx: UIGraphicsPDFRendererContext?, page: CGRect, total: Int, title: String, range: String, project: Project,
                                business: BusinessSettings, logo: UIImage?, entries: [Entry]) -> Int {
-        let brand = UIColor(hex: business.brandColor ?? "#0a1b54")
+        let brand = UIColor(hex: business.brandColor ?? (BusinessSettings.neutral.brandColor ?? "#c2410c"))
         let L: CGFloat = 36
         let R: CGFloat = page.width - 36
         let W: CGFloat = R - L

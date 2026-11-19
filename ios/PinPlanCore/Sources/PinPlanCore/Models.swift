@@ -278,10 +278,25 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var brandColor: String?
     public var accentColor: String?
     public var serviceArea: String?
+    /// Which defaults fill blank fields: "neutral" (written once when settings are first created on a fresh install)
+    /// or nil, which means founder defaults (devices that had settings before this marker existed keep their look).
+    public var brandDefaults: String?
     public init() {}
 
-    /// Smart Living Solutions (smartlivingny.com) — filled in wherever a field is still blank.
-    public static let company: BusinessSettings = {
+    /// The marker stored in `brandDefaults` on fresh installs.
+    public static let neutralMarker = "neutral"
+
+    /// Neutral defaults for a new customer: no name or contact details, PinPlan's own colours, generic terms.
+    public static let neutral: BusinessSettings = {
+        var b = BusinessSettings()
+        b.brandColor = "#c2410c"
+        b.accentColor = "#f59e0b"
+        return b
+    }()
+
+    /// The founder's company, Smart Living Solutions (smartlivingny.com). Only for the founder's own devices and
+    /// team (comped billing) — never shown to other customers.
+    public static let founder: BusinessSettings = {
         var b = BusinessSettings()
         b.name = "Smart Living Solutions"
         b.address = "New York, NY"
@@ -296,9 +311,24 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
         return b
     }()
 
-    /// Blank fields take the company defaults.
-    public func withCompanyDefaults() -> BusinessSettings {
-        let d = Self.company
+    /// The defaults that fill blank fields: the founder's company or neutral ones.
+    public static func defaults(founder: Bool) -> BusinessSettings { founder ? Self.founder : Self.neutral }
+
+    /// Founder defaults when the team is the founder's (comped billing), or when this device had business settings
+    /// before neutral defaults existed (no marker). Everyone else gets neutral defaults.
+    public static func usesFounderDefaults(marker: String?, plan: PlanStatus?) -> Bool {
+        if plan == .comped { return true }
+        return marker != neutralMarker
+    }
+
+    /// This device's settings with blank fields filled in, given the team's plan (nil when solo or unknown).
+    public func resolved(plan: PlanStatus?) -> BusinessSettings {
+        withDefaults(founder: Self.usesFounderDefaults(marker: brandDefaults, plan: plan))
+    }
+
+    /// Blank fields take the defaults (founder or neutral). Never overwrites a field that has a value.
+    public func withDefaults(founder: Bool) -> BusinessSettings {
+        let d = Self.defaults(founder: founder)
         func pick(_ v: String, _ f: String) -> String { v.isEmpty ? f : v }
         func pick(_ v: String?, _ f: String?) -> String? { (v ?? "").isEmpty ? f : v }
         var b = self

@@ -59,6 +59,8 @@ struct ProjectView: View {
                 ProgressView()
             }
         }
+        // Trial ending, needs attention or read-only: say so in the job too.
+        .safeAreaInset(edge: .top, spacing: 0) { JobBillingBanner() }
         .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
         // A technician has no Estimate tab (also when the role arrives with a sync while the job is open).
         .onChange(of: app.cloud.can(.prices)) { _, ok in if !ok && tab == .estimate { tab = .plan } }
@@ -106,6 +108,17 @@ struct ProjectView: View {
         case .job: JobView(model: model) { self.tab = $0 }
         case .photos: PhotosView(model: model)
         case .field: FieldView(model: model)
+        }
+    }
+}
+
+/// The billing notice above a job's content (only when there is one).
+private struct JobBillingBanner: View {
+    @Environment(AppModel.self) private var app
+    var body: some View {
+        if app.cloud.billingBanner != nil {
+            BillingBannerView(compact: true, outer: EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                .background(Color(.systemBackground))
         }
     }
 }

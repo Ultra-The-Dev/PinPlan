@@ -33,10 +33,11 @@ struct CloudSyncView: View {
             } else {
                 Section {
                     LabeledContent("Signed in as", value: cloud.session?.email ?? "")
-                    Button { Task { await cloud.syncNow() } } label: {
+                    Button { Task { await cloud.syncNow(force: true) } } label: {
                         HStack { Label(cloud.syncing ? "Syncing…" : "Sync now", systemImage: "arrow.triangle.2.circlepath"); Spacer(); if cloud.syncing { ProgressView() } }
                     }
                     .disabled(cloud.syncing)
+                    ReadOnlySyncRow()
                     if let e = cloud.lastError {
                         Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.callout)
                     } else if let d = cloud.lastSync {
@@ -56,6 +57,13 @@ struct CloudSyncView: View {
                     }
                 }
                 Section { Button("Sign out", role: .destructive) { cloud.signOut() } }
+                Section {
+                    NavigationLink { DeleteAccountView() } label: {
+                        Label("Delete account…", systemImage: "person.crop.circle.badge.xmark").foregroundStyle(Color.red)
+                    }
+                } footer: {
+                    Text("Permanently deletes your PinPlan account and its data, and clears this device.")
+                }
             }
             if let problem { Section { Text(problem).foregroundStyle(.red).font(.callout) } }
             if cloud.config != nil && !cloud.signedIn {
@@ -88,6 +96,7 @@ struct AccountSection: View {
     @State private var busy = false
     @State private var problem: String?
     @State private var info: String?
+    @State private var resetting = false
     /// Shown above the fields (e.g. "Create your account to join Acme").
     var intro: String? = nil
 
@@ -112,6 +121,11 @@ struct AccountSection: View {
                 }
             }
             .disabled(!ready)
+            if mode == .signIn {
+                Button(resetting ? "Sending reset email…" : "Forgot password?") { Task { await resetPassword() } }
+                    .font(.callout)
+                    .disabled(resetting || busy)
+            }
             if let info { Label(info, systemImage: "envelope.badge").font(.callout).foregroundStyle(Color.secondary) }
             if let problem { Text(problem).font(.callout).foregroundStyle(Color.red) }
             if let p = app.cloud.pendingInvite {
@@ -135,6 +149,21 @@ struct AccountSection: View {
         let e = email.trimmingCharacters(in: .whitespaces)
         guard !busy, e.contains("@") else { return false }
         return mode == .create ? password.count >= 6 : !password.isEmpty
+    }
+
+    /// Email a reset link (Supabase); the link opens the web app's /reset page to set a new password.
+    private func resetPassword() async {
+        let e = email.trimmingCharacters(in: .whitespaces)
+        problem = nil; info = nil
+        guard e.contains("@") else { problem = "Enter your email above, then tap Forgot password?"; return }
+        resetting = true
+        defer { resetting = false }
+        do {
+            try await app.cloud.sendPasswordReset(email: e, serverURL: app.settings.serverURL)
+            info = "Check your email (\(e)); follow the link to set a new password, then sign in here."
+        } catch {
+            problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func go() async {

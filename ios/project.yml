@@ -19,6 +19,10 @@ targets:
     platform: iOS
     sources:
       - path: PinPlan
+        excludes: ["PrivacyInfo.xcprivacy"]
+      # Privacy manifest (App Store): required-reason APIs and the data the app collects. Copied as a resource.
+      - path: PinPlan/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: PinPlanCore
     info:
@@ -27,6 +31,8 @@ targets:
         # Plain-http only for the local network (a test server on this machine); everything else stays HTTPS.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Only standard HTTPS (exempt): no export-compliance documents needed in App Store Connect.
+        ITSAppUsesNonExemptEncryption: false
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF plan
             CFBundleTypeRole: Viewer
@@ -50,9 +56,9 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_NSCameraUsageDescription: "PinPlan uses the camera to scan paper plans and take job photos."
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PinPlan imports plan photos and job photos from your library."
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "PinPlan stamps job photos with where they were taken and puts the job on the map. You can turn this off in Photos."
+        INFOPLIST_KEY_NSCameraUsageDescription: "PinPlan uses the camera to scan paper plan sets into a job and to take job-site photos that are saved with the job."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PinPlan lets you pick plan photos and job-site photos from your library to add them to a job. Only the photos you choose are used."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "PinPlan saves where a job-site photo was taken with the photo and shows your jobs on the map. You can turn this off with Stamp location on a job's Photos tab."
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

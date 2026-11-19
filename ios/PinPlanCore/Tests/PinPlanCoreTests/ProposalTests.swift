@@ -35,17 +35,74 @@ final class ProposalTests: XCTestCase {
 }
 
 final class BrandTests: XCTestCase {
-    func testBlankBusinessFieldsTakeTheCompanyDefaults() throws {
+    func testBlankBusinessFieldsTakeTheFounderDefaultsOnlyForTheFounder() throws {
         var b = BusinessSettings()
         b.phone = "(212) 555-0100"
-        let full = b.withCompanyDefaults()
+        let full = b.withDefaults(founder: true)
         XCTAssertEqual(full.name, "Smart Living Solutions")
         XCTAssertEqual(full.phone, "(212) 555-0100")
         XCTAssertEqual(full.accentColor, "#13e57c")
+        // A new customer gets neutral defaults: nobody else's name, contact details or logo.
+        let neutral = b.withDefaults(founder: false)
+        XCTAssertEqual(neutral.name, "")
+        XCTAssertEqual(neutral.email, "")
+        XCTAssertEqual(neutral.website, "")
+        XCTAssertNil(neutral.logo)
+        XCTAssertNil(neutral.tagline)
+        XCTAssertNil(neutral.serviceArea)
+        XCTAssertEqual(neutral.phone, "(212) 555-0100")
+        XCTAssertEqual(neutral.brandColor, "#c2410c")
+        XCTAssertEqual(neutral.accentColor, "#f59e0b")
+        XCTAssertFalse(neutral.estimateTerms.isEmpty)
+        XCTAssertEqual(BusinessSettings.defaults(founder: false), BusinessSettings.neutral)
+        XCTAssertEqual(BusinessSettings.defaults(founder: true), BusinessSettings.founder)
         // Older settings files without the brand fields still load.
         let old = try JSONDecoder().decode(BusinessSettings.self, from: Data(#"{"name":"","address":"","phone":"","email":"","website":"","estimateTerms":"x"}"#.utf8))
         XCTAssertNil(old.logo)
         XCTAssertEqual(Proposals.absolute("/brand/l.png", origin: "pinplan.vercel.app/"), "https://pinplan.vercel.app/brand/l.png")
+        // No marker: settings from before this update keep the founder defaults.
+        XCTAssertNil(old.brandDefaults)
+        XCTAssertEqual(old.resolved(plan: nil).name, "Smart Living Solutions")
+    }
+
+    func testWhichDefaultsApply() throws {
+        let neutral = BusinessSettings.neutralMarker
+        // Fresh install: neutral, unless the team is the founder's (comped).
+        XCTAssertFalse(BusinessSettings.usesFounderDefaults(marker: neutral, plan: nil))
+        XCTAssertFalse(BusinessSettings.usesFounderDefaults(marker: neutral, plan: .trialing))
+        XCTAssertFalse(BusinessSettings.usesFounderDefaults(marker: neutral, plan: .active))
+        XCTAssertTrue(BusinessSettings.usesFounderDefaults(marker: neutral, plan: .comped))
+        // Existing install (no marker): unchanged behaviour.
+        XCTAssertTrue(BusinessSettings.usesFounderDefaults(marker: nil, plan: nil))
+        XCTAssertTrue(BusinessSettings.usesFounderDefaults(marker: nil, plan: .active))
+
+        var fresh = BusinessSettings()
+        fresh.brandDefaults = neutral
+        XCTAssertEqual(fresh.resolved(plan: .trialing).name, "")
+        XCTAssertEqual(fresh.resolved(plan: .comped).name, "Smart Living Solutions")
+        // The customer's own values always win.
+        fresh.name = "Acme AV"
+        fresh.brandColor = "#112233"
+        XCTAssertEqual(fresh.resolved(plan: .comped).name, "Acme AV")
+        XCTAssertEqual(fresh.resolved(plan: .comped).brandColor, "#112233")
+        // The marker is saved with the settings.
+        let back = try JSONDecoder().decode(BusinessSettings.self, from: JSONEncoder().encode(fresh))
+        XCTAssertEqual(back.brandDefaults, neutral)
+
+        // A proposal from a new customer's device carries no founder details.
+        var b = ProjectBundle(project: Project(id: "p", clientName: "Jane", address: "1 Main St"))
+        b.sheets = [Sheet(id: "s1", projectId: "p", name: "1st Fl", pageNumber: 1, order: 0, imageId: "i", width: 100, height: 100)]
+        let catalog = Catalog.seed()
+        let takeoff = TakeoffCalculator.compute(b)
+        let est = EstimateBuilder.build(takeoff: takeoff, catalog: catalog, pricing: Catalog.defaultPricing, overrides: [])
+        var mine = BusinessSettings()
+        mine.brandDefaults = neutral
+        let snap = Proposals.snapshot(bundle: b, catalog: catalog, takeoff: takeoff, estimate: est, business: mine.resolved(plan: .trialing),
+                                      currency: "USD", taxPct: 0, validDays: 30, detail: .lines, depositPct: nil, origin: "pinplan.example.com")
+        let json = String(decoding: try JSONEncoder().encode(snap), as: UTF8.self)
+        for leak in ["Smart Living", "smartliving", "290-1922", "smart-living-logo", "0a1b54"] {
+            XCTAssertFalse(json.contains(leak), leak)
+        }
     }
 }
 

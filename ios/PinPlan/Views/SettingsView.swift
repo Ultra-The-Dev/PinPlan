@@ -7,6 +7,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     // Screenshot/automation hook: `--server` opens the server page directly.
     @State private var openServer = ProcessInfo.processInfo.arguments.contains("--server")
+    // Screenshot hook: `--delete-account` opens the Delete account screen.
+    @State private var openDelete = ProcessInfo.processInfo.arguments.contains("--delete-account")
 
     var body: some View {
         @Bindable var app = app
@@ -20,16 +22,16 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("Needed only for sending to Billdu and the AI plan reader. Everything else works offline.")
+                Text("Needed for sending to Billdu, the AI plan reader, account tools and the legal pages. Everything else works offline.")
             }
             Section {
                 NavigationLink { CloudSyncView() } label: {
                     LabeledContent {
                         Text(app.cloud.signedIn ? (app.cloud.session?.email ?? "On") : "Off")
-                    } label: { Label("Cloud sync", systemImage: "arrow.triangle.2.circlepath.icloud") }
+                    } label: { Label("Account and cloud sync", systemImage: "arrow.triangle.2.circlepath.icloud") }
                 }
             } footer: {
-                Text("Keep jobs in step between iPhone, iPad and the web app.")
+                Text("Sign in to keep jobs in step between iPhone, iPad and the web app. Password reset and account deletion are here too.")
             }
             Section {
                 NavigationLink { TeamView() } label: {
@@ -66,9 +68,11 @@ struct SettingsView: View {
                     } label: { Label("Checklist templates", systemImage: "checklist") }
                 }
             }
+            AboutSection()
         }
         .navigationTitle("Settings")
         .navigationDestination(isPresented: $openServer) { ServerSetupView() }
+        .navigationDestination(isPresented: $openDelete) { DeleteAccountView() }
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { app.saveSettings(); dismiss() } } }
         .onDisappear { app.saveSettings() }
     }

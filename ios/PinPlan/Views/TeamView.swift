@@ -36,6 +36,7 @@ struct TeamView: View {
                 JoinTeamSection()
             } else if cloud.onTeam {
                 TeamDetailsSection { problem = $0 }
+                TeamPlanSection()
                 MembersSection(toRemove: $toRemove) { problem = $0 }
                 if cloud.can(.manageTeam) {
                     InvitesSection(invites: invites, onNew: { newInvite = true }, onOpen: { show($0) }, onRevoke: { revoke($0) })
@@ -622,6 +623,8 @@ private struct InviteCardView: View {
     @Environment(\.dismiss) private var dismiss
     let item: InviteCardItem
     @State private var copied = false
+    /// The PinPlan server can send email: offer to email the invite too.
+    @State private var canEmail = false
 
     private var link: String? {
         app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty ? nil : TeamLogic.joinURL(origin: app.settings.serverURL, code: item.code)
@@ -642,6 +645,7 @@ private struct InviteCardView: View {
                         Text("Set your PinPlan server (Settings › PinPlan server) to also share a join link.").font(.footnote).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
                     }
                     InviteShareButtons(code: item.code, shareText: shareText, link: link, copied: $copied)
+                    if canEmail { InviteEmailBox(code: item.code, name: item.name) }
                     Text("They open the link, or in the app go to Settings › Team and type the code. It works once and runs out in 14 days.")
                         .font(.footnote).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
                 }
@@ -650,6 +654,10 @@ private struct InviteCardView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(Color(.systemGroupedBackground))
+            .task {
+                guard let api = APIClient(settings: app.settings) else { return }
+                canEmail = await api.emailConfigured()
+            }
             .navigationTitle("Invite code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

@@ -17,6 +17,8 @@ struct APIClient {
 
     struct APIError: LocalizedError {
         let message: String
+        /// HTTP status when the server answered (0 otherwise).
+        var status: Int = 0
         var errorDescription: String? { message }
     }
 
@@ -63,6 +65,73 @@ struct APIClient {
             throw APIError(message: status == 404 ? "That address isn't a PinPlan server (or it needs the latest version deployed)." : "The server answered \(status). Check the address.")
         }
         return h
+    }
+
+    // MARK: Signed-in calls (the cloud sign-in's access token proves who is asking)
+
+    /// Send a request with the user's access token. Returns the status and body; only no answer at all throws.
+    private func authed(_ method: String, _ path: String, body: [String: Any]?, token: String) async throws -> (Int, Data) {
+        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        req.httpMethod = method
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        if let body {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        req.timeoutInterval = 60
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        return ((resp as? HTTPURLResponse)?.statusCode ?? 0, data)
+    }
+
+    private static func errorText(_ data: Data) -> String? {
+        let j = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard let m = j?["error"] as? String, !m.isEmpty else { return nil }
+        return m
+    }
+
+    /// The support page on this server ("https://…/support").
+    var supportURL: String { baseURL.absoluteString.hasSuffix("/") ? baseURL.absoluteString + "support" : baseURL.absoluteString + "/support" }
+
+    /// Delete the signed-in user's account and their data on the server (`DELETE /api/account`).
+    /// 409: they own a team that still has other people (the message says what to do). 501: not set up on this server.
+    func deleteAccount(token: String) async throws {
+        let (status, data) = try await authed("DELETE", "api/account", body: nil, token: token)
+        if (200..<300).contains(status) { return }
+        let msg = Self.errorText(data)
+        switch status {
+        case 409:
+            throw APIError(message: msg ?? "You own a team that still has other people on it. Remove them (or hand the team over) first, then try again.", status: status)
+        case 501, 404:
+            throw APIError(message: "Account deletion isn't switched on for this PinPlan server yet. Visit \(supportURL) and we'll delete your account for you.", status: status)
+        case 401:
+            throw APIError(message: msg ?? "Your sign-in has expired. Sign in again, then delete the account.", status: status)
+        default:
+            throw APIError(message: msg ?? "The server answered \(status). Try again in a moment.", status: status)
+        }
+    }
+
+    /// Can this server send email (team invites)? False when it can't, or can't be reached.
+    func emailConfigured() async -> Bool {
+        var req = URLRequest(url: baseURL.appendingPathComponent("api/email/status"))
+        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        req.timeoutInterval = 20
+        guard let res = try? await URLSession.shared.data(for: req),
+              let status = (res.1 as? HTTPURLResponse)?.statusCode, (200..<300).contains(status),
+              let j = (try? JSONSerialization.jsonObject(with: res.0)) as? [String: Any] else { return false }
+        return (j["configured"] as? Bool) == true
+    }
+
+    /// Email a team invite (owner or admin; `POST /api/team/invite-email`).
+    func sendInviteEmail(code: String, email: String, name: String, token: String) async throws {
+        var body: [String: Any] = ["code": code, "email": email]
+        if !name.isEmpty { body["name"] = name }
+        let (status, data) = try await authed("POST", "api/team/invite-email", body: body, token: token)
+        if (200..<300).contains(status) { return }
+        if status == 501 {
+            throw APIError(message: Self.errorText(data) ?? "Email isn't set up on this server. Share the invite with the buttons above instead.", status: status)
+        }
+        throw APIError(message: Self.errorText(data) ?? "Couldn't send the email (\(status)). Try again.", status: status)
     }
 
     // MARK: Billdu

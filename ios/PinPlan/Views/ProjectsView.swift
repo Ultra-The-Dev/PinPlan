@@ -36,6 +36,8 @@ struct ProjectsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
+                // Trial ending, needs attention or read-only (company teams only; nothing otherwise).
+                BillingBannerView(outer: EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
                 if app.projects.isEmpty {
                     EmptyProjects(onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
@@ -154,7 +156,8 @@ struct ProjectsView: View {
                     if let p = app.projects.first(where: { $0.project.address == address }) { path.append(p.project.id) }
                     else { path.append(await app.createProject(fromFile: url).project.id) }
                 }
-                if args.contains("--settings") || args.contains("--server") { showSettings = true }
+                // `--delete-account` opens Settings on the Delete account screen.
+                if args.contains("--settings") || args.contains("--server") || args.contains("--delete-account") { showSettings = true }
                 if args.contains("--products") { showProducts = true }
                 if args.contains("--catalog") { showCatalog = true }
             }
