@@ -23,7 +23,9 @@ final class AppModel {
         catalog = store.loadCatalog()
         products = store.loadProducts()
         settings = store.loadSettings()
-        settings.business = settings.business.withCompanyDefaults()
+        // Fill blank business fields: founder defaults only on devices that had settings before neutral defaults
+        // existed; new installs start neutral (the founder's team still gets its own via `business`, from billing).
+        settings.business = settings.business.withDefaults(founder: settings.business.brandDefaults != BusinessSettings.neutralMarker)
         cloud.attach(self)
     }
 
@@ -41,6 +43,38 @@ final class AppModel {
         projects.sort { $0.project.updatedAt > $1.project.updatedAt }
         if after.catalog != before.catalog { catalog = after.catalog; store.saveCatalog(catalog) }
         if after.products != before.products { products = after.products; store.saveProducts(products) }
+    }
+
+    /// The business details for client-facing output (estimates, proposals, reports, PDFs): what the user entered,
+    /// blanks filled with founder defaults only for the founder's company (comped team, or a device set up before
+    /// neutral defaults existed) and neutral defaults for everyone else.
+    var business: BusinessSettings { settings.business.resolved(plan: cloud.team?.billing?.status) }
+
+    /// Settings with `business` resolved (for helpers that take the whole settings, e.g. loading the logo).
+    var brandedSettings: AppSettings {
+        var s = settings
+        s.business = business
+        return s
+    }
+
+    /// Remove everything this app keeps on this device: jobs, plans, photos, documents, catalog, products,
+    /// settings, the sync ledger and cached team (after deleting the account). The app starts fresh, as if new.
+    func wipeLocalData() {
+        cloud.wipeForAccountDeletion()
+        openEditor = nil
+        incomingFiles = []
+        pendingImport = nil
+        store.wipeAll()
+        if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id) }
+        let tmp = FileManager.default.temporaryDirectory
+        for url in (try? FileManager.default.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? [] {
+            try? FileManager.default.removeItem(at: url)
+        }
+        projects = []
+        catalog = store.loadCatalog()
+        products = []
+        settings = store.loadSettings()
+        settings.business = settings.business.withDefaults(founder: false)
     }
 
     var pricing: PricingSettings { settings.pricing }

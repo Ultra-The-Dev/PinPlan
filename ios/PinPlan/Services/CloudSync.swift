@@ -111,6 +111,19 @@ struct SupabaseClient {
         return try session(from: data)
     }
 
+    /// Send a password-reset email (`POST /auth/v1/recover`). The link in it opens `redirectTo` (the web app's reset
+    /// page), where a new password is set. Supabase answers the same whether or not the email has an account.
+    func recover(email: String, redirectTo: String?) async throws {
+        var query: String?
+        if let redirectTo, let enc = redirectTo.addingPercentEncoding(withAllowedCharacters: .alphanumerics) { query = "redirect_to=\(enc)" }
+        var r = request("/auth/v1/recover", query: query, method: "POST")
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: Any] = ["email": email]
+        if let redirectTo { body["redirect_to"] = redirectTo }
+        r.httpBody = try JSONSerialization.data(withJSONObject: body)
+        _ = try await send(r)
+    }
+
     func refresh(_ s: Session) async throws -> Session {
         var r = request("/auth/v1/token", query: "grant_type=refresh_token", method: "POST")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -218,6 +231,14 @@ final class CloudSync {
 
     /// When the team was last loaded from the cloud (syncs refresh it at most about once a minute).
     @ObservationIgnored var teamLoadedAt: Date?
+
+    /// The team's subscription has lapsed (or the database refused a push as "PinPlan subscription inactive"): this
+    /// device keeps pulling but stops pushing. Local edits stay queued and go up once the team is active again.
+    private(set) var readOnly = false
+    /// Changes on this device the cloud doesn't have yet (counted while read-only, for the status line).
+    private(set) var pendingChanges = 0
+    /// After the database refused a push as inactive, don't push again before this (pulls go on).
+    @ObservationIgnored private var readOnlyUntil: Date?
 
     @ObservationIgnored private weak var app: AppModel?
     @ObservationIgnored private var ledger = SyncLedger()
@@ -345,6 +366,9 @@ final class CloudSync {
         team = nil
         teamNeedsMigration = false
         teamError = nil
+        readOnly = false
+        pendingChanges = 0
+        readOnlyUntil = nil
         UserDefaults.standard.removeObject(forKey: Self.teamKey)
     }
 
@@ -416,21 +440,49 @@ final class CloudSync {
         }
     }
 
-    func syncNow() async {
+    /// `force` (the Sync now button) also retries pushing right away after a "subscription inactive" refusal.
+    func syncNow(force: Bool = false) async {
         guard signedIn, !syncing, let app, let client else { return }
         syncing = true
         defer { syncing = false; refreshUploadBacklogs() }
         do {
             let token = try await token()
-            // Know the role before pushing, so a technician's device never sends what the database would refuse.
+            // Know the role (and the team's billing) before pushing, so this device never sends what the database
+            // would refuse.
             await loadTeam(maxAge: 50)
-            let (pushed, refused) = try await push(app: app, client: client, token: token)
+            // A lapsed subscription makes the team read-only: keep local edits queued (nothing is lost), don't keep
+            // sending what the database refuses, and keep pulling. Billing is re-read on every sync, so pushing
+            // resumes once the team is active again (or ~10 minutes after a refused push).
+            if force { readOnlyUntil = nil }
+            var blocked = !canWork
+            if let until = readOnlyUntil, Date() < until { blocked = true }
+            var pushed = 0
+            var refused: Error?
+            if !blocked {
+                do {
+                    let result = try await push(app: app, client: client, token: token)
+                    pushed = result.0
+                    refused = result.1
+                } catch let e as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(e.message) {
+                    blocked = true
+                    readOnlyUntil = Date().addingTimeInterval(BillingLogic.readOnlyRetry)
+                    // The cached billing is out of date: read it again on the next sync.
+                    teamLoadedAt = nil
+                }
+            }
+            if !blocked { readOnlyUntil = nil }
+            readOnly = blocked
             let pulled = try await pull(app: app, client: client, token: token)
-            try await images(app: app, client: client, token: token)
+            try await images(app: app, client: client, token: token, uploads: !blocked)
             saveLedger()
+            pendingChanges = blocked ? countPending(app) : 0
             lastSync = Date()
             lastError = refused.map { "Some changes weren't accepted by the cloud (they'll be tried again): " + (($0 as? LocalizedError)?.errorDescription ?? $0.localizedDescription) }
-            lastSummary = pushed + pulled == 0 ? "Up to date" : "Sent \(pushed), received \(pulled) change\(pushed + pulled == 1 ? "" : "s")"
+            if blocked {
+                lastSummary = BillingLogic.readOnlyStatus(pending: pendingChanges, device: UIDevice.current.model)
+            } else {
+                lastSummary = pushed + pulled == 0 ? "Up to date" : "Sent \(pushed), received \(pulled) change\(pushed + pulled == 1 ? "" : "s")"
+            }
         } catch {
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             saveLedger()
@@ -524,6 +576,12 @@ final class CloudSync {
 
     private func state(_ app: AppModel) -> SyncState { SyncState(bundles: app.projects, catalog: app.catalog, products: app.products) }
 
+    /// Rows and job deletions on this device that the cloud doesn't have yet.
+    private func countPending(_ app: AppModel) -> Int {
+        let s = state(app)
+        return s.changes(since: ledger).count + s.removedProjects(since: ledger).count
+    }
+
     /// Send this device's changes. A row the server refuses (not allowed, bad value, missing table) is reported, not
     /// fatal: the other rows and tables still go up and the pull still runs, so one bad row can't stall syncing.
     /// No connection or an ended sign-in still stops the run.
@@ -554,6 +612,8 @@ final class CloudSync {
                     try await client.upsert(spec.remote, conflict: spec.conflict, rows: payload(chunk), token: token)
                     s.markSynced(chunk, ledger: &ledger)
                     sent += chunk.count
+                } catch let e as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(e.message) {
+                    throw e   // the whole team is read-only: stop pushing, keep everything queued
                 } catch let e as SupabaseClient.Failure where e.isRefusal {
                     if chunk.count == 1 {
                         noteRefusal(e, rows: chunk, role: role, refused: &refused)
@@ -568,6 +628,8 @@ final class CloudSync {
                             s.markSynced([r], ledger: &ledger)
                             sent += 1
                             strikes = 0
+                        } catch let one as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(one.message) {
+                            throw one
                         } catch let one as SupabaseClient.Failure where one.isRefusal {
                             noteRefusal(one, rows: [r], role: role, refused: &refused)
                             strikes += 1
@@ -583,6 +645,8 @@ final class CloudSync {
                 try await client.patch("projects", filter: "id=eq.\(id)", values: ["deleted": true, "updated_at": now], token: token)
                 ledger.hashes.removeValue(forKey: SyncLedger.key(.projects, id))
                 sent += 1
+            } catch let e as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(e.message) {
+                throw e
             } catch let e as SupabaseClient.Failure where e.isRefusal {
                 if e.status == 403 || e.code == "42501" {
                     // Not allowed to delete it (a technician): it stays on the server, so bring it back here.
@@ -641,7 +705,8 @@ final class CloudSync {
     @ObservationIgnored private var imagePaths: [String: String] = [:]
 
     /// Upload plan images this device has that the cloud doesn't; download ones it is missing.
-    private func images(app: AppModel, client: SupabaseClient, token: String) async throws {
+    /// `uploads: false` (read-only team) only downloads: the database would refuse the sheet rows' image paths.
+    private func images(app: AppModel, client: SupabaseClient, token: String, uploads: Bool = true) async throws {
         // One file the server refuses (too big, bad type…) mustn't hold up every other upload and all downloads:
         // remember the first refusal and report it at the end. No connection at all still stops the run straight away.
         var refused: Error?
@@ -653,7 +718,7 @@ final class CloudSync {
                 if refused == nil { refused = e }
             }
         }
-        for b in app.projects {
+        for b in app.projects where uploads {
             let pid = b.project.id
             for s in b.liveSheets where !ledger.uploadedImages.contains(s.imageId) {
                 guard let data = app.store.imageData(s.imageId) else { continue }
@@ -767,7 +832,8 @@ extension CloudSync {
             let mData = try await client.select("team_members", query: "select=user_id,role,name,email,created_at&team_id=eq.\(tid)", token: tok)
             let teams = try JSONDecoder().decode([Team].self, from: tData)
             let members = try JSONDecoder().decode([TeamMember].self, from: mData)
-            saveTeam(TeamSnapshot(userId: uid, team: teams.first, role: TeamRole(remote: row["role"] as? String), members: members))
+            let billing = await loadBilling(client: client, token: tok)
+            saveTeam(TeamSnapshot(userId: uid, team: teams.first, role: TeamRole(remote: row["role"] as? String), members: members, billing: billing))
         } catch let e as SupabaseClient.Failure {
             if TeamLogic.isMissingSchema(code: e.code, message: e.message) {
                 teamNeedsMigration = true
@@ -780,6 +846,44 @@ extension CloudSync {
             // Offline or an answer we couldn't read: keep the cached team.
         }
     }
+
+    /// The team's subscription (`team_billing()`). A database without the billing update has no billing (never
+    /// locked); any other failure keeps what this device knew.
+    private func loadBilling(client: SupabaseClient, token: String) async -> TeamBilling? {
+        do {
+            let data = try await client.rpc("team_billing", params: [:], token: token)
+            return BillingLogic.parse(data)
+        } catch let e as SupabaseClient.Failure where TeamLogic.isMissingSchema(code: e.code, message: e.message) {
+            return nil
+        } catch {
+            return team?.billing
+        }
+    }
+
+    /// The team's subscription as last loaded. Nil when working alone (never locked).
+    /// Screenshot hook: `--billing-banner` shows a read-only team, `--billing-banner trial` a trial about to end.
+    var billing: TeamBilling? {
+        guard role != nil else { return nil }
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "--billing-banner") {
+            if args.indices.contains(i + 1), args[i + 1] == "trial" {
+                var b = team?.billing ?? TeamBilling(status: .trialing)
+                b.status = .trialing
+                b.hasSubscription = false
+                b.trialEndsAt = ISO8601DateFormatter().string(from: Date().addingTimeInterval(2 * 86_400))
+                b.canWork = true
+                return b
+            }
+            return BillingLogic.readOnlyPreview(team?.billing)
+        }
+        return team?.billing
+    }
+    /// The team may change jobs (solo users always may).
+    var canWork: Bool { BillingLogic.allowsWork(billing) }
+    /// The notice for the Projects screen and the job view, if any.
+    var billingBanner: BillingBanner? { BillingLogic.banner(billing, role: role) }
+    /// Plan status line for Settings › Team.
+    var billingStatus: BillingStatusLine? { billing.map { BillingLogic.statusLine($0) } }
 
     /// Run a team call with a friendly message on failure (missing migration, signed out…).
     private func teamCall<T>(_ work: (SupabaseClient, String) async throws -> T) async throws -> T {
@@ -936,5 +1040,47 @@ extension CloudSync {
         } catch {
             // Offline: try again after the next sign-in.
         }
+    }
+}
+
+// MARK: - account
+
+/// Password reset, account deletion and the signed-in calls to the PinPlan web server.
+extension CloudSync {
+    /// A valid access token for calls to the PinPlan web server (account deletion, invite emails).
+    func accessToken() async throws -> String { try await token() }
+
+    /// Email a password-reset link. `serverURL` is the PinPlan web server; its /reset page sets the new password.
+    func sendPasswordReset(email: String, serverURL: String) async throws {
+        guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
+        let e = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard e.contains("@") else { throw SupabaseClient.Failure(message: "Enter your email address first.") }
+        try await client.recover(email: e, redirectTo: BillingLogic.webURL(origin: serverURL, path: "reset"))
+    }
+
+    /// Delete the account on the server (`DELETE /api/account`). The caller wipes this device afterwards.
+    func deleteAccount(api: APIClient) async throws {
+        guard signedIn else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        let tok = try await token()
+        try await api.deleteAccount(token: tok)
+    }
+
+    /// Email a team invite through the PinPlan web server.
+    func emailInvite(api: APIClient, code: String, email: String, name: String) async throws {
+        let tok = try await token()
+        try await api.sendInviteEmail(code: TeamLogic.normalizeCode(code), email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                                      name: name.trimmingCharacters(in: .whitespaces), token: tok)
+    }
+
+    /// Forget everything about the account on this device: sign-in, cloud settings, ledger, team and invites.
+    func wipeForAccountDeletion() {
+        pendingKick?.cancel()
+        signOut()
+        ledger = SyncLedger()
+        imagePaths = [:]
+        teamNotice = nil
+        teamLoadedAt = nil
+        clearPendingInvite()
+        setConfig(url: "", anonKey: "")
     }
 }

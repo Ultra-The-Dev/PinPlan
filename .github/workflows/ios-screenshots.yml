@@ -40,7 +40,9 @@ jobs:
                           "reader:--demo --tab plan --reader" "arch:--arch-sample --tab plan --reader" "scan:--demo --tab sheets --scan-sample" "takeoff:--demo --tab takeoff" "estimate:--demo --tab estimate" "crew:--demo --tab crew" "job:--demo --tab job" \
                           "photos:--demo --tab photos" "photo:--demo --tab photos --open-photo" "markup:--demo --tab photos --open-photo --markup" "report:--demo --tab photos --photo-report" "checklists:--demo --tab field" "checklist:--demo --tab field --checklist" "logs:--demo --tab field --field logs" "timeline:--demo --tab field --field timeline" "review:--demo --tab takeoff --plan-review" "allphotos:--all-photos" "map:--jobs-map" "tasks:--tasks" \
                           "settings:--settings" "server:--server" "catalog:--catalog" "products:--demo --products" "jobproducts:--demo --tab estimate --job-products" \
-                          "team:--cloud-test http://127.0.0.1:54399 --team" "invite:--cloud-test http://127.0.0.1:54399 --team --invite-card"; do
+                          "team:--cloud-test http://127.0.0.1:54399 --team" "invite:--cloud-test http://127.0.0.1:54399 --team --invite-card" \
+                          "billing:--cloud-test http://127.0.0.1:54399 --billing-banner" "billingjob:--cloud-test http://127.0.0.1:54399 --billing-banner trial --demo --tab job" \
+                          "deleteaccount:--cloud-test http://127.0.0.1:54399 --delete-account"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
               t 20 xcrun simctl terminate "$UDID" com.pinplan.app
               t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
@@ -57,7 +59,8 @@ jobs:
             fi
             t 60 xcrun simctl shutdown "$UDID"
           }
-          # Stand-in Supabase on the runner: the team screens sign in to it (last, as the sign-in stays), and the iPad
+          # Stand-in Supabase on the runner: the team, billing and account screens sign in to it (last, as the sign-in
+          # stays; it also answers team_billing and the web server's account calls), and the iPad
           # run publishes a photo report through the app's real code.
           python3 scripts/mock_supabase.py 54399 > shots/mock-supabase.log 2>&1 &
                     IPHONE=$(pick "iPhone 1[0-9] Pro \(" ); IPAD=$(pick "iPad Pro \(?13")

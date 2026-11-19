@@ -149,9 +149,26 @@ final class Store: @unchecked Sendable {
     }
 
     func loadSettings() -> AppSettings {
-        guard let data = try? Data(contentsOf: root.appendingPathComponent("settings.json")),
-              let s = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
+        let url = root.appendingPathComponent("settings.json")
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            var fresh = AppSettings()
+            // A device with no settings and no jobs is a new install: neutral business defaults (never another
+            // company's details). Devices that already had data keep the defaults they had (no marker).
+            let jobs = (try? FileManager.default.contentsOfDirectory(atPath: projectsDir.path)) ?? []
+            if jobs.isEmpty { fresh.business.brandDefaults = BusinessSettings.neutralMarker }
+            return fresh
+        }
+        guard let data = try? Data(contentsOf: url), let s = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
         return s
+    }
+
+    /// Delete every file this app keeps (jobs, images, documents, PDFs, catalog, products, settings, sync ledgers)
+    /// and start again with empty folders. Waits for queued writes first so nothing is written back afterwards.
+    func wipeAll() {
+        queue.sync {}
+        imageCache.removeAllObjects()
+        try? FileManager.default.removeItem(at: root)
+        for d in [root, projectsDir, imagesDir, pdfsDir] { try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
     }
 
     func saveSettings(_ s: AppSettings) {

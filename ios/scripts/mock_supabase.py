@@ -6,7 +6,9 @@ signs in, syncs and publishes a photo report against this server. Everything it 
 photo report row and uploaded photos are summarised so the run shows the app's own publish path works.
 
 It also plays a company team (the signed-in user owns "Brightline AV" with an admin, technicians and a few
-invite codes) so `--team` shows the Team screen filled in, and answers the team functions (rpc/*).
+invite codes) so `--team` shows the Team screen filled in, and answers the team functions (rpc/*), including
+`team_billing` (a trial with 9 days left and 6 seats). It also stands in for the PinPlan web server's account calls
+(`/api/email/status`, `/api/team/invite-email`, `DELETE /api/account`), since `--cloud-test` points both at it.
 """
 import json
 import sys
@@ -41,6 +43,11 @@ INVITES = [
     {"code": "BQ4ZR7NVJS", "team_id": TEAM_ID, "role": "tech", "name": "Summer helper", "created_at": ts(-40), "expires_at": ts(-26),
      "used_by": None, "used_at": None, "revoked": False},
 ]
+
+
+def billing():
+    return {"team_id": TEAM_ID, "status": "trialing", "trial_ends_at": ts(9), "current_period_end": None, "seat_limit": 6,
+            "members": len(MEMBERS), "can_work": True, "has_subscription": False, "billing_email": None}
 
 
 def query(path):
@@ -96,6 +103,8 @@ class H(BaseHTTPRequestHandler):
             rows = sorted(INVITES, key=lambda i: i["created_at"], reverse=True)
             log("TEAM invites", len(rows))
             return self._send(200, select(rows, q))
+        if self.path.startswith("/api/email/status"):
+            return self._send(200, {"configured": True, "notifications": True})
         if self.path.startswith("/storage/v1/object/public/"):
             key = self.path.split("/storage/v1/object/public/", 1)[1]
             data = uploads.get(key)
@@ -107,6 +116,12 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             return self.wfile.write(data)
         return self._send(200, [])
+
+    def do_DELETE(self):
+        log("DELETE", self.path[:120], "auth=%s" % bool(self.headers.get("Authorization")))
+        if self.path.startswith("/api/account"):
+            return self._send(200, {"ok": True})
+        return self._send(204)
 
     def do_PATCH(self):
         body = self._body()
@@ -141,6 +156,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, None if inv is None else {"team": TEAM["name"], "role": inv["role"], "name": inv["name"], "expires_at": inv["expires_at"]})
             if fn == "accept_team_invite":
                 return self._send(200, {"team_id": TEAM_ID, "team": TEAM["name"], "role": "owner"})
+            if fn == "team_billing":
+                return self._send(200, billing())
             if fn == "create_team":
                 return self._send(200, TEAM_ID)
             if fn == "set_team_member_role":
@@ -152,6 +169,13 @@ class H(BaseHTTPRequestHandler):
                 MEMBERS[:] = [m for m in MEMBERS if m["user_id"] != args.get("p_user") or m["role"] == "owner"]
                 return self._send(200, None)
             return self._send(404, {"code": "PGRST202", "message": "Could not find the function public.%s in the schema cache" % fn})
+        if path.startswith("/api/team/invite-email"):
+            args = json.loads(body or b"{}")
+            log("INVITE_EMAIL", args.get("code"), "auth=%s" % bool(self.headers.get("Authorization")))
+            return self._send(200, {"ok": True})
+        if path.startswith("/auth/v1/recover"):
+            log("AUTH recover", self.path[:160])
+            return self._send(200, {})
         if path.startswith("/rest/v1/team_invites"):
             row = json.loads(body or b"{}")
             row = dict({"created_at": ts(), "expires_at": ts(14), "used_by": None, "used_at": None, "revoked": False}, **row)
