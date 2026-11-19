@@ -54,6 +54,13 @@ struct PhotoReportSheet: View {
             .navigationTitle("Photo report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+            .task {
+                // Test hook: publish the client link straight away (screenshots workflow, against a stand-in server).
+                if ProcessInfo.processInfo.arguments.contains("--auto-publish"), app.cloud.signedIn, link == nil, busy == nil {
+                    try? await Task.sleep(for: .seconds(1))
+                    await publish()
+                }
+            }
             .onAppear { if title.isEmpty { title = "Photo report — \(model.bundle.project.address.isEmpty ? model.bundle.project.clientName : model.bundle.project.address)" } }
             .shareSheet($share)
         }

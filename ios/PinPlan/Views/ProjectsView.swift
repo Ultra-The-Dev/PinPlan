@@ -124,6 +124,12 @@ struct ProjectsView: View {
             .task {
                 // Screenshot/automation hook: `--demo` opens (creating if needed) the demo job.
                 let args = ProcessInfo.processInfo.arguments
+                // Test hook: sign in to a stand-in cloud server (the screenshots workflow runs one on the runner).
+                if let i = args.firstIndex(of: "--cloud-test"), args.indices.contains(i + 1) {
+                    app.cloud.setConfig(url: args[i + 1], anonKey: "test-anon-key")
+                    app.settings.serverURL = args[i + 1]
+                    try? await app.cloud.signIn(email: "test@example.com", password: "test-password", create: false)
+                }
                 if args.contains("--demo"), path.isEmpty {
                     if let demo = app.projects.first(where: { $0.project.address.hasPrefix("Demo") }) { path.append(demo.project.id) }
                     else { path.append(await app.createDemo().project.id) }

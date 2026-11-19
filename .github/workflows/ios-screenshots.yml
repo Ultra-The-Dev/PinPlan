@@ -46,9 +46,19 @@ jobs:
               sleep 9
               t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done
+            if [ "$NAME" = ipad ]; then
+              echo "== publish a photo report from the app (stand-in cloud)"
+              t 20 xcrun simctl terminate "$UDID" com.pinplan.app
+              t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips --cloud-test http://127.0.0.1:54399 --demo --tab photos --photo-report --auto-publish
+              sleep 45
+              t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-publish.png"
+              grep -E "AUTH|UPLOAD .*reports|PHOTO_REPORT|  photo" shots/mock-supabase.log || echo "no photo report received"
+            fi
             t 60 xcrun simctl shutdown "$UDID"
           }
-          IPHONE=$(pick "iPhone 1[0-9] Pro \(" ); IPAD=$(pick "iPad Pro \(?13")
+          # Stand-in Supabase on the runner: the iPad run publishes a photo report through the app's real code.
+          python3 scripts/mock_supabase.py 54399 > shots/mock-supabase.log 2>&1 &
+                    IPHONE=$(pick "iPhone 1[0-9] Pro \(" ); IPAD=$(pick "iPad Pro \(?13")
           echo "iPhone type: $IPHONE / iPad type: $IPAD"
           shoot "${IPHONE:-com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro}" iphone
           shoot "${IPAD:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}" ipad

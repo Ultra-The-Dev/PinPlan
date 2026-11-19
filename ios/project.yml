@@ -24,6 +24,9 @@ targets:
     info:
       path: PinPlan/Info.plist
       properties:
+        # Plain-http only for the local network (a test server on this machine); everything else stays HTTPS.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF plan
             CFBundleTypeRole: Viewer
