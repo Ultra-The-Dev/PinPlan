@@ -1,4 +1,6 @@
 import { resolveBillduCaller } from "@/lib/server/billduCreds";
+import { requirePaidOrTrial } from "@/lib/server/planGate";
+import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
 import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
@@ -15,6 +17,11 @@ interface SendBody {
   /** Public link to the marked-up plans PDF (put in the document note). */
   plansUrl?: string | null;
 }
+
+/** Most estimate lines one document may carry. */
+const MAX_LINES = 500;
+/** Per user (or IP, for access-code callers). Sending is a person clicking "Send to Billdu", not a loop. */
+const SEND_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
 async function findOrCreateClient(client: BillduClient, p: SendBody["project"]): Promise<number> {
   if (p.billduClientId) {
@@ -44,6 +51,10 @@ async function findOrCreateClient(client: BillduClient, p: SendBody["project"]):
 export async function POST(req: Request) {
   const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
+  const limited = await durableRateLimit(`billdu-send:${auth.caller.userId ? `u:${auth.caller.userId}` : `ip:${clientIp(req)}`}`, SEND_LIMIT);
+  if (!limited.ok) return tooManyRequests(limited, `Too many sends to Billdu. Try again in ${waitText(limited.retryAfter)}.`);
+  const gate = await requirePaidOrTrial(req, auth.caller.userId);
+  if (gate) return gate;
   let body: SendBody;
   try {
     body = await req.json();
@@ -53,6 +64,7 @@ export async function POST(req: Request) {
   if (!body?.project?.clientName) return jsonError("The project needs a client name before sending to Billdu.", 400);
   if (!["estimate", "order", "invoice"].includes(body.docType)) return jsonError("docType must be estimate, order or invoice", 400);
   if (!Array.isArray(body.lines)) return jsonError("lines must be an array", 400);
+  if (body.lines.length > MAX_LINES) return jsonError(`A document can have at most ${MAX_LINES} lines.`, 413, { code: "too_many_items" });
   const deposit = body.depositPct ?? null;
   if (deposit != null && (deposit <= 0 || deposit > 100)) return jsonError("Deposit % must be between 0 and 100", 400);
 
@@ -91,6 +103,6 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
-    return handleError(e);
+    return handleError(e, auth.caller);
   }
 }

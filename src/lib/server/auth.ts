@@ -1,12 +1,20 @@
 // Request authentication for API routes (server-only).
-// - Supabase configured: the caller must send a valid Supabase access token (Authorization: Bearer …).
+// - Supabase configured: the caller must send a valid Supabase access token (Authorization: Bearer …). The team
+//   access code (x-pinplan-access) is ignored unless PINPLAN_ALLOW_ACCESS_CODE=1: on a multi-company server a shared
+//   code would let anyone holding it act without an account.
 // - Otherwise, if PINPLAN_ACCESS_CODE is set: the caller must send it in the x-pinplan-access header.
-// - Otherwise (local / development use): open.
+// - Otherwise (local / development use): open. In production (VERCEL_ENV or NODE_ENV "production") an open server
+//   fails closed (503 "Server not configured") unless PINPLAN_ALLOW_OPEN=1 says it is meant to be open, so a
+//   deployment that lost its Supabase settings never quietly serves everyone.
 import { createHash, timingSafeEqual } from "node:crypto";
 
 export type AuthResult = { ok: true; userId: string | null } | { ok: false; response: Response };
 
 const deny = (message: string, code: string): AuthResult => ({ ok: false, response: Response.json({ error: message, code }, { status: 401 }) });
+const unconfigured = (): AuthResult => ({
+  ok: false,
+  response: Response.json({ error: "Server not configured", code: "server_not_configured" }, { status: 503, headers: { "Cache-Control": "no-store" } }),
+});
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -17,6 +25,26 @@ export function authMode(): "supabase" | "access_code" | "open" {
   return "open";
 }
 
+/** A production deployment (Vercel production, or a production Node build). Previews and `next dev` are not. */
+export function isProduction(): boolean {
+  const vercel = process.env.VERCEL_ENV;
+  if (vercel) return vercel === "production";
+  return process.env.NODE_ENV === "production";
+}
+
+/** Open mode in production without PINPLAN_ALLOW_OPEN=1: every protected route answers 503. */
+export function openModeRefused(): boolean {
+  return authMode() === "open" && isProduction() && process.env.PINPLAN_ALLOW_OPEN !== "1";
+}
+
+/** Does this server accept the team access code? Always in access-code mode; with Supabase only when opted in. */
+export function accessCodeAccepted(): boolean {
+  const code = process.env.PINPLAN_ACCESS_CODE;
+  if (!code) return false;
+  const mode = authMode();
+  return mode === "access_code" || (mode === "supabase" && process.env.PINPLAN_ALLOW_ACCESS_CODE === "1");
+}
+
 function sameSecret(a: string, b: string) {
   const ha = createHash("sha256").update(a).digest();
   const hb = createHash("sha256").update(b).digest();
@@ -25,14 +53,15 @@ function sameSecret(a: string, b: string) {
 
 export async function requireUser(request: Request): Promise<AuthResult> {
   const mode = authMode();
-  if (mode === "open") return { ok: true, userId: null };
+  if (mode === "open") return openModeRefused() ? unconfigured() : { ok: true, userId: null };
   if (mode === "access_code") {
     const given = request.headers.get("x-pinplan-access") ?? "";
     return given && sameSecret(given, process.env.PINPLAN_ACCESS_CODE!) ? { ok: true, userId: null } : deny("Enter the team access code in Settings.", "access_code_required");
   }
-  // The native app signs in with the team access code; keep that working when Supabase accounts are also enabled.
+  // Older native builds signed in with the team access code. With accounts on, that only works when the server opts
+  // in (PINPLAN_ALLOW_ACCESS_CODE=1, e.g. a single-company server during the move to accounts); otherwise it's ignored.
   const code = request.headers.get("x-pinplan-access");
-  if (code && process.env.PINPLAN_ACCESS_CODE && sameSecret(code, process.env.PINPLAN_ACCESS_CODE)) return { ok: true, userId: null };
+  if (code && accessCodeAccepted() && sameSecret(code, process.env.PINPLAN_ACCESS_CODE!)) return { ok: true, userId: null };
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return deny("Sign in to use this feature.", "sign_in_required");
   try {
@@ -72,4 +101,19 @@ export async function requireOffice(request: Request): Promise<AuthResult> {
     return { ok: false, response: Response.json({ error: (e as Error).message, code: "role_check_failed" }, { status: 503 }) };
   }
   return auth;
+}
+
+/**
+ * When the caller's access token was issued (JWT `iat`, seconds since 1970), or null when it can't be read.
+ * Only call this on a token Supabase has already accepted (requireUser / /auth/v1/user): it decodes, it doesn't verify.
+ */
+export function tokenIssuedAt(token: string): number | null {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) as { iat?: unknown };
+    return typeof claims.iat === "number" && Number.isFinite(claims.iat) ? claims.iat : null;
+  } catch {
+    return null;
+  }
 }

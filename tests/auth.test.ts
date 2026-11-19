@@ -1,6 +1,6 @@
 process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authMode, requireOffice, requireUser } from "@/lib/server/auth";
+import { accessCodeAccepted, authMode, isProduction, openModeRefused, requireOffice, requireUser, tokenIssuedAt } from "@/lib/server/auth";
 
 describe("office-only routes (Billdu)", () => {
   afterEach(() => {
@@ -83,12 +83,102 @@ describe("API route auth", () => {
     vi.unstubAllGlobals();
   });
 
-  it("also accepts the team access code when Supabase is configured (native app)", async () => {
+  it("ignores the team access code when Supabase is configured, unless the server opts in", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
+    vi.stubEnv("PINPLAN_ALLOW_ACCESS_CODE", "");
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(accessCodeAccepted()).toBe(false);
+    const r = await requireUser(req({ "x-pinplan-access": "s3cret" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect((await r.response.json()).code).toBe("sign_in_required");
+    // No token, so Supabase isn't even asked.
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    vi.stubEnv("PINPLAN_ALLOW_ACCESS_CODE", "1");
+    expect(accessCodeAccepted()).toBe(true);
     expect((await requireUser(req({ "x-pinplan-access": "s3cret" }))).ok).toBe(true);
     expect((await requireUser(req({ "x-pinplan-access": "nope" }))).ok).toBe(false);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("fail-closed in production", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const noAccounts = () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "");
+    vi.stubEnv("PINPLAN_ALLOW_OPEN", "");
+  };
+
+  it("an open server answers 503 'Server not configured' on Vercel production", async () => {
+    noAccounts();
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(isProduction()).toBe(true);
+    expect(openModeRefused()).toBe(true);
+    const r = await requireUser(req());
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.response.status).toBe(503);
+      expect(await r.response.json()).toEqual({ error: "Server not configured", code: "server_not_configured" });
+    }
+    // Office-only routes go through requireUser too.
+    const o = await requireOffice(req());
+    expect(o.ok).toBe(false);
+  });
+
+  it("…and on a production Node build outside Vercel", async () => {
+    noAccounts();
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await requireUser(req())).ok).toBe(false);
+  });
+
+  it("stays open on previews, in development and when PINPLAN_ALLOW_OPEN=1", async () => {
+    noAccounts();
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await requireUser(req())).ok).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "development");
+    expect((await requireUser(req())).ok).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("PINPLAN_ALLOW_OPEN", "1");
+    expect((await requireUser(req())).ok).toBe(true);
+  });
+
+  it("an access-code server keeps working in production (it isn't open)", async () => {
+    noAccounts();
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
+    expect((await requireUser(req({ "x-pinplan-access": "s3cret" }))).ok).toBe(true);
+    expect((await requireUser(req())).ok).toBe(false);
+  });
+
+  it("/api/auth tells the browser the mode, whether the code works and whether the server is configured", async () => {
+    vi.doMock("next/server", () => ({ connection: async () => undefined }));
+    const { GET } = await import("@/app/api/auth/route");
+    noAccounts();
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(await (await GET()).json()).toEqual({ mode: "open", accessCode: false, configured: false });
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
+    expect(await (await GET()).json()).toEqual({ mode: "supabase", accessCode: false, configured: true });
+    vi.doUnmock("next/server");
+  });
+});
+
+describe("tokenIssuedAt", () => {
+  const jwt = (claims: Record<string, unknown>) => `h.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.sig`;
+  it("reads iat from a JWT payload, and null otherwise", () => {
+    expect(tokenIssuedAt(jwt({ iat: 1_700_000_000, sub: "u" }))).toBe(1_700_000_000);
+    expect(tokenIssuedAt(jwt({ sub: "u" }))).toBeNull();
+    expect(tokenIssuedAt("not-a-jwt")).toBeNull();
+    expect(tokenIssuedAt("a.%%%.c")).toBeNull();
   });
 });
 
@@ -115,6 +205,7 @@ describe("health endpoint", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://db.example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
+    vi.stubEnv("PINPLAN_ALLOW_ACCESS_CODE", "1");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-secret-value");
     vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_value");
     vi.stubEnv("RESEND_API_KEY", "");

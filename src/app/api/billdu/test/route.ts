@@ -1,7 +1,8 @@
-import { effectiveCreds, recordTest, resolveBillduCaller } from "@/lib/server/billduCreds";
-import { clientIp, rateLimit } from "@/lib/server/rateLimit";
-import { handleError, jsonError } from "@/lib/billdu/route-helpers";
-import { BillduClient, extractList } from "@/lib/billdu/client";
+import { effectiveCreds, NOT_CONNECTED, recordTest, resolveBillduCaller } from "@/lib/server/billduCreds";
+import { requirePaidOrTrial } from "@/lib/server/planGate";
+import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { credsErrorResponse, handleError, jsonError } from "@/lib/billdu/route-helpers";
+import { BillduClient, BillduError, extractList } from "@/lib/billdu/client";
 
 const TEST_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
@@ -10,20 +11,17 @@ export async function POST(request: Request) {
   const auth = await resolveBillduCaller(request);
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
-  const limited = rateLimit(`billdu-test:${caller.userId ?? clientIp(request)}`, TEST_LIMIT);
-  if (!limited.ok)
-    return Response.json(
-      { error: `Too many connection tests. Try again in ${limited.retryAfter} seconds.`, code: "rate_limited", retryAfter: limited.retryAfter },
-      { status: 429, headers: { "Retry-After": String(limited.retryAfter) } },
-    );
+  const limited = await durableRateLimit(`billdu-test:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(request)}`}`, TEST_LIMIT);
+  if (!limited.ok) return tooManyRequests(limited, `Too many connection tests. Try again in ${waitText(limited.retryAfter)}.`);
+  const gate = await requirePaidOrTrial(request, caller.userId);
+  if (gate) return gate;
   let loaded;
   try {
     loaded = await effectiveCreds(caller);
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    return credsErrorResponse(e, caller);
   }
-  if (!loaded.creds)
-    return jsonError("Billdu is not connected for your company. Add your Billdu API key and secret in Settings → Billdu.", 412, { code: "not_configured" });
+  if (!loaded.creds) return jsonError(NOT_CONNECTED, 412, { code: "not_configured" });
   // Only the company's own row keeps a test history; the server-wide credentials have nowhere to record it.
   const ownRow = caller.mode !== "single_company" && (loaded.source === "team" || loaded.source === "user") ? caller.owner : null;
   try {
@@ -32,7 +30,8 @@ export async function POST(request: Request) {
     if (ownRow) await recordTest(ownRow, true, null);
     return Response.json({ ok: true, canRead: Array.isArray(raw) || list.length > 0 || raw != null, sampleCount: list.length, source: loaded.source });
   } catch (e) {
-    if (ownRow) await recordTest(ownRow, false, (e as Error).message);
-    return handleError(e);
+    // The company's own office sees what their Billdu account said; anything else is kept to the server log.
+    if (ownRow) await recordTest(ownRow, false, e instanceof BillduError ? e.message : "The test couldn't reach Billdu.");
+    return handleError(e, caller);
   }
 }

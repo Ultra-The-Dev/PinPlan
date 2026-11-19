@@ -15,6 +15,8 @@ const MEMBERS: Record<string, Member> = {
   acme: { role: "owner", team_id: "t-acme", plan_status: "trialing", name: "Acme Owner" },
   acmeadmin: { role: "admin", team_id: "t-acme", plan_status: "active", name: "Acme Admin" },
   acmetech: { role: "tech", team_id: "t-acme", plan_status: "active", name: "Acme Tech" },
+  // Comped, but not the founder's company: no server-wide fallback.
+  friend: { role: "owner", team_id: "t-friend", plan_status: "comped", name: "Friend" },
 };
 
 let store: Map<string, Record<string, unknown>>;
@@ -111,6 +113,8 @@ beforeEach(() => {
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
   vi.stubEnv("PINPLAN_ENCRYPTION_KEY", "test-encryption-key");
   vi.stubEnv("PINPLAN_ACCESS_CODE", "the-team-code");
+  vi.stubEnv("PINPLAN_ALLOW_ACCESS_CODE", "1");
+  vi.stubEnv("PINPLAN_FOUNDER_TEAM_ID", "t-founder");
   vi.stubEnv("BILLDU_API_KEY", GLOBAL_KEY);
   vi.stubEnv("BILLDU_API_SECRET", GLOBAL_SECRET);
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
@@ -142,7 +146,8 @@ describe("encryption", () => {
     store.set("team_secrets:t-founder", { ...store.get("team_secrets:t-acme")!, team_id: "t-founder" });
     const s = await (await statusAs({ user: "founder" })).json();
     expect(s.configured).toBe(false);
-    expect(s.own.error).toMatch(/can't be decrypted/);
+    expect(s.own.error).toMatch(/can't be read any more/);
+    expect(s.own.error).not.toMatch(/PINPLAN_ENCRYPTION_KEY/);
     const r = await testAs({ user: "founder" });
     expect(r.status).toBe(500);
     expect(billduKeys).toEqual([]);
@@ -150,7 +155,19 @@ describe("encryption", () => {
 });
 
 describe("whose credentials a caller uses", () => {
-  it("founder (comped team) without its own row falls back to the server-wide credentials", async () => {
+  it("a comped team that isn't the founder's (PINPLAN_FOUNDER_TEAM_ID) gets no server-wide fallback", async () => {
+    const r = await testAs({ user: "friend" });
+    expect(r.status).toBe(412);
+    expect((await r.json()).error).toMatch(/Settings → Connected apps → Billdu/);
+    const s = await (await statusAs({ user: "friend" })).json();
+    expect(s).toMatchObject({ configured: false, server: null, canMoveServer: false, canChangeServer: false });
+    expect(billduKeys).toEqual([]);
+    // Without PINPLAN_FOUNDER_TEAM_ID nobody gets the fallback, the founder included.
+    vi.stubEnv("PINPLAN_FOUNDER_TEAM_ID", "");
+    expect((await testAs({ user: "founder" })).status).toBe(412);
+  });
+
+  it("founder (PINPLAN_FOUNDER_TEAM_ID) without its own row falls back to the server-wide credentials", async () => {
     const r = await testAs({ user: "founder" });
     expect(r.status).toBe(200);
     expect((await r.json()).source).toBe("env");
@@ -188,13 +205,33 @@ describe("whose credentials a caller uses", () => {
     expect(billduKeys).toEqual([TEAM_KEY]);
   });
 
-  it("access code without a session (iPad app) keeps the server-wide credentials", async () => {
+  it("access code without a session (older iPad app) keeps the server-wide credentials when the server allows codes", async () => {
     const r = await testAs({ code: "the-team-code" });
     expect(r.status).toBe(200);
     expect(billduKeys).toEqual([GLOBAL_KEY]);
     expect(serviceCalls).toBe(0);
     expect((await testAs({ code: "wrong" })).status).toBe(401);
     expect((await testAs({})).status).toBe(401);
+  });
+
+  it("with accounts on, the access code is ignored unless PINPLAN_ALLOW_ACCESS_CODE=1", async () => {
+    vi.stubEnv("PINPLAN_ALLOW_ACCESS_CODE", "");
+    const r = await testAs({ code: "the-team-code" });
+    expect(r.status).toBe(401);
+    expect((await statusAs({ code: "the-team-code" })).status).toBe(401);
+    expect(billduKeys).toEqual([]);
+  });
+
+  it("an access-code caller on a server with accounts can't save or remove the server-wide credentials", async () => {
+    const { POST, DELETE } = await routes.creds();
+    const save = await POST(req("/api/billdu/credentials", { code: "the-team-code", body: { apiKey: "NEWKEY-1", apiSecret: "s" } }));
+    expect(save.status).toBe(403);
+    const del = await DELETE(req("/api/billdu/credentials?target=server", { code: "the-team-code", method: "DELETE" }));
+    expect(del.status).toBe(403);
+    const del2 = await DELETE(req("/api/billdu/credentials", { code: "the-team-code", method: "DELETE" }));
+    expect(del2.status).toBe(403);
+    const s = await (await statusAs({ code: "the-team-code" })).json();
+    expect(s).toMatchObject({ mode: "single_company", canChangeServer: false });
   });
 
   it("a session token wins over an access code sent with it", async () => {
@@ -241,10 +278,12 @@ describe("whose credentials a caller uses", () => {
   it("a non-founder team without the service-role key can't store credentials and still gets no fallback", async () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
     const s = await (await statusAs({ user: "acme" })).json();
-    expect(s).toMatchObject({ configured: false, storageReady: false });
-    expect(s.storageMessage).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+    expect(s).toMatchObject({ configured: false, storageReady: false, storageCode: "missing_service_key" });
+    // Users get a plain message; the setting's name is only in the code, for whoever runs the server.
+    expect(s.storageMessage).not.toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
     const r = await saveAs("acme", { apiKey: TEAM_KEY, apiSecret: TEAM_SECRET });
     expect(r.status).toBe(500);
+    expect(await r.json()).toMatchObject({ code: "storage_unavailable" });
     expect((await testAs({ user: "acme" })).status).toBe(412);
   });
 });

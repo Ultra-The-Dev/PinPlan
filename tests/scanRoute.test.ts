@@ -31,6 +31,7 @@ describe("POST /api/scan", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "");
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+    vi.stubEnv("ANTHROPIC_MODEL", "test-model");
   });
   afterEach(() => {
     vi.unstubAllEnvs();

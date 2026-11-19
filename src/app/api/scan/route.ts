@@ -11,7 +11,6 @@ import type { TradeId } from "@/lib/types";
 
 export const maxDuration = 300;
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // API limit per image (base64-decoded)
 type ImageMime = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 const MIMES: ImageMime[] = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -28,6 +27,9 @@ export async function POST(request: Request) {
       { status: 501 },
     );
   }
+  // No built-in default: the model is chosen per deployment (ANTHROPIC_MODEL), never hard-coded here.
+  const model = process.env.ANTHROPIC_MODEL?.trim();
+  if (!model) return Response.json({ error: "AI model not configured", code: "ai_model_not_configured" }, { status: 501 });
 
   let imageBase64 = "";
   let mime = "image/jpeg";
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
   const client = new Anthropic();
   try {
     const response = await client.beta.messages.create({
-      model: MODEL,
+      model,
       max_tokens: 16000,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
@@ -102,9 +104,10 @@ export async function POST(request: Request) {
     if (error instanceof Anthropic.RateLimitError)
       return Response.json({ error: "Rate limited by the AI service. Try again in a minute." }, { status: 429 });
     if (error instanceof Anthropic.BadRequestError)
-      return Response.json({ error: `AI request rejected: ${error.message}` }, { status: 502 });
+      return Response.json({ error: "The AI service couldn't read this request." }, { status: 502 });
     if (error instanceof Anthropic.APIError)
       return Response.json({ error: `AI service error (${error.status ?? "network"}).` }, { status: 502 });
-    return Response.json({ error: error instanceof Error ? error.message : "Scan failed" }, { status: 500 });
+    console.error("[scan]", error);
+    return Response.json({ error: "Scan failed. Try again in a minute." }, { status: 500 });
   }
 }
