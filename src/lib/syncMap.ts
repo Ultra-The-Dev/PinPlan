@@ -53,6 +53,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       title: "sheet_title",
       discipline: "discipline",
       tags: "tags",
+      revisionLabel: "revision_label",
+      revisions: "revisions",
     },
   },
   deviceTypes: {

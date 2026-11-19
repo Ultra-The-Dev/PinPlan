@@ -14,6 +14,7 @@ import PhotoStraighten from "./PhotoStraighten";
 import { SheetIndexButton, SheetMetaChips } from "./sheetIndex/SheetIndexPanel";
 import SheetNamesReview, { hasProposals, type ReviewPage } from "./sheetIndex/SheetNamesReview";
 import { rotateSheetMarkups } from "./markups/useMarkups";
+import { RevisionBadge, UploadRevisedSetButton, UploadRevisionButton } from "./revisions/SheetRevisionControls";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
   const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
@@ -150,6 +151,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
           </div>
           <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,.heic,.heif" className="hidden" onChange={(e) => onFiles(e.target.files)} />
           <SheetIndexButton disabled={!!busy || !sheets.length} />
+          <UploadRevisedSetButton disabled={!!busy} />
           <button className="btn btn-brand" disabled={!!busy} onClick={() => fileRef.current?.click()}>
             <FileUp /> Upload PDF or photos
           </button>
@@ -273,6 +275,7 @@ function SheetCard(props: {
             <Ruler className="h-3 w-3" />
             {sheet.pxPerFt ? (sheet.scaleLabel?.startsWith("line") ? "calibrated" : sheet.scaleLabel || "scale set") : "no scale"}
           </span>
+          <RevisionBadge sheet={sheet} />
         </div>
         <div className="flex items-center gap-1">
           <button className="btn btn-sm btn-icon" disabled={props.first} onClick={() => props.onMove(-1)} title="Move up" aria-label="Move up">
@@ -284,6 +287,7 @@ function SheetCard(props: {
           <button className="btn btn-sm" disabled={props.busy} onClick={props.onRotate} title="Rotate 90° (markup rotates with it)">
             <RotateCw /> Rotate
           </button>
+          <UploadRevisionButton sheet={sheet} />
           <div className="flex-1" />
           <button className="btn btn-sm btn-icon btn-ghost text-red-600 hover:bg-red-50" onClick={props.onDelete} title="Delete sheet" aria-label="Delete sheet">
             <Trash />

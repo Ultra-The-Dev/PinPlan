@@ -344,7 +344,7 @@ describe("tasks migration", () => {
   it("stamps synced_at and honours the billing read-only lock", () => {
     expect(sql).toMatch(/tasks_synced_at before insert or update on public\.tasks .*set_synced_at/);
     expect(sql).toMatch(/tasks_write_guard before insert or update on public\.tasks .*job_write_guard/);
-    expect(billing).toMatch(/'tasks'\]/);
+    expect(billing).toMatch(/'tasks'[,\]]/);
   });
   it("doesn't let a technician set or clear Verified (and doesn't stall their sync either)", () => {
     expect(sql).toMatch(/tasks_verify_guard before insert or update on public\.tasks/);

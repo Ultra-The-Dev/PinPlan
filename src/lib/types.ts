@@ -123,6 +123,10 @@ export interface Sheet {
   title?: string | null;
   discipline?: string | null;
   tags?: string[] | null;
+  /** Label of the current drawing revision, e.g. "Rev B" or "IFC 2026-11-20" (see docs/sheet-revisions.md). */
+  revisionLabel?: string | null;
+  /** Earlier drawings this sheet replaced, newest first. Markup stays on the sheet; only the image changes. */
+  revisions?: SheetRevision[] | null;
 }
 
 /** Where a plan hyperlink goes. */
@@ -148,6 +152,32 @@ export interface SheetLink {
   createdAt: string;
   updatedAt: string;
   deleted?: boolean;
+}
+
+/** Relative-coordinate affine transform [a, b, c, d, e, f]: x' = a·x + c·y + e, y' = b·x + d·y + f. */
+export type RevisionTransform = [number, number, number, number, number, number];
+
+/** An earlier drawing of a sheet (stored as JSON in `sheets.revisions`). */
+export interface SheetRevision {
+  id: string;
+  label: string;
+  /** Key into the local `images` table (and cloud storage at <project>/<imageId>). */
+  imageId: string;
+  imageUrl?: string | null;
+  width: number;
+  height: number;
+  pxPerFt?: number | null;
+  pxPerInch?: number | null;
+  scaleLabel?: string | null;
+  /** When this drawing became the current one. */
+  uploadedAt: string;
+  uploadedBy?: string | null;
+  note?: string | null;
+  /** When the next drawing replaced it, and by whom. */
+  replacedAt?: string | null;
+  replacedBy?: string | null;
+  /** Transform applied to the markup when the next drawing replaced this one (null: positions carried unchanged). */
+  transformToNext?: RevisionTransform | null;
 }
 
 export interface DeviceType {

@@ -2,3 +2,4 @@
 import "@/components/progress/registerOverlay";
 import "@/components/tasks/registerOverlay";
 import "@/components/markups/registerOverlay";
+import "../../revisions/revisionOverlay";
