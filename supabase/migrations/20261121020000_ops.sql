@@ -63,3 +63,39 @@ revoke all on function public.app_errors_guard() from public, anon, authenticate
 drop trigger if exists app_errors_guard on public.app_errors;
 create trigger app_errors_guard before insert on public.app_errors
   for each row execute function public.app_errors_guard();
+
+-- ---------- platform admin: per-account usage, callable only with the service-role key (/api/admin/overview) ----------
+-- plpgsql so the body is only checked when called (the storage schema differs between Supabase and test stand-ins).
+create or replace function public.admin_usage()
+returns table (user_id uuid, projects bigint, photos bigint, storage_bytes bigint)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  return query
+  with proj as (
+    select p.owner_id, count(*) filter (where not p.deleted) as n from public.projects p group by p.owner_id
+  ), pho as (
+    select p.owner_id, count(*) as n
+    from public.photos f join public.projects p on p.id = f.project_id
+    where not f.deleted group by p.owner_id
+  ), plan_bytes as (
+    -- plans bucket: <project_id>/<image_id>
+    select p.owner_id, sum(coalesce((o.metadata ->> 'size')::bigint, 0)) as b
+    from storage.objects o join public.projects p on p.id = (storage.foldername(o.name))[1]
+    where o.bucket_id = 'plans' group by p.owner_id
+  ), proposal_bytes as (
+    -- proposals bucket: <user_id>/...
+    select (storage.foldername(o.name))[1] as uid, sum(coalesce((o.metadata ->> 'size')::bigint, 0)) as b
+    from storage.objects o where o.bucket_id = 'proposals' group by 1
+  )
+  select u.id,
+         coalesce(proj.n, 0)::bigint,
+         coalesce(pho.n, 0)::bigint,
+         (coalesce(plan_bytes.b, 0) + coalesce(proposal_bytes.b, 0))::bigint
+  from auth.users u
+  left join proj on proj.owner_id = u.id
+  left join pho on pho.owner_id = u.id
+  left join plan_bytes on plan_bytes.owner_id = u.id
+  left join proposal_bytes on proposal_bytes.uid = u.id::text;
+end $$;
+revoke all on function public.admin_usage() from public, anon, authenticated;
+grant execute on function public.admin_usage() to service_role;
