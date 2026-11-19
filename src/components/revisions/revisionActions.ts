@@ -1,7 +1,7 @@
 "use client";
 // Saving revisions: swap a sheet's drawing, move its markup by an alignment transform, roll back.
 // Markers, runs and closets go through the editor store (one undo step); other registered tables are written directly.
-import { db, putMany, type SyncTable } from "@/lib/db";
+import { db, nowIso, putMany, type SyncTable } from "@/lib/db";
 import { polylineFt } from "@/lib/geometry";
 import { getAuthor } from "@/lib/photos";
 import {
@@ -9,16 +9,16 @@ import {
   composeTransforms,
   invertTransform,
   isIdentity,
-  pixelScale,
   pushRevision,
   revisionCarries,
   rollbackRevision,
+  scaleAfterAlign,
   type Affine,
   type NewRevisionImage,
   type ScaleOutcome,
 } from "@/lib/revisions";
 import { useEditor } from "@/lib/store";
-import { useSyncStatus } from "@/lib/sync";
+import { fetchProjectImage, useSyncStatus } from "@/lib/sync";
 import type { Closet, Marker, Run, Sheet } from "@/lib/types";
 
 type Changes = Parameters<ReturnType<typeof useEditor.getState>["commit"]>[0];
@@ -159,8 +159,10 @@ export async function alignToPrevious(sheetId: string, T: Affine): Promise<Carry
     sheetAfter: (s) => {
       const revisions = [{ ...s.revisions![0], transformToNext: isIdentity(T) ? null : T }, ...s.revisions!.slice(1)];
       const next: Sheet = { ...s, revisions };
-      if (!s.pxPerFt && prev.pxPerFt) {
-        next.pxPerFt = prev.pxPerFt * pixelScale(T, prev, s);
+      // A reset scale, or one still derived from the previous drawing, follows the alignment's zoom.
+      const px = scaleAfterAlign(s, T);
+      if (px != null) {
+        next.pxPerFt = px;
         next.scaleLabel = prev.scaleLabel ?? null;
         scaleFromAlignment = true;
       }
@@ -174,9 +176,17 @@ export async function alignToPrevious(sheetId: string, T: Affine): Promise<Carry
 export async function rollbackTo(sheetId: string, revisionId: string): Promise<CarryReport | null> {
   const before = await latestSheet(sheetId);
   if (!before) return null;
+  const target = before.revisions?.find((r) => r.id === revisionId);
+  if (!target) return null;
+  // Restoring a drawing this device doesn't have would leave the plan blank here.
+  if (!(await fetchProjectImage(before.projectId, target.imageId, target.width, target.height)))
+    throw new Error(`${target.label} isn't downloaded on this device yet — connect to the internet and try again.`);
   const res = rollbackRevision(before, revisionId, revisionAuthor(), new Date().toISOString());
   if (!res) return null;
-  return moveSheetMarkup(sheetId, res.transform, { sheetAfter: () => res.sheet });
+  const report = await moveSheetMarkup(sheetId, res.transform, { sheetAfter: () => res.sheet });
+  // Upload the restored drawing again so the cloud row's image_path names it (other devices download by that path).
+  await db().syncQueue.add({ table: "images", rowId: target.imageId, queuedAt: nowIso() });
+  return report;
 }
 
 /** Swap the current drawing for a rotated copy without moving the markup (a re-issue that came in sideways). */

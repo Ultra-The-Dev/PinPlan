@@ -20,6 +20,7 @@ import {
   revisionCarries,
   revisionChain,
   rollbackRevision,
+  scaleAfterAlign,
   similarityFromPairs,
   toPixelMatrix,
   transformBetween,
@@ -171,6 +172,30 @@ describe("pushRevision", () => {
     expect(nextRevisionLabel({ revisionLabel: "Rev C" })).toBe("Rev D");
     expect(nextRevisionLabel({ revisionLabel: "IFC Rev 2" })).toBe("IFC Rev 3");
     expect(nextRevisionLabel({ revisionLabel: "IFC 2026-11-20", revisions: [sheet() as never, sheet() as never] })).toBe("Rev D");
+  });
+});
+
+describe("scale through an alignment", () => {
+  const half: Affine = [0.5, 0, 0, 0.5, 0, 0]; // new drawing shows the plan at half size on the same page
+  it("restores a reset scale from the previous drawing", () => {
+    const { sheet: s } = pushRevision(sheet(), { imageId: "img-b", width: 1500, height: 1000 }, "Rev B", null, ts);
+    expect(s.pxPerFt).toBeNull();
+    expect(scaleAfterAlign(s, IDENTITY)).toBeCloseTo(12);
+  });
+  it("updates a scale kept from the previous drawing when the content was zoomed", () => {
+    const { sheet: s } = pushRevision(sheet(), { imageId: "img-b", width: 3000, height: 2000 }, "Rev B", null, ts);
+    expect(s.pxPerFt).toBe(24);
+    expect(scaleAfterAlign(s, half)).toBeCloseTo(12);
+    // A small tap error doesn't disturb it.
+    expect(scaleAfterAlign(s, [1.004, 0, 0, 1.004, 0.01, 0])).toBeNull();
+    // Re-aligning a link that already carried the scale follows the new alignment.
+    const aligned: Sheet = { ...s, pxPerFt: 12, revisions: [{ ...s.revisions![0], transformToNext: half }] };
+    expect(scaleAfterAlign(aligned, IDENTITY)).toBeCloseTo(24);
+  });
+  it("leaves a scale calibrated on the new drawing alone", () => {
+    const { sheet: s } = pushRevision(sheet(), { imageId: "img-b", width: 3000, height: 2000 }, "Rev B", null, ts);
+    expect(scaleAfterAlign({ ...s, pxPerFt: 30 }, half)).toBeNull();
+    expect(scaleAfterAlign({ ...s, revisions: [] }, half)).toBeNull();
   });
 });
 

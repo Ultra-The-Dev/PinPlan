@@ -241,6 +241,24 @@ export function pushRevision(sheet: Sheet, img: NewRevisionImage, label: string,
   };
 }
 
+/**
+ * The current drawing's scale after aligning it to the previous one with `T` (previous → current). The scale is
+ * carried through the alignment when it was reset, or when it still is the one derived from the previous drawing
+ * (kept for a same-size page, or set by an earlier alignment of this link). A scale calibrated or read on the new
+ * drawing itself is left alone. Null: leave the scale as it is.
+ */
+export function scaleAfterAlign(sheet: Pick<Sheet, "pxPerFt" | "width" | "height" | "revisions">, T: Affine): number | null {
+  const prev = sheet.revisions?.[0];
+  if (!prev?.pxPerFt) return null;
+  const derived = prev.pxPerFt * pixelScale(prev.transformToNext ?? IDENTITY, prev, sheet);
+  if (sheet.pxPerFt && Math.abs(sheet.pxPerFt / derived - 1) > 1e-6) return null;
+  const next = prev.pxPerFt * pixelScale(T, prev, sheet);
+  if (!Number.isFinite(next) || next <= 0) return null;
+  // Two tapped points are only so precise: a derived scale within 1% stays as it is.
+  if (sheet.pxPerFt && within1pct(next, sheet.pxPerFt)) return null;
+  return next;
+}
+
 /** True while the sheet lost its scale to a new revision and hasn't been calibrated again. */
 export function needsRecalibration(sheet: Sheet): boolean {
   return !sheet.pxPerFt && !!sheet.revisions?.[0]?.pxPerFt;

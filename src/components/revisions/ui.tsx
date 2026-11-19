@@ -10,14 +10,29 @@ import { fetchProjectImage } from "@/lib/sync";
 export function Screen(props: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; actions?: ReactNode; children: ReactNode; label: string }) {
   // Only ever opened by a tap, so the document exists.
   const host = typeof document === "undefined" ? null : document.body;
+  const onClose = useRef(props.onClose);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    onClose.current = props.onClose;
   });
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Keys stop here (after React's own handlers, which listen on the document root): the plan's window shortcuts
+    // (Delete removes the selected device, Ctrl+Z undoes) must not act behind this screen.
+    const onKey = (e: KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Escape") onClose.current();
+    };
+    document.addEventListener("keydown", onKey);
+    const back = document.activeElement as HTMLElement | null;
+    box.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (back?.isConnected) back.focus?.();
+    };
+  }, []);
   if (!host) return null;
   return createPortal(
-    <div role="dialog" aria-label={props.label} onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()} className="fixed inset-0 z-50 flex flex-col bg-slate-50" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={props.label} className="fixed inset-0 z-50 flex flex-col bg-slate-50 outline-none" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
         <div className="mr-auto min-w-0">
           <h2 className="truncate text-base font-semibold">{props.title}</h2>
