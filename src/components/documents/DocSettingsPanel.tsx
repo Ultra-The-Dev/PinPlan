@@ -117,7 +117,7 @@ export default function DocSettingsPanel() {
           </label>
           <label className="text-sm">
             <span className="label">Default terms</span>
-            <textarea className="input min-h-20" value={k.terms} onChange={(e) => setK({ terms: e.target.value })} placeholder={kind === "quote" ? "50% deposit on acceptance, balance on completion…" : "Payment due within the terms above…"} />
+            <textarea className="input min-h-20" value={k.terms} onChange={(e) => setK({ terms: e.target.value })} placeholder={kind === "quote" ? "50% deposit on approval, balance on completion…" : "Payment due within the terms above…"} />
           </label>
           <label className="text-sm">
             <span className="label">Default footer</span>
@@ -291,7 +291,7 @@ export default function DocSettingsPanel() {
           <input type="checkbox" className="accent-brand-600" checked={s.lineDetails} onChange={(e) => set({ lineDetails: e.target.checked })} /> Rooms and device labels under each estimate line
         </label>
         <label className="flex items-center gap-2 text-sm sm:col-span-3">
-          <input type="checkbox" className="accent-brand-600" checked={s.signatureOnQuotes} onChange={(e) => set({ signatureOnQuotes: e.target.checked })} /> Clients sign to accept quotes online
+          <input type="checkbox" className="accent-brand-600" checked={s.signatureOnQuotes} onChange={(e) => set({ signatureOnQuotes: e.target.checked })} /> Clients sign to approve quotes online
         </label>
       </div>
 

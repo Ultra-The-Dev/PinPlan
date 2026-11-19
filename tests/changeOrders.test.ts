@@ -5,9 +5,11 @@ import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
 import {
   approvedLinesFor,
   baseContractMarkers,
+  billableChanges,
   canEdit,
   changeOrderTotals,
   coCode,
+  contractFromQuote,
   contractSummary,
   laborHoursLine,
   linesFromMarkers,
@@ -243,6 +245,21 @@ describe("contract summary", () => {
     ];
     expect(contractSummary(10000.005, cos)).toEqual({ original: 10000.01, approved: 70, pending: 200, revised: 10070.01 });
     expect(contractSummary(0, [])).toEqual({ original: 0, approved: 0, pending: 0, revised: 0 });
+    // Against the approved quote when there is one; the live pricing otherwise ("Not approved yet").
+    expect(contractFromQuote(8000, 10000.005, cos)).toEqual({ original: 8000, approved: 70, pending: 200, revised: 8070, basis: "quote" });
+    expect(contractFromQuote(null, 10000.005, cos)).toEqual({ original: 10000.01, approved: 70, pending: 200, revised: 10070.01, basis: "pricing" });
+  });
+
+  it("approved change orders become billable sections, each billed once", () => {
+    const a = co({ id: "a", number: 1, status: "approved", lines: [line("x", "material", 2, 10), line("z", "labor", 0, 0)], markupPct: 20, taxPct: 10 });
+    const b = co({ id: "b", number: 2, status: "approved", lines: [line("y", "custom", 1, 99.99, false)], taxPct: 0 });
+    const out = billableChanges([b, a, co({ id: "c", status: "sent" })]);
+    expect(out.map((c) => c.code)).toEqual(["CO-001", "CO-002"]);
+    // Client prices (markup folded in), zero lines dropped, the change order's own total with tax.
+    expect(out[0].lines).toEqual([{ description: "x", qty: 2, unit: "each", unitPrice: 12, taxable: true }]);
+    expect(out[0].total).toBe(changeOrderTotals(a).total);
+    expect(out[1]).toMatchObject({ taxPct: 0, total: 99.99 });
+    expect(billableChanges([a, b], new Set(["a"])).map((c) => c.id)).toEqual(["b"]);
   });
 
   it("keeps change-order devices out of the original contract (no double count once confirmed)", () => {

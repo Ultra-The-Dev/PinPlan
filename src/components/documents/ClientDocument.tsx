@@ -102,7 +102,7 @@ export default function ClientDocument() {
             {d.status === "accepted" ? (
               <>
                 <div className="flex items-center gap-2 font-bold">
-                  <Check className="h-5 w-5" /> Accepted{d.signerName ? ` by ${d.signerName}` : ""}
+                  <Check className="h-5 w-5" /> Approved{d.signerName ? ` by ${d.signerName}` : ""}
                   {d.respondedAt ? ` on ${new Date(d.respondedAt).toLocaleDateString(s.locale)}` : ""}
                 </div>
                 <p className="mt-1 text-sm">
@@ -126,7 +126,7 @@ export default function ClientDocument() {
             {!declining ? (
               <>
                 <h2 className="text-lg font-extrabold" style={{ color: brand }}>
-                  Accept this {s.title.toLowerCase()}
+                  Approve this {s.title.toLowerCase()}
                 </h2>
                 <label className="mt-4 block text-sm">
                   <span className="label">Your full name</span>
@@ -141,7 +141,7 @@ export default function ClientDocument() {
                 <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
                   <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
                   <span>
-                    I accept the work described above for <strong>{money(s.totals.total)}</strong>
+                    I approve the work described above for <strong>{money(s.totals.total)}</strong>
                     {s.terms ? " and agree to the terms" : ""}.
                   </span>
                 </label>
@@ -153,7 +153,7 @@ export default function ClientDocument() {
                     disabled={!!busy || !name.trim() || (needSig && !signature) || !agree}
                     onClick={() => void respond(true)}
                   >
-                    <Check /> {busy === "accept" ? "Sending…" : `Accept — ${money(s.totals.total)}`}
+                    <Check /> {busy === "accept" ? "Sending…" : `Approve — ${money(s.totals.total)}`}
                   </button>
                   <button className="btn btn-ghost text-slate-500" onClick={() => setDeclining(true)}>
                     Decline

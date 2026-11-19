@@ -1,12 +1,13 @@
 "use client";
 // Small building blocks for the quotes / invoices screens.
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { STATUS_LABEL } from "@/lib/documents";
 import type { DocDisplayStatus, DocKind } from "@/lib/types";
 
 const STATUS_STYLE: Record<DocDisplayStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
+  ready: "bg-amber-50 text-amber-800",
   sent: "bg-sky-50 text-sky-700",
   viewed: "bg-indigo-50 text-indigo-700",
   accepted: "bg-emerald-50 text-emerald-700",
@@ -36,35 +37,50 @@ export function parseAmount(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** A dropdown menu of actions. */
+/**
+ * A dropdown list of actions. A plain disclosure (a button that shows a list of buttons; Tab moves through them),
+ * not an ARIA menu, so screen readers and keyboards get what they expect. Escape or a click outside closes it.
+ */
 export function Menu({ label, icon, items, align = "right", className = "btn" }: { label: React.ReactNode; icon?: React.ReactNode; items: ({ label: string; icon?: React.ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; hint?: string } | null | false)[]; align?: "left" | "right"; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const id = useId();
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    const click = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
+    const blur = (e: FocusEvent) => {
+      // Tabbing out of the list closes it.
+      if (e.target instanceof Node && !ref.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", click);
+    document.addEventListener("keydown", key);
+    document.addEventListener("focusin", blur);
     return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
+      document.removeEventListener("mousedown", click);
+      document.removeEventListener("keydown", key);
+      document.removeEventListener("focusin", blur);
     };
   }, [open]);
   const list = items.filter(Boolean) as Exclude<(typeof items)[number], null | false>[];
   return (
     <div className="relative" ref={ref}>
-      <button type="button" className={className} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button ref={button} type="button" className={className} aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
         {icon}
         {label}
       </button>
       {open && (
-        <div role="menu" className={`card animate-in absolute z-40 mt-1 min-w-56 p-1 shadow-pop ${align === "right" ? "right-0" : "left-0"}`}>
+        <div id={id} className={`card animate-in absolute z-40 mt-1 min-w-56 p-1 shadow-pop ${align === "right" ? "right-0" : "left-0"}`}>
           {list.map((it) => (
             <button
               key={it.label}
-              role="menuitem"
               type="button"
               disabled={it.disabled}
               title={it.hint}

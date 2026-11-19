@@ -26,8 +26,9 @@ import type {
 export const DEFAULT_COLUMNS: DocColumns = { qty: true, unit: true, unitPrice: true, discount: false, tax: false, sku: false, lineTotal: true };
 
 export const DEFAULT_DOC_SETTINGS: DocumentSettings = {
+  version: 2,
   kinds: {
-    quote: { label: "Estimate", format: "EST-{0000}", yearlyReset: false, terms: "", notes: "Thank you for the opportunity to quote this project.", footer: "" },
+    quote: { label: "Quote", format: "Q-{0000}", yearlyReset: false, terms: "", notes: "Thank you for the opportunity to quote this project.", footer: "" },
     invoice: { label: "Invoice", format: "INV-{YYYY}-{0000}", yearlyReset: true, terms: "", notes: "Thank you for your business!", footer: "" },
     credit_note: { label: "Credit note", format: "CN-{0000}", yearlyReset: false, terms: "", notes: "", footer: "" },
   },
@@ -49,15 +50,29 @@ export const DEFAULT_DOC_SETTINGS: DocumentSettings = {
   reminders: { enabled: true, daysBeforeDue: 3, daysAfterDue: [7, 14, 30] },
 };
 
-/** Settings with every key present (older or partial copies merged over the defaults). */
+/** The quote label and number format every account started with before "Quote" / "Q-{0000}". */
+export const LEGACY_QUOTE_DEFAULT = { label: "Estimate", format: "EST-{0000}" } as const;
+
+/** True when the saved quote label and format are still the old untouched default (nobody chose "Estimate"). */
+export function hasLegacyQuoteDefault(s: Partial<DocumentSettings> | null | undefined): boolean {
+  const q = s?.kinds?.quote;
+  // Saved since "Quote" became the default (version 2): an "Estimate" there was chosen on purpose.
+  if ((s?.version ?? 0) >= 2) return false;
+  return !!q && q.label === LEGACY_QUOTE_DEFAULT.label && q.format === LEGACY_QUOTE_DEFAULT.format;
+}
+
+/** Settings with every key present (older or partial copies merged over the defaults). Accounts still on the old
+ *  untouched quote default ("Estimate", EST-{0000}) move to "Quote", Q-{0000}. */
 export function normalizeDocSettings(s: Partial<DocumentSettings> | null | undefined, fallbackCurrency?: string): DocumentSettings {
   const d = DEFAULT_DOC_SETTINGS;
   const x = s ?? {};
   const kinds = {} as DocumentSettings["kinds"];
   for (const k of DOC_KINDS) kinds[k] = { ...d.kinds[k], ...(x.kinds?.[k] ?? {}) };
+  if (hasLegacyQuoteDefault(x)) kinds.quote = { ...kinds.quote, label: d.kinds.quote.label, format: d.kinds.quote.format };
   return {
     ...d,
     ...x,
+    version: Math.max(d.version ?? 2, x.version ?? 0),
     currency: x.currency || fallbackCurrency || d.currency,
     kinds,
     columns: { ...d.columns, ...(x.columns ?? {}) },
@@ -276,24 +291,41 @@ export function invoiceStatus(doc: Pick<SalesDoc, "kind" | "status" | "viewedAt"
   return doc.viewedAt ? "viewed" : "sent";
 }
 
-/** What to show: adds "overdue" (invoice past its due date with money owed) and "expired" (quote past valid-until). */
-export function displayStatus(doc: Pick<SalesDoc, "kind" | "status" | "dueDate" | "validUntil" | "balanceDue">, day: string = today()): DocDisplayStatus {
+type SentFields = Pick<SalesDoc, "status"> & Partial<Pick<SalesDoc, "sentAt" | "shareToken" | "viewedAt" | "respondedAt">>;
+
+/**
+ * True once the client has it: a link was shared, it was emailed or marked sent, or the client opened or answered it.
+ * Finalizing alone doesn't send anything ("Ready to send"). Derived, so no stored status changes.
+ */
+export function wasSent(doc: SentFields): boolean {
+  if (doc.status === "viewed" || doc.status === "accepted" || doc.status === "declined") return true;
+  return !!(doc.sentAt || doc.shareToken || doc.viewedAt || doc.respondedAt);
+}
+
+/**
+ * What to show: "ready" (finalized, not sent yet), "overdue" (a sent invoice past its due date with money owed) and
+ * "expired" (a sent quote past valid-until). Overdue and expired only start once it was sent.
+ */
+export function displayStatus(doc: Pick<SalesDoc, "kind" | "status" | "dueDate" | "validUntil" | "balanceDue"> & Partial<SentFields>, day: string = today()): DocDisplayStatus {
   const st = doc.status;
   if (st === "draft" || st === "void") return st;
+  const sent = wasSent(doc);
   if (doc.kind === "invoice") {
     if (st === "paid") return st;
-    if (isDay(doc.dueDate) && doc.dueDate < day && doc.balanceDue > 0) return "overdue";
-    return st;
+    if (sent && isDay(doc.dueDate) && doc.dueDate < day && doc.balanceDue > 0) return "overdue";
+    return st === "sent" && !sent ? "ready" : st;
   }
+  if (st === "sent" && !sent) return "ready";
   if (doc.kind === "quote" && (st === "sent" || st === "viewed") && isDay(doc.validUntil) && doc.validUntil < day) return "expired";
   return st;
 }
 
 export const STATUS_LABEL: Record<DocDisplayStatus, string> = {
   draft: "Draft",
+  ready: "Ready to send",
   sent: "Sent",
   viewed: "Viewed",
-  accepted: "Accepted",
+  accepted: "Approved",
   declined: "Declined",
   partially_paid: "Partly paid",
   paid: "Paid",
@@ -392,9 +424,11 @@ export function receivables(docs: SalesDoc[], payments: DocPayment[], day: strin
 }
 
 /** Reminder due for an invoice today per the settings ("before" the due date, or N days "after"), or null. */
-export function reminderDue(doc: Pick<SalesDoc, "kind" | "status" | "dueDate" | "balanceDue">, r: DocumentSettings["reminders"], day: string = today()): "before" | "after" | null {
+export function reminderDue(doc: Pick<SalesDoc, "kind" | "status" | "dueDate" | "balanceDue"> & Partial<SentFields>, r: DocumentSettings["reminders"], day: string = today()): "before" | "after" | null {
   if (!r.enabled || doc.kind !== "invoice" || !isDay(doc.dueDate) || !(doc.balanceDue > 0)) return null;
   if (doc.status === "draft" || doc.status === "void" || doc.status === "paid") return null;
+  // Nothing to remind about until the client has it.
+  if (!wasSent(doc)) return null;
   const late = daysBetween(doc.dueDate, day);
   if (late < 0 && -late <= r.daysBeforeDue) return "before";
   if (late > 0 && r.daysAfterDue.some((n) => late >= n)) return "after";
@@ -516,6 +550,15 @@ export function blankLine(taxable = true): DocLine {
   return { id: lineId(), kind: "item", description: "", qty: 1, unit: "each", unitPrice: 0, taxable };
 }
 
+function withoutBilling(o: SalesDoc["options"]): SalesDoc["options"] {
+  if (!o) return o;
+  const rest = { ...o };
+  delete rest.changeOrderIds;
+  delete rest.changeOrderAmount;
+  delete rest.approval;
+  return rest;
+}
+
 /** Copy of a document as a new draft (no number, link, answers or payments). */
 export function duplicateDocument(doc: SalesDoc, input: { id: string; now: string; day: string; settings: DocumentSettings; kind?: DocKind }): SalesDoc {
   const kind = input.kind ?? doc.kind;
@@ -530,6 +573,8 @@ export function duplicateDocument(doc: SalesDoc, input: { id: string; now: strin
     dueDate: kind === "invoice" ? dueDateFor(input.day, doc.termsDays ?? s.paymentTermsDays) : null,
     validUntil: kind === "quote" && s.quoteValidDays > 0 ? addDays(input.day, s.quoteValidDays) : null,
     lines: doc.lines.map((l) => ({ ...l, id: lineId() })),
+    // A copy bills no change orders and carries no client approval.
+    options: withoutBilling(doc.options),
     source: "duplicate",
     convertedFrom: doc.id,
     shareToken: null,
@@ -553,6 +598,7 @@ export type InvoiceMode =
   | { mode: "full" }
   | { mode: "deposit"; pct: number }
   | { mode: "progress"; pct: number }
+  | { mode: "amount"; amount: number }
   | { mode: "lines"; lineIds: string[] }
   | { mode: "final" };
 
@@ -561,12 +607,87 @@ export function invoicesFromQuote(quoteId: string, docs: SalesDoc[]): SalesDoc[]
   return docs.filter((d) => d.kind === "invoice" && d.convertedFrom === quoteId && !d.deleted && d.status !== "void");
 }
 
+/** An approved change order, ready to bill (client prices; see approvedLinesFor in changeOrders.ts). */
+export interface BillableChange {
+  id: string;
+  /** "CO-002". */
+  code: string;
+  title: string;
+  lines: { description: string; qty: number; unit: string; unitPrice: number; taxable: boolean }[];
+  /** The change order's own tax %. */
+  taxPct: number;
+  /** Its total with tax. */
+  total: number;
+}
+
+/** Change orders already billed on an invoice (drafts included, so one isn't put on two invoices; void ones free it). */
+export function billedChangeOrderIds(docs: Pick<SalesDoc, "kind" | "status" | "deleted" | "options">[]): Set<string> {
+  const out = new Set<string>();
+  for (const d of docs) if (d.kind === "invoice" && !d.deleted && d.status !== "void") for (const id of d.options?.changeOrderIds ?? []) out.add(id);
+  return out;
+}
+
+/** Change orders can go on this invoice: not when it has a document discount (it would spread over them too). */
+export function canAddChangeOrders(doc: Pick<SalesDoc, "lines" | "taxes" | "discount" | "fees">): boolean {
+  return !documentTotals(doc).discountTotal;
+}
+
+/**
+ * Add approved change orders to an invoice, one section each ("CO-002 — Extra cameras"), and record their ids so each
+ * is billed once. Each change keeps its own tax rate: lines are tied to a tax of that rate (added when the invoice has
+ * none). Throws on an invoice with a discount (canAddChangeOrders): bill the changes on their own invoice instead.
+ */
+export function addChangeOrders(doc: SalesDoc, changes: BillableChange[]): SalesDoc {
+  const already = new Set(doc.options?.changeOrderIds ?? []);
+  const todo = changes.filter((c) => !already.has(c.id) && c.lines.length);
+  if (!todo.length) return doc;
+  if (!canAddChangeOrders(doc)) throw new Error("This invoice has a discount, so change orders can't go on it. Bill them on their own invoice (Change orders → Bill this change).");
+  const before = documentTotals(doc);
+  let taxes = [...doc.taxes];
+  let lines = [...doc.lines];
+  const taxFor = (rate: number): string[] | null => {
+    if (!(rate > 0)) return null;
+    // One tax of the same rate on the invoice: use it. Several (e.g. state + county) that add up to it: use them all.
+    const same = taxes.find((t) => t.rate === rate);
+    if (same) return [same.id];
+    if (taxes.length > 1 && money(taxes.reduce((s, t) => s + t.rate, 0)) === money(rate)) return taxes.map((t) => t.id);
+    // A new rate: keep the existing lines on the taxes they had, then add this one.
+    const ids = taxes.map((t) => t.id);
+    lines = lines.map((l) => (isItem(l) && l.taxable && !l.taxIds ? { ...l, taxIds: ids } : l));
+    const t = { id: `co-tax-${String(rate).replace(/\W/g, "_")}`, name: taxes.length ? `Sales tax ${rate}%` : "Sales tax", rate };
+    taxes = [...taxes, t];
+    return [t.id];
+  };
+  for (const c of todo) {
+    lines.push({ id: lineId(), kind: "section", description: `${c.code} — ${c.title || "Change order"}`, qty: 0, unitPrice: 0, taxable: false });
+    const ids = taxFor(c.taxPct);
+    for (const l of c.lines) lines.push({ id: lineId(), kind: "item", description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, taxable: !!ids && l.taxable, taxIds: ids && l.taxable ? ids : null });
+  }
+  const next = withTotals({ ...doc, lines, taxes, options: { ...(doc.options ?? {}), changeOrderIds: [...already, ...todo.map((c) => c.id)] } });
+  const added = money(documentTotals(next).grossTotal - before.grossTotal);
+  return { ...next, options: { ...next.options, changeOrderAmount: money((doc.options?.changeOrderAmount ?? 0) + added) } };
+}
+
+/** An invoice for approved change orders on their own ("Bill this change"). */
+export function invoiceFromChanges(changes: BillableChange[], input: { id: string; now: string; day: string; settings: DocumentSettings; project: Project }): SalesDoc {
+  const base = newDocument({ id: input.id, kind: "invoice", project: input.project, settings: input.settings, now: input.now, day: input.day });
+  const title = changes.length === 1 ? `Change order ${changes[0].code}` : "Change orders";
+  return addChangeOrders({ ...base, title, taxes: [] }, changes);
+}
+
 /**
  * An invoice from a quote. full: every line. deposit / progress: one untaxed line for pct % of the quote total
- * (taxes included, so the deposits add up to what the client signed for). lines: the chosen lines, taxed as on the quote.
- * final: every line, less one line per invoice already made from this quote.
+ * (taxes included, so the deposits add up to what the client signed for). amount: one untaxed line for a set amount.
+ * lines: the chosen lines, taxed as on the quote. final ("Remaining balance"): every line, less one line per invoice
+ * already made from this quote (less any change orders billed on it, which aren't part of the quote).
+ * `changes`: approved change orders to add as sections (each billed once; see addChangeOrders).
  */
-export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id: string; now: string; day: string; settings: DocumentSettings; prior?: SalesDoc[]; quoteName?: string }): SalesDoc {
+export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id: string; now: string; day: string; settings: DocumentSettings; prior?: SalesDoc[]; quoteName?: string; changes?: BillableChange[] }): SalesDoc {
+  const doc = invoiceFromQuoteOnly(quote, how, input);
+  return input.changes?.length ? addChangeOrders(doc, input.changes) : doc;
+}
+
+function invoiceFromQuoteOnly(quote: SalesDoc, how: InvoiceMode, input: { id: string; now: string; day: string; settings: DocumentSettings; prior?: SalesDoc[]; quoteName?: string }): SalesDoc {
   const s = input.settings;
   const name = input.quoteName ?? quote.number ?? docTitle(quote, s);
   const base: SalesDoc = {
@@ -581,7 +702,7 @@ export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id:
     notes: s.kinds.invoice.notes,
     terms: s.kinds.invoice.terms || quote.terms || "",
     footer: s.kinds.invoice.footer,
-    options: { ...(quote.options ?? {}), requireSignature: false },
+    options: { ...(withoutBilling(quote.options) ?? {}), requireSignature: false },
     invoiceType: "standard",
     billedPct: null,
   };
@@ -599,6 +720,19 @@ export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id:
       fees: [],
       deductions: [],
       lines: [{ id: lineId(), kind: "item", description: `${label} — ${name}`, details: `${pct}% of ${formatDocMoney(quoteTotal, quote.currency, s.locale)}`, qty: 1, unit: "each", unitPrice: amount, taxable: false }],
+    });
+  }
+  if (how.mode === "amount") {
+    const amount = money(Math.max(0, Number(how.amount) || 0));
+    const pct = quoteTotal > 0 ? Math.round((amount / quoteTotal) * 10000) / 100 : null;
+    return withTotals({
+      ...base,
+      invoiceType: "progress",
+      billedPct: pct,
+      discount: null,
+      fees: [],
+      deductions: [],
+      lines: [{ id: lineId(), kind: "item", description: `Progress billing — ${name}`, details: `${formatDocMoney(amount, quote.currency, s.locale)} of ${formatDocMoney(quoteTotal, quote.currency, s.locale)}`, qty: 1, unit: "each", unitPrice: amount, taxable: false }],
     });
   }
   if (how.mode === "lines") {
@@ -622,10 +756,55 @@ export function invoiceFromQuote(quote: SalesDoc, how: InvoiceMode, input: { id:
   if (how.mode === "final") {
     // Every line (discount and taxes as quoted), less what was already invoiced, taken off after tax.
     const prior = input.prior ?? [];
-    const deductions = prior.map((p) => ({ id: lineId(), label: `Less ${p.number ?? "earlier invoice"}${p.invoiceType && p.invoiceType !== "standard" ? ` (${p.invoiceType})` : ""}`, amount: p.total }));
+    // Change orders billed on an earlier invoice aren't part of the quote: only the quote's share comes off.
+    const deductions = prior
+      .map((p) => ({ id: lineId(), label: `Less ${p.number ?? "earlier invoice"}${p.invoiceType && p.invoiceType !== "standard" ? ` (${p.invoiceType})` : ""}`, amount: money(p.total - (p.options?.changeOrderAmount ?? 0)) }))
+      .filter((d) => d.amount !== 0);
     return withTotals({ ...base, lines, deductions, invoiceType: prior.length ? "final" : "standard" });
   }
   return withTotals({ ...base, lines, deductions: [] });
+}
+
+// ---------------------------------------------------------------- a job's money at a glance
+
+const approvedAt = (d: Pick<SalesDoc, "respondedAt" | "issueDate" | "updatedAt" | "options">) => d.respondedAt ?? d.options?.approval?.respondedAt ?? d.issueDate ?? d.updatedAt ?? "";
+
+/** The quote the job is priced on: the newest approved one (a newer approval supersedes the older ones). */
+export function latestApprovedQuote<T extends Pick<SalesDoc, "kind" | "status" | "deleted" | "respondedAt" | "issueDate" | "updatedAt" | "options">>(docs: T[]): T | null {
+  let best: T | null = null;
+  for (const d of docs) {
+    if (d.deleted || d.kind !== "quote" || d.status !== "accepted") continue;
+    if (!best || approvedAt(d) > approvedAt(best)) best = d;
+  }
+  return best;
+}
+
+export interface JobBilling {
+  /** The approved quote (latest), or null when none is approved yet. */
+  quote: SalesDoc | null;
+  /** Approved quote + approved change orders; null without an approved quote. */
+  contract: number | null;
+  /** Finalized invoices, less credit notes. */
+  billed: number;
+  /** Payments received (credits not counted). */
+  paid: number;
+  /** What clients still owe on finalized invoices. */
+  unpaid: number;
+  /** Contract not invoiced yet (never below zero); null without an approved quote. */
+  leftToBill: number | null;
+}
+
+/** Approved quote · Billed · Left to bill for one job, from its in-app documents. */
+export function jobBilling(docs: SalesDoc[], approvedChanges = 0): JobBilling {
+  const live = docs.filter((d) => !d.deleted && d.status !== "void" && d.status !== "draft");
+  const invoices = live.filter((d) => d.kind === "invoice");
+  const credited = money(live.filter((d) => d.kind === "credit_note").reduce((s, d) => s + d.total, 0));
+  const billed = money(invoices.reduce((s, d) => s + d.total, 0) - credited);
+  const paid = money(invoices.reduce((s, d) => s + d.amountPaid, 0) - credited);
+  const unpaid = money(invoices.reduce((s, d) => s + Math.max(0, d.balanceDue), 0));
+  const quote = latestApprovedQuote(docs);
+  const contract = quote ? money(quote.total + approvedChanges) : null;
+  return { quote, contract, billed, paid: Math.max(0, paid), unpaid, leftToBill: contract == null ? null : Math.max(0, money(contract - billed)) };
 }
 
 /** A credit note against an invoice: its lines, to edit down to what is being credited. */

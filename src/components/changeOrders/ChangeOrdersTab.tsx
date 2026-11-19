@@ -2,8 +2,10 @@
 // Job → Changes (office only): the change order log, with the contract value it adds up to.
 import { CalendarClock, ChevronRight, Download, FilePlus2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { baseContractMarkers, changeOrderTotals, coCode, contractSummary, nextCoNumber, reasonLabel, type CoPricing } from "@/lib/changeOrders";
+import { baseContractMarkers, changeOrderTotals, coCode, contractFromQuote, nextCoNumber, reasonLabel, type CoPricing } from "@/lib/changeOrders";
 import { newId, nowIso } from "@/lib/db";
+import { useJobDocs } from "@/lib/docActions";
+import { latestApprovedQuote } from "@/lib/documents";
 import { downloadBlob, slug } from "@/lib/download";
 import { formatMoney, projectEstimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
@@ -38,7 +40,10 @@ export default function ChangeOrdersTab() {
     () => (pricing && project ? projectEstimate({ project, sheets, markers: baseMarkers, runs, closets, estimateLines }, catalog, products, pricing) : null),
     [pricing, project, sheets, baseMarkers, runs, closets, estimateLines, catalog, products],
   );
-  const summary = useMemo(() => contractSummary(estimate?.total ?? 0, rows ?? []), [estimate?.total, rows]);
+  // Changes add to the approved quote (the newest one). Without one, the live pricing stands in, marked "Not approved yet".
+  const { docs } = useJobDocs(project?.id);
+  const approvedQuote = useMemo(() => latestApprovedQuote(docs ?? []), [docs]);
+  const summary = useMemo(() => contractFromQuote(approvedQuote?.total ?? null, estimate?.total ?? 0, rows ?? []), [approvedQuote?.total, estimate?.total, rows]);
 
   if (!project || !settings || !pricing || !rows) return <div className="p-6 text-slate-500">Loading…</div>;
   const cur = pricing.currency;
@@ -100,11 +105,14 @@ export default function ChangeOrdersTab() {
     }
   }
 
+  const quoted = summary.basis === "quote";
   const tiles: { label: string; value: number; hint?: string; strong?: boolean; testId: string }[] = [
-    { label: "Original estimate", value: summary.original, hint: "devices on change orders excluded", testId: "co-original" },
+    quoted
+      ? { label: "Approved quote", value: summary.original, hint: approvedQuote?.number ?? undefined, testId: "co-original" }
+      : { label: "Job pricing", value: summary.original, hint: "Not approved yet", testId: "co-original" },
     { label: "Approved changes", value: summary.approved, testId: "co-approved" },
-    { label: "Pending", value: summary.pending, hint: "drafts + waiting on client", testId: "co-pending" },
-    { label: "Revised contract", value: summary.revised, strong: true, testId: "co-revised" },
+    { label: "Waiting on client", value: summary.pending, hint: "drafts and sent", testId: "co-pending" },
+    { label: quoted ? "New contract total" : "Total if approved", value: summary.revised, strong: true, testId: "co-revised" },
   ];
 
   return (

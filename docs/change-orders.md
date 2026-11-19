@@ -5,7 +5,7 @@ prices the extra from the same catalog as the estimate (or straight from devices
 goes to the client as a link they sign on a phone, and keeps a per-job log with the revised contract value.
 
 Office only: everything here is behind `can(role, "prices")` in the apps and `not is_tech()` in the database.
-Change orders never create invoices (see [Invoicing hook](#invoicing-hook)).
+Approved change orders are billed from the invoice dialog or "Bill this change" (see [Invoicing](#invoicing)).
 
 ## Where things live
 
@@ -114,10 +114,16 @@ confirming those devices on the plan never counts them twice.
   whose clock runs ahead still takes it.
 - `job_write_guard` (read-only when the subscription lapsed) and the `synced_at` trigger + index, like every job table.
 
-## Invoicing hook
+## Invoicing
 
-`approvedChangeOrderLines(projectId)` (and the pure `approvedLinesFor(cos)`) return each approved CO with its client
-lines, tax % and totals, for an invoicing feature to add as "CO-002 — …" lines. Nothing calls it yet.
+`approvedLinesFor(cos)` (and `approvedChangeOrderLines(projectId)`, which reads the local database) return each
+approved CO with its client lines, tax % and totals; `billableChanges(cos, billed)` turns the ones not billed yet into
+invoice sections. They go on an invoice from the quote ("Include approved change orders", default on for the remaining
+balance) or on their own ("Bill this change" on the approved CO). The invoice records `options.changeOrderIds`, so each
+CO is billed once; voiding the invoice frees it. See docs/documents.md → Conversions.
+
+The Change orders tab compares against the job's **approved quote** (`contractFromQuote`: "Approved quote" →
+"Approved changes" → "New contract total"); without one, the live job pricing stands in, labelled "Not approved yet".
 
 ## iPad app (not built yet)
 

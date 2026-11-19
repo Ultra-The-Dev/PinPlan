@@ -2,12 +2,16 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { Activity, ArrowRight, Camera, Check, ClipboardCheck, ListTodo, MapPin, NotebookPen, Receipt } from "lucide-react";
+import { contractSummary } from "@/lib/changeOrders";
+import { useJobDocs } from "@/lib/docActions";
+import { jobBilling } from "@/lib/documents";
 import { daysUntil, localDay } from "@/lib/fieldDocs";
 import { formatMoney, projectEstimate } from "@/lib/estimate";
 import { jobSummary } from "@/lib/jobSummary";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
+import { useChangeOrders } from "./changeOrders/useChangeOrders";
 
 /** "today", "yesterday", "3 days ago" or a short date, for a YYYY-MM-DD day. */
 function dayAgo(day: string, today: string): string {
@@ -46,6 +50,10 @@ export default function JobHealth() {
     () => (project ? jobSummary({ project, sheets, markers, runs, photos, checklists, jobLogs, estimate, today, prices }) : null),
     [project, sheets, markers, runs, photos, checklists, jobLogs, estimate, today, prices],
   );
+  // Money from the job's own quotes and invoices (office only; technicians never load them).
+  const { docs } = useJobDocs(prices ? project?.id : undefined);
+  const { rows: changeOrders } = useChangeOrders(prices ? project?.id : undefined);
+  const money = useMemo(() => jobBilling(docs ?? [], contractSummary(0, changeOrders ?? []).approved), [docs, changeOrders]);
   if (!project || !s) return null;
   const currency = project.pricing?.currency ?? settings?.pricing.currency ?? "USD";
   const urgent = s.next.kind === "overdueTasks" || s.next.kind === "reviseProposal";
@@ -71,10 +79,18 @@ export default function JobHealth() {
         {prices && (
           <Stat
             icon={Receipt}
-            label="Estimate"
-            value={s.estimate ? formatMoney(s.estimate.total, currency) : "—"}
-            sub={s.estimate?.unpriced ? `${s.estimate.unpriced} unpriced line${s.estimate.unpriced === 1 ? "" : "s"}` : project.billduDocs.length ? `${project.billduDocs.length} in Billdu` : "Not in Billdu"}
-            tone={s.estimate?.unpriced ? "bad" : undefined}
+            label={money.quote ? "Money" : "Pricing"}
+            value={money.quote ? formatMoney(money.contract ?? 0, currency) : s.estimate ? formatMoney(s.estimate.total, currency) : "—"}
+            sub={
+              money.quote
+                ? `Quote approved · ${formatMoney(money.billed, currency)} of ${formatMoney(money.contract ?? 0, currency)} billed`
+                : s.estimate?.unpriced
+                  ? `${s.estimate.unpriced} unpriced line${s.estimate.unpriced === 1 ? "" : "s"}`
+                  : money.billed
+                    ? `${formatMoney(money.billed, currency)} billed`
+                    : "No approved quote yet"
+            }
+            tone={!money.quote && s.estimate?.unpriced ? "bad" : money.quote && money.leftToBill === 0 ? "ok" : undefined}
           />
         )}
       </div>

@@ -182,7 +182,7 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
               {money(snap.totals.total)}
             </span>
           </div>
-          {snap.totals.deposit != null && snap.kind === "quote" ? <Row label="Deposit due on acceptance" value={money(snap.totals.deposit)} strong /> : null}
+          {snap.totals.deposit != null && snap.kind === "quote" ? <Row label="Deposit due on approval" value={money(snap.totals.deposit)} strong /> : null}
           {isInvoice && paid ? <Row label="Paid" value={`−${money(paid)}`} /> : null}
           {isInvoice ? (
             <div className="mt-1 flex items-baseline justify-between rounded-lg px-3 py-2" style={{ background: `${brand}10` }}>

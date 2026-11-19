@@ -5,14 +5,15 @@
 // device keeps a cache in AppSettings.documents. Newest `updatedAt` wins. Number counters live only on the server.
 import { useEffect, useState } from "react";
 import { db, getSettings, nowIso, saveDocumentSettings } from "./db";
-import { normalizeDocSettings } from "./documents";
+import { hasLegacyQuoteDefault, normalizeDocSettings } from "./documents";
 import { getSupabase } from "./supabase";
 import type { DocKind, DocumentSettings } from "./types";
 
 export const DOC_SETTINGS_EVENT = "pinplan:doc-settings";
 
 export async function getDocSettings(): Promise<DocumentSettings> {
-  return (await getSettings()).documents ?? normalizeDocSettings(null);
+  const s = await getSettings();
+  return normalizeDocSettings(s.documents ?? null, s.pricing?.currency);
 }
 
 async function writeLocal(doc: DocumentSettings) {
@@ -45,7 +46,9 @@ export async function saveDocSettings(next: DocumentSettings): Promise<{ cloud: 
 }
 
 /** Bring this device's copy up to date with the company's (called by sync). Pushes this device's copy when the company
- *  has none yet (the first person to set up invoicing). */
+ *  has none yet (the first person to set up invoicing), or the defaults, so the server numbers quotes with the same
+ *  format the app shows (its built-in fallback is the old EST-{0000}). A company copy still on the old untouched quote
+ *  default ("Estimate", EST-{0000}) is saved back as "Quote", Q-{0000} (owner / admin only; others just read it). */
 export async function pullDocSettings(): Promise<void> {
   const sb = await signedIn();
   if (!sb) return;
@@ -53,11 +56,16 @@ export async function pullDocSettings(): Promise<void> {
   if (error) return; // offline, a migration behind, or a technician
   const local = (await db().settings.get("app"))?.documents;
   if (!data) {
-    if (local?.updatedAt) await saveDocSettings(local);
+    await saveDocSettings(local?.updatedAt ? local : normalizeDocSettings(local ?? null));
     return;
   }
-  const remote = normalizeDocSettings(data.config as Partial<DocumentSettings>);
+  const raw = data.config as Partial<DocumentSettings>;
+  const remote = normalizeDocSettings(raw);
   const remoteAt = remote.updatedAt ?? data.updated_at;
+  if (hasLegacyQuoteDefault(raw)) {
+    await saveDocSettings(remote);
+    return;
+  }
   if (!local?.updatedAt || Date.parse(remoteAt) > Date.parse(local.updatedAt)) await writeLocal({ ...remote, updatedAt: remoteAt });
 }
 

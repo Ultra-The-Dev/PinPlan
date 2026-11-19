@@ -10,7 +10,9 @@ the web app, the database and the iPad app (which mirrors it). Code: `src/lib/do
 
 - **One document model, three kinds**: `quote`, `invoice`, `credit_note`. "Estimate", "Quote" and "Proposal" are the
   same thing to an installer, so there is a single `quote` kind whose title is a company setting
-  (`kinds.quote.label`, default "Estimate") and can be overridden per document (`title`).
+  (`kinds.quote.label`, default "Quote"; accounts still on the old untouched "Estimate" / `EST-{0000}` default move to
+  "Quote" / `Q-{0000}`, see `hasLegacyQuoteDefault`; settings saved since carry `version: 2`) and can be overridden
+  per document (`title`).
 - Documents **belong to a job** (`project_id`). Access follows the job: `is_project_member(project_id) and not is_tech()`.
   Technicians never see money (no rows, no settings, no links; the app hides the Billing tab and /invoices).
 - Documents are **frozen copies**: a quote made from the Estimate tab copies its lines; editing the quote never changes
@@ -96,16 +98,24 @@ Published client links: `id` (token, ≥ 20 chars), `document_id`, `project_id`,
 Stored: `draft → sent → viewed → accepted | declined` (quotes) and
 `draft → sent → viewed → partially_paid → paid` (invoices), any issued document → `void`. Credit notes: `draft → sent`.
 
+"Issue" is called **Finalize** in the apps: it gives the document a number and locks its prices (stored status
+`sent`). It doesn't send anything: until the client has it, it shows as **Ready to send**.
+
 Never stored, worked out by `displayStatus(doc, today)`:
-- `overdue`: an issued invoice (not paid/void) with `balance_due > 0` and `due_date < today`;
-- `expired`: a `sent`/`viewed` quote with `valid_until < today`.
+- `ready` ("Ready to send"): finalized (`sent`) but `wasSent(doc)` is false, i.e. no `sent_at` (set when a client
+  link is published, the document is emailed, or the office presses "Mark as sent"), no `share_token`, never viewed
+  or answered. No database enum change: it is derived.
+- `overdue`: a sent invoice (not paid/void) with `balance_due > 0` and `due_date < today`;
+- `expired`: a sent `sent`/`viewed` quote with `valid_until < today`.
+
+`accepted` is shown as **Approved** everywhere the office or the client sees it.
 
 Invoice status after money changes (`invoiceStatus`): `paid` when `total > 0` and balance ≤ 0; `partially_paid` when
 anything was paid or credited; otherwise back to `viewed` / `sent`. Drafts and void never change.
 
 The database keeps the client's answer: once `responded_at` is set, a device pushing an older copy cannot clear the
 signature or move the status back to draft/sent/viewed; `viewed_at` sticks the same way. Apps cannot write a signature.
-The office may still mark a quote accepted/declined by hand (no signature). A quote the client signed is read-only in
+The office may still mark a quote approved/declined by hand (no signature). A quote the client signed is read-only in
 the app (duplicate it to change it).
 
 ## Money
@@ -128,8 +138,11 @@ whose `converted_from` is the invoice; `balance = total − paid − credited`.
 ## Numbering
 
 Formats use `{YYYY}` `{YY}` `{MM}` and `{0000}` (zero-padded to that many digits, never cut) or `{#}` (bare); a format
-without a counter token gets `{0000}` appended. Defaults: quotes `EST-{0000}`, invoices `INV-{YYYY}-{0000}` (restarts
+without a counter token gets `{0000}` appended. Defaults: quotes `Q-{0000}`, invoices `INV-{YYYY}-{0000}` (restarts
 each January), credit notes `CN-{0000}`. `formatDocNumber` (TS) and `format_document_number` (SQL) are the same function.
+The database's own fallback when a company has no `document_settings` row is still `EST-{0000}`
+(`document_number_format`), so the web app saves the company's settings on its first pull (`pullDocSettings`), and
+saves a copy still on the old untouched quote default back as `Q-{0000}`.
 
 Numbers are unique per company and per kind (unique index `(owner_id, kind, number)`), **given only by the database**:
 - the row guard numbers a document the moment it arrives (insert or update) with `status <> 'draft'` and no number,
@@ -156,10 +169,30 @@ returns `{kind: {next, preview}}` for Settings.
   - `flat`.
   Options: device details under each line (rooms / labels), "section totals only", list optional "?" items.
   Unpriced lines are left off (as on the estimate PDF). Labor lines are untaxed unless `laborTaxable`.
+  **Tax parity**: with the job's `pricing.taxPct` (`quoteFromEstimate(…, pricingTaxPct)`) and no default taxes in the
+  company settings, the quote gets one "Sales tax" at that rate on every line, labor included, exactly as the estimate
+  taxes it, so the quote total equals `estimate.total` (tests/moneyFlow.test.ts). With the company's own default taxes,
+  those are used (labor per `laborTaxable`) and the new-quote dialog shows both totals and warns when they differ.
+- **Approved proposal → approved quote** (`quoteFromProposal`): when the client approves a proposal link, the Pricing
+  tab saves one quote (id `quote-from-<proposal token>`, so two devices never make two) from `proposal.snapshot`:
+  its lines and prices by group, the options the client ticked counted (others listed as optional), the proposal's tax
+  % on every line and its deposit %. Status `accepted`, locked. The signer, signature, answer time, note and chosen
+  options are kept in `options.approval` (the answer columns are written by the server only and are cleared on an app
+  insert). Its total equals `accepted_total`. The panel then offers **Bill the deposit ($X)**, which opens the invoice
+  dialog in deposit mode (`/project?…&tab=billing&doc=<id>&bill=deposit`).
 - **Quote → invoice** (`invoiceFromQuote`): `full` (all counted lines), `deposit` / `progress` (one untaxed line for
-  pct % of the quote total, taxes included), `lines` (chosen lines, with their headings), `final` (all lines, with the
-  quote's discount, fees and taxes, plus `deductions` for each earlier non-void invoice from the quote). Deposit +
-  progress + final add up to the quote total to the cent.
+  pct % of the quote total, taxes included), `amount` (one untaxed line for a set amount, "Custom amount"), `lines`
+  (chosen lines, with their headings), `final` ("Remaining balance": all lines, with the quote's discount, fees and
+  taxes, plus `deductions` for each earlier non-void invoice from the quote, less any change orders billed on it).
+  Deposit + progress + final add up to the quote total to the cent. The dialog shows Deposit · Remaining balance ·
+  Custom amount, with Progress (%) and Selected lines under "More options".
+- **Approved change orders** (`addChangeOrders`, `billableChanges` in changeOrders.ts): "Include approved change
+  orders" (on by default for the remaining balance) adds each approved, not-yet-billed change order as its own section
+  ("CO-002 — Extra cameras") at the client's prices, each tied to a tax of its own rate. The invoice records
+  `options.changeOrderIds` (so each change order is billed once: `billedChangeOrderIds` over non-void invoices) and
+  `options.changeOrderAmount` (what they added after tax, left out of later remaining-balance deductions). "Bill this
+  change" on an approved change order makes an invoice for it alone (`invoiceFromChanges`). Not on an invoice with a
+  document discount (it would spread over the changes): those are billed on their own.
 - **Invoice → credit note** (`creditNoteFor`): its lines, to edit down; once issued it reduces the invoice balance.
 - **Duplicate**: a fresh draft (no number, link, answer or payments).
 
@@ -193,10 +226,19 @@ Office RPCs (`authenticated`): `issue_document(p_id) → number`, `document_numb
 `{number}` and `{currency}` filled in (`payUrl()`); only http(s) links are used. PinPlan doesn't take payments itself;
 record them with "Record payment".
 
+## Job money at a glance
+
+`jobBilling(docs, approvedChanges)`: the approved quote is the **newest** approved one (`latestApprovedQuote`; a newer
+approval supersedes older ones, a proposal approval counts by `options.approval.respondedAt`). Contract = that quote +
+approved change orders; Billed = finalized invoices less credit notes; Left to bill = contract − billed (never below
+0). The Money tab shows Approved quote · Billed · Left to bill · Unpaid; Job health shows "Quote approved · $X of $Y
+billed"; change orders compare against the approved quote ("Approved quote" → "Approved changes" → "New contract
+total", or "Job pricing — Not approved yet" without one). Billdu documents are not counted.
+
 ## Reminders
 
-`reminderDue(doc, settings.reminders, today)` flags invoices `daysBeforeDue` before the due date and on/after each of
-`daysAfterDue`. The Invoices page lists them; sending is one click (email "Payment reminder"). No scheduled sending.
+`reminderDue(doc, settings.reminders, today)` flags sent invoices (`wasSent`) `daysBeforeDue` before the due date and
+on/after each of `daysAfterDue`. The Invoices page lists them; sending is one click (email "Payment reminder"). No scheduled sending.
 
 ## Billing lock
 

@@ -1,7 +1,8 @@
 "use client";
-// Company-wide quotes / invoices / credit notes: what's owed (A/R aging), what came in this month, filters, search,
-// CSV for the accountant, and new invoices for any job (or a new job for a repeat client).
-import { Bell, Download, FilePlus2, Search } from "lucide-react";
+// Company-wide quotes / invoices / credit notes: what's unpaid and overdue, what came in this month, the list by
+// Unpaid · Overdue · Paid · Drafts · All (aging and filters tucked away), CSV for the accountant, and new invoices for
+// any job (or a new job for a repeat client).
+import { Bell, ChevronDown, Download, FilePlus2, Filter, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { db, newId, nowIso, put } from "@/lib/db";
@@ -20,29 +21,37 @@ import {
   paymentsCsv,
   receivables,
   reminderDue,
-  STATUS_LABEL,
   today,
   type AgingBucket,
 } from "@/lib/documents";
 import { downloadText } from "@/lib/download";
 import { SYNCED_EVENT } from "@/lib/sync";
-import type { DocDisplayStatus, DocKind, Project, SalesDoc } from "@/lib/types";
+import type { DocKind, Project, SalesDoc } from "@/lib/types";
 import { KindChip, Modal, StatusChip } from "./ui";
 
-type StatusFilter = "all" | "open" | DocDisplayStatus | "reminder";
+type View = "unpaid" | "overdue" | "paid" | "drafts" | "all";
+const VIEWS: { id: View; label: string }[] = [
+  { id: "unpaid", label: "Unpaid" },
+  { id: "overdue", label: "Overdue" },
+  { id: "paid", label: "Paid" },
+  { id: "drafts", label: "Drafts" },
+  { id: "all", label: "All" },
+];
 
 export default function InvoicesPage() {
   const router = useRouter();
   const ds = useDocSettings();
   const { docs, payments } = useAllDocs();
   const [projects, setProjects] = useState<Project[] | null>(null);
-  const [kind, setKind] = useState<DocKind | "all">("invoice");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [view, setView] = useState<View>("unpaid");
+  const [kind, setKind] = useState<DocKind | "all">("all");
+  const [reminders, setReminders] = useState(false);
   const [bucket, setBucket] = useState<AgingBucket | null>(null);
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [client, setClient] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [day, setDay] = useState("");
 
@@ -72,14 +81,21 @@ export default function InvoicesPage() {
   const r = receivables(all, payments, day);
   const ag = aging(all, day);
   const due = all.filter((d) => reminderDue(d, ds.reminders, day));
+  const finalizedInvoice = (d: SalesDoc) => d.kind === "invoice" && d.status !== "draft" && d.status !== "void";
+  const inView = (d: SalesDoc, v: View) => {
+    if (v === "unpaid") return finalizedInvoice(d) && d.balanceDue > 0;
+    if (v === "overdue") return finalizedInvoice(d) && displayStatus(d, day) === "overdue";
+    if (v === "paid") return d.kind === "invoice" && d.status === "paid";
+    if (v === "drafts") return d.status === "draft";
+    return true;
+  };
+  const filtersOn = [kind !== "all", !!client, !!from, !!to, reminders, !!bucket].filter(Boolean).length;
 
   const needle = q.trim().toLowerCase();
   const rows = all.filter((d) => {
+    if (!inView(d, view)) return false;
     if (kind !== "all" && d.kind !== kind) return false;
-    const st = displayStatus(d, day);
-    if (status === "open" && !(d.kind === "invoice" && d.balanceDue > 0 && d.status !== "draft" && d.status !== "void")) return false;
-    if (status === "reminder" && !reminderDue(d, ds.reminders, day)) return false;
-    if (status !== "all" && status !== "open" && status !== "reminder" && st !== status) return false;
+    if (reminders && !reminderDue(d, ds.reminders, day)) return false;
     if (bucket) {
       const one = aging([d], day);
       if (!(one[bucket] > 0)) return false;
@@ -96,6 +112,20 @@ export default function InvoicesPage() {
   });
   const open = (d: SalesDoc) => router.push(`/project?id=${encodeURIComponent(d.projectId)}&tab=billing&doc=${encodeURIComponent(d.id)}`);
   const sum = (xs: SalesDoc[], f: (d: SalesDoc) => number) => xs.filter((d) => d.status !== "void").reduce((s, d) => s + f(d), 0);
+  const clearFilters = () => {
+    setKind("all");
+    setReminders(false);
+    setBucket(null);
+    setFrom("");
+    setTo("");
+    setClient("");
+    setQ("");
+  };
+  const show = (v: View) => {
+    setView(v);
+    setBucket(null);
+    setReminders(false);
+  };
 
   async function newInvoice(project: Project) {
     const d = newDocument({ id: newId(), kind: "invoice", project, settings: ds!, now: nowIso(), day: today() });
@@ -127,92 +157,117 @@ export default function InvoicesPage() {
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Outstanding" value={money(r.outstanding)} onClick={() => { setKind("invoice"); setStatus("open"); setBucket(null); }} />
-        <Stat label="Overdue" value={money(r.overdue)} tone={r.overdue > 0 ? "red" : undefined} onClick={() => { setKind("invoice"); setStatus("overdue"); setBucket(null); }} />
-        <Stat label="Paid this month" value={money(r.paidThisMonth)} tone="green" />
-        <Stat label="Draft invoices" value={money(r.drafts)} onClick={() => { setKind("invoice"); setStatus("draft"); setBucket(null); }} />
+        <Stat label="Unpaid" value={money(r.outstanding)} onClick={() => show("unpaid")} />
+        <Stat label="Overdue" value={money(r.overdue)} tone={r.overdue > 0 ? "red" : undefined} onClick={() => show("overdue")} />
+        <Stat label="Paid this month" value={money(r.paidThisMonth)} tone="green" onClick={() => show("paid")} />
+        <Stat label="Draft invoices" value={money(r.drafts)} onClick={() => show("drafts")} />
       </div>
 
-      <section className="card mb-4 p-4" aria-label="Accounts receivable aging">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="section-title">A/R aging</h2>
-          <span className="text-xs text-slate-500">by days past due · total {money(ag.total)}</span>
+      <details className="card group mb-4" aria-label="Aging details">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+          Aging details
+          <span className="ml-auto text-xs font-normal text-slate-500">how late unpaid invoices are · {money(ag.total)}</span>
+        </summary>
+        <div className="border-t border-slate-100 p-4">
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+            {(Object.keys(AGING_LABELS) as AgingBucket[]).map((b, i) => (ag.total > 0 && ag[b] > 0 ? <div key={b} style={{ width: `${(ag[b] / ag.total) * 100}%` }} className={["bg-emerald-500", "bg-amber-400", "bg-orange-500", "bg-red-500", "bg-red-700"][i]} /> : null))}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {(Object.keys(AGING_LABELS) as AgingBucket[]).map((b) => (
+              <button
+                key={b}
+                className={`rounded-lg px-3 py-2 text-left ring-1 ${bucket === b ? "bg-brand-50 ring-brand-200" : "ring-slate-200 hover:bg-slate-50"}`}
+                aria-pressed={bucket === b}
+                onClick={() => {
+                  setBucket(bucket === b ? null : b);
+                  setView("unpaid");
+                }}
+              >
+                <div className="text-xs text-slate-500">{b === "current" ? "Not due yet" : `${AGING_LABELS[b]} late`}</div>
+                <div className="font-semibold tabular-nums">{money(ag[b])}</div>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-          {(Object.keys(AGING_LABELS) as AgingBucket[]).map((b, i) => (ag.total > 0 && ag[b] > 0 ? <div key={b} style={{ width: `${(ag[b] / ag.total) * 100}%` }} className={["bg-emerald-500", "bg-amber-400", "bg-orange-500", "bg-red-500", "bg-red-700"][i]} /> : null))}
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {(Object.keys(AGING_LABELS) as AgingBucket[]).map((b) => (
-            <button key={b} className={`rounded-lg px-3 py-2 text-left ring-1 ${bucket === b ? "bg-brand-50 ring-brand-200" : "ring-slate-200 hover:bg-slate-50"}`} onClick={() => { setBucket(bucket === b ? null : b); setKind("invoice"); setStatus("all"); }}>
-              <div className="text-xs text-slate-500">{AGING_LABELS[b]}</div>
-              <div className="font-semibold tabular-nums">{money(ag[b])}</div>
-            </button>
-          ))}
-        </div>
-      </section>
+      </details>
 
       {due.length > 0 && (
-        <button className="mb-4 flex w-full items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-900 ring-1 ring-amber-200" onClick={() => { setKind("invoice"); setStatus("reminder"); setBucket(null); }}>
+        <button
+          className="mb-4 flex w-full items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-left text-sm text-amber-900 ring-1 ring-amber-200"
+          onClick={() => {
+            setView("unpaid");
+            setReminders(true);
+            setBucket(null);
+          }}
+        >
           <Bell className="h-4 w-4" /> {due.length} invoice{due.length > 1 ? "s are" : " is"} due for a payment reminder — show {due.length > 1 ? "them" : "it"}
         </button>
       )}
 
-      <div className="card mb-3 flex flex-wrap items-end gap-3 p-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="seg max-w-full overflow-x-auto" role="group" aria-label="Show">
+          {VIEWS.map((v) => (
+            <button key={v.id} className={`tab ${view === v.id ? "tab-active" : ""}`} aria-pressed={view === v.id} onClick={() => show(v.id)}>
+              {v.label}
+            </button>
+          ))}
+        </div>
         <label className="relative min-w-48 flex-1 text-sm">
           <span className="sr-only">Search</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input className="input pl-9" placeholder="Number, client, job…" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
-        <label className="text-sm">
-          <span className="label">Type</span>
-          <select className="input" value={kind} onChange={(e) => setKind(e.target.value as DocKind | "all")}>
-            <option value="all">All</option>
-            <option value="quote">{ds.kinds.quote.label}s</option>
-            <option value="invoice">Invoices</option>
-            <option value="credit_note">Credit notes</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="label">Status</span>
-          <select className="input" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
-            <option value="all">Any</option>
-            <option value="open">Unpaid (balance due)</option>
-            <option value="reminder">Reminder due</option>
-            {(["draft", "sent", "viewed", "overdue", "partially_paid", "paid", "accepted", "declined", "expired", "void"] as DocDisplayStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="label">Client</span>
-          <select className="input max-w-48" value={client} onChange={(e) => setClient(e.target.value)}>
-            <option value="">All clients</option>
-            {directory.map((c) => (
-              <option key={`${c.email}-${c.name}`} value={c.email?.toLowerCase() || c.name.toLowerCase()}>
-                {c.name || c.email}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="label">From</span>
-          <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          <span className="label">To</span>
-          <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-        </label>
-        {(status !== "all" || bucket || from || to || client || q || kind !== "invoice") && (
-          <button className="btn btn-sm btn-ghost" onClick={() => { setKind("invoice"); setStatus("all"); setBucket(null); setFrom(""); setTo(""); setClient(""); setQ(""); }}>
+        <button className={`btn ${filtersOn ? "ring-brand-200" : ""}`} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((o) => !o)}>
+          <Filter /> Filter{filtersOn ? ` (${filtersOn})` : ""}
+        </button>
+        {(filtersOn > 0 || q) && (
+          <button className="btn btn-sm btn-ghost" onClick={clearFilters}>
             Clear
           </button>
         )}
       </div>
 
+      {filtersOpen && (
+        <div className="card mb-3 flex flex-wrap items-end gap-3 p-3">
+          <label className="text-sm">
+            <span className="label">Type</span>
+            <select className="input" value={kind} onChange={(e) => setKind(e.target.value as DocKind | "all")}>
+              <option value="all">All</option>
+              <option value="quote">{ds.kinds.quote.label}s</option>
+              <option value="invoice">Invoices</option>
+              <option value="credit_note">Credit notes</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="label">Client</span>
+            <select className="input max-w-48" value={client} onChange={(e) => setClient(e.target.value)}>
+              <option value="">All clients</option>
+              {directory.map((c) => (
+                <option key={`${c.email}-${c.name}`} value={c.email?.toLowerCase() || c.name.toLowerCase()}>
+                  {c.name || c.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="label">From</span>
+            <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">To</span>
+            <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </label>
+          <label className="flex h-10 items-center gap-2 text-sm">
+            <input type="checkbox" className="accent-brand-600" checked={reminders} onChange={(e) => setReminders(e.target.checked)} /> Reminder due
+          </label>
+        </div>
+      )}
+
       {rows.length === 0 ? (
-        <div className="card p-10 text-center text-sm text-slate-500">{all.length ? "Nothing matches these filters." : "No quotes or invoices yet. Open a job’s Billing tab, or start a new invoice here."}</div>
+        <div className="card p-10 text-center text-sm text-slate-500">
+          {!all.length ? "No quotes or invoices yet. Open a job’s Money tab, or start a new invoice here." : filtersOn || q ? "Nothing matches these filters." : view === "unpaid" ? "Nothing unpaid. Nice." : view === "overdue" ? "Nothing overdue." : view === "drafts" ? "No drafts." : "Nothing here yet."}
+        </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
@@ -224,7 +279,7 @@ export default function InvoicesPage() {
                 <th className="px-3 py-2.5">Due</th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5 text-right">Total</th>
-                <th className="px-4 py-2.5 text-right">Balance</th>
+                <th className="px-4 py-2.5 text-right">Unpaid</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -265,7 +320,7 @@ export default function InvoicesPage() {
                       <StatusChip status={st} />
                     </td>
                     <td className="px-3 py-2.5 text-right align-top font-medium whitespace-nowrap tabular-nums">{formatDocMoney(d.total, d.currency, ds.locale)}</td>
-                    <td className="px-4 py-2.5 text-right align-top whitespace-nowrap tabular-nums">{d.kind === "invoice" && d.status !== "draft" && d.status !== "void" ? formatDocMoney(d.balanceDue, d.currency, ds.locale) : <span className="text-slate-300">—</span>}</td>
+                    <td className="px-4 py-2.5 text-right align-top whitespace-nowrap tabular-nums">{finalizedInvoice(d) ? formatDocMoney(d.balanceDue, d.currency, ds.locale) : <span className="text-slate-300">—</span>}</td>
                   </tr>
                 );
               })}
@@ -277,7 +332,7 @@ export default function InvoicesPage() {
                 </td>
                 <td className="hidden md:table-cell" colSpan={4} />
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{money(sum(rows, (d) => d.total))}</td>
-                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{money(sum(rows.filter((d) => d.kind === "invoice" && d.status !== "draft"), (d) => d.balanceDue))}</td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{money(sum(rows.filter(finalizedInvoice), (d) => d.balanceDue))}</td>
               </tr>
             </tfoot>
           </table>

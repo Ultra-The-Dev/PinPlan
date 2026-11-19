@@ -3,11 +3,18 @@
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
+import { NEUTRAL_BUSINESS } from "@/lib/catalog";
 import { localDay } from "@/lib/fieldDocs";
 import type { BusinessSettings, Project } from "@/lib/types";
 
 const INK = "#161616";
-const BRAND = "#0a1b54";
+/** Fallback when the company has no valid brand colour: the neutral default (never another company's colour). */
+const BRAND = NEUTRAL_BUSINESS.brandColor ?? "#c2410c";
+
+/** The brand colour the PDF uses: Settings → Your business, when it is a valid hex colour. */
+export function pdfBrandColor(b: Pick<BusinessSettings, "brandColor">): string {
+  return b.brandColor && /^#[0-9a-f]{3,8}$/i.test(b.brandColor.trim()) ? b.brandColor.trim() : BRAND;
+}
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 
@@ -65,10 +72,11 @@ export interface EstimatePdfProps {
   scope?: { label: string; value: string }[];
   /** Hide lines priced at $0 (e.g. closets, unpriced cable) from the client copy. */
   hideZero?: boolean;
+  /** Days it stays valid (Settings → Invoicing); 0 = no "Valid until". */
   validDays?: number;
 }
 
-function Table({ lines, currency }: { lines: ComputedLine[]; currency: string }) {
+function Table({ lines, currency, brand }: { lines: ComputedLine[]; currency: string; brand: string }) {
   const groups = (Object.keys(GROUPS) as ComputedLine["group"][]).map((g) => ({ g, lines: lines.filter((l) => l.group === g) })).filter((x) => x.lines.length);
   return (
     <View>
@@ -81,7 +89,7 @@ function Table({ lines, currency }: { lines: ComputedLine[]; currency: string })
       </View>
       {groups.map(({ g, lines: ls }) => (
         <View key={g}>
-          <Text style={s.group}>{GROUPS[g]}</Text>
+          <Text style={[s.group, { color: brand }]}>{GROUPS[g]}</Text>
           {ls.map((l) => (
             <View style={s.row} key={l.key} wrap={false}>
               <Text style={s.cDesc}>{l.description.replace(" — installed", "").replace(" (optional — marked ?)", "")}</Text>
@@ -111,7 +119,7 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
   const valid = new Date(date.getTime() + validDays * 86400000);
   const installed = estimate.lines.some((l) => l.description.endsWith("— installed"));
   // Company colour and logo from Settings → Your business.
-  const brand = business.brandColor || BRAND;
+  const brand = pdfBrandColor(business);
   return (
     <Document title={`Estimate — ${project.address}`} author={business.name || undefined}>
       <Page size="LETTER" style={s.page}>
@@ -141,10 +149,12 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
               <Text style={s.metaLabel}>Date</Text>
               <Text style={s.metaValue}>{fmt(date)}</Text>
             </View>
-            <View style={s.meta}>
-              <Text style={s.metaLabel}>Valid until</Text>
-              <Text style={s.metaValue}>{fmt(valid)}</Text>
-            </View>
+            {validDays > 0 && (
+              <View style={s.meta}>
+                <Text style={s.metaLabel}>Valid until</Text>
+                <Text style={s.metaValue}>{fmt(valid)}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -170,7 +180,7 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
           </View>
         </View>
 
-        <Table lines={included} currency={currency} />
+        <Table lines={included} currency={currency} brand={brand} />
         <View style={s.totals} wrap={false}>
           <View style={s.totalRow}>
             <Text style={{ color: MUTED }}>Subtotal</Text>
@@ -190,12 +200,12 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
           <View wrap={false}>
             <Text style={s.section}>Optional items</Text>
             <Text style={[s.muted, { marginBottom: 4, fontSize: 8 }]}>To be confirmed on site — not included in the total above.</Text>
-            <Table lines={optional} currency={currency} />
+            <Table lines={optional} currency={currency} brand={brand} />
           </View>
         )}
         {business.estimateTerms ? (
-          <View style={s.terms} wrap={false}>
-            <Text style={[s.label, { color: BRAND }]}>Terms</Text>
+          <View style={[s.terms, { borderLeftColor: brand }]} wrap={false}>
+            <Text style={[s.label, { color: brand }]}>Terms</Text>
             <Text>{business.estimateTerms}</Text>
           </View>
         ) : null}

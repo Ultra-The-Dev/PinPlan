@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "@/lib/db";
 import type { AppSettings } from "@/lib/types";
+import { billduChanged } from "@/lib/useBilldu";
 
 type Source = "team" | "user" | "env" | "file" | "database" | null;
 
@@ -86,6 +87,8 @@ export default function BillduSettings() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Request failed");
       setStatus(j as Status);
+      // Money screens show Billdu only while it's connected.
+      billduChanged();
       setMsg({ ok: true, text: done });
       return true;
     } catch (err) {
@@ -241,14 +244,16 @@ export default function BillduSettings() {
         </form>
       )}
       {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
-      <label className="block text-sm">
-        <span className="label">First Billdu document for a new project</span>
-        <select className={input + " max-w-xs"} value={settings?.billduDocType ?? "estimate"} onChange={(e) => setDocType(e.target.value as AppSettings["billduDocType"])}>
-          <option value="estimate">Estimate</option>
-          <option value="order">Order</option>
-          <option value="invoice">Invoice</option>
-        </select>
-      </label>
+      {status?.configured && (
+        <label className="block text-sm">
+          <span className="label">First Billdu document for a new job</span>
+          <select className={input + " max-w-xs"} value={settings?.billduDocType ?? "estimate"} onChange={(e) => setDocType(e.target.value as AppSettings["billduDocType"])}>
+            <option value="estimate">Estimate</option>
+            <option value="order">Order</option>
+            <option value="invoice">Invoice</option>
+          </select>
+        </label>
+      )}
       <p className="text-xs text-slate-500">
         Only the Billdu account owner can see the API key and secret (Billdu → Settings → API). They are sent to this app&apos;s server once, stored encrypted for
         your company and never shown again or stored in the browser.

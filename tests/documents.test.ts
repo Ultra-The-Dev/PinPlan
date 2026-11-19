@@ -171,7 +171,7 @@ describe("payments, credits and statuses", () => {
   });
 
   it("overdue: an issued invoice past its due date with money owed; expired quotes", () => {
-    const inv = { kind: "invoice" as const, status: "sent" as const, dueDate: "2026-11-18", validUntil: null, balanceDue: 10 };
+    const inv = { kind: "invoice" as const, status: "sent" as const, dueDate: "2026-11-18", validUntil: null, balanceDue: 10, sentAt: NOW };
     expect(displayStatus(inv, DAY)).toBe("overdue");
     expect(displayStatus({ ...inv, dueDate: DAY }, DAY)).toBe("sent"); // due today isn't late
     expect(displayStatus({ ...inv, balanceDue: 0, status: "paid" }, DAY)).toBe("paid");
@@ -184,7 +184,7 @@ describe("payments, credits and statuses", () => {
 
   it("payment reminders before and after the due date", () => {
     const r = DEFAULT_DOC_SETTINGS.reminders;
-    const inv = { kind: "invoice" as const, status: "sent" as const, dueDate: "2026-11-21", balanceDue: 5 };
+    const inv = { kind: "invoice" as const, status: "sent" as const, dueDate: "2026-11-21", balanceDue: 5, sentAt: NOW };
     expect(reminderDue(inv, r, DAY)).toBe("before");
     expect(reminderDue({ ...inv, dueDate: "2026-11-30" }, r, DAY)).toBeNull();
     expect(reminderDue({ ...inv, dueDate: "2026-11-15" }, r, DAY)).toBeNull(); // 4 days late, first reminder at 7
@@ -230,8 +230,8 @@ describe("dates and aging", () => {
   });
 
   it("receivables: outstanding, overdue and paid this month", () => {
-    const a = withTotals(doc({ status: "sent", dueDate: "2026-11-01", lines: [item({ qty: 1, unitPrice: 100 })], taxes: [] }));
-    const b = withTotals(doc({ status: "sent", dueDate: "2026-12-30", lines: [item({ qty: 1, unitPrice: 300 })], taxes: [] }));
+    const a = withTotals(doc({ status: "sent", sentAt: NOW, dueDate: "2026-11-01", lines: [item({ qty: 1, unitPrice: 100 })], taxes: [] }));
+    const b = withTotals(doc({ status: "sent", sentAt: NOW, dueDate: "2026-12-30", lines: [item({ qty: 1, unitPrice: 300 })], taxes: [] }));
     const c = withTotals(doc({ status: "draft", lines: [item({ qty: 1, unitPrice: 50 })], taxes: [] }));
     const r = receivables([a, b, c], [pay(80, "2026-11-03", { documentId: b.id }), pay(5, "2026-10-30", { documentId: b.id })], DAY);
     expect(r).toEqual({ outstanding: 400, overdue: 100, paidThisMonth: 80, drafts: 50 });
@@ -398,7 +398,7 @@ describe("snapshot, links, CSV and clients", () => {
   it("normalises partial settings", () => {
     const s = normalizeDocSettings({ kinds: { quote: { label: "Quote" } } } as never, "CAD");
     expect(s.kinds.quote.label).toBe("Quote");
-    expect(s.kinds.quote.format).toBe("EST-{0000}");
+    expect(s.kinds.quote.format).toBe("Q-{0000}");
     expect(s.kinds.invoice.label).toBe("Invoice");
     expect(s.currency).toBe("CAD");
     expect(s.columns.qty).toBe(true);

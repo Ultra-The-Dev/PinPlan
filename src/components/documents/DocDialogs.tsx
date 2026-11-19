@@ -1,24 +1,48 @@
 "use client";
-// Dialogs for quotes / invoices: new quote from the estimate, quote → invoice, record a payment, email the client.
+// Dialogs for quotes / invoices: new quote from the job's pricing, quote → invoice, record a payment, email the client.
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
-import { adjustAmount, docName, documentTotals, formatDocMoney, PAYMENT_METHODS, today } from "@/lib/documents";
-import type { InvoiceMode } from "@/lib/documents";
+import { adjustAmount, canAddChangeOrders, docName, documentTotals, formatDocMoney, PAYMENT_METHODS, today } from "@/lib/documents";
+import type { BillableChange, InvoiceMode } from "@/lib/documents";
 import type { QuoteBuildOptions } from "@/lib/docFromEstimate";
 import type { DocGrouping, DocumentSettings, PaymentMethod, SalesDoc } from "@/lib/types";
 import { Modal, parseAmount } from "./ui";
 
 const GROUPINGS: { id: DocGrouping; label: string; hint: string }[] = [
   { id: "category", label: "By category", hint: "Security, Network, Audio… then cabling and labor" },
-  { id: "floor", label: "By floor", hint: "One section per plan sheet, quantities split by floor" },
+  { id: "floor", label: "By floor", hint: "One section per plan, quantities split by floor" },
   { id: "room", label: "By room", hint: "One section per room (devices without a room go under “Other areas”)" },
   { id: "flat", label: "One list", hint: "No sections" },
 ];
 
-export function NewQuoteDialog({ settings, estimateTotal, onClose, onCreate }: { settings: DocumentSettings; estimateTotal: string; onClose: () => void; onCreate: (o: QuoteBuildOptions) => void }) {
+/**
+ * New quote from the job's pricing. `preview` builds the quote for the chosen options, so the dialog can show its total
+ * (with tax) next to the pricing total and warn when they differ (different tax settings, or labor not taxed).
+ */
+export function NewQuoteDialog({ settings, pricingTotal, preview, onClose, onCreate }: { settings: DocumentSettings; pricingTotal: number; preview: (o: QuoteBuildOptions) => SalesDoc | null; onClose: () => void; onCreate: (o: QuoteBuildOptions) => void }) {
   const [o, setO] = useState<QuoteBuildOptions>({ grouping: settings.grouping, details: settings.lineDetails, detail: settings.detail, includeOptional: true });
   const label = settings.kinds.quote.label.toLowerCase();
+  const money = (n: number) => formatDocMoney(n, settings.currency, settings.locale);
+  const quote = useMemo(() => preview(o), [preview, o]);
+  const quoteTotal = quote ? documentTotals(quote).total : null;
+  const diff = quoteTotal == null ? 0 : Math.round((quoteTotal - pricingTotal) * 100) / 100;
   return (
-    <Modal title={`New ${label}`} description={`Built from the job's Estimate tab (${estimateTotal} before tax). Edit it freely: changes here never change the job's pricing.`} onClose={onClose}>
+    <Modal title={`New ${label}`} description="Built from the job's pricing. Edit it freely: changes here never change the job's pricing." onClose={onClose}>
+      <dl className="mb-4 grid grid-cols-2 gap-2 text-sm">
+        <div className="rounded-lg bg-slate-50 px-3 py-2">
+          <dt className="text-xs text-slate-500">Job pricing (with tax)</dt>
+          <dd className="font-semibold tabular-nums">{money(pricingTotal)}</dd>
+        </div>
+        <div className={`rounded-lg px-3 py-2 ${diff ? "bg-amber-50" : "bg-slate-50"}`}>
+          <dt className="text-xs text-slate-500">This {label} (with tax)</dt>
+          <dd className="font-semibold tabular-nums">{quoteTotal == null ? "—" : money(quoteTotal)}</dd>
+        </div>
+      </dl>
+      {diff !== 0 && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200" role="status">
+          This {label} comes to {money(Math.abs(diff))} {diff > 0 ? "more" : "less"} than the job’s pricing. {Math.abs(diff) < 0.05 ? "That’s rounding from splitting quantities over floors or rooms." : "Your taxes in Settings → Invoicing differ from the job’s tax % (or labor isn’t taxed there). Check the taxes on the " + label + " before sending it."}
+        </p>
+      )}
       <fieldset className="space-y-1.5">
         <legend className="label">Group the lines</legend>
         {GROUPINGS.map((g) => (
@@ -39,7 +63,7 @@ export function NewQuoteDialog({ settings, estimateTotal, onClose, onCreate }: {
           <input type="checkbox" className="accent-brand-600" checked={o.detail === "sections"} onChange={(e) => setO({ ...o, detail: e.target.checked ? "sections" : "lines" })} /> Hide unit prices — show section totals only
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" className="accent-brand-600" checked={o.includeOptional} onChange={(e) => setO({ ...o, includeOptional: e.target.checked })} /> List optional “?” items (not counted in the total)
+          <input type="checkbox" className="accent-brand-600" checked={o.includeOptional} onChange={(e) => setO({ ...o, includeOptional: e.target.checked })} /> List optional items (the client can add them; not counted in the total)
         </label>
       </div>
       <div className="mt-5 flex gap-2">
@@ -54,42 +78,76 @@ export function NewQuoteDialog({ settings, estimateTotal, onClose, onCreate }: {
   );
 }
 
-export function ConvertDialog({ quote, prior, settings, onClose, onCreate }: { quote: SalesDoc; prior: SalesDoc[]; settings: DocumentSettings; onClose: () => void; onCreate: (m: InvoiceMode) => void }) {
+type Mode = InvoiceMode["mode"];
+
+/**
+ * Quote → invoice. Deposit · Remaining balance · Custom amount; Progress (%) and Selected lines under "More options".
+ * Approved change orders not billed yet can go on it ("Include approved change orders", on by default for the
+ * remaining balance), each as its own section, recorded so it's billed once.
+ */
+export function ConvertDialog({ quote, prior, settings, changes = [], initialMode, onClose, onCreate }: { quote: SalesDoc; prior: SalesDoc[]; settings: DocumentSettings; changes?: BillableChange[]; initialMode?: Mode; onClose: () => void; onCreate: (m: InvoiceMode, changes: BillableChange[]) => void }) {
   const total = documentTotals(quote).total;
   const money = (n: number) => formatDocMoney(n, quote.currency, settings.locale);
-  const depositDefault = quote.deposit?.type === "pct" ? quote.deposit.value : settings.depositPct || 50;
-  const [mode, setMode] = useState<InvoiceMode["mode"]>(prior.length ? "final" : quote.deposit ? "deposit" : "full");
+  const depositDefault = quote.deposit?.type === "pct" ? quote.deposit.value : quote.deposit?.type === "fixed" && total > 0 ? Math.round((quote.deposit.value / total) * 10000) / 100 : settings.depositPct || 50;
+  const [mode, setMode] = useState<Mode>(initialMode ?? (prior.length ? "final" : quote.deposit ? "deposit" : "final"));
+  const [more, setMore] = useState(mode === "progress" || mode === "lines");
   const [pct, setPct] = useState(String(depositDefault));
+  const [amount, setAmount] = useState("");
+  const [coChoice, setCoChoice] = useState<boolean | null>(null);
   const items = quote.lines.filter((l) => (l.kind ?? "item") === "item" && !l.optional);
   const [chosen, setChosen] = useState<Set<string>>(new Set(items.map((l) => l.id)));
-  const invoiced = prior.reduce((s, d) => s + d.total, 0);
+  // What's been invoiced against the quote itself (change orders billed on those invoices aren't part of it).
+  const invoiced = Math.round(prior.reduce((s, d) => s + d.total - (d.options?.changeOrderAmount ?? 0), 0) * 100) / 100;
+  const left = Math.max(0, Math.round((total - invoiced) * 100) / 100);
   const p = parseAmount(pct) ?? 0;
-  const how: InvoiceMode = mode === "deposit" || mode === "progress" ? { mode, pct: p } : mode === "lines" ? { mode, lineIds: [...chosen] } : { mode } as InvoiceMode;
-  const preview = mode === "deposit" || mode === "progress" ? adjustAmount({ type: "pct", value: p }, total) : mode === "final" ? total - invoiced : mode === "lines" ? null : total;
-  const options: { id: InvoiceMode["mode"]; label: string; hint: string }[] = [
-    { id: "full", label: "Full invoice", hint: `Every line — ${money(total)}` },
-    { id: "deposit", label: "Deposit invoice", hint: "A % of the quote total, as one line" },
-    { id: "progress", label: "Progress invoice", hint: "Bill a % of the job now" },
-    { id: "lines", label: "Selected lines", hint: "Bill some of the lines" },
-    { id: "final", label: "Final invoice", hint: prior.length ? `Every line, less the ${prior.length} invoice${prior.length > 1 ? "s" : ""} already made (${money(invoiced)})` : "Every line (nothing invoiced yet)" },
+  const a = parseAmount(amount) ?? 0;
+  const pctMode = mode === "deposit" || mode === "progress";
+  // The remaining balance keeps the quote's discount; change orders can't share it (they'd be discounted too).
+  const discounted = !canAddChangeOrders(quote);
+  const coBlocked = changes.length > 0 && mode === "final" && discounted;
+  const coAllowed = changes.length > 0 && !pctMode && !coBlocked;
+  const withCos = coAllowed && (coChoice ?? mode === "final");
+  const coTotal = withCos ? changes.reduce((s, c) => s + c.total, 0) : 0;
+  const how: InvoiceMode = pctMode ? { mode, pct: p } : mode === "amount" ? { mode, amount: a } : mode === "lines" ? { mode, lineIds: [...chosen] } : ({ mode } as InvoiceMode);
+  const base = pctMode ? adjustAmount({ type: "pct", value: p }, total) : mode === "final" ? left : mode === "amount" ? a : mode === "lines" ? documentTotals({ ...quote, lines: quote.lines.filter((l) => (l.kind ?? "item") !== "item" || chosen.has(l.id)), discount: null, fees: [] }).total : total;
+  const preview = Math.round((base + coTotal) * 100) / 100;
+  const choose = (m: Mode) => setMode(m);
+  const main: { id: Mode; label: string; hint: string }[] = [
+    { id: "deposit", label: "Deposit", hint: `${depositDefault}% of the ${settings.kinds.quote.label.toLowerCase()} = ${money(adjustAmount({ type: "pct", value: depositDefault }, total))}` },
+    { id: "final", label: "Remaining balance", hint: prior.length ? `${money(left)} left after ${prior.length} invoice${prior.length > 1 ? "s" : ""} (${money(invoiced)})` : `Every line — ${money(total)}` },
+    { id: "amount", label: "Custom amount", hint: "Bill a set amount now" },
   ];
+  const extra: { id: Mode; label: string; hint: string }[] = [
+    { id: "progress", label: "Progress (%)", hint: "Bill a percentage of the job" },
+    { id: "lines", label: "Selected lines", hint: "Bill some of the lines" },
+  ];
+  const option = (o: { id: Mode; label: string; hint: string }) => (
+    <label key={o.id} className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2.5 ring-1 ${mode === o.id ? "bg-brand-50 ring-brand-200" : "ring-slate-200 hover:bg-slate-50"}`}>
+      <input type="radio" name="mode" className="mt-0.5 accent-brand-600" checked={mode === o.id} onChange={() => choose(o.id)} />
+      <span className="text-sm">
+        <span className="font-medium">{o.label}</span>
+        <span className="block text-xs text-slate-500">{o.hint}</span>
+      </span>
+    </label>
+  );
+  const invalid = (mode === "lines" && !chosen.size) || (pctMode && !(p > 0 && p <= 100)) || (mode === "amount" && !(a > 0)) || !(preview > 0);
   return (
-    <Modal title={`Invoice from ${docName(quote, settings)}`} description={`Quote total ${money(total)}${prior.length ? ` · invoiced so far ${money(invoiced)}` : ""}`} onClose={onClose} wide>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {options.map((o) => (
-          <label key={o.id} className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2.5 ring-1 ${mode === o.id ? "bg-brand-50 ring-brand-200" : "ring-slate-200 hover:bg-slate-50"}`}>
-            <input type="radio" name="mode" className="mt-0.5 accent-brand-600" checked={mode === o.id} onChange={() => setMode(o.id)} />
-            <span className="text-sm">
-              <span className="font-medium">{o.label}</span>
-              <span className="block text-xs text-slate-500">{o.hint}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      {(mode === "deposit" || mode === "progress") && (
+    <Modal title={`Invoice from ${docName(quote, settings)}`} description={`${settings.kinds.quote.label} total ${money(total)}${prior.length ? ` · invoiced so far ${money(invoiced)}` : ""}`} onClose={onClose} wide>
+      <div className="grid gap-1.5 sm:grid-cols-3">{main.map(option)}</div>
+      <button type="button" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline" aria-expanded={more} onClick={() => setMore((m) => !m)}>
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${more ? "rotate-180" : ""}`} /> More options
+      </button>
+      {more && <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{extra.map(option)}</div>}
+      {pctMode && (
         <label className="mt-4 block text-sm">
-          <span className="label">Percent of the quote</span>
+          <span className="label">Percent of the {settings.kinds.quote.label.toLowerCase()}</span>
           <input className="input w-28 text-right" inputMode="decimal" value={pct} onChange={(e) => setPct(e.target.value)} autoFocus />
+        </label>
+      )}
+      {mode === "amount" && (
+        <label className="mt-4 block text-sm">
+          <span className="label">Amount to bill</span>
+          <input className="input w-36 text-right tabular-nums" inputMode="decimal" value={amount} placeholder="0.00" onChange={(e) => setAmount(e.target.value)} autoFocus />
         </label>
       )}
       {mode === "lines" && (
@@ -103,12 +161,37 @@ export function ConvertDialog({ quote, prior, settings, onClose, onCreate }: { q
           ))}
         </div>
       )}
-      {preview != null && <p className="mt-4 text-sm text-slate-600">This invoice: <strong className="tabular-nums">{money(preview)}</strong>{mode === "deposit" || mode === "progress" ? " (taxes included, not taxed again)" : ""}</p>}
+      {coAllowed && (
+        <div className="mt-4 rounded-lg p-3 ring-1 ring-slate-200">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" className="accent-brand-600" checked={withCos} onChange={(e) => setCoChoice(e.target.checked)} /> Include approved change orders
+          </label>
+          <ul className="mt-1.5 space-y-0.5 pl-6 text-xs text-slate-500">
+            {changes.map((c) => (
+              <li key={c.id} className="flex justify-between gap-3">
+                <span className="truncate">
+                  {c.code} — {c.title || "Change order"}
+                </span>
+                <span className="tabular-nums">{money(c.total)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {coBlocked && (
+        <p className="mt-4 text-xs text-slate-500">
+          This {settings.kinds.quote.label.toLowerCase()} has a discount, so its {changes.length} approved change order{changes.length > 1 ? "s" : ""} go on their own invoice: open each one under Change orders and press “Bill this change”.
+        </p>
+      )}
+      <p className="mt-4 text-sm text-slate-600">
+        This invoice: <strong className="tabular-nums">{money(preview)}</strong>
+        {pctMode || mode === "amount" ? " (taxes included, not taxed again)" : ""}
+      </p>
       <div className="mt-5 flex gap-2">
         <button className="btn" onClick={onClose}>
           Cancel
         </button>
-        <button className="btn btn-brand flex-1" disabled={(mode === "lines" && !chosen.size) || ((mode === "deposit" || mode === "progress") && !(p > 0 && p <= 100))} onClick={() => onCreate(how)}>
+        <button className="btn btn-brand flex-1" disabled={invalid} onClick={() => onCreate(how, withCos ? changes : [])}>
           Create invoice
         </button>
       </div>

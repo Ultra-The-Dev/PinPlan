@@ -1,9 +1,16 @@
 "use client";
 import { apiFetch } from "@/lib/api";
-import { CircleExclamationPoint, Download, FileText, Package, RefreshCw, RotateCcw, Send, Settings, Trash } from "lucide-react";
+import { ChevronDown, CircleExclamationPoint, Download, Ellipsis, FileText, Package, RefreshCw, RotateCcw, Send, Settings, Trash } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { contractSummary } from "@/lib/changeOrders";
 import { put } from "@/lib/db";
+import { useJobDocs } from "@/lib/docActions";
+import { useDocSettings } from "@/lib/docSettings";
+import { jobBilling, normalizeDocSettings } from "@/lib/documents";
+import { useBilldu } from "@/lib/useBilldu";
+import { useChangeOrders } from "./changeOrders/useChangeOrders";
+import { Menu } from "./documents/ui";
 import { downloadBlob, downloadText, slug } from "@/lib/download";
 import { depositAmount, estimateCsv, lineProductId, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
@@ -95,6 +102,15 @@ export default function EstimateTab() {
     [takeoff, catalog, products, pricing, estimateLines, project, sheets, markers, runs, closets],
   );
 
+  const billdu = useBilldu();
+  const liveDocSettings = useDocSettings();
+  const docSettings = liveDocSettings ?? normalizeDocSettings(settings?.documents, settings?.pricing.currency);
+  const { docs } = useJobDocs(project?.id);
+  const { rows: changeOrders } = useChangeOrders(project?.id);
+  const billing = useMemo(() => jobBilling(docs ?? [], contractSummary(0, changeOrders ?? []).approved), [docs, changeOrders]);
+  // Bumped by "Send to client": opens the client quote form.
+  const [sendTick, setSendTick] = useState(0);
+
   const [docTypeChoice, setDocType] = useState<DocType | null>(null);
   const docType: DocType = docTypeChoice ?? settings?.billduDocType ?? "estimate";
   const [depositPct, setDepositPct] = useState("");
@@ -124,7 +140,7 @@ export default function EstimateTab() {
         { label: "Devices", value: String(devices) },
         ...(t.ledTotalFt ? [{ label: "LED", value: `${t.ledTotalFt} LF` }] : []),
       ];
-      const blob = await renderEstimatePdf({ project: project!, business: settings!.business, estimate: estimate!, currency: cur, taxPct: pricing!.taxPct, scope });
+      const blob = await renderEstimatePdf({ project: project!, business: settings!.business, estimate: estimate!, currency: cur, taxPct: pricing!.taxPct, scope, validDays: docSettings.quoteValidDays });
       downloadBlob(blob, `${fileBase}.pdf`);
     } catch (e) {
       setError(`PDF failed: ${(e as Error).message}`);
@@ -137,7 +153,6 @@ export default function EstimateTab() {
   const dep = num(depositPct);
   const isDeposit = dep != null && dep > 0 && dep < 100;
   const existingSame = project.billduDocs.find((d) => d.type === docType && !d.percent);
-  const billed = project.billduDocs.filter((d) => d.type === "invoice").reduce((s, d) => s + d.amount, 0);
 
   async function send(existingDocId: number | null) {
     setBusy("send");
@@ -243,21 +258,40 @@ export default function EstimateTab() {
     .map((g) => ({ g, lines: estimate.lines.filter((l) => l.group === g) }))
     .filter((x) => x.lines.length);
   const unpriced = estimate.lines.filter((l) => l.included && l.unitPrice === 0 && l.qty > 0);
-  const billedPct = Math.min(100, estimate.subtotal ? (billed / estimate.subtotal) * 100 : 0);
+  // Billed so far, from the job's own invoices (Billdu documents are a copy, not counted here).
+  const billedPct = Math.min(100, billing.contract ? (billing.billed / billing.contract) * 100 : 0);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="mb-5 flex flex-wrap items-end gap-3">
-        <div className="mr-auto">
-          <h2 className="page-title">Estimate</h2>
-          <p className="mt-1 text-sm text-slate-500">Built from the takeoff and catalog prices. Tap any value to override it.</p>
+      <div className="mb-3 sm:mb-5">
+        <h2 className="page-title">Pricing</h2>
+        <p className="mt-1 text-sm text-slate-500">Built from the takeoff and your price list. Tap any value to change it for this job.</p>
+      </div>
+
+      {/* The total and the next step first; it stays in view while scrolling on a phone. */}
+      <div className="card sticky top-0 z-20 mb-5 flex flex-wrap items-center gap-3 px-4 py-3 shadow-sm sm:static sm:shadow-none">
+        <div className="mr-auto min-w-0">
+          <div className="text-xs text-slate-500">Total{pricing.taxPct ? ` with ${pricing.taxPct}% tax` : ""}</div>
+          <div className="text-2xl font-semibold tabular-nums" data-testid="pricing-total">
+            {formatMoney(estimate.total, cur)}
+          </div>
+          {billing.quote ? (
+            <div className="text-xs text-slate-500">
+              Quote approved · {formatMoney(billing.billed, cur)} of {formatMoney(billing.contract ?? 0, cur)} billed
+            </div>
+          ) : null}
         </div>
-        <button className="btn" onClick={downloadCsv}>
-          <Download /> CSV
+        <button className="btn btn-brand" onClick={() => setSendTick((n) => n + 1)} disabled={!estimate.lines.length}>
+          <Send /> Send to client
         </button>
-        <button className="btn btn-brand" onClick={downloadPdf} disabled={busy === "pdf"}>
-          <FileText /> {busy === "pdf" ? "Building PDF…" : "Client estimate PDF"}
-        </button>
+        <Menu
+          label={<span className="sr-only sm:not-sr-only">More</span>}
+          icon={<Ellipsis />}
+          items={[
+            { label: busy === "pdf" ? "Building PDF…" : "Client PDF", icon: <FileText />, disabled: busy === "pdf", onClick: () => void downloadPdf() },
+            { label: "Spreadsheet (CSV)", icon: <Download />, onClick: downloadCsv },
+          ]}
+        />
       </div>
 
       {unpriced.length > 0 && (
@@ -288,7 +322,15 @@ export default function EstimateTab() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
-          <div className="card flex flex-wrap items-end gap-4 p-4">
+          <details className="card group">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+              Adjust pricing
+              <span className="ml-auto truncate text-xs font-normal text-slate-500">
+                Markup {pricing.markupPct}% · tax {pricing.taxPct}% · labor {pricing.laborMode === "combined" ? "in the price" : "separate"}
+              </span>
+            </summary>
+          <div className="flex flex-wrap items-end gap-4 border-t border-slate-100 p-4">
             <label className="text-sm">
               <span className="label">Markup %</span>
               <input className={input} defaultValue={pricing.markupPct} key={`mk${pricing.markupPct}`} inputMode="decimal" onBlur={(e) => setPricing({ markupPct: num(e.target.value) ?? 0 })} onKeyDown={enterBlurs} />
@@ -308,13 +350,21 @@ export default function EstimateTab() {
               <input type="checkbox" className="accent-brand-600" checked={pricing.includeTentative} onChange={(e) => setPricing({ includeTentative: e.target.checked })} />
               Include “?” items by default
             </label>
-            <span className="ml-auto self-center text-xs text-slate-400">Applies to this project only</span>
+            <span className="ml-auto self-center text-xs text-slate-400">Applies to this job only</span>
+            <p className="basis-full text-xs text-slate-500">
+              Wire prices per foot are in{" "}
+              <Link href="/settings#wire" className="font-medium text-brand-600 hover:underline">
+                Settings → Wire
+              </Link>
+              .
+            </p>
             {pricedOverrides > 0 && (
               <p className="basis-full text-xs text-slate-500">
-                Markup is on material. {pricedOverrides} line{pricedOverrides === 1 ? " has" : "s have"} a typed price, which is final and isn’t marked up — reset {pricedOverrides === 1 ? "it" : "them"} to use the catalog price.
+                Markup is on material. {pricedOverrides} line{pricedOverrides === 1 ? " has" : "s have"} a typed price, which is final and isn’t marked up — reset {pricedOverrides === 1 ? "it" : "them"} to use the price list.
               </p>
             )}
           </div>
+          </details>
 
           <JobProducts total={takeoff.total} pricing={pricing} />
 
@@ -469,8 +519,32 @@ export default function EstimateTab() {
             </dl>
           </section>
 
-          <ProposalPanel estimate={estimate} takeoff={takeoff} pricing={pricing} />
+          {(billing.quote || billing.billed > 0) && (
+            <section className="card p-5 text-sm">
+              <div className="section-title mb-3">Billed</div>
+              <div className="mb-1.5 flex justify-between">
+                <span className="text-slate-500">{billing.quote ? "Approved quote" : "Invoiced"}</span>
+                <span className="font-medium tabular-nums">{billing.quote ? formatMoney(billing.contract ?? 0, cur) : formatMoney(billing.billed, cur)}</span>
+              </div>
+              {billing.contract ? (
+                <>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${billedPct}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {formatMoney(billing.billed, cur)} billed · {formatMoney(billing.leftToBill ?? 0, cur)} left to bill
+                  </p>
+                </>
+              ) : null}
+              <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=billing`} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">
+                Quotes & invoices
+              </Link>
+            </section>
+          )}
 
+          <ProposalPanel estimate={estimate} takeoff={takeoff} pricing={pricing} openForm={sendTick} />
+
+          {billdu && (
           <section className="card p-5">
             <div className="mb-4 flex items-center gap-2">
               <Send className="h-4 w-4 text-brand-600" />
@@ -535,18 +609,8 @@ export default function EstimateTab() {
             )}
 
             <div className="mt-5 border-t border-slate-100 pt-4 text-sm">
-              <div className="mb-1.5 flex justify-between">
-                <span className="text-slate-500">Invoiced so far</span>
-                <span className="font-medium tabular-nums">{Math.round(billedPct)}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${billedPct}%` }} />
-              </div>
-              <p className="mt-1.5 text-xs text-slate-500">
-                {formatMoney(billed, cur)} of {formatMoney(estimate.subtotal, cur)} · remaining {formatMoney(Math.max(0, estimate.subtotal - billed), cur)} before tax
-              </p>
               {project.billduDocs.length > 0 && (
-                <ul className="mt-3 space-y-1.5">
+                <ul className="space-y-1.5" aria-label="Sent to Billdu">
                   {project.billduDocs.map((d) => (
                     <li key={`${d.type}-${d.id}`} className="flex items-center justify-between gap-2 text-sm">
                       <span className="min-w-0 truncate">
@@ -561,9 +625,10 @@ export default function EstimateTab() {
               )}
             </div>
             <button className="btn btn-sm btn-ghost mt-3 w-full text-slate-500" disabled={!!busy} onClick={syncProducts}>
-              <RefreshCw /> {busy === "products" ? "Syncing…" : "Sync catalog to Billdu products"}
+              <RefreshCw /> {busy === "products" ? "Syncing…" : "Sync price list to Billdu products"}
             </button>
           </section>
+          )}
         </aside>
       </div>
     </div>
