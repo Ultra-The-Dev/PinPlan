@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, daysUntil, filterPhotos, openTasks, photosByDay, tagOptions, taskBucket, teamNames, timeline } from "@/lib/fieldDocs";
+import { CHECKLIST_TEMPLATES, checklistFromTemplate, checklistProgress, daysUntil, filterPhotos, filterTimeline, openTasks, pageTimeline, photosByDay, tagOptions, taskBucket, teamNames, timeline, TIMELINE_FILTERS, timelinePeople, type TimelineEvent } from "@/lib/fieldDocs";
 import type { Checklist, ChecklistItem, Photo, Project } from "@/lib/types";
 
 const ts = "2026-11-19T15:00:00.000Z";
@@ -104,5 +104,57 @@ describe("timeline and deleted photos", () => {
     const c = (id: string, photoId: string) => ({ id, projectId: "p", photoId, author: "Sam", text: `on ${photoId}`, createdAt: "2026-11-19T11:00:00.000Z", updatedAt: "2026-11-19T11:00:00.000Z" });
     const ev = timeline({ project: pr, photos: [live, gone], photoComments: [c("1", "a"), c("2", "b")], checklists: [], jobLogs: [], documents: [] });
     expect(ev.filter((e) => e.kind === "comment").map((e) => e.text)).toEqual(["Commented: “on a”"]);
+  });
+});
+
+describe("timeline filters and paging", () => {
+  const ev: TimelineEvent[] = [
+    { at: "2026-11-19T12:00:00.000Z", kind: "photos", text: "3 photos added", who: "Jane" },
+    { at: "2026-11-19T11:00:00.000Z", kind: "comment", text: "Commented: “Move the AP”", who: "mike" },
+    { at: "2026-11-19T10:00:00.000Z", kind: "checklist", text: "Trim-out: Cameras mounted", who: "jane " },
+    { at: "2026-11-18T10:00:00.000Z", kind: "log", text: "Daily log: Rough-in", who: "Mike" },
+    { at: "2026-11-17T10:00:00.000Z", kind: "document", text: "Document added: plans.pdf" },
+    { at: "2026-11-16T10:00:00.000Z", kind: "billdu", text: "Billdu estimate #12" },
+    { at: "2026-11-10T10:00:00.000Z", kind: "created", text: "Job created" },
+  ];
+
+  it("has a chip for every kind except job created", () => {
+    expect(TIMELINE_FILTERS.map((f) => f.label)).toEqual(["Photos", "Comments", "Checklists", "Logs", "Documents", "Billdu"]);
+  });
+
+  it("shows everything with no filters", () => {
+    expect(filterTimeline(ev, {})).toEqual(ev);
+    expect(filterTimeline(ev, { kinds: [], who: "", text: "  " })).toEqual(ev);
+  });
+
+  it("filters by kind chips (any of them), keeping order", () => {
+    expect(filterTimeline(ev, { kinds: ["photos"] }).map((e) => e.kind)).toEqual(["photos"]);
+    expect(filterTimeline(ev, { kinds: ["billdu", "comments"] }).map((e) => e.kind)).toEqual(["comment", "billdu"]);
+  });
+
+  it("filters by person, case-insensitive, and leaves out events with nobody", () => {
+    expect(filterTimeline(ev, { who: "JANE" }).map((e) => e.kind)).toEqual(["photos", "checklist"]);
+    expect(filterTimeline(ev, { who: "mike", kinds: ["logs"] }).map((e) => e.text)).toEqual(["Daily log: Rough-in"]);
+  });
+
+  it("searches the text and person", () => {
+    expect(filterTimeline(ev, { text: "rough" }).map((e) => e.kind)).toEqual(["log"]);
+    expect(filterTimeline(ev, { text: "MIKE" }).map((e) => e.kind)).toEqual(["comment", "log"]);
+  });
+
+  it("lists people once each", () => {
+    expect(timelinePeople(ev)).toEqual(["Jane", "mike"]);
+  });
+
+  it("pages the newest events first", () => {
+    const many: TimelineEvent[] = Array.from({ length: 250 }, (_, i) => ({ at: String(1000 - i), kind: "log", text: `#${i}` }));
+    const p1 = pageTimeline(many);
+    expect(p1.shown).toHaveLength(100);
+    expect(p1.shown[0].text).toBe("#0");
+    expect(p1.remaining).toBe(150);
+    expect(pageTimeline(many, 200).remaining).toBe(50);
+    expect(pageTimeline(many, 300)).toMatchObject({ remaining: 0 });
+    expect(pageTimeline(many, 300).shown).toHaveLength(250);
+    expect(pageTimeline(ev, -5)).toEqual({ shown: [], remaining: ev.length });
   });
 });

@@ -425,11 +425,29 @@ struct DocumentsView: View {
 struct TimelineView: View {
     let model: EditorModel
     @State private var viewer: PhotoViewerItem?
+    @State private var kinds: Set<FieldDocs.TimelineFilter> = []
+    @State private var person: String = ""
+    @State private var query: String = ""
+    @State private var limit: Int = FieldDocs.timelinePage
 
     var body: some View {
-        let events = FieldDocs.timeline(model.bundle)
-        let days = Dictionary(grouping: events) { FieldDocs.localDay($0.at) }
+        let all = FieldDocs.timeline(model.bundle)
+        let people = FieldDocs.timelinePeople(all)
+        let filtered = FieldDocs.filterTimeline(all, kinds: kinds, who: person.isEmpty ? nil : person, text: query)
+        let page = FieldDocs.pageTimeline(filtered, limit: limit)
+        let filtering = !kinds.isEmpty || !person.isEmpty || !query.trimmingCharacters(in: .whitespaces).isEmpty
+        let days = Dictionary(grouping: page.shown) { FieldDocs.localDay($0.at) }
         List {
+            Section {
+                filters(people: people, filtering: filtering)
+                if filtering {
+                    Text("\(filtered.count) of \(all.count) events").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if page.shown.isEmpty {
+                ContentUnavailableView("No matching events", systemImage: "line.3.horizontal.decrease.circle", description: Text("Try other filters."))
+                    .listRowBackground(Color.clear)
+            }
             ForEach(days.keys.sorted(by: >), id: \.self) { day in
                 Section(dayTitle(day)) {
                     ForEach(days[day]!) { e in
@@ -452,8 +470,57 @@ struct TimelineView: View {
                     }
                 }
             }
+            if page.remaining > 0 {
+                Section {
+                    Button { limit += FieldDocs.timelinePage } label: {
+                        HStack {
+                            Text("Load more")
+                            Spacer()
+                            Text("\(page.remaining) older").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
         }
+        .onChange(of: kinds) { limit = FieldDocs.timelinePage }
+        .onChange(of: person) { limit = FieldDocs.timelinePage }
+        .onChange(of: query) { limit = FieldDocs.timelinePage }
         .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
+    }
+
+    @ViewBuilder private func filters(people: [String], filtering: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search the timeline", text: $query).autocorrectionDisabled()
+            if !people.isEmpty {
+                Menu {
+                    Button("Everyone") { person = "" }
+                    ForEach(people, id: \.self) { n in Button(n) { person = n } }
+                } label: {
+                    Label(person.isEmpty ? "Everyone" : person, systemImage: "person").font(.subheadline)
+                }
+            }
+        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(FieldDocs.TimelineFilter.allCases) { f in
+                    let on = kinds.contains(f)
+                    Button {
+                        if on { kinds.remove(f) } else { kinds.insert(f) }
+                    } label: {
+                        Text(f.title).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
+                            .foregroundStyle(on ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if filtering {
+                    Button("Clear") { kinds = []; person = ""; query = "" }
+                        .font(.subheadline)
+                        .buttonStyle(.borderless)
+                }
+            }
+        }
     }
 
     private func icon(_ k: FieldDocs.Event.Kind) -> String {

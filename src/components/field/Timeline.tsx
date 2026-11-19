@@ -1,8 +1,8 @@
 "use client";
 // Everything that happened on the job, newest first: photos, comments, checklist items, logs, documents, Billdu.
-import { BookOpen, Camera, ClipboardCheck, FileText, FolderPlus, MessageSquare, Receipt } from "lucide-react";
+import { BookOpen, Camera, ClipboardCheck, FileText, FolderPlus, MessageSquare, Receipt, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { localDay, timeline, type TimelineEvent } from "@/lib/fieldDocs";
+import { filterTimeline, localDay, pageTimeline, timeline, TIMELINE_FILTERS, TIMELINE_PAGE, timelinePeople, type TimelineEvent, type TimelineFilterId } from "@/lib/fieldDocs";
 import { useEditor } from "@/lib/store";
 import type { Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
@@ -31,10 +31,59 @@ function Mini({ photo, onClick }: { photo: Photo; onClick: () => void }) {
 export default function Timeline() {
   const { project, photos, photoComments, checklists, jobLogs, documents } = useEditor();
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
-  const events = useMemo(() => (project ? timeline({ project, photos, photoComments, checklists, jobLogs, documents }) : []), [project, photos, photoComments, checklists, jobLogs, documents]);
+  const [kinds, setKinds] = useState<TimelineFilterId[]>([]);
+  const [person, setPerson] = useState("");
+  const [text, setText] = useState("");
+  const [limit, setLimit] = useState(TIMELINE_PAGE);
+  const all = useMemo(() => (project ? timeline({ project, photos, photoComments, checklists, jobLogs, documents }) : []), [project, photos, photoComments, checklists, jobLogs, documents]);
+  const people = useMemo(() => timelinePeople(all), [all]);
+  const filtered = useMemo(() => filterTimeline(all, { kinds, who: person, text }), [all, kinds, person, text]);
+  const { shown: events, remaining } = pageTimeline(filtered, limit);
+  const filtering = kinds.length > 0 || !!person || !!text.trim();
+  // Changing a filter starts again from the newest events.
+  const refilter = (f: () => void) => (f(), setLimit(TIMELINE_PAGE));
   if (!project) return null;
   return (
     <div>
+      <div className="mb-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-48 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input className="input h-9 pl-9" placeholder="Search the timeline" value={text} onChange={(e) => refilter(() => setText(e.target.value))} />
+          </div>
+          {people.length > 0 && (
+            <select className="input h-9 w-auto" value={person} onChange={(e) => refilter(() => setPerson(e.target.value))} aria-label="Person">
+              <option value="">Everyone</option>
+              {people.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {TIMELINE_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              className={`chip ${kinds.includes(f.id) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              aria-pressed={kinds.includes(f.id)}
+              onClick={() => refilter(() => setKinds((ks) => (ks.includes(f.id) ? ks.filter((x) => x !== f.id) : [...ks, f.id])))}
+            >
+              {f.label}
+            </button>
+          ))}
+          {filtering && (
+            <button className="chip bg-white text-slate-500 ring-1 ring-slate-200" onClick={() => refilter(() => (setKinds([]), setPerson(""), setText("")))}>
+              Clear filters
+            </button>
+          )}
+        </div>
+        {filtering && (
+          <div className="text-xs text-slate-500">
+            {filtered.length} of {all.length} events
+          </div>
+        )}
+      </div>
+      {events.length === 0 && <div className="py-8 text-center text-sm text-slate-500">No events match these filters.</div>}
       <ol className="relative space-y-1 border-l border-slate-200 pl-6">
         {events.map((e, i) => {
           const day = localDay(e.at);
@@ -69,6 +118,14 @@ export default function Timeline() {
           );
         })}
       </ol>
+      {remaining > 0 && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button className="btn btn-sm" onClick={() => setLimit((n) => n + TIMELINE_PAGE)}>
+            Load more
+          </button>
+          <span className="text-xs text-slate-500">{remaining} older</span>
+        </div>
+      )}
       {viewer && <PhotoViewer photos={viewer.list} startId={viewer.id} onClose={() => setViewer(null)} />}
     </div>
   );

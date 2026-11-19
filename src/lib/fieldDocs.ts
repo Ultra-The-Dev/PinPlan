@@ -250,5 +250,56 @@ export function timeline(input: {
   return ev.filter((e) => !!e.at).sort((a, b) => b.at.localeCompare(a.at));
 }
 
+export type TimelineFilterId = "photos" | "comments" | "checklists" | "logs" | "documents" | "billdu";
+/** Filter chips for the timeline and the event kinds each one shows. */
+export const TIMELINE_FILTERS: { id: TimelineFilterId; label: string; kind: TimelineEvent["kind"] }[] = [
+  { id: "photos", label: "Photos", kind: "photos" },
+  { id: "comments", label: "Comments", kind: "comment" },
+  { id: "checklists", label: "Checklists", kind: "checklist" },
+  { id: "logs", label: "Logs", kind: "log" },
+  { id: "documents", label: "Documents", kind: "document" },
+  { id: "billdu", label: "Billdu", kind: "billdu" },
+];
+/** How many events the timeline shows at first (and adds per "Load more"). */
+export const TIMELINE_PAGE = 100;
+
+export interface TimelineFilter {
+  /** Chips that are on; none on = every kind (including "Job created"). */
+  kinds?: TimelineFilterId[];
+  /** Only this person's events (case-insensitive). */
+  who?: string | null;
+  /** Free-text search over the event text and person. */
+  text?: string;
+}
+
+/** Keeps the events that match every active filter. Order is kept. */
+export function filterTimeline(events: TimelineEvent[], f: TimelineFilter): TimelineEvent[] {
+  const kinds = f.kinds?.length ? new Set(TIMELINE_FILTERS.filter((x) => f.kinds!.includes(x.id)).map((x) => x.kind)) : null;
+  const who = f.who?.trim().toLowerCase();
+  const q = f.text?.trim().toLowerCase();
+  return events.filter(
+    (e) =>
+      (!kinds || kinds.has(e.kind)) &&
+      (!who || e.who?.trim().toLowerCase() === who) &&
+      (!q || `${e.text} ${e.who ?? ""}`.toLowerCase().includes(q)),
+  );
+}
+
+/** People who appear on the timeline, one per person whatever the capitalisation, sorted. */
+export function timelinePeople(events: TimelineEvent[]): string[] {
+  const s = new Map<string, string>();
+  for (const e of events) {
+    const t = e.who?.trim();
+    if (t && !s.has(t.toLowerCase())) s.set(t.toLowerCase(), t);
+  }
+  return [...s.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/** The first `limit` events and how many are left for "Load more". */
+export function pageTimeline(events: TimelineEvent[], limit = TIMELINE_PAGE): { shown: TimelineEvent[]; remaining: number } {
+  const n = Math.max(0, Math.floor(limit));
+  return { shown: events.slice(0, n), remaining: Math.max(0, events.length - n) };
+}
+
 /** Who is using the app here: name or email for "taken by". */
 export const DEFAULT_AUTHOR = "Me";
