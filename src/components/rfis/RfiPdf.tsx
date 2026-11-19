@@ -1,5 +1,6 @@
 // Branded RFI PDFs (@react-pdf/renderer), same look as the daily log PDF: one RFI with its photos and plan crop, and
 // the job's RFI log as a table. Loaded with a dynamic import so it stays out of SSR. No prices anywhere.
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { BusinessSettings } from "@/lib/types";
 
@@ -64,7 +65,7 @@ function styles(brand: string) {
 }
 
 function Header({ d, title, sub }: { d: RfiPdfData; title: string; sub: string }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = styles(brand);
   return (
     <View style={s.head}>
@@ -87,7 +88,7 @@ function Header({ d, title, sub }: { d: RfiPdfData; title: string; sub: string }
 }
 
 function Footer({ d }: { d: RfiPdfData }) {
-  const s = styles(d.business.brandColor || "#0a1b54");
+  const s = styles(docBrand(d.business.brandColor));
   return (
     <View style={s.footer} fixed>
       <Text>{[d.business.name, `Printed ${d.printed}`].filter(Boolean).join(" · ")}</Text>
@@ -111,7 +112,7 @@ const fitBox = (w: number, h: number, maxW: number, maxH: number) => {
 };
 
 export function RfiDocument({ d, r }: { d: RfiPdfData; r: RfiPdfEntry }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = styles(brand);
   return (
     <Document title={`${r.code} ${r.subject}`} author={d.business.name || undefined}>
@@ -189,7 +190,7 @@ const COLS: { key: keyof RfiPdfEntry; title: string; w: number }[] = [
 ];
 
 export function RfiLogDocument({ d, rows }: { d: RfiPdfData; rows: RfiPdfEntry[] }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = styles(brand);
   const open = rows.filter((r) => r.status === "Open").length;
   const overdue = rows.filter((r) => r.overdue).length;

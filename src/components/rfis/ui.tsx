@@ -1,19 +1,12 @@
 "use client";
 // Small shared bits for the RFI screens: status and ball-in-court chips, dates.
+import { statusChip } from "@/lib/statusStyle";
 import { ArrowLeftRight, Hourglass } from "lucide-react";
 import { RFI_STATUS_LABEL } from "@/lib/rfis";
 import type { Rfi } from "@/lib/types";
 
-const STATUS_CLS: Record<Rfi["status"], string> = {
-  draft: "bg-slate-100 text-slate-600",
-  open: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
-  answered: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-  closed: "bg-slate-100 text-slate-500",
-  void: "bg-slate-100 text-slate-400 line-through",
-};
-
 export function StatusChip({ status }: { status: Rfi["status"] }) {
-  return <span className={`chip ${STATUS_CLS[status]}`}>{RFI_STATUS_LABEL[status]}</span>;
+  return <span className={`chip ${statusChip(status)}`}>{RFI_STATUS_LABEL[status]}</span>;
 }
 
 /** Who has to act: "With them" (waiting on the GC) or "With us" (we have to act). Hidden once closed or void. */

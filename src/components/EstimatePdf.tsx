@@ -1,5 +1,6 @@
 "use client";
 // Client-facing estimate PDF (@react-pdf/renderer). Load via `renderEstimatePdf` (dynamic import keeps it out of SSR).
+import { DOC_DEFAULT_BRAND } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
@@ -7,7 +8,7 @@ import { localDay } from "@/lib/fieldDocs";
 import type { BusinessSettings, Project } from "@/lib/types";
 
 const INK = "#161616";
-const BRAND = "#0a1b54";
+const BRAND = DOC_DEFAULT_BRAND;
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 

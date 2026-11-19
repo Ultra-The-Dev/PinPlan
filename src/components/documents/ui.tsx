@@ -1,25 +1,13 @@
 "use client";
 // Small building blocks for the quotes / invoices screens.
+import { statusChip } from "@/lib/statusStyle";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { STATUS_LABEL } from "@/lib/documents";
 import type { DocDisplayStatus, DocKind } from "@/lib/types";
 
-const STATUS_STYLE: Record<DocDisplayStatus, string> = {
-  draft: "bg-slate-100 text-slate-600",
-  sent: "bg-sky-50 text-sky-700",
-  viewed: "bg-indigo-50 text-indigo-700",
-  accepted: "bg-emerald-50 text-emerald-700",
-  declined: "bg-red-50 text-red-700",
-  partially_paid: "bg-amber-50 text-amber-800",
-  paid: "bg-emerald-50 text-emerald-700",
-  void: "bg-slate-100 text-slate-400 line-through",
-  overdue: "bg-red-50 text-red-700",
-  expired: "bg-amber-50 text-amber-800",
-};
-
 export function StatusChip({ status }: { status: DocDisplayStatus }) {
-  return <span className={`chip shrink-0 ${STATUS_STYLE[status]}`}>{STATUS_LABEL[status]}</span>;
+  return <span className={`chip shrink-0 ${statusChip(status)}`}>{STATUS_LABEL[status]}</span>;
 }
 
 export const KIND_SHORT: Record<DocKind, string> = { quote: "Quote", invoice: "Invoice", credit_note: "Credit" };

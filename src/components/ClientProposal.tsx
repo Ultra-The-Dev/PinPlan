@@ -1,5 +1,6 @@
 "use client";
 // What the client sees: the installer's proposal by link — plans, scope, price, optional add-ons, sign and accept.
+import { docAccent, docBrand } from "@/lib/brandDefaults";
 import { Check, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -144,8 +145,8 @@ export default function ClientProposal() {
     }
   }
 
-  const brand = s.business.brandColor || "#0a1b54";
-  const accent = s.business.accentColor || "#13e57c";
+  const brand = docBrand(s.business.brandColor);
+  const accent = docAccent(s.business.accentColor);
   const theme = {
     "--brand": brand,
     "--accent": accent,

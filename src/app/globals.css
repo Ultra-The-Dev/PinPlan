@@ -17,29 +17,54 @@
 }
 
 @theme {
-  /* Safety orange, darkened at 600/700 so white button text stays readable (≥ 4.5:1). */
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-200: #fed7aa;
-  --color-brand-300: #fdba74;
-  --color-brand-500: #ea580c;
-  --color-brand-600: #c2410c;
-  --color-brand-700: #9a3412;
-  --color-ink: #161616;
-  /* Warm neutrals (stone) everywhere the UI uses slate, to match the paper-and-ink look. */
-  --color-slate-50: #f7f5f2;
-  --color-slate-100: #efece7;
-  --color-slate-200: #e2ded7;
-  --color-slate-300: #ccc6bd;
-  --color-slate-400: #a19a90;
-  --color-slate-500: #77706a;
-  --color-slate-600: #57524c;
-  --color-slate-700: #433f3a;
-  --color-slate-800: #2a2724;
-  --color-slate-900: #1c1a18;
-  --color-slate-950: #0e0d0c;
-  --shadow-soft: 0 1px 2px rgb(40 30 15 / 0.05), 0 3px 10px -4px rgb(40 30 15 / 0.08);
-  --shadow-pop: 0 12px 36px -12px rgb(40 30 15 / 0.32), 0 2px 6px rgb(40 30 15 / 0.08);
+  /* Blueprint Ink (docs/brand.md): action blue. 600 is the button colour (white text 4.8:1), 400 the electric pin. */
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #ddedff;
+  --color-brand-200: #b9daff;
+  --color-brand-300: #84bfff;
+  --color-brand-400: #33a9ff;
+  --color-brand-500: #1a86f0;
+  --color-brand-600: #0b6fe0;
+  --color-brand-700: #0958b5;
+  --color-brand-800: #0a4690;
+  --color-ink: #0f2340;
+  /* Cool blueprint neutrals everywhere the UI uses slate. 400 and 500 are text colours and pass AA on white and
+     on paper (slate-50); 300 and below are for rules and fills only. */
+  --color-slate-50: #f2f6fa;
+  --color-slate-100: #e6edf5;
+  --color-slate-200: #d5dfeb;
+  --color-slate-300: #bbc8d8;
+  --color-slate-400: #5f718b;
+  --color-slate-500: #526580;
+  --color-slate-600: #3e506a;
+  --color-slate-700: #2e3f57;
+  --color-slate-800: #1d2e47;
+  --color-slate-900: #0f2340;
+  --color-slate-950: #08162a;
+  /* Status colours (src/lib/statusStyle.ts): ok = approved teal, info = sent/open, warn = waiting, bad = problem.
+     Chips use 50 ground + 200 ring + 700 text (AA, checked in tests/statusStyle.test.ts); 600 is the dot/map colour. */
+  --color-ok-50: #e7f6f3;
+  --color-ok-200: #a8ddd4;
+  --color-ok-600: #0b7f72;
+  --color-ok-700: #096b60;
+  --color-info-50: #eef6ff;
+  --color-info-200: #b9daff;
+  --color-info-600: #0b6fe0;
+  --color-info-700: #0958b5;
+  --color-warn-50: #fff6e0;
+  --color-warn-200: #f2d38c;
+  --color-warn-600: #b7791f;
+  --color-warn-700: #7f5300;
+  --color-bad-50: #fdeeec;
+  --color-bad-200: #f3bdb6;
+  --color-bad-600: #c73a2c;
+  --color-bad-700: #a32d21;
+  --shadow-soft: 0 1px 2px rgb(15 35 64 / 0.06), 0 3px 10px -4px rgb(15 35 64 / 0.1);
+  --shadow-pop: 0 12px 36px -12px rgb(15 35 64 / 0.35), 0 2px 6px rgb(15 35 64 / 0.08);
+}
+
+:root {
+  color-scheme: light;
 }
 
 html,
@@ -54,21 +79,33 @@ body {
 }
 
 ::selection {
-  background: var(--color-brand-100);
+  background: var(--color-brand-200);
+  color: var(--color-ink);
+}
+
+/* Keyboard focus everywhere. In the base layer so components that draw their own ring (.input) can turn it off. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+  ::placeholder {
+    color: var(--color-slate-500);
+  }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium whitespace-nowrap text-slate-700 shadow-[0_1px_1px_rgb(15_23_42/0.04)] transition select-none hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45;
+    @apply relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-medium whitespace-nowrap text-slate-700 shadow-[0_1px_1px_rgb(15_35_64/0.05)] transition select-none hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45;
   }
   .btn svg {
     @apply h-4 w-4 shrink-0;
   }
   .btn-primary {
-    @apply border-ink bg-ink text-white shadow-sm hover:border-slate-800 hover:bg-slate-800 hover:text-white;
+    @apply border-ink bg-ink text-white shadow-[inset_0_-2px_0_rgb(0_0_0/0.25)] hover:border-slate-800 hover:bg-slate-800 hover:text-white;
   }
   .btn-brand {
-    @apply border-brand-600 bg-brand-600 text-white shadow-sm hover:border-brand-700 hover:bg-brand-700 hover:text-white;
+    @apply border-brand-600 bg-brand-600 text-white shadow-[inset_0_-2px_0_rgb(9_40_90/0.35)] hover:border-brand-700 hover:bg-brand-700 hover:text-white;
   }
   .btn-ghost {
     @apply border-transparent bg-transparent shadow-none hover:border-transparent hover:bg-slate-100;
@@ -77,7 +114,7 @@ body {
     @apply border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700;
   }
   .btn-sm {
-    @apply h-8 gap-1 rounded-md px-2.5 text-xs;
+    @apply h-8 gap-1 rounded-lg px-2.5 text-xs;
   }
   .btn-sm svg {
     @apply h-3.5 w-3.5;
@@ -89,10 +126,10 @@ body {
     @apply w-8;
   }
   .btn-on {
-    @apply border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-300 hover:bg-brand-100 hover:text-brand-700;
+    @apply border-brand-300 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100 hover:text-brand-800;
   }
   .input {
-    @apply h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-[0_1px_1px_rgb(15_23_42/0.03)] outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100;
+    @apply h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-[0_1px_1px_rgb(15_35_64/0.04)] outline-none transition placeholder:text-slate-500 focus:border-brand-600 focus:ring-4 focus:ring-brand-100;
   }
   textarea.input {
     @apply h-auto py-2;
@@ -104,7 +141,7 @@ body {
     @apply rounded-xl bg-white shadow-soft;
   }
   .tab {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-slate-500 transition hover:bg-slate-100 hover:text-slate-900;
+    @apply relative inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-slate-500 transition hover:bg-slate-100 hover:text-slate-900;
   }
   .tab svg {
     @apply h-4 w-4;
@@ -133,18 +170,34 @@ body {
   .section-title {
     @apply text-xs font-semibold text-slate-500;
   }
+  /* Page headings in the brand face (Archivo, condensed); body text stays Geist. */
   .page-title {
-    @apply text-2xl font-semibold text-slate-900;
+    @apply text-[26px] leading-tight font-bold tracking-[-0.01em] text-ink;
+    font-family: var(--font-mk), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-stretch: 75%;
   }
   .toolbar-sep {
     @apply mx-1 h-6 w-px shrink-0 bg-slate-200;
+  }
+  /* Touch screens: buttons and tabs keep their drawn size but answer to a 44px target. */
+  @media (pointer: coarse) {
+    .btn::after,
+    .tab::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
   }
 }
 
 /* Thin scrollbars inside panels */
 .scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) transparent;
+  scrollbar-color: var(--color-slate-300) transparent;
 }
 
 @keyframes pp-in {
@@ -159,6 +212,22 @@ body {
 }
 .animate-in {
   animation: pp-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-pulse,
+  .animate-ping {
+    animation: none;
+  }
+  .btn:active {
+    scale: none;
+  }
+  .btn,
+  .tab,
+  .input {
+    transition: none;
+  }
 }
 
 /* Client proposal page: form controls in the company's colour. */

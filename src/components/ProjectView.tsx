@@ -1,4 +1,5 @@
 "use client";
+import { statusChip } from "@/lib/statusStyle";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -36,11 +37,7 @@ const TABS = [
   { id: "changes", label: "Changes", icon: FileDiff },
 ] as const;
 
-const STATUS_STYLE: Record<ProjectStatus, string> = {
-  estimate: "bg-amber-50 text-amber-800 ring-amber-200",
-  approved: "bg-brand-50 text-brand-700 ring-brand-200",
-  installed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-};
+const STATUS_STYLE: Record<ProjectStatus, string> = { estimate: statusChip("estimate"), approved: statusChip("approved"), installed: statusChip("installed") };
 
 export default function ProjectView() {
   const params = useSearchParams();

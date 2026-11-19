@@ -1,5 +1,6 @@
 "use client";
 // What the client sees from a photo report link: branded, grouped photos with captions; tap to enlarge; print.
+import { docAccent, docBrand } from "@/lib/brandDefaults";
 import { Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -56,8 +57,8 @@ export default function ClientPhotoReport() {
       </div>
     );
   if (!s) return <p className="p-10 text-center text-slate-500">Loading photos…</p>;
-  const brand = s.business.brandColor || "#0a1b54";
-  const accent = s.business.accentColor || "#13e57c";
+  const brand = docBrand(s.business.brandColor);
+  const accent = docAccent(s.business.accentColor);
   return (
     <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: "Manrope, var(--font-sans), system-ui, sans-serif" }}>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />

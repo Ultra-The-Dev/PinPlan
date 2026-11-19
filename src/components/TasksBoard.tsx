@@ -1,5 +1,6 @@
 "use client";
 // Tasks across every job: open checklist / punch-list items that are assigned to someone, have a due date or came from a photo comment.
+import { TONE_TEXT } from "@/lib/statusStyle";
 import { CalendarDays, Camera, Check, ClipboardList, MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,8 +17,8 @@ import ThisWeekStrip from "./schedule/ThisWeekStrip";
 
 const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
-  overdue: "text-red-600",
-  today: "text-amber-700",
+  overdue: TONE_TEXT.bad,
+  today: TONE_TEXT.warn,
   week: "text-slate-700",
   later: "text-slate-500",
   none: "text-slate-500",

@@ -1,6 +1,7 @@
 "use client";
 // Quote / invoice / credit note PDF (@react-pdf/renderer) in three looks: classic, modern, compact.
 // Load with `renderDocPdf` (dynamic import keeps it out of SSR and the first page load).
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 import type { DocLive } from "./DocView";
@@ -60,7 +61,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
   const compact = snap.template === "compact";
   const modern = snap.template === "modern";
   const s = styles(compact);
-  const brand = snap.business.brandColor || "#0a1b54";
+  const brand = docBrand(snap.business.brandColor);
   const money = (n: number) => formatDocMoney(n, snap.currency, snap.locale);
   const date = (d: string | null | undefined) => formatDocDate(d, snap.locale);
   const c = snap.columns;

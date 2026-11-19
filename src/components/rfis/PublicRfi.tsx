@@ -1,6 +1,7 @@
 "use client";
 // What the GC / architect / owner sees from an RFI link: the question, our suggestion, photos (with mark-up), the spot
 // on the plan and the due date, and a box to answer it. No login; everything goes through /api/rfis/public.
+import { docBrand } from "@/lib/brandDefaults";
 import { CalendarDays, Check, MapPin, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -101,7 +102,7 @@ export default function PublicRfi() {
   if (problem === "error") return <Unavailable title="Couldn’t load this question" text="Check your connection and reload the page." />;
   if (!v) return <p className="p-10 text-center text-slate-500">Loading…</p>;
 
-  const brand = v.sender.brandColor || "#0a1b54";
+  const brand = docBrand(v.sender.brandColor);
   const company = v.sender.company || "Your contractor";
   const companyInText = v.sender.company || "your contractor";
   const waiting = v.status === "open";

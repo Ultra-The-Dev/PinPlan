@@ -1,6 +1,7 @@
 "use client";
 // Jobs on a map (OpenStreetMap tiles via Leaflet, no API key). A job's location comes from its first geotagged
 // photo, or is set on its Job tab. Filter by status and label; the list beside the map flies to a job's pin.
+import { PROJECT_STATUS_HEX } from "@/lib/statusStyle";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
@@ -9,7 +10,7 @@ import { db } from "@/lib/db";
 import { filterJobs, isPlaced, jobLabelList, jobTitle, labelOptions, statusCounts } from "@/lib/jobFilters";
 import type { Project, ProjectStatus } from "@/lib/types";
 
-const COLOR: Record<ProjectStatus, string> = { estimate: "#d97706", approved: "#c2410c", installed: "#059669" };
+const COLOR: Record<ProjectStatus, string> = { ...PROJECT_STATUS_HEX };
 const STATUSES = Object.keys(COLOR) as ProjectStatus[];
 
 /** Popup body built with DOM nodes (job text is user input, so never innerHTML). */

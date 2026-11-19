@@ -1,5 +1,6 @@
 "use client";
 // Settings → Team: start a company team, invite office staff and technicians, manage roles.
+import { statusChip } from "@/lib/statusStyle";
 import { CircleAlert, Copy, LogIn, LogOut, MessageSquare, Share2, Ticket, UserMinus, UserPlus, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -399,12 +400,7 @@ function MemberRow(props: { m: TeamMember; isMe: boolean; editable: boolean; bus
   );
 }
 
-const STATE_STYLE: Record<InviteState, string> = {
-  open: "bg-emerald-50 text-emerald-700",
-  used: "bg-slate-100 text-slate-600",
-  expired: "bg-amber-50 text-amber-800",
-  revoked: "bg-slate-100 text-slate-400 line-through",
-};
+const STATE_STYLE: Record<InviteState, string> = { open: statusChip("open"), used: statusChip("used"), expired: statusChip("expired"), revoked: statusChip("revoked") };
 const STATE_LABEL: Record<InviteState, string> = { open: "Open", used: "Joined", expired: "Expired", revoked: "Revoked" };
 
 function Invites({ team, from, members }: { team: string; from: string; members: TeamMember[] }) {

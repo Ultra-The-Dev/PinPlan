@@ -3,18 +3,20 @@ import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { passwordStrength } from "@/lib/onboardingLogic";
-import { Brand } from "../marketing/Site";
+import { Wordmark } from "../marketing/Wordmark";
 
-/** A centred card under a slim header, for /signup, /login, /reset. */
+/** A centred card under a slim header with the wordmark, on blueprint paper, for /signup, /login, /reset. */
 export function AuthShell({ children, aside, wide }: { children: React.ReactNode; aside?: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="flex-1 overflow-x-hidden overflow-y-auto">
-      <header className="mx-auto flex h-14 max-w-6xl items-center px-4 sm:px-6">
-        <Brand />
+    <div className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50">
+      <header className="mx-auto flex h-16 max-w-6xl items-center px-4 sm:px-6">
+        <div className="text-ink [font-family:var(--font-mk)]">
+          <Wordmark />
+        </div>
         <div className="ml-auto text-sm text-slate-500">{aside}</div>
       </header>
       <main className={`mx-auto w-full px-4 pt-6 pb-16 sm:pt-12 ${wide ? "max-w-lg" : "max-w-md"}`}>{children}</main>
-      <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-400">
+      <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-500">
         <Link href="/terms" className="hover:text-slate-700">Terms</Link>
         <Link href="/privacy" className="hover:text-slate-700">Privacy</Link>
         <Link href="/support" className="hover:text-slate-700">Support</Link>
@@ -25,14 +27,14 @@ export function AuthShell({ children, aside, wide }: { children: React.ReactNode
 }
 
 export function AuthCard({ children }: { children: React.ReactNode }) {
-  return <div className="card p-6 ring-1 ring-slate-200/60 sm:p-8">{children}</div>;
+  return <div className="card rounded-[4px] p-6 ring-1 ring-slate-300/70 sm:p-8">{children}</div>;
 }
 
 export function AuthTitle({ icon, title, sub }: { icon?: React.ReactNode; title: string; sub?: React.ReactNode }) {
   return (
     <div className="mb-6">
       {icon && <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 [&_svg]:h-5 [&_svg]:w-5">{icon}</div>}
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+      <h1 className="page-title">{title}</h1>
       {sub && <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{sub}</p>}
     </div>
   );
@@ -41,7 +43,7 @@ export function AuthTitle({ icon, title, sub }: { icon?: React.ReactNode; title:
 export function FormError({ children }: { children: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p role="alert" className="flex gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
+    <p role="alert" className="flex gap-2 rounded-lg bg-bad-50 px-3 py-2.5 text-sm text-bad-700 ring-1 ring-bad-200">
       <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
       <span>{children}</span>
     </p>
@@ -50,7 +52,7 @@ export function FormError({ children }: { children: React.ReactNode }) {
 
 export function FormNotice({ children }: { children: React.ReactNode }) {
   if (!children) return null;
-  return <p className="rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-200">{children}</p>;
+  return <p className="rounded-lg bg-ok-50 px-3 py-2.5 text-sm text-ok-700 ring-1 ring-ok-200">{children}</p>;
 }
 
 /** Password input with a show/hide toggle and (for new passwords) a strength meter. */

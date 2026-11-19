@@ -1,6 +1,7 @@
 "use client";
 // Change order PDFs (@react-pdf/renderer), branded like the estimate PDF: one change order with a signature block,
 // and the job's change order log. Load with a dynamic import (keeps react-pdf out of the page bundle).
+import { DOC_DEFAULT_BRAND } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import { changeOrderTotals, coCode, reasonLabel, sellLines, type ContractSummary } from "@/lib/changeOrders";
 import { formatMoney } from "@/lib/estimate";
@@ -45,7 +46,7 @@ const s = StyleSheet.create({
 });
 
 const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
-const brandOf = (b: BusinessSettings) => (b.brandColor && /^#[0-9a-f]{3,8}$/i.test(b.brandColor) ? b.brandColor : "#0a1b54");
+const brandOf = (b: BusinessSettings) => (b.brandColor && /^#[0-9a-f]{3,8}$/i.test(b.brandColor) ? b.brandColor : DOC_DEFAULT_BRAND);
 /** react-pdf can draw data URLs and absolute URLs; site paths need the origin. */
 const logoSrc = (logo: string | undefined) => (!logo ? null : logo.startsWith("/") ? (typeof window !== "undefined" ? window.location.origin + logo : null) : logo);
 

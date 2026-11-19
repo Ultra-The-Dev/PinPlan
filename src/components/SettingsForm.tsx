@@ -1,6 +1,7 @@
 "use client";
 import { Building, Cable, Calculator, ClipboardPen, CloudOff, CreditCard, HardHat, ListChecks, Receipt, ReceiptText, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import { DOC_DEFAULT_ACCENT, DOC_DEFAULT_BRAND } from "@/lib/brandDefaults";
 import { toast } from "@/lib/toast";
 import { getSettings, saveSettings } from "@/lib/db";
 import { tradeWireTypes, tradeVocab } from "@/lib/trades";
@@ -128,8 +129,8 @@ export default function SettingsForm() {
                 <div className="flex gap-3">
                   {(
                     [
-                      ["brandColor", "Brand colour", "#0a1b54"],
-                      ["accentColor", "Accent", "#13e57c"],
+                      ["brandColor", "Brand colour", DOC_DEFAULT_BRAND],
+                      ["accentColor", "Accent", DOC_DEFAULT_ACCENT],
                     ] as const
                   ).map(([k, label, def]) => (
                     <label key={k} className="flex items-center gap-2 text-sm text-slate-600">
@@ -159,11 +160,11 @@ export default function SettingsForm() {
             </div>
             <div className="sm:col-span-2">
               <label className="label" htmlFor="set-tagline">Tagline</label>
-              <input id="set-tagline" className="input" placeholder="Smart Home · Lighting · AV & Home Theater · Security" value={b.tagline ?? ""} onChange={(e) => setB("tagline", e.target.value)} />
+              <input id="set-tagline" className="input" placeholder="Electrical · Low voltage · Security" value={b.tagline ?? ""} onChange={(e) => setB("tagline", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
               <label className="label" htmlFor="set-service-area">Service area</label>
-              <input id="set-service-area" className="input" placeholder="Serving New York City & the Tri-State Area" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
+              <input id="set-service-area" className="input" placeholder="Serving the metro area and nearby towns" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
               <label className="label" htmlFor="set-estimate-terms">Estimate terms</label>

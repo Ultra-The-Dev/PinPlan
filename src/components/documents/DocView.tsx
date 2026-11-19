@@ -1,5 +1,6 @@
 // A quote / invoice / credit note as the client sees it (the client link, and the live preview in the editor).
 // Renders a DocSnapshot in one of three looks: classic, modern, compact. No browser APIs: safe to prerender.
+import { docBrand } from "@/lib/brandDefaults";
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 
 export interface DocLive {
@@ -17,7 +18,7 @@ const pctText = (n: number) => `${Number(n.toFixed(3))}%`;
 export default function DocView({ snap, live, payLink, className = "" }: { snap: DocSnapshot; live?: DocLive; payLink?: string | null; className?: string }) {
   const money = (n: number) => formatDocMoney(n, snap.currency, snap.locale);
   const date = (d: string | null | undefined) => formatDocDate(d, snap.locale);
-  const brand = snap.business.brandColor || "#0a1b54";
+  const brand = docBrand(snap.business.brandColor);
   const accent = snap.business.accentColor || brand;
   const c = snap.columns;
   const sections = snap.detail === "sections";

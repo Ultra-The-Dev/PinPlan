@@ -1,4 +1,5 @@
 "use client";
+import { statusChip } from "@/lib/statusStyle";
 import { FileText, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,11 +13,7 @@ import { useSheetImage } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
 import { useTemplateStart } from "./templates/TemplatePicker";
 
-const STATUS_STYLE: Record<ProjectStatus, string> = {
-  estimate: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
-  approved: "bg-brand-50 text-brand-700 ring-1 ring-brand-200",
-  installed: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
-};
+const STATUS_STYLE: Record<ProjectStatus, string> = { estimate: statusChip("estimate"), approved: statusChip("approved"), installed: statusChip("installed") };
 
 interface Row extends Project {
   sheetCount: number;

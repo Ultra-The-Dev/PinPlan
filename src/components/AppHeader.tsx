@@ -2,18 +2,19 @@
 import { CalendarRange, Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PRODUCT_NAME } from "@/lib/plans";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import BillingBanner from "./BillingBanner";
+import { LogoMark } from "./marketing/Wordmark";
 import RoleBadge from "./RoleBadge";
 import SyncBadge from "./SyncBadge";
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label="PinPlan home">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
-      {!compact && <span className="hidden text-[15px] sm:inline">PinPlan</span>}
+    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={`${PRODUCT_NAME} home`}>
+      <LogoMark size={32} />
+      {!compact && <span className="hidden text-[15px] sm:inline">{PRODUCT_NAME}</span>}
     </Link>
   );
 }
