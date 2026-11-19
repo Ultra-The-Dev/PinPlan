@@ -406,5 +406,222 @@ export interface AppSettings {
   /** Which defaults blank business fields fall back to: "neutral" on installs from the SaaS onwards; missing on
    *  the founder's older installs, which keep the founder's company details. */
   brandDefaults?: "founder" | "neutral";
+  /** Quotes / invoices / credit notes (Settings → Invoicing). Missing on older settings: DEFAULT_DOC_SETTINGS applies.
+   *  The company-wide copy lives in the cloud (`document_settings`); this is this device's cache of it. */
+  documents?: DocumentSettings;
   updatedAt: string;
+}
+
+// ---------------- quotes, invoices, credit notes (see docs/documents.md) ----------------
+
+/** "quote" covers estimates, quotes and proposals: one behaviour, the title is a setting ("Estimate", "Quote"…). */
+export type DocKind = "quote" | "invoice" | "credit_note";
+/** Stored status. "overdue" and "expired" are never stored: they are worked out from the dates (displayStatus). */
+export type DocStatus = "draft" | "sent" | "viewed" | "accepted" | "declined" | "partially_paid" | "paid" | "void";
+export type DocDisplayStatus = DocStatus | "overdue" | "expired";
+export type InvoiceType = "standard" | "deposit" | "progress" | "final";
+export type DocSource = "manual" | "estimate" | "quote" | "invoice" | "duplicate";
+export type DocGrouping = "category" | "floor" | "room" | "flat";
+export type DocTemplate = "classic" | "modern" | "compact";
+export type PaymentMethod = "cash" | "check" | "card" | "ach" | "zelle" | "other";
+
+/** A percentage of, or a fixed amount off, something. */
+export interface Adjust {
+  type: "pct" | "fixed";
+  value: number;
+}
+
+export interface DocTaxRate {
+  id: string;
+  /** e.g. "NY Sales Tax". */
+  name: string;
+  /** Percent, e.g. 8.875. */
+  rate: number;
+}
+
+export interface DocLine {
+  id: string;
+  /** "section": a heading row (only `description` is used); the items below it belong to it. Default "item". */
+  kind?: "item" | "section";
+  description: string;
+  /** Second line under the description (rooms, device labels, notes). */
+  details?: string | null;
+  /** Item code / SKU. */
+  sku?: string | null;
+  qty: number;
+  unit?: string | null;
+  unitPrice: number;
+  /** Line discount (before tax). */
+  discount?: Adjust | null;
+  taxable: boolean;
+  /** Which of the document's taxes apply when taxable; null/missing = all of them. */
+  taxIds?: string[] | null;
+  /** Shown to the client but not counted in the totals. */
+  optional?: boolean;
+  /** Estimate line key it came from ("dev:<type>", "wire:Cat6"…). */
+  key?: string | null;
+}
+
+export interface DocFee {
+  id: string;
+  /** "Shipping", "Permit fee"… */
+  label: string;
+  amount: number;
+  taxable?: boolean;
+}
+
+export interface DocClient {
+  name: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  billingAddress?: string | null;
+  siteAddress?: string | null;
+}
+
+export interface DocColumns {
+  qty: boolean;
+  unit: boolean;
+  unitPrice: boolean;
+  discount: boolean;
+  tax: boolean;
+  sku: boolean;
+  lineTotal: boolean;
+}
+
+/** How the document is shown (PDF and client link). Missing keys fall back to the company settings. */
+export interface DocOptions {
+  /** "sections": prices per section only (line prices hidden). */
+  detail?: "lines" | "sections";
+  columns?: Partial<DocColumns>;
+  template?: DocTemplate;
+  /** Link to the marked-up plans PDF shown on the document. */
+  plansUrl?: string | null;
+  /** Quotes: the client must sign to accept. */
+  requireSignature?: boolean;
+}
+
+/** A quote, invoice or credit note. Belongs to a job; money fields are denormalised (documentTotals) for lists. */
+export interface SalesDoc {
+  id: string;
+  projectId: string;
+  kind: DocKind;
+  /** Title override (otherwise the kind's label from settings). */
+  title?: string | null;
+  /** Given by the server when the document is issued (sent); null while it's a draft or waiting for sync. */
+  number?: string | null;
+  status: DocStatus;
+  issueDate?: string | null;
+  dueDate?: string | null;
+  /** Quotes: last day it can be accepted. */
+  validUntil?: string | null;
+  /** Payment terms in days (0 = due on receipt). */
+  termsDays?: number | null;
+  client: DocClient;
+  lines: DocLine[];
+  discount?: Adjust | null;
+  taxes: DocTaxRate[];
+  fees?: DocFee[] | null;
+  /** Deposit asked for (quotes: on acceptance; invoices: due first). */
+  deposit?: Adjust | null;
+  currency: string;
+  notes?: string | null;
+  terms?: string | null;
+  footer?: string | null;
+  /** Never shown to the client. */
+  internalNotes?: string | null;
+  options?: DocOptions | null;
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  source: DocSource;
+  /** The document this one was made from (quote → invoice, invoice → credit note, duplicate). */
+  convertedFrom?: string | null;
+  invoiceType?: InvoiceType | null;
+  /** Deposit / progress invoices: the percentage of the quote billed. */
+  billedPct?: number | null;
+  /** The client link currently published, and a fingerprint of what it shows (to spot a stale link). */
+  shareToken?: string | null;
+  shareHash?: string | null;
+  sentAt?: string | null;
+  viewedAt?: string | null;
+  /** Client's answer (quotes), written by the server from the client link. */
+  respondedAt?: string | null;
+  signerName?: string | null;
+  signature?: string | null;
+  clientNote?: string | null;
+  paidAt?: string | null;
+  voidedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+/** A payment (positive) or refund (negative) against an invoice. */
+export interface DocPayment {
+  id: string;
+  projectId: string;
+  documentId: string;
+  amount: number;
+  /** YYYY-MM-DD. */
+  date: string;
+  method: PaymentMethod;
+  reference?: string | null;
+  note?: string | null;
+  /** Kept for the record but not counted. */
+  voided?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+export interface DocKindSettings {
+  /** Title on the document: "Estimate", "Quote", "Proposal", "Invoice", "Credit note". */
+  label: string;
+  /** Number format: {YYYY} {YY} {MM}, and {0000} (zero-padded) or {#} for the counter, e.g. "INV-{YYYY}-{0000}". */
+  format: string;
+  /** Start the counter again at 1 each January. */
+  yearlyReset: boolean;
+  terms: string;
+  notes: string;
+  footer: string;
+}
+
+export interface DocumentSettings {
+  kinds: Record<DocKind, DocKindSettings>;
+  /** Payment terms in days for new invoices (0 = due on receipt). */
+  paymentTermsDays: number;
+  /** Quotes stay valid this many days (0 = no expiry). */
+  quoteValidDays: number;
+  /** Deposit asked for on new quotes (%; 0 = none). */
+  depositPct: number;
+  lateFee: string;
+  /** Named tax rates; `default` ones are added to new documents. */
+  taxes: (DocTaxRate & { default: boolean })[];
+  /** Labor lines are taxed (off by default: installation labor often isn't). */
+  laborTaxable: boolean;
+  currency: string;
+  /** Number/date formatting, e.g. "en-US". */
+  locale: string;
+  columns: DocColumns;
+  grouping: DocGrouping;
+  detail: "lines" | "sections";
+  /** Estimate → quote: add rooms / device labels under each line. */
+  lineDetails: boolean;
+  template: DocTemplate;
+  payment: {
+    /** Free text shown under "How to pay". */
+    instructions: string;
+    bank: string;
+    zelle: string;
+    checkPayable: string;
+    /** The company's own payment link, with {amount}, {number} and {currency} filled in. */
+    payUrl: string;
+  };
+  signatureOnQuotes: boolean;
+  reminders: { enabled: boolean; daysBeforeDue: number; daysAfterDue: number[] };
+  updatedAt?: string;
 }

@@ -55,6 +55,14 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
   jobLogs: { id: "jl", projectId: "p", date: "2026-11-19", title: "t", body: "b", author: "a", photoIds: ["ph"], createdAt: ts, updatedAt: ts, deleted: false },
   documents: { id: "doc", projectId: "p", name: "permit.pdf", mime: "application/pdf", size: 10, fileId: "f", createdAt: ts, updatedAt: ts, deleted: false },
   estimateLines: { id: "e", projectId: "p", key: "dev:d", description: "x", qty: 1, unit: "each", unitPrice: 1, removed: false, include: true, sort: 1, updatedAt: ts, deleted: false },
+  salesDocs: {
+    id: "sd", projectId: "p", kind: "invoice", title: "t", number: "INV-1", status: "sent", issueDate: "2026-11-19", dueDate: "2026-12-19", validUntil: "2026-12-19", termsDays: 30,
+    client: { name: "c" }, lines: [], discount: { type: "pct", value: 5 }, taxes: [], fees: [], deposit: null, currency: "USD", notes: "n", terms: "t", footer: "f", internalNotes: "i",
+    options: {}, subtotal: 1, discountTotal: 0, taxTotal: 0, total: 1, amountPaid: 0, balanceDue: 1, source: "quote", convertedFrom: "q", invoiceType: "deposit", billedPct: 50,
+    shareToken: "tok", shareHash: "h", sentAt: ts, viewedAt: ts, respondedAt: ts, signerName: "s", signature: "data:", clientNote: "c", paidAt: "2026-11-20", voidedAt: ts,
+    createdAt: ts, updatedAt: ts, deleted: false,
+  },
+  salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);

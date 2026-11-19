@@ -7,8 +7,9 @@ import { create } from "zustand";
 import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
-import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
+import { dedupeQueue, mergeServerNumber, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
 import type { Sheet } from "./types";
+import { pullDocSettings } from "./docSettings";
 import { finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
 import { toast } from "./toast";
@@ -114,7 +115,7 @@ async function push(): Promise<void> {
       continue;
     }
     // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
-    if (table === "estimateLines" && useTeam.getState().role === "tech") {
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }
@@ -229,7 +230,12 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
         rows.forEach((raw, i) => {
           const local = toLocal(table, raw);
           const have = existing[i];
-          if (!remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) return;
+          if (!remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) {
+            // The server numbered a document this device issued: take the number even if the device's copy looks newer.
+            const merged = table === "salesDocs" ? mergeServerNumber(have, local) : null;
+            if (merged) writes.push(merged);
+            return;
+          }
           // Keep local-only fields.
           if (table === "sheets" && have?.imageUrl) local.imageUrl = have.imageUrl;
           writes.push(local);
@@ -344,6 +350,8 @@ async function runSync(force = false): Promise<void> {
       }
       if (!readOnly) readOnlyUntil = 0;
       await pull(st.userId, changed);
+      // Company invoicing settings (numbering, terms, taxes…) are shared by the office: keep this device's copy current.
+      if (useTeam.getState().role !== "tech") await pullDocSettings().catch(() => undefined);
       failures = 0;
       nextAttemptAt = 0;
       setStatus({ lastSyncAt: new Date().toISOString(), error: schemaWarning(), readOnly });
