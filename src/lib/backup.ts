@@ -1,11 +1,18 @@
 "use client";
 // Project backup / restore as a single JSON file (plans, markup, estimate overrides and images).
 // Useful when running local-only (no Supabase) or to move a job between devices.
-import { db, loadProject, nowIso, putMany, type SyncTable } from "./db";
+import { db, loadProject, newId, nowIso, putMany, type SyncTable } from "./db";
 import { downloadBlob, slug } from "./download";
+import { readLocalOwner } from "./localOwner";
+import { useTeam } from "./team";
 import type { DeviceType, DocPayment, JobTemplate, Product, SalesDoc, StoredImage } from "./types";
 
 const FORMAT = "pinplan-backup";
+
+/** Who made a backup: a file from another account (and another company) is restored as a copy with new ids. */
+function backupOwner(): { ownerId: string | null; teamId: string | null } {
+  return { ownerId: readLocalOwner()?.userId ?? null, teamId: useTeam.getState().team?.id ?? null };
+}
 
 interface ImageRecord {
   id: string;
@@ -33,7 +40,7 @@ export async function exportProjectBackup(projectId: string) {
   if (!bundle) throw new Error("Project not found");
   const { project, products } = await projectWithImages(bundle);
   const catalog = await db().deviceTypes.toArray();
-  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products, projects: [project] };
+  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), ...backupOwner(), catalog, products, projects: [project] };
   downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `${slug(bundle.project.address || "project")}.pinplan.json`);
 }
 
@@ -52,7 +59,7 @@ export async function exportAllBackup(): Promise<number> {
   const catalog = await db().deviceTypes.toArray();
   // Company job templates go with a full export (docs/job-templates.md).
   const jobTemplates = (await db().jobTemplates.toArray()).filter((t) => !t.deleted);
-  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products: [...products.values()], projects, jobTemplates };
+  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), ...backupOwner(), catalog, products: [...products.values()], projects, jobTemplates };
   downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `pinplan-all-jobs-${nowIso().slice(0, 10)}.pinplan.json`);
   return projects.length;
 }
@@ -66,6 +73,8 @@ async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof l
     ...bundle.documents.map((d) => d.fileId),
     ...(bundle.changeOrders ?? []).map((c) => c.signatureImageId).filter((x): x is string => !!x),
     ...(bundle.forms ?? []).flatMap((f) => (f.signatures ?? []).map((sg) => sg.imageId)),
+    // Daily report signatures.
+    ...bundle.jobLogs.map((l) => l.report?.signature?.imageId).filter((x): x is string => !!x),
   ]);
   const images: ImageRecord[] = [];
   for (const id of imageIds) {
@@ -84,14 +93,84 @@ async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof l
   return { project: { ...bundle, images, salesDocs, salesPayments }, products };
 }
 
-/** Restore projects from a backup file. Existing rows with the same ids are replaced. Returns the number of projects. */
+type BackupProject = NonNullable<Awaited<ReturnType<typeof loadProject>>> & { images: ImageRecord[]; salesDocs?: SalesDoc[]; salesPayments?: DocPayment[] };
+
+/** Row lists in a backed-up job, in the order they are written (parents first). */
+const PROJECT_TABLES = [
+  "sheets",
+  "markers",
+  "runs",
+  "closets",
+  "estimateLines",
+  "photos",
+  "photoComments",
+  "checklists",
+  "jobLogs",
+  "documents",
+  "salesDocs",
+  "salesPayments",
+  "changeOrders",
+  "rfis",
+  "scheduleItems",
+  "forms",
+  "measurements",
+  "sheetLinks",
+  "tasks",
+  "planMarkups",
+] as const satisfies readonly (SyncTable & keyof BackupProject)[];
+
+/**
+ * A backup made by another account (and not by someone on this company's team) is restored as a copy: its ids belong
+ * to that account in the cloud, so writing them here would be refused (or, worse, collide). Older files say nothing
+ * about who made them and are restored in place, as before.
+ */
+export function restoreAsCopy(file: { ownerId?: string | null; teamId?: string | null }, me: { userId: string | null; teamId: string | null }): boolean {
+  if (!file.ownerId || !me.userId || file.ownerId === me.userId) return false;
+  return !(file.teamId && me.teamId && file.teamId === me.teamId);
+}
+
+/**
+ * The same job under new ids. Like duplicateJob (jobTemplates.ts) every reference between rows is remapped, but
+ * nothing is left out: a restore keeps photos, logs, documents, quotes and forms. Any string equal to one of the job's
+ * row ids (projectId, sheetId, markerId, photoIds, link targets…) is replaced. Client share links and Billdu links
+ * belong to the other account and are dropped. Image ids are kept: files are stored per job (<project>/<image id>).
+ */
+export function remapBackupProject(p: BackupProject, nextId: () => string): BackupProject {
+  const ids = new Map<string, string>();
+  const note = (id: unknown) => {
+    if (typeof id === "string" && id && !ids.has(id)) ids.set(id, nextId());
+  };
+  note(p.project.id);
+  for (const t of PROJECT_TABLES) for (const r of (p[t] ?? []) as { id?: string }[]) note(r?.id);
+  const remap = (v: unknown): unknown => {
+    if (typeof v === "string") return ids.get(v) ?? v;
+    if (Array.isArray(v)) return v.map(remap);
+    if (v && typeof v === "object" && !(v instanceof Blob)) return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, remap(x)]));
+    return v;
+  };
+  const SHARED = ["shareToken", "shareHash", "publicView"];
+  const strip = <T>(row: T): T => {
+    const out = remap(row) as Record<string, unknown>;
+    for (const k of SHARED) delete out[k];
+    return out as T;
+  };
+  const out = { ...p, images: p.images ?? [] } as BackupProject;
+  out.project = { ...strip(p.project), billduDocs: [], billduClientId: undefined };
+  for (const t of PROJECT_TABLES) (out as unknown as Record<string, unknown>)[t] =((p[t] ?? []) as unknown[]).map(strip);
+  return out;
+}
+
+/** Restore projects from a backup file. Existing rows with the same ids are replaced (a file from another account is
+ *  restored as a copy; see restoreAsCopy). Returns the number of projects. */
 export async function importBackup(file: File): Promise<number> {
   let data: {
     format?: string;
+    ownerId?: string | null;
+    teamId?: string | null;
     catalog?: DeviceType[];
     products?: Product[];
     jobTemplates?: JobTemplate[];
-    projects?: (Awaited<ReturnType<typeof loadProject>> & { images: ImageRecord[]; salesDocs?: SalesDoc[]; salesPayments?: DocPayment[] })[];
+    projects?: BackupProject[];
   };
   try {
     data = JSON.parse(await file.text());
@@ -99,6 +178,15 @@ export async function importBackup(file: File): Promise<number> {
     throw new Error("That file isn't a PinPlan backup (invalid JSON).");
   }
   if (data.format !== FORMAT || !Array.isArray(data.projects)) throw new Error("That file isn't a PinPlan backup.");
+  const me = backupOwner();
+  const asCopy = restoreAsCopy(data, { userId: me.ownerId, teamId: me.teamId });
+  // Technicians can't change the price list or job templates (the database refuses): only the jobs are restored.
+  const tech = useTeam.getState().role === "tech";
+  if (tech) {
+    data.catalog = [];
+    data.products = [];
+    data.jobTemplates = [];
+  }
 
   // Catalog: add device types this device doesn't have yet (keeps local prices for existing ones).
   if (data.catalog?.length) {
@@ -121,8 +209,9 @@ export async function importBackup(file: File): Promise<number> {
     if (missing.length) await putMany("jobTemplates", missing);
   }
 
-  for (const p of data.projects) {
-    if (!p?.project?.id) continue;
+  for (const raw of data.projects) {
+    if (!raw?.project?.id) continue;
+    const p = asCopy ? remapBackupProject(raw, newId) : raw;
     const d = db();
     await d.transaction("rw", d.images, d.syncQueue, async () => {
       for (const img of p.images ?? []) {
@@ -132,29 +221,10 @@ export async function importBackup(file: File): Promise<number> {
       }
     });
     await putMany("projects", [{ ...p.project, deleted: false }]);
-    const tables: [SyncTable, { id: string }[]][] = [
-      ["sheets", p.sheets],
-      ["markers", p.markers],
-      ["runs", p.runs],
-      ["closets", p.closets],
-      ["estimateLines", p.estimateLines],
-      ["photos", p.photos],
-      ["photoComments", p.photoComments],
-      ["checklists", p.checklists],
-      ["jobLogs", p.jobLogs],
-      ["documents", p.documents],
-      ["salesDocs", p.salesDocs ?? []],
-      ["salesPayments", p.salesPayments ?? []],
-      ["changeOrders", p.changeOrders ?? []],
-      ["rfis", p.rfis ?? []],
-      ["scheduleItems", p.scheduleItems ?? []],
-      ["forms", p.forms ?? []],
-      ["measurements", p.measurements ?? []],
-      ["sheetLinks", p.sheetLinks ?? []],
-      ["tasks", p.tasks ?? []],
-      ["planMarkups", p.planMarkups ?? []],
-    ];
-    for (const [t, rows] of tables) if (rows?.length) await putMany(t, rows);
+    for (const t of PROJECT_TABLES) {
+      const rows = (p[t] ?? []) as { id: string }[];
+      if (rows.length) await putMany(t, rows);
+    }
   }
   return data.projects.length;
 }

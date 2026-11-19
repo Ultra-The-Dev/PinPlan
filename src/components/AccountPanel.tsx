@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
 import { getSupabase } from "@/lib/supabase";
-import { useSyncStatus } from "@/lib/sync";
+import type { RefusedChange, SyncTable } from "@/lib/db";
+import { discardRefused, keepPreviousAccountData, listRefused, removePreviousAccountData, retryRefused, signOut, useSyncStatus } from "@/lib/sync";
 import AccountData from "./AccountData";
 
 /** Account + sync settings. Local-only mode when Supabase env vars are missing. */
@@ -65,13 +66,13 @@ export default function AccountPanel() {
               </>
             )}
           </dl>
+          {s.ownerMismatch && <OtherAccountData previous={s.ownerMismatch.email} />}
+          {s.refused > 0 && <RefusedChanges count={s.refused} />}
           <div className="flex gap-2">
-            <button className="btn btn-primary" disabled={s.syncing || !s.online} onClick={() => s.syncNow()}>
+            <button className="btn btn-primary" disabled={s.syncing || !s.online || !!s.ownerMismatch} onClick={() => s.syncNow()}>
               {s.syncing ? "Syncing…" : "Sync now"}
             </button>
-            <button className="btn" onClick={() => sb?.auth.signOut()}>
-              Sign out
-            </button>
+            <SignOut pending={s.pending + s.refused} />
           </div>
           <SetPassword />
           <AccountData />
@@ -91,9 +92,6 @@ export default function AccountPanel() {
             <button type="submit" disabled={busy || !password} className="btn btn-primary">
               Sign in
             </button>
-            <button type="button" disabled={busy || !password} className="btn" onClick={() => run(() => sb!.auth.signUp({ email, password }), "If this email is new, open the confirmation email from Supabase (check spam), then sign in. If you already have an account, use Sign in — no email is sent.")}>
-              Create account
-            </button>
             <button
               type="button"
               disabled={busy || !email}
@@ -111,6 +109,169 @@ export default function AccountPanel() {
         </form>
       )}
     </section>
+  );
+}
+
+/** Another account's jobs are on this device: sync waits until the person removes them (or, deliberately, keeps them). */
+function OtherAccountData({ previous }: { previous: string | null }) {
+  const [busy, setBusy] = useState(false);
+  const [more, setMore] = useState(false);
+  return (
+    <div role="alert" className="space-y-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
+      <p className="font-medium">Sync is paused: this device has jobs from {previous ? <span className="break-all">{previous}</span> : "another account"}.</p>
+      <p>Remove them from this device before syncing, so they don’t end up in this account. Anything that account didn’t sync yet will be lost.</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await removePreviousAccountData();
+          }}
+        >
+          {busy ? "Removing…" : "Remove and sync"}
+        </button>
+        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void signOut()}>
+          Sign out instead
+        </button>
+        <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => setMore((v) => !v)} aria-expanded={more}>
+          More
+        </button>
+      </div>
+      {more && (
+        <div className="space-y-1 border-t border-amber-200 pt-2">
+          <p className="text-xs">Same company, new login? You can keep the jobs and add them to this account instead.</p>
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => keepPreviousAccountData()}>
+            Keep the jobs and add them to this account
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Changes the cloud didn't accept: everything else kept syncing. Discard takes the cloud's copy back. */
+function RefusedChanges({ count }: { count: number }) {
+  const online = useSyncStatus((s) => s.online);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<RefusedChange[] | null>(null);
+  const act = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      setRows(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-2 rounded-xl bg-red-50 p-3 text-sm text-red-900 ring-1 ring-red-200">
+      <p className="font-medium">
+        {count} {count === 1 ? "change wasn’t" : "changes weren’t"} accepted
+      </p>
+      <p>Everything else synced. Discard puts these back the way they are in the cloud.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-sm btn-danger" disabled={busy || !online} onClick={() => act(discardRefused)}>
+          Discard
+        </button>
+        <button type="button" className="btn btn-sm" disabled={busy || !online} onClick={() => act(retryRefused)}>
+          Try again
+        </button>
+        <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={async () => setRows(rows ? null : await listRefused())} aria-expanded={!!rows}>
+          {rows ? "Hide details" : "Details"}
+        </button>
+      </div>
+      {rows && (
+        <ul className="space-y-1 text-xs text-red-800">
+          {rows.map((r) => (
+            <li key={r.id} className="break-words">
+              <span className="font-medium">{REFUSED_LABELS[r.table] ?? r.table}</span> · {r.error}
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+const REFUSED_LABELS: Partial<Record<SyncTable, string>> = {
+  projects: "Job",
+  sheets: "Plan sheet",
+  deviceTypes: "Price list item",
+  products: "Product",
+  markers: "Device",
+  runs: "Wire run",
+  closets: "Panel",
+  estimateLines: "Estimate line",
+  photos: "Photo",
+  photoComments: "Photo comment",
+  checklists: "Checklist",
+  jobLogs: "Daily log",
+  documents: "Document",
+  salesDocs: "Quote or invoice",
+  salesPayments: "Payment",
+  jobTemplates: "Job template",
+  changeOrders: "Change order",
+  rfis: "RFI",
+  scheduleItems: "Schedule item",
+  forms: "Form",
+  measurements: "Measurement",
+  sheetLinks: "Plan link",
+  tasks: "Task",
+  planMarkups: "Markup",
+};
+
+/** Sign out, optionally removing this device's jobs too (with a warning when changes haven't synced). */
+function SignOut({ pending }: { pending: number }) {
+  const [open, setOpen] = useState(false);
+  const [remove, setRemove] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!open)
+    return (
+      <button type="button" className="btn" onClick={() => setOpen(true)}>
+        Sign out
+      </button>
+    );
+  return (
+    <div className="w-full max-w-sm space-y-2 rounded-xl bg-slate-50 p-3 text-sm ring-1 ring-slate-200">
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={remove} onChange={(e) => setRemove(e.target.checked)} />
+        <span>Also remove jobs from this device</span>
+      </label>
+      {pending > 0 && (
+        <p className="text-xs text-amber-800">
+          {pending} {pending === 1 ? "change hasn’t" : "changes haven’t"} synced yet.{" "}
+          {remove ? "Removing jobs now loses them — sync first." : "They stay on this device and sync when you sign in again."}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`btn btn-sm ${remove ? "btn-danger" : "btn-primary"}`}
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await signOut({ removeData: remove });
+            } finally {
+              setBusy(false);
+              setOpen(false);
+            }
+          }}
+        >
+          {remove ? "Sign out and remove" : "Sign out"}
+        </button>
+        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 

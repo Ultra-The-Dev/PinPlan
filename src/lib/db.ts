@@ -68,6 +68,21 @@ export interface SyncItem {
   table: SyncTable | "images";
   rowId: string;
   queuedAt: string;
+  /** Pushed without a column the cloud database doesn't have yet ("<remote table>.<column>"): kept queued and sent
+   *  again once that column exists (src/lib/sync.ts), so the column's data isn't lost. */
+  retryWhenColumn?: string;
+}
+
+/** A change the cloud database wouldn't accept (bad value, permission, constraint). Set aside so the rest keeps syncing;
+ *  the person can discard it (take the cloud copy) or try again. Keyed `<table>:<rowId>`. */
+export interface RefusedChange {
+  id: string;
+  table: SyncTable;
+  rowId: string;
+  projectId?: string;
+  error: string;
+  code?: string;
+  at: string;
 }
 
 class PinPlanDB extends Dexie {
@@ -106,6 +121,8 @@ class PinPlanDB extends Dexie {
   syncQueue!: EntityTable<SyncItem, "seq">;
   /** Filled forms and inspections (job_forms). */
   forms!: EntityTable<JobForm, "id">;
+  /** Local changes the cloud refused (see RefusedChange). Never synced. */
+  syncRefused!: EntityTable<RefusedChange, "id">;
 
   constructor() {
     super("pinplan");
@@ -155,6 +172,9 @@ class PinPlanDB extends Dexie {
     this.version(21).stores({ tasks: "id, projectId, sheetId, status, assignee, updatedAt" });
     // v22: plan markups (docs/plan-markups.md). Version numbers are spread out between features built in parallel.
     this.version(22).stores({ planMarkups: "id, projectId, sheetId, updatedAt" });
+    // v43: changes the cloud refused, set aside so one bad row never stops syncing (src/lib/sync.ts). Local only.
+    // v49 is reserved for a local-only thumbnails table (perf); don't reuse it.
+    this.version(43).stores({ syncRefused: "id, table, at" });
   }
 }
 
