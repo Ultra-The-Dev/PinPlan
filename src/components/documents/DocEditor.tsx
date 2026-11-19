@@ -304,7 +304,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
       </div>
 
       {/* Banners */}
-      {locked && <Banner tone="slate">Voided {draft.voidedAt ? formatDocDate(draft.voidedAt.slice(0, 10), settings.locale) : ""}. It no longer counts toward totals.</Banner>}
+      {draft.status === "void" && <Banner tone="slate">Voided {draft.voidedAt ? formatDocDate(draft.voidedAt.slice(0, 10), settings.locale) : ""}. It no longer counts toward totals.</Banner>}
       {stale && !locked && (
         <Banner tone="amber" action={{ label: "Update link", onClick: copyLink }}>
           You changed this after sending it. The client’s link still shows the earlier version.

@@ -161,16 +161,25 @@ export default function DocumentsTab() {
             const st = displayStatus(d);
             return (
               <li key={d.id}>
-                <button className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-slate-50" onClick={() => open(d.id)}>
-                  <KindChip kind={d.kind} />
+                <button className="flex w-full items-center gap-x-3 px-4 py-3 text-left hover:bg-slate-50" onClick={() => open(d.id)}>
+                  <span className="hidden sm:inline-flex">
+                    <KindChip kind={d.kind} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{docName(d, ds)}</span>
                     <span className="block truncate text-xs text-slate-500">
                       {[d.title, d.client?.name, d.issueDate ? formatDocDate(d.issueDate, ds.locale) : null, d.kind === "invoice" && d.dueDate ? `due ${formatDocDate(d.dueDate, ds.locale)}` : null, d.invoiceType && d.invoiceType !== "standard" ? d.invoiceType : null].filter(Boolean).join(" · ")}
                     </span>
+                    {/* Phones: type and status under the name, so the number isn't cut off. */}
+                    <span className="mt-1 flex gap-1.5 sm:hidden">
+                      <KindChip kind={d.kind} />
+                      <StatusChip status={st} />
+                    </span>
                   </span>
-                  <StatusChip status={st} />
-                  <span className="w-28 text-right">
+                  <span className="hidden sm:inline-flex">
+                    <StatusChip status={st} />
+                  </span>
+                  <span className="w-28 shrink-0 text-right">
                     <span className="block font-semibold tabular-nums">{formatDocMoney(d.total, d.currency, ds.locale)}</span>
                     {d.kind === "invoice" && d.status !== "draft" && d.status !== "void" && d.balanceDue !== d.total ? <span className="block text-xs text-slate-500 tabular-nums">due {formatDocMoney(d.balanceDue, d.currency, ds.locale)}</span> : null}
                   </span>
