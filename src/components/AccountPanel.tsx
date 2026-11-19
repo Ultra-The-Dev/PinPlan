@@ -1,9 +1,11 @@
 "use client";
 import { CheckCircle2, CircleAlert } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
 import { getSupabase } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
+import AccountData from "./AccountData";
 
 /** Account + sync settings. Local-only mode when Supabase env vars are missing. */
 export default function AccountPanel() {
@@ -72,6 +74,7 @@ export default function AccountPanel() {
             </button>
           </div>
           <SetPassword />
+          <AccountData />
         </div>
       ) : (
         <form
@@ -101,6 +104,10 @@ export default function AccountPanel() {
             </button>
           </div>
           {msg && <p className="text-sm text-slate-700">{msg}</p>}
+          <p className="text-xs text-slate-500">
+            New company? <Link href="/signup" className="font-medium text-slate-700 underline underline-offset-2">Start a free trial</Link> ·{" "}
+            <Link href="/reset" className="font-medium text-slate-700 underline underline-offset-2">Forgot password?</Link>
+          </p>
         </form>
       )}
     </section>

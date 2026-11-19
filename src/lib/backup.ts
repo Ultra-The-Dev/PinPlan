@@ -31,6 +31,31 @@ function base64ToBlob(b64: string, mime: string): Blob {
 export async function exportProjectBackup(projectId: string) {
   const bundle = await loadProject(projectId);
   if (!bundle) throw new Error("Project not found");
+  const { project, products } = await projectWithImages(bundle);
+  const catalog = await db().deviceTypes.toArray();
+  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products, projects: [project] };
+  downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `${slug(bundle.project.address || "project")}.pinplan.json`);
+}
+
+/** Every job on this device in one backup file (Settings › Account › Export my data). Restores with "Restore backup". */
+export async function exportAllBackup(): Promise<number> {
+  const ids = (await db().projects.toArray()).filter((p) => !p.deleted).map((p) => p.id);
+  const projects = [];
+  const products = new Map<string, Product>();
+  for (const id of ids) {
+    const bundle = await loadProject(id);
+    if (!bundle) continue;
+    const r = await projectWithImages(bundle);
+    projects.push(r.project);
+    for (const p of r.products) products.set(p.id, p);
+  }
+  const catalog = await db().deviceTypes.toArray();
+  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products: [...products.values()], projects };
+  downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `pinplan-all-jobs-${nowIso().slice(0, 10)}.pinplan.json`);
+  return projects.length;
+}
+
+async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof loadProject>>>) {
   const imageIds = new Set<string>([
     ...bundle.sheets.map((s) => s.imageId),
     ...bundle.markers.map((m) => m.photoId).filter((x): x is string => !!x),
@@ -42,12 +67,10 @@ export async function exportProjectBackup(projectId: string) {
     const rec = await db().images.get(id);
     if (rec) images.push({ id, mime: rec.mime || rec.blob.type, width: rec.width, height: rec.height, data: await blobToBase64(rec.blob) });
   }
-  const catalog = await db().deviceTypes.toArray();
   // Products the job uses (job choices + per-device picks), so prices survive the move.
   const used = new Set<string>([...Object.values(bundle.project.productChoices ?? {}), ...bundle.markers.map((m) => m.productId).filter((x): x is string => !!x)]);
   const products = (await db().products.toArray()).filter((p) => !p.deleted && used.has(p.id));
-  const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), catalog, products, projects: [{ ...bundle, images }] };
-  downloadBlob(new Blob([JSON.stringify(payload)], { type: "application/json" }), `${slug(bundle.project.address || "project")}.pinplan.json`);
+  return { project: { ...bundle, images }, products };
 }
 
 /** Restore projects from a backup file. Existing rows with the same ids are replaced. Returns the number of projects. */
