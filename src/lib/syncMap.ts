@@ -377,6 +377,12 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       createdBy: "created_by",
     },
   },
+  // Saved measurements on sheets (docs/saved-measurements.md). Values are computed, never stored.
+  measurements: {
+    remote: "measurements",
+    conflict: "id",
+    columns: { ...childOf, sheetId: "sheet_id", kind: "kind", points: "points", label: "label", color: "color", extraFt: "extra_ft", wastePct: "waste_pct", notes: "notes", author: "author" },
+  },
 };
 
 
@@ -402,6 +408,7 @@ export const PUSH_ORDER: SyncTable[] = [
   "rfis",
   "scheduleItems",
   "forms",
+  "measurements",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt", "answeredAt", "closedAt", "submittedAt"]);
@@ -423,7 +430,7 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
     out[remote] = v;
   }
   if (table === "projects" && !Array.isArray(out.billdu_docs)) out.billdu_docs = [];
-  if (table === "runs" && !Array.isArray(out.points)) out.points = [];
+  if ((table === "runs" || table === "measurements") && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
   if (table === "jobTemplates") {
@@ -456,7 +463,7 @@ export function toLocal(table: SyncTable, row: Record<string, unknown>): Record<
     out[local] = TIMESTAMP_KEYS.has(local) && typeof v === "string" ? normaliseTs(v) : v;
   }
   if (table === "projects" && !Array.isArray(out.billduDocs)) out.billduDocs = [];
-  if (table === "runs" && !Array.isArray(out.points)) out.points = [];
+  if ((table === "runs" || table === "measurements") && !Array.isArray(out.points)) out.points = [];
   return out;
 }
 

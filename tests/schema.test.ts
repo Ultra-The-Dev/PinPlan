@@ -82,6 +82,7 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
     values: { date: "2026-11-19" }, signatures: [{ fieldId: "sig", name: "Jane", imageId: "i", signedAt: ts }], sheetId: "s", x: 0.5, y: 0.5, markerId: "m", photoIds: ["ph"],
     submittedBy: "Mike", submittedAt: ts, createdBy: "Mike", createdAt: ts, updatedAt: ts, deleted: false,
   },
+  measurements: { id: "ms", projectId: "p", sheetId: "s", kind: "area", points: [0, 0, 1, 0, 1, 1], label: "Drop ceiling", color: "#e11d48", extraFt: 2, wastePct: 10, notes: "n", author: "a", createdAt: ts, updatedAt: ts, deleted: false },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);

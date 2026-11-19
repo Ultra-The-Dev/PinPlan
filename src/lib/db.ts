@@ -18,6 +18,7 @@ import type {
   JobLog,
   JobTemplate,
   Marker,
+  Measurement,
   Photo,
   PhotoComment,
   Product,
@@ -53,7 +54,8 @@ export type SyncTable =
   | "changeOrders"
   | "rfis"
   | "scheduleItems"
-  | "forms";
+  | "forms"
+  | "measurements";
 
 export interface SyncItem {
   seq?: number;
@@ -84,6 +86,7 @@ class PinPlanDB extends Dexie {
   /** Change orders (docs/change-orders.md). */
   changeOrders!: EntityTable<ChangeOrder, "id">;
   rfis!: EntityTable<Rfi, "id">;
+  measurements!: EntityTable<Measurement, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   scheduleItems!: EntityTable<ScheduleItem, "id">;
   images!: EntityTable<StoredImage, "id">;
@@ -132,6 +135,8 @@ class PinPlanDB extends Dexie {
     this.version(29).stores({ scheduleItems: "id, projectId, start, updatedAt" });
     // v26: typed forms and inspections.
     this.version(26).stores({ forms: "id, projectId, templateId, status, updatedAt" });
+    // v24: saved measurements (lengths, runs, areas) on sheets — docs/saved-measurements.md.
+    this.version(24).stores({ measurements: "id, projectId, sheetId, updatedAt" });
   }
 }
 
@@ -292,6 +297,8 @@ export interface ProjectBundle {
   scheduleItems?: ScheduleItem[];
   /** Forms and inspections. Optional so older bundles and backups still type-check. */
   forms?: JobForm[];
+  /** Saved measurements. Optional so older bundles and backups still type-check. */
+  measurements?: Measurement[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -315,6 +322,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     d.scheduleItems.where("projectId").equals(projectId).toArray(),
     d.forms.where("projectId").equals(projectId).toArray(),
   ]);
+  const measurements = await d.measurements.where("projectId").equals(projectId).toArray();
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
     sheets: live(sheets).sort((a, b) => a.order - b.order),
@@ -331,6 +339,7 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     rfis: live(rfis).sort((a, b) => b.number - a.number),
     scheduleItems: live(scheduleItems).sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0)),
     forms: live(forms).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    measurements: live(measurements).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };
 }
 

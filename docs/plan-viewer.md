@@ -52,6 +52,10 @@ const pins: PlanOverlay = {
 registerPlanOverlay(pins);
 ```
 
+Optional extras: `onDoubleTap(e, ctx)` (return true to stop the editor's double-tap zoom, e.g. to finish a drawing) and
+`capturing(ctx)` (true while the overlay owns plan input: devices, closets and run points can't be dragged then). See
+`src/components/measure/registerOverlay.ts` (saved measurements, docs/saved-measurements.md).
+
 Or pass overlays to one view only: `<PlanCanvas overlays={[pins]} … />` (a prop overlay replaces a registered one with
 the same id).
 
