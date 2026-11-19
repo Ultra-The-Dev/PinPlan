@@ -50,7 +50,7 @@ struct ProjectsView: View {
                                         Button { label = on ? nil : l } label: {
                                             Label(l, systemImage: "tag").font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                                                 .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
-                                                .foregroundStyle(on ? .white : .primary)
+                                                .foregroundStyle(on ? Color.white : Color.primary)
                                         }
                                         .buttonStyle(.plain)
                                     }

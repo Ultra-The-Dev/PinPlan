@@ -194,7 +194,7 @@ struct PhotosView: View {
                             Button { if on { tags.remove(t) } else { tags.insert(t) } } label: {
                                 Text(t).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                                     .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
-                                    .foregroundStyle(on ? .white : .primary)
+                                    .foregroundStyle(on ? Color.white : Color.primary)
                             }
                             .buttonStyle(.plain)
                         }

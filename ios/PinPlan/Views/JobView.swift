@@ -68,7 +68,7 @@ struct JobLabelsRow: View {
                     Button { set(on ? labels.filter { $0 != l } : labels + [l]) } label: {
                         Text(l).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                             .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
-                            .foregroundStyle(on ? .white : .primary)
+                            .foregroundStyle(on ? Color.white : Color.primary)
                     }
                     .buttonStyle(.plain)
                 }

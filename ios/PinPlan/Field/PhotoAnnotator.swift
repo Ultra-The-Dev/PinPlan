@@ -15,8 +15,10 @@ struct PhotoAnnotator: View {
     @State private var textAt: [Double]?
     @State private var text = ""
 
-    private static let tools: [(PhotoShape.Kind, String, String)] = [
-        (.arrow, "Arrow", "arrow.up.right"), (.pen, "Draw", "scribble"), (.rect, "Box", "rectangle"), (.circle, "Circle", "circle"), (.text, "Text", "textformat"),
+    private struct Tool: Identifiable { let kind: PhotoShape.Kind; let name: String; let icon: String; var id: String { kind.rawValue } }
+    private static let tools: [Tool] = [
+        Tool(kind: .arrow, name: "Arrow", icon: "arrow.up.right"), Tool(kind: .pen, name: "Draw", icon: "scribble"), Tool(kind: .rect, name: "Box", icon: "rectangle"),
+        Tool(kind: .circle, name: "Circle", icon: "circle"), Tool(kind: .text, name: "Text", icon: "textformat"),
     ]
 
     var body: some View {
@@ -68,7 +70,7 @@ struct PhotoAnnotator: View {
                 }
                 ToolbarItemGroup(placement: .bottomBar) {
                     Picker("Tool", selection: $tool) {
-                        ForEach(Self.tools, id: \.0) { t in Label(t.1, systemImage: t.2).tag(t.0) }
+                        ForEach(Self.tools) { t in Label(t.name, systemImage: t.icon).tag(t.kind) }
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 300)

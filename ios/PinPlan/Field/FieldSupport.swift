@@ -146,8 +146,8 @@ enum PhotoMarkup {
     static func draw(_ shapes: [PhotoShape], in ctx: CGContext, rect: CGRect) {
         let w = rect.width, h = rect.height, side = max(w, h)
         for s in shapes {
-            let lw = max(1, s.width * side)
-            func P(_ i: Int) -> CGPoint { CGPoint(x: rect.minX + s.points[i] * w, y: rect.minY + s.points[i + 1] * h) }
+            let lw: CGFloat = max(1, CGFloat(s.width) * side)
+            func P(_ i: Int) -> CGPoint { CGPoint(x: rect.minX + CGFloat(s.points[i]) * w, y: rect.minY + CGFloat(s.points[i + 1]) * h) }
             let color = UIColor(hex: s.color)
             ctx.saveGState()
             ctx.setStrokeColor(color.cgColor)
@@ -165,8 +165,8 @@ enum PhotoMarkup {
                 ctx.strokePath()
             case .arrow where s.points.count >= 4:
                 let a = P(0), b = P(2)
-                let ang = atan2(b.y - a.y, b.x - a.x)
-                let head = lw * 4.5
+                let ang: CGFloat = atan2(b.y - a.y, b.x - a.x)
+                let head: CGFloat = lw * 4.5
                 ctx.beginPath()
                 ctx.move(to: a)
                 ctx.addLine(to: CGPoint(x: b.x - cos(ang) * head * 0.6, y: b.y - sin(ang) * head * 0.6))
@@ -185,7 +185,7 @@ enum PhotoMarkup {
                 ctx.strokeEllipse(in: CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y)))
             case .text where s.points.count >= 2 && !(s.text ?? "").isEmpty:
                 let p = P(0)
-                let size = max(12, lw * 6)
+                let size: CGFloat = max(12, lw * 6)
                 ctx.setShadow(offset: .zero, blur: 0, color: nil)
                 let str = NSAttributedString(string: s.text!, attributes: [.font: UIFont.systemFont(ofSize: size, weight: .bold), .foregroundColor: color])
                 let tw = str.size().width

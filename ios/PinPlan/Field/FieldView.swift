@@ -49,7 +49,7 @@ struct ChecklistsView: View {
                         HStack {
                             Text(c.name).font(.headline)
                             Spacer()
-                            Text("\(p.done)/\(p.total)").monospacedDigit().foregroundStyle(p.done == p.total && p.total > 0 ? .green : .secondary)
+                            Text("\(p.done)/\(p.total)").monospacedDigit().foregroundStyle(p.done == p.total && p.total > 0 ? Color.green : Color.secondary)
                         }
                         ProgressView(value: Double(p.done), total: Double(max(1, p.total))).tint(p.done == p.total ? .green : .accentColor)
                         if p.missingPhotos > 0 {
@@ -145,7 +145,7 @@ struct ChecklistDetail: View {
                 }
             } label: {
                 Image(systemName: complete ? "checkmark.circle.fill" : needsPhoto ? "exclamationmark.circle.fill" : "circle")
-                    .font(.title2).foregroundStyle(complete ? .green : needsPhoto ? .orange : .secondary)
+                    .font(.title2).foregroundStyle(complete ? Color.green : needsPhoto ? Color.orange : Color.secondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(item.done == true ? "Mark not done" : "Mark done")
@@ -311,8 +311,11 @@ struct LogEditor: View {
         guard let api = APIClient(settings: app.settings) else { return }
         busy = true; error = nil
         defer { busy = false }
-        let list: [(UIImage, String)] = photos.prefix(8).compactMap { p in
-            app.store.image(p.imageId).map { ($0, [p.caption, p.room].compactMap { $0 }.joined(separator: " · ") + ((p.tags ?? []).isEmpty ? "" : " · " + (p.tags ?? []).joined(separator: ", "))) }
+        var list: [(UIImage, String)] = []
+        for p in photos.prefix(8) {
+            guard let img = app.store.image(p.imageId) else { continue }
+            let parts: [String] = [p.caption, p.room].compactMap { $0 } + (p.tags ?? [])
+            list.append((img, parts.joined(separator: " · ")))
         }
         do {
             let r = try await api.draftLog(date: log.date, address: model.bundle.project.address, notes: log.body, photos: list)

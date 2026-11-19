@@ -62,7 +62,7 @@ signed in to the same account sees the same jobs, catalog and products.
 
 ## 7. Client proposal links
 Needs step 6 (cloud sync) — make sure you ran every file in `supabase/migrations/`, including
-`20261116000000_proposals.sql` and `20261117000000_fix_project_upsert.sql`.
+`20261116000000_proposals.sql`, `20261117000000_fix_project_upsert.sql` and `20261118000000_estimate_line_sort.sql`.
 
 **Not working?** Web app → **Settings → Account → Check cloud setup**. It tests each piece on your Supabase project
 (keys, sign-in, tables, proposal functions, image storage, saving a job) and tells you which file to run if one is missing.
@@ -76,6 +76,20 @@ Needs step 6 (cloud sync) — make sure you ran every file in `supabase/migratio
    add-ons they picked are switched on in the estimate. Then send the deposit invoice with **Send to Billdu**.
 
 Sending an updated proposal withdraws the previous link. You can withdraw a link any time.
+
+## 8. Job photos, checklists, daily logs and photo reports
+Run `supabase/migrations/20261119000000_field_docs.sql` in the Supabase **SQL Editor** (safe to run again).
+It adds the photos, comments, checklists, daily logs and documents tables, plus photo report links.
+Without it, those stay on the device they were made on and **Share link** on a photo report won't work.
+
+- **Photos** tab: take or add photos. Each one records the time, who took it and (if allowed) where.
+  Then mark it up, caption and tag it, link it to a device, pair before/after photos and comment.
+  **AI caption** needs the server's Anthropic key.
+- **Field** tab (web: **Field**): checklists from templates (an item can require a photo), daily logs
+  (with **Draft from photos**), documents and a timeline of everything on the job.
+- **Photo report**: pick photos, then **Download PDF** or **Share link** (the client opens `/r?t=…`, no account).
+- Web header: **Photos** shows every job's photos; **Map** shows jobs placed from photo GPS or the Job tab.
+- To set the name stamped on your photos: on the web, Photos tab → name; on iPad, Photos tab → ⋯ → Your name.
 
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use

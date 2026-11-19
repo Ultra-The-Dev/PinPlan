@@ -491,7 +491,7 @@ final class CloudSync {
             }
             for d in b.liveDocuments where !ledger.uploadedImages.contains(d.fileId) {
                 guard let data = app.store.fileData(d.fileId) else { continue }
-                try await client.upload(path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime)
+                try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime)
                 ledger.uploadedImages.insert(d.fileId)
             }
         }

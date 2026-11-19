@@ -1,10 +1,10 @@
 "use client";
 // Job photos: take or upload, grouped by day, filter by tag / person / device, select many to tag, report or delete.
-import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, X } from "lucide-react";
+import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, UserRound, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
-import { currentPosition, getAuthor, importPhoto } from "@/lib/photos";
+import { currentPosition, getAuthor, importPhoto, setAuthor } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { toast } from "@/lib/toast";
@@ -49,6 +49,7 @@ function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { pho
 export default function PhotosTab() {
   const { project, photos, photoComments, markers, saveRow, removeRows } = useEditor();
   const { email } = useSyncStatus();
+  const [, bumpAuthor] = useState(0);
   // ?photo=<id> opens that photo (links from the company photo feed).
   const params = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(() => params.get("photo"));
@@ -152,6 +153,20 @@ export default function PhotosTab() {
             />
             <MapPin className="h-4 w-4" /> Location
           </label>
+          <button
+            className="btn btn-ghost btn-sm text-slate-600"
+            title="The name stamped on the photos, comments and logs you add"
+            onClick={() => {
+              const n = prompt("Your name (shown on your photos, comments and logs)", getAuthor(email));
+              if (n?.trim()) {
+                setAuthor(n.trim());
+                bumpAuthor((x) => x + 1);
+                toast(`Photos will show “${n.trim()}”`, "success");
+              }
+            }}
+          >
+            <UserRound /> {getAuthor(email)}
+          </button>
           <button className="btn" onClick={() => camRef.current?.click()} disabled={!!busy}>
             <Camera /> Take photo
           </button>
