@@ -14,6 +14,7 @@ import type { InstallStatus, Marker, Photo, Run } from "@/lib/types";
 import PhotoViewer from "../photos/PhotoViewer";
 import { attachPhoto, itemLabel, photoNeeded, resetInstall, saveProofPhoto, saveTest, setInstall, testTarget } from "./actions";
 import type { InstallRef } from "./progressStore";
+import IssueTaskButton from "../tasks/IssueTaskButton";
 
 export function testPlaceholder(w: Workflow): string {
   if (w.id === "cable") return "e.g. 0.4 dB loss, 92 m";
@@ -261,6 +262,7 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
           </div>
         </div>
       )}
+      {status === "issue" && !("points" in item) && <IssueTaskButton marker={item} label={itemLabel(item)} />}
 
       {!!inst?.history?.length && (
         <div>

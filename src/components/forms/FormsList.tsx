@@ -2,7 +2,8 @@
 // Field → Forms: the job's inspections, test records, T&M tags, safety forms and sign-offs. Start one from a template
 // (the company's own and the ones for its trades first), fill it, sign it, submit it.
 import { ClipboardCheck, ClipboardList, FileClock, HardHat, Lock, MapPin, Plus, Search, Signature, X } from "lucide-react";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { newId, nowIso } from "@/lib/db";
 import { FORM_CATEGORIES, formProgress, newJobForm, searchTemplates, templatesForTrades } from "@/lib/forms/forms";
 import { allFormTemplates, useFormTemplates } from "@/lib/forms/templateStore";
@@ -15,6 +16,7 @@ import { toast } from "@/lib/toast";
 import type { FormTemplate, JobForm } from "@/lib/types";
 import { useTrades } from "@/lib/useTrades";
 import FormFill from "./FormFill";
+import { useDialog } from "./useDialog";
 
 const CAT_ICON: Record<FormTemplate["category"], React.ComponentType<{ className?: string }>> = {
   inspection: ClipboardCheck,
@@ -46,6 +48,7 @@ function TemplateRow({ t, onPick }: { t: FormTemplate; onPick: () => void }) {
 }
 
 function TemplatePicker({ onPick, onClose }: { onPick: (t: FormTemplate) => void; onClose: () => void }) {
+  const dialog = useDialog(onClose);
   const { templates } = useFormTemplates();
   const trades = useTrades();
   const [q, setQ] = useState("");
@@ -53,7 +56,7 @@ function TemplatePicker({ onPick, onClose }: { onPick: (t: FormTemplate) => void
   const { suggested, others } = templatesForTrades(all, trades);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label="New form" className="card animate-in flex max-h-[90dvh] w-full max-w-lg flex-col rounded-b-none shadow-pop sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label="New form" className="card animate-in flex max-h-[90dvh] w-full max-w-lg flex-col rounded-b-none shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-slate-100 p-4">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -101,6 +104,17 @@ export default function FormsList() {
   const [picking, setPicking] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [tpl, setTpl] = useState("");
+  // Field → Today's "Draft forms" links here with &form=<id>: open that form once it has loaded.
+  const asked = useSearchParams().get("form");
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!asked || !loaded || handled.current === asked) return;
+    handled.current = asked;
+    const f = forms.find((x) => x.id === asked);
+    if (!f) return;
+    const t = window.setTimeout(() => setOpen(f), 0);
+    return () => window.clearTimeout(t);
+  }, [asked, loaded, forms]);
 
   if (!project) return null;
   if (open) return <FormFill key={open.id} initial={open} onBack={() => setOpen(null)} />;

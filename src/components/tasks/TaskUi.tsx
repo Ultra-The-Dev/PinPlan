@@ -3,23 +3,22 @@
 import { useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { teamNames } from "@/lib/fieldDocs";
-import { getAuthor, importPhoto } from "@/lib/photos";
+import { importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
-import { useSyncStatus } from "@/lib/sync";
 import { useRole, useTeam } from "@/lib/team";
+import { useMe } from "@/lib/useMe";
 import { isOverdue, priorityInfo, statusInfo, taskCategoryOptions, taskPlacement } from "@/lib/tasks";
 import { tradeCategories, tradePack } from "@/lib/trades";
 import type { Photo, PlanTask } from "@/lib/types";
 import { useTrades } from "@/lib/useTrades";
 
-/** Me (name on photos and comments), my team role, the people to assign and the categories to offer. */
+/** Me (name on photos and comments) and all my names (for "Mine"), my team role, the people to assign and the categories to offer. */
 export function useTaskOptions(tasks: PlanTask[]) {
-  const { email } = useSyncStatus();
   const role = useRole();
   const members = useTeam((s) => s.members);
   const trades = useTrades();
   const { photos, jobLogs, checklists } = useEditor();
-  const me = getAuthor(email);
+  const { me, names: myNames } = useMe();
   const people = useMemo(() => {
     const names = teamNames({ photos, jobLogs, checklists, members }, me);
     for (const t of tasks) if (t.assignee?.trim() && !names.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) names.push(t.assignee.trim());
@@ -30,7 +29,25 @@ export function useTaskOptions(tasks: PlanTask[]) {
     () => taskCategoryOptions([...trades.map((t) => tradePack(t).short), ...tradeCategories(trades).map((c) => c.name)], tasks),
     [trades, tasks],
   );
-  return { me, role, people, categories };
+  return { me, myNames, role, people, categories };
+}
+
+/**
+ * Pick a team member (no free text): the team, then names already on the job. "Unassigned" clears it. A name that is
+ * set but not in the list (an older task) stays selectable so it isn't lost.
+ */
+export function PersonSelect({ value, onChange, people, className = "input h-11", label = "Assign" }: { value: string; onChange: (v: string) => void; people: string[]; className?: string; label?: string }) {
+  const list = value && !people.some((p) => p.toLowerCase() === value.toLowerCase()) ? [value, ...people] : people;
+  return (
+    <select className={className} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+      <option value="">Unassigned</option>
+      {list.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 /** Save picked/captured files as job photos tied to the task's sheet and room. Returns the new photos. */

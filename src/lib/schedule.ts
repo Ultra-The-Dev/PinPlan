@@ -604,15 +604,17 @@ export function itemsFromTemplate(tpl: ScheduleTemplate, opts: { projectId: stri
 /** "all": office (create, move, delete). "progress": a tech on the crew (progress % and notes). "none": view only. */
 export type ScheduleAccess = "all" | "progress" | "none";
 
-export function canEditSchedule(role: TeamRole | null | undefined, item: Pick<ScheduleItem, "crew"> | null, me: string | null | undefined): ScheduleAccess {
+/** `me` may be all of my names (useMe): on the crew under any of them counts. */
+export function canEditSchedule(role: TeamRole | null | undefined, item: Pick<ScheduleItem, "crew"> | null, me: string | string[] | null | undefined): ScheduleAccess {
   if (role !== "tech") return "all";
-  if (!item || !me?.trim()) return "none";
-  const k = personKey(me);
-  return (item.crew ?? []).some((c) => personKey(c) === k) ? "progress" : "none";
+  if (!item) return "none";
+  return onCrew(item, me) ? "progress" : "none";
 }
 
-export const onCrew = (item: Pick<ScheduleItem, "crew">, me: string | null | undefined): boolean =>
-  !!me?.trim() && (item.crew ?? []).some((c) => personKey(c) === personKey(me));
+export const onCrew = (item: Pick<ScheduleItem, "crew">, me: string | string[] | null | undefined): boolean => {
+  const keys = new Set((Array.isArray(me) ? me : [me]).filter((n): n is string => !!n?.trim()).map(personKey));
+  return keys.size > 0 && (item.crew ?? []).some((c) => keys.has(personKey(c)));
+};
 
 // ---------- normalising rows from sync / older devices ----------
 

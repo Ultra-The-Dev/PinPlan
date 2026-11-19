@@ -3,7 +3,7 @@
 // Tasks never affect the takeoff or the estimate, and never carry prices.
 import { taskBucket, type TaskBucket } from "./fieldDocs";
 import type { TeamRole } from "./teamLogic";
-import type { ChecklistItem, Marker, PlanTask, TaskEvent, TaskPriority, TaskStatus } from "./types";
+import type { Checklist, ChecklistItem, Marker, Photo, PhotoComment, PlanTask, TaskEvent, TaskPriority, TaskStatus } from "./types";
 
 export const STATUSES: { id: TaskStatus; label: string; short: string; color: string }[] = [
   { id: "open", label: "Open", short: "Open", color: "#dc2626" },
@@ -432,12 +432,13 @@ export interface OpenPlanTask {
 
 /**
  * Open plan tasks (not completed / verified) for My Tasks, bucketed like checklist tasks (TASK_BUCKETS in fieldDocs).
- * `person` keeps that person's tasks (case-insensitive); null keeps everyone's assigned tasks. Sorted by due date then number.
+ * `person` keeps that person's tasks (case-insensitive; a list = any of those names, e.g. myNames()); null keeps
+ * everyone's assigned tasks. Sorted by due date then number.
  */
-export function openPlanTasksFor(person: string | null | undefined, tasks: PlanTask[], today: string): OpenPlanTask[] {
-  const who = lc(person);
+export function openPlanTasksFor(person: string | string[] | null | undefined, tasks: PlanTask[], today: string): OpenPlanTask[] {
+  const who = new Set((Array.isArray(person) ? person : [person]).map(lc).filter(Boolean));
   return tasks
-    .filter((t) => !t.deleted && !isClosed(t.status) && (who ? lc(t.assignee) === who : !!t.assignee?.trim()))
+    .filter((t) => !t.deleted && !isClosed(t.status) && (who.size ? who.has(lc(t.assignee)) : !!t.assignee?.trim()))
     .map((task) => ({ task, bucket: taskBucket(task.due, today) }))
     .sort((a, b) => (a.task.due ?? "9999").localeCompare(b.task.due ?? "9999") || a.task.number - b.task.number || a.task.createdAt.localeCompare(b.task.createdAt));
 }
@@ -487,4 +488,144 @@ export function eventText(e: TaskEvent): string {
     default:
       return e.text ?? "";
   }
+}
+
+// ---------------- who am I, Mine, Today ----------------
+
+/** Statuses that are still on someone's list (not Completed / Verified). */
+export const OPEN_STATUSES: TaskStatus[] = STATUSES.filter((s) => !isClosed(s.id)).map((s) => s.id);
+
+/**
+ * Every name the signed-in person goes by, so "Mine" finds tasks assigned under any of them: the name on this device
+ * (getAuthor), their team member label (matched by user id) and their email's first part. One entry per name
+ * (case-insensitive), in that order; the first is the name to show and to stamp on new work.
+ */
+export function myNames(input: {
+  author?: string | null;
+  email?: string | null;
+  userId?: string | null;
+  members?: { userId?: string | null; name?: string | null; email?: string | null }[];
+}): string[] {
+  const out = new Map<string, string>();
+  const add = (n?: string | null) => {
+    const t = n?.trim();
+    if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t);
+  };
+  add(input.author);
+  const m = input.userId ? input.members?.find((x) => x.userId === input.userId) : undefined;
+  if (m) add(m.name?.trim() || m.email?.split("@")[0]);
+  add(input.email?.split("@")[0]);
+  return [...out.values()];
+}
+
+/** Is this name one of mine (case-insensitive)? */
+export const isMyName = (name: string | null | undefined, names: string[]) => !!lc(name) && names.some((n) => lc(n) === lc(name));
+
+/** The job list's "Mine" filter: open tasks assigned to any of my names. Same count as openPlanTasksFor(names) on /tasks. */
+export const mineOpenFilter = (names: string[]): TaskFilter => ({ assignee: [...names], status: [...OPEN_STATUSES] });
+
+/** Is the filter's person exactly me (all of my names and nobody else)? */
+export function isMineFilter(f: TaskFilter, names: string[]): boolean {
+  const a = f.assignee ?? [];
+  return a.length > 0 && a.every((x) => isMyName(x, names)) && names.every((n) => isMyName(n, a));
+}
+
+/** My open tasks that are overdue or due today, overdue first (the Today card). */
+export function myTasksDueNow(tasks: PlanTask[], names: string[], today: string): OpenPlanTask[] {
+  if (!names.length) return [];
+  return openPlanTasksFor(names, tasks, today).filter((t) => t.bucket === "overdue" || t.bucket === "today");
+}
+
+/** Office view of /tasks: overdue first, then by due date (no date last), then number. */
+export function sortOverdueFirst(list: OpenPlanTask[]): OpenPlanTask[] {
+  const order: TaskBucket[] = ["overdue", "today", "week", "later", "none"];
+  return [...list].sort(
+    (a, b) => order.indexOf(a.bucket) - order.indexOf(b.bucket) || (a.task.due ?? "9999").localeCompare(b.task.due ?? "9999") || a.task.number - b.task.number,
+  );
+}
+
+// ---------------- one task model: tasks made from photos, forms, checklists and devices ----------------
+
+/** History text on a task made from a photo comment; the comment id rides in `to`, so the comment shows "Task #n". */
+const FROM_COMMENT = "made it from a photo comment";
+
+/** A new task's fields from a photo comment: its text (or an edit), the photo attached, the photo's sheet, room and device. */
+export function taskFromComment(
+  comment: Pick<PhotoComment, "text" | "author" | "photoId">,
+  photo: Pick<Photo, "sheetId" | "room" | "markerId"> | null | undefined,
+  opts: { text?: string | null; assignee?: string | null; due?: string | null } = {},
+): Pick<PlanTask, "title" | "description" | "assignee" | "due" | "photoIds" | "sheetId" | "room" | "markerId"> {
+  return {
+    title: (opts.text ?? "").trim() || comment.text.trim(),
+    description: comment.author?.trim() ? `From ${comment.author.trim()}’s photo comment` : "From a photo comment",
+    assignee: opts.assignee?.trim() || null,
+    due: opts.due && /^\d{4}-\d{2}-\d{2}$/.test(opts.due) ? opts.due : null,
+    photoIds: [comment.photoId],
+    sheetId: photo?.sheetId ?? null,
+    room: photo?.room?.trim() || null,
+    markerId: photo?.markerId ?? null,
+  };
+}
+
+/** The "created" history line for a task made from a photo comment (pass it as `activity` to newTask). */
+export const createdFromComment = (commentId: string, by: string, at: string, id: string): TaskEvent => ({ id, at, by, kind: "created", text: FROM_COMMENT, to: commentId });
+
+/** The live task a photo comment was already turned into, if any. */
+export function commentPlanTask(tasks: PlanTask[], comment: Pick<PhotoComment, "id">): PlanTask | undefined {
+  return tasks.find((t) => !t.deleted && (t.activity ?? []).some((e) => e.kind === "created" && e.to === comment.id));
+}
+
+/** Description on tasks made from a form's "No" answers (also how a second tap skips the ones already made). */
+export const formTaskNote = (formName: string) => `From form “${formName.trim()}”`;
+
+/**
+ * New tasks for a form's "No" answers (failedItems in forms/forms.ts): one per answer, skipping answers that already
+ * have a live task from this form. The caller numbers and saves them.
+ */
+export function formTaskDrafts(
+  tasks: PlanTask[],
+  form: { name: string; sheetId?: string | null; markerId?: string | null },
+  failed: { text: string }[],
+): Pick<PlanTask, "title" | "description" | "sheetId" | "markerId">[] {
+  const note = formTaskNote(form.name);
+  const have = new Set(tasks.filter((t) => !t.deleted && t.description === note).map((t) => lc(t.title)));
+  const out: Pick<PlanTask, "title" | "description" | "sheetId" | "markerId">[] = [];
+  for (const f of failed) {
+    const title = f.text.trim();
+    if (!title || have.has(lc(title))) continue;
+    have.add(lc(title));
+    out.push({ title, description: note, sheetId: form.sheetId ?? null, markerId: form.markerId ?? null });
+  }
+  return out;
+}
+
+/** A task's fields from a checklist item ("Make task"): its text, due date and the photos taken for it. */
+export function taskFromChecklistItem(
+  checklist: Pick<Checklist, "name">,
+  item: Pick<ChecklistItem, "text" | "due" | "photoId">,
+  photoIds: string[] = [],
+): Pick<PlanTask, "title" | "description" | "due" | "photoIds"> {
+  return {
+    title: item.text.trim(),
+    description: `From checklist “${checklist.name.trim()}”`,
+    due: item.due ?? null,
+    photoIds: [...new Set([...(item.photoId ? [item.photoId] : []), ...photoIds])],
+  };
+}
+
+/** A task's fields for a device set to Issue ("Create task for this"), pinned where the device is. */
+export function taskFromDevice(
+  device: Pick<Marker, "id" | "sheetId" | "x" | "y" | "room">,
+  label: string,
+  note?: string | null,
+): Pick<PlanTask, "title" | "description" | "sheetId" | "x" | "y" | "room" | "markerId"> {
+  return {
+    title: `Fix ${label.trim() || "device"}`,
+    description: note?.trim() || null,
+    sheetId: device.sheetId,
+    x: device.x,
+    y: device.y,
+    room: device.room?.trim() || null,
+    markerId: device.id,
+  };
 }

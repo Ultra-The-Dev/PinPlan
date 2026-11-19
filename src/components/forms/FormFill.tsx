@@ -1,7 +1,7 @@
 "use client";
 // Fill one form in the field: big controls, autosave while typing, signatures (also for someone else), photos,
 // tables, live totals. "Submit" checks it and scrolls to the first problem; a submitted form is locked (the office can
-// reopen it). "No" answers can become punch items; the PDF is made on the device.
+// reopen it). "No" answers can become tasks; the PDF is made on the device.
 import { ArrowLeft, Camera, CircleCheck, FileDown, ListTodo, Lock, LockOpen, MapPin, PenLine, Send, Trash, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +16,6 @@ import {
   formatNumber,
   formHistory,
   formProgress,
-  punchItemsFromForm,
   removeFormPhoto,
   reopenForm,
   signatureFor,
@@ -31,6 +30,7 @@ import { getAuthor, importPhoto, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole } from "@/lib/team";
+import { formTaskDrafts, formTaskNote, newTask } from "@/lib/tasks";
 import { toast } from "@/lib/toast";
 import type { FormField, JobForm, Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
@@ -39,6 +39,7 @@ import { CheckboxInput, MultiSelectInput, NumberInput, SelectInput, TableInput, 
 import { FormLocationPicker, placeText, type FormPlace } from "./FormLocation";
 import type { FormPdfPhoto } from "./FormPdf";
 import SignatureSheet from "./SignatureSheet";
+import { useProjectTasks, useTasks } from "../tasks/taskStore";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -79,6 +80,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
   const { email } = useSyncStatus();
   const me = getAuthor(email);
   const { project, settings, photos, sheets, markers, checklists, saveRow } = useEditor();
+  const planTasks = useProjectTasks(initial.projectId);
   const [form, setFormState] = useState<JobForm>(initial);
   const formRef = useRef(form);
   const [rev, setRev] = useState(0);
@@ -203,11 +205,18 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
     onBack();
   }
 
-  async function makePunch() {
-    const { checklist, added, created } = punchItemsFromForm(checklists, formRef.current, newId, nowIso());
-    if (!added.length) return toast("Those items are already on the punch list");
-    await saveRow("checklists", checklist);
-    toast(`${added.length} punch item${added.length === 1 ? "" : "s"} added${created ? " to a new punch list" : ""}`, "success");
+  /** Every "No" answer becomes a task on the job (skipping ones already made, also as older punch-list items). */
+  async function makeTasks() {
+    const f = formRef.current;
+    const st = useTasks.getState();
+    if (st.projectId !== f.projectId) await st.load(f.projectId);
+    const note = formTaskNote(f.name);
+    const legacy = new Set(checklists.filter((c) => !c.deleted && c.projectId === f.projectId).flatMap((c) => c.items.filter((i) => i.note === note).map((i) => i.text.trim().toLowerCase())));
+    const drafts = formTaskDrafts(planTasks, f, failedItems(f)).filter((d) => !legacy.has(d.title.toLowerCase()));
+    if (!drafts.length) return toast("Those answers already have tasks");
+    const at = nowIso();
+    for (const d of drafts) await useTasks.getState().save(newTask({ id: newId(), projectId: f.projectId, number: useTasks.getState().nextNumber(), ...d }, me, at, newId));
+    toast(`${drafts.length} task${drafts.length === 1 ? "" : "s"} added — see Field → Tasks`, "success");
   }
 
   async function addPhotos(files: FileList | null) {
@@ -499,8 +508,8 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
             )
           )}
           {failed.length > 0 && (
-            <button className="btn btn-sm" onClick={() => void makePunch()} title="Add every “No” answer to the job’s punch list">
-              <ListTodo /> Make punch items ({failed.length})
+            <button className="btn btn-sm" onClick={() => void makeTasks()} title="Make a task on this job for every “No” answer">
+              <ListTodo /> Make tasks ({failed.length})
             </button>
           )}
           <button className="btn btn-sm" onClick={() => void downloadPdf()} disabled={!!pdfBusy}>

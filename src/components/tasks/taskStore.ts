@@ -16,6 +16,10 @@ export interface QuickDraft {
   x: number | null;
   y: number | null;
   room?: string | null;
+  /** Prefilled from where the task was started (e.g. a device set to Issue). */
+  title?: string;
+  description?: string | null;
+  markerId?: string | null;
 }
 
 interface TaskState {
@@ -47,6 +51,12 @@ interface TaskState {
 
 let loadSeq = 0;
 
+/** Fired after tasks are saved here or on /tasks, so the Today card and the board refresh. */
+export const TASKS_EVENT = "pinplan:tasks";
+export const tasksChanged = () => {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(TASKS_EVENT));
+};
+
 export const useTasks = create<TaskState>((set, get) => ({
   projectId: null,
   tasks: [],
@@ -74,6 +84,7 @@ export const useTasks = create<TaskState>((set, get) => ({
   async save(task) {
     const saved = await put("tasks", task);
     set({ tasks: upsert(get().tasks, saved) });
+    tasksChanged();
     return saved;
   },
   async change(id, patch, by) {
@@ -92,6 +103,7 @@ export const useTasks = create<TaskState>((set, get) => ({
     let list = get().tasks;
     for (const t of saved) list = upsert(list, t);
     set({ tasks: list });
+    tasksChanged();
     return saved.length;
   },
   async softDelete(ids) {

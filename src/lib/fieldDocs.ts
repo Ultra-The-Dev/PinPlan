@@ -278,18 +278,19 @@ export function taskBucket(due: string | null | undefined, today: string): TaskB
 
 /**
  * Open (not ticked) checklist items that are tasks — assigned to someone, with a due date or made from a photo comment — across jobs.
- * `who` keeps only that person's tasks. Sorted by due date (no date last), then job.
+ * `who` keeps only that person's tasks (a list = any of those names, e.g. all of mine). Sorted by due date (no date
+ * last), then job. New tasks are plan tasks (src/lib/tasks.ts); these older assigned checklist items still show on /tasks.
  */
-export function openTasks(input: { projects: Project[]; checklists: Checklist[] }, opts: { today: string; who?: string | null }): OpenTask[] {
+export function openTasks(input: { projects: Project[]; checklists: Checklist[] }, opts: { today: string; who?: string | string[] | null }): OpenTask[] {
   const jobs = new Map(input.projects.filter((p) => !p.deleted).map((p) => [p.id, p]));
-  const who = opts.who?.trim().toLowerCase();
+  const who = new Set((Array.isArray(opts.who) ? opts.who : [opts.who]).map((w) => w?.trim().toLowerCase() ?? "").filter(Boolean));
   const out: OpenTask[] = [];
   for (const c of input.checklists) {
     const project = jobs.get(c.projectId);
     if (c.deleted || !project) continue;
     for (const item of c.items) {
       if (item.done || (!item.assignee && !item.due && !item.photoId)) continue;
-      if (who && item.assignee?.trim().toLowerCase() !== who) continue;
+      if (who.size && !who.has(item.assignee?.trim().toLowerCase() ?? "")) continue;
       out.push({ project, checklist: c, item, bucket: taskBucket(item.due, opts.today) });
     }
   }
@@ -455,6 +456,53 @@ export function timelinePeople(events: TimelineEvent[]): string[] {
 export function pageTimeline(events: TimelineEvent[], limit = TIMELINE_PAGE): { shown: TimelineEvent[]; remaining: number } {
   const n = Math.max(0, Math.floor(limit));
   return { shown: events.slice(0, n), remaining: Math.max(0, events.length - n) };
+}
+
+// ---------------- Field sections ----------------
+
+/** Every section of a job's Field tab a link can open (&section=…); the tab groups some of them. */
+export const FIELD_SECTIONS = ["today", "tasks", "checklists", "forms", "logs", "photos", "files", "rfis", "schedule", "progress", "timeline"] as const;
+export type FieldSection = (typeof FIELD_SECTIONS)[number];
+
+/** Old section names in saved links. */
+const FIELD_ALIASES: Record<string, FieldSection> = { docs: "files", documents: "files", history: "timeline", log: "logs" };
+
+/** The section to show: the address's, else Tasks for a task link, else Today for technicians and Tasks for the office. */
+export function pickFieldSection(asked: string | null | undefined, opts: { taskLink?: boolean; tech?: boolean }): FieldSection {
+  const s = asked ? (FIELD_ALIASES[asked] ?? asked) : null;
+  if (s && (FIELD_SECTIONS as readonly string[]).includes(s)) return s as FieldSection;
+  if (opts.taskLink) return "tasks";
+  return opts.tech ? "today" : "tasks";
+}
+
+// ---------------- Today card ----------------
+
+export type TodayLogStatus = "start" | "continue" | "signed";
+
+/**
+ * Today's daily log on a job, so "Write today's log" continues it instead of starting a second one: mine first
+ * (author or signer is one of `names`), else anyone's. "signed" once it carries a signature.
+ */
+export function todayLog(logs: JobLog[], projectId: string, today: string, names: string[] = []): { status: TodayLogStatus; log: JobLog | null } {
+  const mine = new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean));
+  const isMine = (l: JobLog) => [l.author, l.report?.signature?.name].some((n) => !!n && mine.has(n.trim().toLowerCase()));
+  const list = logs
+    .filter((l) => !l.deleted && l.projectId === projectId && l.date === today)
+    .sort((a, b) => Number(isMine(b)) - Number(isMine(a)) || b.updatedAt.localeCompare(a.updatedAt));
+  const log = list[0] ?? null;
+  return { status: !log ? "start" : log.report?.signature ? "signed" : "continue", log };
+}
+
+/** A job's checklists that still have items to do (ticks, or a missing photo), least done first. */
+export function unfinishedChecklists(checklists: Checklist[], photos: Photo[], projectId?: string | null): { checklist: Checklist; done: number; total: number }[] {
+  return checklists
+    .filter((c) => !c.deleted && (!projectId || c.projectId === projectId) && c.items.length > 0)
+    .map((c) => {
+      const p = checklistProgress(c, photos);
+      return { checklist: c, done: p.done, total: p.total };
+    })
+    .filter((x) => x.done < x.total)
+    .sort((a, b) => a.done / a.total - b.done / b.total || a.checklist.name.localeCompare(b.checklist.name));
 }
 
 /** Who is using the app here: name or email for "taken by". */

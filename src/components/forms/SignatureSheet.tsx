@@ -4,6 +4,7 @@
 import { X } from "lucide-react";
 import { useState } from "react";
 import SignaturePad from "../SignaturePad";
+import { useDialog } from "./useDialog";
 
 export interface SignatureDraft {
   dataUrl: string;
@@ -18,9 +19,10 @@ export default function SignatureSheet({ title, me, otherFirst, onSave, onClose 
   const [sig, setSig] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const who = other ? name.trim() : me;
+  const dialog = useDialog(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label={title} className="card animate-in max-h-[95dvh] w-full max-w-lg space-y-4 overflow-auto rounded-b-none p-5 shadow-pop sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="card animate-in max-h-[95dvh] w-full max-w-lg space-y-4 overflow-auto rounded-b-none p-5 shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">{title}</h2>

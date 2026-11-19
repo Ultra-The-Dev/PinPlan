@@ -1,5 +1,5 @@
 "use client";
-// My Tasks: the schedule phases this week that `me` is on the crew of, across jobs.
+// My Tasks and the Today card: the schedule phases this week that I am on the crew of (under any of my names), across jobs or on one job.
 import { CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -9,13 +9,15 @@ import { addDays, normalizeItem, onCrew, weekStart } from "@/lib/schedule";
 import type { Project, ScheduleItem } from "@/lib/types";
 import { DEFAULT_BAR, fmtRange, ProgressBar } from "./shared";
 
-export default function ThisWeekStrip({ me }: { me: string }) {
+/** `me`: my names (useMe); `projectId` keeps one job (the Today card on a job). */
+export default function ThisWeekStrip({ me, projectId, hideBoardLink }: { me: string[]; projectId?: string | null; hideBoardLink?: boolean }) {
+  const key = me.join("\u0001");
   const [rows, setRows] = useState<{ item: ScheduleItem; project: Project }[]>([]);
 
   const load = useCallback(async () => {
     const from = weekStart(localDay(new Date().toISOString()));
     const to = addDays(from, 6);
-    const items = (await db().scheduleItems.where("start").belowOrEqual(to).toArray()).map(normalizeItem).filter((i) => !i.deleted && i.end >= from && onCrew(i, me));
+    const items = (await db().scheduleItems.where("start").belowOrEqual(to).toArray()).map(normalizeItem).filter((i) => !i.deleted && i.end >= from && (!projectId || i.projectId === projectId) && onCrew(i, key.split("\u0001")));
     const ps = items.length ? await db().projects.bulkGet([...new Set(items.map((i) => i.projectId))]) : [];
     const byId = new Map(ps.filter((p): p is Project => !!p && !p.deleted).map((p) => [p.id, p]));
     setRows(
@@ -24,7 +26,7 @@ export default function ThisWeekStrip({ me }: { me: string }) {
         .sort((a, b) => a.start.localeCompare(b.start))
         .map((item) => ({ item, project: byId.get(item.projectId)! })),
     );
-  }, [me]);
+  }, [key, projectId]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);
@@ -41,9 +43,11 @@ export default function ThisWeekStrip({ me }: { me: string }) {
     <section aria-label="This week on the schedule">
       <h2 className="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
         <CalendarRange className="h-3.5 w-3.5" /> This week · {rows.length}
-        <Link href="/schedule" className="ml-auto font-medium tracking-normal text-brand-600 normal-case hover:underline">
-          Crew board
-        </Link>
+        {!hideBoardLink && (
+          <Link href="/schedule" className="ml-auto font-medium tracking-normal text-brand-600 normal-case hover:underline">
+            Crew board
+          </Link>
+        )}
       </h2>
       <div className="scroll-thin -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {rows.map(({ item, project }) => (

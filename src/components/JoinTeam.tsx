@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, CircleAlert, FolderOpen, Loader2, LogIn, Mail
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { getAuthor } from "@/lib/photos";
+import { getAuthor, setAuthor } from "@/lib/photos";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { acceptInvite, inviteInfo, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
@@ -185,6 +185,7 @@ function InviteHeader({ info }: { info: InviteInfo }) {
 /** Join with the current session, then refresh the jobs in the background. */
 async function join(code: string, name: string) {
   const r = await acceptInvite(code, name);
+  if (name.trim()) setAuthor(name); // the joined name is the name on this device (photos, ticks, "Mine")
   void useSyncStatus.getState().syncNow().catch(() => undefined);
   return r;
 }
