@@ -49,7 +49,7 @@ export function DailyLogDocument({ d }: { d: DailyLogPdfData }) {
     footer: { position: "absolute", bottom: 18, left: 36, right: 36, flexDirection: "row", justifyContent: "space-between", color: MUTED, fontSize: 7.5 },
   });
   const fit = (p: DailyLogPdfPhoto) => {
-    const k = Math.min(CELL_W / p.width, IMG_H / p.height);
+    const k = Math.min(CELL_W / Math.max(1, p.width), IMG_H / Math.max(1, p.height));
     return { width: p.width * k, height: p.height * k };
   };
   const photoCount = d.logs.reduce((n, l) => n + l.photos.length, 0);

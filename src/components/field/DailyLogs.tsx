@@ -85,7 +85,7 @@ function RangeExport({ logs, busy, onDownload, onClose }: { logs: JobLog[]; busy
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-500">{busy ?? `${picked.length} log${picked.length === 1 ? "" : "s"} with their photos and mark-up`}</span>
+        <span className="text-sm text-slate-500" aria-live="polite">{busy ?? `${picked.length} log${picked.length === 1 ? "" : "s"} with their photos and mark-up`}</span>
         <div className="flex-1" />
         <button className="btn btn-sm" onClick={onClose}>
           Close
@@ -259,7 +259,11 @@ export default function DailyLogs() {
         </div>
       )}
       {exporting && !editing && live.length > 0 && <RangeExport logs={live} busy={busy} onDownload={(list) => void download(list)} onClose={() => setExporting(false)} />}
-      {busy && !exporting && <p className="text-sm text-slate-500">{busy}</p>}
+      {busy && !exporting && (
+        <p className="text-sm text-slate-500" role="status">
+          {busy}
+        </p>
+      )}
       {live.length === 0 && !editing && <p className="text-sm text-slate-500">Keep a short record of each day on site — the crew, what got done, issues and next steps — with that day’s photos.</p>}
       {live
         .filter((l) => l.id !== editing?.id)

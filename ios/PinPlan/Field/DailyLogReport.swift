@@ -64,8 +64,9 @@ struct DailyLogExportSheet: View {
     }
 
     private func meta(_ p: Photo) -> String {
-        let time = FieldDocs.date(p.takenAt)?.formatted(date: .omitted, time: .shortened)
-        return ([time, p.takenBy, p.room] + (p.tags ?? []).map { Optional($0) }).compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        let time: String? = FieldDocs.date(p.takenAt)?.formatted(date: .omitted, time: .shortened)
+        let parts: [String?] = [time, p.takenBy, p.room] + (p.tags ?? []).map { (t: String) -> String? in t }
+        return parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     private func pdf() async {
