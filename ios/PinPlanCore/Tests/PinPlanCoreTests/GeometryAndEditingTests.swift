@@ -35,6 +35,20 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(Geometry.estimateHomeRunFt(marker: m, closet: other, sheets: [a, b], pricing: pricing), 98)
     }
 
+    func testLabelsNeverReuseANumberFromAnotherSheet() {
+        // Sheet b was floor 1 when CAM-1-01/02 were placed; after reordering, a is floor 1.
+        let a = Sheet(id: "a", projectId: "p", name: "A", pageNumber: 1, order: 0, imageId: "i", width: 1000, height: 1000, pxPerFt: 10)
+        let b = Sheet(id: "b", projectId: "p", name: "B", pageNumber: 2, order: 1, imageId: "i", width: 1000, height: 1000, pxPerFt: 10)
+        let markers = [
+            Marker(projectId: "p", sheetId: "b", deviceTypeId: "cam-indoor", x: 0.1, y: 0.1, label: "CAM-1-01"),
+            Marker(projectId: "p", sheetId: "b", deviceTypeId: "cam-indoor", x: 0.2, y: 0.1, label: "CAM-1-02"),
+            Marker(projectId: "p", sheetId: "a", deviceTypeId: "cam-indoor", x: 0.3, y: 0.1, label: "CAM-1-07-A"),
+            Marker(projectId: "p", sheetId: "a", deviceTypeId: "cam-indoor", x: 0.4, y: 0.1, label: "WCAM-1-20"),
+        ]
+        XCTAssertEqual(Labels.next(abbrev: "CAM", sheetId: "a", sheets: [a, b], markers: markers), "CAM-1-08")
+        XCTAssertEqual(Labels.next(abbrev: "CAM", sheetId: "b", sheets: [a, b], markers: markers), "CAM-2-01")
+    }
+
     func testStairRunLength() {
         let r = Run(projectId: "p", sheetId: "s", kind: .stair, points: [], steps: 14, lfPerStep: 3.5)
         XCTAssertEqual(Geometry.runLengthFt(r), 49)

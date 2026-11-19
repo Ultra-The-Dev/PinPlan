@@ -154,8 +154,14 @@ export function offsetPolyline(pts: number[], d: number): number[] {
     else {
       const a = normal(i - 1, i);
       const b = normal(i, i + 1);
-      const len = Math.max(Math.hypot(a[0] + b[0], a[1] + b[1]), 1e-9);
-      [nx, ny] = [(a[0] + b[0]) / len, (a[1] + b[1]) / len];
+      const len = Math.hypot(a[0] + b[0], a[1] + b[1]);
+      if (len < 1e-6) [nx, ny] = a; // the path doubles back: no mitre exists
+      else {
+        // Mitre: the bisector, lengthened so each strand stays d away from both segments (capped like a miter limit).
+        const [mx, my] = [(a[0] + b[0]) / len, (a[1] + b[1]) / len];
+        const k = 1 / Math.max(mx * a[0] + my * a[1], 0.25);
+        [nx, ny] = [mx * k, my * k];
+      }
     }
     out.push(pts[i * 2] + nx * d, pts[i * 2 + 1] + ny * d);
   }
@@ -164,3 +170,27 @@ export function offsetPolyline(pts: number[], d: number): number[] {
 
 /** Sideways offsets for `count` cables drawn side by side, centred on the run. */
 export const bundleOffsets = (count: number, spacing: number) => Array.from({ length: count }, (_, i) => (i - (count - 1) / 2) * spacing);
+
+/** Point halfway along a flat polyline [x0, y0, x1, y1, …] (by length, so labels sit on the line, not off an L-bend). */
+export function polylineMidpoint(pts: number[]): { x: number; y: number } {
+  const segs: number[] = [];
+  let total = 0;
+  for (let i = 2; i + 1 < pts.length; i += 2) {
+    const l = Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+    segs.push(l);
+    total += l;
+  }
+  let acc = 0;
+  for (let k = 0; k < segs.length; k++) {
+    if (acc + segs[k] >= total / 2) {
+      const t = segs[k] ? (total / 2 - acc) / segs[k] : 0;
+      const i = k * 2;
+      return { x: pts[i] + (pts[i + 2] - pts[i]) * t, y: pts[i + 1] + (pts[i + 3] - pts[i + 1]) * t };
+    }
+    acc += segs[k];
+  }
+  return { x: pts[0] ?? 0, y: pts[1] ?? 0 };
+}
+
+/** Smallest calibration line accepted (image px): a double-tap on one spot would otherwise give a 0 or absurd scale. */
+export const MIN_CALIBRATION_PX = 10;

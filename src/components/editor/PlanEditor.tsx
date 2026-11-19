@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { CLOSET_KINDS, LAYERS } from "@/lib/catalog";
-import { parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
+import { MIN_CALIBRATION_PX, parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
 
 function formatFeetInches(ft: number) {
   let f = Math.floor(ft);
@@ -245,6 +245,7 @@ export default function PlanEditor() {
       submit: async (v) => {
         const ft = parseFeet(v.len);
         if (!ft) return "Enter a length like 12'6\" or 12.5";
+        if (px < MIN_CALIBRATION_PX) return "That line is too short to set a scale — draw it again across the whole dimension";
         await st.updateSheet(sheet.id, { pxPerFt: px / ft, scaleLabel: `line ${v.len.trim()}` });
         setTool({ kind: "select" });
         toast(`Scale set: ${(px / ft).toFixed(1)} px/ft`);

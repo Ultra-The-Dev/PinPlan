@@ -74,7 +74,8 @@ export function SheetsDocument({ title, subtitle, pages }: { title: string; subt
           <Page key={`t${i}`} size="LETTER" style={s.tablePage}>
             <Text style={s.h1}>{p.name} — home-run schedule</Text>
             <Text style={[s.muted, { marginBottom: 8 }]}>{title}</Text>
-            <View style={s.th}>
+            {/* Repeat the column headers when a long schedule runs onto more pages. */}
+            <View style={s.th} fixed>
               {p.table.headers.map((h) => (
                 <Text key={h} style={s.cell}>
                   {h}

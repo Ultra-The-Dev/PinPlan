@@ -71,6 +71,8 @@ export function guessFloorName(text: string, fallback: string): string {
     [/\bROOF\b/, "Roof"],
     [/\bSITE\s*PLAN\b/, "Site plan"],
   ];
+  // A sheet title ("2ND FLOOR PLAN", "ATTIC PLAN") beats a passing mention in the notes ("ATTIC ACCESS", "STAIRS TO BASEMENT").
+  for (const [re, name] of patterns) if (new RegExp(`${re.source}\\.?\\s*(?:FLOOR\\s*)?PLAN\\b`).test(t)) return name;
   for (const [re, name] of patterns) if (re.test(t)) return name;
   return fallback;
 }
