@@ -1,6 +1,7 @@
 "use client";
 // Job photos: take or upload, grouped by day, filter by tag / person / device, select many to tag, report or delete.
 import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
 import { currentPosition, getAuthor, importPhoto } from "@/lib/photos";
@@ -48,7 +49,9 @@ function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { pho
 export default function PhotosTab() {
   const { project, photos, photoComments, markers, saveRow, removeRows } = useEditor();
   const { email } = useSyncStatus();
-  const [openId, setOpenId] = useState<string | null>(null);
+  // ?photo=<id> opens that photo (links from the company photo feed).
+  const params = useSearchParams();
+  const [openId, setOpenId] = useState<string | null>(() => params.get("photo"));
   const [tags, setTags] = useState<string[]>([]);
   const [person, setPerson] = useState("");
   const [text, setText] = useState("");
@@ -99,6 +102,10 @@ export default function PhotosTab() {
     }
     setBusy(null);
     if (n) toast(`${n} photo${n === 1 ? "" : "s"} added`, "success");
+    // First geotagged photo puts the job on the map.
+    const st = useEditor.getState();
+    const gps = st.photos.find((p) => !p.deleted && p.lat != null && p.lng != null);
+    if (st.project && st.project.lat == null && gps) await st.updateProject({ lat: gps.lat, lng: gps.lng });
   }
 
   const toggleTag = (t: string) => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]));

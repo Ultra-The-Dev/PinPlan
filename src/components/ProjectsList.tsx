@@ -19,6 +19,7 @@ interface Row extends Project {
   sheetCount: number;
   markerCount: number;
   ledFt: number;
+  photoCount: number;
   coverImageId: string | null;
 }
 
@@ -32,7 +33,17 @@ async function fetchRows(): Promise<Row[]> {
       const markers = (await d.markers.where("projectId").equals(p.id).toArray()).filter((m) => !m.deleted);
       const runs = (await d.runs.where("projectId").equals(p.id).toArray()).filter((r) => !r.deleted && r.kind !== "wire" && !r.tentative);
       const ledFt = runs.reduce((n, r) => n + (r.kind === "stair" ? (r.typedFt ?? (r.steps ?? 0) * (r.lfPerStep ?? 0)) : (r.typedFt ?? r.measuredFt ?? 0)), 0);
-      return { ...p, billduDocs: p.billduDocs ?? [], sheetCount: sheets.length, markerCount: markers.length, ledFt: Math.round(ledFt), coverImageId: sheets[0]?.imageId ?? null };
+      const photos = (await d.photos.where("projectId").equals(p.id).toArray()).filter((x) => !x.deleted).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+      return {
+        ...p,
+        billduDocs: p.billduDocs ?? [],
+        sheetCount: sheets.length,
+        markerCount: markers.length,
+        ledFt: Math.round(ledFt),
+        photoCount: photos.length,
+        // Cover: the first plan sheet, else the newest job photo.
+        coverImageId: sheets[0]?.imageId ?? photos[0]?.imageId ?? null,
+      };
     }),
   );
   return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -45,6 +56,7 @@ export default function ProjectsList() {
   const [form, setForm] = useState({ clientName: "", address: "", clientEmail: "", clientPhone: "" });
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "all">("all");
+  const [label, setLabel] = useState<string | null>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const refresh = () => fetchRows().then(setRows);
 
@@ -97,7 +109,10 @@ export default function ProjectsList() {
     }
   }
 
-  const filtered = rows?.filter((r) => (status === "all" || r.status === status) && `${r.clientName} ${r.address}`.toLowerCase().includes(q.toLowerCase()));
+  const filtered = rows?.filter(
+    (r) => (status === "all" || r.status === status) && (!label || (r.labels ?? []).includes(label)) && `${r.clientName} ${r.address} ${(r.labels ?? []).join(" ")}`.toLowerCase().includes(q.toLowerCase()),
+  );
+  const allLabels = rows ? [...new Set(rows.flatMap((r) => r.labels ?? []))].sort() : [];
   const totals = rows ? { all: rows.length, estimate: rows.filter((r) => r.status === "estimate").length, approved: rows.filter((r) => r.status === "approved").length, installed: rows.filter((r) => r.status === "installed").length } : null;
 
   return (
@@ -125,9 +140,18 @@ export default function ProjectsList() {
               </button>
             ))}
           </div>
+          {allLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {allLabels.map((l) => (
+                <button key={l} className={`chip ${label === l ? "bg-brand-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`} onClick={() => setLabel(label === l ? null : l)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="relative w-full sm:ml-auto sm:max-w-xs">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input pl-9" placeholder="Search client or address" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input pl-9" placeholder="Search client, address or label" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
       )}
@@ -231,9 +255,18 @@ function ProjectCard({ p, onDelete }: { p: Row; onDelete: () => void }) {
         <div className="p-4">
           <div className="truncate font-semibold text-slate-900">{p.address || "Untitled job"}</div>
           <div className="truncate text-sm text-slate-500">{p.clientName || "No client name"}</div>
+          {(p.labels ?? []).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {(p.labels ?? []).map((l) => (
+                <span key={l} className="chip bg-brand-50 text-brand-700">
+                  {l}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Mini label="Sheets" value={p.sheetCount} />
             <Mini label="Devices" value={p.markerCount} />
+            <Mini label="Photos" value={p.photoCount} />
             <Mini label="LED LF" value={p.ledFt} />
           </div>
           <div className="mt-3 flex items-center text-xs text-slate-400">

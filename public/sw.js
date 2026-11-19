@@ -1,7 +1,7 @@
 // PinPlan service worker: keeps the app shell available offline.
 // Project data lives in IndexedDB on the device, so the plan works with no signal.
-const CACHE = "pinplan-v2";
-const SHELL = ["/", "/project", "/catalog", "/products", "/settings", "/manifest.webmanifest", "/icon.svg", "/pdf.worker.min.mjs"];
+const CACHE = "pinplan-v3";
+const SHELL = ["/", "/project", "/catalog", "/products", "/photos", "/map", "/settings", "/manifest.webmanifest", "/icon.svg", "/pdf.worker.min.mjs"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => undefined)));
