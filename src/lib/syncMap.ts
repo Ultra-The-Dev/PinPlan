@@ -48,6 +48,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       pxPerFt: "px_per_ft",
       pxPerInch: "px_per_inch",
       scaleLabel: "scale_label",
+      revisionLabel: "revision_label",
+      revisions: "revisions",
     },
   },
   deviceTypes: {

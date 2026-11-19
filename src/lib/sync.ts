@@ -154,7 +154,25 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   const photo = await db().photos.filter((p) => p.imageId === imageId).first();
   if (photo) return photo.projectId;
   const doc = await db().documents.filter((d) => d.fileId === imageId).first();
-  return doc?.projectId ?? null;
+  if (doc) return doc.projectId;
+  // Earlier drawings of a re-issued sheet (sheet.revisions) are uploaded like current ones.
+  const rev = await db().sheets.filter((s) => !!s.revisions?.some?.((r) => r?.imageId === imageId)).first().catch(() => undefined);
+  return rev?.projectId ?? null;
+}
+
+/** Download one stored image (e.g. an earlier sheet revision) at <project>/<image id>. False when offline or not uploaded. */
+export async function fetchProjectImage(projectId: string, imageId: string, width: number, height: number): Promise<boolean> {
+  if (await db().images.get(imageId)) return true;
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { data, error } = await sb.storage.from(PLANS_BUCKET).download(`${projectId}/${imageId}`);
+    if (error || !data) return false;
+    await db().images.put({ id: imageId, blob: data, width, height, mime: data.type || "image/jpeg" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
@@ -246,7 +264,8 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
       // pulled sheet, not only the rows that won: otherwise a plan image that finished uploading later is never fetched.
       if (table === "sheets")
         for (const raw of rows)
-          if (typeof raw.image_path === "string" && !raw.deleted) sheetsNeedingImages.push({ sheet: toLocal("sheets", raw) as unknown as Sheet, path: raw.image_path });
+          // A new revision's row can arrive before its image_path moves on: only take a path that names this image.
+          if (typeof raw.image_path === "string" && !raw.deleted && raw.image_path.endsWith(`/${raw.image_id}`)) sheetsNeedingImages.push({ sheet: toLocal("sheets", raw) as unknown as Sheet, path: raw.image_path });
       for (const local of writes) {
         if (typeof local.projectId === "string") projectIds.add(local.projectId);
         if (table === "projects") projectIds.add(local.id as string);

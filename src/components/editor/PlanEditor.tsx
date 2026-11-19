@@ -43,6 +43,8 @@ import ScanPanel from "../ScanPanel";
 import Inspector from "./Inspector";
 import Palette from "./Palette";
 import PlanCanvas, { type CanvasHit } from "./PlanCanvas";
+import "./overlays";
+import { planOverlays } from "./overlays/registry";
 import { AI_ENABLED } from "@/lib/features";
 
 type Pending =
@@ -141,6 +143,7 @@ export default function PlanEditor() {
 
   async function onTapImage(x: number, y: number, hit: CanvasHit) {
     const s = useEditor.getState();
+    if (planOverlays().some((o) => o.onTap?.({ sheet, projectId: sheet.projectId, x, y }))) return;
     switch (tool.kind) {
       case "place":
         await s.addMarker(tool.deviceTypeId, x, y);
@@ -448,7 +451,15 @@ export default function PlanEditor() {
         </div>
 
         <div className="relative min-h-0 flex-1">
-          <PlanCanvas sheet={sheet} draft={draft} fitKey={fitKey} showLabels={showLabels} onTapImage={onTapImage} onDoubleTap={() => drawing && finishDraft()} />
+          <PlanCanvas
+            sheet={sheet} draft={draft} fitKey={fitKey} showLabels={showLabels} onTapImage={onTapImage} onDoubleTap={() => drawing && finishDraft()}
+            renderOverlays={(scale) => planOverlays().map((o) => <o.Layer key={o.id} sheet={sheet} projectId={sheet.projectId} scale={scale} />)}
+          />
+          {planOverlays().some((o) => o.Toolbar) && (
+            <div className="absolute top-14 right-3 z-10 flex max-w-[calc(100%-24px)] flex-wrap justify-end gap-1.5">
+              {planOverlays().map((o) => o.Toolbar && <o.Toolbar key={o.id} sheet={sheet} projectId={sheet.projectId} />)}
+            </div>
+          )}
           {!wide && !paletteOpen && (
             <button
               className={`btn btn-brand absolute left-3 z-10 h-11 px-4 text-sm shadow-pop ${sheets.length > 1 ? "bottom-16" : "bottom-3"}`}
