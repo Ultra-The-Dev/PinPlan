@@ -6,6 +6,7 @@ import { db, newId, nowIso, saveImage } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import UploadStatus from "../UploadStatus";
 
 const MAX_MB = 25;
 const size = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
@@ -55,6 +56,7 @@ export default function Documents() {
           <Upload /> {busy ? "Uploading…" : "Add documents"}
         </button>
       </div>
+      <UploadStatus fileIds={live.map((d) => d.fileId)} noun="file" />
       {live.length === 0 ? (
         <p className="card p-8 text-center text-sm text-slate-500">No documents yet.</p>
       ) : (

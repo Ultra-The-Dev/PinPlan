@@ -104,6 +104,7 @@ struct PhotosView: View {
         let groups = FieldDocs.byDay(shown)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                uploadStatus
                 filters
                 if all.isEmpty {
                     ContentUnavailableView {
@@ -177,6 +178,33 @@ struct PhotosView: View {
     }
 
     private var people: [String] { Array(Set(all.compactMap(\.takenBy))).sorted() }
+
+    /// "3 photos waiting to upload · Sync now" while this device still has files of this job to send.
+    @ViewBuilder private var uploadStatus: some View {
+        let cloud = app.cloud
+        let backlog = cloud.uploadBacklog(projectId: model.bundle.project.id)
+        if cloud.signedIn && backlog.total > 0 {
+            HStack(spacing: 10) {
+                Image(systemName: "icloud.and.arrow.up").foregroundStyle(Color.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(backlog.summary).font(.subheadline.weight(.medium))
+                    if let err = cloud.lastError, !cloud.syncing {
+                        Text("Last sync failed: \(err)").font(.caption).foregroundStyle(Color.secondary).lineLimit(1)
+                    }
+                }
+                Spacer()
+                if cloud.syncing {
+                    ProgressView()
+                } else {
+                    Button("Sync now") { Task { await cloud.syncNow() } }
+                        .font(.subheadline)
+                        .buttonStyle(.bordered)
+                }
+            }
+            .padding(10)
+            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
 
     @ViewBuilder private var filters: some View {
         if !all.isEmpty {

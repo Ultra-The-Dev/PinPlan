@@ -95,6 +95,8 @@ final class Store: @unchecked Sendable {
 
     func fileURL(_ id: String) -> URL { imagesDir.appendingPathComponent("\(id).file") }
     func fileData(_ id: String) -> Data? { try? Data(contentsOf: fileURL(id)) }
+    func hasImage(_ id: String) -> Bool { FileManager.default.fileExists(atPath: imagesDir.appendingPathComponent("\(id).jpg").path) }
+    func hasFile(_ id: String) -> Bool { FileManager.default.fileExists(atPath: fileURL(id).path) }
     func saveFile(_ data: Data, id: String = newId()) {
         try? data.write(to: fileURL(id), options: .atomic)
     }

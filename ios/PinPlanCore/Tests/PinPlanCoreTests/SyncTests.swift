@@ -104,4 +104,24 @@ final class SyncTests: XCTestCase {
             }
         }
     }
+
+    func testUploadBacklogCountsLocalFilesNotYetUploaded() {
+        var b = sample()
+        var gone = Photo(projectId: "p1", imageId: "gone", width: 1, height: 1)
+        gone.deleted = true
+        b.photos = [Photo(projectId: "p1", imageId: "a", width: 1, height: 1), Photo(projectId: "p1", imageId: "b", width: 1, height: 1),
+                    Photo(projectId: "p1", imageId: "remote", width: 1, height: 1), Photo(projectId: "p1", imageId: "a", width: 1, height: 1), gone]
+        b.documents = [JobDocument(projectId: "p1", name: "Permit.pdf", mime: "application/pdf", size: 10, fileId: "d1")]
+        var ledger = SyncLedger()
+        ledger.uploadedImages = ["b"]
+        let local: Set<String> = ["a", "b", "gone", "d1"]
+        let backlog = ledger.uploadBacklog(b) { id, _ in local.contains(id) }
+        XCTAssertEqual(backlog, UploadBacklog(photos: 1, documents: 1))
+        XCTAssertEqual(backlog.total, 2)
+        XCTAssertEqual(backlog.summary, "1 photo and 1 file waiting to upload")
+        XCTAssertEqual(UploadBacklog(photos: 3).summary, "3 photos waiting to upload")
+        XCTAssertEqual(UploadBacklog().summary, "")
+        ledger.uploadedImages.formUnion(["a", "d1"])
+        XCTAssertEqual(ledger.uploadBacklog(b) { id, _ in local.contains(id) }.total, 0)
+    }
 }

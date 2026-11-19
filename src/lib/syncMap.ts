@@ -271,3 +271,12 @@ export function dedupeQueue<T extends { seq?: number; table: string; rowId: stri
   for (const it of [...items].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) latest.set(`${it.table}:${it.rowId}`, it);
   return [...latest.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
 }
+
+/** How many of `fileIds` (a job's photo images / document files) still have an image upload queued. Counts each file once. */
+export function pendingUploadCount(items: { table: string; rowId: string }[], fileIds: Iterable<string>): number {
+  const want = new Set(fileIds);
+  if (!want.size) return 0;
+  const queued = new Set<string>();
+  for (const it of items) if (it.table === "images" && want.has(it.rowId)) queued.add(it.rowId);
+  return queued.size;
+}

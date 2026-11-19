@@ -12,6 +12,7 @@ import type { Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import PhotoViewer from "./PhotoViewer";
 import PhotoReport from "./PhotoReport";
+import UploadStatus from "../UploadStatus";
 
 const GPS_KEY = "pinplan.photoLocation";
 const dayLabel = (day: string) =>
@@ -75,6 +76,7 @@ export default function PhotosTab() {
   const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text }), [live, tags, person, text]);
   const groups = useMemo(() => photosByDay(shown), [shown]);
   const options = useMemo(() => tagOptions(live), [live]);
+  const imageIds = useMemo(() => live.map((p) => p.imageId), [live]);
   const people = useMemo(() => [...new Set(live.map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [live]);
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -174,6 +176,7 @@ export default function PhotosTab() {
             <ImagePlus /> {busy ?? "Add photos"}
           </button>
         </div>
+        <UploadStatus fileIds={imageIds} noun="photo" />
 
         {live.length > 0 && (
           <div className="card space-y-3 p-3">
