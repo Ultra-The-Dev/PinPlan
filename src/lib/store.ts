@@ -318,12 +318,25 @@ export const useEditor = create<EditorState>((set, get) => ({
     }
     if (record) set((s) => ({ past: [...s.past.slice(-99), changes], future: [] }));
     // Start every write now, in order, so a later commit's write to the same row can't land before this one's.
-    const saved = await Promise.all(shown.map(({ c, row }) => put(c.table as SyncTable, row) as Promise<AnyRow>));
+    const results = await Promise.allSettled(shown.map(({ c, row }) => put(c.table as SyncTable, row) as Promise<AnyRow>));
+    let failure: unknown = null;
     shown.forEach(({ c, row }, i) => {
-      c.after = saved[i];
-      // Swap in the saved copy unless a newer edit of the row is already showing.
-      set((s) => (currentRow(s, c.table, row.id) === row ? applyToState(s, c.table, saved[i]) : {}));
+      const r = results[i];
+      if (r.status === "fulfilled") {
+        c.after = r.value;
+        // Swap in the saved copy unless a newer edit of the row is already showing.
+        set((s) => (currentRow(s, c.table, row.id) === row ? applyToState(s, c.table, r.value) : {}));
+        return;
+      }
+      failure ??= r.reason;
+      // Not saved (e.g. storage full): put the screen back to what is stored, unless a newer edit already replaced it.
+      const back = c.before ?? { ...row, deleted: true };
+      set((s) => (currentRow(s, c.table, row.id) === row ? applyToState(s, c.table, back as AnyRow) : {}));
     });
+    if (failure !== null) {
+      if (record) set((s) => (s.past[s.past.length - 1] === changes ? { past: s.past.slice(0, -1) } : {}));
+      throw failure;
+    }
   },
   async undo() {
     const past = get().past;

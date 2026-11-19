@@ -5,11 +5,15 @@ import { useEditor } from "@/lib/store";
 import type { Checklist, JobDocument, Marker, Project, Sheet } from "@/lib/types";
 
 // Lets a test act right after loadProject has read the database (before the store applies what it read).
-const hooks = vi.hoisted(() => ({ afterRead: null as null | (() => Promise<void>) }));
+const hooks = vi.hoisted(() => ({ afterRead: null as null | (() => Promise<void>), failPut: false }));
 vi.mock("@/lib/db", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/db")>();
   return {
     ...mod,
+    put: (async (table, row) => {
+      if (hooks.failPut) throw new Error("QuotaExceededError");
+      return mod.put(table, row);
+    }) as typeof mod.put,
     loadProject: async (id: string) => {
       const bundle = await mod.loadProject(id);
       const hook = hooks.afterRead;
@@ -52,6 +56,18 @@ describe("editor commits", () => {
     hooks.afterRead = () => useEditor.getState().updateMarker("m1", { notes: "check height" });
     await useEditor.getState().load("p1");
     expect(useEditor.getState().markers[0].notes).toBe("check height");
+  });
+
+  it("an edit that fails to save is taken back off the screen and out of undo history", async () => {
+    hooks.failPut = true;
+    try {
+      await expect(useEditor.getState().updateMarker("m1", { label: "CAM-9" })).rejects.toThrow("QuotaExceededError");
+    } finally {
+      hooks.failPut = false;
+    }
+    expect(useEditor.getState().markers[0].label).toBe("CAM-1");
+    expect(useEditor.getState().past).toHaveLength(0);
+    expect((await db().markers.get("m1"))?.label).toBe("CAM-1");
   });
 
   it("undo and redo of field-doc rows round-trip", async () => {

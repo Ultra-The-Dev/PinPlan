@@ -259,6 +259,14 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
     if (!known.has(p.imageId)) filesNeeded.push({ id: p.imageId, path: `${p.projectId}/${p.imageId}`, width: p.width, height: p.height, mime: "image/jpeg" });
   for (const d of await db().documents.filter((x) => !x.deleted).toArray())
     if (!known.has(d.fileId)) filesNeeded.push({ id: d.fileId, path: `${d.projectId}/${d.fileId}`, width: 0, height: 0, mime: d.mime });
+  // Plan images whose download failed earlier (a pulled sheet is only looked at again when its row changes).
+  const sheetImages = new Map<string, string>();
+  const tried = new Set(sheetsNeedingImages.map((x) => x.sheet.imageId));
+  for (const sh of await db().sheets.filter((x) => !x.deleted && !!x.imageId).toArray())
+    if (!known.has(sh.imageId) && !tried.has(sh.imageId)) {
+      sheetImages.set(sh.imageId, sh.projectId);
+      filesNeeded.push({ id: sh.imageId, path: `${sh.projectId}/${sh.imageId}`, width: sh.width, height: sh.height, mime: "image/jpeg" });
+    }
   // Device photos (marker.photoId) are uploaded to <project>/<image id> too, but were never fetched on other devices.
   for (const m of await db().markers.filter((x) => !x.deleted && !!x.photoId).toArray())
     if (!known.has(m.photoId!)) filesNeeded.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
@@ -269,6 +277,11 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
     const { data, error } = await sb.storage.from(PLANS_BUCKET).download(f.path);
     if (error || !data) continue; // may still be uploading from the other device; retried on its next change
     await db().images.put({ id: f.id, blob: data, width: f.width, height: f.height, mime: data.type || f.mime });
+    const sheetProject = sheetImages.get(f.id);
+    if (sheetProject) {
+      changedTables.add("sheets");
+      projectIds.add(sheetProject);
+    }
   }
 }
 
