@@ -12,6 +12,11 @@ import type {
   EstimateLine,
   Layer,
   Marker,
+  Checklist,
+  JobDocument,
+  JobLog,
+  Photo,
+  PhotoComment,
   PricingSettings,
   Product,
   Project,
@@ -31,8 +36,20 @@ export type Tool =
 
 export type Selection = { table: "markers" | "runs" | "closets"; id: string } | null;
 
-type EntityTable = "markers" | "runs" | "closets" | "sheets" | "projects" | "estimateLines";
-type AnyRow = Marker | Run | Closet | Sheet | Project | EstimateLine;
+type EntityTable =
+  | "markers"
+  | "runs"
+  | "closets"
+  | "sheets"
+  | "projects"
+  | "estimateLines"
+  | "photos"
+  | "photoComments"
+  | "checklists"
+  | "jobLogs"
+  | "documents";
+type AnyRow = Marker | Run | Closet | Sheet | Project | EstimateLine | Photo | PhotoComment | Checklist | JobLog | JobDocument;
+type ListKey = Exclude<EntityTable, "projects">;
 interface Change {
   table: EntityTable;
   before: AnyRow | null;
@@ -47,6 +64,11 @@ interface EditorState {
   runs: Run[];
   closets: Closet[];
   estimateLines: EstimateLine[];
+  photos: Photo[];
+  photoComments: PhotoComment[];
+  checklists: Checklist[];
+  jobLogs: JobLog[];
+  documents: JobDocument[];
   catalog: DeviceType[];
   /** Brand/model product library. */
   products: Product[];
@@ -103,6 +125,10 @@ interface EditorState {
   updateProject(patch: Partial<Project>): Promise<void>;
   upsertEstimateLine(key: string, patch: Partial<EstimateLine>): Promise<void>;
   removeEstimateOverride(key: string): Promise<void>;
+  /** Save a field-documentation row (photo, comment, checklist, log, document): new or changed, one undo step. */
+  saveRow<T extends Photo | PhotoComment | Checklist | JobLog | JobDocument>(table: "photos" | "photoComments" | "checklists" | "jobLogs" | "documents", row: T): Promise<T>;
+  /** Soft-delete field-documentation rows (one undo step). */
+  removeRows(table: "photos" | "photoComments" | "checklists" | "jobLogs" | "documents", ids: string[]): Promise<void>;
   /** Draw (or redraw) home-run wire lines for every device that has a closet. */
   autoHomeRuns(sheetId?: string, markerId?: string): Promise<number>;
 }
@@ -114,16 +140,23 @@ const tableKey: Record<EntityTable, keyof EditorState> = {
   sheets: "sheets",
   projects: "project",
   estimateLines: "estimateLines",
+  photos: "photos",
+  photoComments: "photoComments",
+  checklists: "checklists",
+  jobLogs: "jobLogs",
+  documents: "documents",
 };
 
 function applyToState(state: EditorState, table: EntityTable, row: AnyRow): Partial<EditorState> {
   if (table === "projects") return { project: row as Project };
-  const key = tableKey[table] as "markers" | "runs" | "closets" | "sheets" | "estimateLines";
+  const key = tableKey[table] as ListKey;
   const list = state[key] as AnyRow[];
   const deleted = (row as { deleted?: boolean }).deleted;
   const without = list.filter((r) => r.id !== row.id);
   const next = deleted ? without : list.some((r) => r.id === row.id) ? list.map((r) => (r.id === row.id ? row : r)) : [...list, row];
   if (table === "sheets") (next as Sheet[]).sort((a, b) => a.order - b.order);
+  if (table === "photos") (next as Photo[]).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+  if (table === "jobLogs") (next as JobLog[]).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   return { [key]: next } as Partial<EditorState>;
 }
 
@@ -135,6 +168,11 @@ export const useEditor = create<EditorState>((set, get) => ({
   runs: [],
   closets: [],
   estimateLines: [],
+  photos: [],
+  photoComments: [],
+  checklists: [],
+  jobLogs: [],
+  documents: [],
   catalog: [],
   products: [],
   settings: null,
@@ -472,6 +510,18 @@ export const useEditor = create<EditorState>((set, get) => ({
   async removeEstimateOverride(key) {
     const before = get().estimateLines.find((l) => l.key === key);
     if (before) await get().commit([{ table: "estimateLines", before, after: { ...before, deleted: true } }], false);
+  },
+  async saveRow(table, row) {
+    const list = get()[tableKey[table] as ListKey] as AnyRow[];
+    const before = list.find((r) => r.id === row.id) ?? null;
+    const changes: Change[] = [{ table, before, after: row }];
+    await get().commit(changes);
+    return changes[0].after as typeof row;
+  },
+  async removeRows(table, ids) {
+    const list = get()[tableKey[table] as ListKey] as AnyRow[];
+    const changes: Change[] = list.filter((r) => ids.includes(r.id)).map((r) => ({ table, before: r, after: { ...r, deleted: true } }));
+    if (changes.length) await get().commit(changes);
   },
   async autoHomeRuns(sheetId, markerId) {
     const s = get();

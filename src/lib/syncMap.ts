@@ -29,6 +29,9 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       billduDocs: "billdu_docs",
       pricing: "pricing",
       productChoices: "product_choices",
+      labels: "labels",
+      lat: "lat",
+      lng: "lng",
     },
   },
   sheets: {
@@ -156,10 +159,69 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       sort: "sort_order",
     },
   },
+  // Field documentation (all children of a project).
+  photos: {
+    remote: "photos",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      imageId: "image_id",
+      width: "width",
+      height: "height",
+      takenAt: "taken_at",
+      takenBy: "taken_by",
+      lat: "lat",
+      lng: "lng",
+      caption: "caption",
+      tags: "tags",
+      annotations: "annotations",
+      markerId: "marker_id",
+      sheetId: "sheet_id",
+      room: "room",
+      beforeId: "before_id",
+      checklistId: "checklist_id",
+      checklistItemId: "checklist_item_id",
+    },
+  },
+  photoComments: {
+    remote: "photo_comments",
+    conflict: "id",
+    columns: { ...childOf, photoId: "photo_id", author: "author", text: "text" },
+  },
+  checklists: {
+    remote: "checklists",
+    conflict: "id",
+    columns: { ...childOf, name: "name", items: "items" },
+  },
+  jobLogs: {
+    remote: "job_logs",
+    conflict: "id",
+    columns: { ...childOf, date: "log_date", title: "title", body: "body", author: "author", photoIds: "photo_ids" },
+  },
+  documents: {
+    remote: "job_documents",
+    conflict: "id",
+    columns: { ...childOf, name: "name", mime: "mime", size: "size", fileId: "file_id" },
+  },
 };
 
+
 /** Push order: parents before children so foreign keys and RLS checks pass. */
-export const PUSH_ORDER: SyncTable[] = ["projects", "deviceTypes", "products", "sheets", "closets", "markers", "runs", "estimateLines"];
+export const PUSH_ORDER: SyncTable[] = [
+  "projects",
+  "deviceTypes",
+  "products",
+  "sheets",
+  "closets",
+  "markers",
+  "runs",
+  "estimateLines",
+  "photos",
+  "photoComments",
+  "checklists",
+  "jobLogs",
+  "documents",
+];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt"]);
 const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false };

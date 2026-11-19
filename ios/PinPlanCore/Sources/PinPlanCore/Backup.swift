@@ -20,10 +20,21 @@ public struct BackupFile: Codable, Sendable {
         public var runs: [Run]
         public var closets: [Closet]
         public var estimateLines: [EstimateLine]
+        public var photos: [Photo]?
+        public var photoComments: [PhotoComment]?
+        public var checklists: [Checklist]?
+        public var jobLogs: [JobLog]?
+        public var documents: [JobDocument]?
         public var images: [Image]
-        public var bundle: ProjectBundle { ProjectBundle(project: project, sheets: sheets, markers: markers, runs: runs, closets: closets, estimateLines: estimateLines) }
+        public var bundle: ProjectBundle {
+            var b = ProjectBundle(project: project, sheets: sheets, markers: markers, runs: runs, closets: closets, estimateLines: estimateLines)
+            b.photos = photos ?? []; b.photoComments = photoComments ?? []; b.checklists = checklists ?? []
+            b.jobLogs = jobLogs ?? []; b.documents = documents ?? []
+            return b
+        }
         public init(bundle b: ProjectBundle, images: [Image]) {
             project = b.project; sheets = b.sheets; markers = b.markers; runs = b.runs; closets = b.closets; estimateLines = b.estimateLines; self.images = images
+            photos = b.photos; photoComments = b.photoComments; checklists = b.checklists; jobLogs = b.jobLogs; documents = b.documents
         }
     }
 

@@ -7,7 +7,12 @@ import type {
   Closet,
   DeviceType,
   EstimateLine,
+  Checklist,
+  JobDocument,
+  JobLog,
   Marker,
+  Photo,
+  PhotoComment,
   Product,
   Project,
   Run,
@@ -17,7 +22,20 @@ import type {
 } from "./types";
 
 /** Tables that are synced to Supabase when it is configured. */
-export type SyncTable = "projects" | "sheets" | "deviceTypes" | "products" | "markers" | "runs" | "closets" | "estimateLines";
+export type SyncTable =
+  | "projects"
+  | "sheets"
+  | "deviceTypes"
+  | "products"
+  | "markers"
+  | "runs"
+  | "closets"
+  | "estimateLines"
+  | "photos"
+  | "photoComments"
+  | "checklists"
+  | "jobLogs"
+  | "documents";
 
 export interface SyncItem {
   seq?: number;
@@ -35,6 +53,11 @@ class PinPlanDB extends Dexie {
   runs!: EntityTable<Run, "id">;
   closets!: EntityTable<Closet, "id">;
   estimateLines!: EntityTable<EstimateLine, "id">;
+  photos!: EntityTable<Photo, "id">;
+  photoComments!: EntityTable<PhotoComment, "id">;
+  checklists!: EntityTable<Checklist, "id">;
+  jobLogs!: EntityTable<JobLog, "id">;
+  documents!: EntityTable<JobDocument, "id">;
   suggestions!: EntityTable<Suggestion, "id">;
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<AppSettings, "id">;
@@ -57,6 +80,14 @@ class PinPlanDB extends Dexie {
     });
     // v2: brand/model product library.
     this.version(2).stores({ products: "id, deviceTypeId" });
+    // v3: field documentation — photos, comments, checklists, daily logs, documents.
+    this.version(3).stores({
+      photos: "id, projectId, takenAt, markerId",
+      photoComments: "id, projectId, photoId",
+      checklists: "id, projectId",
+      jobLogs: "id, projectId, date",
+      documents: "id, projectId",
+    });
   }
 }
 
@@ -146,6 +177,11 @@ export interface ProjectBundle {
   runs: Run[];
   closets: Closet[];
   estimateLines: EstimateLine[];
+  photos: Photo[];
+  photoComments: PhotoComment[];
+  checklists: Checklist[];
+  jobLogs: JobLog[];
+  documents: JobDocument[];
 }
 
 export async function loadProject(projectId: string): Promise<ProjectBundle | null> {
@@ -153,12 +189,17 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
   const project = await d.projects.get(projectId);
   if (!project || project.deleted) return null;
   const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
-  const [sheets, markers, runs, closets, estimateLines] = await Promise.all([
+  const [sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents] = await Promise.all([
     d.sheets.where("projectId").equals(projectId).toArray(),
     d.markers.where("projectId").equals(projectId).toArray(),
     d.runs.where("projectId").equals(projectId).toArray(),
     d.closets.where("projectId").equals(projectId).toArray(),
     d.estimateLines.where("projectId").equals(projectId).toArray(),
+    d.photos.where("projectId").equals(projectId).toArray(),
+    d.photoComments.where("projectId").equals(projectId).toArray(),
+    d.checklists.where("projectId").equals(projectId).toArray(),
+    d.jobLogs.where("projectId").equals(projectId).toArray(),
+    d.documents.where("projectId").equals(projectId).toArray(),
   ]);
   return {
     project: { ...project, billduDocs: project.billduDocs ?? [] },
@@ -167,6 +208,11 @@ export async function loadProject(projectId: string): Promise<ProjectBundle | nu
     runs: live(runs),
     closets: live(closets),
     estimateLines: live(estimateLines),
+    photos: live(photos).sort((a, b) => b.takenAt.localeCompare(a.takenAt)),
+    photoComments: live(photoComments).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    checklists: live(checklists).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    jobLogs: live(jobLogs).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+    documents: live(documents).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   };
 }
 

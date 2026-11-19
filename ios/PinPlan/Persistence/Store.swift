@@ -56,10 +56,12 @@ final class Store: @unchecked Sendable {
 
     func deleteProject(_ bundle: ProjectBundle) {
         let url = projectsDir.appendingPathComponent("\(bundle.project.id).json")
-        let imageIds = bundle.sheets.map(\.imageId) + bundle.markers.compactMap(\.photoId)
+        let imageIds = bundle.sheets.map(\.imageId) + bundle.markers.compactMap(\.photoId) + bundle.photos.map(\.imageId)
+        let fileIds = bundle.documents.map(\.fileId)
         queue.async {
             try? FileManager.default.removeItem(at: url)
             for id in imageIds { try? FileManager.default.removeItem(at: self.imagesDir.appendingPathComponent("\(id).jpg")) }
+            for id in fileIds { try? FileManager.default.removeItem(at: self.fileURL(id)) }
         }
     }
 
@@ -88,6 +90,14 @@ final class Store: @unchecked Sendable {
     }
 
     func imageData(_ id: String) -> Data? { try? Data(contentsOf: imagesDir.appendingPathComponent("\(id).jpg")) }
+
+    // MARK: job documents (any file type), kept next to the images
+
+    func fileURL(_ id: String) -> URL { imagesDir.appendingPathComponent("\(id).file") }
+    func fileData(_ id: String) -> Data? { try? Data(contentsOf: fileURL(id)) }
+    func saveFile(_ data: Data, id: String = newId()) {
+        try? data.write(to: fileURL(id), options: .atomic)
+    }
 
     // MARK: source PDFs (kept for crisp vector detail when zooming)
 
@@ -144,7 +154,7 @@ final class Store: @unchecked Sendable {
 
     func backup(of bundles: [ProjectBundle], catalog: [DeviceType], products: [Product] = []) throws -> URL {
         let entries = bundles.map { b -> BackupFile.ProjectEntry in
-            let ids = Set(b.sheets.map(\.imageId) + b.markers.compactMap(\.photoId))
+            let ids = Set(b.sheets.map(\.imageId) + b.markers.compactMap(\.photoId) + b.photos.map(\.imageId))
             let images: [BackupFile.Image] = ids.compactMap { id in
                 guard let data = imageData(id), let img = image(id) else { return nil }
                 return .init(id: id, mime: "image/jpeg", width: Double(img.size.width * img.scale), height: Double(img.size.height * img.scale), data: data.base64EncodedString())

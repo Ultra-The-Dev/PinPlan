@@ -3,6 +3,7 @@ import Foundation
 /// Rows synced with Supabase — the same tables and columns as the web app (src/lib/syncMap.ts).
 public enum SyncTable: String, CaseIterable, Codable, Sendable {
     case projects, deviceTypes, products, sheets, closets, markers, runs, estimateLines
+    case photos, photoComments, checklists, jobLogs, documents
 }
 
 public struct TableSpec: Sendable {
@@ -20,7 +21,7 @@ public enum SyncMap {
         .projects: TableSpec(remote: "projects", conflict: "id", columns: common + [
             ("clientName", "client_name"), ("clientEmail", "client_email"), ("clientPhone", "client_phone"), ("address", "address"),
             ("status", "status"), ("notes", "notes"), ("billduClientId", "billdu_client_id"), ("billduDocs", "billdu_docs"),
-            ("pricing", "pricing"), ("productChoices", "product_choices"),
+            ("pricing", "pricing"), ("productChoices", "product_choices"), ("labels", "labels"), ("lat", "lat"), ("lng", "lng"),
         ]),
         .sheets: TableSpec(remote: "sheets", conflict: "id", columns: child + [
             ("name", "name"), ("pageNumber", "page_number"), ("order", "sort_order"), ("imageId", "image_id"), ("width", "width"),
@@ -55,10 +56,24 @@ public enum SyncMap {
             ("description", "description"), ("qty", "qty"), ("unit", "unit"), ("unitPrice", "unit_price"), ("removed", "removed"),
             ("include", "include"), ("sort", "sort_order"),
         ]),
+        .photos: TableSpec(remote: "photos", conflict: "id", columns: child + [
+            ("imageId", "image_id"), ("width", "width"), ("height", "height"), ("takenAt", "taken_at"), ("takenBy", "taken_by"),
+            ("lat", "lat"), ("lng", "lng"), ("caption", "caption"), ("tags", "tags"), ("annotations", "annotations"),
+            ("markerId", "marker_id"), ("sheetId", "sheet_id"), ("room", "room"), ("beforeId", "before_id"),
+            ("checklistId", "checklist_id"), ("checklistItemId", "checklist_item_id"),
+        ]),
+        .photoComments: TableSpec(remote: "photo_comments", conflict: "id", columns: child + [("photoId", "photo_id"), ("author", "author"), ("text", "text")]),
+        .checklists: TableSpec(remote: "checklists", conflict: "id", columns: child + [("name", "name"), ("items", "items")]),
+        .jobLogs: TableSpec(remote: "job_logs", conflict: "id", columns: child + [
+            ("date", "log_date"), ("title", "title"), ("body", "body"), ("author", "author"), ("photoIds", "photo_ids"),
+        ]),
+        .documents: TableSpec(remote: "job_documents", conflict: "id", columns: child + [("name", "name"), ("mime", "mime"), ("size", "size"), ("fileId", "file_id")]),
     ]
 
     /// Parents before children so foreign keys and row security pass.
-    public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines]
+    public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines,
+                                                 .photos, .photoComments, .checklists, .jobLogs, .documents]
+    private static let timestampLike: Set<String> = ["takenAt"]
 
     private static let boolDefaults: Set<String> = ["deleted", "tentative", "removed", "archived"]
     private static let timestampKeys: Set<String> = ["createdAt", "updatedAt"]
@@ -82,7 +97,7 @@ public enum SyncMap {
             if v is NSNull { out.removeValue(forKey: local); continue }
             // deleted=false is the same as no flag; keep rows identical to what this device writes.
             if local == "deleted", (v as? Bool) == false { out.removeValue(forKey: local); continue }
-            out[local] = timestampKeys.contains(local) ? normalizeTimestamp(v as? String ?? "") : v
+            out[local] = (timestampKeys.contains(local) || timestampLike.contains(local)) ? normalizeTimestamp(v as? String ?? "") : v
         }
         if t == .projects, out["billduDocs"] == nil { out["billduDocs"] = [Any]() }
         if t == .runs, out["points"] == nil { out["points"] = [Any]() }
@@ -171,6 +186,11 @@ public struct SyncState: Sendable {
             for m in b.markers { add(.markers, m.id, pid, m) }
             for r in b.runs { add(.runs, r.id, pid, r) }
             for l in b.estimateLines { add(.estimateLines, l.id, pid, l) }
+            for x in b.photos { add(.photos, x.id, pid, x) }
+            for x in b.photoComments { add(.photoComments, x.id, pid, x) }
+            for x in b.checklists { add(.checklists, x.id, pid, x) }
+            for x in b.jobLogs { add(.jobLogs, x.id, pid, x) }
+            for x in b.documents { add(.documents, x.id, pid, x) }
         }
         for d in catalog { add(.deviceTypes, d.id, nil, d) }
         for p in products { add(.products, p.id, nil, p) }
@@ -206,6 +226,11 @@ public struct SyncState: Sendable {
             case .markers: return pick(b.markers)
             case .runs: return pick(b.runs)
             case .estimateLines: return pick(b.estimateLines)
+            case .photos: return pick(b.photos)
+            case .photoComments: return pick(b.photoComments)
+            case .checklists: return pick(b.checklists)
+            case .jobLogs: return pick(b.jobLogs)
+            case .documents: return pick(b.documents)
             default: return nil
             }
         }
@@ -258,6 +283,11 @@ public struct SyncState: Sendable {
             case .markers: ok = put(&b.markers)
             case .runs: ok = put(&b.runs)
             case .estimateLines: ok = put(&b.estimateLines)
+            case .photos: ok = put(&b.photos)
+            case .photoComments: ok = put(&b.photoComments)
+            case .checklists: ok = put(&b.checklists)
+            case .jobLogs: ok = put(&b.jobLogs)
+            case .documents: ok = put(&b.documents)
             default: break
             }
             bundles[pid] = b

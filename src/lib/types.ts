@@ -45,6 +45,11 @@ export interface Project {
   billduDocs: BillduDocRef[];
   /** Per-project estimate overrides of the global pricing settings. */
   pricing?: Partial<PricingSettings>;
+  /** Free-form labels for sorting jobs ("Pre-wire", "Waiting on GC", "Service"). */
+  labels?: string[] | null;
+  /** Job location (from the first geotagged photo or set by hand), for the jobs map. */
+  lat?: number | null;
+  lng?: number | null;
   /** Product chosen for this job per device type id (or "wire:<cable type>" for cable products). */
   productChoices?: Record<string, string> | null;
   createdAt: string;
@@ -221,6 +226,109 @@ export interface Suggestion {
   tentative?: boolean;
   confidence: number;
   createdAt: string;
+}
+
+// ---------------- field documentation (photos, checklists, logs, documents) ----------------
+
+/** A shape drawn over a photo. Coordinates are relative (0–1) to the photo, like plan positions. */
+export interface PhotoShape {
+  kind: "pen" | "arrow" | "rect" | "circle" | "text";
+  color: string;
+  /** Stroke width relative to the photo's longer side (e.g. 0.006). */
+  width: number;
+  /** pen: [x0,y0,x1,y1,…]; arrow/rect/circle: [x0,y0,x1,y1]; text: [x,y]. */
+  points: number[];
+  text?: string;
+}
+
+/** A job photo: who took it, when and where, what it shows, and where it is on the plan. */
+export interface Photo {
+  id: string;
+  projectId: string;
+  /** Key into the local `images` table (and cloud storage). */
+  imageId: string;
+  width: number;
+  height: number;
+  takenAt: string;
+  takenBy?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  caption?: string | null;
+  tags?: string[] | null;
+  /** Mark-up drawn over the photo (the original image is never changed). */
+  annotations?: PhotoShape[] | null;
+  /** Where it is: a device, a sheet/position on the plan, a room. */
+  markerId?: string | null;
+  sheetId?: string | null;
+  room?: string | null;
+  /** Before/after: an "after" photo points at its "before". */
+  beforeId?: string | null;
+  /** Checklist item this photo was taken for. */
+  checklistId?: string | null;
+  checklistItemId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+export interface PhotoComment {
+  id: string;
+  projectId: string;
+  photoId: string;
+  author?: string | null;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  /** Needs at least one photo before it counts as done. */
+  requiresPhoto?: boolean;
+  done?: boolean;
+  doneBy?: string | null;
+  doneAt?: string | null;
+  note?: string | null;
+}
+
+export interface Checklist {
+  id: string;
+  projectId: string;
+  name: string;
+  items: ChecklistItem[];
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+/** A daily log / job note: what happened on site, with photos. */
+export interface JobLog {
+  id: string;
+  projectId: string;
+  /** Day it covers (YYYY-MM-DD). */
+  date: string;
+  title?: string | null;
+  body: string;
+  author?: string | null;
+  photoIds?: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}
+
+/** A file attached to a job (permit, spec sheet, contract…). Bytes live in the `images` table / storage. */
+export interface JobDocument {
+  id: string;
+  projectId: string;
+  name: string;
+  mime: string;
+  size: number;
+  fileId: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
 }
 
 export interface StoredImage {

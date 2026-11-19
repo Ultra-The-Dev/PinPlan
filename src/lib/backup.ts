@@ -31,7 +31,12 @@ function base64ToBlob(b64: string, mime: string): Blob {
 export async function exportProjectBackup(projectId: string) {
   const bundle = await loadProject(projectId);
   if (!bundle) throw new Error("Project not found");
-  const imageIds = new Set<string>([...bundle.sheets.map((s) => s.imageId), ...bundle.markers.map((m) => m.photoId).filter((x): x is string => !!x)]);
+  const imageIds = new Set<string>([
+    ...bundle.sheets.map((s) => s.imageId),
+    ...bundle.markers.map((m) => m.photoId).filter((x): x is string => !!x),
+    ...bundle.photos.map((p) => p.imageId),
+    ...bundle.documents.map((d) => d.fileId),
+  ]);
   const images: ImageRecord[] = [];
   for (const id of imageIds) {
     const rec = await db().images.get(id);
@@ -91,6 +96,11 @@ export async function importBackup(file: File): Promise<number> {
       ["runs", p.runs],
       ["closets", p.closets],
       ["estimateLines", p.estimateLines],
+      ["photos", p.photos],
+      ["photoComments", p.photoComments],
+      ["checklists", p.checklists],
+      ["jobLogs", p.jobLogs],
+      ["documents", p.documents],
     ];
     for (const [t, rows] of tables) if (rows?.length) await putMany(t, rows);
   }

@@ -60,6 +60,10 @@ public struct Project: Codable, Hashable, Identifiable, Sendable {
     public var pricing: PricingOverrides?
     /// Which product (brand/model) this job uses for each device type: device type id → product id.
     public var productChoices: [String: String]?
+    /// Free-form job labels ("Pre-wire", "Service") and location for the jobs map.
+    public var labels: [String]?
+    public var lat: Double?
+    public var lng: Double?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -314,9 +318,43 @@ public struct ProjectBundle: Codable, Hashable, Sendable {
     public var runs: [Run]
     public var closets: [Closet]
     public var estimateLines: [EstimateLine]
+    /// Field documentation.
+    public var photos: [Photo] = []
+    public var photoComments: [PhotoComment] = []
+    public var checklists: [Checklist] = []
+    public var jobLogs: [JobLog] = []
+    public var documents: [JobDocument] = []
 
     public init(project: Project, sheets: [Sheet] = [], markers: [Marker] = [], runs: [Run] = [], closets: [Closet] = [], estimateLines: [EstimateLine] = []) {
         self.project = project; self.sheets = sheets; self.markers = markers; self.runs = runs; self.closets = closets; self.estimateLines = estimateLines
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case project, sheets, markers, runs, closets, estimateLines, photos, photoComments, checklists, jobLogs, documents
+    }
+
+    /// Jobs saved before field documentation existed load with empty photo/checklist/log lists.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        project = try c.decode(Project.self, forKey: .project)
+        sheets = try c.decodeIfPresent([Sheet].self, forKey: .sheets) ?? []
+        markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []
+        runs = try c.decodeIfPresent([Run].self, forKey: .runs) ?? []
+        closets = try c.decodeIfPresent([Closet].self, forKey: .closets) ?? []
+        estimateLines = try c.decodeIfPresent([EstimateLine].self, forKey: .estimateLines) ?? []
+        photos = try c.decodeIfPresent([Photo].self, forKey: .photos) ?? []
+        photoComments = try c.decodeIfPresent([PhotoComment].self, forKey: .photoComments) ?? []
+        checklists = try c.decodeIfPresent([Checklist].self, forKey: .checklists) ?? []
+        jobLogs = try c.decodeIfPresent([JobLog].self, forKey: .jobLogs) ?? []
+        documents = try c.decodeIfPresent([JobDocument].self, forKey: .documents) ?? []
+    }
+
+    public var livePhotos: [Photo] { photos.filter { $0.deleted != true }.sorted { $0.takenAt > $1.takenAt } }
+    public var liveChecklists: [Checklist] { checklists.filter { $0.deleted != true }.sorted { $0.createdAt < $1.createdAt } }
+    public var liveLogs: [JobLog] { jobLogs.filter { $0.deleted != true }.sorted { ($0.date, $0.createdAt) > ($1.date, $1.createdAt) } }
+    public var liveDocuments: [JobDocument] { documents.filter { $0.deleted != true }.sorted { $0.createdAt > $1.createdAt } }
+    public func comments(for photoId: String) -> [PhotoComment] {
+        photoComments.filter { $0.photoId == photoId && $0.deleted != true }.sorted { $0.createdAt < $1.createdAt }
     }
 
     /// Live (not soft-deleted) items, sheets in floor order.

@@ -113,7 +113,11 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   const sheet = await db().sheets.filter((s) => s.imageId === imageId).first();
   if (sheet) return sheet.projectId;
   const marker = await db().markers.filter((m) => m.photoId === imageId).first();
-  return marker?.projectId ?? null;
+  if (marker) return marker.projectId;
+  const photo = await db().photos.filter((p) => p.imageId === imageId).first();
+  if (photo) return photo.projectId;
+  const doc = await db().documents.filter((d) => d.fileId === imageId).first();
+  return doc?.projectId ?? null;
 }
 
 async function pushImage(imageId: string) {
@@ -153,6 +157,7 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
   const changedTables = new Set<SyncTable>();
   const projectIds = new Set<string>();
   const sheetsNeedingImages: { sheet: Sheet; path: string }[] = [];
+  const filesNeeded: { id: string; path: string; width: number; height: number; mime: string }[] = [];
 
   for (const table of PUSH_ORDER) {
     const spec = TABLES[table];
@@ -176,6 +181,11 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
         if (table === "projects") projectIds.add(local.id as string);
         if (table === "sheets" && typeof raw.image_path === "string" && !local.deleted)
           sheetsNeedingImages.push({ sheet: local as unknown as Sheet, path: raw.image_path });
+        // Job photos and documents are stored at <project>/<file id>.
+        if (table === "photos" && !local.deleted)
+          filesNeeded.push({ id: String(local.imageId), path: `${local.projectId}/${local.imageId}`, width: Number(local.width) || 0, height: Number(local.height) || 0, mime: "image/jpeg" });
+        if (table === "documents" && !local.deleted)
+          filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream") });
       });
       if (writes.length) {
         await tbl.bulkPut(writes);
@@ -192,6 +202,21 @@ async function pull(userId: string): Promise<{ tables: SyncTable[]; projectIds: 
     const { data, error } = await sb.storage.from(PLANS_BUCKET).download(path);
     if (error || !data) continue; // retried on the next pull of this sheet; image may still be uploading
     await db().images.put({ id: sheet.imageId, blob: data, width: sheet.width, height: sheet.height, mime: data.type || "image/jpeg" });
+  }
+
+  // Also retry files that weren't uploaded yet the last time (a few per sync).
+  const known = new Set(filesNeeded.map((f) => f.id));
+  for (const p of await db().photos.filter((x) => !x.deleted).toArray())
+    if (!known.has(p.imageId)) filesNeeded.push({ id: p.imageId, path: `${p.projectId}/${p.imageId}`, width: p.width, height: p.height, mime: "image/jpeg" });
+  for (const d of await db().documents.filter((x) => !x.deleted).toArray())
+    if (!known.has(d.fileId)) filesNeeded.push({ id: d.fileId, path: `${d.projectId}/${d.fileId}`, width: 0, height: 0, mime: d.mime });
+  let tries = 0;
+  for (const f of filesNeeded) {
+    if (await db().images.get(f.id)) continue;
+    if (++tries > 40) break;
+    const { data, error } = await sb.storage.from(PLANS_BUCKET).download(f.path);
+    if (error || !data) continue; // may still be uploading from the other device; retried on its next change
+    await db().images.put({ id: f.id, blob: data, width: f.width, height: f.height, mime: data.type || f.mime });
   }
 
   return { tables: [...changedTables], projectIds: [...projectIds] };

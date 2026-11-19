@@ -138,5 +138,24 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select pg_temp.check((select status = 'accepted' and client_name = 'Jane Client' from public.proposals where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa'), 'installer sees the acceptance');
 update public.proposals set status = 'revoked' where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa';
 select pg_temp.check(public.get_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa') is null, 'revoked link stops working');
+
+-- Field documentation: team members see job photos; outsiders don't; photo reports open only by link.
+reset role;
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+insert into public.photos (id, project_id, image_id, width, height, caption, tags) values ('ph1', 'p1', 'img-ph1', 4032, 3024, 'Closet before', '["pre-wire"]');
+insert into public.checklists (id, project_id, name, items) values ('cl1', 'p1', 'Pre-wire', '[{"id":"i1","text":"Low-voltage brackets set","requiresPhoto":true}]');
+insert into public.photo_reports (id, project_id, snapshot) values ('rep_aaaaaaaaaaaaaaaaaaaaaa', 'p1', '{"title":"Pre-wire photos"}');
+select pg_temp.check((select count(*) from public.photos) = 1, 'owner sees job photos');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
+select pg_temp.check((select count(*) from public.photos) = 1 and (select count(*) from public.checklists) = 1, 'team member sees job photos and checklists');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b');
+select pg_temp.check((select count(*) from public.photos) = 0 and (select count(*) from public.photo_reports) = 0, 'outsider sees no photos or reports');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claim.role', 'anon', false);
+select pg_temp.check(public.get_photo_report('rep_aaaaaaaaaaaaaaaaaaaaaa') -> 'snapshot' ->> 'title' = 'Pre-wire photos', 'client opens a photo report by link');
+select pg_temp.check((select count(*) from public.photos) = 0, 'anonymous visitors cannot list photos');
+
 reset role;
 \echo ALL RLS CHECKS PASSED

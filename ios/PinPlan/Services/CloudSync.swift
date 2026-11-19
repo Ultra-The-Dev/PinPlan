@@ -468,6 +468,17 @@ final class CloudSync {
                 try await client.upload(path: "\(pid)/\(id)", data: data, token: token)
                 ledger.uploadedImages.insert(id)
             }
+            // Job photos and documents: stored at <project>/<file id>, like the web app.
+            for p in b.livePhotos where !ledger.uploadedImages.contains(p.imageId) {
+                guard let data = app.store.imageData(p.imageId) else { continue }
+                try await client.upload(path: "\(pid)/\(p.imageId)", data: data, token: token)
+                ledger.uploadedImages.insert(p.imageId)
+            }
+            for d in b.liveDocuments where !ledger.uploadedImages.contains(d.fileId) {
+                guard let data = app.store.fileData(d.fileId) else { continue }
+                try await client.upload(path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime)
+                ledger.uploadedImages.insert(d.fileId)
+            }
         }
         for b in app.projects {
             for s in b.liveSheets where app.store.imageData(s.imageId) == nil {
@@ -475,6 +486,16 @@ final class CloudSync {
                 guard let data = try? await client.download(path: path, token: token) else { continue }   // may still be uploading elsewhere
                 _ = app.store.saveImageData(data, id: s.imageId)
                 ledger.uploadedImages.insert(s.imageId)
+            }
+            for p in b.livePhotos.prefix(200) where app.store.imageData(p.imageId) == nil {
+                guard let data = try? await client.download(path: "\(b.project.id)/\(p.imageId)", token: token) else { continue }
+                _ = app.store.saveImageData(data, id: p.imageId)
+                ledger.uploadedImages.insert(p.imageId)
+            }
+            for d in b.liveDocuments where app.store.fileData(d.fileId) == nil {
+                guard let data = try? await client.download(path: "\(b.project.id)/\(d.fileId)", token: token) else { continue }
+                app.store.saveFile(data, id: d.fileId)
+                ledger.uploadedImages.insert(d.fileId)
             }
         }
     }
