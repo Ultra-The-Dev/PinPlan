@@ -139,12 +139,15 @@ public enum Geometry {
 
 public enum Labels {
     /// Next auto-numbered label, e.g. CAM-1-03 (floor number = 1-based sheet position).
+    /// Checks labels on every sheet: after sheets are reordered an existing CAM-1-03 can sit on another sheet.
     public static func next(abbrev: String, sheetId: String, sheets: [Sheet], markers: [Marker]) -> String {
         let floorNo = (sheets.sorted { $0.order < $1.order }.firstIndex { $0.id == sheetId } ?? 0) + 1
         let prefix = "\(abbrev)-\(floorNo)-"
         var maxN = 0
-        for m in markers where m.sheetId == sheetId && m.label.hasPrefix(prefix) {
-            if let n = Int(m.label.dropFirst(prefix.count)) { maxN = max(maxN, n) }
+        for m in markers where m.label.hasPrefix(prefix) {
+            // Leading digits only, so CAM-1-03-A (or "03 spare") still counts as 3, like parseInt on the web.
+            let digits = m.label.dropFirst(prefix.count).prefix { $0.isASCII && $0.isNumber }
+            if let n = Int(digits) { maxN = max(maxN, n) }
         }
         return prefix + String(format: "%02d", maxN + 1)
     }

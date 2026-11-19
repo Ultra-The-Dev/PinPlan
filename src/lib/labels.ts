@@ -1,12 +1,16 @@
 import type { DeviceType, Marker, Sheet } from "./types";
 
-/** Next auto-numbered label for a device on a floor, e.g. CAM-1-03. Floor number = sheet position (1-based). */
+/**
+ * Next auto-numbered label for a device on a floor, e.g. CAM-1-03. Floor number = sheet position (1-based).
+ * Looks at labels on every sheet, not just this one: after sheets are reordered (or a device is moved to another floor)
+ * an existing CAM-1-03 can sit on a different sheet, and numbering from this sheet alone would hand out CAM-1-03 again.
+ */
 export function nextLabel(type: Pick<DeviceType, "abbrev">, sheet: Pick<Sheet, "id" | "order">, sheets: Pick<Sheet, "id" | "order">[], markers: Pick<Marker, "sheetId" | "label">[]): string {
   const floorNo = [...sheets].sort((a, b) => a.order - b.order).findIndex((s) => s.id === sheet.id) + 1 || 1;
   const prefix = `${type.abbrev}-${floorNo}-`;
   let max = 0;
   for (const m of markers) {
-    if (m.sheetId !== sheet.id || !m.label.startsWith(prefix)) continue;
+    if (!m.label.startsWith(prefix)) continue;
     const n = parseInt(m.label.slice(prefix.length), 10);
     if (Number.isFinite(n)) max = Math.max(max, n);
   }

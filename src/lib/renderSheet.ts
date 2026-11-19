@@ -1,7 +1,7 @@
 "use client";
 import { CLOSET_KINDS } from "./catalog";
 import { db } from "./db";
-import { bundleOffsets, offsetPolyline, runLengthFt } from "./geometry";
+import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import { drawSymbol, iconFor, wireColor } from "./symbols";
 import type { Closet, DeviceType, Layer, Marker, Run, Sheet } from "./types";
@@ -73,11 +73,11 @@ export async function renderSheet(
       ctx.stroke();
     }
     ctx.restore();
-    if (run.kind !== "wire") {
-      const len = runLengthFt(run);
-      const label = [run.zone ? `Z${run.zone}` : "", len != null ? `${Math.round(len * 10) / 10} LF` : "", run.switchLabel ?? ""].filter(Boolean).join(" · ");
-      const mx = ((run.points[0] + run.points[run.points.length - 2]) / 2) * W;
-      const my = ((run.points[1] + run.points[run.points.length - 1]) / 2) * H;
+    const len = run.kind !== "wire" ? runLengthFt(run) : null;
+    const label = run.kind !== "wire" ? [run.zone ? `Z${run.zone}` : "", len != null ? `${Math.round(len * 10) / 10} LF` : "", run.switchLabel ?? ""].filter(Boolean).join(" · ") : "";
+    if (label && px.length >= 2) {
+      // Halfway along the run (not between its ends, which floats off an L- or U-shaped run), like the editor.
+      const { x: mx, y: my } = polylineMidpoint(px);
       ctx.save();
       ctx.font = `bold ${r * 0.75}px sans-serif`;
       const tw = ctx.measureText(label).width;
@@ -94,7 +94,7 @@ export async function renderSheet(
   if (show("infrastructure")) {
     for (const cl of data.closets) {
       if (cl.sheetId !== sheet.id || cl.deleted) continue;
-      const meta = CLOSET_KINDS.find((k2) => k2.id === cl.kind)!;
+      const meta = CLOSET_KINDS.find((k2) => k2.id === cl.kind) ?? CLOSET_KINDS[0];
       const s = r * 1.3;
       const x = cl.x * W;
       const y = cl.y * H;

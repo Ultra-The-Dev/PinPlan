@@ -4,7 +4,7 @@ import { ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import { CLOSET_KINDS, categoryOf } from "@/lib/catalog";
-import { bundleOffsets, offsetPolyline, runLengthFt } from "@/lib/geometry";
+import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
 import { cableSummary, runCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { drawSymbolContent, iconFor, symbolPath, wireColor } from "@/lib/symbols";
@@ -206,8 +206,9 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
               onSelect={() => select({ table: "runs", id: r.id })}
               onMovePoint={(i, x, y) => {
                 const points = [...r.points];
-                points[i * 2] = x / W;
-                points[i * 2 + 1] = y / H;
+                // Keep handles on the sheet (positions are 0–1); a handle dropped off the edge would measure past the plan.
+                points[i * 2] = Math.max(0, Math.min(1, x / W));
+                points[i * 2 + 1] = Math.max(0, Math.min(1, y / H));
                 updateRun(r.id, { points });
               }}
             />
@@ -320,7 +321,12 @@ function MarkerShape(props: {
       onDragStart={props.onPressEnd}
       onDragEnd={(e) => {
         e.cancelBubble = true;
-        props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
+        const x = Math.max(0, Math.min(1, e.target.x() / W));
+        const y = Math.max(0, Math.min(1, e.target.y() / H));
+        // Put the node at the clamped spot now: dragged past the edge from a spot already on the edge, the stored value
+        // doesn't change, so React wouldn't move it back.
+        e.target.position({ x: x * W, y: y * H });
+        props.onMove(x, y);
       }}
     >
       {props.selected && <Circle radius={R + 7} fill="rgba(234,88,12,0.15)" stroke="#ea580c" strokeWidth={2.5} />}
@@ -404,7 +410,12 @@ function ClosetShape(props: {
       onDragStart={props.onPressEnd}
       onDragEnd={(e) => {
         e.cancelBubble = true;
-        props.onMove(Math.max(0, Math.min(1, e.target.x() / W)), Math.max(0, Math.min(1, e.target.y() / H)));
+        const x = Math.max(0, Math.min(1, e.target.x() / W));
+        const y = Math.max(0, Math.min(1, e.target.y() / H));
+        // Put the node at the clamped spot now: dragged past the edge from a spot already on the edge, the stored value
+        // doesn't change, so React wouldn't move it back.
+        e.target.position({ x: x * W, y: y * H });
+        props.onMove(x, y);
       }}
     >
       {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#ea580c" strokeWidth={3} cornerRadius={8} />}
@@ -429,7 +440,7 @@ function RunShape(props: {
   const color = r.kind === "wire" ? wireColor(r.wireType) : (props.type?.color ?? categoryOf("lighting").color);
   const width = r.kind === "wire" ? 2 : 5;
   const len = runLengthFt(r);
-  const mid = midpoint(pts);
+  const mid = polylineMidpoint(pts);
   // A bundle (HDMI + Cat6…) is drawn as parallel lines, one per cable, in each cable's colour.
   const cables = r.kind === "wire" ? runCables(r) : [];
   const strands = cables.length > 1 ? bundleOffsets(cables.length, 3.6 * inv).map((d, k) => ({ pts: offsetPolyline(pts, d), color: wireColor(cables[k]) })) : null;
@@ -485,31 +496,13 @@ function RunShape(props: {
             draggable
             onDragEnd={(e) => {
               e.cancelBubble = true;
-              props.onMovePoint(i, e.target.x(), e.target.y());
+              const [x, y] = [e.target.x(), e.target.y()];
+              // Snap the handle back to the stored point: if clamping leaves the value unchanged React won't re-render it.
+              e.target.position({ x: pts[i * 2], y: pts[i * 2 + 1] });
+              props.onMovePoint(i, x, y);
             }}
           />
         ))}
     </Group>
   );
-}
-
-function midpoint(pts: number[]) {
-  // Midpoint along the polyline length.
-  let total = 0;
-  const segs: number[] = [];
-  for (let i = 2; i + 1 < pts.length; i += 2) {
-    const l = Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
-    segs.push(l);
-    total += l;
-  }
-  let acc = 0;
-  for (let k = 0; k < segs.length; k++) {
-    if (acc + segs[k] >= total / 2) {
-      const t = segs[k] ? (total / 2 - acc) / segs[k] : 0;
-      const i = k * 2;
-      return { x: pts[i] + (pts[i + 2] - pts[i]) * t, y: pts[i + 1] + (pts[i + 3] - pts[i + 1]) * t };
-    }
-    acc += segs[k];
-  }
-  return { x: pts[0] ?? 0, y: pts[1] ?? 0 };
 }

@@ -34,6 +34,9 @@ export async function exportSheetsPdf(
   },
 ): Promise<Blob> {
   const { renderSheetsPdf } = await import("@/components/SheetsPdf");
+  // Soft-deleted rows never print (callers usually pass live rows; this keeps the legend and schedule honest if not).
+  const live = <T extends { deleted?: boolean }>(xs: T[]) => xs.filter((x) => !x.deleted);
+  data = { ...data, sheets: live(data.sheets).sort((a, b) => a.order - b.order), markers: live(data.markers), runs: live(data.runs), closets: live(data.closets) };
   const takeoff = computeTakeoff(data);
   const types = new Map(data.catalog.map((d) => [d.id, d]));
   const layers = opts.layers ?? null;
@@ -44,7 +47,8 @@ export async function exportSheetsPdf(
     const canvas = await renderSheet(sheet, data, { layers, labels: opts.mode === "crew", symbolScale: opts.mode === "client" ? 1.6 : undefined });
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.85);
     canvas.width = canvas.height = 0;
-    const f = takeoff.floors.find((x) => x.sheetId === sheet.id)!;
+    const f = takeoff.floors.find((x) => x.sheetId === sheet.id);
+    if (!f) continue;
 
     const usedTypes = new Set(data.markers.filter((m) => m.sheetId === sheet.id).map((m) => m.deviceTypeId));
     const legend: { iconDataUrl?: string; color?: string; name: string }[] = [];
@@ -79,7 +83,8 @@ export async function exportSheetsPdf(
       const closetName = (id?: string | null) => data.closets.find((c) => c.id === id)?.name ?? "—";
       const rows = data.markers
         .filter((m) => m.sheetId === sheet.id && show(types.get(m.deviceTypeId)?.category ?? "security"))
-        .sort((a, b) => a.label.localeCompare(b.label))
+        // Natural order: CAM-1-100 after CAM-1-99, not between CAM-1-10 and CAM-1-11.
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" }))
         .map((m) => {
           const run = data.runs.find((r) => r.kind === "wire" && r.markerId === m.id);
           const len = run ? runLengthFt(run) : null;
