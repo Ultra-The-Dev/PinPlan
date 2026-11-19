@@ -40,6 +40,12 @@ Everyone on the job can draw. Only the author, or the office (owner / admin; als
 delete a markup. Private markups are visible to their author only — filtered on the device (`visibleMarkups`) and by
 row-level security in the database.
 
+Sync rules (`markupsToPush`): markups drawn signed out (no `authorId`) are claimed by the user who signs in on that
+device before they're pushed, and rows the database would refuse (another person's markup changed by a technician,
+e.g. when a tech turns a sheet) stay on the device instead of blocking the sync. Only the author can make a markup
+private; turning a shared markup private deletes the shared copy and keeps a new private one (other people never see
+updates to a private row, so they would otherwise keep the old shared copy).
+
 ## Data model
 
 Synced table `planMarkups` (Dexie v22, `id, projectId, sheetId, updatedAt`) ↔ `public.plan_markups`
@@ -88,7 +94,7 @@ missing `width` as M).
 
 - `select`: project member and (not private, or `author_id = auth.uid()`).
 - `insert` / `update` / `delete`: project member, and the row is unowned, yours, or you're not a technician
-  (`is_tech()`); a private row must be yours (or unowned). An upsert checks the insert rule against the sent row, so
+  (`is_tech()`); a private row must be yours (`author_id = auth.uid()`). An upsert checks the insert rule against the sent row, so
   the office can upsert edits of a technician's markup but a technician can't take one over.
 - `synced_at` trigger + index like the other synced tables; the billing `job_write_guard` trigger makes it read-only
   when the subscription lapses.

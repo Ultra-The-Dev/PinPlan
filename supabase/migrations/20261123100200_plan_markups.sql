@@ -53,14 +53,14 @@ drop policy if exists plan_markups_insert on public.plan_markups;
 create policy plan_markups_insert on public.plan_markups for insert
   with check (public.is_project_member(project_id)
               and (author_id is null or author_id = auth.uid() or not public.is_tech())
-              and (not private or author_id is null or author_id = auth.uid()));
+              and (not private or author_id = auth.uid()));
 
 drop policy if exists plan_markups_update on public.plan_markups;
 create policy plan_markups_update on public.plan_markups for update
   using (public.is_project_member(project_id) and (author_id is null or author_id = auth.uid() or not public.is_tech()))
   with check (public.is_project_member(project_id)
               and (author_id is null or author_id = auth.uid() or not public.is_tech())
-              and (not private or author_id is null or author_id = auth.uid()));
+              and (not private or author_id = auth.uid()));
 
 drop policy if exists plan_markups_delete on public.plan_markups;
 create policy plan_markups_delete on public.plan_markups for delete

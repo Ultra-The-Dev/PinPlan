@@ -467,3 +467,19 @@ export function drawMarkupsOnCanvas(ctx: CanvasRenderingContext2D, markups: Plan
     ctx.restore();
   }
 }
+
+/**
+ * Before pushing markups: claim the ones drawn on this device while signed out (so a private one stays visible to its
+ * author on their other devices), and leave out rows the database would refuse (another person's markup edited by a
+ * technician, e.g. when a tech turns a sheet; someone else's private one) so one refused row can't stall every sync.
+ */
+export function markupsToPush<T extends PlanMarkup>(rows: T[], role: TeamRole | null | undefined, userId: string | null): { send: T[]; claimed: T[] } {
+  const send: T[] = [];
+  const claimed: T[] = [];
+  for (const r of rows) {
+    const m = !r.authorId && userId ? { ...r, authorId: userId } : r;
+    if (m !== r) claimed.push(m);
+    if (canEditMarkup(role, m, userId)) send.push(m);
+  }
+  return { send, claimed };
+}

@@ -8,6 +8,7 @@ import {
   handlesOf,
   hitTest,
   layerNames,
+  markupsToPush,
   resize,
   rotateMarkupCW,
   rotateMarkupPointsCW,
@@ -237,5 +238,22 @@ describe("markups never count", () => {
     const base = computeTakeoff({ sheets: [sheet], markers: [marker], runs: [], closets: [] });
     const withExtra = computeTakeoff({ sheets: [sheet], markers: [marker], runs: [], closets: [], planMarkups: [mk("rect", [0, 0, 1, 1])] } as Parameters<typeof computeTakeoff>[0]);
     expect(withExtra).toEqual(base);
+  });
+});
+
+describe("markupsToPush", () => {
+  const mine = mk("pen", [0, 0, 1, 1], { id: "a", authorId: "me" });
+  const theirs = mk("pen", [0, 0, 1, 1], { id: "b", authorId: "them" });
+  const theirsPrivate = mk("pen", [0, 0, 1, 1], { id: "c", authorId: "them", private: true });
+  const unowned = mk("rect", [0, 0, 1, 1], { id: "d", private: true, authorId: null });
+
+  it("claims markups drawn signed out, so private ones stay with their author", () => {
+    const { send, claimed } = markupsToPush([unowned], "tech", "me");
+    expect(claimed.map((m) => m.authorId)).toEqual(["me"]);
+    expect(send).toEqual(claimed);
+  });
+  it("leaves out rows the database would refuse (a tech turning a sheet with others' markups)", () => {
+    expect(markupsToPush([mine, theirs, theirsPrivate], "tech", "me").send.map((m) => m.id)).toEqual(["a"]);
+    expect(markupsToPush([mine, theirs, theirsPrivate], "owner", "me").send.map((m) => m.id)).toEqual(["a", "b"]);
   });
 });

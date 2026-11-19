@@ -28,9 +28,11 @@ import {
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import type { PlanOverlayCtx } from "@/components/editor/overlays/registry";
 import { canEditMarkup, canSeeMarkup, KIND_NAMES, layerNames, MARKUP_COLORS, PRIVATE_COLOR, STROKE_SIZES, type StrokeSize } from "@/lib/markups";
+import { newId } from "@/lib/db";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole } from "@/lib/team";
+import { toast } from "@/lib/toast";
 import type { PlanMarkup } from "@/lib/types";
 import { useMarkups, type MarkupTool } from "./useMarkups";
 
@@ -99,7 +101,17 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
     s.setColor(c);
     // Recolour the selected markup (private follows purple).
     const m = s.items.find((x) => x.id === s.selectedId);
-    if (m && canEditMarkup(role, m, userId) && m.color !== c) void s.save({ ...m, color: c, private: c === PRIVATE_COLOR });
+    if (!m || !canEditMarkup(role, m, userId) || m.color === c) return;
+    const priv = c === PRIVATE_COLOR;
+    if (priv && !m.private) {
+      // Only the author can make a markup private. Others may already have the shared copy, and they would never
+      // hear about a change they can't see: delete it for them and keep a new private copy.
+      if (m.authorId && m.authorId !== userId) return toast("Only the person who drew it can make it private", "error");
+      const id = newId();
+      void s.remove(m.id).then(() => s.save({ ...m, id, color: c, private: true, authorId: m.authorId ?? userId ?? null }).then(() => s.select(id)));
+      return;
+    }
+    void s.save({ ...m, color: c, private: priv });
   }
   function pickSize(z: StrokeSize) {
     const s = useMarkups.getState();
@@ -214,7 +226,7 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
       </div>
 
       {fly === "style" && (
-        <div className="card animate-in pointer-events-auto w-60 p-3 shadow-pop ring-1 ring-slate-200">
+        <div className="card animate-in pointer-events-auto w-60 max-w-[calc(100vw-9rem)] p-3 shadow-pop ring-1 ring-slate-200">
           <div className="section-title mb-2">Colour</div>
           <div className="flex flex-wrap gap-2">
             {MARKUP_COLORS.map((c) => (
@@ -225,6 +237,7 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
                 onClick={() => pickColor(c.color)}
                 title={c.name}
                 aria-label={c.name}
+                aria-pressed={color === c.color}
               />
             ))}
           </div>
@@ -233,6 +246,7 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
             onClick={() => pickColor(PRIVATE_COLOR)}
             title="Private: only you see it"
             data-testid="markup-private"
+            aria-pressed={priv}
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: PRIVATE_COLOR }}>
               <Lock className="h-3.5 w-3.5 text-white" />
@@ -252,7 +266,7 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
       )}
 
       {fly === "layers" && (
-        <div className="card animate-in pointer-events-auto w-64 p-2 shadow-pop ring-1 ring-slate-200" data-testid="markup-layers">
+        <div className="card animate-in pointer-events-auto w-64 max-w-[calc(100vw-9rem)] p-2 shadow-pop ring-1 ring-slate-200" data-testid="markup-layers">
           <div className="section-title px-2 pt-1 pb-2">Draw on layer</div>
           {layers.map((l) => {
             const hidden = allHidden || hiddenLayers.includes(l);
@@ -316,7 +330,7 @@ export default function MarkupToolbar({ sheet, projectId }: PlanOverlayCtx) {
 function MarkupList({ items, selectedId, hiddenLayers, allHidden }: { items: PlanMarkup[]; selectedId: string | null; hiddenLayers: string[]; allHidden: boolean }) {
   const sorted = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
-    <div className="card animate-in pointer-events-auto flex max-h-full w-72 flex-col shadow-pop ring-1 ring-slate-200" data-testid="markup-list">
+    <div className="card animate-in pointer-events-auto flex max-h-full w-72 max-w-[calc(100vw-9rem)] flex-col shadow-pop ring-1 ring-slate-200" data-testid="markup-list">
       <div className="flex items-center justify-between px-3 pt-2.5 pb-2">
         <div className="section-title">Markups on this sheet · {items.length}</div>
         <button className="btn btn-sm btn-icon btn-ghost" onClick={() => useMarkups.getState().set({ listOpen: false })} aria-label="Close list">
