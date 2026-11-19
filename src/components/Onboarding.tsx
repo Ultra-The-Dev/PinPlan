@@ -1,25 +1,77 @@
 "use client";
-// First-run checklist: the full page (/start) and a compact card on the jobs list until it's done or dismissed.
-import { ArrowRight, Building2, Check, ChevronDown, FileUp, ImagePlus, Loader2, Smartphone, Sparkles, Users, X } from "lucide-react";
+// First-run: /start (the checklist for the owner and office, "Get the app" for technicians, "Set up your company"
+// for an account without one) and a compact checklist card on the jobs list until it's done or dismissed.
+import { ArrowRight, Building2, Check, ChevronDown, FileUp, FolderOpen, ImagePlus, ListChecks, Loader2, Smartphone, Sparkles, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { qrModules, qrPath } from "@/app/start/qr";
 import { FOUNDER_BUSINESS } from "@/lib/catalog";
-import { getSettings, newId, nowIso, put, saveSettings } from "@/lib/db";
-import { dismissOnboarding, isSampleBusiness, refreshOnboarding, tickOnboarding, useOnboarding } from "@/lib/onboarding";
-import type { OnboardingStepId } from "@/lib/onboardingLogic";
+import { getCompanySettings, saveCompanySettings, type CompanySettings } from "@/lib/companySettings";
+import { newId, nowIso, put } from "@/lib/db";
+import { dismissOnboarding, isSampleBusiness, refreshOnboarding, tickOnboarding, useCompanySetup, useOnboarding } from "@/lib/onboarding";
+import { appStoreUrl, startView, type OnboardingStepId } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
 import { useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
-import type { AppSettings, Project } from "@/lib/types";
+import type { Project } from "@/lib/types";
+import SetupCompany from "./SetupCompany";
+
+/** The App Store page for the iPhone and iPad app (set NEXT_PUBLIC_APP_STORE_URL once the app is live). */
+const APP_STORE_URL = appStoreUrl(process.env.NEXT_PUBLIC_APP_STORE_URL);
 
 const STEPS: Record<OnboardingStepId, { title: string; body: string; icon: React.ElementType }> = {
   business: { title: "Your business", body: "Name, phone and logo for your estimates and client proposals.", icon: Building2 },
   plan: { title: "Upload your first floor plan", body: "Start a job and add the plan — a PDF or a photo of it.", icon: FileUp },
   team: { title: "Invite your team", body: "Office staff and technicians each get their own login.", icon: Users },
-  app: { title: "Get the iPad app", body: "Walk the site with the plan; it all syncs to the office.", icon: Smartphone },
+  app: { title: "Get the iPad and iPhone app", body: "Walk the site with the plan; it all syncs to the office.", icon: Smartphone },
 };
+
+/** /start: what to show depends on who's signed in. */
+export function StartScreen() {
+  const sync = useSyncStatus();
+  const t = useTeam();
+  const finishing = useCompanySetup((s) => s.finishing);
+  const known = t.ready && t.userId === sync.userId;
+  // A team that couldn't be read (offline, a migration behind) isn't "no team".
+  const hasTeam = !known ? null : t.team ? true : t.error || t.needsMigration ? true : false;
+  const view = startView({ configured: sync.configured, authReady: sync.authReady, signedIn: sync.signedIn, hasTeam, role: t.role, finishing: !!finishing });
+  if (view === "setup") return <SetupCompany />;
+  if (view === "tech") return <TechStart />;
+  if (view === "checklist") return <OnboardingChecklist />;
+  return (
+    <p className="flex items-center justify-center gap-2 py-24 text-sm text-slate-500" aria-busy="true">
+      <Loader2 className="h-4 w-4 animate-spin" /> {view === "finishing" ? `Setting up ${finishing}…` : "Loading…"}
+    </p>
+  );
+}
+
+/** Technicians: no setup to do — get the app and open the jobs. */
+function TechStart() {
+  const team = useTeam((s) => s.team);
+  const email = useSyncStatus((s) => s.email);
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Welcome to {team?.name || "the team"}</h1>
+      <p className="mt-1.5 text-slate-500">Your jobs, plans, tasks and photos are ready. Use the app on site; this website works too.</p>
+      <div className="card mt-6 space-y-4 p-5 ring-1 ring-slate-200/60">
+        <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+          <Smartphone className="h-4 w-4 text-slate-400" /> Get the app
+        </h2>
+        <GetTheApp email={email} />
+      </div>
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <Link href="/" className="btn btn-brand h-11 px-5">
+          <FolderOpen /> Open jobs
+        </Link>
+        <Link href="/tasks" className="btn h-11 px-5">
+          <ListChecks /> My tasks
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 /** The full checklist on /start. */
 export function OnboardingChecklist() {
@@ -166,14 +218,14 @@ async function shrinkLogo(f: File): Promise<string> {
 
 function BusinessStep({ onDone }: { onDone: () => void }) {
   const team = useTeam((s) => s.team);
-  const [s, setS] = useState<AppSettings | null>(null);
+  const [s, setS] = useState<CompanySettings | null>(null);
   const [f, setF] = useState({ name: "", phone: "", email: "", website: "", logo: "" });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    getSettings().then((x) => {
-      setS(x);
+    // The company's details (synced for the whole company: company_settings).
+    getCompanySettings().then((b) => {
+      setS(b);
       // The sample company's details are only placeholders: start this company's form empty.
-      const b = x.business;
       const own = (k: "phone" | "email" | "website" | "logo") => (b[k] && b[k] !== FOUNDER_BUSINESS[k] ? (b[k] ?? "") : "");
       setF({ name: isSampleBusiness(b.name) ? (team?.name ?? "") : b.name, phone: own("phone"), email: own("email"), website: own("website"), logo: own("logo") });
     });
@@ -188,21 +240,17 @@ function BusinessStep({ onDone }: { onDone: () => void }) {
         e.preventDefault();
         if (!f.name.trim() || !f.phone.trim()) return;
         setBusy(true);
-        const latest = await getSettings();
-        await saveSettings({
-          ...latest,
-          business: {
-            ...latest.business,
-            name: f.name.trim(),
-            phone: f.phone.trim(),
-            email: f.email.trim() || latest.business.email,
-            website: f.website.trim() || latest.business.website,
-            logo: f.logo || latest.business.logo,
-          },
+        const latest = await getCompanySettings();
+        const r = await saveCompanySettings({
+          name: f.name.trim(),
+          phone: f.phone.trim(),
+          email: f.email.trim() || latest.email,
+          website: f.website.trim() || latest.website,
+          logo: f.logo || latest.logo,
         });
         setBusy(false);
         refreshOnboarding();
-        toast("Business details saved");
+        toast(r.error ? "Saved on this device. It goes to your team when you’re back online." : "Business details saved", r.error ? "info" : undefined);
         onDone();
       }}
     >
@@ -319,20 +367,55 @@ function TeamStep({ done }: { done: boolean }) {
 
 function AppStep({ email, done }: { email: string | null; done: boolean }) {
   return (
-    <div className="space-y-3 text-sm text-slate-600">
-      <ol className="list-decimal space-y-1.5 pl-5">
-        <li>Install {PRODUCT_NAME} on your iPad or iPhone from the App Store (or the TestFlight invite we sent you).</li>
-        <li>
-          Sign in with {email ? <span className="font-medium break-all text-slate-900">{email}</span> : "the same email"} and the same password — your jobs sync
-          automatically.
-        </li>
-        <li>No app yet? Open this website in Safari, tap Share → Add to Home Screen. It works offline too.</li>
-      </ol>
+    <div className="space-y-3">
+      <GetTheApp email={email} />
       {!done && (
         <button className="btn" onClick={() => tickOnboarding("app")}>
           <Check /> Done
         </button>
       )}
     </div>
+  );
+}
+
+/** The App Store link (with a QR code to scan from a computer screen) and how to sign in. */
+function GetTheApp({ email }: { email: string | null }) {
+  return (
+    <div className="space-y-3 text-sm text-slate-600">
+      {APP_STORE_URL ? (
+        <div className="flex items-center gap-5">
+          <div className="min-w-0 flex-1 space-y-2">
+            <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-brand">
+              <Smartphone /> Get it on the App Store
+            </a>
+            <p className="hidden text-xs text-slate-500 md:block">Or scan the code with your iPhone or iPad camera.</p>
+          </div>
+          <QrCode value={APP_STORE_URL} className="hidden h-28 w-28 shrink-0 md:block" />
+        </div>
+      ) : (
+        <p>The iPhone and iPad app is coming to the App Store. Until then, use this website on any device: on iPhone or iPad, open it in Safari and tap Share → Add to Home Screen.</p>
+      )}
+      <p>
+        Sign in with {email ? <span className="font-medium break-all text-slate-900">{email}</span> : "the same email"} and the same password. Your jobs sync
+        automatically.
+      </p>
+    </div>
+  );
+}
+
+function QrCode({ value, className }: { value: string; className?: string }) {
+  const modules = useMemo(() => {
+    try {
+      return qrModules(value);
+    } catch {
+      return null;
+    }
+  }, [value]);
+  if (!modules) return null;
+  const n = modules.length + 8;
+  return (
+    <svg viewBox={`0 0 ${n} ${n}`} className={`rounded-lg bg-white ring-1 ring-slate-200 ${className ?? ""}`} role="img" aria-label="QR code for the App Store page" shapeRendering="crispEdges">
+      <path d={qrPath(modules)} fill="#0f172a" />
+    </svg>
   );
 }

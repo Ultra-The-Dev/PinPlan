@@ -44,10 +44,11 @@ describe("sign-up checks", () => {
   it("flags each problem with a friendly message", () => {
     expect(signupProblem({ ...ok, code: "abc" })).toMatch(/invite code/);
     expect(signupProblem({ ...ok, email: "nope" })).toMatch(/valid email/);
-    expect(signupProblem({ ...ok, password: "short" })).toMatch(/at least 8/);
+    expect(signupProblem({ ...ok, password: "short" })).toMatch(/at least 10/);
+    expect(signupProblem({ ...ok, password: "nine-char" })).toMatch(/at least 10/);
     expect(signupProblem({ ...ok, password: "x".repeat(73) })).toMatch(/72/);
     expect(signupProblem({ ...ok, name: "x".repeat(81) })).toMatch(/80/);
-    expect(signupProblem({ email: "a@b.co", password: "12345678" })).toBeNull();
+    expect(signupProblem({ email: "a@b.co", password: "1234567890" })).toBeNull();
   });
 });
 

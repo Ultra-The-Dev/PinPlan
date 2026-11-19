@@ -1,6 +1,8 @@
 // Sign-up, first-run and account-deletion rules. Pure (no browser or network), shared by the pages, the
 // /api/account route and the tests.
 import { PASSWORD_MIN, signupProblem, type TeamRole } from "./teamLogic";
+import { normalizeTrades } from "./trades";
+import type { TradeId } from "./types";
 
 // ---------------- where "/" sends a visitor ----------------
 
@@ -14,12 +16,20 @@ export interface LandingInput {
   localJobs: number | null;
   /** The visitor chose "Try it without an account" on this device. */
   demo: boolean;
+  /** Signed in: on a company team (true), not on one (false), or not known yet (null). Leave it out where the team
+   *  doesn't matter. */
+  hasTeam?: boolean | null;
 }
 
-/** "welcome": first-time visitor → landing page. "stay": show the jobs list. "wait": not known yet. */
-export function landingDecision(i: LandingInput): "welcome" | "stay" | "wait" {
+/** "welcome": first-time visitor → landing page. "setup": signed in but not in a company yet → "Set up your company".
+ *  "stay": show the jobs list. "wait": not known yet. */
+export function landingDecision(i: LandingInput): "welcome" | "setup" | "stay" | "wait" {
   // A self-hosted, local-only copy has no accounts to sign up for: it's just the app.
-  if (!i.configured || i.demo) return "stay";
+  if (!i.configured) return "stay";
+  // Every account belongs to a company: someone signed in without one sets it up (or joins one) first.
+  if (i.authReady && i.signedIn && i.hasTeam === false) return "setup";
+  if (i.authReady && i.signedIn && i.hasTeam === null && !i.localJobs) return "wait";
+  if (i.demo) return "stay";
   if (i.localJobs !== null && i.localJobs > 0) return "stay";
   if (i.authReady && i.signedIn) return "stay";
   if (!i.authReady || i.localJobs === null) return "wait";
@@ -35,7 +45,8 @@ export interface PasswordStrength {
   hint: string;
 }
 
-const COMMON = /^(password|passw0rd|12345678|123456789|1234567890|qwerty12|qwertyuiop|iloveyou|letmein1|abc12345|11111111|00000000|pinplan1?)$/i;
+const COMMON =
+  /^(password\d{0,4}!?|passw0rd\d{0,4}|1234567890?|0123456789|qwerty\d{0,4}|qwertyuiop|1q2w3e4r5t|iloveyou\d{0,4}|letmein\d{0,4}|welcome\d{0,4}|changeme\d{0,4}|abc1234567|abcdefghij|administrator|pinplan\d{0,4})$/i;
 
 /** A quick, honest strength meter: length matters most, then variety; common passwords are always weak. */
 export function passwordStrength(pw: string): PasswordStrength {
@@ -74,6 +85,9 @@ export function companySignupProblem(f: CompanySignup): string | null {
 /** Supabase's sign-up / sign-in errors, in plain words. */
 export function authErrorMessage(message: string | null | undefined): string {
   const m = message ?? "";
+  const min = /should be at least (\d+) characters/i.exec(m);
+  if (min) return `Use a password of at least ${min[1]} characters.`;
+  if (/captcha/i.test(m)) return "We couldn’t check that you’re a person. Wait a moment and try again.";
   if (/already (registered|been registered)|user already exists/i.test(m)) return "There’s already an account with this email. Sign in instead, or reset your password.";
   if (/invalid login credentials/i.test(m)) return "That email and password don’t match. Check them, or reset your password.";
   if (/email not confirmed/i.test(m)) return "Confirm your email first — open the link we sent you (check spam), then sign in.";
@@ -84,13 +98,91 @@ export function authErrorMessage(message: string | null | undefined): string {
   return m || "Something went wrong. Try again.";
 }
 
+// ---------------- terms ----------------
+
+/** Which Terms of Service and Privacy Policy people agree to. Change it together with LEGAL_EFFECTIVE_DATE (legal.ts)
+ *  whenever either document materially changes. */
+export const TERMS_VERSION = "2026-11";
+
+/** Stored in the account's user_metadata on every sign-up path (company sign-up, invite, "Set up your company"). */
+export const termsMetadata = (now = new Date()) => ({ terms_accepted_at: now.toISOString(), terms_version: TERMS_VERSION });
+
+/** The account has agreed to the current terms. */
+export const acceptedTerms = (meta: Record<string, unknown> | null | undefined) =>
+  meta?.terms_version === TERMS_VERSION && typeof meta?.terms_accepted_at === "string";
+
+// ---------------- the company a new account is waiting for ----------------
+
+export interface CompanyFromSignup {
+  company: string;
+  name: string;
+  trades: TradeId[];
+}
+
+/** The company a sign-up asked for, from the account's user_metadata, so it can be made on whichever device opens the
+ *  confirmation email. Null when the account didn't sign up as a company, or the company was already made. */
+export function companyFromMetadata(meta: Record<string, unknown> | null | undefined): CompanyFromSignup | null {
+  if (!meta || meta.company_created_at) return null;
+  const company = typeof meta.company === "string" ? meta.company.trim().slice(0, 120) : "";
+  if (!company) return null;
+  const name = typeof meta.name === "string" ? meta.name.trim().slice(0, 80) : "";
+  const trades = Array.isArray(meta.trades) && meta.trades.length ? normalizeTrades(meta.trades) : [];
+  return { company, name, trades };
+}
+
+/** The first problem with "Set up your company", or null. `accepted` is only asked of accounts that haven't agreed yet. */
+export function setupCompanyProblem(f: { company: string; name: string; accepted: boolean }): string | null {
+  const company = f.company.trim();
+  if (!company) return "Enter your company name.";
+  if (company.length > 120) return "Keep the company name under 120 characters.";
+  if (!f.name.trim()) return "Enter your name.";
+  if (f.name.trim().length > 80) return "Keep your name under 80 characters.";
+  if (!f.accepted) return "Please accept the Terms and Privacy Policy.";
+  return null;
+}
+
+// ---------------- /start ----------------
+
+export type StartView = "loading" | "setup" | "finishing" | "tech" | "checklist";
+
+/** What /start shows: the checklist (owner and office, or a local-only copy), a short "Get the app" page for
+ *  technicians, "Set up your company" for an account without one, or a spinner while that's being worked out. */
+export function startView(i: {
+  configured: boolean;
+  authReady: boolean;
+  signedIn: boolean;
+  /** On a team (true), not on one (false), not known yet (null). */
+  hasTeam: boolean | null;
+  role: TeamRole | null;
+  /** A company from the sign-up is being made right now. */
+  finishing: boolean;
+}): StartView {
+  if (!i.configured) return "checklist";
+  if (!i.authReady) return "loading";
+  if (!i.signedIn) return "checklist";
+  if (i.finishing) return "finishing";
+  if (i.hasTeam === null) return "loading";
+  if (!i.hasTeam) return "setup";
+  return i.role === "tech" ? "tech" : "checklist";
+}
+
+/** The App Store link (NEXT_PUBLIC_APP_STORE_URL), or "" when it isn't set or isn't an https link. */
+export function appStoreUrl(raw: string | null | undefined): string {
+  const v = (raw ?? "").trim();
+  try {
+    return v && new URL(v).protocol === "https:" ? v : "";
+  } catch {
+    return "";
+  }
+}
+
 // ---------------- first-run checklist ----------------
 
 export type OnboardingStepId = "business" | "plan" | "team" | "app";
 export const ONBOARDING_STEPS: OnboardingStepId[] = ["business", "plan", "team", "app"];
 
 export interface OnboardingSignals {
-  /** The company's own name and phone are in Settings › Business. */
+  /** The company's own name and phone are in the company settings (companySettings.ts). */
   businessName: boolean;
   /** At least one floor plan sheet on this device. */
   hasPlan: boolean;

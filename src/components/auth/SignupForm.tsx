@@ -4,15 +4,15 @@ import { ArrowRight, Building2, Loader2, LogOut, Mail, RefreshCw } from "lucide-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { brandNewCompany, markOnboardingStarted, rememberPendingCompany, sendWelcomeEmail } from "@/lib/onboarding";
-import { authErrorMessage, companySignupProblem } from "@/lib/onboardingLogic";
+import { useCaptcha } from "@/lib/captcha";
+import { rememberPendingCompany, welcomeNewCompany } from "@/lib/onboarding";
+import { authErrorMessage, companySignupProblem, termsMetadata } from "@/lib/onboardingLogic";
 import { setAuthor } from "@/lib/photos";
 import { PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { createTeam } from "@/lib/team";
 import type { TradeId } from "@/lib/types";
-import { chooseTrades } from "@/lib/useTrades";
 import TradePicker from "../TradePicker";
 import { TryDemoLink } from "../marketing/Site";
 import { AuthCard, AuthShell, AuthTitle, errText, FormError, FormNotice, PasswordField } from "./AuthShell";
@@ -29,6 +29,7 @@ export default function SignupForm() {
   /** The login exists but making the company failed: offer a retry instead of a second sign-up. */
   const [teamRetry, setTeamRetry] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("signup");
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const makeCompany = async () => {
@@ -38,12 +39,9 @@ export default function SignupForm() {
       // Signed up twice on one account: their company already exists, carry on.
       if (!/already on a team/i.test(errText(e))) throw e;
     }
-    setAuthor(f.name.trim());
-    sendWelcomeEmail(f.company, f.name);
-    await brandNewCompany(f.company, f.email).catch(() => undefined);
-    // The company's trades: their palette, catalog, wire types and checklists (none picked = low voltage).
-    if (f.trades.length) await chooseTrades(f.trades).catch(() => undefined);
-    markOnboardingStarted();
+    // The company's trades (their palette, catalog, wire types and checklists; none picked = low voltage), its name on
+    // estimates, the welcome email and the checklist.
+    await welcomeNewCompany({ company: f.company.trim(), name: f.name.trim(), email: f.email.trim(), trades: f.trades });
     setLeaving(true);
     void useSyncStatus.getState().syncNow().catch(() => undefined);
     router.push("/start");
@@ -65,10 +63,15 @@ export default function SignupForm() {
         return;
       }
       const email = f.email.trim();
+      // The company travels with the account, so it can be made on whichever device opens the confirmation email.
       const { data, error } = await sb.auth.signUp({
         email,
         password: f.password,
-        options: { data: { name: f.name.trim(), company: f.company.trim() }, emailRedirectTo: confirmRedirect() },
+        options: {
+          data: { name: f.name.trim(), company: f.company.trim(), trades: f.trades, ...termsMetadata() },
+          emailRedirectTo: confirmRedirect(),
+          captchaToken: await takeCaptcha(),
+        },
       });
       // With "Confirm email" on, an address that already has an account comes back with no identities.
       const exists = !error && data.user && !data.session && data.user.identities?.length === 0;
@@ -94,7 +97,8 @@ export default function SignupForm() {
         return;
       }
       if (!data.session) {
-        // "Confirm email" is on: the company is made on the first sign-in after they click the link (see sync.ts).
+        // "Confirm email" is on: the company is made on the first sign-in after they click the link, on this device or
+        // any other (finishPendingCompany in onboarding.ts, run by sync.ts).
         rememberPendingCompany({ company: f.company.trim(), name: f.name.trim(), email, trades: f.trades });
         setAuthor(f.name.trim());
         setSentTo(email);
@@ -202,7 +206,8 @@ export default function SignupForm() {
               </span>
             </label>
           )}
-          <FormError>{error}</FormError>
+          <div ref={captchaMount} className="flex justify-center empty:hidden" />
+          <FormError>{error ?? captchaError}</FormError>
           <button type="submit" className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || leaving}>
             {busy || leaving ? <Loader2 className="animate-spin" /> : teamRetry ? <RefreshCw /> : null}
             {busy || leaving ? "Setting up your company…" : teamRetry ? "Try again" : "Create company account"}
@@ -220,6 +225,7 @@ export default function SignupForm() {
 }
 
 function CheckEmail({ email, company }: { email: string; company: string }) {
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("resend");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   return (
@@ -230,8 +236,8 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
           title="Check your email"
           sub={
             <>
-              We sent a confirmation link to <span className="font-medium break-all text-slate-700">{email}</span>. Open it on this device and sign in — we’ll finish setting up{" "}
-              <span className="font-medium text-slate-700">{company}</span> for you.
+              We sent a confirmation link to <span className="font-medium break-all text-slate-700">{email}</span>. Open it on any device — phone, tablet or
+              computer — and sign in. We’ll finish setting up <span className="font-medium text-slate-700">{company}</span> for you.
             </>
           }
         />
@@ -249,14 +255,20 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
             onClick={async () => {
               setBusy(true);
               setMsg(null);
-              const r = await getSupabase()?.auth.resend({ type: "signup", email, options: { emailRedirectTo: confirmRedirect() } });
-              setBusy(false);
-              setMsg(r?.error ? { ok: false, text: authErrorMessage(r.error.message) } : { ok: true, text: "Sent again. Give it a few minutes." });
+              try {
+                const r = await getSupabase()?.auth.resend({ type: "signup", email, options: { emailRedirectTo: confirmRedirect(), captchaToken: await takeCaptcha() } });
+                setMsg(r?.error ? { ok: false, text: authErrorMessage(r.error.message) } : { ok: true, text: "Sent again. Give it a few minutes." });
+              } catch (e) {
+                setMsg({ ok: false, text: authErrorMessage(errText(e)) });
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <RefreshCw /> Resend the email
           </button>
         </div>
+        <div ref={captchaMount} className="mt-3 flex justify-center empty:hidden" />
         <div className="mt-3">{msg && (msg.ok ? <FormNotice>{msg.text}</FormNotice> : <FormError>{msg.text}</FormError>)}</div>
       </AuthCard>
     </AuthShell>

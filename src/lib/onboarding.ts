@@ -2,9 +2,12 @@
 // First-run state kept on this device: demo mode, the company waiting for a confirmed email, and the
 // onboarding checklist (ticks + dismissed). See onboardingLogic.ts for the rules.
 import { useEffect, useState } from "react";
+import { create } from "zustand";
 import { FOUNDER_BUSINESS } from "./catalog";
-import { db, getSettings, saveSettings } from "./db";
-import { onboardingDone, onboardingProgress, type OnboardingStepId } from "./onboardingLogic";
+import { COMPANY_SETTINGS_EVENT, getCompanySettings, pullCompanySettings, saveCompanySettings } from "./companySettings";
+import { db, getSettings } from "./db";
+import { companyFromMetadata, onboardingDone, onboardingProgress, termsMetadata, type OnboardingStepId } from "./onboardingLogic";
+import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
 import { createTeam, useTeam } from "./team";
 import type { TradeId } from "./types";
@@ -63,26 +66,69 @@ export function sendWelcomeEmail(company: string, name: string): void {
   })().catch(() => undefined);
 }
 
-/** Call after sign-in: creates the team from a sign-up that was waiting for email confirmation. Returns its name when it did. */
+/** The company being made from a sign-up right now (so screens wait instead of offering "Set up your company"). */
+export const useCompanySetup = create<{ finishing: string | null }>(() => ({ finishing: null }));
+
+/** Sent when a company from a sign-up is ready: the jobs list moves on to /start. */
+export const COMPANY_READY_EVENT = "pinplan:company-ready";
+
+/** The signed-in account's user_metadata (null when signed out or offline). */
+export async function accountMetadata(): Promise<Record<string, unknown> | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  return (data.session?.user.user_metadata as Record<string, unknown> | undefined) ?? null;
+}
+
+/** Note on the account that it agreed to the current Terms and Privacy Policy (best effort: the sign-up already
+ *  sent it where it could). */
+export async function recordTermsAccepted(): Promise<void> {
+  await getSupabase()
+    ?.auth.updateUser({ data: termsMetadata() })
+    .catch(() => undefined);
+}
+
+/** Everything a brand-new company gets once its team exists: trades, this device's business name, the welcome email,
+ *  and the checklist. The company is noted on the account so it's never made twice (another device, a later sign-in). */
+export async function welcomeNewCompany(c: { company: string; name: string; email: string; trades?: TradeId[] }): Promise<void> {
+  if (c.name.trim()) setAuthor(c.name.trim());
+  if (c.trades?.length) await chooseTrades(c.trades).catch(() => undefined);
+  await brandNewCompany(c.company, c.email).catch(() => undefined);
+  await getSupabase()
+    ?.auth.updateUser({ data: { company_created_at: new Date().toISOString() } })
+    .catch(() => undefined);
+  sendWelcomeEmail(c.company, c.name);
+  markOnboardingStarted();
+}
+
+/** Call after sign-in: creates the team from a sign-up that was waiting for email confirmation — from this device's
+ *  note, or else from the account itself (the link may have been opened on another device). Returns its name when it did. */
 export async function finishPendingCompany(email: string | null): Promise<string | null> {
-  const p = pendingCompany();
   const t = useTeam.getState();
-  if (!p || !t.userId || !email) return null;
-  // Only for the account that signed up, and only once.
-  if (p.email !== email.trim().toLowerCase() || t.team) {
-    if (t.team && p.email === email.trim().toLowerCase()) clearPendingCompany();
+  if (!t.userId || !email) return null;
+  const mine = (p: PendingCompany | null) => (p && p.email === email.trim().toLowerCase() ? p : null);
+  const local = mine(pendingCompany());
+  // Only once: already on a team (or the team couldn't be read) means there's nothing to make.
+  if (t.team) {
+    if (local) clearPendingCompany();
     return null;
   }
+  if (t.error || t.needsMigration) return null;
+  const fromAccount = local ? null : companyFromMetadata(await accountMetadata());
+  const p: PendingCompany | null = local ?? (fromAccount ? { ...fromAccount, email } : null);
+  if (!p || useTeam.getState().team) return null;
+  useCompanySetup.setState({ finishing: p.company });
   try {
     await createTeam(p.company, p.name);
-    if (p.trades?.length) await chooseTrades(p.trades).catch(() => undefined);
     clearPendingCompany();
-    sendWelcomeEmail(p.company, p.name);
-    write(ONBOARDING_KEY, { ...readOnboarding(), started: true });
+    await welcomeNewCompany({ company: p.company, name: p.name, email, trades: p.trades });
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANY_READY_EVENT));
     return p.company;
   } catch (e) {
-    if (!/fetch|network/i.test((e as Error).message)) clearPendingCompany();
+    if (local && !/fetch|network/i.test((e as Error).message)) clearPendingCompany();
     return null;
+  } finally {
+    useCompanySetup.setState({ finishing: null });
   }
 }
 
@@ -118,7 +164,7 @@ export interface OnboardingView {
   progress: ReturnType<typeof onboardingProgress>;
 }
 
-/** The checklist, with steps detected from this device's data (business name, a floor plan, teammates). */
+/** The checklist, with steps detected from the data (the company's name and phone, a floor plan, teammates). */
 export function useOnboarding(): OnboardingView {
   const members = useTeam((s) => s.members.length);
   const [state, setState] = useState<{ ready: boolean; store: OnboardingStore; businessName: boolean; hasPlan: boolean }>({
@@ -130,15 +176,19 @@ export function useOnboarding(): OnboardingView {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [settings, sheets] = await Promise.all([getSettings().catch(() => null), db().sheets.filter((s) => !s.deleted).count().catch(() => 0)]);
-      if (alive) setState({ ready: true, store: readOnboarding(), businessName: !!settings && businessReady(settings.business), hasPlan: sheets > 0 });
+      const [company, sheets] = await Promise.all([getCompanySettings().catch(() => null), db().sheets.filter((s) => !s.deleted).count().catch(() => 0)]);
+      if (alive) setState({ ready: true, store: readOnboarding(), businessName: !!company && businessReady(company), hasPlan: sheets > 0 });
     };
     void load();
+    // The company's details may have been filled in on another device.
+    void pullCompanySettings();
     window.addEventListener(ONBOARDING_EVENT, load);
+    window.addEventListener(COMPANY_SETTINGS_EVENT, load);
     window.addEventListener("pinplan:synced", load);
     return () => {
       alive = false;
       window.removeEventListener(ONBOARDING_EVENT, load);
+      window.removeEventListener(COMPANY_SETTINGS_EVENT, load);
       window.removeEventListener("pinplan:synced", load);
     };
   }, []);
@@ -156,7 +206,8 @@ const businessReady = (b: { name: string; phone: string }) => !isSampleBusiness(
 export async function brandNewCompany(company: string, email: string): Promise<void> {
   const s = await getSettings();
   if (!isSampleBusiness(s.business.name)) return;
-  await saveSettings({ ...s, business: { ...s.business, name: company.trim(), email: email.trim() } });
+  // For the whole company (company_settings), so every device and teammate starts with the right name.
+  await saveCompanySettings({ name: company.trim(), email: email.trim() });
 }
 
 // ---------------- leaving this device ----------------

@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react"
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useCaptcha } from "@/lib/captcha";
 import { authErrorMessage } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
@@ -31,6 +32,7 @@ export default function ResetForm() {
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [done, setDone] = useState(false);
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("reset");
 
   useEffect(() => {
     const sub = getSupabase()?.auth.onAuthStateChange((evt) => {
@@ -146,7 +148,7 @@ export default function ResetForm() {
           />
           <ul className="mb-5 space-y-1.5 text-sm text-slate-500">
             <li>· The email may take a few minutes to arrive — check spam too.</li>
-            <li>· Open the link on this device to choose a new password.</li>
+            <li>· Open the link in this browser to choose a new password.</li>
           </ul>
           <div className="space-y-2">
             <Link href="/login" className="btn h-11 w-full">
@@ -184,7 +186,7 @@ export default function ResetForm() {
             setBusy(true);
             setError(null);
             try {
-              const { error } = await getSupabase()!.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset` });
+              const { error } = await getSupabase()!.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset`, captchaToken: await takeCaptcha() });
               if (error) setError(authErrorMessage(error.message));
               else setSent(true);
             } catch (err) {
@@ -198,7 +200,8 @@ export default function ResetForm() {
             <label className="label" htmlFor="rs-email">Email</label>
             <input id="rs-email" className="input h-11" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <FormError>{error}</FormError>
+          <div ref={captchaMount} className="flex justify-center empty:hidden" />
+          <FormError>{error ?? captchaError}</FormError>
           <button className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || !email.trim()}>
             {busy ? <Loader2 className="animate-spin" /> : <Mail />} Send reset link
           </button>

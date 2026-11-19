@@ -132,4 +132,11 @@ final class TeamLogicTests: XCTestCase {
         XCTAssertTrue(s.contains("K7QM-XR4T-PA"))
         XCTAssertFalse(TeamLogic.inviteMessage(team: "", role: .admin, name: "", code: "AB", link: nil).contains("Join here"))
     }
+
+    func testPasswordRulesMatchTheWeb() {
+        XCTAssertEqual(TeamLogic.passwordMin, 10)
+        XCTAssertEqual(TeamLogic.passwordProblem("nine-char"), "Use a password of at least 10 characters.")
+        XCTAssertNil(TeamLogic.passwordProblem("1234567890"))
+        XCTAssertNotNil(TeamLogic.passwordProblem(String(repeating: "x", count: 73)))
+    }
 }
