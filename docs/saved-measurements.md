@@ -50,7 +50,8 @@ everything. RLS: any member of the job (`is_project_member`, technicians include
 subscription has lapsed (`job_write_guard`). Included in backups (`ProjectBundle.measurements`).
 
 Rotating a sheet 90° clockwise turns its measurements with it (`rotatePointsCW`: `(x, y) → (1 − y, x)`, called from
-`rotateSheetCW`). That write is not part of the editor's undo step.
+`rotateSheetCW`). The editor's undo / redo of that rotation turns them back / forward again (the measurements follow the
+sheet's image id: `rotateSheetMeasurements` in `src/lib/measurements.ts`).
 
 ## Maths (`src/lib/measure.ts`, tested in `tests/measure.test.ts`) — mirror these on iOS
 
@@ -63,9 +64,11 @@ Rotating a sheet 90° clockwise turns its measurements with it (`rotatePointsCW`
 - Saving: drop repeated taps closer than 0.0015 (relative), drop an area's closing point equal to its first, a length
   keeps its two ends; fewer than 2 points (3 for an area) is discarded.
 - Grouping: label trimmed, spaces collapsed, case-insensitive; **Length and Run share a group** (both linear feet), Area
-  is separate. Group key `label|length` or `label|area`.
+  is separate. Group key `<slug>|length` or `<slug>|area` (labels with the same slug, e.g. "Cat 6" and "cat-6", are one
+  group, as they share one estimate line).
 - `formatFeetInches(12.5)` = `12' 6"` (rounded to the inch); areas `1,234 sq ft`.
-- Estimate key `custom:meas-<slug>-<length|area>`, slug = lower-case, non-alphanumerics → `-`, trimmed; qty =
+- Estimate key `custom:meas-<slug>-<length|area>`, slug = lower-case, runs of anything but letters/digits (any script)
+  → `-`, trimmed; a label with no letters or digits → `g` + base-36 hash (31-multiplier over code points); qty =
   ceil(total); description = label (areas: "label (area)").
 
 ## Code map

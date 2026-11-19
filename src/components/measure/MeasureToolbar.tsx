@@ -5,7 +5,7 @@ import { Eye, EyeOff, ListOrdered, Pentagon, Ruler, Spline, Tag, X } from "lucid
 import { useId, useState } from "react";
 import { KIND_NAMES } from "@/lib/measure";
 import type { MeasurementKind } from "@/lib/types";
-import { MEASURE_COLORS, useMeasureUi } from "./measureUi";
+import { COLOR_NAMES, MEASURE_COLORS, useMeasureUi } from "./measureUi";
 
 const KIND_ICONS: Record<MeasurementKind, typeof Ruler> = { length: Ruler, polyline: Spline, area: Pentagon };
 const KINDS: MeasurementKind[] = ["length", "polyline", "area"];
@@ -119,7 +119,7 @@ export default function MeasureToolbar({ count, recent, hidden, colorFor }: { co
               key={c}
               role="radio"
               aria-checked={ui.color === c}
-              aria-label={`Colour ${c}`}
+              aria-label={`Colour: ${COLOR_NAMES[c] ?? c}`}
               className={`flex h-9 w-9 items-center justify-center rounded-full ${ui.color === c ? "ring-2 ring-slate-900/70" : ""}`}
               onClick={() => {
                 ui.setColor(c);

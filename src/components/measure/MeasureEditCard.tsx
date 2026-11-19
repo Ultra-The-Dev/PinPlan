@@ -6,7 +6,7 @@ import { useId, useState } from "react";
 import { formatFeetInches, formatSqFt, formatValue, KIND_NAMES, measurementValue } from "@/lib/measure";
 import { useMeasurements } from "@/lib/measurements";
 import type { Measurement, Sheet } from "@/lib/types";
-import { MEASURE_COLORS, useMeasureUi } from "./measureUi";
+import { COLOR_NAMES, MEASURE_COLORS, useMeasureUi } from "./measureUi";
 
 const ICONS = { length: Ruler, polyline: Spline, area: Pentagon };
 
@@ -120,7 +120,7 @@ export default function MeasureEditCard({ m, sheet, recent }: { m: Measurement; 
       </div>
       <div className="mt-3 flex items-center gap-1.5">
         {MEASURE_COLORS.map((c) => (
-          <button key={c} className={`flex h-8 w-8 items-center justify-center rounded-full ${color === c ? "ring-2 ring-slate-900/70" : ""}`} onClick={() => void update(m.id, { color: c })} aria-label={`Colour ${c}`} aria-pressed={color === c}>
+          <button key={c} className={`flex h-8 w-8 items-center justify-center rounded-full ${color === c ? "ring-2 ring-slate-900/70" : ""}`} onClick={() => void update(m.id, { color: c })} aria-label={`Colour: ${COLOR_NAMES[c] ?? c}`} aria-pressed={color === c}>
             <span className="h-5 w-5 rounded-full" style={{ background: c }} />
           </button>
         ))}

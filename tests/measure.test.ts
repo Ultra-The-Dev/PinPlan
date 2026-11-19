@@ -133,10 +133,10 @@ describe("summary", () => {
   it("groups by label (case/space-insensitive) and kind, runs with lengths, and excludes uncalibrated sheets", () => {
     const s = summarize(ms, sheets);
     const byKey = Object.fromEntries(s.rows.map((r) => [r.key, r]));
-    expect(byKey["cat6 tray|length"]).toMatchObject({ label: "Cat6 tray", count: 2, total: 20, unit: "ft" });
-    expect(byKey["cat6 tray|length"].sheets.map((x) => x.name)).toEqual(["Level 1", "Level 2"]);
-    expect(byKey["cat6 tray|area"]).toMatchObject({ count: 1, total: 50, unit: "sq ft", perimeterFt: 30 });
-    expect(byKey["drop ceiling|area"].total).toBeCloseTo(55);
+    expect(byKey["cat6-tray|length"]).toMatchObject({ label: "Cat6 tray", count: 2, total: 20, unit: "ft" });
+    expect(byKey["cat6-tray|length"].sheets.map((x) => x.name)).toEqual(["Level 1", "Level 2"]);
+    expect(byKey["cat6-tray|area"]).toMatchObject({ count: 1, total: 50, unit: "sq ft", perimeterFt: 30 });
+    expect(byKey["drop-ceiling|area"].total).toBeCloseTo(55);
     expect(byKey["unlabeled|length"]).toMatchObject({ label: "Unlabeled", count: 1, total: 10 });
     expect(s.rows.at(-1)!.label).toBe("Unlabeled");
     expect(s.uncalibrated).toEqual([{ sheetId: "s3", name: "Photo", count: 1 }]);
@@ -183,6 +183,22 @@ describe("estimate line", () => {
     expect(measureLineKey({ label: "Drop Ceiling", kind: "area" })).toBe(area.key);
     // Not a "per device" charge (no @): estimate.ts uses the stored qty.
     expect(line.key).not.toContain("@");
+  });
+
+  it("gives one group and one estimate line per key, for any script", () => {
+    // Labels that would share an estimate key are one group (adding one must not overwrite the other's line).
+    const s = summarize([mk({ id: "x", label: "Cat 6" }), mk({ id: "y", label: "cat-6" })], [sheet]);
+    expect(s.rows).toHaveLength(1);
+    expect(s.rows[0]).toMatchObject({ count: 2, total: 20 });
+    expect(measureLineKey(s.rows[0])).toBe("custom:meas-cat-6-length");
+    // Non-Latin labels keep their letters instead of all collapsing to one key.
+    const a = measureLineKey({ label: "Кабель", kind: "length" });
+    const b = measureLineKey({ label: "Труба", kind: "length" });
+    expect(a).toBe("custom:meas-кабель-length");
+    expect(a).not.toBe(b);
+    // Punctuation-only labels get distinct hashed keys.
+    expect(measureLineKey({ label: "//", kind: "area" })).not.toBe(measureLineKey({ label: "**", kind: "area" }));
+    expect(measureLineKey({ label: "//", kind: "area" })).toBe(measureLineKey({ label: "//", kind: "area" }));
   });
 
   it("suggests a unit price from wire prices or products", () => {

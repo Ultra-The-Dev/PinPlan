@@ -168,7 +168,7 @@ export const UNLABELED = "Unlabeled";
 export const groupLabel = (label: string | null | undefined) => label?.trim().replace(/\s+/g, " ") || UNLABELED;
 
 export interface SummaryRow {
-  /** Stable group key: `<label lower-cased>|<group kind>`. */
+  /** Stable group key: `<slugify(label)>|<group kind>`. Labels that differ only in case or punctuation share a group, as they share an estimate line. */
   key: string;
   label: string;
   kind: GroupKind;
@@ -213,7 +213,7 @@ export function summarize(measurements: Measurement[], sheets: Pick<Sheet, "id" 
     }
     const label = groupLabel(m.label);
     const kind = groupKind(m.kind);
-    const key = `${label.toLowerCase()}|${kind}`;
+    const key = `${slugify(label)}|${kind}`;
     let g = groups.get(key);
     if (!g) {
       g = { key, label, kind, unit: unitFor(kind), count: 0, total: 0, color: null, sheets: [], ids: [], colors: new Map() };
@@ -258,8 +258,16 @@ export function toCsv(rows: SummaryRow[]): string {
 
 // ---------------- estimate ----------------
 
+/**
+ * Label → key part: lower-case letters and digits (any script) joined by "-". A label with neither (e.g. "//") gets a
+ * short hash, so two such labels don't share one estimate line.
+ */
 export function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "group";
+  const out = s.toLowerCase().normalize("NFC").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  if (out) return out;
+  let h = 0;
+  for (const ch of s.trim()) h = (Math.imul(h, 31) + ch.codePointAt(0)!) >>> 0;
+  return s.trim() ? `g${h.toString(36)}` : "group";
 }
 
 /** Estimate line key for a group: `custom:meas-<slug(label)>-<kind>` (stable, so re-adding updates the same line). */

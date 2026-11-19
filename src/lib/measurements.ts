@@ -86,12 +86,57 @@ if (typeof window !== "undefined") {
   });
 }
 
-/** The sheet image was rotated 90° clockwise: turn its measurements with it (called from the editor's rotateSheetCW). */
-export async function rotateSheetMeasurements(sheetId: string): Promise<void> {
+/** Turn a sheet's measurements by `quarterTurns` × 90° clockwise. */
+async function turnSheetMeasurements(sheetId: string, quarterTurns: number): Promise<void> {
   const rows = (await db().measurements.where("sheetId").equals(sheetId).toArray()).filter((m) => !m.deleted);
   if (!rows.length) return;
-  const saved = await putMany<Measurement>("measurements", rows.map((m) => ({ ...m, points: rotatePointsCW(m.points) })));
+  const turn = (p: number[]) => {
+    let out = p;
+    for (let i = 0; i < quarterTurns; i++) out = rotatePointsCW(out);
+    return out;
+  };
+  const saved = await putMany<Measurement>("measurements", rows.map((m) => ({ ...m, points: turn(m.points) })));
   const byId = new Map(saved.map((r) => [r.id, r]));
   loadSeq++;
   useMeasurements.setState((s) => ({ rows: s.rows.map((r) => byId.get(r.id) ?? r) }));
+}
+
+// Rotations made in this session ({sheet, image before → image after}). The editor's undo/redo swaps the sheet's image
+// back and forth without calling rotateSheetCW again, so the measurements follow the sheet's image id instead.
+const rotations: { sheetId: string; from: string; to: string }[] = [];
+const seenImage = new Map<string, string>();
+let watching: Promise<void> | null = null;
+
+function watchSheetImages(): Promise<void> {
+  // Loaded lazily: the editor store imports this module.
+  watching ??= import("./store").then(({ useEditor }) => {
+    for (const s of useEditor.getState().sheets) seenImage.set(s.id, s.imageId);
+    useEditor.subscribe((st) => {
+      for (const s of st.sheets) {
+        const prev = seenImage.get(s.id);
+        if (prev === s.imageId) continue;
+        seenImage.set(s.id, s.imageId);
+        if (!prev) continue;
+        if (rotations.some((r) => r.sheetId === s.id && r.to === prev && r.from === s.imageId)) void turnSheetMeasurements(s.id, 3); // undo
+        else if (rotations.some((r) => r.sheetId === s.id && r.from === prev && r.to === s.imageId)) void turnSheetMeasurements(s.id, 1); // redo
+      }
+    });
+  });
+  return watching;
+}
+
+/**
+ * The sheet image was rotated 90° clockwise (from image `fromImageId`): turn its measurements with it, and again
+ * whenever the editor's undo/redo swaps the image back or forth. Called from the editor's rotateSheetCW.
+ */
+export async function rotateSheetMeasurements(sheetId: string, fromImageId?: string): Promise<void> {
+  if (fromImageId) {
+    await watchSheetImages();
+    const to = (await db().sheets.get(sheetId))?.imageId;
+    if (to && to !== fromImageId) {
+      rotations.push({ sheetId, from: fromImageId, to });
+      seenImage.set(sheetId, to);
+    }
+  }
+  await turnSheetMeasurements(sheetId, 1);
 }

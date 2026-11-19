@@ -535,7 +535,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       changes.push({ table: "runs", before: r, after: { ...r, points } });
     }
     await get().commit(changes);
-    await rotateSheetMeasurements(id);
+    await rotateSheetMeasurements(id, before.imageId);
   },
   async updateProject(patch) {
     const before = get().project;

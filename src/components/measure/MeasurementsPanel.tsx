@@ -108,9 +108,9 @@ export default function MeasurementsPanel({ sheet, rows }: { sheet: Sheet; rows:
           <div className="section-title">Measurements</div>
           <h3 className="truncate text-base leading-tight font-semibold">{scope === "sheet" ? sheet.name : "Whole job"}</h3>
         </div>
-        <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 text-xs font-semibold" role="tablist">
+        <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 text-xs font-semibold" role="group" aria-label="Totals for">
           {(["sheet", "job"] as const).map((s) => (
-            <button key={s} role="tab" aria-selected={scope === s} className={`rounded-md px-2.5 py-1.5 ${scope === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`} onClick={() => setScope(s)} data-testid={`measure-scope-${s}`}>
+            <button key={s} aria-pressed={scope === s} className={`rounded-md px-2.5 py-1.5 ${scope === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`} onClick={() => setScope(s)} data-testid={`measure-scope-${s}`}>
               {s === "sheet" ? "Sheet" : "Job"}
             </button>
           ))}

@@ -5,6 +5,8 @@ import { create } from "zustand";
 import type { Measurement, MeasurementKind } from "@/lib/types";
 
 export const MEASURE_COLORS = ["#e11d48", "#f59e0b", "#16a34a", "#0284c7", "#7c3aed", "#334155"];
+/** Spoken names for the colour swatches (screen readers). */
+export const COLOR_NAMES: Record<string, string> = { "#e11d48": "Red", "#f59e0b": "Amber", "#16a34a": "Green", "#0284c7": "Blue", "#7c3aed": "Violet", "#334155": "Slate" };
 
 const PREFS_KEY = "pinplan.measure.prefs";
 
