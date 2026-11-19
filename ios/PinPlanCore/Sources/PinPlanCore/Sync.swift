@@ -40,13 +40,13 @@ public enum SyncMap {
         .markers: TableSpec(remote: "markers", conflict: "id", columns: child + [
             ("sheetId", "sheet_id"), ("deviceTypeId", "device_type_id"), ("x", "x"), ("y", "y"), ("label", "label"), ("room", "room"),
             ("mount", "mount"), ("wireType", "wire_type"), ("wires", "wires"), ("productId", "product_id"), ("closetId", "closet_id"),
-            ("tentative", "tentative"), ("notes", "notes"), ("photoId", "photo_id"),
+            ("circuit", "circuit"), ("tentative", "tentative"), ("notes", "notes"), ("photoId", "photo_id"),
         ]),
         .runs: TableSpec(remote: "runs", conflict: "id", columns: child + [
             ("sheetId", "sheet_id"), ("kind", "kind"), ("deviceTypeId", "device_type_id"), ("points", "points"), ("measuredFt", "measured_ft"),
             ("typedFt", "typed_ft"), ("zone", "zone"), ("switchLabel", "switch_label"), ("steps", "steps"), ("lfPerStep", "lf_per_step"),
             ("wireType", "wire_type"), ("wireTypes", "wire_types"), ("markerId", "marker_id"), ("closetId", "closet_id"),
-            ("tentative", "tentative"), ("notes", "notes"),
+            ("circuit", "circuit"), ("tentative", "tentative"), ("notes", "notes"),
         ]),
         .closets: TableSpec(remote: "closets", conflict: "id", columns: child + [
             ("sheetId", "sheet_id"), ("kind", "kind"), ("x", "x"), ("y", "y"), ("name", "name"), ("notes", "notes"),

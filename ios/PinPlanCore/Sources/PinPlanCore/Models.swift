@@ -3,15 +3,29 @@ import Foundation
 // Domain models. Field names match the web app's JSON (camelCase) so backups are interchangeable.
 // Positions (x, y, points) are relative to the sheet image (0…1).
 
+/// Device categories: one fixed superset shared with the web app and the database (see docs/trades.md).
+/// Decoding is tolerant: an id this build doesn't know (from a newer app) reads as `.general` instead of failing the row.
 public enum Category: String, Codable, CaseIterable, Sendable, Identifiable {
     case security, network, audio, video, smarthome, lighting, shades, infrastructure
+    // Other trades (Trades.swift).
+    case power, switching, panels, fire, hvac, plumbing, solar, ev, general
     public var id: String { rawValue }
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = Category(rawValue: raw) ?? .general
+    }
 }
 
-/// Trades the crew can show/hide.
+/// Trades the crew can show/hide: one per category plus wiring. Unknown ids read as `.general`.
 public enum Layer: String, Codable, CaseIterable, Sendable, Identifiable {
-    case security, network, audio, video, smarthome, lighting, shades, infrastructure, wiring
+    case security, network, audio, video, smarthome, lighting, shades, infrastructure
+    case power, switching, panels, fire, hvac, plumbing, solar, ev, general
+    case wiring
     public var id: String { rawValue }
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = Layer(rawValue: raw) ?? .general
+    }
 }
 
 public enum MeasureUnit: String, Codable, Sendable { case each, LF }
@@ -19,9 +33,29 @@ public enum Mount: String, Codable, CaseIterable, Sendable { case ceiling, wall,
 public enum MarkerShape: String, Codable, CaseIterable, Sendable { case circle, square, triangle, diamond, hexagon, star }
 public enum ProjectStatus: String, Codable, CaseIterable, Sendable { case estimate, approved, installed }
 public enum RunKind: String, Codable, Sendable { case led, stair, wire }
+/// Where runs end: low-voltage closets, plus other trades' panels and equipment. Unknown ids read as `.equipment`.
 public enum ClosetKind: String, Codable, CaseIterable, Sendable, Identifiable {
     case equipment, `switch`, rack
+    case panel, subpanel, facp, nac, airhandler, condenser, waterheater, manifold, inverter
     public var id: String { rawValue }
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ClosetKind(rawValue: raw) ?? .equipment
+    }
+}
+
+/// Electrical circuit details on a wire run (a circuit's home run to its panel). All optional; same JSON as the web app.
+public struct CircuitInfo: Codable, Hashable, Sendable {
+    /// Breaker space(s), e.g. "12" or "3/5" for a 2-pole breaker.
+    public var number: String?
+    public var breakerA: Double?
+    public var volts: Double?
+    public var poles: Double?
+    /// What the circuit feeds.
+    public var description: String?
+    public init(number: String? = nil, breakerA: Double? = nil, volts: Double? = nil, poles: Double? = nil, description: String? = nil) {
+        self.number = number; self.breakerA = breakerA; self.volts = volts; self.poles = poles; self.description = description
+    }
 }
 public enum DeviceKind: String, Codable, Sendable { case device, led }
 public enum LaborMode: String, Codable, Sendable { case combined, separate }
@@ -155,6 +189,8 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
     public var productId: String?
     /// Every cable pulled to this device, repeats meaning several (e.g. ["HDMI", "Cat6", "Cat6"]). Nil = just `wireType`.
     public var wires: [String]?
+    /// Electrical: the panel circuit number this device is on ("12"); its panel is `closetId`.
+    public var circuit: String?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -187,6 +223,8 @@ public struct Run: Codable, Hashable, Identifiable, Sendable {
     public var wireTypes: [String]?
     public var markerId: String?
     public var closetId: String?
+    /// Electrical: circuit number, breaker, voltage, poles (the run is that circuit's home run).
+    public var circuit: CircuitInfo?
     public var tentative: Bool?
     public var notes: String?
     public var createdAt: String

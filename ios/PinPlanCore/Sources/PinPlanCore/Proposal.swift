@@ -92,13 +92,15 @@ public enum Legend {
     ]
 
     /// Every symbol a client sees on the plans, in category order, with counts ("3", "2 + 1 optional", "45 LF").
-    public static func build(takeoff: Takeoff, catalog: [DeviceType], icon: (DeviceType) -> String?) -> [LegendItem] {
+    public static func build(takeoff: Takeoff, catalog: [DeviceType], icon: (DeviceType) -> String?, trades: [TradeId] = Trades.defaultTrades) -> [LegendItem] {
         let t = takeoff.total
         var out: [(LegendItem, Int)] = []
+        // Category order and names follow the company's trades (low voltage: as before).
+        let order = Trades.allCategories(for: trades).map(\.id)
         for d in catalog {
-            let o = Category.allCases.firstIndex(of: d.category) ?? 99
-            let cat = categoryText[d.category] ?? d.category.rawValue
-            let desc = descriptions[d.id] ?? "\(cat) — \(d.name)."
+            let o = order.firstIndex(of: d.category) ?? 99
+            let cat = d.category == .infrastructure ? "Equipment" : (categoryText[d.category] ?? Trades.category(d.category, for: trades).name)
+            let desc = descriptions[d.id] ?? Trades.packDescription(d.id) ?? "\(cat) — \(d.name)."
             if d.kind == .led {
                 let ft = t.ledFt[d.id] ?? 0, opt = t.ledTentativeFt[d.id] ?? 0
                 guard ft > 0 || opt > 0 else { continue }
@@ -114,7 +116,7 @@ public enum Legend {
         }
         for k in Catalog.closetKinds {
             let n = t.closets[k.id] ?? 0
-            if n > 0 { out.append((LegendItem(key: "closet:\(k.id.rawValue)", name: k.name, description: "Where the equipment and cables come together.", category: "Equipment", icon: nil, color: k.color, count: "\(n)"), 100)) }
+            if n > 0 { out.append((LegendItem(key: "closet:\(k.id.rawValue)", name: k.name, description: k.description, category: "Equipment", icon: nil, color: k.color, count: "\(n)"), 100)) }
         }
         return out.enumerated().sorted { ($0.element.1, $0.offset) < ($1.element.1, $1.offset) }.map(\.element.0)
     }
