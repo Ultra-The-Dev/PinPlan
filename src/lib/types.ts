@@ -297,6 +297,8 @@ export interface ChecklistItem {
   due?: string | null;
   /** Photo this item was made from (a photo comment turned into a task). */
   photoId?: string | null;
+  /** Photo comment this item was made from (so the comment shows as a task even after the text is edited). */
+  commentId?: string | null;
 }
 
 export interface Checklist {

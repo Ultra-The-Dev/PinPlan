@@ -135,6 +135,15 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(r2.checklist.id, punch.id)
         XCTAssertEqual(r2.checklist.items.map(\.text), ["Old item", "Plate is cracked, replace"])
         XCTAssertEqual(FieldDocs.commentTask([r2.checklist], comment: comment)?.item.id, r2.item.id)
+        // Still linked after the item's text is edited (matched by comment id); another comment on the photo isn't.
+        var edited = r2.checklist
+        edited.items[1].text = "Replace plate (white)"
+        XCTAssertEqual(FieldDocs.commentTask([edited], comment: comment)?.item.id, r2.item.id)
+        XCTAssertNil(FieldDocs.commentTask([edited], comment: PhotoComment(projectId: "a", photoId: "ph1", author: nil, text: "Replace plate (white)")))
+        // Items from before comment ids were stored still match on photo + text.
+        var legacy = r2.checklist
+        legacy.items[1].commentId = nil
+        XCTAssertEqual(FieldDocs.commentTask([legacy], comment: comment)?.item.id, r2.item.id)
 
         // Shows on the Tasks list even without an assignee; same JSON key as the web.
         var b = ProjectBundle(project: Project(id: "a", clientName: "", address: "1 Oak"))
@@ -142,6 +151,7 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertEqual(FieldDocs.openTasks([b], today: "2026-11-19").map(\.item.photoId), ["ph1"])
         let json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(r.item)) as! [String: Any]
         XCTAssertEqual(json["photoId"] as? String, "ph1")
+        XCTAssertEqual(json["commentId"] as? String, comment.id)
     }
 
     func testTimelineSkipsCommentsOnDeletedPhotos() {

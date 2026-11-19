@@ -247,9 +247,10 @@ struct PhotoDetails: View {
         }
         .sheet(item: $tasking) { c in
             // Comment → task on the job's punch list (started from the template if the job has none), linked to this photo.
-            TaskEditor(item: FieldDocs.taskItem(from: c), names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app))) { who, due in
+            TaskEditor(item: FieldDocs.taskItem(from: c), names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app)), title: "Make task") { who, due in
                 let r = FieldDocs.addTask(fromComment: c, checklists: model.bundle.checklists, assignee: who, due: due)
                 model.saveRow(r.checklist, in: \.checklists)
+                model.say(r.created ? "Punch list started with this task" : "Added to the punch list")
             }
             .presentationDetents([.medium, .large])
         }

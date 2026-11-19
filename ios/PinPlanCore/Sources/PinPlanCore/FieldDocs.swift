@@ -79,6 +79,8 @@ public struct ChecklistItem: Codable, Hashable, Identifiable, Sendable {
     public var due: String?
     /// Photo this item was made from (a photo comment turned into a task).
     public var photoId: String?
+    /// Photo comment this item was made from (so the comment shows as a task even after the text is edited).
+    public var commentId: String?
     public init(id: String = newId(8), text: String, requiresPhoto: Bool = false) {
         self.id = id; self.text = text; self.requiresPhoto = requiresPhoto
     }

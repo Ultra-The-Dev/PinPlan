@@ -200,12 +200,12 @@ export function findPunchList(checklists: Checklist[], projectId: string): Check
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
 }
 
-/** The punch-list item a comment was already turned into (same photo, same text), if any. */
+/** The item a comment was already turned into (by comment id; older items without one: same photo, same text), if any. */
 export function commentTask(checklists: Checklist[], comment: PhotoComment): { checklist: Checklist; item: ChecklistItem } | undefined {
   const text = comment.text.trim();
   for (const c of checklists) {
     if (c.deleted || c.projectId !== comment.projectId) continue;
-    const item = c.items.find((i) => i.photoId === comment.photoId && i.text === text);
+    const item = c.items.find((i) => i.commentId === comment.id) ?? c.items.find((i) => !i.commentId && i.photoId === comment.photoId && i.text === text);
     if (item) return { checklist: c, item };
   }
   return undefined;
@@ -216,7 +216,7 @@ export function taskItemFromComment(comment: PhotoComment, opts: { text?: string
   const text = (opts.text ?? "").trim() || comment.text.trim();
   const assignee = opts.assignee?.trim() || null;
   const due = opts.due && /^\d{4}-\d{2}-\d{2}$/.test(opts.due) ? opts.due : null;
-  return { id: newId(), text, photoId: comment.photoId, assignee, due, note: comment.author ? `From ${comment.author}’s photo comment` : null };
+  return { id: newId(), text, photoId: comment.photoId, commentId: comment.id, assignee, due, note: comment.author ? `From ${comment.author}’s photo comment` : null };
 }
 
 /**

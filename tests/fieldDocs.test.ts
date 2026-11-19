@@ -107,7 +107,7 @@ describe("tasks from photo comments", () => {
 
   it("builds an item linked to the photo, with optional assignee and due date", () => {
     const item = taskItemFromComment(comment, { assignee: " Alex ", due: "2026-11-21" }, ids());
-    expect(item).toEqual({ id: "id1", text: "Plate is cracked, replace", photoId: "ph1", assignee: "Alex", due: "2026-11-21", note: "From Sam’s photo comment" });
+    expect(item).toEqual({ id: "id1", text: "Plate is cracked, replace", photoId: "ph1", commentId: "cm1", assignee: "Alex", due: "2026-11-21", note: "From Sam’s photo comment" });
     const bare = taskItemFromComment({ ...comment, author: null }, { text: "Swap the plate", assignee: "  ", due: "soon" }, ids());
     expect(bare).toMatchObject({ text: "Swap the plate", photoId: "ph1", assignee: null, due: null, note: null });
     expect(taskItemFromComment(comment, { text: "   " }, ids()).text).toBe("Plate is cracked, replace");
@@ -135,7 +135,14 @@ describe("tasks from photo comments", () => {
     expect(punch.items).toHaveLength(1);
     // The comment now shows as a task, and it appears on the Tasks page even without an assignee.
     expect(commentTask([r.checklist], comment)?.item.id).toBe(r.item.id);
-    expect(commentTask([r.checklist], { ...comment, text: "Something else" })).toBeUndefined();
+    expect(commentTask([r.checklist], { ...comment, id: "cm2", text: "Something else" })).toBeUndefined();
+    // Still linked after the item's text is edited (matched by comment id), and another comment on the photo isn't.
+    const edited = { ...r.checklist, items: r.checklist.items.map((i) => (i.id === r.item.id ? { ...i, text: "Replace plate (white)" } : i)) };
+    expect(commentTask([edited], comment)?.item.id).toBe(r.item.id);
+    expect(commentTask([edited], { ...comment, id: "cm2", text: "Replace plate (white)" })).toBeUndefined();
+    // Items from before comment ids were stored still match on photo + text.
+    const legacy = { ...r.checklist, items: r.checklist.items.map((i) => ({ ...i, commentId: undefined })) };
+    expect(commentTask([legacy], comment)?.item.id).toBe(r.item.id);
     const projects = [{ id: "a", clientName: "", address: "1 Oak", status: "estimate" as const, billduDocs: [], createdAt: ts, updatedAt: ts }];
     const r2 = addTaskFromComment([], comment, {}, ids(), now);
     expect(openTasks({ projects, checklists: [r2.checklist] }, { today: "2026-11-19" }).map((t) => t.item.photoId)).toEqual(["ph1"]);

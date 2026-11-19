@@ -151,7 +151,8 @@ struct ChecklistDetail: View {
         let complete = FieldDocs.itemComplete(item, photoCount: photos.count)
         let needsPhoto = item.done == true && !complete
         // A task made from a photo comment links back to that photo.
-        let from: Photo? = item.photoId.flatMap(model.photo).flatMap { f in photos.contains(where: { $0.id == f.id }) ? nil : f }
+        let linked: Photo? = item.photoId.flatMap { model.photo($0) }
+        let from: Photo? = linked.flatMap { (f: Photo) -> Photo? in photos.contains(where: { $0.id == f.id }) ? nil : f }
         return HStack(alignment: .top, spacing: 12) {
             Button {
                 let author = FieldAuthor.name(app)
@@ -509,6 +510,7 @@ func dueText(_ day: String) -> String {
 struct TaskEditor: View {
     let item: ChecklistItem
     let names: [String]
+    var title: String = "Assign"
     let onSave: (String?, String?) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var who = ""
@@ -542,7 +544,7 @@ struct TaskEditor: View {
                     if hasDue { DatePicker("Due", selection: $due, displayedComponents: .date).datePickerStyle(.graphical) }
                 }
             }
-            .navigationTitle("Assign")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

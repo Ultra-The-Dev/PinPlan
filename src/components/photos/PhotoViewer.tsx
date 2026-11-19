@@ -319,7 +319,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
                         <CheckSquare className="h-3.5 w-3.5" /> {task.item.done ? "Task done" : "Task"}
                       </span>
                     ) : (
-                      <button className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline" onClick={() => setTasking(tasking === c.id ? null : c.id)}>
+                      <button className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline" aria-expanded={tasking === c.id} onClick={() => setTasking(tasking === c.id ? null : c.id)}>
                         <ListPlus className="h-3.5 w-3.5" /> Make task
                       </button>
                     )}

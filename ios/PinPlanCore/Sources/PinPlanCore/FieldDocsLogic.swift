@@ -174,11 +174,11 @@ public enum FieldDocs {
             .min { $0.createdAt < $1.createdAt }
     }
 
-    /// The item a comment was already turned into (same photo, same text), if any.
+    /// The item a comment was already turned into (by comment id; older items without one: same photo, same text), if any.
     public static func commentTask(_ checklists: [Checklist], comment: PhotoComment) -> (checklist: Checklist, item: ChecklistItem)? {
         let text = comment.text.trimmingCharacters(in: .whitespacesAndNewlines)
         for c in checklists where c.deleted != true && c.projectId == comment.projectId {
-            if let i = c.items.first(where: { $0.photoId == comment.photoId && $0.text == text }) { return (c, i) }
+            if let i = c.items.first(where: { $0.commentId == comment.id }) ?? c.items.first(where: { $0.commentId == nil && $0.photoId == comment.photoId && $0.text == text }) { return (c, i) }
         }
         return nil
     }
@@ -188,6 +188,7 @@ public enum FieldDocs {
         let edited = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         var item = ChecklistItem(text: edited.isEmpty ? comment.text.trimmingCharacters(in: .whitespacesAndNewlines) : edited)
         item.photoId = comment.photoId
+        item.commentId = comment.id
         let who = (assignee ?? "").trimmingCharacters(in: .whitespaces)
         item.assignee = who.isEmpty ? nil : who
         if let due, dayNumber(due) != nil, due.count == 10 { item.due = due }
