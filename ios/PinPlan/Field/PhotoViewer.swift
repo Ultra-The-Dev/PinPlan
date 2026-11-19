@@ -171,7 +171,7 @@ struct PhotoDetails: View {
                 HStack {
                     Text("Caption").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Spacer()
-                    if APIClient(settings: app.settings) != nil {
+                    if Features.ai, APIClient(settings: app.settings) != nil {
                         Button { Task { await describe(p) } } label: {
                             if aiBusy { ProgressView().controlSize(.small) } else { Label("AI caption", systemImage: "sparkles") }
                         }

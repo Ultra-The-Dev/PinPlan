@@ -151,7 +151,9 @@ struct PlanEditorView: View {
                 toolsMenu
                 Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }.accessibilityLabel("Read the plan")
                 Button { showCounts = true } label: { Image(systemName: "list.number") }.accessibilityLabel("Floor counts")
-                Button { showScan = true } label: { Image(systemName: "sparkles") }.accessibilityLabel("AI scan")
+                if Features.ai {
+                    Button { showScan = true } label: { Image(systemName: "sparkles") }.accessibilityLabel("AI scan")
+                }
             }
             .frame(width: 38, height: 34)
         }
@@ -229,7 +231,9 @@ struct PlanEditorView: View {
             toolsMenu
             Button { showReader.toggle(); showCounts = false; model.selection = nil } label: { Label("Read plan", systemImage: "doc.text.magnifyingglass") }
             Button { showCounts.toggle(); showReader = false; model.selection = nil } label: { Label("Counts", systemImage: "list.number") }
-            Button { showScan = true } label: { Label("AI scan", systemImage: "sparkles") }
+            if Features.ai {
+                Button { showScan = true } label: { Label("AI scan", systemImage: "sparkles") }
+            }
         }
     }
 }

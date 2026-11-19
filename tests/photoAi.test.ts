@@ -1,3 +1,4 @@
+process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 // Photo AI routes with the Claude API mocked at the HTTP layer.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

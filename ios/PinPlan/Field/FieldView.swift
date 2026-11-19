@@ -357,7 +357,7 @@ struct LogEditor: View {
                 TextField("Title (e.g. Rough-in, 2nd floor)", text: Binding(get: { log.title ?? "" }, set: { log.title = $0 }))
                 Section("What happened") {
                     TextField("Crew on site, work done, issues, what’s next…", text: $log.body, axis: .vertical).lineLimit(6...20)
-                    if APIClient(settings: app.settings) != nil {
+                    if Features.ai, APIClient(settings: app.settings) != nil {
                         Button { Task { await draft(dayPhotos.filter { chosen.isEmpty || chosen.contains($0.id) }) } } label: {
                             if busy { HStack { ProgressView(); Text("Writing…") } } else { Label("Draft from this day’s photos", systemImage: "sparkles") }
                         }

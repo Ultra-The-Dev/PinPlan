@@ -1,3 +1,4 @@
+process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authMode, requireOffice, requireUser } from "@/lib/server/auth";
 

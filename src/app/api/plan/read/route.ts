@@ -1,3 +1,4 @@
+import { aiEnabledOnServer } from "@/lib/features";
 import { requireUser } from "@/lib/server/auth";
 import { limitAi } from "@/lib/server/rateLimit";
 import Anthropic from "@anthropic-ai/sdk";
@@ -15,6 +16,7 @@ type ImageMime = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 const MIMES: ImageMime[] = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(request: Request) {
+  if (!aiEnabledOnServer()) return Response.json({ error: "AI features are turned off on this server.", code: "ai_disabled" }, { status: 404 });
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
   const limited = limitAi(request, auth.userId, "planRead");

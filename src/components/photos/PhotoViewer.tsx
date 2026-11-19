@@ -15,6 +15,7 @@ import type { Photo, PhotoComment } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import AnnotationSvg from "./AnnotationSvg";
 import Annotator from "./Annotator";
+import { AI_ENABLED } from "@/lib/features";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -199,9 +200,11 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
           <button className="btn btn-sm btn-brand" onClick={() => setMarking(true)}>
             <PenLine /> Mark up
           </button>
+          {AI_ENABLED && (
           <button className="btn btn-sm" disabled={aiBusy} onClick={() => void aiCaption()} title="Write a caption and tags with AI">
             <Sparkles /> {aiBusy ? "Looking…" : "AI caption"}
           </button>
+          )}
           {pair && (
             <button className={`btn btn-sm ${compare ? "btn-on" : ""}`} onClick={() => setCompare((c) => !c)}>
               <Columns2 /> Before / after

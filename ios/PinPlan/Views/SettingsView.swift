@@ -22,7 +22,7 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("Needed for sending to Billdu, the AI plan reader, account tools and the legal pages. Everything else works offline.")
+                Text("Needed for sending to Billdu, account tools and the legal pages. Everything else works offline.")
             }
             Section {
                 NavigationLink { CloudSyncView() } label: {
@@ -283,7 +283,9 @@ struct ServerSetupView: View {
                     StatusRow(title: "Access code accepted", ok: h.authorized,
                               detail: h.authorized ? nil : "Type the PINPLAN_ACCESS_CODE value exactly")
                     if h.authorized {
-                        StatusRow(title: "AI plan reader", ok: h.ai == true, detail: h.ai == true ? nil : "Add ANTHROPIC_API_KEY on the server")
+                        if Features.ai {
+                            StatusRow(title: "AI plan reader", ok: h.ai == true, detail: h.ai == true ? nil : "Add ANTHROPIC_API_KEY on the server")
+                        }
                         StatusRow(title: "Billdu", ok: h.billdu == true, detail: h.billdu == true ? nil : "Add BILLDU_API_KEY and BILLDU_API_SECRET on the server")
                     }
                 }

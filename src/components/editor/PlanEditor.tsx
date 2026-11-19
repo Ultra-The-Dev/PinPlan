@@ -43,6 +43,7 @@ import ScanPanel from "../ScanPanel";
 import Inspector from "./Inspector";
 import Palette from "./Palette";
 import PlanCanvas, { type CanvasHit } from "./PlanCanvas";
+import { AI_ENABLED } from "@/lib/features";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -438,10 +439,12 @@ export default function PlanEditor() {
             <ListChecks />
             <span className="hidden 2xl:inline">Counts</span>
           </button>
+          {AI_ENABLED && (
           <button className={`btn btn-sm ${panel === "scan" && !selection ? "btn-on" : ""}`} onClick={() => setPanel(panel === "scan" ? null : "scan")} title="AI scan assist">
             <Sparkles />
             <span className="hidden 2xl:inline">AI scan</span>
           </button>
+          )}
         </div>
 
         <div className="relative min-h-0 flex-1">
@@ -503,7 +506,7 @@ export default function PlanEditor() {
         <aside className={`scroll-thin w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white ${wide ? "" : "animate-in absolute inset-y-0 right-0 z-30 shadow-pop"}`}>
           {rightPanel === "inspect" ? (
             <Inspector />
-          ) : rightPanel === "scan" ? (
+          ) : AI_ENABLED && rightPanel === "scan" ? (
             <div className="p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">

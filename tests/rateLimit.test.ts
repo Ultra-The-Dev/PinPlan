@@ -1,3 +1,4 @@
+process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AI_LIMITS, clientIp, limitAi, rateLimit, resetRateLimits } from "@/lib/server/rateLimit";
 

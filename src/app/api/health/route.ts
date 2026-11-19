@@ -1,3 +1,4 @@
+import { aiEnabledOnServer } from "@/lib/features";
 import { authMode, requireUser } from "@/lib/server/auth";
 import { loadBillduCreds } from "@/lib/server/secrets";
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     stripe: has("STRIPE_SECRET_KEY"),
     stripeWebhook: has("STRIPE_WEBHOOK_SECRET"),
     resend: has("RESEND_API_KEY"),
-    ai: has("ANTHROPIC_API_KEY"),
+    ai: aiEnabledOnServer() && has("ANTHROPIC_API_KEY"),
     billdu,
     encryptionKey: has("PINPLAN_ENCRYPTION_KEY"),
     platformAdmins: has("PLATFORM_ADMIN_EMAILS"),

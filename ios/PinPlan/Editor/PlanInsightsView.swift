@@ -23,13 +23,15 @@ struct PlanInsightsView: View {
     var body: some View {
         PanelContainer(title: "Read \(sheet.name)", inSheet: inSheet, onClose: onClose) {
             SentenceList {
-                Section {
-                    Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
-                        .pickerStyle(.segmented)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
+                if Features.ai {
+                    Section {
+                        Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                            .pickerStyle(.segmented)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    }
                 }
-                if mode == .plan { planSections } else { aiSections }
+                if mode == .plan || !Features.ai { planSections } else { aiSections }
             }
             .task(id: sheet.id) { await loadDetails() }
         }
@@ -59,7 +61,7 @@ struct PlanInsightsView: View {
             }
         }
         if !loading && details.isEmpty {
-            Section { Text("No text found on this sheet. Try the AI reader.").foregroundStyle(.secondary) }
+            Section { Text(Features.ai ? "No text found on this sheet. Try the AI reader." : "No text found on this sheet.").foregroundStyle(.secondary) }
         }
     }
 

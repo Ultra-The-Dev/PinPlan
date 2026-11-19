@@ -131,7 +131,7 @@ export default function Landing() {
             "Upload the architect’s PDF or a photo of the plan — every floor becomes a sheet.",
             "Pin cameras, access points, speakers, TVs, keypads and fixtures; draw LED and cable runs to the rack.",
             "Set the scale once and lengths come out in feet, with slack and drops added for you.",
-            "The AI plan reader suggests devices — nothing counts until you accept it.",
+            "Counts come only from what you pin, so the takeoff always matches the plan.",
           ]}
           visual={<DeviceList />}
         />

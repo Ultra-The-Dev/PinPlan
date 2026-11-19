@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DESCRIBE_SCHEMA, describePrompt, parseDescribe } from "@/lib/photoAi";
+import { aiEnabledOnServer } from "@/lib/features";
 import { requireUser } from "@/lib/server/auth";
 import { limitAi } from "@/lib/server/rateLimit";
 
@@ -8,6 +9,7 @@ export const maxDuration = 120;
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
 export async function POST(request: Request) {
+  if (!aiEnabledOnServer()) return Response.json({ error: "AI features are turned off on this server.", code: "ai_disabled" }, { status: 404 });
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
   const limited = limitAi(request, auth.userId, "photoDescribe");

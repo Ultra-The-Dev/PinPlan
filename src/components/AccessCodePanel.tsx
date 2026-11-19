@@ -37,7 +37,7 @@ export default function AccessCodePanel() {
         <h2 className="text-lg font-semibold">Team access code</h2>
         {ok != null && <span className={`chip ml-auto ${ok ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>{ok ? "Unlocked" : "Locked"}</span>}
       </div>
-      <p className="text-sm text-slate-500">This server protects Billdu and AI scan with an access code. Enter it once on each device.</p>
+      <p className="text-sm text-slate-500">This server protects Billdu with an access code. Enter it once on each device.</p>
       <form
         className="flex gap-2"
         onSubmit={async (e) => {

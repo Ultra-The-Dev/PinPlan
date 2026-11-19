@@ -15,6 +15,7 @@ import type { JobLog, Photo } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import PhotoViewer from "../photos/PhotoViewer";
 import type { DailyLogPdfEntry } from "./DailyLogPdf";
+import { AI_ENABLED } from "@/lib/features";
 
 const today = () => localDay(new Date().toISOString());
 const dayText = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -220,9 +221,11 @@ function Editor({ log, onDone }: { log: JobLog; onDone: () => void }) {
         )}
       </div>
       <div className="flex flex-wrap gap-2">
+        {AI_ENABLED && (
         <button className="btn btn-sm" disabled={!!busy} onClick={() => void aiDraft()} title="Draft the log from this day's photos (AI)">
           <Sparkles /> {busy ?? "Draft from photos"}
         </button>
+        )}
         <div className="flex-1" />
         <button className="btn btn-sm" onClick={onDone}>
           Cancel
