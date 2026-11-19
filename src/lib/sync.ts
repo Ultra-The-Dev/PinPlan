@@ -115,7 +115,7 @@ async function push(): Promise<void> {
       continue;
     }
     // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
-    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments") && useTeam.getState().role === "tech") {
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "changeOrders") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }
@@ -154,7 +154,10 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   const photo = await db().photos.filter((p) => p.imageId === imageId).first();
   if (photo) return photo.projectId;
   const doc = await db().documents.filter((d) => d.fileId === imageId).first();
-  return doc?.projectId ?? null;
+  if (doc) return doc.projectId;
+  // A signature taken on this device (change order approved in person).
+  const co = await db().changeOrders.filter((c) => c.signatureImageId === imageId).first();
+  return co?.projectId ?? null;
 }
 
 /** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
@@ -291,6 +294,9 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
   // Device photos (marker.photoId) are uploaded to <project>/<image id> too, but were never fetched on other devices.
   for (const m of await db().markers.filter((x) => !x.deleted && !!x.photoId).toArray())
     if (!known.has(m.photoId!)) filesNeeded.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
+  // Change order signatures (uploaded by the client link's server route, or by the device that took them).
+  for (const c of await db().changeOrders.filter((x) => !x.deleted && !!x.signatureImageId).toArray())
+    if (!known.has(c.signatureImageId!)) filesNeeded.push({ id: c.signatureImageId!, path: `${c.projectId}/${c.signatureImageId}`, width: 0, height: 0, mime: "image/png" });
   let tries = 0;
   for (const f of filesNeeded) {
     if (await db().images.get(f.id)) continue;
