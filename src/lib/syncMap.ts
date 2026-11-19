@@ -48,6 +48,11 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       pxPerFt: "px_per_ft",
       pxPerInch: "px_per_inch",
       scaleLabel: "scale_label",
+      // Sheet index (20261123100500_sheet_links.sql): "number"/"title" are renamed to avoid reserved-ish words.
+      number: "sheet_number",
+      title: "sheet_title",
+      discipline: "discipline",
+      tags: "tags",
     },
   },
   deviceTypes: {
@@ -260,6 +265,12 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...childOf, documentId: "document_id", amount: "amount", date: "paid_on", method: "method", reference: "reference", note: "note", voided: "voided" },
   },
+  // Hyperlinks on plans (docs/sheet-index-links.md).
+  sheetLinks: {
+    remote: "sheet_links",
+    conflict: "id",
+    columns: { ...childOf, sheetId: "sheet_id", x: "x", y: "y", w: "w", h: "h", target: "target", label: "label", auto: "auto" },
+  },
 };
 
 
@@ -280,10 +291,11 @@ export const PUSH_ORDER: SyncTable[] = [
   "documents",
   "salesDocs",
   "salesPayments",
+  "sheetLinks",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
-const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false };
+const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: false, removed: false, archived: false, voided: false, auto: false };
 /** Columns that are NOT NULL in the database: what to send when the row has nothing. */
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
 

@@ -5,10 +5,13 @@ import { db, newId, nowIso, put, saveImage } from "@/lib/db";
 import { canvasToBlob, guessFloorName, loadPhoto, renderPdf } from "@/lib/importPlans";
 import { findScale } from "@/lib/geometry";
 import { useEditor } from "@/lib/store";
+import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import { useSheetImage } from "@/lib/useImage";
 import type { Sheet } from "@/lib/types";
 import PhotoStraighten from "./PhotoStraighten";
+import { SheetIndexButton, SheetMetaChips } from "./sheetIndex/SheetIndexPanel";
+import SheetNamesReview, { hasProposals, type ReviewPage } from "./sheetIndex/SheetNamesReview";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
   const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
@@ -18,6 +21,9 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [photoQueue, setPhotoQueue] = useState<{ file: File; img: HTMLImageElement }[]>([]);
+  // Sheet numbers / titles read from the PDF text, for the office to confirm (docs/sheet-index-links.md).
+  const [review, setReview] = useState<ReviewPage[] | null>(null);
+  const office = useRole() !== "tech";
 
   if (!project) return null;
   const nextOrder = () => (sheets.length ? Math.max(...sheets.map((s) => s.order)) + 1 : 0);
@@ -32,6 +38,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       pxPerInch, createdAt: nowIso(), updatedAt: nowIso(),
     };
     await put("sheets", sheet);
+    return sheet.id;
   }
 
   async function onFiles(files: FileList | null) {
@@ -40,6 +47,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
     const photos: { file: File; img: HTMLImageElement }[] = [];
     let order = nextOrder();
     let added = 0;
+    const imported: ReviewPage[] = [];
     try {
       for (const file of Array.from(files)) {
         if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
@@ -50,7 +58,8 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             setProgress(d / t);
           });
           for (const p of pages) {
-            await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
+            const sheetId = await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
+            imported.push({ sheetId, pageNumber: p.pageNumber, items: p.items ?? [], text: p.text });
             added++;
           }
         } else {
@@ -61,6 +70,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       await load(project!.id);
       if (added) toast(`Added ${added} sheet${added === 1 ? "" : "s"}`);
       if (photos.length) setPhotoQueue((q) => [...q, ...photos]);
+      if (office && hasProposals(imported)) setReview(imported);
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : String(e));
@@ -135,6 +145,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             <p className="mt-1 text-sm text-slate-500">One sheet per floor. PDFs split into pages; phone photos get straightened. Floor names are read from the title block.</p>
           </div>
           <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,.heic,.heif" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          <SheetIndexButton disabled={!!busy || !sheets.length} />
           <button className="btn btn-brand" disabled={!!busy} onClick={() => fileRef.current?.click()}>
             <FileUp /> Upload PDF or photos
           </button>
@@ -202,6 +213,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
           ))}
         </ul>
       </div>
+      {review && <SheetNamesReview pages={review} onClose={() => setReview(null)} />}
       {photoQueue[0] && <PhotoStraighten key={photoQueue[0].img.src} image={photoQueue[0].img} name={photoQueue[0].file.name} onDone={finishPhoto} />}
     </div>
   );
@@ -249,6 +261,7 @@ function SheetCard(props: {
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
           aria-label="Sheet name"
         />
+        <SheetMetaChips sheet={sheet} />
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span className="chip bg-slate-100 text-slate-600">{props.count} devices</span>
           {props.runCount > 0 && <span className="chip bg-amber-50 text-amber-700">{props.runCount} LED runs</span>}

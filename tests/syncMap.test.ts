@@ -46,7 +46,7 @@ describe("sync row mapping", () => {
   });
 
   it("covers every synced table", () => {
-    expect(Object.keys(TABLES).sort()).toEqual(["checklists", "closets", "deviceTypes", "documents", "estimateLines", "jobLogs", "markers", "photoComments", "photos", "products", "projects", "runs", "salesDocs", "salesPayments", "sheets"]);
+    expect(Object.keys(TABLES).sort()).toEqual(["checklists", "closets", "deviceTypes", "documents", "estimateLines", "jobLogs", "markers", "photoComments", "photos", "products", "projects", "runs", "salesDocs", "salesPayments", "sheetLinks", "sheets"]);
   });
 
   it("resolves conflicts last-write-wins", () => {
