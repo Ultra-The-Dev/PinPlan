@@ -1,5 +1,51 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authMode, requireUser } from "@/lib/server/auth";
+import { authMode, requireOffice, requireUser } from "@/lib/server/auth";
+
+describe("office-only routes (Billdu)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+  const withRole = (role: string | null, status = 200) => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/v1/user")) return Response.json({ id: "user-1" });
+      if (url.includes("/rest/v1/team_members")) return Response.json(role ? [{ role }] : [], { status });
+      return new Response("", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  it("refuses technicians with 403, checking the role with the caller's own token", async () => {
+    const f = withRole("tech");
+    const r = await requireOffice(req({ authorization: "Bearer tok" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.response.status).toBe(403);
+    const [url, init] = f.mock.calls[1] as unknown as [string, RequestInit];
+    expect(url).toBe("https://example.supabase.co/rest/v1/team_members?select=role&user_id=eq.user-1");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer tok");
+  });
+
+  it("lets owners, admins and solo users through", async () => {
+    for (const role of ["owner", "admin", null]) {
+      withRole(role);
+      expect((await requireOffice(req({ authorization: "Bearer tok" }))).ok).toBe(true);
+    }
+    // Team tables not created yet: nobody is a technician.
+    withRole(null, 404);
+    expect((await requireOffice(req({ authorization: "Bearer tok" }))).ok).toBe(true);
+  });
+
+  it("fails closed when the role can't be checked", async () => {
+    withRole("admin", 500);
+    const r = await requireOffice(req({ authorization: "Bearer tok" }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.response.status).toBe(503);
+  });
+});
 
 const req = (headers: Record<string, string> = {}) => new Request("http://x/api/billdu/send", { method: "POST", headers });
 

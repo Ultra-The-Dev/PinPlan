@@ -4,6 +4,8 @@ import { useState } from "react";
 import { exportProjectBackup } from "@/lib/backup";
 import { formatMoney } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
 import JobHealth from "./JobHealth";
 import { toast } from "@/lib/toast";
 import { currentPosition, mapsLink } from "@/lib/photos";
@@ -117,6 +119,7 @@ export default function ProjectInfo() {
     notes: project?.notes ?? "",
   }));
   const [busy, setBusy] = useState(false);
+  const prices = can(useRole(), "prices");
   if (!project) return null;
   const currency = settings?.pricing.currency ?? "USD";
   const dirty = (Object.keys(form) as (keyof typeof form)[]).some((k) => (project[k] ?? "") !== form[k]);
@@ -140,7 +143,7 @@ export default function ProjectInfo() {
         >
           <div>
             <h2 className="text-lg font-semibold">Job details</h2>
-            <p className="text-sm text-slate-500">Used on the estimate PDF and to find or create the client in Billdu.</p>
+            <p className="text-sm text-slate-500">{prices ? "Used on the estimate PDF and to find or create the client in Billdu." : "Address, client contact and site notes for the crew."}</p>
           </div>
           {field("address", "Job address")}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -162,6 +165,7 @@ export default function ProjectInfo() {
         <div className="space-y-5">
           <JobLabels />
           <JobLocation />
+          {prices && (
           <section className="card p-5">
             <div className="mb-3 flex items-center gap-2">
               <Receipt className="h-4 w-4 text-slate-400" />
@@ -182,6 +186,7 @@ export default function ProjectInfo() {
             )}
             {project.billduClientId ? <p className="mt-3 text-xs text-slate-400">Billdu client #{project.billduClientId}</p> : null}
           </section>
+          )}
 
           <section className="card p-5">
             <div className="mb-1 flex items-center gap-2">

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { db, ensureSeeded, newId, nowIso, put, remove } from "@/lib/db";
 import { importBackup } from "@/lib/backup";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
 import { useSheetImage } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
@@ -57,6 +59,7 @@ export default function ProjectsList() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "all">("all");
   const [label, setLabel] = useState<string | null>(null);
+  const role = useRole();
   const restoreRef = useRef<HTMLInputElement>(null);
   const refresh = () => fetchRows().then(setRows);
 
@@ -120,7 +123,7 @@ export default function ProjectsList() {
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <h1 className="page-title">Projects</h1>
-          <p className="mt-1 text-sm text-slate-500">Mark up plans, count every device and send the estimate to Billdu.</p>
+          <p className="mt-1 text-sm text-slate-500">{can(role, "prices") ? "Mark up plans, count every device and send the estimate to Billdu." : "Every job on your team: plans, devices, photos and checklists."}</p>
         </div>
         <input ref={restoreRef} type="file" accept="application/json,.json,.pinplan" className="hidden" onChange={(e) => restore(e.target.files?.[0])} />
         <button className="btn" onClick={() => restoreRef.current?.click()} title="Restore a project backup">
@@ -228,7 +231,7 @@ export default function ProjectsList() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered!.map((p) => (
-            <ProjectCard key={p.id} p={p} onDelete={() => del(p)} />
+            <ProjectCard key={p.id} p={p} onDelete={can(role, "deleteJob") ? () => del(p) : undefined} prices={can(role, "prices")} />
           ))}
         </ul>
       )}
@@ -236,7 +239,7 @@ export default function ProjectsList() {
   );
 }
 
-function ProjectCard({ p, onDelete }: { p: Row; onDelete: () => void }) {
+function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; prices: boolean }) {
   const img = useSheetImage(p.coverImageId);
   return (
     <li className="card group relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
@@ -271,18 +274,20 @@ function ProjectCard({ p, onDelete }: { p: Row; onDelete: () => void }) {
           </div>
           <div className="mt-3 flex items-center text-xs text-slate-400">
             Updated {new Date(p.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-            {p.billduDocs.length ? <span className="chip ml-auto bg-slate-100 text-slate-600">{p.billduDocs.length} in Billdu</span> : null}
+            {prices && p.billduDocs.length ? <span className="chip ml-auto bg-slate-100 text-slate-600">{p.billduDocs.length} in Billdu</span> : null}
           </div>
         </div>
       </Link>
-      <button
-        className="btn btn-sm btn-icon absolute top-3 right-3 bg-white/90 opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
-        onClick={onDelete}
-        aria-label="Delete project"
-        title="Delete project"
-      >
-        <Trash className="text-red-600" />
-      </button>
+      {onDelete && (
+        <button
+          className="btn btn-sm btn-icon absolute top-3 right-3 bg-white/90 opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
+          onClick={onDelete}
+          aria-label="Delete project"
+          title="Delete project"
+        >
+          <Trash className="text-red-600" />
+        </button>
+      )}
     </li>
   );
 }

@@ -137,6 +137,11 @@ describe("tasks and punch lists", () => {
     expect(teamNames({ checklists }, "Me")).toEqual(["Alex", "Me", "Sam"]);
     expect(CHECKLIST_TEMPLATES.some((t) => t.id === "punch")).toBe(true);
   });
+
+  it("includes company team members (name, else email) once each", () => {
+    const members = [{ name: "Jordan Lee", email: "j@x.com" }, { name: "", email: "pat.k@x.com" }, { name: "ALEX", email: null }];
+    expect(teamNames({ checklists, members }, "Me")).toEqual(["ALEX", "Jordan Lee", "Me", "pat.k", "Sam"]); // the team spelling wins
+  });
 });
 
 describe("tasks from photo comments", () => {

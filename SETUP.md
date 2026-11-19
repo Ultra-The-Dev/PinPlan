@@ -91,6 +91,33 @@ Without it, those stay on the device they were made on and **Share link** on a p
 - Web header: **Photos** shows every job's photos; **Map** shows jobs placed from photo GPS or the Job tab.
 - To set the name stamped on your photos: on the web, Photos tab → name; on iPad, Photos tab → ⋯ → Your name.
 
+## 9. Team accounts (office staff and technicians)
+Needs step 6 (cloud sync). Everyone gets their own login; everyone on the team works on the owner's jobs and catalog.
+
+| Role | Can do |
+| --- | --- |
+| **Owner** (you) | Everything, including the team. One per company. |
+| **Office / admin** | Everything: estimates, proposals, Billdu, catalog, inviting people. |
+| **Technician** | Field work on every job: plans, devices, photos, checklists, logs and tasks. No prices, estimates, proposals or Billdu, and can't delete jobs. |
+
+1. Supabase **SQL Editor** → run `supabase/migrations/20261120000000_teams.sql` (safe to run again).
+2. Make sign-up painless for workers — pick **one**:
+   - **Recommended:** in Supabase **Project Settings → API**, copy the **service_role** key and add it in Vercel →
+     **Settings → Environment Variables** as `SUPABASE_SERVICE_ROLE_KEY` (Production), then **Redeploy**.
+     Invited workers then get a working login straight away, with no confirmation email. The key stays on the
+     server — never put it in the app, a chat or an email.
+   - Or in Supabase **Authentication → Sign In / Providers → Email**, turn off **Confirm email**.
+   - Otherwise each worker must open Supabase's confirmation email first. Supabase's built-in mailer only sends a
+     few emails an hour, so invites may stall.
+3. Web app → **Settings → Team** → **Start your team** (company name, your name).
+4. **Invite someone** → their name (optional) and role (Technician or Office / admin) → **Create invite**.
+   Send the code with **Share**, **Text it** or **Copy link**. Each code works once, for 14 days; revoke it any time.
+5. The worker opens the link (or goes to `/join` on your PinPlan address and types the code), enters their name,
+   email and a password, and they're in. On the iPad or iPhone they sign in with the same email and password.
+
+Change someone between Technician and Office / admin, or remove them, under **Settings → Team**. Prices are also
+protected in the database and on the server, not just hidden in the app.
+
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).

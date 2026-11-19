@@ -44,3 +44,32 @@ export async function requireUser(request: Request): Promise<AuthResult> {
     return deny("Could not verify your session.", "sign_in_required");
   }
 }
+
+/** The caller's team role, read with their own token (RLS lets members see their own row). Null: not on a team. */
+export async function teamRole(request: Request, userId: string): Promise<"owner" | "admin" | "tech" | null> {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token || !supabaseUrl() || !anonKey()) return null;
+  const r = await fetch(`${supabaseUrl()}/rest/v1/team_members?select=role&user_id=eq.${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: anonKey()!, Accept: "application/json" },
+    cache: "no-store",
+  });
+  // No team tables yet (migration not run): nobody is a technician.
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`Could not check your team role (${r.status}).`);
+  const rows = (await r.json()) as { role?: string }[];
+  const role = rows[0]?.role;
+  return role === "owner" || role === "admin" || role === "tech" ? role : null;
+}
+
+/** Like requireUser, but technicians are refused: prices, estimates and Billdu are office work. */
+export async function requireOffice(request: Request): Promise<AuthResult> {
+  const auth = await requireUser(request);
+  if (!auth.ok || !auth.userId) return auth;
+  try {
+    if ((await teamRole(request, auth.userId)) === "tech")
+      return { ok: false, response: Response.json({ error: "Billdu and prices are handled by the office. Ask an admin on your team.", code: "office_only" }, { status: 403 }) };
+  } catch (e) {
+    return { ok: false, response: Response.json({ error: (e as Error).message, code: "role_check_failed" }, { status: 503 }) };
+  }
+  return auth;
+}

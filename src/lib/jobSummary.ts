@@ -31,6 +31,7 @@ export type NextStepKind =
   | "markInstalled"
   | "closeTasks"
   | "invoice"
+  | "officePricing"
   | "done";
 
 export interface NextStep {
@@ -53,6 +54,8 @@ export interface JobSummaryInput {
   proposals?: ProposalInfo[] | null;
   /** Local day, YYYY-MM-DD. */
   today: string;
+  /** False for technicians: no prices, proposals or invoices, so the next step stays on field work. Default true. */
+  prices?: boolean;
 }
 
 export interface JobSummary {
@@ -128,15 +131,23 @@ export function jobSummary(input: JobSummaryInput): JobSummary {
     proposal,
     review,
   };
-  return { ...s, next: nextStep(s, project, input.proposals != null) };
+  return { ...s, next: nextStep(s, project, input.proposals != null, input.prices ?? true) };
 }
 
 /** The single most useful thing to do next on the job. */
-export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposalsKnown: boolean): NextStep {
+export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposalsKnown: boolean, prices = true): NextStep {
   const step = (kind: NextStepKind, text: string, tab: JobTab): NextStep => ({ kind, text, tab });
   if (!s.sheets) return step("addPlans", "Add the floor plans", "sheets");
   if (!s.devices && !s.ledRuns) return step("placeDevices", "Pin devices on the plan", "plan");
   if (s.tasks.overdue) return step("overdueTasks", `${plural(s.tasks.overdue, "overdue task")}`, "field");
+  if (!prices) {
+    // Technicians: estimates, proposals and invoices are the office's job.
+    if (project.status === "estimate") {
+      if (s.tasks.dueToday) return step("tasksToday", `${plural(s.tasks.dueToday, "task")} due today`, "field");
+      return step("officePricing", "With the office for pricing — check the plan and devices", "plan");
+    }
+    if (project.status === "installed") return s.tasks.open ? step("closeTasks", `Close out ${plural(s.tasks.open, "open task")}`, "field") : step("done", "All wrapped up", "info");
+  }
   const unpriced = !!s.estimate && (s.estimate.unpriced > 0 || s.estimate.total <= 0);
   const billed = (project.billduDocs ?? []).length > 0;
 

@@ -1,14 +1,17 @@
 "use client";
-import { Building, Cable, Calculator, CloudOff, ListChecks, Receipt, Save } from "lucide-react";
+import { Building, Cable, Calculator, CloudOff, ListChecks, Receipt, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { WIRE_TYPES } from "@/lib/catalog";
 import { getSettings, saveSettings } from "@/lib/db";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
 import type { AppSettings } from "@/lib/types";
 import AccessCodePanel from "./AccessCodePanel";
 import AccountPanel from "./AccountPanel";
 import BillduSettings from "./BillduSettings";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
+import TeamPanel from "./TeamPanel";
 
 export default function SettingsForm() {
   const [s, setS] = useState<AppSettings | null>(null);
@@ -19,6 +22,8 @@ export default function SettingsForm() {
       setOrig(JSON.stringify(x));
     });
   }, []);
+  // Technicians don't see prices, the business branding or Billdu (office work).
+  const office = can(useRole(), "prices");
   if (!s) return <p className="p-6 text-slate-500">Loading…</p>;
   const b = s.business;
   const p = s.pricing;
@@ -27,13 +32,14 @@ export default function SettingsForm() {
 
   const dirty = JSON.stringify(s) !== orig;
   const NAV = [
-    { id: "business", label: "Business", icon: Building },
-    { id: "pricing", label: "Pricing", icon: Calculator },
+    { id: "business", label: "Business", icon: Building, office: true },
+    { id: "pricing", label: "Pricing", icon: Calculator, office: true },
     { id: "wire", label: "Wire", icon: Cable },
     { id: "checklists", label: "Checklists", icon: ListChecks },
-    { id: "billdu", label: "Billdu", icon: Receipt },
+    { id: "billdu", label: "Billdu", icon: Receipt, office: true },
+    { id: "team", label: "Team", icon: Users },
     { id: "account", label: "Account & sync", icon: CloudOff },
-  ];
+  ].filter((n) => office || !n.office);
 
   return (
     <div className="mx-auto grid max-w-5xl gap-8 px-4 py-6 sm:px-6 sm:py-8 md:grid-cols-[180px_1fr]">
@@ -65,6 +71,8 @@ export default function SettingsForm() {
             toast("Settings saved");
           }}
         >
+          {office && (
+          <>
           <section id="business" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <h2 className="text-lg font-semibold">Your business</h2>
@@ -172,11 +180,13 @@ export default function SettingsForm() {
               Include tentative (?) items in estimate totals by default
             </label>
           </section>
+          </>
+          )}
 
           <section id="wire" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-3">
             <div className="sm:col-span-3">
               <h2 className="text-lg font-semibold">Wire</h2>
-              <p className="text-sm text-slate-500">How home-run lengths are estimated from the plan, and the price per foot of each cable.</p>
+              <p className="text-sm text-slate-500">{office ? "How home-run lengths are estimated from the plan, and the price per foot of each cable." : "How home-run lengths are estimated from the plan."}</p>
             </div>
             <div>
               <label className="label" htmlFor="set-slack-service-loop">Slack / service loop %</label>
@@ -190,7 +200,7 @@ export default function SettingsForm() {
               <label className="label" htmlFor="set-floor-to-floor-height-ft">Floor-to-floor height ft</label>
               <input id="set-floor-to-floor-height-ft" className="input" type="number" value={p.floorHeightFt} onChange={(e) => setP("floorHeightFt", Number(e.target.value) || 0)} />
             </div>
-            {WIRE_TYPES.filter((w) => w !== "None").map((w) => (
+            {office && WIRE_TYPES.filter((w) => w !== "None").map((w) => (
               <div key={w}>
                 <label className="label" htmlFor={`set-wire-${w.replace(/[^a-zA-Z0-9]+/g, "-")}`}>{w} $/ft</label>
                 <input
@@ -224,6 +234,7 @@ export default function SettingsForm() {
         </section>
 
         <AccessCodePanel />
+      {office && (
       <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">
           <div>
             <h2 className="text-lg font-semibold">Billdu</h2>
@@ -231,6 +242,8 @@ export default function SettingsForm() {
           </div>
           <BillduSettings />
         </section>
+      )}
+        <TeamPanel businessName={s.business.name} />
         <div className="card scroll-mt-6 p-6">
           <AccountPanel />
         </div>

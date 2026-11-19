@@ -1,5 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { can, CODE_ALPHABET, CODE_LENGTH, formatCode, inviteState, joinUrl, memberLabel, newInviteCode, normalizeCode, sortMembers, teamErrorMessage } from "@/lib/teamLogic";
+import {
+  can,
+  CODE_ALPHABET,
+  CODE_LENGTH,
+  formatCode,
+  inviteMessage,
+  inviteState,
+  joinUrl,
+  memberInitials,
+  memberLabel,
+  newInviteCode,
+  normalizeCode,
+  signupProblem,
+  smsHref,
+  sortMembers,
+  teamErrorMessage,
+} from "@/lib/teamLogic";
+
+describe("invite sharing", () => {
+  const link = joinUrl("https://pinplan.app", "K7QMXR4TPA");
+  it("writes a message with the link and the formatted code", () => {
+    const m = inviteMessage({ team: "Acme Low Voltage", from: "Dana", role: "tech", code: "K7QMXR4TPA", link });
+    expect(m).toContain("Dana invited you to join Acme Low Voltage");
+    expect(m).toContain("(the crew)");
+    expect(m).toContain("https://pinplan.app/join?code=K7QMXR4TPA");
+    expect(m).toContain("K7QM-XR4T-PA");
+    expect(inviteMessage({ team: " ", role: "admin", code: "K7QMXR4TPA", link })).toMatch(/^You're invited to join our team on PinPlan \(the office\)/);
+  });
+  it("builds an sms link with the text encoded", () => {
+    expect(smsHref("Hi & welcome")).toBe("sms:?&body=Hi%20%26%20welcome");
+    expect(smsHref("x", "+1 555")).toBe("sms:%2B1%20555?&body=x");
+  });
+  it("makes avatar initials", () => {
+    expect(memberInitials({ name: "Jordan Lee" })).toBe("JL");
+    expect(memberInitials({ name: "", email: "pat.kim@x.com" })).toBe("PK");
+    expect(memberInitials({ name: "cher" })).toBe("C");
+  });
+});
+
+describe("sign-up checks", () => {
+  const ok = { email: "tech@acme.com", password: "longenough", name: "Sam", code: "k7qm-xr4t-pa" };
+  it("accepts a good form", () => expect(signupProblem(ok)).toBeNull());
+  it("flags each problem with a friendly message", () => {
+    expect(signupProblem({ ...ok, code: "abc" })).toMatch(/invite code/);
+    expect(signupProblem({ ...ok, email: "nope" })).toMatch(/valid email/);
+    expect(signupProblem({ ...ok, password: "short" })).toMatch(/at least 8/);
+    expect(signupProblem({ ...ok, password: "x".repeat(73) })).toMatch(/72/);
+    expect(signupProblem({ ...ok, name: "x".repeat(81) })).toMatch(/80/);
+    expect(signupProblem({ email: "a@b.co", password: "12345678" })).toBeNull();
+  });
+});
 
 describe("team roles", () => {
   it("techs do field work only; owners, admins and solo users can do everything", () => {

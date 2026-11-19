@@ -1,9 +1,9 @@
-import { requireUser } from "@/lib/server/auth";
+import { requireOffice } from "@/lib/server/auth";
 import { deleteBillduCreds, keyHint, loadBillduCreds, saveBillduCreds, storageKind } from "@/lib/server/secrets";
 import { jsonError } from "@/lib/billdu/route-helpers";
 
 export async function GET(request: Request) {
-  const auth = await requireUser(request);
+  const auth = await requireOffice(request);
   if (!auth.ok) return auth.response;
   try {
     const { creds, source } = await loadBillduCreds();
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireUser(req);
+  const auth = await requireOffice(req);
   if (!auth.ok) return auth.response;
   let body: { apiKey?: string; apiSecret?: string };
   try {
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireUser(request);
+  const auth = await requireOffice(request);
   if (!auth.ok) return auth.response;
   await deleteBillduCreds();
   const { creds, source } = await loadBillduCreds().catch(() => ({ creds: null, source: null }));

@@ -2,6 +2,7 @@
 // The signed-in user's company team: who's on it, their role, and the calls that manage it.
 // The role is cached on this device so the app hides the right things offline too.
 import { create } from "zustand";
+import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
 import { newInviteCode, normalizeCode, teamErrorMessage, type TeamRole } from "./teamLogic";
 
@@ -82,14 +83,16 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
   if (!sb) return useTeam.getState();
   const me = await sb.from("team_members").select("team_id, role").eq("user_id", userId).maybeSingle();
   if (me.error) {
-    // Offline or a migration behind: keep what we had.
-    useTeam.setState({ ready: true, userId, needsMigration: isMissingSchema(me.error), error: isMissingSchema(me.error) ? null : me.error.message });
+    // Offline or a migration behind: keep what we had (but never another account's team).
+    const keep = useTeam.getState().userId === userId ? {} : { ...empty };
+    useTeam.setState({ ...keep, ready: true, userId, needsMigration: isMissingSchema(me.error), error: isMissingSchema(me.error) ? null : me.error.message });
     return useTeam.getState();
   }
   if (!me.data) {
     const s: TeamState = { ...empty, ready: true, userId };
     useTeam.setState(s, true);
     writeCache(s);
+    noteTeamForSync(userId, null);
     return s;
   }
   const [t, m] = await Promise.all([
@@ -111,10 +114,37 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
   };
   useTeam.setState(s, true);
   writeCache(s);
+  noteTeamForSync(userId, s.team?.id ?? null);
   return s;
 }
 
-const reload = () => loadTeam(useTeam.getState().userId);
+/** Joining a team brings jobs that changed before this device's sync watermarks: pull everything again once. */
+const TEAM_SYNC_KEY = (userId: string) => `pinplan.sync.team.${userId}`;
+function noteTeamForSync(userId: string, teamId: string | null) {
+  try {
+    const prev = localStorage.getItem(TEAM_SYNC_KEY(userId));
+    if (prev === (teamId ?? "")) return;
+    localStorage.setItem(TEAM_SYNC_KEY(userId), teamId ?? "");
+    // Nothing new to see when leaving a team, or the first time a solo user is checked.
+    if (!teamId) return;
+    const prefix = `pinplan.sync.pull.${userId}.`;
+    for (const k of Object.keys(localStorage)) if (k.startsWith(prefix)) localStorage.removeItem(k);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Reload for the signed-in user. Asks the client for the session: right after signing in (the join page), the
+ *  auth listener may not have recorded the user yet, and loading for "nobody" would wipe the team. */
+async function reload(): Promise<TeamState> {
+  const sb = getSupabase();
+  const uid = (sb ? (await sb.auth.getSession()).data.session?.user.id : null) ?? useTeam.getState().userId;
+  const s = await loadTeam(uid);
+  // Photos, comments and logs say who did them: use the name on the team.
+  const mine = s.members.find((m) => m.userId === s.userId);
+  if (mine?.name) setAuthor(mine.name);
+  return s;
+}
 
 function client() {
   const sb = getSupabase();

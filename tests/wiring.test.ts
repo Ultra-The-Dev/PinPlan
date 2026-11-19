@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { seedCatalog } from "@/lib/catalog";
-import { cableLabelsCsv, materialList, portSchedule } from "@/lib/wiring";
+import { cableLabelsCsv, materialCsv, materialList, portSchedule } from "@/lib/wiring";
 import type { Closet, Marker, Product, Project, Run, Sheet } from "@/lib/types";
 
 const ts = "2026-11-15T00:00:00.000Z";
@@ -68,6 +68,14 @@ describe("material order list", () => {
     expect(list.find((r) => r.item === "TV location")).toMatchObject({ supplier: "No product chosen", qty: 1 });
     const withQ = materialList({ project: proj, sheets, markers, runs, closets: [eq] }, catalog, [u7, belden], { includeTentative: true });
     expect(withQ.find((r) => r.item.startsWith("Ubiquiti U7 Pro"))!.qty).toBe(2);
+  });
+
+  it("leaves costs out of the order list CSV for technicians", () => {
+    const office = materialCsv(list);
+    const tech = materialCsv(list, { prices: false });
+    expect(office.split("\n")[0]).toContain("Unit cost");
+    expect(tech.split("\n")[0]).toBe("Supplier,Item,SKU,Qty,Unit,Note");
+    expect(tech).not.toContain("189");
   });
 
   it("buys cable by the box and HDMI by stock length", () => {

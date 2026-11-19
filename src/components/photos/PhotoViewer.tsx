@@ -10,6 +10,7 @@ import { addTaskFromComment, commentTask, tagOptions, teamNames } from "@/lib/fi
 import { getAuthor, mapsLink, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
+import { useTeam } from "@/lib/team";
 import type { Photo, PhotoComment } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
 import AnnotationSvg from "./AnnotationSvg";
@@ -79,6 +80,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const { markers, photoComments, saveRow, removeRows, catalog, checklists, jobLogs } = useEditor();
   const all = useEditor((s) => s.photos);
   const { email } = useSyncStatus();
+  const members = useTeam((s) => s.members);
   const [id, setId] = useState(startId);
   const [marking, setMarking] = useState(false);
   const [compare, setCompare] = useState(false);
@@ -97,7 +99,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const p = all.find((x) => x.id === photos[i]?.id) ?? photos[i];
   const comments = useMemo(() => photoComments.filter((c) => c.photoId === p?.id && !c.deleted), [photoComments, p?.id]);
   const options = useMemo(() => tagOptions(all), [all]);
-  const names = useMemo(() => teamNames({ photos: all, jobLogs, checklists }, getAuthor(email)), [all, jobLogs, checklists, email]);
+  const names = useMemo(() => teamNames({ photos: all, jobLogs, checklists, members }, getAuthor(email)), [all, jobLogs, checklists, members, email]);
   const before = p?.beforeId ? all.find((x) => x.id === p.beforeId && !x.deleted) : undefined;
   const after = p ? all.find((x) => x.beforeId === p.id && !x.deleted) : undefined;
   const pair = before ? { before, after: p } : after ? { before: p, after } : null;

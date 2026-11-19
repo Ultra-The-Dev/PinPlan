@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useEditor } from "@/lib/store";
+import { useRole } from "@/lib/team";
+import { can } from "@/lib/teamLogic";
 import type { ProjectStatus } from "@/lib/types";
 import { Camera, ClipboardCheck, FileText, HardHat, Info, ListChecks, MapPin, Receipt } from "lucide-react";
 import AppHeader, { Logo } from "./AppHeader";
@@ -40,7 +42,11 @@ export default function ProjectView() {
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("id") ?? "";
-  const tab = params.get("tab") ?? "plan";
+  const prices = can(useRole(), "prices");
+  // Technicians don't see the estimate; a link straight to it opens the plan instead.
+  const asked = params.get("tab") ?? "plan";
+  const tab = asked === "estimate" && !prices ? "plan" : asked;
+  const tabs = prices ? TABS : TABS.filter((t) => t.id !== "estimate");
   const { loaded, project, load, updateProject, sheets } = useEditor();
   const photoCount = useEditor((s) => s.photos.length);
 
@@ -106,7 +112,7 @@ export default function ProjectView() {
         </div>
         <div className="flex-1" />
         <nav ref={navRef} className="seg max-w-[60vw] overflow-x-auto" aria-label="Job sections">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button key={t.id} className={`tab ${tab === t.id ? "tab-active" : ""}`} onClick={() => setTab(t.id)} title={t.label} aria-label={t.label} aria-current={tab === t.id ? "page" : undefined}>
               <t.icon />
               <span className="hidden lg:inline">{t.label}</span>
@@ -139,7 +145,7 @@ export default function ProjectView() {
         {tab === "photos" && <PhotosTab />}
         {tab === "field" && <FieldTab />}
         {tab === "takeoff" && <TakeoffTab />}
-        {tab === "estimate" && (
+        {tab === "estimate" && prices && (
           <div className="h-full overflow-auto">
             <EstimateTab />
           </div>

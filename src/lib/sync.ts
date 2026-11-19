@@ -9,6 +9,7 @@ import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
 import type { Sheet } from "./types";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
+import { toast } from "./toast";
 
 export interface SyncStatus {
   configured: boolean;
@@ -342,6 +343,13 @@ async function runSync(force = false): Promise<void> {
   return running;
 }
 
+/** A remembered invite was finished on sign-in: say so and fetch the team's jobs. */
+function joined(team: string | null) {
+  if (!team) return;
+  toast(`You joined ${team}`);
+  void runSync(true);
+}
+
 /** Start background sync. Safe to call without Supabase configured. Returns a cleanup function. */
 export function startSync(): () => void {
   if (typeof window === "undefined") return () => {};
@@ -365,14 +373,14 @@ export function startSync(): () => void {
     sb.auth.getSession().then(({ data }) => {
       const u = data.session?.user;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
-      void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).catch(() => undefined);
+      void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).catch(() => undefined);
       void runSync(true);
     });
     const { data } = sb.auth.onAuthStateChange((_evt, session) => {
       const u = session?.user;
       const prev = useSyncStatus.getState().userId;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
-      if (u?.id !== prev) void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).catch(() => undefined);
+      if (u?.id !== prev) void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).catch(() => undefined);
       if (u && u.id !== prev) void runSync(true);
     });
     unsubAuth = () => data.subscription.unsubscribe();
