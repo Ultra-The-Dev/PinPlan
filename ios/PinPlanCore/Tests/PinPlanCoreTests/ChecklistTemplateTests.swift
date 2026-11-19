@@ -83,4 +83,13 @@ final class ChecklistTemplateTests: XCTestCase {
         let back = try JSONDecoder().decode([ChecklistTemplate].self, from: JSONEncoder().encode(ts))
         XCTAssertEqual(back, ts)
     }
+
+    func testJunkEntriesDoNotFailTheWholeList() throws {
+        let json = #"[{"id":"t1","name":"Gate","items":[{"text":"Keypad"},"junk",3]},"junk",42]"#
+        let ts = try JSONDecoder().decode([ChecklistTemplate].self, from: Data(json.utf8))
+        XCTAssertEqual(ts.count, 3)
+        let n = FieldDocs.normalizeTemplates(ts)
+        XCTAssertEqual(n.map(\.id), ["t1"])
+        XCTAssertEqual(n[0].items.map(\.text), ["Keypad"])
+    }
 }

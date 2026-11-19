@@ -82,6 +82,9 @@ describe("checklist templates", () => {
       { id: "x", name: "Gate", items: [{ text: "Keypad", requiresPhoto: false }], custom: true },
       { id: "z", name: "No items", items: [], custom: true },
     ]);
+    expect(normalizeTemplates([{ id: "d", name: "Dates", createdAt: 5, updatedAt: "2026-11-19T12:00:00Z" }])).toEqual([
+      { id: "d", name: "Dates", items: [], custom: true, updatedAt: "2026-11-19T12:00:00Z" },
+    ]);
     expect(normalizeTemplates(null)).toEqual([]);
     expect(normalizeTemplates({})).toEqual([]);
   });

@@ -78,7 +78,10 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const prog = checklistProgress(c, photos);
 
+  const savingRef = useRef(false);
   async function saveAsTemplate(name: string) {
+    if (savingRef.current) return; // a double tap on "Save template" must not save it twice ("X" and "X (2)")
+    savingRef.current = true;
     const t = templateFromChecklist(c, name, newId);
     let saved = t.name;
     try {
@@ -91,6 +94,8 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
       toast(`Saved “${saved}” as a template`, "success");
     } catch {
       toast("Couldn't save the template", "error");
+    } finally {
+      savingRef.current = false;
     }
   }
   // Patch the latest copy from the store, so quick taps on two items don't overwrite each other.

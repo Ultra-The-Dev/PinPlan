@@ -17,14 +17,22 @@ function TemplateRow({ t }: { t: ChecklistTemplate }) {
 
   async function rename() {
     if (!name.trim()) return;
-    await saveChecklistTemplates((cur) => renameTemplate(cur, t.id, name));
-    setEditing(false);
+    try {
+      await saveChecklistTemplates((cur) => renameTemplate(cur, t.id, name));
+      setEditing(false);
+    } catch {
+      toast("Couldn't rename the template", "error");
+    }
   }
 
   async function remove() {
     if (!confirm(`Delete the template “${t.name}”? Checklists already started from it stay on their jobs.`)) return;
-    await saveChecklistTemplates((cur) => removeTemplate(cur, t.id));
-    toast(`Deleted “${t.name}”`);
+    try {
+      await saveChecklistTemplates((cur) => removeTemplate(cur, t.id));
+      toast(`Deleted “${t.name}”`);
+    } catch {
+      toast("Couldn't delete the template", "error");
+    }
   }
 
   return (

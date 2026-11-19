@@ -104,7 +104,8 @@ public struct ChecklistTemplate: Codable, Hashable, Identifiable, Sendable {
         public var requiresPhoto: Bool?
         public init(text: String, requiresPhoto: Bool = false) { self.text = text; self.requiresPhoto = requiresPhoto }
         public init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
+            // A non-object entry decodes as a blank item (dropped by normalizeTemplates) instead of failing the whole settings file.
+            guard let c = try? decoder.container(keyedBy: CodingKeys.self) else { text = ""; requiresPhoto = nil; return }
             text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
             requiresPhoto = (try? c.decodeIfPresent(Bool.self, forKey: .requiresPhoto)) ?? nil
         }
@@ -119,7 +120,11 @@ public struct ChecklistTemplate: Codable, Hashable, Identifiable, Sendable {
         self.id = id; self.name = name; self.items = items; self.custom = custom; self.createdAt = createdAt; self.updatedAt = updatedAt
     }
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // A non-object entry decodes as an id-less template (dropped by normalizeTemplates), so settings.json still loads.
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
+            id = ""; name = ""; items = []; custom = nil; createdAt = nil; updatedAt = nil
+            return
+        }
         id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
         name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
         items = (try? c.decodeIfPresent([Item].self, forKey: .items)) ?? []

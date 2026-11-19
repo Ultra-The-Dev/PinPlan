@@ -97,7 +97,7 @@ export function normalizeTemplates(raw: unknown): ChecklistTemplate[] {
     if (!t || typeof t !== "object" || typeof t.id !== "string" || !t.id || seen.has(t.id) || typeof t.name !== "string" || !t.name.trim()) continue;
     seen.add(t.id);
     const items = Array.isArray(t.items) ? templateItems(t.items.filter((i) => i && typeof i.text === "string")) : [];
-    out.push({ id: t.id, name: t.name.trim(), items, custom: true, ...(t.createdAt ? { createdAt: t.createdAt } : {}), ...(t.updatedAt ? { updatedAt: t.updatedAt } : {}) });
+    out.push({ id: t.id, name: t.name.trim(), items, custom: true, ...(typeof t.createdAt === "string" && t.createdAt ? { createdAt: t.createdAt } : {}), ...(typeof t.updatedAt === "string" && t.updatedAt ? { updatedAt: t.updatedAt } : {}) });
   }
   return out;
 }
