@@ -14,6 +14,8 @@ public struct Product: Codable, Hashable, Identifiable, Sendable {
     public var notes: String?
     public var archived: Bool?
     public var updatedAt: String
+    /// Soft-deleted (from the web app, via cloud sync): never prices anything.
+    public var deleted: Bool?
 
     public init(id: String = newId(), deviceTypeId: String, brand: String, model: String, sku: String? = nil,
                 unitPrice: Double = 0, laborPrice: Double = 0, notes: String? = nil) {
@@ -26,14 +28,43 @@ public struct Product: Codable, Hashable, Identifiable, Sendable {
         let t = [brand, model].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " ")
         return t.isEmpty ? "Unnamed product" : t
     }
+
+    /// Estimate line order: title (case-insensitive), then id — same as the web app's compareProducts.
+    public static func ordered(_ a: Product, _ b: Product) -> Bool {
+        let ta = a.title.lowercased(), tb = b.title.lowercased()
+        return ta != tb ? ta < tb : a.id < b.id
+    }
 }
 
 public enum ProductAssignment {
+    /// The product behind an estimate line (for its SKU in Billdu): "prod:<id>" / "optprod:<id>", or the job's cable product
+    /// for "wire:<type>" when it really is a product for that cable. Same as the web app's lineProductId.
+    public static func lineProductId(_ key: String, project: Project, products: [Product]) -> String? {
+        var id: String?
+        var wantType: String?
+        if key.hasPrefix("prod:") || key.hasPrefix("optprod:"), let colon = key.firstIndex(of: ":") {
+            id = String(key[key.index(after: colon)...])
+        } else if key.hasPrefix(Cables.productPrefix) {
+            id = project.productChoices?[key]
+            wantType = key
+        }
+        guard let id, !id.isEmpty, let p = products.first(where: { $0.id == id && $0.deleted != true }) else { return nil }
+        if let wantType, p.deviceTypeId != wantType { return nil }
+        return p.id
+    }
+
+    /// SKU to show as the item code in Billdu for an estimate line, if its product has one.
+    public static func lineSku(_ key: String, project: Project, products: [Product]) -> String? {
+        guard let pid = lineProductId(key, project: project, products: products),
+              let sku = products.first(where: { $0.id == pid })?.sku?.trimmingCharacters(in: .whitespaces), !sku.isEmpty else { return nil }
+        return sku
+    }
+
     /// The product a device uses: its own choice, else the job's choice for its type (only if it fits the type).
     public static func productId(for m: Marker, project: Project, products: [Product]) -> String? {
         let byId = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for id in [m.productId, project.productChoices?[m.deviceTypeId]].compactMap({ $0 }) {
-            if let p = byId[id], p.deviceTypeId == m.deviceTypeId { return id }
+            if let p = byId[id], p.deleted != true, p.deviceTypeId == m.deviceTypeId { return id }
         }
         return nil
     }
@@ -50,7 +81,7 @@ public enum ProductAssignment {
             out[m.deviceTypeId, default: [:]][pid] = e
         }
         for d in catalog where d.kind == .led {
-            guard let pid = b.project.productChoices?[d.id], products.contains(where: { $0.id == pid && $0.deviceTypeId == d.id }) else { continue }
+            guard let pid = b.project.productChoices?[d.id], products.contains(where: { $0.id == pid && $0.deviceTypeId == d.id && $0.deleted != true }) else { continue }
             let c = takeoff.total.ledFt[d.id] ?? 0, t = takeoff.total.ledTentativeFt[d.id] ?? 0
             if c > 0 || t > 0 { out[d.id, default: [:]][pid] = (c, t) }
         }

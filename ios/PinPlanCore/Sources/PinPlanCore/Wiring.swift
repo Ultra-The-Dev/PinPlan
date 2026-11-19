@@ -118,7 +118,7 @@ public enum Wiring {
         let takeoff = TakeoffCalculator.compute(b)
         let t = takeoff.total
         let split = ProductAssignment.split(b, takeoff: takeoff, catalog: catalog, products: products)
-        let byId = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let byId = Dictionary(products.filter { $0.deleted != true }.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var rows: [MaterialRow] = []
         func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
         func push(_ supplier: String, _ item: String, _ sku: String, _ qty: Double, _ unit: String, _ cost: Double, _ note: String = "") {

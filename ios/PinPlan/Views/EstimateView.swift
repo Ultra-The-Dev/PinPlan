@@ -140,7 +140,7 @@ struct EstimateView: View {
                 }
                 LabeledContent("Deposit %") { TextField("full", text: $deposit).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
                 if let d = Double(deposit), d > 0, d < 100 {
-                    Text("One line: \(d.clean)% of \(Money.format(e.subtotal, currency: cur)) = \(Money.format((e.subtotal * d).rounded() / 100, currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
+                    Text("One line: \(d.clean)% of \(Money.format(e.subtotal, currency: cur)) = \(Money.format(Money.deposit(subtotal: e.subtotal, pct: d), currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
                 }
                 Button { trySend(e) } label: { Label(sending ? "Sending…" : sendTitle, systemImage: "paperplane.fill") }
                     .disabled(sending || e.subtotal <= 0)
@@ -210,7 +210,7 @@ struct EstimateView: View {
         let key = QuickCharges.key(for: c)
         model.editSilently {
             $0.upsertEstimateLine(key: key) { l in
-                l.description = c.name; l.unit = c.unit; l.unitPrice = c.price; l.sort = Date().timeIntervalSince1970
+                l.description = c.name; l.unit = c.unit; l.unitPrice = c.price; l.sort = (Date().timeIntervalSince1970 * 1000).rounded()
                 if c.countFrom == nil { l.qty = 1 }
             }
         }
@@ -230,10 +230,10 @@ struct EstimateView: View {
         let dep = Double(deposit).flatMap { $0 > 0 && $0 < 100 ? $0 : nil }
         sending = true
         message = nil
-        let project = model.bundle.project, pricing = pricing, t = type
+        let project = model.bundle.project, pricing = pricing, t = type, products = app.products
         Task {
             do {
-                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing)
+                let r = try await client.sendToBilldu(project: project, docType: t, estimate: e, pricing: pricing, depositPct: dep, existingDocId: existing, products: products)
                 let old = existing.flatMap { id in project.billduDocs.first { $0.id == id } }
                 let updated = r.doc.updated ?? (existing != nil)
                 let ref = BillduDocRef(id: r.doc.id, type: t, serial: r.doc.serial ?? (updated ? old?.serial : nil), amount: r.doc.amount, percent: r.doc.percent,

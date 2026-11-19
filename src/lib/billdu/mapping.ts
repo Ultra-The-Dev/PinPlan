@@ -1,5 +1,5 @@
 // Pure mapping from app data to Billdu API payloads.
-import type { ComputedLine } from "../estimate";
+import { depositAmount, money, type ComputedLine } from "../estimate";
 import type { Project } from "../types";
 
 export interface BillduItem {
@@ -17,24 +17,26 @@ export type SendLine = Pick<ComputedLine, "key" | "description" | "qty" | "unit"
   sku?: string | null;
 };
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+const round2 = money;
 
 export function billduUnit(unit: string): string {
   const u = unit.trim().toLowerCase();
   if (u === "each" || u === "ea" || u === "pc" || u === "pcs") return "pc";
   if (u === "lf" || u === "ft" || u === "feet") return "ft";
-  return unit || "pc";
+  return unit.trim() || "pc";
 }
 
 /** Included estimate lines -> Billdu items. A deposit % collapses everything into one line. */
 export function linesToItems(lines: SendLine[], taxPct: number, opts: { depositPct?: number | null; address?: string } = {}): BillduItem[] {
   const included = lines.filter((l) => l.included && l.qty !== 0);
   if (opts.depositPct && opts.depositPct > 0 && opts.depositPct < 100) {
-    const subtotal = included.reduce((s, l) => s + l.total, 0);
+    const subtotal = money(included.reduce((s, l) => s + l.total, 0));
+    // Nothing to bill: no deposit line (the route then answers "no included lines").
+    if (!included.length || subtotal <= 0) return [];
     return [
       {
         label: `Deposit ${opts.depositPct}% of estimate${opts.address ? ` — ${opts.address}` : ""}`,
-        price: round2((subtotal * opts.depositPct) / 100),
+        price: depositAmount(subtotal, opts.depositPct),
         tax: taxPct,
         stockNumber: "",
         count: 1,

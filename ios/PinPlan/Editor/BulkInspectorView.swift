@@ -38,7 +38,7 @@ struct BulkInspectorView: View {
                 Section(sentence: "Product") {
                     Menu {
                         Button("Job’s choice") { model.bulkEdit(ids) { $0.productId = nil } }
-                        ForEach(app.products.filter { $0.deviceTypeId == oneType && $0.archived != true }) { p in
+                        ForEach(app.products.filter { $0.deviceTypeId == oneType && $0.archived != true && $0.deleted != true }) { p in
                             Button(p.title) { model.bulkEdit(ids) { $0.productId = p.id } }
                         }
                     } label: { Label("Set product for all \(ms.count)", systemImage: "tag") }

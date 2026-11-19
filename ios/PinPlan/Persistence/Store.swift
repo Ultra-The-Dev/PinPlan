@@ -176,7 +176,9 @@ final class Store: @unchecked Sendable {
             }
             return .init(bundle: b, images: images)
         }
-        let file = BackupFile(catalog: catalog, products: products.isEmpty ? nil : products, projects: entries)
+        // Deleted products (from cloud sync) stay out of the backup, as on the web.
+        let live = products.filter { $0.deleted != true }
+        let file = BackupFile(catalog: catalog, products: live.isEmpty ? nil : live, projects: entries)
         let name = (bundles.count == 1 ? slug(bundles[0].project.address) : "pinplan") + ".pinplan.json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         try file.encoded().write(to: url, options: .atomic)

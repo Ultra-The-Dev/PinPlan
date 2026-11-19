@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { downloadBlob, downloadText, slug } from "@/lib/download";
-import { estimateCsv, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
+import { depositAmount, estimateCsv, lineProductId, projectEstimate, formatMoney, type ComputedLine, type Estimate } from "@/lib/estimate";
 import { useEditor } from "@/lib/store";
 import { LAYERS } from "@/lib/catalog";
 import { computeTakeoff } from "@/lib/takeoff";
@@ -160,8 +160,8 @@ export default function EstimateTab() {
           docType,
           // Item code in Billdu = the product's SKU when there is one (nothing otherwise).
           lines: estimate!.lines.map((l) => {
-            const pid = l.key.startsWith("prod:") || l.key.startsWith("optprod:") ? l.key.slice(l.key.indexOf(":") + 1) : l.key.startsWith("wire:") ? project!.productChoices?.[l.key] : null;
-            return { ...l, sku: products.find((p) => p.id === pid)?.sku ?? null };
+            const pid = lineProductId(l.key, project!, products);
+            return { ...l, sku: pid ? (products.find((p) => p.id === pid)?.sku ?? null) : null };
           }),
           taxPct: pricing!.taxPct,
           currency: cur,
@@ -492,7 +492,7 @@ export default function EstimateTab() {
             </div>
             {isDeposit && (
               <p className="mt-2 text-xs text-slate-600">
-                One line: {dep}% of {formatMoney(estimate.subtotal, cur)} = <strong>{formatMoney(Math.round(estimate.subtotal * dep!) / 100, cur)}</strong> before tax.
+                One line: {dep}% of {formatMoney(estimate.subtotal, cur)} = <strong>{formatMoney(depositAmount(estimate.subtotal, dep!), cur)}</strong> before tax.
               </p>
             )}
             <button className="btn btn-brand mt-4 h-10 w-full" disabled={!!busy || estimate.subtotal <= 0} onClick={onSendClick}>

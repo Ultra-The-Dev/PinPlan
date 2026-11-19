@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/server/auth";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import { billduUnit } from "@/lib/billdu/mapping";
+import { money } from "@/lib/estimate";
 
 interface ProductIn {
   id: string;
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         description: "",
         // No internal ids in Billdu: they'd show up in the code column of invoices.
         stockNumber: "",
-        price: Math.round(price * 100) / 100,
+        price: money(price),
         tax: body.taxPct ?? 0,
         count: 1,
         unit: billduUnit(d.unit),
