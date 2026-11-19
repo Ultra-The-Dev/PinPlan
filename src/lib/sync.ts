@@ -8,6 +8,7 @@ import { db, type SyncItem, type SyncTable } from "./db";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import { dedupeQueue, nextPullPage, pullStart, PUSH_ORDER, remoteWins, schemaGap, TABLES, toLocal, toRemote, withoutColumns } from "./syncMap";
 import type { Sheet } from "./types";
+import { finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, useTeam } from "./team";
 import { toast } from "./toast";
 
@@ -350,6 +351,11 @@ function joined(team: string | null) {
   void runSync(true);
 }
 
+/** A company sign-up that waited for email confirmation was finished on sign-in. */
+function companyReady(company: string | null) {
+  if (company) toast(`${company} is set up — welcome to PinPlan`);
+}
+
 /** Start background sync. Safe to call without Supabase configured. Returns a cleanup function. */
 export function startSync(): () => void {
   if (typeof window === "undefined") return () => {};
@@ -373,14 +379,14 @@ export function startSync(): () => void {
     sb.auth.getSession().then(({ data }) => {
       const u = data.session?.user;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
-      void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).catch(() => undefined);
+      void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).then(() => (u ? finishPendingCompany(u.email ?? null) : null)).then(companyReady).catch(() => undefined);
       void runSync(true);
     });
     const { data } = sb.auth.onAuthStateChange((_evt, session) => {
       const u = session?.user;
       const prev = useSyncStatus.getState().userId;
       setStatus({ signedIn: !!u, email: u?.email ?? null, userId: u?.id ?? null, authReady: true });
-      if (u?.id !== prev) void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).catch(() => undefined);
+      if (u?.id !== prev) void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).then(() => (u ? finishPendingCompany(u.email ?? null) : null)).then(companyReady).catch(() => undefined);
       if (u && u.id !== prev) void runSync(true);
     });
     unsubAuth = () => data.subscription.unsubscribe();
