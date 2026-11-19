@@ -4,18 +4,23 @@
  *  Written for a US-based B2B SaaS with CCPA/CPRA and GDPR/UK GDPR-style rights. It is not legal advice.
  *  Keep it accurate: when the app starts collecting something new (analytics, push notifications, a new
  *  subprocessor), update this page, SUBPROCESSORS in src/lib/legal.ts and the App Store privacy labels
- *  (docs/production-checklist.md), and bump LEGAL_EFFECTIVE_DATE. Fill in every [placeholder] in src/lib/legal.ts.
+ *  (docs/production-checklist.md), and bump LEGAL_EFFECTIVE_DATE. Fill in every placeholder in src/lib/legal.ts
+ *  (never type one here: scripts/check-legal.mjs rejects bracketed text in this page).
+ *  AI wording appears only while AI_ENABLED (src/lib/features.ts) is on.
  * ============================================================================================================
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
-import { COMPANY, LEGAL_EFFECTIVE_DATE, SUBPROCESSORS } from "@/lib/legal";
+import { publicMetadata } from "@/components/marketing/seo";
+import { AI_ENABLED } from "@/lib/features";
+import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION, SUBPROCESSORS } from "@/lib/legal";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
+  path: "/privacy",
   title: "Privacy Policy · PinPlan",
   description: "What PinPlan collects, why, who processes it, how long we keep it and the choices you have.",
-};
+});
 
 const S = {
   scope: { id: "scope", title: "Who we are and what this covers" },
@@ -33,7 +38,7 @@ const S = {
   changes: { id: "changes", title: "Changes to this policy" },
   contact: { id: "contact", title: "Contact" },
 } satisfies Record<string, TocItem>;
-const toc = Object.values(S);
+const toc = Object.values(S).filter((t) => AI_ENABLED || t !== S.ai);
 const n = (item: TocItem) => toc.indexOf(item) + 1;
 
 export default function PrivacyPage() {
@@ -44,9 +49,9 @@ export default function PrivacyPage() {
       toc={toc}
       intro={
         <p>
-          Installers trust PinPlan with their jobs, their floor plans and their clients’ details. This policy explains, in plain language, what we collect, why,
-          who helps us process it, how long we keep it and how you can control it. In short: we use your data to run PinPlan for you, we don’t sell it, and we
-          don’t use it to train AI models.
+          Electrical, low-voltage and specialty trade contractors trust PinPlan with their plans, quotes, invoices, jobs and their clients’ details. This
+          policy explains, in plain language, what we collect, why, who helps us process it, how long we keep it and how you can control it. In short: we use
+          your data to run PinPlan for you, we don’t sell it, and we don’t use it to train AI models.
         </p>
       }
     >
@@ -63,8 +68,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>As a service provider (processor)</strong> for the job data our customers put into PinPlan, including information about their own clients.
-            Our customers decide what goes in and why; we process it on their behalf under our <Link href="/terms">Terms of Service</Link>. See{" "}
-            <a href="#your-clients">section {n(S.clients)}</a>.
+            Our customers decide what goes in and why; we process it on their behalf under our <Link href="/terms">Terms of Service</Link> and{" "}
+            <Link href="/legal/dpa">Data Processing Addendum</Link>. See <a href="#your-clients">section {n(S.clients)}</a>.
           </li>
         </ul>
       </Section>
@@ -77,16 +82,17 @@ export default function PrivacyPage() {
             company name, team role, and invitations you send.
           </li>
           <li>
-            <strong>Business profile:</strong> company name, logo, phone, email, address and terms that you add to estimates and proposals.
+            <strong>Business profile:</strong> company name, logo, phone, email, address, tax and payment terms that you add to quotes, invoices and
+            other documents.
           </li>
           <li>
             <strong>Billing information:</strong> billing contact, plan and invoices. Card details are collected and stored by Stripe; we only see limited
             details such as card brand, last four digits and expiry.
           </li>
           <li>
-            <strong>Job data (“Customer Data”):</strong> projects, floor plans and drawings, device placements and cable runs, takeoffs, catalogs and prices,
-            estimates, proposals, checklists, tasks, notes, documents and daily logs. This can include your clients’ names, addresses, phone numbers and email
-            addresses.
+            <strong>Job data (“Customer Data”):</strong> projects, plan sets and drawings, device placements, wire runs and measurements, takeoffs, catalogs and
+            prices, quotes and estimates, invoices, credit notes and payment records, RFIs, change orders, forms, checklists, tasks, schedules, daily reports,
+            notes, documents and files. This can include your clients’ names, addresses, phone numbers and email addresses.
           </li>
           <li>
             <strong>Photos and their metadata:</strong> photos you take or upload, with captions, tags and annotations. Photos can contain embedded metadata
@@ -115,26 +121,49 @@ export default function PrivacyPage() {
             <strong>Server and security logs:</strong> our hosting provider records technical request data such as IP address, time, requested address and
             browser type. We use IP addresses to protect the Service, including rate limiting.
           </li>
+        </ul>
+        <h3 id="cookies">Cookies and local storage</h3>
+        <p>
+          PinPlan does not use advertising cookies, analytics cookies or third-party trackers. To work offline and keep you signed in, it stores data on your
+          device:
+        </p>
+        <ul>
           <li>
-            <strong>Local storage on your device:</strong> PinPlan stores your jobs in your browser’s storage (IndexedDB) or on your iOS device so it works
-            offline, plus a sign-in session. These are essential for the Service; we do not use advertising cookies or third-party advertising trackers.
+            <strong>Your jobs</strong> in your browser’s database (IndexedDB) or in the iOS app’s storage, so you can keep working without a connection.
+          </li>
+          <li>
+            <strong>Your sign-in session</strong> in your browser’s local storage (or the iOS keychain), so you stay signed in.
+          </li>
+          <li>
+            <strong>The app’s pages</strong> in your browser’s offline cache (a service worker), so the app opens without signal.
+          </li>
+          <li>
+            <strong>Small preferences</strong>, such as your current team, map and photo settings, and the name you typed when answering a link someone sent
+            you, so you don’t have to enter them again on that device.
           </li>
         </ul>
-        <h3>Information about people who receive proposals and reports</h3>
         <p>
-          When one of our customers sends a proposal or photo report link and the recipient opens it, we record that it was opened and when. If the recipient
-          accepts or declines, we record their typed name, signature, any options they chose, their note and the time, and share this with the customer who sent
-          it.
+          All of these are needed for the Service to work. They stay on your device until you sign out and clear the site’s data in your browser, or uninstall
+          the app. When you pay on the web, Stripe’s checkout and billing pages (on Stripe’s own site) may set their own cookies for payment and fraud
+          prevention, under Stripe’s privacy policy.
+        </p>
+        <h3>Information about people who receive links</h3>
+        <p>
+          When one of our customers sends a quote, proposal, invoice, change order, RFI or photo report link and the recipient opens it, we may record that it was
+          opened and when. If the recipient responds (for example accepts or declines a quote, signs a change order or answers an RFI), we record their typed
+          name, signature, any options they chose, their note or answer and the time, and share this with the customer who sent it.
         </p>
       </Section>
 
       <Section item={S.use} n={n(S.use)}>
         <p>We use information to:</p>
         <ul>
-          <li>provide the Service: store and sync your jobs across your devices and team, generate takeoffs, estimates, PDFs, proposals and reports;</li>
-          <li>run AI features when you use them (see below);</li>
+          <li>
+            provide the Service: store and sync your jobs across your devices and team, and generate takeoffs, quotes, invoices, PDFs, reports and client links;
+          </li>
+          {AI_ENABLED && <li>run AI features when you use them (see below);</li>}
           <li>process payments and manage subscriptions;</li>
-          <li>send service emails such as sign-in links, team invitations, proposal notifications, receipts and important changes;</li>
+          <li>send service emails such as sign-in links, team invitations, documents you send to your clients, receipts and important changes;</li>
           <li>provide support, and diagnose and fix problems;</li>
           <li>keep the Service and our customers secure, prevent abuse and enforce our Terms;</li>
           <li>understand overall usage in aggregated or de-identified form to improve PinPlan; and</li>
@@ -150,15 +179,17 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section item={S.ai} n={n(S.ai)}>
-        <p>
-          AI features — reading a plan sheet, suggesting device locations, explaining a sheet, captioning a photo or drafting a daily log — run only when someone
-          on your team uses them. The image or images involved and related text (such as room names, captions, notes or your device catalog) are then sent to
-          Anthropic, PBC for processing under their commercial terms. Under those terms Anthropic does not use this data to train its models, and may retain it
-          for a limited period for purposes such as trust and safety, as described in its commercial terms and policies. AI results come back to PinPlan as
-          suggestions that a person must review.
-        </p>
-      </Section>
+      {AI_ENABLED && (
+        <Section item={S.ai} n={n(S.ai)}>
+          <p>
+            AI features — reading a plan sheet, suggesting device locations, explaining a sheet, captioning a photo or drafting a daily log — run only when
+            someone on your team uses them. The image or images involved and related text (such as room names, captions, notes or your device catalog) are then
+            sent to Anthropic, PBC for processing under their commercial terms. Under those terms Anthropic does not use this data to train its models, and may
+            retain it for a limited period for purposes such as trust and safety, as described in its commercial terms and policies. AI results come back to
+            PinPlan as suggestions that a person must review.
+          </p>
+        </Section>
+      )}
 
       <Section item={S.sharing} n={n(S.sharing)}>
         <p>We share information only:</p>
@@ -167,8 +198,8 @@ export default function PrivacyPage() {
             <strong>Within your team:</strong> team members see the team’s jobs according to their role.
           </li>
           <li>
-            <strong>With people you choose:</strong> when you send a proposal or report link, or connect an integration such as Billdu, we send the relevant data
-            where you direct.
+            <strong>With people you choose:</strong> when you send a quote, invoice, report or other link, or connect an integration such as Billdu, we send the
+            relevant data where you direct.
           </li>
           <li>
             <strong>With subprocessors</strong> who host and operate parts of the Service for us under contracts that limit their use of the data (listed
@@ -183,8 +214,8 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          Some features load content from third parties directly in your browser: map tiles come from OpenStreetMap’s tile servers, and client proposal and
-          report pages load fonts from Google Fonts. Those providers receive your IP address and the request, as with any website.
+          The jobs map loads map tiles from OpenStreetMap’s tile servers directly in your browser, so they receive your IP address and the map area requested,
+          as with any website. Fonts are served from our own servers, so pages your clients open don’t contact third-party font services.
         </p>
       </Section>
 
@@ -202,7 +233,7 @@ export default function PrivacyPage() {
             <tbody>
               {SUBPROCESSORS.map((s) => (
                 <tr key={s.name}>
-                  <td className="font-medium whitespace-nowrap text-slate-900">{s.name}</td>
+                  <td className="font-medium whitespace-nowrap">{s.name}</td>
                   <td>{s.purpose}</td>
                   <td>{s.data}</td>
                   <td>
@@ -214,24 +245,33 @@ export default function PrivacyPage() {
           </table>
         </div>
         <p>
-          If you connect Billdu, job and client details you choose to send go to Billdu under your own agreement with them. We will update this list before adding
-          a new subprocessor that handles Customer Data; customers with a data processing agreement can ask to be notified at <Ph>{COMPANY.privacyEmail}</Ph>.
+          If you connect Billdu, job and client details you choose to send go to Billdu under your own agreement with them. The current list is always at{" "}
+          <Link href="/legal/subprocessors">Subprocessors</Link>. We will update it before adding a new subprocessor that handles Customer Data; customers can
+          ask to be notified at <Ph>{COMPANY.privacyEmail}</Ph>.
         </p>
       </Section>
 
       <Section item={S.retention} n={n(S.retention)}>
         <ul>
           <li>
-            <strong>Customer Data</strong> is kept while your account is active and until you delete it. Deleted items are first marked as deleted so other
-            devices can sync the deletion, then removed.
+            <strong>Customer Data</strong> is kept while your account exists. When you delete an item, it is marked as deleted so your other devices and your
+            team’s devices remove it too; the marked record stays in our database, hidden from the app, until the account is deleted or you ask us to remove it.
           </li>
           <li>
-            <strong>When an account is deleted</strong> (by you, or 30 days after a subscription ends), we delete its Customer Data and account information from
-            our live systems within 30 days. Copies in encrypted backups are overwritten as backups expire, within <Ph>[35]</Ph> days.
+            <strong>Deleting your account</strong> in the app removes your login and your jobs, files and documents from our live database and file storage
+            straight away (a team member’s jobs stay with their team; see <Link href="/support#delete-account">Support</Link>).
           </li>
           <li>
-            <strong>Error reports</strong> are deleted automatically after 90 days. Server logs are kept by our hosting provider for a short period under its
-            retention settings.
+            <strong>When a subscription ends</strong>, the account becomes read-only and its data is kept so you can export it or come back. We don’t yet delete
+            ended accounts automatically: Customer Data is deleted when you delete it in the app, or within {RETENTION.deletionRequestDays} days of a written
+            request from the account owner to <Ph>{COMPANY.privacyEmail}</Ph>.
+          </li>
+          <li>
+            <strong>Backups:</strong> deleted data remains in our encrypted database backups until they expire, within <Ph>{RETENTION.backupDays}</Ph> days.
+          </li>
+          <li>
+            <strong>Error reports</strong> are deleted automatically after {RETENTION.errorReportDays} days. Server logs are kept by our hosting provider for a
+            short period under its retention settings.
           </li>
           <li>
             <strong>Billing records</strong> are kept as long as tax and accounting laws require (typically up to seven years).
@@ -253,7 +293,7 @@ export default function PrivacyPage() {
           <li>row-level security in the database so each account and team can reach only its own data, with role-based permissions inside a team;</li>
           <li>server-side keys kept out of the browser and app, and third-party integration credentials encrypted at rest (AES-256-GCM);</li>
           <li>strict browser security headers, rate limiting and abuse protection on sensitive endpoints;</li>
-          <li>regular backups with point-in-time recovery; and</li>
+          <li>regular database backups; and</li>
           <li>access to production systems limited to the people who need it to run and support the Service.</li>
         </ul>
         <p>
@@ -288,16 +328,15 @@ export default function PrivacyPage() {
 
       <Section item={S.clients} n={n(S.clients)}>
         <p>
-          If you are a client of a company that uses PinPlan (for example, you received a proposal), that company controls your information and decides how it
-          is used. Please contact them to access, correct or delete it. If you contact us, we will pass your request to them and help them respond.
+          If you are a client of a company that uses PinPlan (for example, you received a quote or an RFI), that company controls your information and decides
+          how it is used. Please contact them to access, correct or delete it. If you contact us, we will pass your request to them and help them respond.
         </p>
       </Section>
 
       <Section item={S.transfers} n={n(S.transfers)}>
         <p>
           PinPlan is operated from the United States and stores data in <Ph>{COMPANY.dataRegion}</Ph>. If you use PinPlan from outside the US, your information
-          is transferred to and processed in the US. Where required, we rely on appropriate safeguards such as the European Commission’s Standard Contractual
-          Clauses <Ph>[confirm transfer mechanism]</Ph>.
+          is transferred to and processed in the US. Where required, we rely on appropriate safeguards: <Ph>{COMPANY.transferMechanism}</Ph>.
         </p>
       </Section>
 

@@ -2,19 +2,23 @@
  * ============================================================================================================
  *  DRAFT — HAVE A QUALIFIED LAWYER REVIEW THIS BEFORE LAUNCH.
  *  This is a starting point written for a US-based B2B SaaS. It is not legal advice. Fill in every
- *  [placeholder] in src/lib/legal.ts (they render highlighted until you do), confirm the governing law,
- *  liability cap, refund and data-retention terms, and update LEGAL_EFFECTIVE_DATE whenever this changes.
+ *  placeholder in src/lib/legal.ts (they render highlighted until you do; never type one here), confirm the
+ *  governing law, liability cap, refund and data-retention terms, and update LEGAL_EFFECTIVE_DATE whenever this
+ *  changes. AI wording appears only while AI_ENABLED (src/lib/features.ts) is on.
  * ============================================================================================================
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
-import { COMPANY, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
+import { publicMetadata } from "@/components/marketing/seo";
+import { AI_ENABLED } from "@/lib/features";
+import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
+  path: "/terms",
   title: "Terms of Service · PinPlan",
   description: "The agreement between PinPlan and the businesses that use it.",
-};
+});
 
 const S = {
   agreement: { id: "agreement", title: "The agreement" },
@@ -39,7 +43,7 @@ const S = {
   general: { id: "general", title: "General" },
   contact: { id: "contact", title: "Contact" },
 } satisfies Record<string, TocItem>;
-const toc = Object.values(S);
+const toc = Object.values(S).filter((t) => AI_ENABLED || t !== S.ai);
 const n = (item: TocItem) => toc.indexOf(item) + 1;
 
 export default function TermsPage() {
@@ -50,8 +54,8 @@ export default function TermsPage() {
       toc={toc}
       intro={
         <p>
-          PinPlan helps low-voltage installers map devices on floor plans, produce takeoffs and estimates, and document jobs in the field. These terms explain
-          what you can expect from us and what we expect from you. Please read them; by using PinPlan you agree to them.
+          PinPlan helps electrical, low-voltage and specialty trade contractors count from plans, send quotes and invoices, and run their jobs in the field.
+          These terms explain what you can expect from us and what we expect from you. Please read them; by using PinPlan you agree to them.
         </p>
       }
     >
@@ -80,11 +84,13 @@ export default function TermsPage() {
             <strong>Users</strong> are the people you allow to use the Service under your account, such as owners, office staff and technicians on your team.
           </li>
           <li>
-            <strong>Customer Data</strong> is everything you and your Users put into the Service: jobs, floor plans and drawings, device placements, takeoffs,
-            estimates, prices, photos (including their location and time metadata), checklists, notes, documents, and information about your own clients.
+            <strong>Customer Data</strong> is everything you and your Users put into the Service: jobs, plans and drawings, device placements, takeoffs, prices,
+            quotes and estimates, invoices, credit notes and payment records, RFIs, change orders, forms, checklists, tasks, schedules, daily reports, photos
+            (including their location and time metadata), notes, documents and files, and information about your own clients.
           </li>
           <li>
-            <strong>Your Clients</strong> are the people and businesses you do work for, including anyone who opens a proposal or report link you send.
+            <strong>Your Clients</strong> are the people and businesses you do work for, including anyone who opens a quote, invoice, change order, RFI or
+            report link you send.
           </li>
         </ul>
       </Section>
@@ -109,8 +115,8 @@ export default function TermsPage() {
       <Section item={S.billing} n={n(S.billing)}>
         <p>
           <strong>Plans and seats.</strong> Paid plans are billed per subscription period (monthly or annually) and may limit the number of Users (“seats”) or
-          other usage, as shown on our <Link href="/pricing">pricing page</Link> or in your order. Usage limits for AI features may apply to keep the Service
-          fair and reliable.
+          other usage, as shown on our <Link href="/pricing">pricing page</Link> or in your order.
+          {AI_ENABLED && " Usage limits for AI features may apply to keep the Service fair and reliable."}
         </p>
         <p>
           <strong>Free trial.</strong> We may offer a free trial. When it ends, the Service continues only if you choose a paid plan. If you don’t, your account
@@ -151,8 +157,8 @@ export default function TermsPage() {
         </p>
         <p>
           <strong>Our role.</strong> For personal information inside Customer Data, we act as your service provider (or “processor”) and handle it on your
-          instructions, as described in our <Link href="/privacy">Privacy Policy</Link>. A data processing agreement is available on request at{" "}
-          <Ph>{COMPANY.privacyEmail}</Ph>.
+          instructions, as described in our <Link href="/privacy">Privacy Policy</Link> and our <Link href="/legal/dpa">Data Processing Addendum</Link>, which
+          forms part of these Terms. A countersigned copy is available on request at <Ph>{COMPANY.privacyEmail}</Ph>.
         </p>
         <p>
           <strong>Sensitive information.</strong> Don’t use the Service to store payment card numbers, government ID numbers, health information, alarm codes,
@@ -164,32 +170,36 @@ export default function TermsPage() {
         </p>
       </Section>
 
-      <Section item={S.ai} n={n(S.ai)}>
-        <p>
-          Some features use artificial intelligence: reading plan sheets, suggesting device locations, explaining a sheet, captioning photos and drafting daily
-          logs. When you use one, the relevant images and text (for example a plan sheet, a photo, room names or your device catalog) are sent to our AI
-          provider, Anthropic, PBC, for processing under their commercial terms. Under those terms, Anthropic does not use this data to train its models.
-        </p>
-        <ul>
-          <li>
-            <strong>Suggestions only.</strong> AI output can be wrong or incomplete. Suggested devices never count toward a takeoff or estimate until a person on
-            your team accepts them. You are responsible for checking quantities, prices, captions and reports before you rely on them or send them to anyone.
-          </li>
-          <li>
-            <strong>Not professional advice.</strong> PinPlan does not provide engineering, design, code-compliance, fire/life-safety or legal advice, and AI
-            output is not a substitute for it.
-          </li>
-          <li>
-            <strong>Your choice.</strong> AI features run only when someone on your team uses them.
-          </li>
-        </ul>
-      </Section>
+      {AI_ENABLED && (
+        <Section item={S.ai} n={n(S.ai)}>
+          <p>
+            Some features use artificial intelligence: reading plan sheets, suggesting device locations, explaining a sheet, captioning photos and drafting daily
+            logs. When you use one, the relevant images and text (for example a plan sheet, a photo, room names or your device catalog) are sent to our AI
+            provider, Anthropic, PBC, for processing under their commercial terms. Under those terms, Anthropic does not use this data to train its models.
+          </p>
+          <ul>
+            <li>
+              <strong>Suggestions only.</strong> AI output can be wrong or incomplete. Suggested devices never count toward a takeoff or estimate until a person on
+              your team accepts them. You are responsible for checking quantities, prices, captions and reports before you rely on them or send them to anyone.
+            </li>
+            <li>
+              <strong>Not professional advice.</strong> PinPlan does not provide engineering, design, code-compliance, fire/life-safety or legal advice, and AI
+              output is not a substitute for it.
+            </li>
+            <li>
+              <strong>Your choice.</strong> AI features run only when someone on your team uses them.
+            </li>
+          </ul>
+        </Section>
+      )}
 
       <Section item={S.proposals} n={n(S.proposals)}>
         <p>
-          PinPlan can produce estimates, client proposals, photo reports and links your Clients can open, sign and accept. You decide their content, pricing and
+          PinPlan can produce quotes, invoices, change orders, RFIs, photo reports and other documents, and links your Clients can open, answer, sign and
+          accept. You decide their content, pricing and
           terms. Any contract formed is between you and your Client; we are not a party to it and are not responsible for its terms, for your work, or for
-          whether an electronic signature is valid for your purpose in your jurisdiction. Anyone with a proposal or report link can view it, so share links only
+          whether an electronic signature is valid for your purpose in your jurisdiction. Invoices and payment records in PinPlan are your records: you are
+          responsible for the taxes you charge and for your own bookkeeping. Anyone with a document link can view it, so share links only
           with the intended recipient and withdraw links you no longer want active.
         </p>
         <p>
@@ -258,9 +268,10 @@ export default function TermsPage() {
             least 60 days’ notice and a refund of prepaid fees for the unused period.
           </li>
           <li>
-            <strong>Your data after it ends.</strong> For 30 days after your account ends you can export your Customer Data (we will help on request). After that
-            we delete it from our live systems, and it is removed from backups as they expire, as described in our <Link href="/privacy#retention">Privacy Policy</Link>.
-            You can also ask us to delete your account and data sooner.
+            <strong>Your data after it ends.</strong> When your subscription ends your account becomes read-only and you can still export your Customer Data
+            (we will help on request). We delete it when you delete your account in the app, or within {RETENTION.deletionRequestDays} days of a written request
+            to <Ph>{COMPANY.privacyEmail}</Ph>; it is then removed from backups as they expire, as described in our{" "}
+            <Link href="/privacy#retention">Privacy Policy</Link>.
           </li>
           <li>Sections that by their nature should survive (such as payment owed, disclaimers, limitation of liability and indemnification) survive termination.</li>
         </ul>
@@ -270,8 +281,13 @@ export default function TermsPage() {
         <p>
           We will provide the Service with reasonable skill and care and in line with our documentation. Otherwise, to the maximum extent allowed by law, the
           Service is provided “as is” and “as available”, and we disclaim all other warranties, express or implied, including merchantability, fitness for a
-          particular purpose, title and non-infringement. We don’t warrant that the Service will be error-free or uninterrupted, or that takeoffs, estimates, AI
-          output or measurements derived from plan scales are accurate. You are responsible for verifying quantities and prices before you rely on them.
+          particular purpose, title and non-infringement. We don’t warrant that the Service will be error-free or uninterrupted, or that takeoffs, estimates
+          {AI_ENABLED ? ", AI output" : ""} or measurements derived from plan scales are accurate. You are responsible for verifying quantities and prices
+          before you rely on them.
+        </p>
+        <p>
+          PinPlan is a tool for your own work. It does not provide engineering, design, code-compliance, fire/life-safety, tax or legal advice, and nothing in
+          it is a substitute for that advice.
         </p>
       </Section>
 

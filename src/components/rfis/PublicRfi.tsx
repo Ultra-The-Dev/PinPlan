@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { PublicRfiView } from "@/lib/rfis";
 import AnnotationSvg from "../photos/AnnotationSvg";
 import PlanCrop from "./PlanCrop";
+import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
 
 const NAME_KEY = "pinplan.rfi.answerer";
 
@@ -106,8 +107,7 @@ export default function PublicRfi() {
   const companyInText = v.sender.company || "your contractor";
   const waiting = v.status === "open";
   return (
-    <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: "Manrope, var(--font-sans), system-ui, sans-serif" }}>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+    <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: CLIENT_FONT_FAMILY }}>
       <header className="border-b border-[#e3e7f1] bg-white">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-4 px-4 py-4 sm:px-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}

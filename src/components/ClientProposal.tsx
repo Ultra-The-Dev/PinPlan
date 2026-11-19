@@ -9,6 +9,7 @@ import { notifyProposalResponse } from "@/lib/emailClient";
 import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
 import { supabaseConfigured } from "@/lib/supabase";
 import SignaturePad from "./SignaturePad";
+import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
 
 const fmtDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
 
@@ -149,13 +150,11 @@ export default function ClientProposal() {
   const theme = {
     "--brand": brand,
     "--accent": accent,
-    fontFamily: "Manrope, var(--font-sans), system-ui, sans-serif",
+    fontFamily: CLIENT_FONT_FAMILY,
   } as React.CSSProperties;
 
   return (
     <div className="proposal min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={theme}>
-      {/* The company's typeface (Manrope); falls back to the app font if it can't load. */}
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
       {/* Letterhead */}
       <header ref={topRef} className="border-b border-[#e3e7f1] bg-white">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-5 sm:px-6">

@@ -24,7 +24,7 @@ export default function PricingPage() {
           <dl className="mt-14 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
             {[
               [`${TRIAL_DAYS}-day free trial`, "Every feature from day one. Set up your company, upload a plan and send a real quote before you decide."],
-              ["Technicians without prices", "Techs get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices stay with the office."],
+              ["Prices stay with the office", "Techs get their own login for plans, devices, photos, checklists and tasks. Their logins hide prices, quotes and invoices in the app."],
               ["Your data, always", "Export every job as a backup file any time: during the trial, after it, or after you cancel."],
               ["Private to your company", "Jobs are visible only to your team, enforced in the database. Delete your account from Settings whenever you like."],
             ].map(([t, d]) => (
@@ -64,11 +64,11 @@ export default function PricingPage() {
               ],
               [
                 "What do technicians see?",
-                "Plans, devices, wire runs, photos, checklists, daily logs and tasks on every team job. They don’t see prices, quotes or invoices, and can’t delete jobs.",
+                "Plans, devices, wire runs, photos, checklists, daily logs and tasks on every team job. Prices, quotes and invoices are hidden from their logins in the app, and they can’t delete jobs.",
               ],
               [
                 "Do I need separate accounting software?",
-                `No. Quotes, invoices and payments are built in. If you already use Billdu, you can connect it in Settings.`,
+                "Not for quotes and invoices: quotes, invoices and payments are built in, and counts and quotes export as PDF or CSV for your bookkeeping.",
               ],
               [
                 "Can I export my data?",

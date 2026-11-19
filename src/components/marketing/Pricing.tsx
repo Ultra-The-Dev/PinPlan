@@ -64,7 +64,7 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
           <div className="mk-figure text-[48px]" aria-live="polite">
             {money(total)}
           </div>
-          <div className="text-[14px] text-mk-pencil">a month</div>
+          <div className="text-[14px] text-mk-pencil">a month, plus tax</div>
         </div>
       </div>
     </div>
@@ -84,7 +84,7 @@ export function PlanCard({ plan = PLANS[0], calculator = true }: { plan?: Plan; 
             <span className="text-[15px] text-mk-pencil">a month</span>
           </div>
           <p className="mt-2 text-[15px] text-mk-pencil">
-            Includes {plan.includedSeats} users. Each extra user is {money(plan.seatPrice)} a month.
+            Includes {plan.includedSeats} users. Each extra user is {money(plan.seatPrice)} a month. USD, plus applicable tax.
           </p>
           <ul className="mt-6 space-y-2.5 text-[15px]">
             {plan.features.map((f) => (

@@ -43,7 +43,7 @@ const STEPS: { id: string; title: string; body: string; detail: string[]; visual
     id: "bill",
     title: "Bill the deposit, progress and final",
     body: "Invoices come straight from the approved quote, so nothing is typed twice. Record payments as they come in and see what’s left to collect on every job.",
-    detail: ["Quote and invoice numbering, tax and terms set once", "Using Billdu? Connect it in Settings, or don’t"],
+    detail: ["Quote and invoice numbering, tax and terms set once", "See what’s paid and what’s left on every job"],
     visual: <InvoiceVisual />,
   },
   {
@@ -154,12 +154,12 @@ export default function Landing() {
               The office sees the money. The crew sees the work.
             </h2>
             <p className="mk-lede mt-5">
-              Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technicians never see prices.
+              Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technician logins hide prices in the app.
             </p>
             <dl className="mt-8 space-y-4 text-[15px]">
               {[
                 ["Owner and office", "Plans, counts, prices, quotes, invoices and settings."],
-                ["Technicians", "Plans, devices, photos, checklists, daily logs and their tasks. No prices, quotes or invoices, and they can’t delete jobs."],
+                ["Technicians", "Plans, devices, photos, checklists, daily logs and their tasks. Prices, quotes and invoices are hidden in the app, and they can’t delete jobs."],
               ].map(([t, d]) => (
                 <div key={t} className="grid gap-1 border-l-2 border-mk-graphite pl-4">
                   <dt className="font-semibold">{t}</dt>
@@ -227,6 +227,7 @@ export default function Landing() {
                 { label: "A crew of 6", value: `$${monthlyPrice(plan, 6)}`, note: "a month" },
                 { label: "Free trial", value: `${TRIAL_DAYS} days`, note: "every feature" },
               ]}
+              footnote="Prices in USD, plus applicable tax."
             />
           </div>
         </div>
@@ -251,11 +252,11 @@ export default function Landing() {
               ],
               [
                 "Can my technicians use it without seeing prices?",
-                "Yes. Technicians get their own login and see plans, devices, photos, checklists and tasks, never prices, quotes or invoices.",
+                "Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app.",
               ],
               [
                 "Does it work with my accounting?",
-                `Quotes, invoices and payments are built into ${PRODUCT_NAME}, so you don’t need anything else. If you already use Billdu, you can connect it in Settings. You can also export counts, quotes and plan sheets as PDF or CSV.`,
+                `Quotes, invoices and payments are built into ${PRODUCT_NAME}, so you don’t need anything else. You can also export counts, quotes and plan sheets as PDF or CSV.`,
               ],
               [
                 `What happens after the ${TRIAL_DAYS}-day trial?`,
@@ -407,7 +408,7 @@ function DevicesDrawing() {
   );
 }
 
-function TitleBlock({ cells }: { cells: { label: string; value: string; note: string; big?: boolean }[] }) {
+function TitleBlock({ cells, footnote }: { cells: { label: string; value: string; note: string; big?: boolean }[]; footnote?: string }) {
   return (
     <div className="mk-sheet grid grid-cols-2 self-start">
       {cells.map((c, i) => (
@@ -417,6 +418,7 @@ function TitleBlock({ cells }: { cells: { label: string; value: string; note: st
           <div className="mt-1 text-[14px] text-mk-pencil">{c.note}</div>
         </div>
       ))}
+      {footnote && <p className="col-span-2 border-t border-mk-rule px-5 py-3 text-[13px] text-mk-pencil sm:px-6">{footnote}</p>}
     </div>
   );
 }
