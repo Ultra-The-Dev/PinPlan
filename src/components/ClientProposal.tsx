@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
 import { floorLabels, GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
+import { notifyProposalResponse } from "@/lib/emailClient";
 import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
 import { supabaseConfigured } from "@/lib/supabase";
 
@@ -229,6 +230,8 @@ export default function ClientProposal() {
     setError(null);
     try {
       setP(await respondToProposal(token, { accept, name, signature: accept ? signature : null, options: chosen, note: review && !accept ? packClientNote(note, pins) : note }));
+      // Lets the installer know by email (when the server has email set up).
+      notifyProposalResponse(token);
       topRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
       setError((e as Error).message);

@@ -118,6 +118,75 @@ Needs step 6 (cloud sync). Everyone gets their own login; everyone on the team w
 Change someone between Technician and Office / admin, or remove them, under **Settings → Team**. Prices are also
 protected in the database and on the server, not just hidden in the app.
 
+## 10. Email (Resend)
+Optional, and off until you set it up. Without it everything works as before (invites go by text or link, and you
+see proposal answers in the app). With it, PinPlan emails:
+- **team invites** (Settings → Team → an invite → **Email invite**),
+- **you, when a client answers** a proposal (accepted / declined) or a plan review (approved / changes requested),
+- a **welcome email** after a company signs up,
+- and Supabase's own **sign-up, sign-in link, password reset and invite** emails, branded, without Supabase's
+  built-in limit of a few emails an hour.
+
+You need your own domain (e.g. `acmelowvoltage.com` or a domain for PinPlan) — email services won't send for
+`vercel.app` or a Gmail address.
+
+1. **Resend account**: sign up at [resend.com](https://resend.com).
+2. **Verify your domain**: Resend → **Domains → Add domain**. Use a subdomain such as `mail.yourdomain.com` so your
+   normal mailbox isn't affected. Resend shows DNS records; add each one at your domain registrar (GoDaddy,
+   Namecheap, Cloudflare…), exactly as shown:
+   - **SPF** (a `TXT` record, and an `MX` record for bounces) — says Resend may send for the domain.
+   - **DKIM** (a `TXT` record named like `resend._domainkey`) — signs each email.
+   - **DMARC** (recommended): a `TXT` record named `_dmarc` with value `v=DMARC1; p=none;` to start. Gmail and Yahoo
+     expect one for bulk senders.
+   Press **Verify**. DNS can take from minutes to a few hours; wait until the domain shows **Verified**.
+3. **API key**: Resend → **API Keys → Create API key**, permission **Sending access**, limited to that domain. It
+   starts with `re_` and is shown once. Keep it in your password manager — never paste it into a chat, email or the app.
+4. **Vercel → Settings → Environment Variables** (Production), then **Redeploy**:
+
+   | Name | Value |
+   | --- | --- |
+   | `RESEND_API_KEY` | the `re_…` key from step 3 |
+   | `EMAIL_FROM` | the sender, e.g. `PinPlan <noreply@mail.yourdomain.com>` (must be on the verified domain) |
+   | `EMAIL_REPLY_TO` | optional: where replies go, e.g. `office@yourdomain.com` |
+   | `PINPLAN_APP_URL` | recommended: your PinPlan address, e.g. `https://app.yourdomain.com`, used for links in emails |
+
+   Proposal-answer and welcome emails also need `SUPABASE_SERVICE_ROLE_KEY` (step 9) and the Supabase migration
+   `supabase/migrations/20261121010000_email.sql` (run it in the **SQL Editor**; safe to run again).
+5. **Check**: open `https://<your address>/api/email/status` — it should say `"configured":true` (and
+   `"notifications":true` when the service key is set). Then Settings → Team → create an invite → **Email invite** to
+   yourself.
+
+### Supabase sign-up and password emails through Resend
+1. Supabase → **Authentication → Emails → SMTP Settings** (older dashboards: Project Settings → Authentication →
+   SMTP) → **Enable custom SMTP**:
+
+   | Field | Value |
+   | --- | --- |
+   | Sender email | `noreply@mail.yourdomain.com` (the verified domain) |
+   | Sender name | `PinPlan` (or your company) |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` |
+   | Password | your Resend API key (typed into Supabase's form directly) |
+
+2. Supabase → **Authentication → Rate Limits**: raise **Rate limit for sending emails** (Supabase keeps it at a few an
+   hour until custom SMTP is on; 30–100 an hour is plenty for a team).
+3. Supabase → **Authentication → Emails → Templates**: for each template, set the subject and paste the HTML from
+   this repo (they keep Supabase's `{{ .ConfirmationURL }}` and `{{ .Email }}` placeholders):
+
+   | Template | Subject | File |
+   | --- | --- | --- |
+   | Confirm signup | Confirm your PinPlan email | `supabase/templates/confirm-signup.html` |
+   | Magic link | Your PinPlan sign-in link | `supabase/templates/magic-link.html` |
+   | Reset password | Reset your PinPlan password | `supabase/templates/reset-password.html` |
+   | Invite user | You're invited to PinPlan | `supabase/templates/invite.html` |
+
+4. Supabase → **Authentication → URL Configuration**: set **Site URL** to your PinPlan address so links point there.
+
+**Not arriving?** Resend → **Emails** lists every send with its status (delivered, bounced, failed). Check spam once,
+mark it "not spam", and make sure the domain still shows Verified. A `403` in Resend's log means the key or the
+sender domain is wrong.
+
 ## Optional, later
 - `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
   environment variables (needs Supabase storage on Vercel).

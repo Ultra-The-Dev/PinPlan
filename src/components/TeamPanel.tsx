@@ -22,6 +22,7 @@ import {
 import { can, formatCode, inviteMessage, inviteState, joinUrl, memberInitials, memberLabel, ROLE_INFO, smsHref, sortMembers, type InviteState } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
 import Dialog from "./Dialog";
+import InviteEmail from "./InviteEmail";
 import RoleBadge from "./RoleBadge";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -672,6 +673,7 @@ function InviteShare({ invite, team, from, onClose }: { invite: TeamInvite; team
           <Copy /> Copy message
         </button>
       </div>
+      <InviteEmail key={invite.code} code={invite.code} name={invite.name} />
     </div>
   );
 }
