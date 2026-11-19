@@ -37,7 +37,7 @@ public struct Estimate: Hashable, Sendable {
     public var optionalTotal: Double
 }
 
-private func money(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+private func money(_ v: Double) -> Double { Money.round(v) }
 
 public enum EstimateBuilder {
     /// - products / split: when the job picks products (brand + model) for device types, their quantities get their own
@@ -62,10 +62,10 @@ public enum EstimateBuilder {
             return (all - tent, tent)
         }
 
-        let productById = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let productById = Dictionary(products.filter { $0.deleted != true }.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         func productParts(_ d: DeviceType) -> [(Product, confirmed: Double, tentative: Double)] {
             (split[d.id] ?? [:]).compactMap { pid, q in productById[pid].flatMap { $0.deviceTypeId == d.id ? ($0, confirmed: q.confirmed, tentative: q.tentative) : nil } }
-                .sorted { $0.0.title < $1.0.title }
+                .sorted { Product.ordered($0.0, $1.0) }
         }
         func productPrice(_ p: Product) -> Double { combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk }
 
@@ -135,11 +135,14 @@ public enum EstimateBuilder {
             l.included = l.optional ? (o?.include ?? pricing.includeTentative) : true
             lines.append(l)
         }
-        for o in live.sorted(by: { ($0.sort ?? 0) < ($1.sort ?? 0) }) where o.key.hasPrefix("custom:") && o.removed != true {
+        // Added charges in the order they were added (sort stamp, then id) — same as the web app.
+        let custom = live.sorted { a, b in (a.sort ?? 0) != (b.sort ?? 0) ? (a.sort ?? 0) < (b.sort ?? 0) : a.id < b.id }
+        for o in custom where o.key.hasPrefix("custom:") && o.removed != true {
             // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
             let linked = QuickCharges.linkedTypes(o.key)
             let auto = linked.map { ids in Double(ids.reduce(0) { $0 + (t.counts[$1] ?? 0) - (t.tentative[$1] ?? 0) }) } ?? 1
-            lines.append(ComputedLine(key: o.key, description: o.description ?? "Custom item", qty: o.qty ?? auto, unit: o.unit ?? "each",
+            lines.append(ComputedLine(key: o.key, description: o.description.flatMap { $0.isEmpty ? nil : $0 } ?? "Custom item", qty: o.qty ?? auto,
+                                      unit: o.unit.flatMap { $0.isEmpty ? nil : $0 } ?? "each",
                                       unitPrice: o.unitPrice ?? 0, total: 0, optional: false, included: true, deviceTypeId: nil, group: .custom, overridden: true))
         }
         var subtotal = 0.0, optionalTotal = 0.0
@@ -164,6 +167,17 @@ public enum EstimateBuilder {
 }
 
 public enum Money {
+    /// Round to cents, half away from zero, nudged by an epsilon so 1.005 → 1.01 rather than 1.00 (binary floats store
+    /// 1.005 as 1.00499…). Same as the web app's `money` (src/lib/estimate.ts), so both apps show the same totals.
+    public static func round(_ v: Double) -> Double {
+        guard v.isFinite else { return 0 }
+        let r: Double = (abs(v) * 100 * (1 + Double.ulpOfOne)).rounded() / 100
+        return v < 0 && r != 0 ? -r : r
+    }
+
+    /// One deposit line: pct % of the subtotal, in cents (what the server sends to Billdu).
+    public static func deposit(subtotal: Double, pct: Double) -> Double { round(subtotal * pct / 100) }
+
     public static func format(_ v: Double, currency: String = "USD") -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency

@@ -51,7 +51,7 @@ final class AppModel {
 
     func product(_ id: String?) -> Product? { id.flatMap { pid in products.first { $0.id == pid } } }
     func products(for typeId: String) -> [Product] {
-        products.filter { $0.deviceTypeId == typeId && $0.archived != true }.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        products.filter { $0.deviceTypeId == typeId && $0.archived != true && $0.deleted != true }.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
     func saveProduct(_ p: Product) {
         var p = p

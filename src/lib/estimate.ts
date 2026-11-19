@@ -1,6 +1,6 @@
 import { CLOSET_KINDS } from "./catalog";
 import { countOf, linkedTypes } from "./charges";
-import { cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
+import { CABLE_PREFIX, cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
 import { computeTakeoff, type Takeoff } from "./takeoff";
 import type { Closet, ClosetKind, DeviceType, EstimateLine, Marker, PricingSettings, Product, Project, Run, Sheet } from "./types";
 
@@ -27,7 +27,39 @@ export interface Estimate {
   optionalTotal: number;
 }
 
-const money = (n: number) => Math.round(n * 100) / 100;
+/** Round to cents, half away from zero (as Swift's `rounded()`), nudged by an epsilon so 1.005 → 1.01 rather than 1.00
+ * (binary floats store 1.005 as 1.00499…). Mirrors PinPlanCore `Money.round` so both apps show the same totals. */
+export function money(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  const r = Math.round(Math.abs(n) * 100 * (1 + Number.EPSILON)) / 100;
+  return n < 0 && r !== 0 ? -r : r;
+}
+
+/** One deposit line: pct % of the subtotal, in cents. */
+export const depositAmount = (subtotal: number, pct: number) => money((subtotal * pct) / 100);
+
+/** Products by title (case-insensitive, then id): the same line order on web and iOS. */
+export function compareProducts(a: Pick<Product, "id" | "brand" | "model">, b: Pick<Product, "id" | "brand" | "model">): number {
+  const ta = productTitle(a).toLowerCase();
+  const tb = productTitle(b).toLowerCase();
+  if (ta !== tb) return ta < tb ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** The product behind an estimate line (for its SKU): "prod:<id>" / "optprod:<id>", or the job's cable product for "wire:<type>"
+ * (only when it really is a product for that cable, as buildEstimate prices it). */
+export function lineProductId(key: string, project: Pick<Project, "productChoices">, products: Pick<Product, "id" | "deviceTypeId" | "deleted">[]): string | null {
+  let id: string | null | undefined = null;
+  let wantType: string | null = null;
+  if (key.startsWith("prod:") || key.startsWith("optprod:")) id = key.slice(key.indexOf(":") + 1);
+  else if (key.startsWith(CABLE_PREFIX)) {
+    id = project.productChoices?.[key];
+    wantType = key;
+  }
+  if (!id) return null;
+  const p = products.find((x) => x.id === id && !x.deleted);
+  return p && (wantType == null || p.deviceTypeId === wantType) ? p.id : null;
+}
 
 export interface ProductPricing {
   products?: Product[];
@@ -68,7 +100,7 @@ export function buildEstimate(
     Object.entries(pp.split?.[d.id] ?? {})
       .map(([pid, q]) => ({ p: productById.get(pid), ...q }))
       .filter((x): x is { p: Product; confirmed: number; tentative: number } => !!x.p && x.p.deviceTypeId === d.id)
-      .sort((a, b) => productTitle(a.p).localeCompare(productTitle(b.p)));
+      .sort((a, b) => compareProducts(a.p, b.p));
   const productPrice = (p: Product) => (combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk);
 
   for (const d of sorted) {
@@ -156,8 +188,10 @@ export function buildEstimate(
     line.included = l.optional ? (o?.include ?? pricing.includeTentative) : true;
     lines.push(line);
   }
-  for (const o of overrides) {
-    if (o.deleted || o.removed || !o.key.startsWith("custom:")) continue;
+  // Added charges in the order they were added (sort stamp), as on iOS — not the database's id order.
+  const custom = overrides.filter((o) => !o.deleted && !o.removed && o.key.startsWith("custom:"));
+  custom.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const o of custom) {
     // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
     const linked = linkedTypes(o.key);
     lines.push({

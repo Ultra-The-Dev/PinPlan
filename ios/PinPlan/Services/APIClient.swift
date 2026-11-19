@@ -73,8 +73,12 @@ struct APIClient {
         let doc: Doc
     }
 
-    func sendToBilldu(project: Project, docType: String, estimate: Estimate, pricing: PricingSettings, depositPct: Double?, existingDocId: Int?, plansUrl: String? = nil) async throws -> SendResult {
-        let lines = try JSONSerialization.jsonObject(with: JSONEncoder().encode(estimate.lines))
+    func sendToBilldu(project: Project, docType: String, estimate: Estimate, pricing: PricingSettings, depositPct: Double?, existingDocId: Int?, plansUrl: String? = nil, products: [Product] = []) async throws -> SendResult {
+        var lines: [[String: Any]] = (try JSONSerialization.jsonObject(with: JSONEncoder().encode(estimate.lines)) as? [[String: Any]]) ?? []
+        // Item code in Billdu = the product's SKU when there is one (same as the web app).
+        for i in lines.indices {
+            if let key = lines[i]["key"] as? String, let sku = ProductAssignment.lineSku(key, project: project, products: products) { lines[i]["sku"] = sku }
+        }
         var p: [String: Any] = ["id": project.id, "clientName": project.clientName, "address": project.address]
         if let v = project.clientEmail { p["clientEmail"] = v }
         if let v = project.clientPhone { p["clientPhone"] = v }
