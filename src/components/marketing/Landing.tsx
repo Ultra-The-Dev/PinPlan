@@ -274,7 +274,7 @@ export default function Landing() {
       </section>
 
       {/* Final call */}
-      <section aria-labelledby="cta-title" className="bg-mk-marker">
+      <section aria-labelledby="cta-title" className="bg-mk-marker text-white">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 py-16 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:py-20">
           <div>
             <h2 id="cta-title" className="mk-h2 max-w-[16em]">
@@ -346,7 +346,7 @@ function TeamCompare() {
         <div key={who} className="mk-sheet overflow-hidden text-[14px]">
           <div className="flex items-center justify-between border-b border-mk-rule px-4 py-2.5">
             <span className="font-semibold">Kitchen, first floor</span>
-            <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${who === "Office" ? "bg-mk-graphite text-white" : "bg-mk-marker text-mk-graphite"}`}>{who}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${who === "Office" ? "bg-mk-graphite text-white" : "bg-mk-marker text-white"}`}>{who}</span>
           </div>
           <ul>
             {rows.map(({ name, n, done, s }) => (
@@ -377,7 +377,7 @@ function TeamCompare() {
 function DevicesDrawing() {
   return (
     <svg viewBox="0 0 520 330" className="h-auto w-full" role="img" aria-label="The same plan open on an iPad, an iPhone and a laptop">
-      <g fill="none" stroke="#a9b6ba" strokeWidth="1.5">
+      <g fill="none" stroke="#a9bcd4" strokeWidth="1.5">
         {/* laptop */}
         <rect x="150" y="30" width="330" height="210" rx="10" />
         <rect x="164" y="44" width="302" height="182" rx="2" strokeOpacity="0.5" />
@@ -385,16 +385,16 @@ function DevicesDrawing() {
         {/* plan on laptop */}
         <path d="M200 70h230v130H200zM300 70v60M300 130h130M360 130v70" stroke="#fff" strokeOpacity="0.5" />
         {/* iPad */}
-        <rect x="40" y="96" width="180" height="230" rx="14" fill="#1c2a30" />
+        <rect x="40" y="96" width="180" height="230" rx="14" fill="#0f2340" />
         <rect x="52" y="108" width="156" height="206" rx="3" strokeOpacity="0.5" />
         <path d="M70 134h120v150H70zM70 200h70M140 134v66M140 240h50" stroke="#fff" strokeOpacity="0.5" />
         {/* iPhone */}
-        <rect x="392" y="150" width="96" height="176" rx="16" fill="#1c2a30" />
+        <rect x="392" y="150" width="96" height="176" rx="16" fill="#0f2340" />
         <rect x="402" y="162" width="76" height="152" rx="6" strokeOpacity="0.5" />
         <path d="M412 190h56v90h-56zM412 232h30" stroke="#fff" strokeOpacity="0.5" />
       </g>
       {/* the same pins on each */}
-      <g fill="#ffc933">
+      <g fill="#33a9ff">
         {[
           [240, 100], [340, 100], [400, 170], [250, 170],
           [96, 160], [168, 160], [110, 250], [172, 262],

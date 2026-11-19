@@ -26,7 +26,7 @@ function Thumb({ variant }: { variant: number }) {
   const walls = ["M4 4h52v36H4zM22 4v20M22 24h34M40 24v16", "M4 4h52v36H4zM30 4v36M4 22h26M30 16h26", "M4 4h52v36H4zM18 4v36M18 20h38"][variant % 3];
   return (
     <svg viewBox="0 0 60 44" className="h-11 w-[60px] shrink-0 rounded-[2px] bg-white ring-1 ring-mk-rule" aria-hidden="true">
-      <path d={walls} fill="none" stroke="#1c2a30" strokeWidth="1.4" />
+      <path d={walls} fill="none" stroke="#0f2340" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -198,7 +198,7 @@ export function ApproveVisual() {
             <div className="flex items-center gap-2.5">
               <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[4px] bg-mk-graphite" aria-hidden="true">
                 <svg viewBox="0 0 12 12" className="h-3 w-3">
-                  <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#ffc933" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#33a9ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </span>
               Add under-cabinet lights
@@ -216,11 +216,11 @@ export function ApproveVisual() {
               <path
                 d="M8 32c10-18 18-26 21-18s-6 20 1 16 12-21 17-17-3 16 4 15 11-15 16-12 1 11 8 10 12-10 18-9 5 8 12 6 15-8 22-6 13 4 26 1"
                 fill="none"
-                stroke="#1c2a30"
+                stroke="#0f2340"
                 strokeWidth="1.8"
                 strokeLinecap="round"
               />
-              <path d="M6 40h188" stroke="#c9d1d3" />
+              <path d="M6 40h188" stroke="#c9d6e5" />
             </svg>
             <div className="mt-3 flex h-11 items-center justify-center rounded-[10px] bg-mk-ok font-semibold text-white">Approved by Dana Whitfield</div>
           </div>
@@ -239,7 +239,7 @@ export function InvoiceVisual() {
     ["Progress, rough-in done", progress, "Sent"],
     ["Final", total - deposit - progress, "Draft"],
   ];
-  const tone = { Paid: "bg-mk-ok text-white", Sent: "bg-mk-marker text-mk-graphite", Draft: "bg-mk-paper text-mk-pencil ring-1 ring-mk-rule" };
+  const tone = { Paid: "bg-mk-ok text-white", Sent: "bg-mk-marker text-white", Draft: "bg-mk-paper text-mk-pencil ring-1 ring-mk-rule" };
   return (
     <Panel title="Money" aside={`Approved quote ${money(total)}`}>
       <ul>
@@ -310,7 +310,7 @@ export function FieldVisual() {
                 >
                   {done && (
                     <svg viewBox="0 0 12 12" className="h-3 w-3">
-                      <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#ffc933" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#33a9ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                 </span>

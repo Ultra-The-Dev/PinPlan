@@ -6,10 +6,10 @@ import { PRODUCT_NAME } from "@/lib/plans";
 export function LogoMark({ size = 30, onDark = false }: { size?: number; onDark?: boolean }) {
   return (
     <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true" className="shrink-0">
-      <rect width="32" height="32" rx="7" fill={onDark ? "#ffc933" : "#1c2a30"} />
-      <path d="M7 25V7h18M7 16h7" fill="none" stroke={onDark ? "#1c2a30" : "#ffffff"} strokeOpacity={onDark ? 0.55 : 0.45} strokeWidth="2.2" strokeLinecap="square" />
-      <path d="M21 10.5a5 5 0 0 0-5 5c0 3.9 5 9 5 9s5-5.1 5-9a5 5 0 0 0-5-5Z" fill={onDark ? "#1c2a30" : "#ffc933"} />
-      <circle cx="21" cy="15.4" r="1.9" fill={onDark ? "#ffc933" : "#1c2a30"} />
+      <rect width="32" height="32" rx="7" fill={onDark ? "#33a9ff" : "#0f2340"} />
+      <path d="M7 25V7h18M7 16h7" fill="none" stroke={onDark ? "#0f2340" : "#ffffff"} strokeOpacity={onDark ? 0.55 : 0.45} strokeWidth="2.2" strokeLinecap="square" />
+      <path d="M21 10.5a5 5 0 0 0-5 5c0 3.9 5 9 5 9s5-5.1 5-9a5 5 0 0 0-5-5Z" fill={onDark ? "#0f2340" : "#33a9ff"} />
+      <circle cx="21" cy="15.4" r="1.9" fill={onDark ? "#33a9ff" : "#0f2340"} />
     </svg>
   );
 }

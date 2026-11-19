@@ -1,3 +1,4 @@
+<!-- Palette: Blueprint Ink (chosen Nov 2026): ink navy + electric blue, teal for approved. -->
 # Brand and design system
 
 The public site (`/welcome`, `/pricing`, the site footer) uses this system today. The app still uses its own look
@@ -8,7 +9,7 @@ The product name always comes from `PRODUCT_NAME` in `src/lib/plans.ts`, includi
 ## Idea
 
 The site looks like the thing contractors work from: a plan sheet. Black linework on white drawing paper, device
-symbols with letters like a drawing legend, a title block, a scale bar, and the yellow highlighter estimators use to
+symbols with letters like a drawing legend, a title block, a scale bar, and the blue highlighter estimators use to
 mark what they've counted. One bold thing per page (the hero plan filling in with pins, its count and the approved
 quote); everything around it stays quiet.
 
@@ -19,16 +20,18 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 
 | Token | Hex | Use |
 |---|---|---|
-| Paper | `#F2F4F3` | Page background. Cool drafting paper, never cream. |
+| Paper | `#F2F6FA` | Page background. Cool blueprint paper, never cream. |
 | Sheet | `#FFFFFF` | Plan sheets, documents, panels that hold product content. |
-| Graphite | `#1C2A30` | Text, linework, the dark band and footer, secondary buttons. |
-| Pencil | `#56656B` | Secondary text (5.4:1 on paper, 6:1 on sheet). |
-| Rule | `#C9D1D3` | Hairlines, sheet borders, table rules. Never text. |
-| Marker | `#FFC933` | Primary action, the final call band, highlighted counts. Text on it is always graphite (9.6:1). |
-| Marker deep | `#F0B400` | Primary button hover. |
+| Ink (graphite token) | `#0F2340` | Text, linework, the dark band and footer, secondary buttons. Ink navy. |
+| Pencil | `#526580` | Secondary text (5.6:1 on paper). |
+| Rule | `#C9D6E5` | Hairlines, sheet borders, table rules. Never text. |
+| Action blue (marker token) | `#0B6FE0` | Primary action and the final call band. Text on it is always white (4.9:1). |
+| Electric | `#33A9FF` | Bright accent on the ink band: pins, step numbers, focus ring on dark. |
+| Highlight | `#CFE6FF` | The takeoff highlighter behind counted figures; ink text on it. |
+| Action deep | `#0958B5` | Primary button hover. |
 | Redline | `#C73A2C` | Mark-up on photos and plans only. Not for errors or decoration. |
-| OK green | `#1F7A4D` | Approved and paid states. |
-| On dark | `#A9B6BA` | Secondary text on graphite (7.4:1). |
+| Approved teal | `#0B7F72` | Approved and paid states (white text 4.9:1). |
+| On dark | `#A9BCD4` | Secondary text on ink. |
 
 Device symbol colours are not brand colours: they come from the trade packs (`src/lib/trades.ts`) so the site
 shows what the app shows. Trade colours appear only as the 2px rule above each trade in the trades section.

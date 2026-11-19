@@ -39,7 +39,7 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
             const n = i + 1;
             const major = n === 1 || n % 10 === 0;
             const mid = n % 5 === 0;
-            return <line key={n} x1={(i / 49) * 490} x2={(i / 49) * 490} y1="0" y2={major ? 10 : mid ? 7 : 4} stroke={n <= users ? "#1c2a30" : "#c9d1d3"} strokeWidth="1.2" />;
+            return <line key={n} x1={(i / 49) * 490} x2={(i / 49) * 490} y1="0" y2={major ? 10 : mid ? 7 : 4} stroke={n <= users ? "#0f2340" : "#c9d6e5"} strokeWidth="1.2" />;
           })}
         </svg>
         <div className="relative mt-0.5 h-4 text-[12px] text-mk-pencil">

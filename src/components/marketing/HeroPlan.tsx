@@ -108,16 +108,16 @@ function PlanSheet() {
     <div className="mk-sheet overflow-hidden">
       <svg viewBox="0 -18 640 424" className="block h-auto w-full" style={{ fontFamily: "inherit" }}>
         {/* Overall dimension */}
-        <g stroke="#56656b" strokeWidth="0.8" fill="none">
+        <g stroke="#526580" strokeWidth="0.8" fill="none">
           <path d="M30 -8H610M30 -13V-3M610 -13V-3" />
         </g>
         <rect x="294" y="-15" width="52" height="12" fill="#fff" />
-        <text x="320" y="-5.5" textAnchor="middle" fontSize="9.5" fill="#56656b">
+        <text x="320" y="-5.5" textAnchor="middle" fontSize="9.5" fill="#526580">
           48&apos;-4&quot;
         </text>
 
         {/* Walls */}
-        <g fill="none" stroke="#1c2a30" strokeLinecap="square">
+        <g fill="none" stroke="#0f2340" strokeLinecap="square">
           <rect x="30" y="24" width="580" height="360" strokeWidth="6" />
           <path
             strokeWidth="3.5"
@@ -125,7 +125,7 @@ function PlanSheet() {
           />
         </g>
         {/* Windows */}
-        <g fill="#fff" stroke="#1c2a30" strokeWidth="1">
+        <g fill="#fff" stroke="#0f2340" strokeWidth="1">
           <rect x="300" y="21" width="56" height="6" />
           <rect x="484" y="21" width="80" height="6" />
           <rect x="300" y="381" width="110" height="6" />
@@ -133,9 +133,9 @@ function PlanSheet() {
         </g>
         {/* Overhead garage door */}
         <path d="M30 104V232" stroke="#fff" strokeWidth="7" />
-        <path d="M36 104V232" stroke="#56656b" strokeWidth="1" strokeDasharray="6 4" />
+        <path d="M36 104V232" stroke="#526580" strokeWidth="1" strokeDasharray="6 4" />
         {/* Door swings */}
-        <g fill="none" stroke="#8a989d" strokeWidth="1">
+        <g fill="none" stroke="#8a9bb3" strokeWidth="1">
           <path d="M222 150A34 34 0 0 1 188 116L222 116" />
           <path d="M222 330A34 34 0 0 0 256 296L222 296" />
           <path d="M132 262A36 36 0 0 0 96 226L96 262" />
@@ -143,7 +143,7 @@ function PlanSheet() {
           <path d="M478 350A34 34 0 0 1 512 316L478 316" />
         </g>
         {/* Room names, lettered the way plans are */}
-        <g fill="#8a989d" fontSize="9" letterSpacing="1.4" fontWeight="600">
+        <g fill="#8a9bb3" fontSize="9" letterSpacing="1.4" fontWeight="600">
           <text x="80" y="140">GARAGE</text>
           <text x="80" y="300">LAUNDRY</text>
           <text x="300" y="128">KITCHEN</text>
@@ -154,7 +154,7 @@ function PlanSheet() {
         </g>
 
         {/* Circuits */}
-        <g fill="none" stroke="#1c2a30" strokeWidth="1.3" strokeLinecap="round" opacity="0.7">
+        <g fill="none" stroke="#0f2340" strokeWidth="1.3" strokeLinecap="round" opacity="0.7">
           {RUN_PATHS.map((r, i) => (
             <path key={i} d={r.d} className="mk-anim-run" style={{ ["--len" as string]: Math.ceil(r.len * 1.1), ["--i" as string]: i }} />
           ))}
@@ -162,8 +162,8 @@ function PlanSheet() {
 
         {/* Panel */}
         <g transform={`translate(${PANEL.x} ${PANEL.y})`}>
-          <rect x="-11" y="-16" width="22" height="32" rx="2" fill="#1c2a30" />
-          <text y="3.5" textAnchor="middle" fill="#ffc933" fontSize="9.5" fontWeight="700" style={{ fontStretch: "75%" }}>
+          <rect x="-11" y="-16" width="22" height="32" rx="2" fill="#0f2340" />
+          <text y="3.5" textAnchor="middle" fill="#33a9ff" fontSize="9.5" fontWeight="700" style={{ fontStretch: "75%" }}>
             MP
           </text>
         </g>
@@ -173,7 +173,7 @@ function PlanSheet() {
           const s = SEED[id];
           return (
             <g key={i} transform={`translate(${x} ${y})`}>
-              <g className="mk-anim-pin" style={{ ["--i" as string]: i, filter: "drop-shadow(0 1px 1.2px rgb(28 42 48 / 0.35))" }}>
+              <g className="mk-anim-pin" style={{ ["--i" as string]: i, filter: "drop-shadow(0 1px 1.2px rgb(15 35 64 / 0.35))" }}>
                 <SymbolMark symbol={s.symbol} color={s.color} shape={s.shape} r={10.5} />
               </g>
             </g>
@@ -219,7 +219,7 @@ function Tally({ className = "" }: { className?: string }) {
         {WIRE.map((w) => (
           <li key={w.wire} className="flex items-center gap-2 border-t border-dashed border-mk-rule pt-[5px]">
             <svg viewBox="0 0 18 18" width="18" height="18" className="shrink-0">
-              <path d="M2 12Q9 3 16 12" fill="none" stroke="#1c2a30" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M2 12Q9 3 16 12" fill="none" stroke="#0f2340" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
             <span className="min-w-0 flex-1 truncate">{w.wire}</span>
             <span className="mk-num font-semibold">{w.ft} ft</span>
@@ -236,7 +236,7 @@ function Signature() {
       <path
         d="M6 26c8-14 14-20 17-14s-5 16 1 13 10-17 14-14-2 13 3 12 9-12 13-10 1 9 6 8 10-8 15-7 4 6 10 5 12-6 18-5 10 3 20 1"
         fill="none"
-        stroke="#1c2a30"
+        stroke="#0f2340"
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
