@@ -128,6 +128,17 @@ enum DemoProject {
                 b.update([photos[k].id], in: \.photos) { $0.checklistId = c.id; $0.checklistItemId = c.items[item].id }
             }
         }
+        // A punch list with assigned, dated items (shows on Tasks).
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+        func punch(_ text: String, _ who: String, _ inDays: Double) -> ChecklistItem {
+            var i = ChecklistItem(text: text); i.assignee = who; i.due = f.string(from: now.addingTimeInterval(inDays * day)); return i
+        }
+        var punchList = Checklist(projectId: pid, name: "Punch list", items: [
+            punch("Touch up paint around the kitchen keypad", "Alex", -1), punch("Re-aim the garage camera", "Sam", 0),
+            punch("Label the rack patch panel", "Alex", 3), punch("Program shade scenes", "Sam", 12),
+        ])
+        punchList.createdAt = iso.string(from: now.addingTimeInterval(-day))
+        b.save(punchList, in: \.checklists)
         var log = JobLog(projectId: pid, date: FieldDocs.localDay(iso.string(from: now.addingTimeInterval(-2 * day))), title: "Pre-wire, 1st floor",
                          body: "Crew: Alex, Sam.\n- Camera, speaker and TV boxes set in the living room\n- TV wall bundle pulled (HDMI + 2× Cat6)\n- Next: 2nd floor and the cellar closet", author: "Alex")
         log.photoIds = Array(photos.prefix(3).map(\.id))

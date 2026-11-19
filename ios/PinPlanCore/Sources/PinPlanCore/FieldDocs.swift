@@ -73,6 +73,10 @@ public struct ChecklistItem: Codable, Hashable, Identifiable, Sendable {
     public var doneBy: String?
     public var doneAt: String?
     public var note: String?
+    /// Who should do it — makes the item a task on their list.
+    public var assignee: String?
+    /// Due date (YYYY-MM-DD).
+    public var due: String?
     public init(id: String = newId(8), text: String, requiresPhoto: Bool = false) {
         self.id = id; self.text = text; self.requiresPhoto = requiresPhoto
     }

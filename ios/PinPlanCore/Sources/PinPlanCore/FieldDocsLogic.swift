@@ -44,6 +44,7 @@ public enum FieldDocs {
             ("Site cleaned up", true),
             ("Client sign-off", false),
         ]),
+        Template(id: "punch", name: "Punch list", items: []),
     ]
 
     /// "2026-11-19T15:04:00.000Z" → Date (with or without fractional seconds).
@@ -108,6 +109,73 @@ public enum FieldDocs {
             p.deleted != true && tags.isSubset(of: Set(p.tags ?? [])) && (takenBy == nil || p.takenBy == takenBy)
                 && (q.isEmpty || "\(p.caption ?? "") \(p.room ?? "") \((p.tags ?? []).joined(separator: " "))".lowercased().contains(q))
         }
+    }
+
+    // MARK: tasks (same as src/lib/fieldDocs.ts)
+
+    public enum TaskBucket: String, CaseIterable, Sendable {
+        case overdue, today, week, later, none
+        public var title: String {
+            switch self { case .overdue: "Overdue"; case .today: "Today"; case .week: "Next 7 days"; case .later: "Later"; case .none: "No due date" }
+        }
+    }
+
+    public struct OpenTask: Identifiable, Hashable, Sendable {
+        public var project: Project
+        public var checklist: Checklist
+        public var item: ChecklistItem
+        public var bucket: TaskBucket
+        public var id: String { "\(checklist.id):\(item.id)" }
+    }
+
+    static func dayNumber(_ day: String) -> Int? {
+        let p = day.split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3 else { return nil }
+        var c = DateComponents(); c.year = p[0]; c.month = p[1]; c.day = p[2]
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        return cal.date(from: c).map { Int(($0.timeIntervalSince1970 / 86400).rounded()) }
+    }
+
+    public static func daysUntil(_ due: String, today: String) -> Int {
+        guard let a = dayNumber(due), let b = dayNumber(today) else { return 0 }
+        return a - b
+    }
+
+    public static func taskBucket(_ due: String?, today: String) -> TaskBucket {
+        guard let due, !due.isEmpty else { return .none }
+        let d = daysUntil(due, today: today)
+        return d < 0 ? .overdue : d == 0 ? .today : d <= 7 ? .week : .later
+    }
+
+    /// Open items that are tasks (assigned or dated) across jobs; `who` keeps one person's. Sorted by due date, then job.
+    public static func openTasks(_ bundles: [ProjectBundle], today: String, who: String? = nil) -> [OpenTask] {
+        let w = who?.trimmingCharacters(in: .whitespaces).lowercased()
+        var out: [OpenTask] = []
+        for b in bundles where b.project.deleted != true {
+            for c in b.checklists where c.deleted != true {
+                for i in c.items where i.done != true && ((i.assignee ?? "").isEmpty == false || (i.due ?? "").isEmpty == false) {
+                    if let w, !w.isEmpty, i.assignee?.trimmingCharacters(in: .whitespaces).lowercased() != w { continue }
+                    out.append(OpenTask(project: b.project, checklist: c, item: i, bucket: taskBucket(i.due, today: today)))
+                }
+            }
+        }
+        return out.sorted { ($0.item.due ?? "9999", $0.project.address) < ($1.item.due ?? "9999", $1.project.address) }
+    }
+
+    /// Names seen on the jobs, one per person whatever the capitalisation.
+    public static func teamNames(_ bundles: [ProjectBundle], me: String? = nil) -> [String] {
+        var seen: [String: String] = [:]
+        func add(_ n: String?) {
+            guard let t = n?.trimmingCharacters(in: .whitespaces), !t.isEmpty, seen[t.lowercased()] == nil else { return }
+            seen[t.lowercased()] = t
+        }
+        add(me)
+        for b in bundles {
+            for p in b.photos { add(p.takenBy) }
+            for l in b.jobLogs { add(l.author) }
+            for c in b.checklists { for i in c.items { add(i.doneBy); add(i.assignee) } }
+        }
+        return seen.values.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     public struct Event: Identifiable, Hashable, Sendable {

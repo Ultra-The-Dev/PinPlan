@@ -45,6 +45,8 @@ Legend: ✅ in both apps · 🌐 web only · 📱 iPad/iPhone only · ➖ not ad
 | Checklist templates | ✅ Pre-wire walkthrough, Trim-out, Equipment rack, Final walkthrough & handoff (+ blank) | Field → Checklists |
 | Require a photo on an item | ✅ item isn't complete until it has one (amber warning if ticked without) | Checklist item camera button |
 | Who completed what, when | ✅ | Item subtitle + timeline |
+| Tasks / punch list: assign to a person, due date | ✅ any item can be assigned and dated; **Punch list** template | Item person icon (web) / swipe or long-press (iPad) |
+| "My tasks" across all jobs (overdue / today / next 7 days / later) | ✅ tick done right from the list | Web: header → **Tasks**; iPad: Projects → **Tasks** |
 
 ## 5. Daily logs & documents
 

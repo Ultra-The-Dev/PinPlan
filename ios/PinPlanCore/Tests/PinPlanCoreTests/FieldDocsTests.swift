@@ -79,4 +79,29 @@ final class FieldDocsTests: XCTestCase {
         XCTAssertTrue(b.livePhotos.isEmpty)
         XCTAssertTrue(b.comments(for: p.id).isEmpty)
     }
+
+    func testTasksAcrossJobs() {
+        func item(_ id: String, _ text: String, _ who: String?, _ due: String?, done: Bool = false) -> ChecklistItem {
+            var i = ChecklistItem(id: id, text: text); i.assignee = who; i.due = due; i.done = done; return i
+        }
+        var a = ProjectBundle(project: Project(id: "a", clientName: "", address: "1 Oak"))
+        a.checklists = [Checklist(projectId: "a", name: "Punch list", items: [
+            item("1", "Touch up plate", "Alex", "2026-11-18"), item("2", "Re-aim camera", "Sam", "2026-11-19"),
+            item("3", "Done", "Alex", "2026-11-01", done: true), ChecklistItem(id: "4", text: "Not a task"),
+        ])]
+        var b = ProjectBundle(project: Project(id: "b", clientName: "", address: "2 Elm"))
+        b.checklists = [Checklist(projectId: "b", name: "Punch list", items: [
+            item("5", "Label rack", "alex", "2026-11-24"), item("6", "Order motor", nil, "2026-12-30"), item("7", "Program keypads", "Alex", nil),
+        ])]
+        let all = FieldDocs.openTasks([a, b], today: "2026-11-19")
+        XCTAssertEqual(all.map(\.item.id), ["1", "2", "5", "6", "7"])
+        XCTAssertEqual(all.map(\.bucket), [.overdue, .today, .week, .later, .none])
+        XCTAssertEqual(FieldDocs.openTasks([a, b], today: "2026-11-19", who: "Alex").map(\.item.id), ["1", "5", "7"])
+        XCTAssertEqual(FieldDocs.daysUntil("2026-12-01", today: "2026-11-30"), 1)
+        XCTAssertEqual(FieldDocs.teamNames([a, b], me: "Me"), ["Alex", "Me", "Sam"])
+        // Same JSON keys as the web.
+        let json = try! JSONSerialization.jsonObject(with: JSONEncoder().encode(a.checklists[0].items[0])) as! [String: Any]
+        XCTAssertEqual(json["assignee"] as? String, "Alex")
+        XCTAssertEqual(json["due"] as? String, "2026-11-18")
+    }
 }

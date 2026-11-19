@@ -4,6 +4,7 @@ import PinPlanCore
 
 struct ProjectsView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.horizontalSizeClass) private var hSize
     @State private var search = ""
     @State private var status: ProjectStatus?
     @State private var label: String?
@@ -13,6 +14,7 @@ struct ProjectsView: View {
     @State private var showCatalog = false
     @State private var showAllPhotos = ProcessInfo.processInfo.arguments.contains("--all-photos")
     @State private var showMap = ProcessInfo.processInfo.arguments.contains("--jobs-map")
+    @State private var showTasks = ProcessInfo.processInfo.arguments.contains("--tasks")
     @State private var showRestore = false
     @State private var path: [String] = []
     @State private var message: String?
@@ -80,8 +82,18 @@ struct ProjectsView: View {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { showCatalog = true } label: { Label("Catalog", systemImage: "shippingbox") }
                     Button { showSettings = true } label: { Label("Settings", systemImage: "gearshape") }
-                    Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
-                    Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
+                    if hSize == .compact {
+                        // Phone: the company-wide views share one menu so the bar stays tidy.
+                        Menu {
+                            Button { showTasks = true } label: { Label("Tasks", systemImage: "checklist") }
+                            Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
+                            Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
+                        } label: { Label("Company", systemImage: "square.grid.2x2") }
+                    } else {
+                        Button { showTasks = true } label: { Label("Tasks", systemImage: "checklist") }
+                        Button { showAllPhotos = true } label: { Label("All photos", systemImage: "photo.on.rectangle.angled") }
+                        Button { showMap = true } label: { Label("Jobs map", systemImage: "map") }
+                    }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
@@ -101,6 +113,7 @@ struct ProjectsView: View {
             .sheet(isPresented: $showCatalog) { NavigationStack { CatalogView() } }
             .fullScreenCover(isPresented: $showAllPhotos) { AllPhotosView { id in path = [id] } }
             .fullScreenCover(isPresented: $showMap) { JobsMapView { id in path = [id] } }
+            .sheet(isPresented: $showTasks) { TasksView { id in path = [id] } }
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 do {

@@ -136,3 +136,88 @@ struct JobsMapView: View {
         }
     }
 }
+
+/// Open checklist / punch-list items assigned to someone or with a due date, across every job (CompanyCam-style tasks).
+struct TasksView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let onOpen: (String) -> Void
+    @State private var who = "__me"
+
+    var body: some View {
+        let me = FieldAuthor.name(app)
+        let today = FieldDocs.localDay(isoNow())
+        let filter: String? = who == "__me" ? me : who == "__all" ? nil : who
+        let tasks = FieldDocs.openTasks(app.projects, today: today, who: filter)
+        let names = FieldDocs.teamNames(app.projects, me: me).filter { $0.caseInsensitiveCompare(me) != .orderedSame }
+        NavigationStack {
+            List {
+                if tasks.isEmpty {
+                    ContentUnavailableView("No open tasks\(filter.map { " for \($0)" } ?? "")", systemImage: "checklist",
+                                           description: Text("On a job’s Field tab, start a Punch list (or any checklist), then swipe an item right — or long-press it — to assign it and set a due date."))
+                        .listRowBackground(Color.clear)
+                }
+                ForEach(FieldDocs.TaskBucket.allCases, id: \.self) { b in
+                    let list = tasks.filter { $0.bucket == b }
+                    if !list.isEmpty {
+                        Section {
+                            ForEach(list) { t in row(t, me: me) }
+                        } header: {
+                            Text("\(b.title) · \(list.count)").foregroundStyle(b == .overdue ? Color.red : b == .today ? Color.orange : Color.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Tasks")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Nothing assigned to you yet: show everyone's instead of an empty list.
+                if who == "__me", FieldDocs.openTasks(app.projects, today: today, who: me).isEmpty { who = "__all" }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Picker("Whose tasks", selection: $who) {
+                        Text("Mine (\(me))").tag("__me")
+                        Text("Everyone").tag("__all")
+                        ForEach(names, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+        }
+    }
+
+    private func row(_ t: FieldDocs.OpenTask, me: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Button { complete(t, me: me) } label: { Image(systemName: "circle").font(.title2).foregroundStyle(.secondary) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Mark done: \(t.item.text)")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(t.item.text)
+                Button { dismiss(); onOpen(t.project.id) } label: {
+                    Text("\(t.project.address.isEmpty ? "Job" : t.project.address) · \(t.checklist.name)").font(.caption.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                TaskChips(item: t.item)
+                if t.item.requiresPhoto == true { Text("Photo required — add it on the job").font(.caption).foregroundStyle(.orange) }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Tick an item done from the list (saved and synced like an edit on the job).
+    private func complete(_ t: FieldDocs.OpenTask, me: String) {
+        guard var b = app.projects.first(where: { $0.project.id == t.project.id }),
+              var c = b.checklists.first(where: { $0.id == t.checklist.id }),
+              let i = c.items.firstIndex(where: { $0.id == t.item.id }) else { return }
+        c.items[i].done = true
+        c.items[i].doneBy = me
+        c.items[i].doneAt = isoNow()
+        b.save(c, in: \.checklists)
+        app.store.save(b)
+        app.didSave(b)
+        if app.openEditor?.bundle.project.id == b.project.id { app.openEditor?.replaceFromSync(b) }
+    }
+}

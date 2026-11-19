@@ -100,6 +100,7 @@ struct ChecklistDetail: View {
     let id: String
     @State private var newItem = ""
     @State private var viewer: PhotoViewerItem?
+    @State private var assigning: ChecklistItem?
 
     var body: some View {
         if let c = model.bundle.liveChecklists.first(where: { $0.id == id }) {
@@ -119,6 +120,14 @@ struct ChecklistDetail: View {
             .navigationTitle(c.name)
             .toolbar { EditButton() }
             .fullScreenCover(item: $viewer) { v in PhotoViewer(model: model, ids: v.ids, current: v.start) }
+            .sheet(item: $assigning) { item in
+                TaskEditor(item: item, names: FieldDocs.teamNames(app.projects, me: FieldAuthor.name(app))) { who, due in
+                    change(c) { x in
+                        if let i = x.items.firstIndex(where: { $0.id == item.id }) { x.items[i].assignee = who; x.items[i].due = due }
+                    }
+                }
+                .presentationDetents([.medium, .large])
+            }
         } else {
             ContentUnavailableView("Checklist deleted", systemImage: "checklist")
         }
@@ -160,6 +169,7 @@ struct ChecklistDetail: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.text).strikethrough(complete, color: .secondary)
                 if let by = item.doneBy, let at = item.doneAt { Text("\(by) · \(shortDate(at))").font(.caption).foregroundStyle(.secondary) }
+                if item.assignee != nil || item.due != nil { TaskChips(item: item) }
                 if needsPhoto { Text("Add a photo to finish this item").font(.caption).foregroundStyle(.orange) }
                 if !photos.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -182,7 +192,11 @@ struct ChecklistDetail: View {
             .accessibilityLabel("Add photo")
         }
         .padding(.vertical, 2)
+        .swipeActions(edge: .leading) {
+            Button { assigning = item } label: { Label("Assign", systemImage: "person.crop.circle.badge.clock") }.tint(.accentColor)
+        }
         .contextMenu {
+            Button { assigning = item } label: { Label("Assign & due date…", systemImage: "person.crop.circle.badge.clock") }
             Button(item.requiresPhoto == true ? "Photo not required" : "Require a photo") {
                 change(c) { x in if let i = x.items.firstIndex(where: { $0.id == item.id }) { x.items[i].requiresPhoto = !(x.items[i].requiresPhoto ?? false) } }
             }
@@ -451,6 +465,92 @@ struct TimelineView: View {
         case .log: return "book.closed"
         case .document: return "doc"
         case .billdu: return "doc.text"
+        }
+    }
+}
+
+/// "Alex · Due Wed, Nov 18" for a task item; red when overdue, amber when due today.
+struct TaskChips: View {
+    let item: ChecklistItem
+    var body: some View {
+        let bucket = FieldDocs.taskBucket(item.due, today: FieldDocs.localDay(isoNow()))
+        HStack(spacing: 10) {
+            if let who = item.assignee, !who.isEmpty { Label(who, systemImage: "person").foregroundStyle(.secondary) }
+            if let due = item.due, !due.isEmpty {
+                Label(dueText(due), systemImage: "calendar")
+                    .foregroundStyle(item.done == true ? Color.secondary : bucket == .overdue ? Color.red : bucket == .today ? Color.orange : Color.secondary)
+                    .fontWeight(item.done != true && (bucket == .overdue || bucket == .today) ? .semibold : .regular)
+            }
+        }
+        .font(.caption)
+        .labelStyle(.titleAndIcon)
+    }
+}
+
+func dueText(_ day: String) -> String {
+    let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+    guard let d = f.date(from: day) else { return day }
+    return d.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+}
+
+/// Assign an item to someone and give it a due date (it then shows on their Tasks list).
+struct TaskEditor: View {
+    let item: ChecklistItem
+    let names: [String]
+    let onSave: (String?, String?) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var who = ""
+    @State private var hasDue = false
+    @State private var due = Date()
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section { Text(item.text).font(.headline) }
+                Section("Assigned to") {
+                    TextField("Name", text: $who).textInputAutocapitalization(.words)
+                    if !names.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(names, id: \.self) { n in
+                                    let on = who.caseInsensitiveCompare(n) == .orderedSame
+                                    Button { who = n } label: {
+                                        Text(n).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
+                                            .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
+                                            .foregroundStyle(on ? Color.white : Color.primary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
+                Section {
+                    Toggle("Due date", isOn: $hasDue)
+                    if hasDue { DatePicker("Due", selection: $due, displayedComponents: .date).datePickerStyle(.graphical) }
+                }
+            }
+            .navigationTitle("Assign")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+                        let w = who.trimmingCharacters(in: .whitespaces)
+                        onSave(w.isEmpty ? nil : w, hasDue ? f.string(from: due) : nil)
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+            .onAppear {
+                who = item.assignee ?? ""
+                if let d = item.due, !d.isEmpty {
+                    let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+                    if let x = f.date(from: d) { due = x; hasDue = true }
+                }
+            }
         }
     }
 }
