@@ -7,7 +7,7 @@ import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import type { ProjectStatus } from "@/lib/types";
-import { Camera, ClipboardCheck, FileText, HardHat, Info, ListChecks, MapPin, Receipt, ReceiptText } from "lucide-react";
+import { Camera, ClipboardCheck, FileDiff, FileText, HardHat, Info, ListChecks, MapPin, Receipt, ReceiptText } from "lucide-react";
 import AppHeader, { Logo } from "./AppHeader";
 import SyncBadge from "./SyncBadge";
 import SheetsTab from "./SheetsTab";
@@ -18,6 +18,7 @@ import ProjectInfo from "./ProjectInfo";
 import PhotosTab from "./photos/PhotosTab";
 import FieldTab from "./field/FieldTab";
 import DocumentsTab from "./documents/DocumentsTab";
+import ChangeOrdersTab from "./changeOrders/ChangeOrdersTab";
 
 // Konva needs the browser.
 const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">Loading plan…</div> });
@@ -32,6 +33,7 @@ const TABS = [
   { id: "billing", label: "Billing", icon: ReceiptText },
   { id: "crew", label: "Crew", icon: HardHat },
   { id: "info", label: "Job", icon: Info },
+  { id: "changes", label: "Changes", icon: FileDiff },
 ] as const;
 
 const STATUS_STYLE: Record<ProjectStatus, string> = {
@@ -47,8 +49,8 @@ export default function ProjectView() {
   const prices = can(useRole(), "prices");
   // Technicians don't see the estimate or billing; a link straight to them opens the plan instead.
   const asked = params.get("tab") ?? "plan";
-  const tab = (asked === "estimate" || asked === "billing") && !prices ? "plan" : asked;
-  const tabs = prices ? TABS : TABS.filter((t) => t.id !== "estimate" && t.id !== "billing");
+  const tab = (asked === "estimate" || asked === "billing" || asked === "changes") && !prices ? "plan" : asked;
+  const tabs = prices ? TABS : TABS.filter((t) => t.id !== "estimate" && t.id !== "billing" && t.id !== "changes");
   const { loaded, project, load, updateProject, sheets } = useEditor();
   const photoCount = useEditor((s) => s.photos.length);
 
@@ -159,6 +161,7 @@ export default function ProjectView() {
         )}
         {tab === "crew" && <CrewTab />}
         {tab === "info" && <ProjectInfo />}
+        {tab === "changes" && prices && <ChangeOrdersTab />}
       </main>
     </>
   );

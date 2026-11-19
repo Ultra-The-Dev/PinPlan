@@ -116,7 +116,7 @@ async function push(): Promise<void> {
     }
     // Technicians can't write prices (the database refuses): drop those edits instead of blocking every sync.
     // Job templates are the office's too (technicians only start jobs from them).
-    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "jobTemplates") && useTeam.getState().role === "tech") {
+    if ((table === "estimateLines" || table === "salesDocs" || table === "salesPayments" || table === "jobTemplates" || table === "changeOrders") && useTeam.getState().role === "tech") {
       await db().syncQueue.bulkDelete(seqsFor(table));
       continue;
     }
@@ -158,7 +158,10 @@ async function projectIdForImage(imageId: string): Promise<string | null> {
   if (doc) return doc.projectId;
   // A daily report's signature.
   const log = await db().jobLogs.filter((l) => l.report?.signature?.imageId === imageId).first();
-  return log?.projectId ?? null;
+  if (log?.projectId) return log.projectId;
+  // A signature taken on this device (change order approved in person).
+  const co = await db().changeOrders.filter((c) => c.signatureImageId === imageId).first();
+  return co?.projectId ?? null;
 }
 
 /** Upload one image/file. Returns false when nothing references it yet, so it stays queued. */
@@ -303,6 +306,9 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
     const sig = l.report!.signature!.imageId;
     if (!known.has(sig)) filesNeeded.push({ id: sig, path: `${l.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg" });
   }
+  // Change order signatures (uploaded by the client link's server route, or by the device that took them).
+  for (const c of await db().changeOrders.filter((x) => !x.deleted && !!x.signatureImageId).toArray())
+    if (!known.has(c.signatureImageId!)) filesNeeded.push({ id: c.signatureImageId!, path: `${c.projectId}/${c.signatureImageId}`, width: 0, height: 0, mime: "image/png" });
   let tries = 0;
   for (const f of filesNeeded) {
     if (await db().images.get(f.id)) continue;

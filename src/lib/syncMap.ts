@@ -268,6 +268,35 @@ export const TABLES: Record<SyncTable, TableSpec> = {
     conflict: "id",
     columns: { ...common, name: "name", description: "description", trades: "trades", payload: "payload", createdBy: "created_by" },
   },
+  // Change orders (docs/change-orders.md). Office only; the client's answer is written by the server.
+  changeOrders: {
+    remote: "change_orders",
+    conflict: "id",
+    columns: {
+      ...childOf,
+      number: "number",
+      title: "title",
+      reason: "reason",
+      description: "description",
+      status: "status",
+      lines: "lines",
+      markupPct: "markup_pct",
+      taxPct: "tax_pct",
+      scheduleDays: "schedule_days",
+      photoIds: "photo_ids",
+      rfiId: "rfi_id",
+      sheetIds: "sheet_ids",
+      markerIds: "marker_ids",
+      shareToken: "share_token",
+      publicView: "public_view",
+      sentAt: "sent_at",
+      respondedAt: "responded_at",
+      approvedName: "approved_name",
+      signatureImageId: "signature_image_id",
+      clientComment: "client_comment",
+      createdBy: "created_by",
+    },
+  },
 };
 
 
@@ -289,6 +318,7 @@ export const PUSH_ORDER: SyncTable[] = [
   "salesDocs",
   "salesPayments",
   "jobTemplates",
+  "changeOrders",
 ];
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "sentAt", "viewedAt", "respondedAt", "voidedAt"]);
@@ -297,6 +327,8 @@ const BOOL_DEFAULTS: Record<string, boolean> = { deleted: false, tentative: fals
 const DOC_DEFAULTS: Record<string, unknown> = { client: {}, lines: [], taxes: [], subtotal: 0, discount_total: 0, tax_total: 0, total: 0, amount_paid: 0, balance_due: 0, source: "manual", status: "draft", currency: "USD" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** NOT NULL change order columns: what to send when the row has nothing. */
+const CO_DEFAULTS: Record<string, unknown> = { lines: [], status: "draft", reason: "other", title: "", number: 0 };
 
 /** Local row -> remote row. Unknown keys are dropped; undefined becomes null. */
 export function toRemote(table: SyncTable, row: Record<string, unknown>): Record<string, unknown> {
@@ -315,6 +347,7 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
     // The database sets created_by itself; anything that isn't a user id would fail the uuid column.
     if (typeof out.created_by !== "string" || !UUID.test(out.created_by)) out.created_by = null;
   }
+  if (table === "changeOrders") for (const [k, v] of Object.entries(CO_DEFAULTS)) if (out[k] == null) out[k] = v;
   return out;
 }
 

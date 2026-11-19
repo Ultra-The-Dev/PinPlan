@@ -771,3 +771,81 @@ export interface JobTemplate {
   updatedAt: string;
   deleted?: boolean;
 }
+
+// ---------------- change orders (see docs/change-orders.md) ----------------
+
+export type ChangeOrderReason = "client_request" | "plan_revision" | "field_condition" | "rfi" | "other";
+export type ChangeOrderStatus = "draft" | "sent" | "approved" | "rejected" | "void";
+
+/** One priced line of a change order. Negative quantities are credits (work taken out). */
+export interface ChangeOrderLine {
+  id: string;
+  /** device: a catalog device type (priced like the estimate); labor: hours × rate; material: cost + the CO's markup; custom: as typed. */
+  kind: "device" | "labor" | "material" | "custom";
+  deviceTypeId?: string | null;
+  description: string;
+  qty: number;
+  unit: string;
+  unitPrice: number;
+  /** Sales tax applies (default true). */
+  taxable?: boolean;
+}
+
+/** What the client link shows, frozen when the change order is sent (whitelisted by publicCoView: no costs, no internal ids). */
+export interface ChangeOrderPublicView {
+  v: 1;
+  code: string;
+  title: string;
+  reason: ChangeOrderReason;
+  reasonLabel: string;
+  description: string;
+  scheduleDays: number | null;
+  currency: string;
+  /** Client prices (markup folded into material lines). */
+  lines: { description: string; qty: number; unit: string; unitPrice: number; total: number }[];
+  subtotal: number;
+  tax: number;
+  taxPct: number;
+  total: number;
+  project: { address: string; clientName: string };
+  business: Pick<BusinessSettings, "name" | "address" | "phone" | "email" | "website" | "tagline" | "logo" | "brandColor" | "accentColor">;
+  /** Job photos shown as evidence; the server swaps them for short-lived links. */
+  photos: { imageId: string; caption: string }[];
+  sentAt: string;
+}
+
+export interface ChangeOrder {
+  id: string;
+  projectId: string;
+  /** 1, 2, 3… per job (shown as CO-001). A revision keeps its number. */
+  number: number;
+  title: string;
+  reason: ChangeOrderReason;
+  description?: string | null;
+  status: ChangeOrderStatus;
+  lines: ChangeOrderLine[];
+  /** % added to material lines (catalog devices are already priced with the pricing markup). */
+  markupPct?: number | null;
+  taxPct?: number | null;
+  /** Extra working days the change adds (negative saves time). */
+  scheduleDays?: number | null;
+  photoIds?: string[] | null;
+  rfiId?: string | null;
+  sheetIds?: string[] | null;
+  /** Plan devices this change covers (e.g. tentative cameras added after the estimate). */
+  markerIds?: string[] | null;
+  /** Client link token (the link is live once the row has synced). */
+  shareToken?: string | null;
+  publicView?: ChangeOrderPublicView | null;
+  sentAt?: string | null;
+  respondedAt?: string | null;
+  /** Who approved (or rejected): typed by the client on the link, or entered by the office for a verbal/paper OK. */
+  approvedName?: string | null;
+  /** Key into `images` / storage (<project>/<id>) of the signature PNG. */
+  signatureImageId?: string | null;
+  clientComment?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+}

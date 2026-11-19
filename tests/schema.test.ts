@@ -64,6 +64,12 @@ const SAMPLES: Record<SyncTable, Record<string, unknown>> = {
   },
   salesPayments: { id: "sp", projectId: "p", documentId: "sd", amount: 10, date: "2026-11-19", method: "check", reference: "1001", note: "n", voided: false, createdAt: ts, updatedAt: ts, deleted: false },
   jobTemplates: { id: "jt", name: "LV standard", description: "d", trades: ["lowvoltage"], payload: { version: 1, project: {}, checklists: [], estimateLines: [] }, createdBy: "0b6c7f2e-8d1a-4f55-9a2b-1c3d4e5f6a7b", createdAt: ts, updatedAt: ts, deleted: false },
+  changeOrders: {
+    id: "co", projectId: "p", number: 3, title: "Extra cameras", reason: "client_request", description: "d", status: "approved",
+    lines: [{ id: "l", kind: "device", deviceTypeId: "cam-indoor", description: "Indoor camera", qty: 2, unit: "each", unitPrice: 100, taxable: true }],
+    markupPct: 15, taxPct: 8.875, scheduleDays: 1, photoIds: ["ph"], rfiId: "rfi", sheetIds: ["s"], markerIds: ["m"], shareToken: "tok", publicView: { v: 1 },
+    sentAt: ts, respondedAt: ts, approvedName: "Pat", signatureImageId: "sig", clientComment: "ok", createdBy: "a@b.c", createdAt: ts, updatedAt: ts, deleted: false,
+  },
 };
 const LOCAL_ONLY = new Set(["imageUrl"]);
 const SERVER_SET = new Set(["owner_id", "synced_at", "image_path"]);
