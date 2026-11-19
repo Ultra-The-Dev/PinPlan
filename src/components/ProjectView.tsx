@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useEditor } from "@/lib/store";
 import type { ProjectStatus } from "@/lib/types";
-import { FileText, HardHat, Info, ListChecks, MapPin, Receipt } from "lucide-react";
+import { Camera, ClipboardCheck, FileText, HardHat, Info, ListChecks, MapPin, Receipt } from "lucide-react";
 import AppHeader, { Logo } from "./AppHeader";
 import SyncBadge from "./SyncBadge";
 import SheetsTab from "./SheetsTab";
@@ -13,6 +13,8 @@ import TakeoffTab from "./TakeoffTab";
 import EstimateTab from "./EstimateTab";
 import CrewTab from "./CrewTab";
 import ProjectInfo from "./ProjectInfo";
+import PhotosTab from "./photos/PhotosTab";
+import FieldTab from "./field/FieldTab";
 
 // Konva needs the browser.
 const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">Loading plan…</div> });
@@ -20,6 +22,8 @@ const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, lo
 const TABS = [
   { id: "plan", label: "Plan", icon: MapPin },
   { id: "sheets", label: "Sheets", icon: FileText },
+  { id: "photos", label: "Photos", icon: Camera },
+  { id: "field", label: "Field", icon: ClipboardCheck },
   { id: "takeoff", label: "Takeoff", icon: ListChecks },
   { id: "estimate", label: "Estimate", icon: Receipt },
   { id: "crew", label: "Crew", icon: HardHat },
@@ -38,6 +42,7 @@ export default function ProjectView() {
   const id = params.get("id") ?? "";
   const tab = params.get("tab") ?? "plan";
   const { loaded, project, load, updateProject, sheets } = useEditor();
+  const photoCount = useEditor((s) => s.photos.length);
 
   useEffect(() => {
     if (!id) return;
@@ -94,6 +99,7 @@ export default function ProjectView() {
               <t.icon />
               <span className="hidden lg:inline">{t.label}</span>
               {t.id === "sheets" && sheets.length > 0 && <span className="hidden text-xs text-slate-400 lg:inline">{sheets.length}</span>}
+              {t.id === "photos" && photoCount > 0 && <span className="hidden text-xs text-slate-400 lg:inline">{photoCount}</span>}
             </button>
           ))}
         </nav>
@@ -118,6 +124,8 @@ export default function ProjectView() {
             </div>
           ))}
         {tab === "sheets" && <SheetsTab onOpenSheet={() => setTab("plan")} />}
+        {tab === "photos" && <PhotosTab />}
+        {tab === "field" && <FieldTab />}
         {tab === "takeoff" && <TakeoffTab />}
         {tab === "estimate" && (
           <div className="h-full overflow-auto">

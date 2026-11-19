@@ -24,3 +24,25 @@ export function useSheetImage(imageId: string | null | undefined) {
   }, [imageId]);
   return state?.id === imageId ? state : null;
 }
+
+/** Object URL for a stored image or file (no decoding — cheap enough for photo grids). */
+export function useBlobUrl(id: string | null | undefined) {
+  const [state, setState] = useState<{ id: string; url: string } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    let url = "";
+    let cancelled = false;
+    db()
+      .images.get(id)
+      .then((rec) => {
+        if (!rec || cancelled) return;
+        url = URL.createObjectURL(rec.blob);
+        setState({ id, url });
+      });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [id]);
+  return state && state.id === id ? state.url : null;
+}
