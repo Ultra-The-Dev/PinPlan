@@ -44,6 +44,80 @@ public struct ProposalSnapshot: Codable, Hashable, Sendable {
     public var scope: [Scope]
     public var floors: [Floor]
     public var lines: [Line]
+    /// "review": the plans only (no prices) for the client to check where everything goes; nil = a priced proposal.
+    public var kind: String? = nil
+    /// What each symbol on the plans means.
+    public var legend: [LegendItem]? = nil
+    public var isReview: Bool { kind == "review" }
+}
+
+/// One legend row for clients (same JSON as src/lib/legend.ts).
+public struct LegendItem: Codable, Hashable, Sendable, Identifiable {
+    public var key: String
+    public var name: String
+    public var description: String
+    public var category: String
+    public var icon: String?
+    public var color: String?
+    public var count: String
+    public var id: String { key }
+}
+
+public enum Legend {
+    /// Plain-English lines for homeowners; custom types fall back to their category.
+    public static let descriptions: [String: String] = [
+        "cam-indoor": "Security camera inside the home, viewable on your phone.",
+        "cam-outdoor": "Weatherproof security camera on the outside of the home.",
+        "vs": "Screen or wall-mounted iPad to view your cameras.",
+        "wap": "Ceiling Wi-Fi access point for strong wireless coverage.",
+        "net-switch": "Network switch that connects the wired devices.",
+        "data-drop": "Wired internet jack (Cat6) in the wall.",
+        "speaker": "Speaker built into the ceiling for music around the home.",
+        "tv": "TV location, wired for picture, sound and internet.",
+        "sh": "Smart-home control point (hub or controller location).",
+        "keypad": "Wall keypad to control lights, scenes or shades.",
+        "led-ceiling": "Hidden LED strip lighting in the ceiling moulding.",
+        "led-furniture": "LED strip lighting built into furniture.",
+        "led-cabinet": "LED strip lighting under or inside cabinets.",
+        "led-bench": "LED strip lighting under a bench.",
+        "led-bed": "LED backlight behind the bed.",
+        "led-stair": "LED lights on the stair steps.",
+        "led-spot-ceiling": "Small LED spotlight in the ceiling.",
+        "led-driver": "LED power supply / lighting zone.",
+        "shade": "Motorized curtain or shade.",
+    ]
+    static let categoryText: [Category: String] = [
+        .security: "Security", .network: "Network", .audio: "Audio", .video: "Video", .smarthome: "Smart home",
+        .lighting: "Lighting", .shades: "Shades", .infrastructure: "Equipment",
+    ]
+
+    /// Every symbol a client sees on the plans, in category order, with counts ("3", "2 + 1 optional", "45 LF").
+    public static func build(takeoff: Takeoff, catalog: [DeviceType], icon: (DeviceType) -> String?) -> [LegendItem] {
+        let t = takeoff.total
+        var out: [(LegendItem, Int)] = []
+        for d in catalog {
+            let o = Category.allCases.firstIndex(of: d.category) ?? 99
+            let cat = categoryText[d.category] ?? d.category.rawValue
+            let desc = descriptions[d.id] ?? "\(cat) — \(d.name)."
+            if d.kind == .led {
+                let ft = t.ledFt[d.id] ?? 0, opt = t.ledTentativeFt[d.id] ?? 0
+                guard ft > 0 || opt > 0 else { continue }
+                let count = opt > 0 ? (ft > 0 ? "\(Wiring.num(ft)) LF + \(Wiring.num(opt)) LF optional" : "\(Wiring.num(opt)) LF optional") : "\(Wiring.num(ft)) LF"
+                out.append((LegendItem(key: "led:\(d.id)", name: d.name, description: desc, category: cat, icon: nil, color: d.color, count: count), o))
+                continue
+            }
+            let n = t.counts[d.id] ?? 0
+            guard n > 0 else { continue }
+            let opt = t.tentative[d.id] ?? 0, firm = n - opt
+            let count = opt > 0 ? (firm > 0 ? "\(firm) + \(opt) optional" : "\(opt) optional") : "\(firm)"
+            out.append((LegendItem(key: d.id, name: d.name, description: desc, category: cat, icon: icon(d), color: d.color, count: count), o))
+        }
+        for k in Catalog.closetKinds {
+            let n = t.closets[k.id] ?? 0
+            if n > 0 { out.append((LegendItem(key: "closet:\(k.id.rawValue)", name: k.name, description: "Where the equipment and cables come together.", category: "Equipment", icon: nil, color: k.color, count: "\(n)"), 100)) }
+        }
+        return out.enumerated().sorted { ($0.element.1, $0.offset) < ($1.element.1, $1.offset) }.map(\.element.0)
+    }
 }
 
 public enum Proposals {
@@ -59,7 +133,8 @@ public enum Proposals {
 
     public static func snapshot(bundle b: ProjectBundle, catalog: [DeviceType], takeoff: Takeoff, estimate: Estimate, business: BusinessSettings,
                                 currency: String, taxPct: Double, title: String = "", message: String = "", validDays: Int?,
-                                detail: ProposalSnapshot.Detail, depositPct: Double?, images: [String: String] = [:], origin: String? = nil, now: Date = Date()) -> ProposalSnapshot {
+                                detail: ProposalSnapshot.Detail, depositPct: Double?, images: [String: String] = [:], origin: String? = nil, now: Date = Date(),
+                                review: Bool = false, legend: [LegendItem]? = nil) -> ProposalSnapshot {
         func name(_ id: String) -> String { catalog.first { $0.id == id }?.name ?? id }
         let t = takeoff.total
         let devices = t.counts.values.reduce(0, +) - t.tentative.values.reduce(0, +)
@@ -73,7 +148,7 @@ public enum Proposals {
             items += f.bucket.ledFt.filter { $0.value > 0 }.sorted { $0.key < $1.key }.map { .init(name: name($0.key), count: "\(Wiring.num($0.value)) LF") }
             return .init(name: f.name, image: images[f.sheetId], items: items)
         }
-        let lines = estimate.lines.filter { $0.qty != 0 || $0.total != 0 }.map { l in
+        let lines: [ProposalSnapshot.Line] = review ? [] : estimate.lines.filter { $0.qty != 0 || $0.total != 0 }.map { l in
             ProposalSnapshot.Line(key: l.key, description: l.description.replacingOccurrences(of: " (optional — marked ?)", with: ""), qty: l.qty, unit: l.unit,
                                   unitPrice: l.unitPrice, total: round2(l.total), group: l.group, optional: l.optional, included: l.optional && l.included)
         }
@@ -84,16 +159,16 @@ public enum Proposals {
         let p = b.project
         let t0 = title.trimmingCharacters(in: .whitespaces)
         return ProposalSnapshot(
-            title: t0.isEmpty ? "Proposal — \(p.address.isEmpty ? (p.clientName.isEmpty ? "your project" : p.clientName) : p.address)" : t0,
+            title: t0.isEmpty ? "\(review ? "Preliminary plan" : "Proposal") — \(p.address.isEmpty ? (p.clientName.isEmpty ? "your project" : p.clientName) : p.address)" : t0,
             message: message.trimmingCharacters(in: .whitespacesAndNewlines), createdAt: iso.string(from: now),
-            validUntil: validDays.flatMap { $0 > 0 ? day.string(from: now.addingTimeInterval(Double($0) * 86400)) : nil },
-            currency: currency, taxPct: taxPct, detail: detail, depositPct: depositPct.flatMap { $0 > 0 && $0 < 100 ? $0 : nil },
-            terms: business.estimateTerms,
+            validUntil: review ? nil : validDays.flatMap { $0 > 0 ? day.string(from: now.addingTimeInterval(Double($0) * 86400)) : nil },
+            currency: currency, taxPct: review ? 0 : taxPct, detail: detail, depositPct: review ? nil : depositPct.flatMap { $0 > 0 && $0 < 100 ? $0 : nil },
+            terms: review ? "" : business.estimateTerms,
             business: .init(name: business.name, address: business.address, phone: business.phone, email: business.email, website: business.website,
                             tagline: business.tagline, logo: absolute(business.logo, origin: origin), brandColor: business.brandColor,
                             accentColor: business.accentColor, serviceArea: business.serviceArea),
             client: .init(name: p.clientName, email: p.clientEmail ?? "", phone: p.clientPhone ?? "", address: p.address),
-            scope: scope, floors: floors, lines: lines)
+            scope: scope, floors: floors, lines: lines, kind: review ? "review" : nil, legend: (legend?.isEmpty ?? true) ? nil : legend)
     }
 
     /// "/brand/logo.png" on the PinPlan server → full URL (the client page loads it from there).

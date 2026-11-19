@@ -104,7 +104,8 @@ struct ClientProposalView: View {
     private func refresh() async {
         guard app.cloud.signedIn else { return }
         do {
-            let list = try await app.cloud.proposals(projectId: model.bundle.project.id)
+            // Plan reviews (no prices) live on the Takeoff tab's "Send plan to client".
+            let list = try await app.cloud.proposals(projectId: model.bundle.project.id).filter { !$0.snapshot.isReview }
             rows = list
             applyAcceptance(list)
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }

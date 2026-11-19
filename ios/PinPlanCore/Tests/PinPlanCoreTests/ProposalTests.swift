@@ -63,4 +63,34 @@ final class QuickChargeTests: XCTestCase {
         XCTAssertEqual(line.qty, 3)
         XCTAssertEqual(line.total, 540)
     }
+
+    func testPlanReviewHasLegendAndNoPrices() throws {
+        let catalog = Catalog.seed()
+        var b = ProjectBundle(project: Project(id: "p", clientName: "Jane Client", address: "12 Maple Ridge Rd"))
+        b.sheets = [Sheet(id: "s1", projectId: "p", name: "1st Fl", pageNumber: 1, order: 0, imageId: "i", width: 100, height: 100)]
+        b.markers = [Marker(projectId: "p", sheetId: "s1", deviceTypeId: "wap", x: 0.5, y: 0.5, label: "W1"),
+                     Marker(projectId: "p", sheetId: "s1", deviceTypeId: "wap", x: 0.4, y: 0.5, label: "W2"),
+                     Marker(projectId: "p", sheetId: "s1", deviceTypeId: "speaker", x: 0.3, y: 0.5, label: "S1", tentative: true),
+                     Marker(projectId: "p", sheetId: "s1", deviceTypeId: "cam-outdoor", x: 0.2, y: 0.5, label: "C1")]
+        let t = TakeoffCalculator.compute(b)
+        let legend = Legend.build(takeoff: t, catalog: catalog) { "icon:\($0.id)" }
+        XCTAssertEqual(legend.map(\.key), ["cam-outdoor", "wap", "speaker"])
+        XCTAssertEqual(legend[1].count, "2")
+        XCTAssertEqual(legend[1].icon, "icon:wap")
+        XCTAssertEqual(legend[2].count, "1 optional")
+        let est = EstimateBuilder.build(takeoff: t, catalog: catalog, pricing: Catalog.defaultPricing)
+        let s = Proposals.snapshot(bundle: b, catalog: catalog, takeoff: t, estimate: est, business: BusinessSettings(), currency: "USD", taxPct: 10,
+                                   validDays: 30, detail: .lines, depositPct: 50, review: true, legend: legend)
+        XCTAssertTrue(s.isReview)
+        XCTAssertEqual(s.title, "Preliminary plan — 12 Maple Ridge Rd")
+        XCTAssertTrue(s.lines.isEmpty)
+        XCTAssertNil(s.validUntil)
+        XCTAssertNil(s.depositPct)
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(s)) as! [String: Any]
+        XCTAssertEqual(json["kind"] as? String, "review")
+        XCTAssertEqual((json["legend"] as? [[String: Any]])?.count, 3)
+        // A priced proposal has no kind key, like the web.
+        let p = Proposals.snapshot(bundle: b, catalog: catalog, takeoff: t, estimate: est, business: BusinessSettings(), currency: "USD", taxPct: 10, validDays: 30, detail: .lines, depositPct: 50)
+        XCTAssertNil((try JSONSerialization.jsonObject(with: JSONEncoder().encode(p)) as! [String: Any])["kind"])
+    }
 }
