@@ -1,15 +1,18 @@
 "use client";
-import { FileText, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
+import { FileText, Loader2, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { db, ensureSeeded, newId, nowIso, put, remove } from "@/lib/db";
 import { importBackup } from "@/lib/backup";
-import { useRole } from "@/lib/team";
+import { useSyncStatus } from "@/lib/sync";
+import { jobHref } from "@/lib/tabRoutes";
+import { useRole, useTeam } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
 import { useSheetImage } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
+import JobsViewToggle from "./nav/JobsViewToggle";
 import { useTemplateStart } from "./templates/TemplatePicker";
 
 const STATUS_STYLE: Record<ProjectStatus, string> = {
@@ -61,6 +64,12 @@ export default function ProjectsList() {
   const [status, setStatus] = useState<ProjectStatus | "all">("all");
   const [label, setLabel] = useState<string | null>(null);
   const role = useRole();
+  // Office: create, restore and delete jobs. Technicians work on the jobs the office set up.
+  const office = can(role, "prices");
+  const onTeam = useTeam((s) => !!s.team);
+  const sync = useSyncStatus();
+  // Signed in to a team on a fresh device: the jobs are on their way down, so say so rather than "no jobs".
+  const fetching = onTeam && sync.configured && sync.signedIn && !sync.lastSyncAt && (sync.syncing || sync.online);
   const restoreRef = useRef<HTMLInputElement>(null);
   const template = useTemplateStart();
   const refresh = () => fetchRows().then(setRows);
@@ -91,21 +100,21 @@ export default function ProjectsList() {
       updatedAt: nowIso(),
     };
     await put("projects", p);
-    await template.applyThenOpen(p, () => router.push(`/project?id=${p.id}&tab=sheets`));
+    await template.applyThenOpen(p, () => router.push(jobHref(p.id, "plan", { manage: "1" })));
   }
 
   async function del(p: Row) {
-    if (!confirm(`Delete project “${p.address || p.clientName}”? This removes its sheets and markers.`)) return;
+    if (!confirm(`Delete job “${p.address || p.clientName}”? This removes its sheets and devices.`)) return;
     await remove("projects", p.id);
     refresh();
-    toast("Project deleted");
+    toast("Job deleted");
   }
 
   async function restore(file: File | undefined) {
     if (!file) return;
     try {
       const n = await importBackup(file);
-      toast(`Restored ${n} project${n === 1 ? "" : "s"}`);
+      toast(`Restored ${n} job${n === 1 ? "" : "s"}`);
       refresh();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
@@ -122,18 +131,25 @@ export default function ProjectsList() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mb-6 flex flex-wrap items-end gap-3">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Projects</h1>
-          <p className="mt-1 text-sm text-slate-500">{can(role, "prices") ? "Mark up plans, count every device and send the estimate to Billdu." : "Every job on your team: plans, devices, photos and checklists."}</p>
+          <h1 className="page-title">Jobs</h1>
+          <p className="mt-1 text-sm text-slate-500">{office ? "Plans, device counts, quotes and invoices for every job." : "Every job on your team: plans, devices, photos and checklists."}</p>
         </div>
-        <input ref={restoreRef} type="file" accept="application/json,.json,.pinplan" className="hidden" onChange={(e) => restore(e.target.files?.[0])} />
-        <button className="btn" onClick={() => restoreRef.current?.click()} title="Restore a project backup">
-          <Upload /> Restore backup
-        </button>
-        <button className="btn btn-brand" onClick={() => setCreating(true)}>
-          <Plus /> New project
-        </button>
+        {office && (
+          <>
+            <input ref={restoreRef} type="file" accept="application/json,.json,.pinplan" className="hidden" onChange={(e) => restore(e.target.files?.[0])} />
+            <button className="btn max-sm:hidden" onClick={() => restoreRef.current?.click()} title="Restore a job backup">
+              <Upload /> Restore backup
+            </button>
+            <button className="btn btn-brand" onClick={() => setCreating(true)}>
+              <Plus /> New job
+            </button>
+          </>
+        )}
+      </div>
+      <div className="mb-5">
+        <JobsViewToggle />
       </div>
 
       {rows && rows.length > 0 && (
@@ -166,7 +182,7 @@ export default function ProjectsList() {
           <form onSubmit={create} onClick={(e) => e.stopPropagation()} className="card animate-in grid w-full max-w-lg gap-4 p-6 shadow-pop sm:grid-cols-2">
             <div className="flex items-start sm:col-span-2">
               <div className="flex-1">
-                <h2 className="text-lg font-semibold">New project</h2>
+                <h2 className="text-lg font-semibold">New job</h2>
                 <p className="text-sm text-slate-500">Next you&apos;ll upload the plan set.</p>
               </div>
               <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={() => setCreating(false)} aria-label="Close">
@@ -209,6 +225,20 @@ export default function ProjectsList() {
             <div key={i} className="card h-64 animate-pulse bg-slate-100/60" />
           ))}
         </div>
+      ) : rows.length === 0 && fetching ? (
+        <div className="card mx-auto max-w-xl px-8 py-14 text-center" role="status">
+          <Loader2 className="mx-auto mb-4 h-7 w-7 animate-spin text-brand-600" />
+          <h2 className="text-xl font-semibold">Getting your team&apos;s jobs…</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">The first download can take a minute on a slow connection.</p>
+        </div>
+      ) : rows.length === 0 && !office ? (
+        <div className="card mx-auto max-w-xl px-8 py-14 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <MapPin className="h-7 w-7" />
+          </div>
+          <h2 className="text-xl font-semibold">Your office&apos;s jobs will show up here</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">When the office adds a job, its plans, devices, tasks and checklists appear on this page.</p>
+        </div>
       ) : rows.length === 0 ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
@@ -216,10 +246,10 @@ export default function ProjectsList() {
           </div>
           <h2 className="text-xl font-semibold">Start your first job</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
-            Create a project, upload the plan set (PDF or phone photos), then tap to place cameras, Wi-Fi, speakers, TVs, LED runs and closets.
+            Create a job, upload the plan set (PDF or phone photos), then tap to place each device and draw the wire runs.
           </p>
           <div className="mt-6 grid grid-cols-3 gap-3 text-left text-xs text-slate-600">
-            {["Upload plans", "Tap to place devices", "Takeoff → estimate → Billdu"].map((t, i) => (
+            {["Upload plans", "Tap to place devices", "Counts → quote → invoice"].map((t, i) => (
               <div key={t} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
                 <div className="mb-1 font-semibold text-brand-600">{i + 1}</div>
                 {t}
@@ -227,15 +257,15 @@ export default function ProjectsList() {
             ))}
           </div>
           <button className="btn btn-brand mt-6" onClick={() => setCreating(true)}>
-            <Plus /> New project
+            <Plus /> New job
           </button>
         </div>
       ) : filtered!.length === 0 ? (
-        <p className="py-10 text-center text-slate-500">No projects match.</p>
+        <p className="py-10 text-center text-slate-500">No jobs match.</p>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered!.map((p) => (
-            <ProjectCard key={p.id} p={p} onDelete={can(role, "deleteJob") ? () => del(p) : undefined} prices={can(role, "prices")} />
+            <ProjectCard key={p.id} p={p} onDelete={can(role, "deleteJob") ? () => del(p) : undefined} prices={office} />
           ))}
         </ul>
       )}
@@ -286,8 +316,8 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
         <button
           className="btn btn-sm btn-icon absolute top-3 right-3 bg-white/90 opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={onDelete}
-          aria-label="Delete project"
-          title="Delete project"
+          aria-label="Delete job"
+          title="Delete job"
         >
           <Trash className="text-red-600" />
         </button>

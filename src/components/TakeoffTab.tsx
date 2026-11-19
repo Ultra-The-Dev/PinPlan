@@ -1,5 +1,6 @@
 "use client";
 import { Cable, Camera, Download, FileText, Flame, Lightbulb, Plug, Speaker, ToggleRight, Tv, Wifi, Zap } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { CLOSET_KINDS } from "@/lib/catalog";
 import { allCategoriesFor, hasTrade, primaryTrade, tradeCategory, tradeClosetKinds, tradeVocab } from "@/lib/trades";
@@ -15,8 +16,37 @@ import { toast } from "@/lib/toast";
 import OrderList from "./OrderList";
 import PlanReviewPanel from "./PlanReviewPanel";
 import { CLIENT_LAYERS } from "@/lib/proposalCloud";
+import { useJobNav } from "./nav/useJobNav";
 
+// Wiring sheets (home-run schedule and crew PDFs, no prices) used to be the Crew tab.
+const CrewTab = dynamic(() => import("./CrewTab"), { loading: () => <div className="p-6 text-slate-500">Loading…</div> });
+
+const VIEWS = [
+  { id: "counts", label: "Counts" },
+  { id: "wiring", label: "Wiring sheets" },
+] as const;
+
+/** Takeoff: the counts, plus the wiring sheets for the crew (?view=wiring). */
 export default function TakeoffTab() {
+  const { params, setParam } = useJobNav();
+  const view = params.get("view") === "wiring" ? "wiring" : "counts";
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 justify-center border-b border-slate-200 bg-white px-3 py-2">
+        <div className="seg" role="tablist" aria-label="Takeoff view">
+          {VIEWS.map((v) => (
+            <button key={v.id} type="button" role="tab" aria-selected={view === v.id} className={`tab ${view === v.id ? "tab-active" : ""}`} onClick={() => setParam("view", v.id === "counts" ? null : v.id)}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1">{view === "wiring" ? <CrewTab /> : <TakeoffCounts />}</div>
+    </div>
+  );
+}
+
+function TakeoffCounts() {
   const st = useEditor();
   const { project, sheets, markers, runs, closets, catalog } = st;
   const takeoff = useMemo(() => computeTakeoff({ sheets, markers, runs, closets }), [sheets, markers, runs, closets]);

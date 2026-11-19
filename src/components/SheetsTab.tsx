@@ -1,6 +1,6 @@
 "use client";
-import { ArrowDown, ArrowUp, FileUp, MapPin, RotateCw, Ruler, Trash } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowDown, ArrowUp, FileUp, MapPin, RotateCw, Ruler, Trash, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { db, newId, nowIso, put, saveImage } from "@/lib/db";
 import { canvasToBlob, guessFloorName, loadPhoto, renderPdf } from "@/lib/importPlans";
 import { findScale } from "@/lib/geometry";
@@ -146,7 +146,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="mr-auto">
-            <h2 className="page-title">Plan sheets</h2>
+            <h2 className="page-title">Manage sheets</h2>
             <p className="mt-1 text-sm text-slate-500">One sheet per floor. PDFs split into pages; phone photos get straightened. Floor names are read from the title block.</p>
           </div>
           <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,.heic,.heif" className="hidden" onChange={(e) => onFiles(e.target.files)} />
@@ -295,5 +295,34 @@ function SheetCard(props: {
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * Manage sheets as a drawer over the plan (upload, rename, reorder, scale, revisions). The plan opens it with
+ * `?tab=plan&manage=1` (old `?tab=sheets` links land here too); full screen on phones, a wide side panel from md up.
+ */
+export function ManageSheetsDrawer({ onClose, onOpenSheet }: { onClose: () => void; onOpenSheet: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector('[role="dialog"][aria-modal="true"]') && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="absolute inset-0 z-40 flex justify-end bg-slate-900/30 backdrop-blur-[2px]" onClick={onClose}>
+      <div role="dialog" aria-label="Manage sheets" className="animate-in flex h-full w-full flex-col bg-slate-50 shadow-pop md:max-w-4xl" onClick={(e) => e.stopPropagation()} data-testid="manage-sheets">
+        <div className="flex h-12 shrink-0 items-center border-b border-slate-200 bg-white px-2">
+          <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>
+            ‹ Back to plan
+          </button>
+          <button type="button" className="btn btn-sm btn-icon btn-ghost ml-auto" onClick={onClose} aria-label="Close">
+            <X />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1">
+          <SheetsTab onOpenSheet={onOpenSheet} />
+        </div>
+      </div>
+    </div>
   );
 }

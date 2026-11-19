@@ -1,58 +1,65 @@
 "use client";
-import { CalendarRange, Camera, ClipboardList, FolderOpen, Map, Package, ReceiptText, Settings, Tags } from "lucide-react";
+import { ClipboardList, FolderOpen, ReceiptText, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PRODUCT_NAME } from "@/lib/plans";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
+import AccountMenu from "./AccountMenu";
 import BillingBanner from "./BillingBanner";
-import RoleBadge from "./RoleBadge";
 import SyncBadge from "./SyncBadge";
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label="PinPlan home">
+    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label={`${PRODUCT_NAME} home`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
-      {!compact && <span className="hidden text-[15px] sm:inline">PinPlan</span>}
+      {!compact && <span className="hidden text-[15px] lg:inline">{PRODUCT_NAME}</span>}
     </Link>
   );
 }
 
+/**
+ * Main sections. Older pages stay reachable and light up the section they now belong to: the jobs map and recent
+ * photos are views of Jobs, the crew board sits under Tasks, Products is part of the Price list.
+ */
+export const MAIN_NAV: { href: string; label: string; icon: typeof FolderOpen; match: string[]; office?: boolean }[] = [
+  { href: "/", label: "Jobs", icon: FolderOpen, match: ["/", "/map", "/photos", "/project"] },
+  { href: "/tasks", label: "Tasks", icon: ClipboardList, match: ["/tasks", "/schedule"] },
+  { href: "/invoices", label: "Money", icon: ReceiptText, match: ["/invoices"], office: true },
+  { href: "/catalog", label: "Price list", icon: Tags, match: ["/catalog", "/products"], office: true },
+];
+
 export default function AppHeader({ children }: { children?: React.ReactNode }) {
-  const path = usePathname();
+  const path = usePathname() ?? "";
   const role = useRole();
-  const nav = [
-    { href: "/", label: "Projects", icon: FolderOpen },
-    { href: "/photos", label: "Photos", icon: Camera },
-    { href: "/tasks", label: "Tasks", icon: ClipboardList },
-    // Office phones already fill the bar: the crew board is reached from Tasks and the job schedule there.
-    { href: "/schedule", label: "Crew", icon: CalendarRange, wide: can(role, "editCatalog") },
-    { href: "/map", label: "Map", icon: Map },
-    { href: "/invoices", label: "Invoices", icon: ReceiptText, office: true },
-    { href: "/catalog", label: "Catalog", icon: Package, office: true },
-    { href: "/products", label: "Products", icon: Tags, office: true },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ].filter((n) => !n.office || can(role, "editCatalog"));
+  const nav = MAIN_NAV.filter((n) => !n.office || can(role, "editCatalog"));
   return (
     <>
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur sm:px-5">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/85 px-3 backdrop-blur sm:gap-3 sm:px-5">
       <Logo />
-      <div className="min-w-0 flex-1">{children}</div>
-      {/* Phones: icons only, tighter tabs so all seven fit at 375 px (and scroll rather than push the page wider). */}
-      <nav className="seg min-w-0 overflow-x-auto" aria-label="Main">
-        {nav.map((n) => (
-          <Link key={n.href} href={n.href} className={`tab px-2 md:px-3 ${path === n.href ? "tab-active" : ""} ${"wide" in n && n.wide && path !== n.href ? "max-sm:hidden" : ""}`} aria-label={n.label} title={n.label} aria-current={path === n.href ? "page" : undefined}>
-            <n.icon />
-            <span className="hidden md:inline">{n.label}</span>
-          </Link>
-        ))}
+      {children && <div className="min-w-0 flex-1">{children}</div>}
+      {/* Always labelled: the label sits under the icon on phones and beside it from md up. */}
+      <nav className={`flex min-w-0 items-center gap-0.5 ${children ? "" : "flex-1 justify-center sm:justify-start"}`} aria-label="Main">
+        {nav.map((n) => {
+          const active = n.match.includes(path);
+          return (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={`flex h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 text-[11px] font-medium whitespace-nowrap transition md:h-9 md:flex-row md:gap-1.5 md:px-3 md:text-sm [&_svg]:h-4 [&_svg]:w-4 ${
+                active ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+              aria-current={active ? "page" : undefined}
+            >
+              <n.icon />
+              {n.label}
+            </Link>
+          );
+        })}
       </nav>
-      {role === "tech" && (
-        <Link href="/settings#team" title="You’re a technician on your company team" aria-label="Your role: technician">
-          <RoleBadge role="tech" />
-        </Link>
-      )}
       <SyncBadge />
+      <AccountMenu />
     </header>
     <BillingBanner />
     </>
