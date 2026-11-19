@@ -35,6 +35,13 @@ export function money(n: number): number {
   return n < 0 && r !== 0 ? -r : r;
 }
 
+/** An added charge's order stamp in ms. The web stamps Date.now() (ms); older iPad builds stamped seconds, so a stamp that
+ * looks like seconds (before ~1973 as ms) is scaled up — otherwise every iPad charge would sort before every web one. */
+export function chargeOrder(sort: number | null | undefined): number {
+  const v = sort ?? 0;
+  return v > 0 && v < 1e11 ? v * 1000 : v;
+}
+
 /** One deposit line: pct % of the subtotal, in cents. */
 export const depositAmount = (subtotal: number, pct: number) => money((subtotal * pct) / 100);
 
@@ -190,7 +197,7 @@ export function buildEstimate(
   }
   // Added charges in the order they were added (sort stamp), as on iOS — not the database's id order.
   const custom = overrides.filter((o) => !o.deleted && !o.removed && o.key.startsWith("custom:"));
-  custom.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  custom.sort((a, b) => chargeOrder(a.sort) - chargeOrder(b.sort) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const o of custom) {
     // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
     const linked = linkedTypes(o.key);

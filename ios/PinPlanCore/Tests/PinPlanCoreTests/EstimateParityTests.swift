@@ -62,6 +62,34 @@ final class EstimateParityTests: XCTestCase {
         XCTAssertEqual(e.optionalTotal, 310)
     }
 
+    func testChargesFromBothAppsInterleaveByTime() {
+        XCTAssertEqual(Money.chargeOrder(1_763_000_000), 1_763_000_000_000)
+        XCTAssertEqual(Money.chargeOrder(1_763_000_100_000), 1_763_000_100_000)
+        XCTAssertEqual(Money.chargeOrder(nil), 0)
+        let overrides = [
+            line("a", "custom:ipad-late", description: "iPad later", price: 1, qty: 1, sort: 1_763_000_200),
+            line("b", "custom:web", description: "Web", price: 1, qty: 1, sort: 1_763_000_100_000),
+            line("c", "custom:ipad-early", description: "iPad earlier", price: 1, qty: 1, sort: 1_763_000_000),
+        ]
+        let e = EstimateBuilder.build(takeoff: Takeoff(floors: [], total: TakeoffBucket()), catalog: Catalog.seed(), pricing: Catalog.defaultPricing, overrides: overrides)
+        XCTAssertEqual(e.lines.filter { $0.group == .custom }.map(\.key), ["custom:ipad-early", "custom:web", "custom:ipad-late"])
+    }
+
+    func testDeletedProductsStayOffTheMaterialList() {
+        var b = ProjectBundle(project: Project(clientName: "C", address: "A"))
+        var gone = Product(id: "c-old", deviceTypeId: "wire:Cat6", brand: "Old", model: "Cable", sku: "OLD", unitPrice: 0.5)
+        gone.deleted = true
+        b.setProductChoice(typeId: "wire:Cat6", productId: gone.id)
+        let sheet = Sheet(projectId: b.project.id, name: "1st Fl", pageNumber: 1, order: 0, imageId: "img", width: 1000, height: 800)
+        b.sheets = [sheet]
+        b.runs = [Run(id: "r1", projectId: b.project.id, sheetId: sheet.id, kind: .wire, points: [0, 0, 1, 1], typedFt: 200, wireType: "Cat6")]
+        let rows = Wiring.materialList(b, catalog: Catalog.seed(), products: [gone], includeTentative: true)
+        let cat6 = rows.first { $0.item.contains("Cat6 cable") }
+        XCTAssertNotNil(cat6)
+        XCTAssertEqual(cat6?.sku, "")
+        XCTAssertFalse(cat6?.item.contains("Old Cable") ?? true)
+    }
+
     func testProductBehindALine() {
         var project = Project(clientName: "C", address: "A")
         project.productChoices = ["wire:Cat6": "c1", "wire:HDMI": "p1", "cam-indoor": "p1"]

@@ -136,7 +136,10 @@ public enum EstimateBuilder {
             lines.append(l)
         }
         // Added charges in the order they were added (sort stamp, then id) — same as the web app.
-        let custom = live.sorted { a, b in (a.sort ?? 0) != (b.sort ?? 0) ? (a.sort ?? 0) < (b.sort ?? 0) : a.id < b.id }
+        let custom = live.sorted { a, b in
+            let sa: Double = Money.chargeOrder(a.sort), sb: Double = Money.chargeOrder(b.sort)
+            return sa != sb ? sa < sb : a.id < b.id
+        }
         for o in custom where o.key.hasPrefix("custom:") && o.removed != true {
             // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
             let linked = QuickCharges.linkedTypes(o.key)
@@ -173,6 +176,13 @@ public enum Money {
         guard v.isFinite else { return 0 }
         let r: Double = (abs(v) * 100 * (1 + Double.ulpOfOne)).rounded() / 100
         return v < 0 && r != 0 ? -r : r
+    }
+
+    /// An added charge's order stamp in ms (the web stamps Date.now()). Builds before this stamped seconds, so a stamp that
+    /// looks like seconds is scaled up — same as the web app's chargeOrder, so web and iPad charges interleave by time.
+    public static func chargeOrder(_ sort: Double?) -> Double {
+        let v: Double = sort ?? 0
+        return v > 0 && v < 1e11 ? v * 1000 : v
     }
 
     /// One deposit line: pct % of the subtotal, in cents (what the server sends to Billdu).

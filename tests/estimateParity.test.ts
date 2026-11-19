@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { linesToItems } from "@/lib/billdu/mapping";
 import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
-import { buildEstimate, compareProducts, depositAmount, lineProductId, money } from "@/lib/estimate";
+import { buildEstimate, chargeOrder, compareProducts, depositAmount, lineProductId, money } from "@/lib/estimate";
 import type { Takeoff, TakeoffBucket } from "@/lib/takeoff";
 import type { EstimateLine, PricingSettings, Product } from "@/lib/types";
 
@@ -73,6 +73,20 @@ describe("estimate parity fixture (same as EstimateParityTests.swift)", () => {
   it("totals", () => {
     // 224.99 + 145.69 + 46.89 + 85.01 + 1.01 − 12.35 + 20; tax 8.875% = 45.37255; optional = 224.99 + 85.01
     expect({ subtotal: est.subtotal, tax: est.tax, total: est.total, optionalTotal: est.optionalTotal }).toEqual({ subtotal: 511.24, tax: 45.37, total: 556.61, optionalTotal: 310 });
+  });
+});
+
+describe("added charges from both apps", () => {
+  it("interleaves web (ms) and older iPad (seconds) order stamps by time", () => {
+    expect(chargeOrder(1_763_000_000)).toBe(1_763_000_000_000);
+    expect(chargeOrder(1_763_000_100_000)).toBe(1_763_000_100_000);
+    expect(chargeOrder(undefined)).toBe(0);
+    const est = buildEstimate(takeoff({}), seedCatalog(), DEFAULT_SETTINGS.pricing, [
+      line("a", "custom:ipad-late", { description: "iPad later", unitPrice: 1, qty: 1, sort: 1_763_000_200 }),
+      line("b", "custom:web", { description: "Web", unitPrice: 1, qty: 1, sort: 1_763_000_100_000 }),
+      line("c", "custom:ipad-early", { description: "iPad earlier", unitPrice: 1, qty: 1, sort: 1_763_000_000 }),
+    ]);
+    expect(est.lines.filter((l) => l.group === "custom").map((l) => l.key)).toEqual(["custom:ipad-early", "custom:web", "custom:ipad-late"]);
   });
 });
 

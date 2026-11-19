@@ -13,7 +13,7 @@ struct CatalogView: View {
             Section {
                 NavigationLink { ProductLibraryView() } label: {
                     LabeledContent {
-                        Text("\(app.products.filter { $0.archived != true }.count)")
+                        Text("\(app.products.filter { $0.archived != true && $0.deleted != true }.count)")
                     } label: { Label("Products (brands and models)", systemImage: "tag") }
                 }
             }

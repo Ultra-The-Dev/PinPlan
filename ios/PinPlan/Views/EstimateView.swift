@@ -210,7 +210,7 @@ struct EstimateView: View {
         let key = QuickCharges.key(for: c)
         model.editSilently {
             $0.upsertEstimateLine(key: key) { l in
-                l.description = c.name; l.unit = c.unit; l.unitPrice = c.price; l.sort = Date().timeIntervalSince1970
+                l.description = c.name; l.unit = c.unit; l.unitPrice = c.price; l.sort = (Date().timeIntervalSince1970 * 1000).rounded()
                 if c.countFrom == nil { l.qty = 1 }
             }
         }

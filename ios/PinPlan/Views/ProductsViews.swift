@@ -13,7 +13,7 @@ struct ProductLibraryView: View {
 
     var body: some View {
         SentenceList {
-            if app.products.allSatisfy({ $0.archived == true }) && query.isEmpty {
+            if app.products.allSatisfy({ $0.archived == true || $0.deleted == true }) && query.isEmpty {
                 Section {
                     Text("Add the brands and models you install, with your price. Then each job picks which one it uses for cameras, Wi-Fi, speakers and the rest.")
                         .font(.callout).foregroundStyle(.secondary)
