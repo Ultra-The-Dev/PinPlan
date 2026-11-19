@@ -2,31 +2,29 @@ import SwiftUI
 import PinPlanCore
 
 /// Sign in to the same cloud account as the web app so jobs, the catalog and products stay in step on every device.
+/// A fresh install connects by itself (the server is built into the app), so this starts at email + password.
 struct CloudSyncView: View {
     @Environment(AppModel.self) private var app
-    @State private var busy = false
+    @State private var connecting = false
     @State private var problem: String?
-    @State private var manualURL = ""
-    @State private var manualKey = ""
-    @State private var showManual = false
 
     var body: some View {
         let cloud = app.cloud
         SentenceForm {
             if cloud.config == nil {
                 Section {
-                    Button {
-                        Task { await connect() }
-                    } label: { HStack { Text(busy ? "Connecting…" : "Get cloud settings from my PinPlan server"); Spacer(); if busy { ProgressView() } } }
-                    .disabled(busy || APIClient(settings: app.settings) == nil)
-                    if APIClient(settings: app.settings) == nil { Text("Set up the PinPlan server first (Settings → PinPlan server).").font(.callout).foregroundStyle(.secondary) }
-                    DisclosureGroup("Enter them by hand", isExpanded: $showManual) {
-                        TextField("https://xxxx.supabase.co", text: $manualURL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        TextField("Anon (public) key", text: $manualKey).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        Button("Save") { cloud.setConfig(url: manualURL, anonKey: manualKey) }.disabled(manualURL.isEmpty || manualKey.isEmpty)
+                    if APIClient(settings: app.settings) == nil {
+                        Text("This copy of PinPlan isn't connected to PinPlan accounts. Everything else works on this device without an account.")
+                            .font(.callout).foregroundStyle(.secondary)
+                        NavigationLink("Connection settings") { ServerSetupView() }
+                    } else {
+                        Button { Task { await connect() } } label: {
+                            HStack { Text(connecting ? "Connecting…" : "Try again"); Spacer(); if connecting { ProgressView() } }
+                        }
+                        .disabled(connecting)
                     }
-                } header: { Text("Connect").textCase(nil) } footer: {
-                    Text("Uses the same Supabase project as the web app. The project address and public key aren't secret; your password never leaves this sign-in.")
+                } header: { Text("Account").textCase(nil) } footer: {
+                    if let problem { Text(problem) }
                 }
             } else if !cloud.signedIn {
                 AccountSection()
@@ -65,25 +63,26 @@ struct CloudSyncView: View {
                     Text("Permanently deletes your PinPlan account and its data, and clears this device.")
                 }
             }
-            if let problem { Section { Text(problem).foregroundStyle(.red).font(.callout) } }
-            if cloud.config != nil && !cloud.signedIn {
-                Section { Button("Use a different cloud project") { cloud.setConfig(url: "", anonKey: "") } }
-            }
         }
-        .navigationTitle("Cloud sync")
+        .navigationTitle("Account")
+        .task {
+            if cloud.config == nil { await connect() }
+            // A company named at sign-up on another visit (email confirmed since) is set up now.
+            if cloud.signedIn { await cloud.finishPendingCompany() }
+        }
     }
 
     private func connect() async {
-        guard let api = APIClient(settings: app.settings) else { return }
-        busy = true; problem = nil
-        defer { busy = false }
-        do { try await app.cloud.configure(from: api) } catch { problem = (error as? LocalizedError)?.errorDescription ?? "Couldn't reach the server." }
+        guard APIClient(settings: app.settings) != nil, !connecting else { return }
+        connecting = true
+        defer { connecting = false }
+        problem = await app.cloud.connectIfNeeded(settings: app.settings)
     }
-
 }
 
-/// Sign in, or create an account right here (Supabase email + password). When the project asks new accounts to
-/// confirm their email, says so; an invite code remembered for this device is used after the next sign-in.
+/// Sign in, or create an account right here (email + password). Creating an account also sets up the company
+/// (unless the person is joining a team from an invite) and records that they agreed to the Terms and Privacy
+/// Policy. When the email has to be confirmed first, says so; the company is made on the next sign-in.
 struct AccountSection: View {
     @Environment(AppModel.self) private var app
     enum Mode: String, CaseIterable, Identifiable {
@@ -93,12 +92,18 @@ struct AccountSection: View {
     @State private var mode: Mode = .signIn
     @State private var email = ""
     @State private var password = ""
+    @State private var company = ""
+    @State private var name = ""
+    @State private var agreed = false
     @State private var busy = false
     @State private var problem: String?
     @State private var info: String?
     @State private var resetting = false
     /// Shown above the fields (e.g. "Create your account to join Acme").
     var intro: String? = nil
+
+    /// Joining a team from an invite: the team already exists, so no company name is asked for.
+    private var joining: Bool { app.cloud.pendingInvite != nil }
 
     var body: some View {
         Section {
@@ -109,10 +114,22 @@ struct AccountSection: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
             if let intro { Text(intro).font(.callout).foregroundStyle(.secondary) }
+            if mode == .create {
+                if !joining {
+                    TextField("Company name", text: $company).textContentType(.organizationName)
+                }
+                TextField("Your name", text: $name).textContentType(.name)
+            }
             TextField("Email", text: $email)
                 .keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-            SecureField(mode == .create ? "Password (6 characters or more)" : "Password", text: $password)
+            SecureField(mode == .create ? "Password (\(SignupLogic.passwordMin) characters or more)" : "Password", text: $password)
                 .textContentType(mode == .create ? UITextContentType.newPassword : UITextContentType.password)
+            if mode == .create {
+                Toggle(isOn: $agreed) {
+                    Text("I agree to the Terms of Service and Privacy Policy").font(.callout)
+                }
+                LegalLinks()
+            }
             Button { Task { await go() } } label: {
                 HStack {
                     Text(buttonTitle).fontWeight(.semibold)
@@ -133,7 +150,9 @@ struct AccountSection: View {
                     .font(.callout).foregroundStyle(Color.secondary)
             }
         } header: { Text("Account").textCase(nil) } footer: {
-            Text(mode == .create ? "Creates your PinPlan cloud account. The same email and password work on the web app." : "Use the same account as on the web app.")
+            Text(mode == .create
+                 ? (joining ? "Creates your PinPlan account. The same email and password work on the web." : "Creates your PinPlan account and your company. The same email and password work on the web.")
+                 : "Use the same account as on the web.")
         }
         .onChange(of: mode) { _, _ in problem = nil }
     }
@@ -145,13 +164,13 @@ struct AccountSection: View {
         }
     }
 
+    /// Enough to try; the details are checked when the button is pressed (so the message can say what's wrong).
     private var ready: Bool {
-        let e = email.trimmingCharacters(in: .whitespaces)
-        guard !busy, e.contains("@") else { return false }
-        return mode == .create ? password.count >= 6 : !password.isEmpty
+        guard !busy, email.contains("@"), !password.isEmpty else { return false }
+        return mode == .signIn || agreed
     }
 
-    /// Email a reset link (Supabase); the link opens the web app's /reset page to set a new password.
+    /// Email a reset link; the link opens the web app's reset page to set a new password.
     private func resetPassword() async {
         let e = email.trimmingCharacters(in: .whitespaces)
         problem = nil; info = nil
@@ -167,25 +186,46 @@ struct AccountSection: View {
     }
 
     private func go() async {
-        busy = true; problem = nil; info = nil
-        defer { busy = false }
+        problem = nil; info = nil
         let e = email.trimmingCharacters(in: .whitespaces)
+        if mode == .create, let p = SignupLogic.problem(email: e, password: password, name: name, company: company, needsCompany: !joining, acceptedTerms: agreed) {
+            problem = p
+            return
+        }
+        busy = true
+        defer { busy = false }
         do {
             switch mode {
             case .signIn:
                 try await app.cloud.signIn(email: e, password: password, create: false)
                 password = ""
+                await app.cloud.finishPendingCompany()
             case .create:
-                if try await app.cloud.createAccount(email: e, password: password) {
+                if try await app.cloud.createAccount(email: e, password: password, name: name, company: joining ? "" : company, acceptedAt: Date()) {
                     password = ""
                 } else {
-                    info = CloudSync.SignUpOutcome.confirmEmail(e).message
+                    info = "Check \(e) for the confirmation email (and your spam folder), tap the link, then sign in here. If this email already has an account, just sign in."
                     mode = .signIn
                     password = ""
                 }
             }
         } catch {
             problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+}
+
+/// "Terms of Service · Privacy Policy" links under the sign-up agreement (shown once the server is known).
+private struct LegalLinks: View {
+    @Environment(AppModel.self) private var app
+    var body: some View {
+        if let terms = serverPageURL(app.settings, "terms"), let privacy = serverPageURL(app.settings, "privacy") {
+            HStack(spacing: 16) {
+                Link("Terms of Service", destination: terms)
+                Link("Privacy Policy", destination: privacy)
+            }
+            .font(.footnote)
+            .buttonStyle(.borderless)   // two links in one row: each opens its own page
         }
     }
 }

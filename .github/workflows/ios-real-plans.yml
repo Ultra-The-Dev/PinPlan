@@ -10,12 +10,21 @@ name: iOS real plans
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-real-plans
+  cancel-in-progress: true
+
 jobs:
   real-plans:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Use Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - name: Fetch real plans
         working-directory: ios
         run: |

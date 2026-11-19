@@ -11,8 +11,14 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+    # The version people see, and the build number. CI sets CURRENT_PROJECT_VERSION to the run number for TestFlight.
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # The PinPlan web server the app talks to (sign-in setup, Billdu, terms / privacy / support pages). Empty here;
+    # release builds pass it on the command line (PINPLAN_SERVER_URL=https://…, see .github/workflows/ios-testflight.yml).
+    # In an .xcconfig write it as https:/$()/your-server because "//" starts a comment there.
+    PINPLAN_SERVER_URL: ""
+    # The Apple team is never committed: pass DEVELOPMENT_TEAM=… to xcodebuild, or pick it in Xcode › Signing.
 targets:
   PinPlan:
     type: application
@@ -33,6 +39,11 @@ targets:
           NSAllowsLocalNetworking: true
         # Only standard HTTPS (exempt): no export-compliance documents needed in App Store Connect.
         ITSAppUsesNonExemptEncryption: false
+        # Version and build number come from the build settings above (CI bumps the build number per upload).
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Read by AppSettings.builtInServerURL: a fresh install goes straight to email + password.
+        PinPlanServerURL: "$(PINPLAN_SERVER_URL)"
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF plan
             CFBundleTypeRole: Viewer

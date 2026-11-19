@@ -1,19 +1,34 @@
 name: iOS IPA (sideload)
 
-# Builds an unsigned PinPlan.ipa for real iPhones/iPads. Sideloadly or AltStore re-sign it with your own Apple ID
-# when they install it (free Apple ID: the app runs 7 days, then re-install). Download it from the run's
-# "PinPlan-ipa" artifact.
+# Developer use only: builds an unsigned PinPlan.ipa for sideloading onto a test device. Sideloadly or AltStore
+# re-sign it with your own Apple ID when they install it (free Apple ID: the app runs 7 days, then re-install).
+# Download it from the run's "PinPlan-ipa" artifact. Customers get the app from TestFlight / the App Store
+# (ios-testflight.yml). Optional input: the server address to build in.
 on:
   workflow_dispatch:
-  push:
-    paths: ["ios/**", ".github/workflows/ios-ipa.yml"]
+    inputs:
+      server_url:
+        description: "PinPlan server to build in (https://…); empty = the repository variable PINPLAN_SERVER_URL"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa
+  cancel-in-progress: true
 
 jobs:
   ipa:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
+    env:
+      PINPLAN_SERVER_URL: ${{ inputs.server_url || vars.PINPLAN_SERVER_URL }}
     steps:
       - uses: actions/checkout@v4
+      - name: Use Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
       - name: Build for device (unsigned)
         working-directory: ios
@@ -22,7 +37,8 @@ jobs:
           xcodegen generate
           xcodebuild -project PinPlan.xcodeproj -scheme PinPlan -sdk iphoneos -configuration Release \
             -destination 'generic/platform=iOS' -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee build.log \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            PINPLAN_SERVER_URL="$PINPLAN_SERVER_URL" CURRENT_PROJECT_VERSION="${{ github.run_number }}" build 2>&1 | tee build.log \
             | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
       - name: Package IPA
