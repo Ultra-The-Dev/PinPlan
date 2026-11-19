@@ -39,4 +39,53 @@ final class DailyLogReportTests: XCTestCase {
         XCTAssertEqual(DailyLogReport.fileName(jobSlug: "12-oak-st", logs: [log("b", "2026-03-04"), log("a", "2026-03-02")]), "12-oak-st-daily-logs-2026-03-02-to-2026-03-04.pdf")
         XCTAssertEqual(DailyLogReport.fileName(jobSlug: "", logs: []), "job-daily-logs.pdf")
     }
+
+    func testLegacyLogsHaveNoStructuredSections() {
+        XCTAssertNil(DailyLogReport.sections(for: log("a", "2026-03-02")))
+        XCTAssertNil(DailyLogReport.rangeSummary([log("a", "2026-03-02"), log("b", "2026-03-03")]))
+    }
+
+    func testStructuredSections() {
+        var l = log("a", "2026-03-02")
+        l.report = DailyReport(
+            weather: DailyReport.Weather(summary: "Rain", tempHighF: 55, tempLowF: 46, precipIn: 0.83, windMph: 22, source: "auto"),
+            crew: [DailyReport.Crew(name: "Ana", hours: 8, role: "Foreman"), DailyReport.Crew(name: "Ben", hours: 7.5), DailyReport.Crew(name: " ", hours: 4)],
+            work: [DailyReport.Work(text: "Pulled Cat6", sheetId: "s1", area: "Kitchen"), DailyReport.Work(text: "Set boxes"), DailyReport.Work(text: "")],
+            deliveries: ["2 boxes Cat6", ""], equipment: ["Lift"],
+            delays: [DailyReport.Delay(reason: "Waiting on GC", hours: 1.5, ongoing: true), DailyReport.Delay(reason: "Parts")],
+            safety: DailyReport.Safety(incident: true, notes: "Cut finger, first aid"), visitors: ["Inspector — passed rough-in"],
+            signature: DailyReport.Signature(name: "Ana", imageId: "sig", signedAt: "2026-03-02T22:00:00.000Z"))
+        let s = DailyLogReport.sections(for: l, sheetName: { $0 == "s1" ? "Level 1" : nil })
+        XCTAssertEqual(s?.weather, "Rain · 55° / 46°F · 0.83 in precip · wind 22 mph")
+        XCTAssertEqual(s?.crew.map(\.name), ["Ana", "Ben"])
+        XCTAssertEqual(s?.crew.first?.role, "Foreman")
+        XCTAssertEqual(s?.manHours, 15.5)
+        XCTAssertEqual(s?.work, ["Pulled Cat6 (Level 1 · Kitchen)", "Set boxes"])
+        XCTAssertEqual(s?.deliveries, ["2 boxes Cat6"])
+        XCTAssertEqual(s?.delays, ["Waiting on GC · 1.5 h lost · ongoing", "Parts"])
+        XCTAssertEqual(s?.delayHours, 1.5)
+        XCTAssertEqual(s?.safety, "Incident: Cut finger, first aid")
+        XCTAssertEqual(s?.incident, true)
+        XCTAssertEqual(s?.signature?.imageId, "sig")
+        var ok = log("b", "2026-03-02")
+        ok.report = DailyReport(safety: DailyReport.Safety(incident: false))
+        XCTAssertEqual(DailyLogReport.sections(for: ok)?.safety, "No incidents")
+    }
+
+    func testRangeSummary() {
+        var a = log("a", "2026-03-03")
+        a.report = DailyReport(crew: [DailyReport.Crew(name: "Ana", hours: 8), DailyReport.Crew(name: "Ben", hours: 8)], delays: [DailyReport.Delay(reason: "Rain", hours: 2)])
+        var b = log("b", "2026-03-02")
+        b.report = DailyReport(crew: [DailyReport.Crew(name: "Ana", hours: 6)], safety: DailyReport.Safety(incident: true))
+        var c = log("c", "2026-03-03")
+        c.report = DailyReport(crew: [DailyReport.Crew(name: "Cy", hours: 4)])
+        var x = log("x", "2026-03-04", deleted: true)
+        x.report = DailyReport(crew: [DailyReport.Crew(name: "Ana", hours: 8)])
+        let s = DailyLogReport.rangeSummary([a, b, c, log("d", "2026-03-04"), x])
+        XCTAssertEqual(s?.rows, [DailyLogReport.SummaryRow(date: "2026-03-02", crew: 1, manHours: 6, delayHours: 0, incident: true),
+                                 DailyLogReport.SummaryRow(date: "2026-03-03", crew: 3, manHours: 20, delayHours: 2, incident: false)])
+        XCTAssertEqual(s?.manHours, 26)
+        XCTAssertEqual(s?.delayHours, 2)
+        XCTAssertEqual(s?.incidents, 1)
+    }
 }

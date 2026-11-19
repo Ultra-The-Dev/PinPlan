@@ -150,6 +150,8 @@ public struct JobLog: Codable, Hashable, Identifiable, Sendable {
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
+    /// Structured daily report (DailyReportLogic.swift); nil on older free-text logs.
+    public var report: DailyReport?
     public init(id: String = newId(), projectId: String, date: String, title: String? = nil, body: String = "", author: String? = nil) {
         self.id = id; self.projectId = projectId; self.date = date; self.title = title; self.body = body; self.author = author
         let now = isoNow(); createdAt = now; updatedAt = now

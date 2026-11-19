@@ -66,6 +66,7 @@ public enum SyncMap {
         .checklists: TableSpec(remote: "checklists", conflict: "id", columns: child + [("name", "name"), ("items", "items")]),
         .jobLogs: TableSpec(remote: "job_logs", conflict: "id", columns: child + [
             ("date", "log_date"), ("title", "title"), ("body", "body"), ("author", "author"), ("photoIds", "photo_ids"),
+            ("report", "report"),
         ]),
         .documents: TableSpec(remote: "job_documents", conflict: "id", columns: child + [("name", "name"), ("mime", "mime"), ("size", "size"), ("fileId", "file_id")]),
     ]
