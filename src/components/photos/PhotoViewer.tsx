@@ -3,7 +3,7 @@
 import { CheckSquare, ChevronLeft, ChevronRight, Columns2, Download, ListPlus, MapPin, MessageSquare, PenLine, Sparkles, Trash, X } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { toast } from "@/lib/toast";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { db, newId, nowIso } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
 import { addTaskFromComment, commentTask, tagOptions, teamNames } from "@/lib/fieldDocs";
@@ -86,6 +86,13 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const [tagDraft, setTagDraft] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [tasking, setTasking] = useState<string | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // Move focus into the viewer (keyboard and screen-reader users land on it) and give it back on close.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => prev?.focus?.();
+  }, []);
   const i = Math.max(0, photos.findIndex((p) => p.id === id));
   const p = all.find((x) => x.id === photos[i]?.id) ?? photos[i];
   const comments = useMemo(() => photoComments.filter((c) => c.photoId === p?.id && !c.deleted), [photoComments, p?.id]);
@@ -138,7 +145,9 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || `Server returned ${res.status}`);
-      await save({ caption: p.caption?.trim() ? p.caption : j.caption, tags: [...new Set([...(p.tags ?? []), ...(j.tags as string[])])] });
+      // Read the photo fresh: it may have been edited (or the viewer moved on) while the AI was looking.
+      const cur = useEditor.getState().photos.find((x) => x.id === p.id) ?? p;
+      await saveRow("photos", { ...cur, caption: cur.caption?.trim() ? cur.caption : j.caption, tags: [...new Set([...(cur.tags ?? []), ...(j.tags as string[])])] });
       if ((j.issues as string[]).length) {
         const now = nowIso();
         await saveRow("photoComments", { id: newId(), projectId: p.projectId, photoId: p.id, author: "AI check", text: `Worth a look: ${(j.issues as string[]).join("; ")}`, createdAt: now, updatedAt: now });
@@ -151,9 +160,9 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 lg:flex-row" role="dialog" aria-label="Photo">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 lg:flex-row" role="dialog" aria-modal="true" aria-label="Photo">
       <div className="relative flex min-h-0 flex-1 items-center justify-center p-3 sm:p-6">
-        <button className="absolute top-3 left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={onClose} aria-label="Close">
+        <button ref={closeRef} className="absolute top-3 left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={onClose} aria-label="Close">
           <X className="h-5 w-5" />
         </button>
         {i > 0 && (
@@ -238,7 +247,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
           <span className="label">Tags</span>
           <div className="flex flex-wrap gap-1.5">
             {(p.tags ?? []).map((t) => (
-              <button key={t} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title="Remove tag" onClick={() => void save({ tags: (p.tags ?? []).filter((x) => x !== t) })}>
+              <button key={t} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title="Remove tag" aria-label={`Remove tag ${t}`} onClick={() => void save({ tags: (p.tags ?? []).filter((x) => x !== t) })}>
                 {t} ×
               </button>
             ))}
@@ -260,7 +269,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               addTag(tagDraft);
             }}
           >
-            <input className="input h-9" placeholder="New tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} />
+            <input className="input h-9" placeholder="New tag" aria-label="New tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} />
             <button className="btn btn-sm" disabled={!tagDraft.trim()}>
               Add
             </button>
@@ -340,7 +349,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               setComment("");
             }}
           >
-            <input className="input h-9" placeholder="Add a comment" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <input className="input h-9" placeholder="Add a comment" aria-label="Add a comment" value={comment} onChange={(e) => setComment(e.target.value)} />
             <button className="btn btn-sm" disabled={!comment.trim()}>
               Post
             </button>

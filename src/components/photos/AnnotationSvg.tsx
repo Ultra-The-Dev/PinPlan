@@ -1,5 +1,6 @@
 "use client";
-// Photo mark-up drawn as SVG over the photo (same look as drawAnnotations on canvas).
+// Photo mark-up drawn as SVG over the photo (same look as drawAnnotations on canvas). Letterboxed like an
+// object-contain image, so it stays on the photo even when the box is not the photo's shape.
 import { useId } from "react";
 import type { PhotoShape } from "@/lib/types";
 
@@ -8,7 +9,7 @@ export default function AnnotationSvg({ shapes, w, h, className = "" }: { shapes
   // One filter per drawing (ids are page-wide), so each photo gets a halo sized to it.
   const halo = `halo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className={`pointer-events-none absolute inset-0 h-full w-full ${className}`} aria-hidden>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" className={`pointer-events-none absolute inset-0 h-full w-full ${className}`} aria-hidden>
       <defs>
         <filter id={halo} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="0" stdDeviation={side * 0.003} floodColor="#000" floodOpacity="0.5" />

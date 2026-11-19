@@ -122,8 +122,8 @@ export default function ProjectInfo() {
   const dirty = (Object.keys(form) as (keyof typeof form)[]).some((k) => (project[k] ?? "") !== form[k]);
   const field = (k: keyof typeof form, label: string, type = "text") => (
     <div>
-      <label className="label">{label}</label>
-      <input className="input" type={type} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+      <label className="label" htmlFor={`job-${k}`}>{label}</label>
+      <input id={`job-${k}`} className="input" type={type} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
     </div>
   );
   return (
@@ -149,8 +149,8 @@ export default function ProjectInfo() {
             {field("clientPhone", "Client phone", "tel")}
           </div>
           <div>
-            <label className="label">Notes</label>
-            <textarea className="input min-h-28" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Gate code, site contact, special requests…" />
+            <label className="label" htmlFor="job-notes">Notes</label>
+            <textarea id="job-notes" className="input min-h-28" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Gate code, site contact, special requests…" />
           </div>
           <div className="flex justify-end">
             <button className="btn btn-brand" disabled={!dirty}>

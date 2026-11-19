@@ -2,6 +2,7 @@
 // Mark up a photo: pen, arrow, box, circle and text in a few colours. The original photo is never changed.
 import { ArrowUpRight, Circle, Pencil, Square, Type, Undo2, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { containRect } from "@/lib/fit";
 import { ANNOTATION_COLORS } from "@/lib/photos";
 import type { PhotoShape } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
@@ -25,9 +26,11 @@ export default function Annotator(props: { imageId: string; width: number; heigh
   const [draft, setDraft] = useState<PhotoShape | null>(null);
   const box = useRef<HTMLDivElement>(null);
 
+  // Relative to the photo itself: on a narrow screen the box is squeezed and the photo is letterboxed inside it.
   const rel = (e: React.PointerEvent) => {
     const r = box.current!.getBoundingClientRect();
-    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))] as const;
+    const img = containRect(r.width, r.height, props.width / props.height);
+    return [Math.min(1, Math.max(0, (e.clientX - r.left - img.x) / img.w)), Math.min(1, Math.max(0, (e.clientY - r.top - img.y) / img.h))] as const;
   };
   const down = (e: React.PointerEvent) => {
     const [x, y] = rel(e);

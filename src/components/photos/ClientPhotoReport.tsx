@@ -29,8 +29,24 @@ export default function ClientPhotoReport() {
   useEffect(() => {
     const sb = getSupabase();
     if (!token || !sb) return;
-    sb.rpc("get_photo_report", { p_token: token }).then(({ data, error }) => setS(error || !data ? null : ((data as { snapshot: Snap }).snapshot ?? null)));
+    // A network failure shows "not available" instead of loading forever.
+    Promise.resolve(sb.rpc("get_photo_report", { p_token: token })).then(
+      ({ data, error }) => setS(error || !data ? null : ((data as { snapshot: Snap }).snapshot ?? null)),
+      () => setS(null),
+    );
   }, [token]);
+  // Escape closes the enlarged photo; arrows step through them.
+  useEffect(() => {
+    if (open == null || !s) return;
+    const n = s.photos.length;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+      if (e.key === "ArrowRight") setOpen((i) => (i == null ? i : Math.min(n - 1, i + 1)));
+      if (e.key === "ArrowLeft") setOpen((i) => (i == null ? i : Math.max(0, i - 1)));
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [open, s]);
 
   if (!token || !supabaseConfigured || s === null)
     return (
@@ -49,7 +65,7 @@ export default function ClientPhotoReport() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-5 sm:px-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {s.business.logo ? <img src={s.business.logo} alt={s.business.name} className="mr-auto h-14 w-auto max-w-[240px] object-contain" /> : <div className="mr-auto text-xl font-extrabold" style={{ color: brand }}>{s.business.name}</div>}
-          <div className="text-right text-sm text-slate-500">
+          <div className="min-w-0 text-right text-sm break-words text-slate-500">
             {s.business.phone && <a className="block font-semibold" style={{ color: brand }} href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`}>{s.business.phone}</a>}
             <div>{[s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
           </div>
@@ -61,8 +77,8 @@ export default function ClientPhotoReport() {
       <section className="text-white" style={{ background: `radial-gradient(60% 120% at 100% 0%, ${accent}33 0%, transparent 60%), linear-gradient(180deg, #13294f 0%, ${brand} 100%)` }}>
         <div className="mx-auto max-w-5xl px-4 py-9 sm:px-6">
           {s.business.tagline && <div className="text-xs font-semibold tracking-[0.14em] uppercase" style={{ color: accent }}>{s.business.tagline}</div>}
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight">{s.title}</h1>
-          <p className="mt-2 text-white/75">{[s.client.name, s.client.address, s.dateRange, `${s.photos.length} photos`].filter(Boolean).join(" · ")}</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight break-words">{s.title}</h1>
+          <p className="mt-2 text-white/75">{[s.client.name, s.client.address, s.dateRange, `${s.photos.length} photo${s.photos.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}</p>
         </div>
       </section>
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -97,8 +113,8 @@ export default function ClientPhotoReport() {
         </div>
       </footer>
       {open != null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setOpen(null)}>
-          <button className="absolute top-4 right-4 text-white" aria-label="Close">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Photo" onClick={() => setOpen(null)}>
+          <button className="absolute top-4 right-4 text-white" aria-label="Close" autoFocus>
             <X className="h-7 w-7" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -113,7 +129,7 @@ function PhotoFigure({ p, brand, onOpen, bare }: { p: Snap["photos"][number]; br
   const comments = Array.isArray(p.comments) ? p.comments.filter((c) => c && typeof c.text === "string" && c.text.trim()) : [];
   return (
     <figure className={`${bare ? "bg-white" : "card overflow-hidden break-inside-avoid"} flex flex-col`}>
-      <button className="block w-full bg-slate-100" onClick={onOpen} aria-label="Enlarge photo">
+      <button className="block w-full bg-slate-100" onClick={onOpen} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={p.url} alt={p.caption || "Job photo"} loading="lazy" className="w-full object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
       </button>

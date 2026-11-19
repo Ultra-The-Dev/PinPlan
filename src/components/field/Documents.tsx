@@ -23,16 +23,22 @@ export default function Documents() {
     const list = [...(files ?? [])];
     if (!list.length) return;
     setBusy(true);
-    for (const f of list) {
-      if (f.size > MAX_MB * 1e6) {
-        toast(`${f.name} is over ${MAX_MB} MB`, "error");
-        continue;
+    try {
+      for (const f of list) {
+        if (f.size > MAX_MB * 1e6) {
+          toast(`${f.name} is over ${MAX_MB} MB`, "error");
+          continue;
+        }
+        const fileId = await saveImage(f, 0, 0);
+        const now = nowIso();
+        await saveRow("documents", { id: newId(), projectId: project!.id, name: f.name, mime: f.type || "application/octet-stream", size: f.size, fileId, createdAt: now, updatedAt: now });
       }
-      const fileId = await saveImage(f, 0, 0);
-      const now = nowIso();
-      await saveRow("documents", { id: newId(), projectId: project!.id, name: f.name, mime: f.type || "application/octet-stream", size: f.size, fileId, createdAt: now, updatedAt: now });
+    } catch (e) {
+      // e.g. storage full — don't leave the button stuck on "Uploading…".
+      toast(`Couldn't add the document: ${(e as Error).message}`, "error");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (
@@ -42,7 +48,7 @@ export default function Documents() {
         e.preventDefault();
         setDrag(true);
       }}
-      onDragLeave={() => setDrag(false)}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDrag(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDrag(false);
@@ -72,6 +78,7 @@ export default function Documents() {
               </div>
               <button
                 className="btn btn-sm"
+                aria-label={`Open ${d.name}`}
                 onClick={async () => {
                   // Open the tab inside the click (Safari/iPad block windows opened after an await), then fill it in.
                   const viewable = d.mime === "application/pdf" || d.mime.startsWith("image/");

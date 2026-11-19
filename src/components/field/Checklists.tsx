@@ -146,7 +146,8 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                   <button
                     className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 transition ${i.done ? (complete ? "bg-emerald-500 text-white ring-emerald-500" : "bg-amber-400 text-white ring-amber-400") : "bg-white ring-slate-300 hover:ring-slate-400"}`}
                     onClick={() => void setItem(i.id, i.done ? { done: false, doneBy: null, doneAt: null } : { done: true, doneBy: getAuthor(email), doneAt: nowIso() })}
-                    aria-label={i.done ? "Mark not done" : "Mark done"}
+                    aria-label={`${i.done ? "Mark not done" : "Mark done"}: ${i.text}`}
+                    aria-pressed={!!i.done}
                   >
                     {i.done && <Check className="h-4 w-4" />}
                   </button>
@@ -197,6 +198,7 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
                   <button
                     className="btn btn-sm btn-ghost text-slate-500"
                     title="Take or add a photo for this item"
+                    aria-label={`Add a photo: ${i.text}`}
                     onClick={() => {
                       setPhotoFor(i.id);
                       setTimeout(() => fileRef.current?.click(), 0);
@@ -213,11 +215,13 @@ function ChecklistCard({ c, photos }: { c: Checklist; photos: Photo[] }) {
             onSubmit={(e) => {
               e.preventDefault();
               if (!adding.trim()) return;
-              void saveRow("checklists", { ...c, items: [...c.items, { id: newId(), text: adding.trim() }] });
+              // Latest copy from the store (an item ticked a moment ago must not be undone).
+              const cur = useEditor.getState().checklists.find((x) => x.id === c.id) ?? c;
+              void saveRow("checklists", { ...cur, items: [...cur.items, { id: newId(), text: adding.trim() }] });
               setAdding("");
             }}
           >
-            <input className="input h-9" placeholder="Add an item" value={adding} onChange={(e) => setAdding(e.target.value)} />
+            <input className="input h-9" placeholder="Add an item" aria-label={`Add an item to ${c.name}`} value={adding} onChange={(e) => setAdding(e.target.value)} />
             <button className="btn btn-sm" disabled={!adding.trim()}>
               <Plus /> Add
             </button>
@@ -291,7 +295,7 @@ export default function Checklists() {
             setName("");
           }}
         >
-          <input className="input h-9" placeholder="Or name your own (e.g. Theater room)" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="input h-9" placeholder="Or name your own (e.g. Theater room)" aria-label="New checklist name" value={name} onChange={(e) => setName(e.target.value)} />
           <button className="btn btn-sm" disabled={!name.trim()}>
             Create
           </button>

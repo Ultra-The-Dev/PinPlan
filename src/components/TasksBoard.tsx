@@ -1,6 +1,6 @@
 "use client";
 // Tasks across every job: open checklist / punch-list items that are assigned to someone, have a due date or came from a photo comment.
-import { CalendarDays, Check, ClipboardList, UserRound } from "lucide-react";
+import { CalendarDays, Camera, Check, ClipboardList, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, nowIso, put } from "@/lib/db";
@@ -52,7 +52,16 @@ export default function TasksBoard() {
   }, []);
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(t);
+    // Pick up synced changes, and roll "today" over when the tab comes back after midnight.
+    const reload = () => void load();
+    const onVisible = () => document.visibilityState === "visible" && reload();
+    window.addEventListener("pinplan:synced", reload);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("pinplan:synced", reload);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [load]);
 
   const filter = who === "__me" ? me : who === "__all" ? null : who;
@@ -109,14 +118,26 @@ export default function TasksBoard() {
             <ul className="card divide-y divide-slate-100">
               {list.map((t) => (
                 <li key={`${t.checklist.id}:${t.item.id}`} className="flex items-start gap-3 px-4 py-3">
-                  <button
-                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500"
-                    onClick={() => void complete(t)}
-                    aria-label={`Mark done: ${t.item.text}`}
-                    title={t.item.requiresPhoto ? "Needs a photo — tick it on the job so you can add one" : "Mark done"}
-                  >
-                    <Check className="h-4 w-4 text-transparent hover:text-emerald-600" />
-                  </button>
+                  {t.item.requiresPhoto ? (
+                    // Needs a photo: ticking it here would leave it "done" without the proof, so open the job instead.
+                    <Link
+                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-amber-600 ring-1 ring-amber-300 hover:bg-amber-50"
+                      href={`/project?id=${t.project.id}&tab=field`}
+                      aria-label={`Open the job to add a photo and tick: ${t.item.text}`}
+                      title="Needs a photo — tick it on the job so you can add one"
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                    </Link>
+                  ) : (
+                    <button
+                      className="group mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500 focus-visible:ring-emerald-500"
+                      onClick={() => void complete(t)}
+                      aria-label={`Mark done: ${t.item.text}`}
+                      title="Mark done"
+                    >
+                      <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
+                    </button>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium">{t.item.text}</div>
                     <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">

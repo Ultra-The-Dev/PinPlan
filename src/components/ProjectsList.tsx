@@ -169,20 +169,20 @@ export default function ProjectsList() {
               </button>
             </div>
             <div className="sm:col-span-2">
-              <label className="label">Job address</label>
-              <input className="input" autoFocus placeholder="12 Maple Ridge Rd" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <label className="label" htmlFor="new-job-address">Job address</label>
+              <input id="new-job-address" className="input" autoFocus placeholder="12 Maple Ridge Rd" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label">Client name</label>
-              <input className="input" placeholder="Client or company" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
+              <label className="label" htmlFor="new-client-name">Client name</label>
+              <input id="new-client-name" className="input" placeholder="Client or company" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
             </div>
             <div>
-              <label className="label">Client email</label>
-              <input className="input" type="email" value={form.clientEmail} onChange={(e) => setForm({ ...form, clientEmail: e.target.value })} />
+              <label className="label" htmlFor="new-client-email">Client email</label>
+              <input id="new-client-email" className="input" type="email" value={form.clientEmail} onChange={(e) => setForm({ ...form, clientEmail: e.target.value })} />
             </div>
             <div>
-              <label className="label">Client phone</label>
-              <input className="input" type="tel" value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} />
+              <label className="label" htmlFor="new-client-phone">Client phone</label>
+              <input id="new-client-phone" className="input" type="tel" value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} />
             </div>
             <div className="flex justify-end gap-2 pt-1 sm:col-span-2">
               <button type="button" className="btn" onClick={() => setCreating(false)}>
