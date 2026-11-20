@@ -126,9 +126,11 @@ settings and the team list. Point customers who are leaving, or who ask for "all
   (`missingConfig` lists the names, never values). Point an uptime monitor at it.
 - At start-up the server logs one line, `[PinPlan] PRODUCTION CONFIG INCOMPLETE — missing: …`, when settings are missing.
 - Server errors (route handlers, server rendering, the billing webhook, account deletion) are written to `app_errors`
-  with platform `server` and show in `/admin` under Recent errors › Server. App floods can't push them out: the
-  database caps each signed-in user (20 / 5 min), each signed-out device (10), all signed-out reports (100) and all app
-  reports (300), and server reports have their own allowance (100).
+  with platform `server` and show in `/admin` under Recent errors › Server. App floods can't stop them being recorded:
+  the database caps each signed-in user (20 / 5 min), each signed-out device (10), all signed-out reports (100) and all
+  app reports (300), and server reports have their own allowance (100). `/admin` lists only the newest 50 reports of
+  any kind, so during an app flood older server reports can drop off that list — they are still in the table
+  (`select * from app_errors where platform = 'server' order by created_at desc`).
 - After a restore, re-run the migrations and check that `/api/health` says `ok: true`.
 
 ## Test it
