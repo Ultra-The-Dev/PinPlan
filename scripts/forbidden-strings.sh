@@ -2,8 +2,9 @@
 # Fails if a tracked file contains something that must never be in this public repo.
 #
 # 1. A private denylist (real client names and addresses, personal emails, old names, ...). It is NOT in the repo:
-#    CI reads it from the repository variable FORBIDDEN_STRINGS (Settings > Secrets and variables > Actions >
-#    Variables), one entry per line, matched case-insensitively as plain text. Lines starting with # are ignored.
+#    CI reads it from the repository secret FORBIDDEN_STRINGS (Settings > Secrets and variables > Actions >
+#    Secrets; a secret, not a variable, so it is masked in logs and never given to pull requests from forks), one
+#    entry per line, matched case-insensitively as plain text. Lines starting with # are ignored.
 #    Matches are reported by file and line only, never by the matched text, so the log doesn't leak the list.
 # 2. AI model identifiers outside docs/: the model is configuration (ANTHROPIC_MODEL), never hard-coded.
 #
@@ -16,7 +17,7 @@ self="scripts/forbidden-strings.sh"
 
 # ---- 1. private denylist ----
 if [ -z "${FORBIDDEN_STRINGS:-}" ]; then
-  echo "FORBIDDEN_STRINGS is empty: skipping the private denylist (set the repository variable to enable it)."
+  echo "FORBIDDEN_STRINGS is empty: skipping the private denylist (set the FORBIDDEN_STRINGS repository secret to enable it)."
 else
   n=0
   while IFS= read -r entry || [ -n "$entry" ]; do
@@ -31,7 +32,7 @@ else
     if [ -n "$hits" ]; then
       fail=1
       while IFS= read -r h; do
-        echo "::error file=${h%%:*},line=${h#*:}::Denylist entry #$n found (see the FORBIDDEN_STRINGS variable)"
+        echo "::error file=${h%%:*},line=${h#*:}::Denylist entry #$n found (see the FORBIDDEN_STRINGS secret)"
       done <<<"$hits"
     fi
   done <<<"$FORBIDDEN_STRINGS"
