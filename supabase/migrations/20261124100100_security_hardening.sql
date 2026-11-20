@@ -209,9 +209,10 @@ create policy proposals_select on public.proposals for select to authenticated
   using ((owner_id = auth.uid() or public.is_project_member(project_id)) and not public.is_tech());
 create policy proposals_insert on public.proposals for insert to authenticated
   with check (owner_id = auth.uid() and public.is_project_member(project_id) and not public.is_tech());
+-- An edit may not hand the row to someone outside the company (the select rule lets the owner_id read it).
 create policy proposals_update on public.proposals for update to authenticated
   using ((owner_id = auth.uid() or public.is_project_member(project_id)) and not public.is_tech())
-  with check (public.is_project_member(project_id) and not public.is_tech());
+  with check (public.is_project_member(project_id) and not public.is_tech() and public.same_team(owner_id));
 create policy proposals_delete on public.proposals for delete to authenticated
   using ((owner_id = auth.uid() or public.is_project_member(project_id)) and not public.is_tech());
 
@@ -224,9 +225,10 @@ create policy photo_reports_select on public.photo_reports for select to authent
   using (owner_id = auth.uid() or public.is_project_member(project_id));
 create policy photo_reports_insert on public.photo_reports for insert to authenticated
   with check (owner_id = auth.uid() and public.is_project_member(project_id));
+-- Technicians edit (or withdraw) only their own reports; the office any report on the job.
 create policy photo_reports_update on public.photo_reports for update to authenticated
-  using (owner_id = auth.uid() or public.is_project_member(project_id))
-  with check (public.is_project_member(project_id));
+  using (owner_id = auth.uid() or (public.is_project_member(project_id) and not public.is_tech()))
+  with check (public.is_project_member(project_id) and public.same_team(owner_id));
 create policy photo_reports_delete on public.photo_reports for delete to authenticated
   using (owner_id = auth.uid() or (public.is_project_member(project_id) and not public.is_tech()));
 

@@ -173,6 +173,21 @@ insert into public.proposals (id, project_id, snapshot) values ('tok_sec_ownerpr
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
 update public.proposals set status = 'revoked' where id = 'tok_sec_ownerprop_aaaaaa';
 select pg_temp.check((select status from public.proposals where id = 'tok_sec_ownerprop_aaaaaa') = 'revoked', 'admin can withdraw the owner''s proposal');
+select pg_temp.check(pg_temp.fails($$update public.proposals set owner_id = '00000000-0000-0000-0000-0000000005e4' where id = 'tok_sec_ownerprop_aaaaaa'$$),
+  'admin can''t hand a proposal to someone outside the company');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e1');
+insert into public.photo_reports (id, project_id, snapshot) values ('rep_sec_ownerrep_aaaaaaaa', 'sec-p1', '{"title": "Rough-in"}');
+select pg_temp.check(pg_temp.fails($$update public.photo_reports set owner_id = '00000000-0000-0000-0000-0000000005e4' where id = 'rep_sec_ownerrep_aaaaaaaa'$$),
+  'nobody can hand a photo report to someone outside the company');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update public.photo_reports set snapshot = '{}', revoked = true where id = 'rep_sec_ownerrep_aaaaaaaa'$$) = 0,
+  'tech can''t change or withdraw the office''s photo report');
+insert into public.photo_reports (id, project_id, snapshot) values ('rep_sec_techrep_aaaaaaaaa', 'sec-p1', '{}');
+select pg_temp.check(pg_temp.rows($$update public.photo_reports set revoked = true where id = 'rep_sec_techrep_aaaaaaaaa'$$) = 1,
+  'tech can still withdraw their own photo report');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
+select pg_temp.check(pg_temp.rows($$update public.photo_reports set revoked = true where id = 'rep_sec_ownerrep_aaaaaaaa'$$) = 1,
+  'admin can withdraw the owner''s photo report');
 
 -- ---------- money and office-only tables stay away from technicians ----------
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e1');
