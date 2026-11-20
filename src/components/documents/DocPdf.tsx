@@ -6,6 +6,7 @@ import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/r
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 import type { DocLive } from "./DocView";
 import { fmtPct } from "@/lib/percent";
+import { safeSignature } from "@/lib/signatureImage";
 
 const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const MUTED = "#64748b";
@@ -287,7 +288,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
         ) : null}
 
         {snap.kind === "quote" && snap.requireSignature ? (
-          signature?.image ? (
+          signature?.image && safeSignature(signature.image) ? (
             <View style={{ marginTop: 24 }} wrap={false}>
               <Text style={s.label}>Approved</Text>
               {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}

@@ -3,7 +3,7 @@
 import { Download, FileText, Trash, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { db, newId, nowIso, saveImage } from "@/lib/db";
-import { downloadBlob } from "@/lib/download";
+import { openBlankTab, openJobFile, safeUploadMime } from "@/lib/openJobFile";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import DocumentBacklinks from "../sheetIndex/DocumentBacklinks";
@@ -30,9 +30,11 @@ export default function Documents() {
           toast(`${f.name} is over ${MAX_MB} MB`, "error");
           continue;
         }
-        const fileId = await saveImage(f, 0, 0);
+        // Page-like files (HTML, SVG, XML, scripts) are kept as plain bytes, so nothing ever serves them as a page.
+        const mime = safeUploadMime(f.type);
+        const fileId = await saveImage(mime === f.type ? f : new Blob([f], { type: mime }), 0, 0);
         const now = nowIso();
-        await saveRow("documents", { id: newId(), projectId: project!.id, name: f.name, mime: f.type || "application/octet-stream", size: f.size, fileId, createdAt: now, updatedAt: now });
+        await saveRow("documents", { id: newId(), projectId: project!.id, name: f.name, mime, size: f.size, fileId, createdAt: now, updatedAt: now });
       }
     } catch (e) {
       // e.g. storage full — don't leave the button stuck on "Uploading…".
@@ -83,18 +85,13 @@ export default function Documents() {
                 aria-label={`Open ${d.name}`}
                 onClick={async () => {
                   // Open the tab inside the click (Safari/iPad block windows opened after an await), then fill it in.
-                  const viewable = d.mime === "application/pdf" || d.mime.startsWith("image/");
-                  const win = viewable ? window.open("", "_blank") : null;
+                  const win = openBlankTab(d.mime);
                   const rec = await db().images.get(d.fileId);
                   if (!rec) {
                     win?.close();
                     return toast("This file hasn't downloaded to this device yet — try again after sync.", "info");
                   }
-                  if (win) {
-                    const url = URL.createObjectURL(rec.blob);
-                    win.location.href = url;
-                    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-                  } else downloadBlob(rec.blob, d.name);
+                  await openJobFile(rec, d, win);
                 }}
               >
                 <Download /> Open

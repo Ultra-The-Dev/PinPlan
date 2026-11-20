@@ -1,28 +1,23 @@
 "use client";
 // Following a plan hyperlink: switch sheets (with a back stack), open a job document, a photo or a web page.
 import { db } from "@/lib/db";
-import { downloadBlob } from "@/lib/download";
+import { openBlankTab, openJobFile } from "@/lib/openJobFile";
 import { brokenReason } from "@/lib/sheetIndex";
 import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import type { JobDocument, SheetLink } from "@/lib/types";
 
-/** Open a job document the way the Documents list does: PDFs and images in a new tab, anything else downloads. */
+/** Open a job document the way the Documents list does: verified PDFs and images in a new tab, anything else downloads. */
 export async function openJobDocument(d: JobDocument) {
   // Open the tab inside the tap (Safari/iPad block windows opened after an await), then fill it in.
-  const viewable = d.mime === "application/pdf" || d.mime.startsWith("image/");
-  const win = viewable ? window.open("", "_blank") : null;
+  const win = openBlankTab(d.mime);
   const rec = await db().images.get(d.fileId);
   if (!rec) {
     win?.close();
     return toast("This file hasn't downloaded to this device yet — try again after sync.", "info");
   }
-  if (win) {
-    const url = URL.createObjectURL(rec.blob);
-    win.location.href = url;
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } else downloadBlob(rec.blob, d.name);
+  await openJobFile(rec, d, win);
 }
 
 /** Go back to the sheet the last link was followed from. */

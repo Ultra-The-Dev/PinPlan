@@ -1,6 +1,8 @@
 "use client";
 // Publishing proposals to Supabase, and reading/answering them from the client page.
+import { apiFetch } from "./api";
 import { LAYERS } from "./catalog";
+import { linkFolder, removeLinkFiles } from "./linkFiles";
 import { renderSheet } from "./renderSheet";
 import { getSupabase } from "./supabase";
 import type { ProposalSnapshot, ProposalStatus } from "./proposal";
@@ -84,30 +86,19 @@ export async function publishProposal(args: {
   return data as ProposalRow;
 }
 
-/** The bucket calls removeLinkFiles needs (a narrow slice of the Supabase storage client, so it can be tested). */
-export interface LinkFilesBucket {
-  list(path: string, opts?: { limit?: number }): Promise<{ data: { name: string; id?: string | null }[] | null; error: { message: string } | null }>;
-  remove(paths: string[]): Promise<{ error: { message: string } | null }>;
-}
-
-/** Where a withdrawn link's images live in the proposals bucket. Proposals: <owner>/<token>/; photo reports: <owner>/reports/<token>/. */
-export function linkFolder(ownerId: string, token: string, kind: "proposal" | "report"): string {
-  return kind === "report" ? `${ownerId}/reports/${token}` : `${ownerId}/${token}`;
-}
+export { linkFolder, removeLinkFiles, type LinkFilesBucket } from "./linkFiles";
 
 /**
- * Delete the images behind a withdrawn link, so its picture URLs stop working too. Best effort: only the person who
- * published can (files sit under their own folder), and a failure never undoes the withdrawal. Returns how many went.
+ * Ask the server to delete a withdrawn link's images with the service role, so they go whoever published it (an
+ * office member withdrawing a colleague's link can't reach that folder). True when the server did it.
  */
-export async function removeLinkFiles(bucket: LinkFilesBucket, folder: string): Promise<number> {
-  if (!/^[^/]+\/(reports\/)?[^/]+$/.test(folder)) return 0; // never a whole user folder
-  const { data, error } = await bucket.list(folder, { limit: 1000 });
-  if (error || !data?.length) return 0;
-  // Sub-folders come back as entries without an id.
-  const paths = data.filter((f) => f.id !== null && f.name && f.name !== ".emptyFolderPlaceholder").map((f) => `${folder}/${f.name}`);
-  if (!paths.length) return 0;
-  const { error: rmError } = await bucket.remove(paths);
-  return rmError ? 0 : paths.length;
+async function removeOnServer(kind: "proposal" | "photoReport", token: string): Promise<boolean> {
+  try {
+    const r = await apiFetch("/api/links/files", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, token }) });
+    return r.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function revokeProposal(id: string) {
@@ -115,6 +106,8 @@ export async function revokeProposal(id: string) {
   const { data, error } = await sb.from("proposals").update({ status: "revoked", updated_at: new Date().toISOString() }).eq("id", id).select("owner_id");
   if (error) throw new Error(error.message);
   const owner = (data as { owner_id: string }[] | null)?.[0]?.owner_id;
+  if (await removeOnServer("proposal", id)) return;
+  // No server (or an older one): delete what this account can reach itself.
   if (owner) await removeLinkFiles(sb.storage.from(BUCKET), linkFolder(owner, id, "proposal")).catch(() => 0);
 }
 
@@ -124,13 +117,28 @@ export async function revokePhotoReport(token: string) {
   const { data, error } = await sb.from("photo_reports").update({ revoked: true, updated_at: new Date().toISOString() }).eq("id", token).select("owner_id");
   if (error) throw new Error(error.message);
   const owner = (data as { owner_id: string }[] | null)?.[0]?.owner_id;
+  if (await removeOnServer("photoReport", token)) return;
   if (owner) await removeLinkFiles(sb.storage.from(BUCKET), linkFolder(owner, token, "report")).catch(() => 0);
 }
 
 export async function fetchPublicProposal(token: string): Promise<PublicProposal | null> {
   const { data, error } = await need().rpc("get_proposal", { p_token: token });
   if (error) throw new Error(error.message);
-  return (data as PublicProposal | null) ?? null;
+  return publicProposalOf(data);
+}
+
+/**
+ * The page's view of what get_proposal returned. Long after its valid-until date the server sends only that it expired
+ * and who sent it (no prices or plans): that becomes an error the page shows as it is.
+ */
+export function publicProposalOf(data: unknown): PublicProposal | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Partial<PublicProposal> & { business?: { name?: string } };
+  if (!d.snapshot) {
+    const who = d.business?.name?.trim();
+    throw new Error(`This quote has expired. Please ask ${who || "the company that sent it"} for an updated one.`);
+  }
+  return d as PublicProposal;
 }
 
 export async function respondToProposal(token: string, r: { accept: boolean; name: string; signature: string | null; options: string[]; note: string }): Promise<PublicProposal> {

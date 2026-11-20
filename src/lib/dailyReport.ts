@@ -2,6 +2,7 @@
 // PDF. A report lives on the existing JobLog row (`report`, JSON); logs without one are the older free-text logs and
 // still read and print as before. Mirrored in PinPlanCore/DailyReportLogic.swift (same Open-Meteo fixture in tests).
 import type { DailyReport, JobLog } from "./types";
+import { csvCell } from "./csv";
 
 export type DailyWeather = NonNullable<DailyReport["weather"]>;
 export type CrewRow = NonNullable<DailyReport["crew"]>[number];
@@ -338,10 +339,6 @@ export function weeklyHours(logs: JobLog[], weekStart: string): WeeklyHours {
   return { days, rows: list, dayTotals, total: round2(dayTotals.reduce((a, b) => a + b, 0)) };
 }
 
-const csvCell = (v: string | number) => {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
 
 /** The weekly hours table as CSV (Name, the seven dates, Total; a totals row at the end). */
 export function weeklyHoursCsv(w: WeeklyHours): string {

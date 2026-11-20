@@ -1,4 +1,5 @@
 import { closetMeta } from "./catalog";
+import { csvCell } from "./csv";
 import { runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import type { Closet, ClosetKind, DeviceType, Marker, Run, Sheet } from "./types";
@@ -179,15 +180,7 @@ export function takeoffCsv(takeoff: Takeoff, catalog: DeviceType[]): string {
   return toCsv(rows);
 }
 
+/** Rows as CSV. Cells go through csvCell, so text that looks like a formula (=, +, -, @) never runs as one. */
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
-  return rows
-    .map((r) =>
-      r
-        .map((v) => {
-          const s = v == null ? "" : String(v);
-          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-        })
-        .join(","),
-    )
-    .join("\n");
+  return rows.map((r) => r.map(csvCell).join(",")).join("\n");
 }
