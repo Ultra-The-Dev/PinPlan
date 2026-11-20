@@ -87,10 +87,6 @@ struct APIClient {
         // 503 with a PinPlan body means "up, but some production settings (Stripe, email…) aren't set yet": the
         // server works for signing in and syncing, so accept it.
         guard (200..<300).contains(status) || status == 503, let h = try? JSONDecoder().decode(Health.self, from: data), h.app == "pinplan" else {
-            throw APIError(message: status == 404 ? "That address isn't a PinPlan server (or it needs the latest version deployed)." : "The server answered \(status). Check the address.")
-        }
-
-        guard (200..<300).contains(status), let h = try? JSONDecoder().decode(Health.self, from: data), h.app == "pinplan" else {
             throw APIError(message: status == 404 ? String(localized: "That address isn't a PinPlan server (or it needs the latest version deployed).") : String(localized: "The server answered \(status). Check the address."))
         }
         return h
