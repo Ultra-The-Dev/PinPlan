@@ -82,8 +82,8 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
   lettering on panels and equipment labels.
 - Text and UI: width 100%, weight 400 / 600.
 - Figures: tabular lining numerals (`.mk-num`, `.mk-figure`). No monospace anywhere.
-- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title` and the wordmark (87.5% width); the
-  font variable is loaded once in `src/app/layout.tsx`. Everything else in the app stays Geist.
+- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title`; the font variable is loaded once
+  in `src/app/layout.tsx`. Everything else in the app stays Geist. The wordmark is already IBM Plex Sans (below).
 
 | Role | Class | Size | Line height |
 |---|---|---|---|
@@ -97,6 +97,39 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
 
 Sentence case everywhere. No all-caps labels or eyebrows above headings; the only capitals are room names inside
 plan drawings, because that's how plans are lettered. Don't colour or italicise one word of a headline.
+
+### Northpin type: IBM Plex Sans (chosen; the redesign applies it)
+
+Archivo has no Cyrillic on Google Fonts, and the site is being translated into Russian, so the redesign moves the
+site and the app to **IBM Plex Sans** (SIL Open Font License; `IBM_Plex_Sans` in `next/font/google`, self-hosted
+at build time). One variable superfamily, `wdth` 75–100 and `wght` 100–700, full Cyrillic drawn by the same
+designers as the Latin, and figures that are tabular by default, so prices and counts line up without a feature
+switch. Its Condensed width keeps the lettering-on-equipment voice the condensed Archivo headlines had, with
+engineering-drawing details (angled terminals on t, r and the stems) that match the needle's cut. It is the face of
+the wordmark too.
+
+Shortlist and why the others lost (renders: wordmark lockups and site specimens with a price table and Russian
+copy): Golos Text and Onest (excellent Cyrillic, but rounder and friendlier, generic for a drafting tool, and no
+width axis for condensed headlines); Sofia Sans with Sofia Sans Condensed (good widths, but its Cyrillic defaults
+to Bulgarian letterforms, wrong for Russian readers); Geist, Inter Tight and Manrope (clean, but the default look of
+current software); Space Grotesk, Schibsted Grotesk and Instrument Sans (no Cyrillic). Archivo stays the face of
+the current site until the redesign.
+
+| Role | Face | Width / weight | Size | Line height |
+|---|---|---|---|---|
+| Display (h1) | Plex Sans | 75 (`font-stretch: 75%`) / 700 | clamp(44px → 84px), tracking −0.01em | 0.95 |
+| Section (h2) | Plex Sans | 75 / 700 | clamp(32px → 52px) | 1.0 |
+| Step / item (h3) | Plex Sans | 75 / 600 | clamp(24px → 30px) | 1.05 |
+| Lede | Plex Sans | 100 / 400 | clamp(17px → 20px) | 1.55, max 36em |
+| Body | Plex Sans | 100 / 400 | 16–17px | 1.6, max 34em |
+| UI, buttons, labels | Plex Sans | 100 / 500–600 | 14–15px | 1.4 |
+| Small / table | Plex Sans | 100 / 400, figures tabular | 13–14px | 1.4 |
+
+- Load once with `IBM_Plex_Sans({ subsets: ["latin", "cyrillic"], axes: ["wdth"] })` (weight omitted = variable).
+  Only the Latin subset is loaded today, for the wordmark (`brandFont` in `src/components/marketing/fonts.ts`).
+- Russian runs about 15% longer than English: headlines use the Condensed width so they wrap like the English.
+- Tabular figures are the default; set `font-variant-numeric: tabular-nums` anyway on tables and totals so a later
+  face change can't break the columns. No monospace.
 
 ## Layout and spacing
 
@@ -182,16 +215,27 @@ one letter, with nothing borrowed from map apps.
 
 ### Construction
 
-- 64-unit square, 8-unit module. Tile radius 14 (22%).
+- 64-unit square, 8-unit module. The tile is a continuous-corner square (the iOS icon shape: the curve eases into
+  the sides instead of meeting them at a tangent), radius 14.4 (22.5%), the same in the mark, the lockup and the
+  icons, so the app icon and the logo match after iOS masks it.
 - Walls 8 × 40 units at x 12 and x 44, y 12 to 52. The N is 40 × 40, centred.
-- Needle: tips on the walls' inside corners (20, 12) and (44, 52), 14 units wide at the pivot (32, 32), split
-  across its width into a north and a south half. Pivot hole r 2.6.
-- One-colour drawings pull the halves 1 unit apart along the needle so it still reads as a needle.
-- Wordmark: "Northpin" in Archivo (SIL Open Font License), width 87.5, weight 700, tracking −10/1000, kerned and
-  outlined, so the logo files need no font. Cap height 30/64 of the tile, caps centred on it, 16 units from the tile.
-  In React the name is live text in Archivo at the same width and weight (`font-bold`, `font-stretch: 87.5%`).
-- Source of truth: `scripts/brand-icons.mjs` (geometry, colours, every file below). Change it there and run
-  `node scripts/brand-icons.mjs`; keep `Wordmark.tsx` and `opengraph-image.tsx` in step by hand.
+- Needle: along the line from the walls' inside corners (20, 12) and (44, 52), 31° from vertical, the angle of an
+  N's diagonal. 15.2 units wide at the pivot (32, 32), half-width 7.6 against the walls' 8: wide enough that the
+  diamond carries the same weight as the walls (at 7 it read thin, at 8 heavy). The tips run 0.5 past the corners (like a pointed apex in type)
+  and the walls are drawn over them, so they touch the corners instead of falling short; nothing pokes out.
+- The halves are 0.9 apart (a seam in the tile colour), pivot r 2.4: the pin's head. From 40 px down the seam
+  closes; from 24 px down the pivot goes; in the 16 and 32 px favicons neither is drawn.
+- One-colour drawings cut the halves 1.8 apart so the needle still reads.
+- Wordmark: "Northpin" in IBM Plex Sans Condensed (width 75), weight 700, tracking −10/1000, HarfBuzz kerning plus
+  four hand-set pairs (N-o −8, r-t +4, t-h −4, p-i −4), outlined so the logo files need no font. Cap height 30/64 of
+  the tile (the walls are 40), baseline 46.5 (half a unit above centre, because the lowercase carries the word),
+  15 units from the tile to the N.
+- React (`Wordmark`) sets the name live from `PRODUCT_NAME` in Plex Sans at the same width, weight and tracking, sized
+  and nudged from `LOCKUP` so caps, baseline and gap match the SVG (checked overlaid: within a pixel at 3×). Pair
+  kerning beyond the font's own is only in the outlined files.
+- Source of truth: `scripts/brand-icons.mjs` (geometry, colours, pixel maps, every file below, and
+  `src/components/marketing/markPaths.ts`, which `Wordmark.tsx` and `opengraph-image.tsx` draw from). Change it
+  there and run `node scripts/brand-icons.mjs`; the output is byte-identical on re-run.
 
 ### Files
 
@@ -202,25 +246,35 @@ one letter, with nothing borrowed from map apps.
 | `public/brand/northpin-logo-mono.svg` / `-white.svg` | One colour, ink or white; the N is cut out of the tile |
 | `public/brand/northpin-mark.svg` (+ `-on-dark`, `-mono`, `-white`) | The square mark alone |
 | `public/brand/northpin-brand-sheet.png` | This page's overview for the owner |
-| `public/icon.svg`, `favicon.ico`, `favicon-16.png`, `favicon-32.png` | Browser tab |
+| `src/components/marketing/markPaths.ts` | Generated paths for `LogoMark`, the share card and the lockup metrics |
+| `public/icon.svg`, `favicon.ico` (16, 32, 48), `favicon-16.png`, `favicon-32.png` | Browser tab |
 | `public/icon-192.png`, `icon-512.png` | PWA icon (tile, transparent corners) |
-| `public/icon-maskable-512.png` | PWA maskable: full-bleed ink, N at 85% so its corners sit inside the 80% safe circle |
+| `public/icon-maskable-512.png` | PWA maskable: full-bleed ink, N at 85% (corners at 37.5% radius, inside the 40% safe circle) |
 | `public/apple-touch-icon.png` | 180 px, full bleed, no alpha; iOS rounds it |
 | `ios/PinPlan/Assets.xcassets/AppIcon.appiconset/*` | 1024 px light, dark (black ground) and tinted (grey levels), no alpha |
 
 Theme colour `#0F2340`, manifest background `#F2F6FA`.
 
+### Favicons
+
+The 16 and 32 px favicons are set by hand as pixel maps in the script, not scaled down: the walls sit on whole
+pixels (2 and 4 px wide), the needle is a clean stair, symmetric about the pivot, whose tips touch the walls'
+corners, and only its edges use half-strength pixels. Checked on white (`#FFFFFF`), grey (`#DEE1E6`) and dark
+(`#202124`) tabs: on dark tabs the ink tile melts into the tab and the white N carries the icon, which is intended.
+
 ### Clear space and size
 
 - Keep a quarter of the tile (two wall widths) clear on every side of the mark or the lockup.
-- Smallest mark 16 px (favicon); at 16 and 32 px the grid lands on whole pixels, so the walls stay sharp. The pivot
-  hole is dropped below 20 px. Smallest lockup 24 px tall.
+- Smallest mark 16 px (favicon). Smallest lockup 24 px tall.
 
 ### Colour
 
-Blueprint Ink, unchanged. Ink tile, white walls and south half, electric (`#33A9FF`) north half. On ink grounds the
-tile turns white with ink walls and an action-blue (`#0B6FE0`) north half: electric on white is too faint (2.6:1) and
-an electric tile hides the needle, so the old electric-tile flip is retired.
+Blueprint Ink. Ink tile, white walls and south half, electric (`#33A9FF`) north half. On ink grounds the tile turns
+white with ink walls and an action-blue (`#0B6FE0`) north half: electric on white is too faint (2.6:1) and an
+electric tile hides the needle. In the 16 and 32 px favicons the north half is `#1A86F0` (brand-500): electric next
+to white is only 2.6:1 and the halves smear together at that size; brand-500 keeps 4.5:1 on ink and parts from the
+white. The iOS dark icon uses off-white walls (`#E6EDF5`) on black; the tinted icon is grey levels with a mid-grey
+north half so the tint still shows two halves.
 
 ### Do
 
