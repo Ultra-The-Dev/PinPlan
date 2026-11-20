@@ -1,6 +1,8 @@
 -- Email limits checks (20261124100500_email_guard.sql): run after the migrations (also works inside a transaction that
 -- is rolled back). Any failed check raises an exception.
 \set ON_ERROR_STOP on
+-- Billing enforcement is off until launch (billing_settings.enforce); these checks need it on.
+update public.billing_settings set enforce = true;
 -- Supabase's auth.users has this column; the test stand-in doesn't.
 alter table auth.users add column if not exists email_confirmed_at timestamptz;
 insert into auth.users (id, email, email_confirmed_at) values
@@ -66,7 +68,7 @@ reset role;
 
 -- The server's billing webhook: one team pays, one lapses.
 update public.teams set plan_status = 'active' where name = 'Guard Paid Co';
-update public.teams set plan_status = 'canceled' where name = 'Guard Lapsed Co';
+update public.teams set plan_status = 'canceled', trial_ends_at = now() - interval '1 day' where name = 'Guard Lapsed Co';
 
 set role service_role;
 select pg_temp.as_service();

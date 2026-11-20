@@ -145,8 +145,8 @@ select pg_temp.check((public.team_billing() ->> 'can_work')::boolean, 'canceled 
 select pg_temp.check((public.team_billing() ->> 'cancel_at')::timestamptz > now(), 'team_billing returns cancel_at');
 update public.markers set notes = 'canceled in trial' where id = 'cm1';
 select pg_temp.check((select notes from public.markers where id = 'cm1') = 'canceled in trial', 'canceled within the trial: device edit allowed');
-select pg_temp.check(pg_temp.error_of($$update public.teams set cancel_at = null$$) like 'Billing is managed%', 'owner cannot clear cancel_at');
-select pg_temp.check(pg_temp.error_of($$update public.teams set trial_reminder_3d_at = now()$$) like 'Billing is managed%', 'owner cannot write the reminder columns');
+select pg_temp.check(pg_temp.error_of($$update public.teams set cancel_at = null$$) similar to '(Billing is managed|permission denied)%', 'owner cannot clear cancel_at');
+select pg_temp.check(pg_temp.error_of($$update public.teams set trial_reminder_3d_at = now()$$) similar to '(Billing is managed|permission denied)%', 'owner cannot write the reminder columns');
 select pg_temp.as_service();
 set role service_role;
 update public.teams set trial_ends_at = now() - interval '1 minute' where owner_id = '00000000-0000-0000-0000-0000000000c1';

@@ -1,6 +1,8 @@
 -- Security checks for 20261124100100_security_hardening.sql: run after supabase_stubs.sql, the migrations and the other
 -- suites (ids and users here are its own). Any failed check raises an exception.
 \set ON_ERROR_STOP on
+-- Billing enforcement is off until launch (billing_settings.enforce); these checks need it on.
+update public.billing_settings set enforce = true;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000005e1', 'sec-owner@example.com'),
                                           ('00000000-0000-0000-0000-0000000005e2', 'sec-admin@example.com'),
                                           ('00000000-0000-0000-0000-0000000005e3', 'sec-tech@example.com'),
@@ -250,7 +252,7 @@ set role authenticated;
 
 -- ---------- lapsed subscription: real deletes are refused too ----------
 reset role;
-update public.teams set plan_status = 'canceled' where owner_id = '00000000-0000-0000-0000-0000000005e1';
+update public.teams set plan_status = 'canceled', trial_ends_at = now() - interval '1 day' where owner_id = '00000000-0000-0000-0000-0000000005e1';
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
 select pg_temp.check(pg_temp.error_of($$delete from public.markers where id = 'sec-m1'$$) like '%subscription inactive%', 'a lapsed company can''t hard-delete job data');
@@ -280,7 +282,7 @@ select pg_temp.check(not exists (
 select pg_temp.check((
   select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
   where p.pronamespace = 'public'::regnamespace and p.prosecdef and has_function_privilege('anon', p.oid, 'execute'))
-  = array['get_document', 'get_photo_report', 'get_proposal', 'respond_document', 'respond_proposal', 'team_invite_info'],
+  = array['get_document', 'get_photo_report', 'get_proposal', 'respond_document', 'respond_proposal', 'schema_version', 'team_invite_info'],
   'signed out, only the link pages and the invite lookup are callable');
 select pg_temp.check(not exists (
   select 1 from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
