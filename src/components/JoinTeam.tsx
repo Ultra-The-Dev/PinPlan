@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
 import { recordTermsAccepted } from "@/lib/onboarding";
 import { authErrorMessage, termsMetadata, TERMS_VERSION } from "@/lib/onboardingLogic";
-import { getAuthor } from "@/lib/photos";
+import { getAuthor, setAuthor } from "@/lib/photos";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
@@ -190,6 +190,7 @@ function InviteHeader({ info }: { info: InviteInfo }) {
 /** Join with the current session, then refresh the jobs in the background. */
 async function join(code: string, name: string) {
   const r = await acceptInvite(code, name);
+  if (name.trim()) setAuthor(name); // the joined name is the name on this device (photos, ticks, "Mine")
   void useSyncStatus.getState().syncNow().catch(() => undefined);
   return r;
 }

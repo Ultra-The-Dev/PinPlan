@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, newId, nowIso, putMany } from "@/lib/db";
 import { downloadText, slug } from "@/lib/download";
 import { localDay, teamNames } from "@/lib/fieldDocs";
-import { getAuthor } from "@/lib/photos";
+import { useMe } from "@/lib/useMe";
 import {
   addDays,
   addWorkdays,
@@ -34,7 +34,6 @@ import {
   weekStart,
 } from "@/lib/schedule";
 import { useEditor } from "@/lib/store";
-import { useSyncStatus } from "@/lib/sync";
 import { useRole, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import type { ScheduleItem } from "@/lib/types";
@@ -62,13 +61,12 @@ export default function ScheduleView() {
   const checklists = useEditor((s) => s.checklists);
   const members = useTeam((s) => s.members);
   const role = useRole();
-  const { email } = useSyncStatus();
   const trades = useTrades();
   const narrow = useMedia("(max-width: 639px)");
 
   const [stored, setStored] = useState<ScheduleItem[] | null>(null);
   const [today, setToday] = useState("");
-  const [me, setMe] = useState("");
+  const { me, names: myNames } = useMe();
   const [view, setView] = useState<"all" | "lookahead">("all");
   const [zoom, setZoom] = useState<Zoom>("day");
   const [todaySignal, setTodaySignal] = useState(0);
@@ -89,7 +87,6 @@ export default function ScheduleView() {
       const d = localDay(new Date().toISOString());
       setToday(d);
       setTplStart((s) => s || rollToWorkday(d));
-      setMe(getAuthor(email));
       void load();
     }, 0);
     const reload = () => void load();
@@ -98,7 +95,7 @@ export default function ScheduleView() {
       window.clearTimeout(t);
       window.removeEventListener("pinplan:synced", reload);
     };
-  }, [load, email]);
+  }, [load]);
 
   // The undo bar goes away on its own after a while.
   useEffect(() => {
@@ -157,7 +154,7 @@ export default function ScheduleView() {
     setEditing(null);
     const before = stored ?? [];
     // A tech on the crew saves progress and notes only, onto the latest row, and never moves other phases.
-    if (!isNew && canEditSchedule(role, item, me) === "progress") {
+    if (!isNew && canEditSchedule(role, item, myNames) === "progress") {
       const latest = (await db().scheduleItems.get(item.id)) ?? before.find((b) => b.id === item.id);
       if (!latest || latest.deleted) return;
       await save([crewUpdate(normalizeItem(latest), item)], []);
@@ -402,7 +399,7 @@ export default function ScheduleView() {
           names={names}
           sheets={sheets}
           phases={phases}
-          access={canEditSchedule(role, editing.isNew ? null : editing.item, me)}
+          access={canEditSchedule(role, editing.isNew ? null : editing.item, myNames)}
           onSave={(i) => void saveEdit(i, editing.isNew)}
           onDelete={() => void del(editing.item)}
           onClose={() => setEditing(null)}

@@ -65,7 +65,7 @@ This is the brief for the simplification pass. Principle: **simple by default, p
 | Get client link / Send to client | Publish, Issue |
 | Finalize | Issue |
 | Ready to send | Sent (before it's shared) |
-| Task | Assigned checklist item |
+| Task (one kind everywhere: from the plan, a photo comment, a form, a checklist item or a device issue) | Punch item, punch list item, assigned checklist item |
 | Wiring sheets | Crew |
 | Technician / Office | Tech / admin |
 | Unpaid / Overdue | A/R aging, Balance due |
@@ -81,3 +81,19 @@ This is the brief for the simplification pass. Principle: **simple by default, p
 - Record payment button in the invoice header once finalized.
 - Client proposal headings: "Price" / "Work included".
 - React hydration warning (#418) on /tasks and /invoices (date formatting).
+
+## Done: Field and Tasks (launch pass)
+
+- Field opens on **Today** for technicians (Tasks for the office): my tasks overdue / due today with big ticks, this
+  week's phases, Take photo, today's daily log (Start / Continue / Signed), open checklists and draft forms. The same
+  card sits on top of /tasks across jobs.
+- Field sections, labelled at every width and kept in the address (`&section=`): Today · Tasks · Checklists & forms ·
+  Daily log · Photos · Files · More (RFIs, Schedule, Install progress, History).
+- One task model: "Make task" on a photo comment, a checklist item or a form's "No" answers, and "Create task for this"
+  on a device set to Issue, all make the same task. Older items assigned on a checklist still show on /tasks
+  (read-only, linking to the item). "Mine" matches every name the person goes by (device name, team name, email).
+- /tasks: "+ Add task", technicians default to Mine, the office to Everyone (overdue first); a Crew link to the board.
+- Task list: Mine and Overdue chips, everything else behind "Filter", sorted by due date. Checklist ticks are 44px with
+  an Undo bar.
+- Daily log keeps a draft on the device while you type, warns before leaving, shows "Draft", and offers
+  "Continue today's log" instead of starting a second one. Work and delivery examples follow the primary trade.

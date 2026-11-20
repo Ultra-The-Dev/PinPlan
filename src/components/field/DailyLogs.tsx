@@ -2,6 +2,7 @@
 // Daily logs: a structured daily report for each day on site (weather, crew & hours, work, deliveries, equipment,
 // delays, safety, visitors, photos, notes, signature). Older logs are a title and free text and still show as before.
 import { BadgeCheck, CalendarRange, Copy, Hammer, ImagePlus, Images, FileDown, Hourglass, Pencil, Plus, ShieldAlert, ShieldCheck, Signature, Sparkles, StickyNote, Trash, Truck, UserCheck, Users, Wrench, CloudSun, TriangleAlert } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { dailyLogFileName, logDays, logPhotos, logsInRange, rangeSummary, reportPdfSections } from "@/lib/dailyLogReport";
@@ -24,8 +25,8 @@ import {
 } from "@/lib/dailyReport";
 import { db, newId, nowIso, saveImage } from "@/lib/db";
 import { downloadBlob, slug } from "@/lib/download";
-import { localDay } from "@/lib/fieldDocs";
-import { getAuthor, importPhoto, renderPhoto } from "@/lib/photos";
+import { localDay, todayLog } from "@/lib/fieldDocs";
+import { importPhoto, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole, useTeam } from "@/lib/team";
@@ -37,7 +38,9 @@ import { fetchDailyWeather, isOnline } from "@/lib/weather";
 import SignaturePad from "../SignaturePad";
 import PhotoViewer from "../photos/PhotoViewer";
 import type { DailyLogPdfEntry } from "./DailyLogPdf";
-import { CrewRows, DelayRows, LineList, SafetyFields, Section, WeatherFields, WeatherIcon, WorkRows, type WeatherStatus } from "./DailyReportForm";
+import { CrewRows, DelayRows, LineList, SafetyFields, Section, tradeExamples, WeatherFields, WeatherIcon, WorkRows, type WeatherStatus } from "./DailyReportForm";
+import { useMe } from "@/lib/useMe";
+import { useTrades } from "@/lib/useTrades";
 import WeeklyHours from "./WeeklyHours";
 import { AI_ENABLED } from "@/lib/features";
 
@@ -188,17 +191,105 @@ function SignedImage({ imageId }: { imageId: string }) {
   return url ? <img src={url} alt="Signature" className="h-20 max-w-full rounded-lg bg-white object-contain ring-1 ring-slate-200" /> : <div className="h-20 w-48 rounded-lg bg-slate-50 ring-1 ring-slate-200" />;
 }
 
+// ---------------- drafts kept on this device while a log is being written ----------------
+
+const DRAFT_PREFIX = "pinplan.logDraft.";
+interface LogDraft {
+  log: JobLog;
+  report: DailyReport;
+  savedAt: string;
+}
+function readDraft(id: string): LogDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + id);
+    const d = raw ? (JSON.parse(raw) as LogDraft) : null;
+    return d && d.log?.id === id && d.report ? d : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(d: LogDraft) {
+  try {
+    localStorage.setItem(DRAFT_PREFIX + d.log.id, JSON.stringify(d));
+  } catch {
+    /* storage full or unavailable: the log still saves normally */
+  }
+}
+function clearDraft(id: string) {
+  try {
+    localStorage.removeItem(DRAFT_PREFIX + id);
+  } catch {
+    /* storage unavailable */
+  }
+}
+/** This job's drafts on this device, newest first. */
+function projectDrafts(projectId: string): LogDraft[] {
+  const out: LogDraft[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith(DRAFT_PREFIX)) continue;
+      const d = readDraft(k.slice(DRAFT_PREFIX.length));
+      if (d && d.log.projectId === projectId) out.push(d);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return out.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+/** What counts as an edit: weather filled in automatically doesn't. */
+const editKey = (l: JobLog, r: DailyReport) =>
+  JSON.stringify({ ...l, updatedAt: null, report: null, r: { ...r, weather: r.weather?.source === "auto" ? null : (r.weather ?? null) } });
+
 function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: () => void }) {
   const { saveRow, photos, project, sheets, jobLogs } = useEditor();
-  const { email, online } = useSyncStatus();
+  const { online } = useSyncStatus();
+  const { me: meName } = useMe();
+  const examples = tradeExamples(useTrades()[0]);
   const members = useTeam((s) => s.members);
-  const [l, setL] = useState(log);
-  const [r, setR] = useState<DailyReport>(() => ({ ...emptyReport(), ...(log.report ?? {}) }));
+  // Unsaved changes from earlier (closed tab, crash, or "Close") come back.
+  const [draft] = useState(() => readDraft(log.id));
+  const [l, setL] = useState(() => draft?.log ?? log);
+  const [r, setR] = useState<DailyReport>(() => draft?.report ?? { ...emptyReport(), ...(log.report ?? {}) });
+  const [original] = useState(() => editKey(log, { ...emptyReport(), ...(log.report ?? {}) }));
+  const dirty = editKey(l, r) !== original;
+  const [savedAt, setSavedAt] = useState<string | null>(draft?.savedAt ?? null);
+  const done = useRef(false);
+  // Autosave a draft on this device a moment after each change.
+  useEffect(() => {
+    if (done.current) return;
+    if (!dirty) {
+      clearDraft(l.id);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      if (done.current) return;
+      const at = nowIso();
+      writeDraft({ log: l, report: r, savedAt: at });
+      setSavedAt(at);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [l, r, dirty]);
+  // Leaving the page with unsaved changes asks first (the draft is kept either way).
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      writeDraft({ log: l, report: r, savedAt: nowIso() });
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, l, r]);
+  useEffect(() => {
+    if (draft) toast(`Picked up your unsaved changes from ${time(draft.savedAt)}`, "info");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the editor opens
+  }, []);
   const [busy, setBusy] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // A signature drawn in this session (PNG data URL); stored as an image when the log is saved.
   const [sig, setSig] = useState<string | null>(null);
-  const [sigName, setSigName] = useState(() => log.report?.signature?.name || log.author || getAuthor(email));
+  const [sigName, setSigName] = useState(() => log.report?.signature?.name || log.author || meName);
   const [wx, setWx] = useState<WeatherStatus>("idle");
   const fileRef = useRef<HTMLInputElement>(null);
   const weatherReq = useRef(0);
@@ -298,7 +389,7 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
     if (saving) return;
     setSaving(true);
     try {
-      const author = l.author || getAuthor(email);
+      const author = l.author || meName;
       const { report: cleaned, duplicates } = cleanReport(r);
       if (sig) {
         // Ink on white (the pad gives a transparent PNG, which disappears on a dark background on the iPad).
@@ -319,6 +410,8 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
       const report = isNew || isStructured(log) || reportHasContent(cleaned) ? cleaned : log.report;
       if (duplicates.length) toast(`Merged duplicate crew: ${duplicates.join(", ")} (hours added together)`, "info");
       await saveRow("jobLogs", { ...l, title: l.title?.trim() || null, body: l.body.trim(), author, report });
+      done.current = true;
+      clearDraft(l.id);
       onDone();
     } catch (e) {
       toast(`Couldn't save the log: ${(e as Error).message}`, "error");
@@ -392,11 +485,11 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
       </Section>
 
       <Section title="Work performed" icon={Hammer} summary={count(workCount, "line")} open={open.work} onToggle={() => flip("work")} missing={missing.includes("work")}>
-        <WorkRows work={r.work ?? []} onChange={(work) => patch({ work })} sheets={sheets.filter((s) => !s.deleted)} />
+        <WorkRows work={r.work ?? []} onChange={(work) => patch({ work })} sheets={sheets.filter((s) => !s.deleted)} placeholder={examples.work} />
       </Section>
 
       <Section title="Materials delivered" icon={Truck} summary={count(lines(r.deliveries), "delivery", "deliveries")} open={open.deliveries} onToggle={() => flip("deliveries")}>
-        <LineList items={r.deliveries ?? []} onChange={(deliveries) => patch({ deliveries })} placeholder="e.g. 4 boxes Cat6 from ADI" addLabel="Add delivery" />
+        <LineList items={r.deliveries ?? []} onChange={(deliveries) => patch({ deliveries })} placeholder={examples.delivery} addLabel="Add delivery" />
       </Section>
 
       <Section title="Equipment" icon={Wrench} summary={count(lines(r.equipment), "item")} open={open.equipment} onToggle={() => flip("equipment")}>
@@ -432,7 +525,7 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
               input.value = "";
               for (const f of files) {
                 try {
-                  const p = await importPhoto(f, { projectId: project.id, author: getAuthor(email) });
+                  const p = await importPhoto(f, { projectId: project.id, author: meName });
                   await saveRow("photos", p);
                   // Keep the log's day; the photo is linked even if it was taken on another day.
                   setL((x) => ({ ...x, photoIds: [...(x.photoIds ?? []), p.id] }));
@@ -497,9 +590,36 @@ function Editor({ log, isNew, onDone }: { log: JobLog; isNew: boolean; onDone: (
             <Sparkles /> {busy ?? "Draft from photos"}
           </button>
           )}
+          {dirty && (
+            <span className="inline-flex items-center gap-1.5 self-center text-xs text-slate-500" role="status">
+              <span className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200">Draft</span>
+              {savedAt ? `kept on this device · ${time(savedAt)}` : "not saved yet"}
+            </span>
+          )}
           <div className="flex-1" />
-          <button className="btn btn-sm" onClick={onDone}>
-            Cancel
+          {dirty && (
+            <button
+              className="btn btn-sm btn-ghost text-slate-500"
+              onClick={() => {
+                if (!confirm("Throw away your changes to this log?")) return;
+                done.current = true;
+                clearDraft(l.id);
+                onDone();
+              }}
+            >
+              Discard
+            </button>
+          )}
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              // Closing keeps the draft (it shows as "Draft" in the list); flush it now in case the timer hasn't run.
+              if (dirty) writeDraft({ log: l, report: r, savedAt: nowIso() });
+              done.current = true;
+              onDone();
+            }}
+          >
+            {dirty ? "Close" : "Cancel"}
           </button>
           <button className="btn btn-sm btn-brand" disabled={!canSave || saving} onClick={() => void save()}>
             {saving ? "Saving…" : "Save log"}
@@ -557,41 +677,84 @@ function ReportBadges({ log }: { log: JobLog }) {
 
 export default function DailyLogs() {
   const { project, jobLogs, photos, removeRows } = useEditor();
-  const { email } = useSyncStatus();
   const role = useRole();
-  const members = useTeam((s) => s.members);
-  const userId = useTeam((s) => s.userId);
+  // Who I am for signed logs: the name on this device and my name on the team (logs from the iPad use the team name).
+  const { names: me } = useMe();
+  const params = useSearchParams();
   const [editing, setEditing] = useState<JobLog | null>(null);
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [weekly, setWeekly] = useState(false);
   const { busy, download } = useLogPdf();
-  if (!project) return null;
+  // Drafts on this device (re-read whenever the editor closes).
+  const [drafts, setDrafts] = useState<LogDraft[]>(() => (project ? projectDrafts(project.id) : []));
+  const refreshDrafts = () => project && setDrafts(projectDrafts(project.id));
   const live = jobLogs.filter((l) => !l.deleted);
+  const day = today();
+  const todays = project ? todayLog(live, project.id, day, me) : null;
+  // A draft of a new log for today that was never saved.
+  const newDraftToday = drafts.find((d) => d.log.date === day && !live.some((l) => l.id === d.log.id));
+
   const startNew = () => {
+    if (!project) return;
     const now = nowIso();
     setWeekly(false);
-    setEditing({ id: newId(), projectId: project.id, date: today(), title: "", body: "", photoIds: [], report: emptyReport(), createdAt: now, updatedAt: now });
+    setEditing({ id: newId(), projectId: project.id, date: day, title: "", body: "", photoIds: [], report: emptyReport(), createdAt: now, updatedAt: now });
   };
-  // Who I am for signed logs: the name on this device and my name on the team (logs from the iPad use the team name).
-  const myMember = members.find((m) => m.userId === userId);
-  const me = [getAuthor(email), myMember ? memberLabel(myMember) : null];
   const edit = (l: JobLog) => {
     const access = editAccess(l, { role, me });
     if (access === "denied") return toast(`Signed by ${l.report?.signature?.name ?? l.author} — only they or the office can change it`, "info");
     if (access === "confirm" && !confirm("This log is signed. Editing it clears the signature — sign again when you're done. Continue?")) return;
     setEditing(access === "confirm" ? { ...l, report: { ...l.report, signature: null } } : l);
   };
+  /** One log a day: continue today's (or its unsaved draft) instead of starting a second one. */
+  const openToday = () => {
+    if (todays?.log && todays.status === "continue") return edit(todays.log);
+    if (newDraftToday) return setEditing(newDraftToday.log);
+    startNew();
+  };
+  // Field → Today's "Start / Continue" links here with &log=today.
+  const askedToday = params.get("log") === "today";
+  const handled = useRef(false);
+  useEffect(() => {
+    if (!askedToday || handled.current || !project) return;
+    handled.current = true;
+    const t = window.setTimeout(openToday, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per link
+  }, [askedToday, project]);
+
+  if (!project) return null;
+  const continueLabel = todays?.status === "continue" || newDraftToday ? "Continue today’s log" : null;
   return (
     <div className="space-y-4">
       {editing ? (
         // Keyed: picking "edit" on another log while one is open must load that log, not keep the old draft.
-        <Editor key={editing.id} log={editing} isNew={!jobLogs.some((x) => x.id === editing.id)} onDone={() => setEditing(null)} />
+        <Editor
+          key={editing.id}
+          log={editing}
+          isNew={!jobLogs.some((x) => x.id === editing.id)}
+          onDone={() => {
+            setEditing(null);
+            refreshDrafts();
+          }}
+        />
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button className="btn btn-brand" onClick={startNew}>
-            <Plus /> New daily log
-          </button>
+          {continueLabel ? (
+            <>
+              <button className="btn btn-brand" onClick={openToday}>
+                <Pencil /> {continueLabel}
+              </button>
+              <button className="btn" onClick={startNew} title="Another log for today or a log for another day">
+                <Plus /> New log
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-brand" onClick={startNew}>
+              <Plus /> {todays?.status === "signed" ? "New daily log" : "Start today’s log"}
+            </button>
+          )}
           {live.length > 0 && (
             <button className="btn" onClick={() => setWeekly((x) => !x)} aria-expanded={weekly}>
               <CalendarRange /> Weekly hours
@@ -612,6 +775,31 @@ export default function DailyLogs() {
         </p>
       )}
       {live.length === 0 && !editing && <p className="text-sm text-slate-500">Keep a daily report for each day on site — weather, crew and hours, work done, deliveries, delays and safety — signed, with that day’s photos.</p>}
+      {!editing &&
+        drafts
+          .filter((d) => !live.some((l) => l.id === d.log.id))
+          .map((d) => (
+            <article key={d.log.id} className="card flex flex-wrap items-center gap-3 p-4 ring-1 ring-amber-200">
+              <span className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200">Draft</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">{dayText(d.log.date)}</div>
+                <div className="text-xs text-slate-500">Not saved yet · kept on this device since {time(d.savedAt)}</div>
+              </div>
+              <button
+                className="btn btn-sm btn-ghost text-slate-500"
+                onClick={() => {
+                  if (!confirm("Throw away this draft?")) return;
+                  clearDraft(d.log.id);
+                  refreshDrafts();
+                }}
+              >
+                Discard
+              </button>
+              <button className="btn btn-sm btn-brand" onClick={() => setEditing(d.log)}>
+                <Pencil /> Continue
+              </button>
+            </article>
+          ))}
       {live
         .filter((l) => l.id !== editing?.id)
         .map((l) => {
@@ -627,6 +815,11 @@ export default function DailyLogs() {
                   </div>
                   {l.title && <h3 className="mt-0.5 font-semibold">{l.title}</h3>}
                 </div>
+                {drafts.some((d) => d.log.id === l.id) && (
+                  <button className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100" onClick={() => edit(l)} title="You have unsaved changes to this log on this device">
+                    Draft
+                  </button>
+                )}
                 <button className="btn btn-sm btn-icon btn-ghost" aria-label="Download log as PDF" title="Download PDF" disabled={!!busy} onClick={() => void download([l])}>
                   <FileDown />
                 </button>

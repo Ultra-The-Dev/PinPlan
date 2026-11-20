@@ -66,7 +66,7 @@ export default function RfiList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto max-w-md text-sm text-slate-500">Questions for the GC, architect or owner — with the spot on the plan, photos and a link they can answer without an account.</p>
+        <p className="mr-auto max-w-md text-sm text-slate-500">An RFI is a question for the GC, architect or owner when the plans don’t say. Send it with the spot and a photo; they answer from a link, no account.</p>
         {!!rfis?.length && (
           <button className="btn btn-sm" onClick={() => void logPdf()} disabled={busy}>
             <FileDown /> {busy ? "Building…" : "Log PDF"}

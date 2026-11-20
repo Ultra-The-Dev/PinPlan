@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useEditor } from "@/lib/store";
 import type { JobForm, Marker, Sheet } from "@/lib/types";
 import { useSheetImage } from "@/lib/useImage";
+import { useDialog } from "./useDialog";
 
 export type FormPlace = Pick<JobForm, "sheetId" | "x" | "y" | "markerId">;
 
@@ -14,8 +15,28 @@ const markerName = (m: Marker, typeName?: string) => [m.label || typeName || "De
 function SheetSpot({ sheet, x, y, onPick }: { sheet: Sheet; x: number | null; y: number | null; onPick: (x: number, y: number) => void }) {
   const img = useSheetImage(sheet.imageId);
   if (!img) return <div className="flex h-56 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">Loading the plan…</div>;
+  // Keyboard: arrows move the pin (Shift = bigger steps); the first arrow or Enter drops it in the middle.
+  const onKey = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 0.05 : 0.01;
+    const d: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    if (d[e.key]) {
+      e.preventDefault();
+      if (x == null || y == null) onPick(0.5, 0.5);
+      else onPick(clamp(x + d[e.key][0]), clamp(y + d[e.key][1]));
+    } else if ((e.key === "Enter" || e.key === " ") && (x == null || y == null)) {
+      e.preventDefault();
+      onPick(0.5, 0.5);
+    }
+  };
   return (
-    <div className="relative overflow-hidden rounded-lg ring-1 ring-slate-200">
+    <div
+      className="relative overflow-hidden rounded-lg ring-1 ring-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+      tabIndex={0}
+      role="group"
+      aria-label={`Plan ${sheet.name}: tap the spot, or use the arrow keys to move the pin${x != null && y != null ? ` (now at ${Math.round(x * 100)}% across, ${Math.round(y * 100)}% down)` : ""}`}
+      onKeyDown={onKey}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={img.url}
@@ -44,13 +65,14 @@ export function FormLocationPicker({ place, onSave, onClose }: { place: FormPlac
   const sheet = sheets.find((s) => s.id === sheetId);
   const onSheet = markers.filter((m) => m.sheetId === sheetId);
   const typeName = (m: Marker) => catalog.find((d) => d.id === m.deviceTypeId)?.name;
+  const dialog = useDialog(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label="Pin to plan" className="card animate-in max-h-[95dvh] w-full max-w-2xl space-y-3 overflow-auto rounded-b-none p-5 shadow-pop sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Pin to plan" className="card animate-in max-h-[95dvh] w-full max-w-2xl space-y-3 overflow-auto rounded-b-none p-5 shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">Pin to plan</h2>
-            <p className="text-sm text-slate-500">Tap the spot on the plan, or pick a device.</p>
+            <p className="text-sm text-slate-500">Tap the spot on the plan (or use the arrow keys), or pick a device.</p>
           </div>
           <button className="btn btn-sm btn-icon btn-ghost" aria-label="Close" onClick={onClose}>
             <X />

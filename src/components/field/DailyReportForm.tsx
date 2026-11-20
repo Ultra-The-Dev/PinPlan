@@ -21,7 +21,19 @@ import {
 } from "lucide-react";
 import { createElement, useEffect, useRef, useState, type ReactNode } from "react";
 import { parseHours, WEATHER_CHOICES, weatherKind, weatherLine, type CrewRow, type DailyWeather, type DelayRow, type WorkRow } from "@/lib/dailyReport";
-import type { Sheet } from "@/lib/types";
+import type { Sheet, TradeId } from "@/lib/types";
+
+/** Example text for the work and delivery lines, in the company's primary trade's words. */
+const TRADE_EXAMPLES: Record<TradeId, { work: string; delivery: string }> = {
+  lowvoltage: { work: "e.g. Pulled Cat6 to 12 drops", delivery: "e.g. 4 boxes Cat6 from ADI" },
+  electrical: { work: "e.g. Roughed in 14 boxes on the 2nd floor", delivery: "e.g. 10 rolls 12/2 NM-B" },
+  fire: { work: "e.g. Mounted 18 smoke detectors, 2nd floor", delivery: "e.g. 2 boxes of detector bases" },
+  hvac: { work: "e.g. Set the RTU and ran the supply trunk", delivery: "e.g. 6 sticks of 8\" duct" },
+  plumbing: { work: "e.g. Roughed in the 2nd floor bathrooms", delivery: "e.g. 20 sticks of 3/4\" PEX" },
+  solar: { work: "e.g. Mounted rails and 24 panels on the south roof", delivery: "e.g. 1 pallet of panels" },
+  general: { work: "e.g. Framed the kitchen walls", delivery: "e.g. 40 sheets of drywall" },
+};
+export const tradeExamples = (trade: TradeId | string | null | undefined) => TRADE_EXAMPLES[(trade ?? "lowvoltage") as TradeId] ?? TRADE_EXAMPLES.lowvoltage;
 
 const KIND_ICON: Record<string, LucideIcon> = {
   clear: Sun,
@@ -278,7 +290,7 @@ export function LineList({ items, onChange, placeholder, addLabel }: { items: st
   );
 }
 
-export function WorkRows({ work, onChange, sheets }: { work: WorkRow[]; onChange: (w: WorkRow[]) => void; sheets: Sheet[] }) {
+export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Cat6 to 12 drops" }: { work: WorkRow[]; onChange: (w: WorkRow[]) => void; sheets: Sheet[]; placeholder?: string }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => {
@@ -299,7 +311,7 @@ export function WorkRows({ work, onChange, sheets }: { work: WorkRow[]; onChange
                 refs.current[i] = el;
               }}
               className="input"
-              placeholder="e.g. Pulled Cat6 to 12 drops"
+              placeholder={placeholder}
               aria-label={`Work line ${i + 1}`}
               value={w.text}
               onChange={(e) => set(i, { text: e.target.value })}

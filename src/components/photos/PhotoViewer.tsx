@@ -6,13 +6,16 @@ import { toast } from "@/lib/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { db, newId, nowIso } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
-import { addTaskFromComment, commentTask, tagOptions, teamNames } from "@/lib/fieldDocs";
-import { getAuthor, mapsLink, renderPhoto } from "@/lib/photos";
+import { commentTask, tagOptions, teamNames } from "@/lib/fieldDocs";
+import { mapsLink, renderPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
-import { useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
+import { commentPlanTask, createdFromComment, isClosed, newTask, statusInfo, taskFromComment } from "@/lib/tasks";
 import type { Photo, PhotoComment } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
+import { useMe } from "@/lib/useMe";
+import { PersonSelect } from "../tasks/TaskUi";
+import { useProjectTasks, useTasks } from "../tasks/taskStore";
 import AnnotationSvg from "./AnnotationSvg";
 import Annotator from "./Annotator";
 import { AI_ENABLED } from "@/lib/features";
@@ -30,46 +33,50 @@ export function PhotoImage({ photo, className = "" }: { photo: Photo; className?
   );
 }
 
-/** "Make task" form for one comment: adds it to the job's punch list, linked back to the photo. */
-function MakeTask({ comment, names, onDone }: { comment: PhotoComment; names: string[]; onDone: () => void }) {
-  const { saveRow } = useEditor();
+/** "Make task" form for one comment: a task on the job (src/lib/tasks.ts) with the photo attached, where the photo is. */
+function MakeTask({ comment, photo, people, me, onDone }: { comment: PhotoComment; photo: Photo; people: string[]; me: string; onDone: () => void }) {
   const [text, setText] = useState(comment.text.trim());
   const [who, setWho] = useState("");
   const [due, setDue] = useState("");
-  const listId = `task-names-${comment.id}`;
+  const [saving, setSaving] = useState(false);
   return (
     <form
       className="mt-2 space-y-2 rounded-lg bg-white p-2.5 ring-1 ring-slate-200"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        // Read the checklists fresh so a task made right after another one doesn't overwrite it.
-        const r = addTaskFromComment(useEditor.getState().checklists, comment, { text, assignee: who, due }, newId, nowIso());
-        void saveRow("checklists", r.checklist);
-        toast(r.created ? "Punch list started with this task" : "Added to the punch list", "success");
-        onDone();
+        if (saving || !text.trim()) return;
+        setSaving(true);
+        try {
+          const st = useTasks.getState();
+          // Make sure the job's tasks are loaded, so the number continues the job's list.
+          if (st.projectId !== comment.projectId) await st.load(comment.projectId);
+          const at = nowIso();
+          const t = newTask({ id: newId(), projectId: comment.projectId, number: useTasks.getState().nextNumber(), ...taskFromComment(comment, photo, { text, assignee: who, due }) }, me, at, newId);
+          const saved = await useTasks.getState().save({ ...t, activity: [createdFromComment(comment.id, me, at, newId())] });
+          toast(`Task #${saved.number} added${saved.assignee ? ` for ${saved.assignee}` : ""}`, "success");
+          onDone();
+        } catch (err) {
+          toast(`Couldn't add the task: ${(err as Error).message}`, "error");
+          setSaving(false);
+        }
       }}
     >
-      <input className="input h-8" aria-label="Task" value={text} onChange={(e) => setText(e.target.value)} />
+      <input className="input h-11" aria-label="Task" value={text} onChange={(e) => setText(e.target.value)} />
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs">
-          <span className="label">Assigned to</span>
-          <input className="input h-8" list={listId} placeholder="Name" value={who} onChange={(e) => setWho(e.target.value)} />
-          <datalist id={listId}>
-            {names.map((n) => (
-              <option key={n} value={n} />
-            ))}
-          </datalist>
+          <span className="label">Assign</span>
+          <PersonSelect value={who} onChange={setWho} people={people} />
         </label>
         <label className="text-xs">
           <span className="label">Due</span>
-          <input type="date" className="input h-8" value={due} onChange={(e) => setDue(e.target.value)} />
+          <input type="date" className="input h-11" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-sm btn-brand" disabled={!text.trim()}>
-          <ListPlus /> Add to punch list
+        <button className="btn btn-brand h-11" disabled={!text.trim() || saving}>
+          <ListPlus /> {saving ? "Adding…" : "Add task"}
         </button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onDone}>
+        <button type="button" className="btn btn-ghost h-11" onClick={onDone}>
           Cancel
         </button>
       </div>
@@ -78,9 +85,8 @@ function MakeTask({ comment, names, onDone }: { comment: PhotoComment; names: st
 }
 
 export default function PhotoViewer({ photos, startId, onClose }: { photos: Photo[]; startId: string; onClose: () => void }) {
-  const { markers, photoComments, saveRow, removeRows, catalog, checklists, jobLogs } = useEditor();
+  const { markers, photoComments, saveRow, removeRows, catalog, checklists, jobLogs, project } = useEditor();
   const all = useEditor((s) => s.photos);
-  const { email } = useSyncStatus();
   const members = useTeam((s) => s.members);
   const [id, setId] = useState(startId);
   const [marking, setMarking] = useState(false);
@@ -100,7 +106,9 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const p = all.find((x) => x.id === photos[i]?.id) ?? photos[i];
   const comments = useMemo(() => photoComments.filter((c) => c.photoId === p?.id && !c.deleted), [photoComments, p?.id]);
   const options = useMemo(() => tagOptions(all), [all]);
-  const names = useMemo(() => teamNames({ photos: all, jobLogs, checklists, members }, getAuthor(email)), [all, jobLogs, checklists, members, email]);
+  const { me } = useMe();
+  const names = useMemo(() => teamNames({ photos: all, jobLogs, checklists, members }, me), [all, jobLogs, checklists, members, me]);
+  const planTasks = useProjectTasks(project?.id);
   const before = p?.beforeId ? all.find((x) => x.id === p.beforeId && !x.deleted) : undefined;
   const after = p ? all.find((x) => x.beforeId === p.id && !x.deleted) : undefined;
   const pair = before ? { before, after: p } : after ? { before: p, after } : null;
@@ -321,25 +329,33 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
           </span>
           <ul className="space-y-2">
             {comments.map((c) => {
-              const task = commentTask(checklists, c);
+              // Older comments were turned into punch-list items; newer ones into tasks.
+              const legacy = commentTask(checklists, c);
+              const planTask = legacy ? undefined : commentPlanTask(planTasks, c);
+              const made = !!legacy || !!planTask;
               return (
                 <li key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span className="min-w-0 flex-1">
                       <span className="font-medium text-slate-700">{c.author || "—"}</span> · {new Date(c.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                     </span>
-                    {task ? (
-                      <span className={`inline-flex items-center gap-1 font-medium ${task.item.done ? "text-emerald-700" : "text-brand-600"}`} title={`On “${task.checklist.name}”`}>
-                        <CheckSquare className="h-3.5 w-3.5" /> {task.item.done ? "Task done" : "Task"}
+                    {legacy ? (
+                      <span className={`inline-flex items-center gap-1 font-medium ${legacy.item.done ? "text-emerald-700" : "text-brand-600"}`} title={`On “${legacy.checklist.name}”`}>
+                        <CheckSquare className="h-3.5 w-3.5" /> {legacy.item.done ? "Task done" : "Task"}
+                      </span>
+                    ) : planTask ? (
+                      <span className={`inline-flex items-center gap-1 font-medium ${isClosed(planTask.status) ? "text-emerald-700" : "text-brand-600"}`} title={`${statusInfo(planTask.status).label}${planTask.assignee ? ` · ${planTask.assignee}` : ""}`}>
+                        <CheckSquare className="h-3.5 w-3.5" /> Task #{planTask.number}
+                        {isClosed(planTask.status) ? " done" : ""}
                       </span>
                     ) : (
-                      <button className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline" aria-expanded={tasking === c.id} onClick={() => setTasking(tasking === c.id ? null : c.id)}>
+                      <button className="inline-flex min-h-11 items-center gap-1 px-1 font-medium text-brand-600 hover:underline" aria-expanded={tasking === c.id} onClick={() => setTasking(tasking === c.id ? null : c.id)}>
                         <ListPlus className="h-3.5 w-3.5" /> Make task
                       </button>
                     )}
                   </div>
                   <div className="whitespace-pre-line">{c.text}</div>
-                  {tasking === c.id && !task && <MakeTask key={c.id} comment={c} names={names} onDone={() => setTasking(null)} />}
+                  {tasking === c.id && !made && <MakeTask key={c.id} comment={c} photo={p} people={names} me={me} onDone={() => setTasking(null)} />}
                 </li>
               );
             })}
@@ -350,7 +366,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               e.preventDefault();
               if (!comment.trim()) return;
               const now = nowIso();
-              void saveRow("photoComments", { id: newId(), projectId: p.projectId, photoId: p.id, author: getAuthor(email), text: comment.trim(), createdAt: now, updatedAt: now });
+              void saveRow("photoComments", { id: newId(), projectId: p.projectId, photoId: p.id, author: me, text: comment.trim(), createdAt: now, updatedAt: now });
               setComment("");
             }}
           >

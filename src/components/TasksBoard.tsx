@@ -1,19 +1,23 @@
 "use client";
 // Tasks across every job: open checklist / punch-list items that are assigned to someone, have a due date or came from a photo comment.
 import { TONE_TEXT } from "@/lib/statusStyle";
-import { CalendarDays, Camera, Check, ClipboardList, MapPin, UserRound } from "lucide-react";
+import { CalendarDays, Camera, Check, ClipboardList, ExternalLink, HardHat, MapPin, Plus, UserRound, X } from "lucide-react";
+// /tasks: every open task across jobs. Technicians open on their own (Mine, under any of their names); the office on
+// Everyone, overdue first. The Today card on top; "+ Add task" picks a job. Older checklist items that were assigned
+// on the checklist itself still show here, read-only, with a link to the item on its job.
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, newId, nowIso, put } from "@/lib/db";
 import { localDay, openTasks, TASK_BUCKETS, teamNames, type OpenTask } from "@/lib/fieldDocs";
-import { getAuthor } from "@/lib/photos";
-import { useSyncStatus } from "@/lib/sync";
-import { useTeam } from "@/lib/team";
+import { useRole, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
-import { applyTaskChange, openPlanTasksFor, priorityInfo, statusInfo, type OpenPlanTask } from "@/lib/tasks";
+import { applyTaskChange, newTask, nextTaskNumber, openPlanTasksFor, priorityInfo, sortOverdueFirst, statusInfo, type OpenPlanTask } from "@/lib/tasks";
 import type { Checklist, Photo, PlanTask, Project } from "@/lib/types";
 import { useBlobUrl } from "@/lib/useImage";
-import ThisWeekStrip from "./schedule/ThisWeekStrip";
+import { useMe } from "@/lib/useMe";
+import TodayCard from "./field/TodayCard";
+import { PersonSelect } from "./tasks/TaskUi";
+import { TASKS_EVENT, tasksChanged } from "./tasks/taskStore";
 
 const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
@@ -23,6 +27,8 @@ const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
   later: "text-slate-500",
   none: "text-slate-500",
 };
+const jobName = (p?: Project) => p?.address || p?.clientName || "Job";
+const itemHref = (t: OpenTask) => `/project?id=${t.project.id}&tab=field&section=checklists&cl=${t.checklist.id}&item=${t.item.id}`;
 
 /** Thumbnail of the photo a task was made from; opens the job's photos. */
 function TaskPhoto({ photo, href }: { photo: Photo; href: string }) {
@@ -36,16 +42,18 @@ function TaskPhoto({ photo, href }: { photo: Photo; href: string }) {
 }
 
 export default function TasksBoard() {
-  const { email } = useSyncStatus();
+  const { me, names: myNames } = useMe();
   const members = useTeam((s) => s.members);
-  const me = getAuthor(email);
+  const role = useRole();
   const [projects, setProjects] = useState<Project[]>([]);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
-  // Tasks pinned on plans (src/lib/tasks.ts), shown next to the checklist tasks.
+  // Tasks on jobs (src/lib/tasks.ts), and older assigned checklist items next to them.
   const [planTasks, setPlanTasks] = useState<PlanTask[]>([]);
   const [photos, setPhotos] = useState<Map<string, Photo>>(new Map());
-  const [who, setWho] = useState<string>("__me");
+  // "__auto" follows the role: Mine for technicians, Everyone for the office.
+  const [who, setWho] = useState<string>("__auto");
   const [today, setToday] = useState("");
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     setToday(localDay(new Date().toISOString()));
@@ -55,7 +63,7 @@ export default function TasksBoard() {
     const ids = [...new Set(cs.flatMap((c) => c.items.map((i) => i.photoId).filter((x): x is string => !!x)))];
     const ps = ids.length ? await db().photos.bulkGet(ids) : [];
     setPhotos(new Map(ps.filter((p): p is Photo => !!p && !p.deleted).map((p) => [p.id, p])));
-    setPlanTasks((await db().tasks.toArray()).filter((t) => !t.deleted));
+    setPlanTasks(await db().tasks.toArray());
     setChecklists(cs);
   }, []);
   useEffect(() => {
@@ -64,29 +72,31 @@ export default function TasksBoard() {
     const reload = () => void load();
     const onVisible = () => document.visibilityState === "visible" && reload();
     window.addEventListener("pinplan:synced", reload);
+    window.addEventListener(TASKS_EVENT, reload);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearTimeout(t);
       window.removeEventListener("pinplan:synced", reload);
+      window.removeEventListener(TASKS_EVENT, reload);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
 
-  const filter = who === "__me" ? me : who === "__all" ? null : who;
-  const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
+  const mode = who === "__auto" ? (role === "tech" ? "__me" : "__all") : who;
+  const filter: string[] | string | null = mode === "__me" ? myNames : mode === "__all" ? null : mode;
   const jobs = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
-  const planOpen = useMemo(
-    () => (today ? openPlanTasksFor(filter, planTasks.filter((t) => jobs.has(t.projectId)), today) : []),
-    [planTasks, jobs, today, filter],
-  );
+  const liveTasks = useMemo(() => planTasks.filter((t) => !t.deleted && jobs.has(t.projectId)), [planTasks, jobs]);
+  const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
+  const planOpen = useMemo(() => (today ? sortOverdueFirst(openPlanTasksFor(filter, liveTasks, today)) : []), [liveTasks, today, filter]);
   const names = useMemo(() => {
     const ns = teamNames({ checklists: checklists ?? [], members }, me);
-    for (const t of planTasks) if (t.assignee?.trim() && !ns.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) ns.push(t.assignee.trim());
+    for (const t of liveTasks) if (t.assignee?.trim() && !ns.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) ns.push(t.assignee.trim());
     return ns.sort((a, b) => a.localeCompare(b));
-  }, [checklists, members, me, planTasks]);
+  }, [checklists, members, me, liveTasks]);
+  // Same count as the job's "Mine" chip (mineOpenFilter), plus older assigned checklist items.
   const mineCount = useMemo(
-    () => (checklists && today ? openTasks({ projects, checklists }, { today, who: me }).length + openPlanTasksFor(me, planTasks.filter((t) => jobs.has(t.projectId)), today).length : 0),
-    [projects, checklists, today, me, planTasks, jobs],
+    () => (checklists && today ? openTasks({ projects, checklists }, { today, who: myNames }).length + openPlanTasksFor(myNames, liveTasks, today).length : 0),
+    [projects, checklists, today, myNames, liveTasks],
   );
 
   async function completePlanTask(t: OpenPlanTask) {
@@ -94,45 +104,44 @@ export default function TasksBoard() {
     const cur = (await db().tasks.get(t.task.id)) ?? t.task;
     await put("tasks", applyTaskChange(cur, { status: "done" }, me, nowIso(), newId));
     toast(`Completed: #${t.task.number} ${t.task.title}`, "success");
-    await load();
+    tasksChanged();
   }
 
-  async function complete(t: OpenTask) {
-    // Read the checklist fresh: ticking two items quickly must not overwrite the first with a stale copy.
-    const c = (await db().checklists.get(t.checklist.id)) ?? t.checklist;
-    await put("checklists", { ...c, items: c.items.map((i) => (i.id === t.item.id ? { ...i, done: true, doneBy: me, doneAt: nowIso() } : i)) });
-    toast(`Done: ${t.item.text}`, "success");
-    await load();
-  }
-
+  const whoLabel = mode === "__me" ? "you" : mode === "__all" ? "" : mode;
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <h1 className="page-title">Tasks</h1>
-          <p className="mt-1 text-sm text-slate-500">Open plan tasks, and checklist and punch-list items with someone assigned or a due date, across every job.</p>
+          <p className="mt-1 text-sm text-slate-500">Open tasks on every job, overdue first.</p>
         </div>
-        <select className="input h-9 w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose tasks">
-          <option value="__me">Mine ({me}) · {mineCount}</option>
+        <Link href="/schedule" className="btn h-10" title="Crew board: who is on which job each day">
+          <HardHat /> Crew
+        </Link>
+        <select className="input h-10 w-auto" value={mode} onChange={(e) => setWho(e.target.value)} aria-label="Whose tasks">
+          <option value="__me">Mine · {mineCount}</option>
           <option value="__all">Everyone</option>
           {names
-            .filter((n) => n.toLowerCase() !== me.toLowerCase())
+            .filter((n) => !myNames.some((m) => m.toLowerCase() === n.toLowerCase()))
             .map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
         </select>
+        <button className="btn btn-brand h-10" onClick={() => setAdding(true)} disabled={!projects.length} title={projects.length ? undefined : "Add a job first"}>
+          <Plus /> Add task
+        </button>
       </div>
 
-      <ThisWeekStrip me={me} />
+      <TodayCard />
 
       {checklists && tasks.length === 0 && planOpen.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <ClipboardList className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">No open tasks{filter ? ` for ${filter}` : ""}</div>
+          <div className="font-medium">{whoLabel ? `No open tasks for ${whoLabel}` : "No open tasks"}</div>
           <p className="max-w-md text-sm text-slate-500">
-            On a job’s <strong>Field → Checklists</strong>, start a <strong>Punch list</strong> (or any checklist) and tap the person icon on an item to assign it and set a due date.
+            Tap <strong>Add task</strong> to give someone something to do on a job. Tasks also come from the plan, photo comments, checklists and forms.
           </p>
         </div>
       )}
@@ -147,35 +156,29 @@ export default function TasksBoard() {
               {b.name} · {list.length + plan.length}
             </h2>
             <ul className="card divide-y divide-slate-100">
+              {plan.map((t) => (
+                <PlanTaskRow key={t.task.id} t={t} project={jobs.get(t.task.projectId)!} onComplete={() => void completePlanTask(t)} />
+              ))}
               {list.map((t) => (
-                <li key={`${t.checklist.id}:${t.item.id}`} className="flex items-start gap-3 px-4 py-3">
-                  {t.item.requiresPhoto ? (
-                    // Needs a photo: ticking it here would leave it "done" without the proof, so open the job instead.
-                    <Link
-                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white text-amber-600 ring-1 ring-amber-300 hover:bg-amber-50"
-                      href={`/project?id=${t.project.id}&tab=field`}
-                      aria-label={`Open the job to add a photo and tick: ${t.item.text}`}
-                      title="Needs a photo — tick it on the job so you can add one"
-                    >
-                      <Camera className="h-3.5 w-3.5" />
+                // Older checklist item assigned on the checklist: read-only here, opens the item on its job.
+                <li key={`${t.checklist.id}:${t.item.id}`} className="flex items-start gap-2 px-2 py-1.5 sm:px-3">
+                  <Link
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-50"
+                    href={itemHref(t)}
+                    aria-label={`Open on the job's checklist: ${t.item.text}`}
+                    title={t.item.requiresPhoto ? "Needs a photo — tick it on the job's checklist" : "Tick it on the job's checklist"}
+                  >
+                    {t.item.requiresPhoto ? <Camera className="h-5 w-5 text-amber-600" /> : <ExternalLink className="h-5 w-5" />}
+                  </Link>
+                  <div className="min-w-0 flex-1 py-2">
+                    <Link href={itemHref(t)} className="text-sm font-medium hover:underline">
+                      {t.item.text}
                     </Link>
-                  ) : (
-                    <button
-                      className="group mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500 focus-visible:ring-emerald-500"
-                      onClick={() => void complete(t)}
-                      aria-label={`Mark done: ${t.item.text}`}
-                      title="Mark done"
-                    >
-                      <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
-                    </button>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{t.item.text}</div>
                     <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
                       <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${t.project.id}&tab=field`}>
-                        {t.project.address || t.project.clientName || "Job"}
+                        {jobName(t.project)}
                       </Link>
-                      <span>{t.checklist.name}</span>
+                      <span>On checklist “{t.checklist.name}”</span>
                       {t.item.assignee && (
                         <span className="inline-flex items-center gap-1">
                           <UserRound className="h-3 w-3" /> {t.item.assignee}
@@ -192,33 +195,29 @@ export default function TasksBoard() {
                   {t.item.photoId && photos.get(t.item.photoId) && <TaskPhoto photo={photos.get(t.item.photoId)!} href={`/project?id=${t.project.id}&tab=photos`} />}
                 </li>
               ))}
-              {plan.map((t) => (
-                <PlanTaskRow key={t.task.id} t={t} project={jobs.get(t.task.projectId)!} onComplete={() => void completePlanTask(t)} />
-              ))}
             </ul>
           </section>
         );
       })}
+
+      {adding && <AddTask projects={projects} people={[me, ...names.filter((n) => n.toLowerCase() !== me.toLowerCase())]} me={me} defaultWho={mode === "__me" ? me : mode === "__all" ? "" : mode} onClose={() => setAdding(false)} />}
     </div>
   );
 }
 
-/** A task pinned on a plan: tick to mark it Completed (the office verifies it); the title opens it on the job. */
+/** A task ticks to Completed (the office verifies it); the title opens it on the job. */
 function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Project; onComplete: () => void }) {
   const s = statusInfo(t.task.status);
   const p = priorityInfo(t.task.priority);
-  const href = `/project?id=${project.id}&tab=field&tf=&task=${t.task.id}`;
+  const href = `/project?id=${project.id}&tab=field&section=tasks&tf=&task=${t.task.id}`;
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
-      <button
-        className="group mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 hover:bg-emerald-50 hover:ring-emerald-500 focus-visible:ring-emerald-500"
-        onClick={onComplete}
-        aria-label={`Mark completed: #${t.task.number} ${t.task.title}`}
-        title="Mark completed"
-      >
-        <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
+    <li className="flex items-start gap-2 px-2 py-1.5 sm:px-3">
+      <button className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" onClick={onComplete} aria-label={`Mark completed: #${t.task.number} ${t.task.title}`} title="Mark completed">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 group-hover:bg-emerald-50 group-hover:ring-emerald-500 group-focus-visible:ring-emerald-500">
+          <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
+        </span>
       </button>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 py-2">
         <Link href={href} className="text-sm font-medium hover:underline">
           <span className="mr-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white tabular-nums" style={{ background: s.color }}>
             {t.task.number}
@@ -227,7 +226,7 @@ function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Pro
         </Link>
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${project.id}&tab=field`}>
-            {project.address || project.clientName || "Job"}
+            {jobName(project)}
           </Link>
           <span className="inline-flex items-center gap-1">
             <MapPin className="h-3 w-3" /> {s.label}
@@ -247,5 +246,92 @@ function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Pro
         </div>
       </div>
     </li>
+  );
+}
+
+/** "+ Add task" on /tasks: pick the job, say what to do, assign a team member and a due date. */
+function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Project[]; people: string[]; me: string; defaultWho: string; onClose: () => void }) {
+  const sorted = useMemo(() => [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [projects]);
+  const [projectId, setProjectId] = useState(sorted[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [assignee, setAssignee] = useState(defaultWho);
+  const [due, setDue] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  async function save() {
+    if (saving || !title.trim() || !projectId) return;
+    setSaving(true);
+    try {
+      // Number after every task on that job on this device (deleted ones too, so a number isn't reused).
+      const all = await db().tasks.where("projectId").equals(projectId).toArray();
+      const t = newTask({ id: newId(), projectId, number: nextTaskNumber(all), title, assignee: assignee || null, due: due || null, checklist: [], photoIds: [] }, me, nowIso(), newId);
+      await put("tasks", t);
+      tasksChanged();
+      toast(`Task #${t.number} added${t.assignee ? ` for ${t.assignee}` : ""}`, "success");
+      onClose();
+    } catch (e) {
+      toast(`Couldn't add the task: ${(e as Error).message}`, "error");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add task"
+        className="card animate-in w-full max-w-md space-y-3 rounded-b-none p-4 shadow-pop sm:rounded-b-xl sm:p-5"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <h2 className="min-w-0 flex-1 text-base font-semibold">Add task</h2>
+          <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+            <X />
+          </button>
+        </div>
+        <label className="block">
+          <span className="label">Job</span>
+          <select className="input h-11" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            {sorted.map((p) => (
+              <option key={p.id} value={p.id}>
+                {jobName(p)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="label">What needs doing</span>
+          <input className="input h-11" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Replace cracked cover plate in kitchen" />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="label">Assign</span>
+            <PersonSelect value={assignee} onChange={setAssignee} people={people} />
+          </label>
+          <label className="block">
+            <span className="label">Due</span>
+            <input type="date" className="input h-11" value={due} onChange={(e) => setDue(e.target.value)} />
+          </label>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" className="btn h-11" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-brand h-11 px-5" disabled={!title.trim() || !projectId || saving}>
+            {saving ? "Saving…" : "Add task"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

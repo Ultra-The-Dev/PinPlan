@@ -1,9 +1,9 @@
 "use client";
 // Field → Tasks: every task on the job. Filters live in the address (&tf=) so they survive a reload; sort; select
 // several for bulk changes (status, assignee, due, category, priority, delete); download a filtered task / punch PDF.
-import { CheckSquare, FileDown, ListTodo, Plus, Search, Square, Trash2, X } from "lucide-react";
+import { CheckSquare, FileDown, ListTodo, Plus, Search, SlidersHorizontal, Square, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { db, newId, nowIso } from "@/lib/db";
 import { downloadBlob, slug } from "@/lib/download";
 import { localDay } from "@/lib/fieldDocs";
@@ -17,7 +17,9 @@ import {
   encodeTaskFilter,
   filterIsEmpty,
   filterTasks,
+  isMineFilter,
   isOverdue,
+  mineOpenFilter,
   PRIORITIES,
   priorityInfo,
   statusCounts,
@@ -51,9 +53,11 @@ export default function TaskList() {
   const params = useSearchParams();
   const router = useRouter();
   const tasks = useProjectTasks(project?.id);
-  const { me, role, people, categories } = useTaskOptions(tasks);
+  const { me, myNames, role, people, categories } = useTaskOptions(tasks);
   const filter = useMemo(() => decodeTaskFilter(params.get("tf")), [params]);
-  const [sort, setSort] = useState<TaskSort>("number");
+  // Due date first: overdue and due-soon tasks at the top, no date last.
+  const [sort, setSort] = useState<TaskSort>("due");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quick, setQuick] = useState<QuickDraft | null>(null);
   const [confirm, setConfirm] = useState<"delete" | "category" | null>(null);
@@ -75,7 +79,31 @@ export default function TaskList() {
   const sheetName = (id: string | null | undefined) => sheets.find((s) => s.id === id)?.name;
   const picked = shown.filter((t) => selected.has(t.id));
   const toggle = <T,>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
-  const mine = filter.assignee?.length === 1 && filter.assignee[0].toLowerCase() === me.toLowerCase();
+  const mine = isMineFilter(filter, myNames);
+  const mineCount = useMemo(() => filterTasks(tasks, mineOpenFilter(myNames), today).length, [tasks, myNames, today]);
+  // Filters other than the quick chips (Mine, Overdue): shown as a count on the "Filter" button.
+  const moreFilters = [filter.priority?.length, !mine && filter.assignee?.length, filter.category?.length, filter.sheetId != null, filter.due && filter.due !== "overdue", filter.text?.trim(), filter.tags?.length].filter(Boolean).length;
+
+  // Technicians open on their own open tasks (once, when the address has no filter yet).
+  const techDefault = useRef(false);
+  useEffect(() => {
+    if (techDefault.current || role !== "tech" || params.has("tf") || !project) return;
+    techDefault.current = true;
+    const q = new URLSearchParams(params.toString());
+    q.set("tf", encodeTaskFilter(mineOpenFilter(myNames)));
+    router.replace(`/project?${q.toString()}`, { scroll: false });
+  }, [role, params, project, myNames, router]);
+  // My names can grow after the first render (the team loads, the device name is read): a "Mine" filter made with the
+  // earlier names follows, so tasks assigned under the new name show and the chip stays on.
+  const prevNames = useRef(myNames);
+  useEffect(() => {
+    const before = prevNames.current;
+    prevNames.current = myNames;
+    if (before === myNames || !isMineFilter(filter, before) || isMineFilter(filter, myNames)) return;
+    const q = new URLSearchParams(params.toString());
+    q.set("tf", encodeTaskFilter({ ...filter, assignee: [...myNames] }));
+    router.replace(`/project?${q.toString()}`, { scroll: false });
+  }, [myNames, filter, params, router]);
 
   if (!project) return null;
 
@@ -229,12 +257,32 @@ export default function TaskList() {
           )}
         </div>
         <button className="btn btn-brand" onClick={() => setQuick({ sheetId: filter.sheetId || null, x: null, y: null })}>
-          <Plus /> Task
+          <Plus /> Add task
         </button>
       </div>
 
+      {/* Quick filters; the rest behind "Filter" */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip on={mine} onClick={() => setFilter(mine ? { ...filter, assignee: [], status: [] } : { ...filter, ...mineOpenFilter(myNames) })} title={`Open tasks assigned to ${me}`}>
+          Mine <span className="tabular-nums opacity-80">{mineCount}</span>
+        </Chip>
+        <Chip on={filter.due === "overdue"} color="#dc2626" onClick={() => setFilter({ ...filter, due: filter.due === "overdue" ? null : "overdue" })}>
+          Overdue
+        </Chip>
+        <button className={`btn h-10 ${filtersOpen || moreFilters ? "btn-on" : ""}`} onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="task-filters">
+          <SlidersHorizontal /> Filter{moreFilters ? ` · ${moreFilters}` : ""}
+        </button>
+        <select className="input ml-auto h-10 w-auto" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label="Sort">
+          <option value="due">Sort: due date</option>
+          <option value="number">Sort: number</option>
+          <option value="priority">Sort: priority</option>
+          <option value="status">Sort: status</option>
+        </select>
+      </div>
+
       {/* Filters */}
-      <div className="card space-y-3 p-3">
+      {filtersOpen && (
+      <div className="card space-y-3 p-3" id="task-filters">
         <form
           className="relative"
           onSubmit={(e) => {
@@ -246,20 +294,14 @@ export default function TaskList() {
           <input className="input pl-9" placeholder="Search tasks or #number" value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (filter.text ?? "") && setFilter({ ...filter, text })} aria-label="Search tasks" />
         </form>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Chip small on={mine} onClick={() => setFilter({ ...filter, assignee: mine ? [] : [me] })}>
-            Mine
-          </Chip>
-          <Chip small on={filter.due === "overdue"} color="#dc2626" onClick={() => setFilter({ ...filter, due: filter.due === "overdue" ? null : "overdue" })}>
-            Overdue
-          </Chip>
           {PRIORITIES.map((p) => (
             <Chip small key={p.id} on={!!filter.priority?.includes(p.id)} color={p.color} onClick={() => setFilter({ ...filter, priority: toggle(filter.priority, p.id) })}>
               {p.label}
             </Chip>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <select className="input h-9" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label="Assignee">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <select className="input h-9" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label="Assigned to">
             <option value="">Anyone</option>
             <option value="__none">Unassigned</option>
             {people.map((p) => (
@@ -292,14 +334,10 @@ export default function TaskList() {
             <option value="week">Due this week</option>
             <option value="none">No due date</option>
           </select>
-          <select className="input h-9" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label="Sort">
-            <option value="number">Sort: number</option>
-            <option value="due">Sort: due date</option>
-            <option value="priority">Sort: priority</option>
-            <option value="status">Sort: status</option>
-          </select>
         </div>
-        {!filterIsEmpty(filter) && (
+      </div>
+      )}
+      {!filterIsEmpty(filter) && (
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="min-w-0 flex-1 truncate">
               {shown.length} of {tasks.length} · {filterSummary(filter, sheetName)}
@@ -315,7 +353,6 @@ export default function TaskList() {
             </button>
           </div>
         )}
-      </div>
 
       {/* List */}
       {tasks.length === 0 ? (
@@ -323,7 +360,7 @@ export default function TaskList() {
           <ListTodo className="h-8 w-8 text-slate-300" />
           <div className="font-medium">No tasks yet</div>
           <p className="max-w-md text-sm text-slate-500">
-            On the <strong>Plan</strong>, tap the pin button (or press Shift+T) and tap the spot. Or add a general task here.
+            Tap <strong>Add task</strong> for something to do on this job, or on the <strong>Plan</strong> tap the pin button (Shift+T) and tap the spot.
           </p>
         </div>
       ) : (

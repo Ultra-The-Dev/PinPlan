@@ -14,7 +14,8 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
   const tasks = useProjectTasks(projectId);
   const { me, role, people, categories } = useTaskOptions(tasks);
   const sheets = useEditor((s) => s.sheets);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(draft.title ?? "");
+  const [due, setDue] = useState("");
   const [status, setStatus] = useState<TaskStatus>("open");
   // Explicit picks win over what the title says; undefined = follow the title.
   const [priority, setPriority] = useState<TaskPriority | null | undefined>(undefined);
@@ -54,6 +55,9 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
           x: draft.x,
           y: draft.y,
           room: draft.room ?? null,
+          markerId: draft.markerId ?? null,
+          description: draft.description ?? null,
+          due: due || null,
           checklist: [],
           photoIds: [],
           closedAt: status === "done" ? at : null,
@@ -79,7 +83,7 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
   return (
     <Portal>
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[75] flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4"
       onClick={onClose}
       onKeyDown={(e) => {
         // Keep keys away from the plan's shortcuts behind; Escape closes.
@@ -142,13 +146,17 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
             </Chip>
           ))}
         </ChipRow>
-        <ChipRow label="Assignee">
+        <ChipRow label="Assign">
           {people.map((p) => (
             <Chip key={p} on={who === p} onClick={() => setAssignee(who === p ? null : p)}>
               {p === me ? "Me" : p}
             </Chip>
           ))}
         </ChipRow>
+        <label className="block">
+          <span className="label">Due</span>
+          <input type="date" className="input h-11 w-auto" value={due} onChange={(e) => setDue(e.target.value)} />
+        </label>
         <ChipRow label="Category">
           {categories.map((c) => (
             <Chip key={c} on={cat === c} onClick={() => setCategory(cat === c ? null : c)}>

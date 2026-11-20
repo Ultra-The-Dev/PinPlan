@@ -24,7 +24,20 @@ import {
   taskCategoryOptions,
   taskPinColor,
   taskPlacement,
+  commentPlanTask,
+  createdFromComment,
+  formTaskDrafts,
+  formTaskNote,
+  isMineFilter,
+  mineOpenFilter,
+  OPEN_STATUSES,
+  sortOverdueFirst,
+  taskFromChecklistItem,
+  taskFromComment,
+  taskFromDevice,
 } from "@/lib/tasks";
+import { openTasks } from "@/lib/fieldDocs";
+import type { Checklist, Project } from "@/lib/types";
 import { cropRect } from "@/lib/tasks/planCrop";
 import type { PlanTask, TaskStatus } from "@/lib/types";
 
@@ -350,5 +363,113 @@ describe("tasks migration", () => {
     expect(sql).toMatch(/tasks_verify_guard before insert or update on public\.tasks/);
     expect(sql).toMatch(/if not public\.is_tech\(\) then\s+return new;/);
     expect(sql).not.toMatch(/raise exception/);
+  });
+});
+
+describe("one task model", () => {
+  const names = ["Mike", "Mike Jones", "mjones"];
+  const list = [
+    task({ id: "a", number: 1, assignee: "Mike", due: "2026-11-25" }),
+    task({ id: "b", number: 2, assignee: "mike jones", due: "2026-11-18", status: "in_progress" }),
+    task({ id: "c", number: 3, assignee: "MJONES", status: "ready" }),
+    task({ id: "d", number: 4, assignee: "Mike", status: "done" }),
+    task({ id: "e", number: 5, assignee: "Mike", status: "verified" }),
+    task({ id: "f", number: 6, assignee: "Ann", due: "2026-11-10" }),
+    task({ id: "g", number: 7, assignee: "Mike", deleted: true }),
+    task({ id: "h", number: 8 }),
+  ];
+
+  it("Mine matches any of my names; the job list and /tasks count the same", () => {
+    expect(OPEN_STATUSES).toEqual(["open", "in_progress", "ready"]);
+    const board = openPlanTasksFor(names, list, TODAY);
+    expect(board.map((t) => t.task.id)).toEqual(["b", "a", "c"]);
+    // Parity: the job's "Mine" chip (filterTasks + mineOpenFilter) and the /tasks board (openPlanTasksFor).
+    expect(filterTasks(list, mineOpenFilter(names), TODAY).length).toBe(board.length);
+    for (const who of [["Ann"], ["Mike"], ["nobody"]]) expect(filterTasks(list, mineOpenFilter(who), TODAY).length).toBe(openPlanTasksFor(who, list, TODAY).length);
+    // A single name still works as before.
+    expect(openPlanTasksFor("Mike", list, TODAY).map((t) => t.task.id)).toEqual(["a"]);
+    expect(openPlanTasksFor([], list, TODAY).map((t) => t.task.id)).toEqual(["f", "b", "a", "c"]);
+  });
+
+  it("knows when the filter is exactly me", () => {
+    expect(isMineFilter(mineOpenFilter(names), names)).toBe(true);
+    expect(isMineFilter({ assignee: ["mike", "MIKE JONES", "mjones"] }, names)).toBe(true);
+    expect(isMineFilter({ assignee: ["Mike"] }, names)).toBe(false);
+    expect(isMineFilter({ assignee: [...names, "Ann"] }, names)).toBe(false);
+    expect(isMineFilter({}, names)).toBe(false);
+  });
+
+  it("office view: overdue first", () => {
+    const all = sortOverdueFirst(openPlanTasksFor(null, list, TODAY));
+    expect(all.map((t) => [t.task.id, t.bucket])).toEqual([
+      ["f", "overdue"],
+      ["b", "overdue"],
+      ["a", "week"],
+      ["c", "none"],
+    ]);
+  });
+
+  it("a photo comment becomes a task with the photo, its place, and a link back to the comment", () => {
+    const c = { id: "cm1", text: " Cover missing ", author: "Ann", photoId: "ph1" };
+    const fields = taskFromComment(c, { sheetId: "s1", room: " Lobby ", markerId: "m1" }, { assignee: " Mike ", due: "2026-11-20" });
+    expect(fields).toEqual({ title: "Cover missing", description: "From Ann’s photo comment", assignee: "Mike", due: "2026-11-20", photoIds: ["ph1"], sheetId: "s1", room: "Lobby", markerId: "m1" });
+    expect(taskFromComment(c, null, { text: "Edited", due: "soon" })).toMatchObject({ title: "Edited", due: null, sheetId: null, assignee: null });
+    const t = { ...newTask({ id: "t9", projectId: "p1", number: 9, ...fields }, "Ann", T0, ids), activity: [createdFromComment("cm1", "Ann", T0, "ev")] };
+    expect(commentPlanTask([task(), t], { id: "cm1" })?.id).toBe("t9");
+    expect(commentPlanTask([{ ...t, deleted: true }], { id: "cm1" })).toBeUndefined();
+    expect(commentPlanTask([t], { id: "other" })).toBeUndefined();
+  });
+
+  it("a form's No answers become tasks once", () => {
+    const failed = [{ text: "Breakers labeled — No" }, { text: "Panel cover on — No" }, { text: "breakers labeled — no" }];
+    const drafts = formTaskDrafts([], { name: "Panel inspection", sheetId: "s1" }, failed);
+    expect(drafts).toEqual([
+      { title: "Breakers labeled — No", description: formTaskNote("Panel inspection"), sheetId: "s1", markerId: null },
+      { title: "Panel cover on — No", description: "From form “Panel inspection”", sheetId: "s1", markerId: null },
+    ]);
+    const made = drafts.map((d, i) => task({ id: `f${i}`, number: i + 1, ...d }));
+    expect(formTaskDrafts(made, { name: "Panel inspection" }, failed)).toEqual([]);
+    // Deleted ones can be made again; another form's are separate.
+    expect(formTaskDrafts(made.map((t) => ({ ...t, deleted: true })), { name: "Panel inspection" }, failed)).toHaveLength(2);
+    expect(formTaskDrafts(made, { name: "Rough-in" }, failed)).toHaveLength(2);
+  });
+
+  it("checklist items and device issues prefill a task", () => {
+    expect(taskFromChecklistItem({ name: "Trim-out " }, { text: " Plates on ", due: "2026-11-21", photoId: "p0" }, ["p1", "p0"])).toEqual({
+      title: "Plates on",
+      description: "From checklist “Trim-out”",
+      due: "2026-11-21",
+      photoIds: ["p0", "p1"],
+    });
+    expect(taskFromDevice({ id: "m1", sheetId: "s1", x: 0.2, y: 0.3, room: "Kitchen" }, "C3", " Box missing ")).toEqual({
+      title: "Fix C3",
+      description: "Box missing",
+      sheetId: "s1",
+      x: 0.2,
+      y: 0.3,
+      room: "Kitchen",
+      markerId: "m1",
+    });
+  });
+
+  it("older assigned checklist items still show on /tasks, for any of my names", () => {
+    const projects: Project[] = [{ id: "p1", clientName: "", address: "1 Main", status: "estimate", billduDocs: [], createdAt: T0, updatedAt: T0 }];
+    const checklists: Checklist[] = [
+      {
+        id: "c1",
+        projectId: "p1",
+        name: "Punch list",
+        items: [
+          { id: "i1", text: "Old item", assignee: "mike jones", due: "2026-11-18" },
+          { id: "i2", text: "Done", assignee: "Mike", done: true },
+          { id: "i3", text: "Ann's", assignee: "Ann" },
+        ],
+        createdAt: T0,
+        updatedAt: T0,
+      },
+    ];
+    expect(openTasks({ projects, checklists }, { today: TODAY, who: names }).map((t) => t.item.id)).toEqual(["i1"]);
+    expect(openTasks({ projects, checklists }, { today: TODAY, who: "Ann" }).map((t) => t.item.id)).toEqual(["i3"]);
+    expect(openTasks({ projects, checklists }, { today: TODAY, who: [] }).map((t) => t.item.id)).toEqual(["i1", "i3"]);
   });
 });
