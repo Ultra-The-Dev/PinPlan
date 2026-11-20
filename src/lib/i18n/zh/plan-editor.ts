@@ -220,7 +220,6 @@ const planEditor: Dictionary = {
   Measure: "测量",
   "Device labels": "设备标签",
   Fit: "适合",
-  "Drop a task": "放置任务",
   "Finish a run being drawn": "结束正在绘制的线路",
   "Delete what's selected (Edit)": "删除所选内容（编辑）",
   "Undo / redo": "撤销 / 重做",

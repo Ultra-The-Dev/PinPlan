@@ -92,21 +92,35 @@ for (const name of [...PHONES, ...TABLETS]) {
       await check(page, `${job}&tab=overview`, "job overview");
       await fingerSized(page.getByRole("link", { name: "Back to jobs" }), "Back to jobs");
       const tabs = page.getByRole("navigation", { name: "Job sections" }).filter({ visible: true });
-      for (const label of ["Overview", "Plan", "Takeoff", "Field"]) await fingerSized(tabs.getByRole("button", { name: label, exact: true }), `job tab ${label}`);
+      // Phones: Plan · Tasks · Photos · Money · More; tablets: every tab in the header.
+      const jobTabs = phone ? ["Plan", "Tasks", "Photos", "Money", "More"] : ["Overview", "Plan", "Takeoff", "Tasks", "Photos", "Money", "Field"];
+      for (const label of jobTabs) await fingerSized(tabs.getByRole("button", { name: label, exact: true }), `job tab ${label}`);
+      if (phone) {
+        await tabs.getByRole("button", { name: "More", exact: true }).click();
+        for (const label of ["Overview", "Takeoff", "Field"]) await fingerSized(tabs.getByRole("button", { name: label, exact: true }), `More → ${label}`);
+        await tabs.getByRole("button", { name: "Takeoff", exact: true }).click();
+        await expect(page).toHaveURL(/tab=takeoff/);
+        await expect(tabs.getByRole("button", { name: "More", exact: true })).toHaveAttribute("aria-current", "page");
+      }
 
       await check(page, `${job}&tab=field&section=today`, "field today");
       await fingerSized(page.getByRole("button", { name: /Take photo/ }).first(), "Take photo");
       const field = page.getByRole("navigation", { name: "Field sections" });
-      for (const label of ["Today", "Tasks", "Daily log", "Files", "More"]) await fingerSized(field.getByRole("button", { name: label }), `field section ${label}`);
+      for (const label of ["Today", "Daily log", "Files", "More"]) await fingerSized(field.getByRole("button", { name: label }), `field section ${label}`);
 
-      await check(page, `${job}&tab=field&section=tasks`, "field tasks");
+      await check(page, `${job}&tab=tasks`, "tasks");
       await fingerSized(page.getByRole("button", { name: "Add task" }).first(), "Add task");
       await fingerSized(page.getByRole("button", { name: /^Mine/ }).first(), "Mine filter");
       await fingerSized(page.getByRole("button", { name: /^Open \d/ }).first(), "Open status chip");
 
       await check(page, `${job}&tab=field&section=checklists`, "checklists");
       await check(page, `${job}&tab=field&section=logs`, "daily log");
-      await check(page, `${job}&tab=field&section=photos`, "job photos");
+      await check(page, `${job}&tab=photos`, "job photos");
+      await fingerSized(page.getByRole("button", { name: "Add photos" }).first(), "Add photos");
+      // Old Field links open the new tabs.
+      await page.goto(`${job}&tab=field&section=photos`);
+      await expect(page).toHaveURL(/tab=photos/);
+      await expect(page).not.toHaveURL(/section=/);
       await check(page, `${job}&tab=takeoff`, "takeoff");
       await check(page, `${job}&tab=money&step=pricing`, "money pricing");
       await check(page, `${job}&tab=money&step=invoices`, "money invoices");
@@ -128,6 +142,9 @@ for (const name of [...PHONES, ...TABLETS]) {
         await noSidewaysScroll(page, "plan");
         for (const label of ["Zoom in", "Zoom out"]) await fingerSized(page.getByRole("button", { name: label, exact: true }), label);
         await fingerSized(page.getByRole("button", { name: "Measure takeoff" }), "Measure");
+        // The plan is for devices: no task button or task creation until Task pins are switched on in Layers.
+        await expect(page.getByTestId("tasks-open")).toHaveCount(0);
+        await expect(page.getByTestId("task-add")).toHaveCount(0);
         const tools = page.getByRole("toolbar", { name: "Plan tools" });
         const n = await tools.getByRole("button").count();
         for (let i = 0; i < n; i++) {

@@ -5,7 +5,7 @@ import type { Dictionary } from "../types";
 const dict: Dictionary = {
   // Field tab (FieldTab)
   Field: "Campo",
-  "What to do today, tasks, checklists, the daily log and files for this job.": "O que fazer hoje, tarefas, checklists, o diário de obra e os arquivos desta obra.",
+  "What to do today, checklists, the daily log and files for this job.": "O que fazer hoje, checklists, o diário de obra e os arquivos desta obra.",
   "Field sections": "Seções de Campo",
   "{name} sections": "Seções: {name}",
   Today: "Hoje",
@@ -413,11 +413,12 @@ const dict: Dictionary = {
   "Tap where the copy of #{number} goes": "Toque onde vai a cópia da nº {number}",
   "Tap the new spot for the task": "Toque no novo local da tarefa",
   "Cancel dropping a task": "Cancelar colocação da tarefa",
-  "Add a task: tap the plan where it goes (Shift+T)": "Adicionar tarefa: toque na planta onde ela vai (Shift+T)",
   "Filter task pins": "Filtrar pinos de tarefas",
   "Show tasks": "Mostrar tarefas",
   "Grey out the others instead of hiding them": "Esmaecer as outras em vez de ocultá-las",
-  "No tasks on this sheet yet. Tap + Task, then tap the plan.": "Nenhuma tarefa nesta folha ainda. Toque em + Tarefa e depois na planta.",
+  "No tasks on this sheet. Add tasks in the Tasks tab.": "Nenhuma tarefa nesta folha. Adicione tarefas na aba Tarefas.",
+  "Show tasks for every device": "Mostrar as tarefas de todos os dispositivos",
+  "Show photos of every device": "Mostrar as fotos de todos os dispositivos",
   "no spot": "sem ponto",
   "Open the job's photos": "Abrir as fotos da obra",
   you: "você",
@@ -475,9 +476,9 @@ const dict: Dictionary = {
     one: "{n} item a corrigir antes de enviar",
     other: "{n} itens a corrigir antes de enviar",
   },
-  "{n} task added — see Field → Tasks": {
-    one: "{n} tarefa adicionada — veja Campo → Tarefas",
-    other: "{n} tarefas adicionadas — veja Campo → Tarefas",
+  "{n} task added — see Tasks": {
+    one: "{n} tarefa adicionada — veja Tarefas",
+    other: "{n} tarefas adicionadas — veja Tarefas",
   },
   "{n} cell to fix": { one: "{n} célula a corrigir", other: "{n} células a corrigir" },
   Yes: "Sim",

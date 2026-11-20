@@ -242,7 +242,6 @@ const dict: Dictionary = {
   Measure: "Pomiar",
   "Device labels": "Etykiety urządzeń",
   Fit: "Dopasuj",
-  "Drop a task": "Dodaj zadanie",
   "Finish a run being drawn": "Zakończ rysowaną trasę",
   "Delete what's selected (Edit)": "Usuń zaznaczone (edycja)",
   "Undo / redo": "Cofnij / ponów",

@@ -162,7 +162,7 @@ describe("filterTasks", () => {
     task({ id: "a", number: 1, status: "open", priority: 1, category: "Electrical", assignee: "Mike", due: "2026-11-18", sheetId: "s1", x: 0.1, y: 0.1, tags: ["lobby"] }),
     task({ id: "b", number: 2, status: "done", priority: 2, category: "HVAC", assignee: "Ann", due: "2026-11-17", sheetId: "s1" }),
     task({ id: "c", number: 3, status: "in_progress", assignee: "mike", due: TODAY, title: "Smoke detector", description: "Kitchen ceiling" }),
-    task({ id: "d", number: 4, status: "ready", category: "electrical", due: "2026-11-25", sheetId: "s2", room: "Lobby" }),
+    task({ id: "d", number: 4, status: "ready", category: "electrical", due: "2026-11-25", sheetId: "s2", room: "Lobby", markerId: "m1" }),
     task({ id: "e", number: 5, status: "open", due: "2026-12-30" }),
     task({ id: "f", number: 6, status: "open", deleted: true }),
   ];
@@ -188,6 +188,12 @@ describe("filterTasks", () => {
     expect(ids_({ due: "today" })).toEqual(["c"]);
     expect(ids_({ due: "week" })).toEqual(["c", "d"]);
     expect(ids_({ due: "none" })).toEqual([]);
+  });
+  it("narrows to one device (the device card's tasks on the plan)", () => {
+    expect(ids_({ markerId: "m1" })).toEqual(["d"]);
+    expect(ids_({ markerId: "m2" })).toEqual([]);
+    expect(filterIsEmpty({ markerId: "m1" })).toBe(false);
+    expect(decodeTaskFilter(encodeTaskFilter({ markerId: "m1" }))).toEqual({ markerId: "m1" });
   });
   it("searches text, #number and tags", () => {
     expect(ids_({ text: "smoke kitchen" })).toEqual(["c"]);

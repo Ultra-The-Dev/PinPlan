@@ -5,7 +5,7 @@ import type { Dictionary } from "../types";
 const dict: Dictionary = {
   // Field tab (FieldTab)
   Field: "Campo",
-  "What to do today, tasks, checklists, the daily log and files for this job.": "Lo que hay que hacer hoy, tareas, listas de verificación, la bitácora diaria y archivos de esta obra.",
+  "What to do today, checklists, the daily log and files for this job.": "Lo que hay que hacer hoy, listas de verificación, la bitácora diaria y archivos de esta obra.",
   "Field sections": "Secciones de Campo",
   "{name} sections": "Secciones de {name}",
   Today: "Hoy",
@@ -413,11 +413,12 @@ const dict: Dictionary = {
   "Tap where the copy of #{number} goes": "Toca donde va la copia de #{number}",
   "Tap the new spot for the task": "Toca el nuevo lugar para la tarea",
   "Cancel dropping a task": "Cancelar poner tarea",
-  "Add a task: tap the plan where it goes (Shift+T)": "Agregar una tarea: toca el plano donde va (Shift+T)",
   "Filter task pins": "Filtrar marcadores de tareas",
   "Show tasks": "Mostrar tareas",
   "Grey out the others instead of hiding them": "Atenuar las demás en vez de ocultarlas",
-  "No tasks on this sheet yet. Tap + Task, then tap the plan.": "Todavía no hay tareas en esta hoja. Toca + Tarea y luego toca el plano.",
+  "No tasks on this sheet. Add tasks in the Tasks tab.": "No hay tareas en esta hoja. Agrega tareas en la pestaña Tareas.",
+  "Show tasks for every device": "Mostrar las tareas de todos los dispositivos",
+  "Show photos of every device": "Mostrar las fotos de todos los dispositivos",
   "no spot": "sin ubicación",
   "Open the job's photos": "Abrir las fotos de la obra",
   you: "ti",
@@ -475,9 +476,9 @@ const dict: Dictionary = {
     one: "{n} cosa por corregir antes de enviar",
     other: "{n} cosas por corregir antes de enviar",
   },
-  "{n} task added — see Field → Tasks": {
-    one: "{n} tarea agregada — ve a Campo → Tareas",
-    other: "{n} tareas agregadas — ve a Campo → Tareas",
+  "{n} task added — see Tasks": {
+    one: "{n} tarea agregada — ve a Tareas",
+    other: "{n} tareas agregadas — ve a Tareas",
   },
   "{n} cell to fix": { one: "{n} celda por corregir", other: "{n} celdas por corregir" },
   Yes: "Sí",

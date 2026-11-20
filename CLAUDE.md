@@ -29,10 +29,14 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   and `src/app/api/scan` (Claude vision). Secrets never go to the browser.
 - Quotes / invoices / credit notes (Dexie `salesDocs`, `salesPayments`; `src/lib/documents.ts`, `src/components/documents/`):
   data model, numbering (given by the database when issued) and RPCs in `docs/documents.md`. Office only, like the estimate.
-- **Navigation** (`docs/navigation.md`): job tabs Overview · Plan · Takeoff · Money (office) · Field. Money
-  (`src/components/money/MoneyTab.tsx`, `step=pricing|quote|changes|invoices`) holds pricing, quotes, change orders and
-  invoices; Field (`src/components/field/FieldTab.tsx`, `section=…`) holds checklists, logs, tasks, schedule, photos.
-  Old `?tab=` values map through `src/lib/tabRoutes.ts`. Words come from the glossary in `docs/ux-audit.md`.
+- **Navigation** (`docs/navigation.md`): job tabs Overview · Plan · Takeoff · Tasks · Photos · Money (office) · Field;
+  phones get Plan · Tasks · Photos · Money (technicians: Field) · More. The plan is for devices: task pins and photo
+  badges are Layers switches, off by default; no task creation on the plan; the device card links to its photos and
+  tasks. Tasks (`src/components/tasks/TasksTab.tsx`), Photos (`src/components/photos/PhotosTab.tsx`, `device=`
+  filter). Money (`src/components/money/MoneyTab.tsx`, `step=pricing|quote|changes|invoices`) holds pricing, quotes,
+  change orders and invoices; Field (`src/components/field/FieldTab.tsx`, `section=…`) holds today, checklists &
+  forms, logs, files, RFIs, schedule, progress. Old `?tab=` values (incl. `field&section=tasks|photos`) map through
+  `src/lib/tabRoutes.ts`. Words come from the glossary in `docs/ux-audit.md`.
 - **Plan overlays**: features that draw on the plan (markups, measurements, tasks, install progress, sheet links,
   revisions) register through `registerPlanOverlay` (`src/lib/planOverlays.ts`), imported once from
   `src/components/editor/overlays/index.ts`. `PlanCanvas` knows only overlays in general. iOS: `PlanOverlayRegistry`.

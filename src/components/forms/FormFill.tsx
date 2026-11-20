@@ -236,7 +236,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
     if (!drafts.length) return toast(t("Those answers already have tasks"));
     const at = nowIso();
     for (const d of drafts) await useTasks.getState().save(newTask({ id: newId(), projectId: f.projectId, number: useTasks.getState().nextNumber(), ...d }, me, at, newId));
-    toast(t.tn("{n} task added — see Field → Tasks", "{n} tasks added — see Field → Tasks", drafts.length), "success");
+    toast(t.tn("{n} task added — see Tasks", "{n} tasks added — see Tasks", drafts.length), "success");
   }
 
   async function addPhotos(files: FileList | null) {

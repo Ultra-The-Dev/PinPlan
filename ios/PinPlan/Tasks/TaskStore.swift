@@ -4,13 +4,14 @@ import PinPlanCore
 // Tasks pinned on the plan (Tasks/TaskPinsOverlay.swift): shared UI state (drop mode, selection, filters) and the edits, kept out of EditorModel.
 // Pure rules live in PinPlanCore (Tasks.swift), shared with the web app.
 
-/// A spot picked on the plan for a new task (sheetId nil = general task).
+/// Where a new task is: a sheet (nil = general task), maybe a spot on it, maybe a device.
 struct TaskDraft: Identifiable {
     let id = UUID()
     var sheetId: String?
     var x: Double?
     var y: Double?
     var room: String?
+    var markerId: String?
 }
 
 /// Opens a task's detail sheet.
@@ -39,9 +40,10 @@ final class TaskOverlayState {
     var selectedId: String?
     var detail: TaskRef?
     var quick: TaskDraft?
-    /// Which pins show on the plan (the Field › Tasks list has its own).
+    /// Which pins show on the plan (the Tasks section's list has its own).
     var filter = TaskFilter()
-    var showPins = true
+    /// Task pins are a plan layer, off by default: the plan is for devices (Layers → "Task pins").
+    var showPins = false
     var greyOthers = false
     var dragging: TaskPinDrag?
 }
@@ -130,6 +132,7 @@ extension EditorModel {
         t.x = draft.x
         t.y = draft.y
         t.room = draft.room
+        t.markerId = draft.markerId
         t.photoIds = photoIds
         t.checklist = []
         if status == .done || status == .verified { t.closedAt = now }

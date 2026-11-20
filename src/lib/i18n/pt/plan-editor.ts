@@ -231,7 +231,6 @@ const planEditor: Dictionary = {
   Measure: "Medir",
   "Device labels": "Etiquetas dos dispositivos",
   Fit: "Ajustar",
-  "Drop a task": "Marcar uma tarefa",
   "Finish a run being drawn": "Concluir o lance em traçado",
   "Delete what's selected (Edit)": "Excluir o que está selecionado (Editar)",
   "Undo / redo": "Desfazer / refazer",

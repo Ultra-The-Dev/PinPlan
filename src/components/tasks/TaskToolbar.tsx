@@ -1,9 +1,9 @@
 "use client";
-// Tasks on the plan (HTML side of the tasks overlay, in the plan's right-hand rail): one Tasks button (open count)
-// opens a panel with "+ Task" (also Shift+T: the next tap on the plan drops a task there), filters and the sheet's
-// task list. Showing / hiding the pins is in Layers ("Show on plan"); the button turns red while pins are hidden.
-// Also hosts the drop hint, the quick-create sheet and the task detail for the plan.
-import { ListTodo, MapPinPlus, SlidersHorizontal, X } from "lucide-react";
+// Tasks on the plan (HTML side of the tasks overlay, in the plan's right-hand rail). The plan is for devices: tasks are
+// made in the Tasks tab, and their pins show here only when "Task pins" is switched on in Layers ("Show on plan",
+// off by default). Then one Tasks button (open count) opens a panel with filters and the sheet's task list. Also hosts
+// the drop hint (placing or copying an existing task from the Tasks tab), and the task detail for the plan.
+import { ListTodo, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { localDay } from "@/lib/fieldDocs";
 import { newId, nowIso } from "@/lib/db";
@@ -15,7 +15,7 @@ import type { PlanTask, Sheet } from "@/lib/types";
 import TaskDetail from "./TaskDetail";
 import TaskQuickCreate from "./TaskQuickCreate";
 import { Chip, DueText, Portal, TaskBadge, useTaskOptions } from "./TaskUi";
-import { isTaskDropKey, useProjectTasks, useTasks } from "./taskStore";
+import { useProjectTasks, useTasks } from "./taskStore";
 import { t, useT } from "@/lib/i18n";
 
 export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
@@ -33,14 +33,10 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
   const hidden = !showPins || (active && !greyOthers && pinned.some((tk) => !taskMatches(tk, filter, today)));
   const openOnSheet = sheetTasks.filter((tk) => !isClosed(tk.status)).length;
 
-  // Shift+T: drop a task; Escape: stop dropping. The plan's shared key rules apply (isTaskDropKey / planKeyBlocked).
-  // The plan editor's own key handler has no Shift+T, so this one stays here.
+  // Escape: stop placing a task. The plan's shared key rules apply (planKeyBlocked).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTaskDropKey(e)) {
-        e.preventDefault();
-        startDrop();
-      } else if (e.key === "Escape" && useTasks.getState().drop && !planKeyBlocked(e)) {
+      if (e.key === "Escape" && useTasks.getState().drop && !planKeyBlocked(e)) {
         useTasks.getState().arm(null);
       }
     };
@@ -50,20 +46,13 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
   // Leaving the plan (or the job) mid-drop must not leave a drop armed.
   useEffect(() => () => useTasks.getState().arm(null), []);
 
-  function startDrop() {
-    // Dropping a task owns the next plan tap: Measure, Markups, Walk, the Link tool and device tools close.
-    if (useTasks.getState().drop?.kind !== "new") claimPlanInput("task-drop");
-    useEditor.getState().setTool({ kind: "select" });
-    useTasks.getState().arm(useTasks.getState().drop?.kind === "new" ? null : { kind: "new" });
-    setOpen(false);
-  }
-
   const toggle = <T,>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
   const mine = filter.assignee?.length === 1 && filter.assignee[0].toLowerCase() === me.toLowerCase();
 
   const btn = "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-700 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900";
   return (
     <div className="relative">
+      {showPins && (
       <button
         className={`${btn} ${drop ? "!bg-brand-600 !text-white" : open ? "!bg-slate-100" : ""} ${hidden && !drop ? "!text-red-600 !ring-red-300" : ""}`}
         onClick={() => setOpen((o) => !o)}
@@ -75,6 +64,7 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
         <ListTodo className="h-5 w-5" />
         {openOnSheet > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-red-600 px-1 text-center text-[11px] leading-5 font-semibold text-white ring-2 ring-white">{openOnSheet}</span>}
       </button>
+      )}
 
       {drop && (
         // Centred on the screen above the bottom buttons.
@@ -89,12 +79,9 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
         </Portal>
       )}
 
-      {open && (
+      {open && showPins && (
         <aside className="card animate-in pointer-events-auto absolute top-0 right-full z-30 mr-2 flex max-h-[calc(100dvh-260px)] min-h-40 w-[min(22rem,calc(100vw-5rem))] flex-col overflow-hidden shadow-pop" data-testid="tasks-panel">
           <div className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-2">
-            <button className={`btn btn-sm ${drop?.kind === "new" ? "btn-on" : "btn-brand"}`} onClick={startDrop} title={t("Add a task: tap the plan where it goes (Shift+T)")} data-testid="task-add">
-              <MapPinPlus /> {t("Task")}
-            </button>
             <span className="mr-auto min-w-0 truncate pl-1 text-sm font-semibold">
               {t.tn("{n} task", "{n} tasks", sheetTasks.length)}
             </span>
@@ -149,7 +136,7 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
           )}
 
           {sheetTasks.length === 0 ? (
-            <p className="p-4 text-sm text-slate-500">{t("No tasks on this sheet yet. Tap + Task, then tap the plan.")}</p>
+            <p className="p-4 text-sm text-slate-500">{t("No tasks on this sheet. Add tasks in the Tasks tab.")}</p>
           ) : (
             <ul className="scroll-thin min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
               {sheetTasks.map((tk) => (

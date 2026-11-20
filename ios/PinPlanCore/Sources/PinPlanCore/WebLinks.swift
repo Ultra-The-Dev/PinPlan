@@ -2,14 +2,15 @@ import Foundation
 
 /// Paths of the Northpin web app pages the iPad/iPhone app opens in Safari (joined to the server with
 /// `BillingLogic.webURL`). Mirrors docs/navigation.md: `/` is the public home page and the app's jobs list is `/jobs`;
-/// a job is `/project?id=…&tab=…` with the five tabs and their sub-views (`src/lib/tabRoutes.ts`). Old tab ids
-/// (`billing`, `changes`, `estimate`…) still redirect on the web, but links from the app use the current ones.
+/// a job is `/project?id=…&tab=…` with the seven tabs and their sub-views (`src/lib/tabRoutes.ts`). Old tab ids
+/// (`billing`, `changes`, `estimate`, `field&section=tasks`…) still redirect on the web, but links from the app use
+/// the current ones.
 public enum WebLinks {
     /// The web app's jobs list. Never "" or "/": that is the marketing home page now.
     public static let jobs = "jobs"
 
-    /// The five job tabs (`JOB_TABS` in src/lib/tabRoutes.ts).
-    public enum Tab: String, CaseIterable, Sendable { case overview, plan, takeoff, money, field }
+    /// The job tabs (`JOB_TABS` in src/lib/tabRoutes.ts).
+    public enum Tab: String, CaseIterable, Sendable { case overview, plan, takeoff, tasks, photos, money, field }
 
     /// `project?id=<id>&tab=<tab>&<params…>`, the id percent-encoded.
     public static func job(_ id: String, tab: Tab, _ params: [(String, String)] = []) -> String {
@@ -24,6 +25,10 @@ public enum WebLinks {
     public static func invoices(job id: String) -> String { job(id, tab: .money, [("step", "invoices")]) }
     /// Money › Change orders.
     public static func changeOrders(job id: String) -> String { job(id, tab: .money, [("step", "changes")]) }
+    /// Tasks (one task with `task`).
+    public static func tasks(job id: String, task: String? = nil) -> String { job(id, tab: .tasks, task.map { [("task", $0)] } ?? []) }
+    /// Photos (one device's with `device`, a marker id).
+    public static func photos(job id: String, device: String? = nil) -> String { job(id, tab: .photos, device.map { [("device", $0)] } ?? []) }
     /// Field › RFIs.
     public static func rfis(job id: String) -> String { job(id, tab: .field, [("section", "rfis")]) }
     /// Field › Schedule.

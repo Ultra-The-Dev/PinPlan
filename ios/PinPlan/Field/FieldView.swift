@@ -3,20 +3,19 @@ import QuickLook
 import UniformTypeIdentifiers
 import PinPlanCore
 
-/// Field documentation for the job: checklists, daily logs, documents, the timeline, tasks, forms, RFIs and the
-/// schedule. Technicians get a Today card on top (TodayCard.swift); everyone gets one quiet "More on the web" row.
+/// Field documentation for the job: checklists, daily logs, documents, the timeline, forms, RFIs and the schedule.
+/// Tasks and photos are job sections of their own (ProjectTab). Technicians get a Today card on top (TodayCard.swift);
+/// everyone gets one quiet "More on the web" row.
 struct FieldView: View {
     enum Part: String, CaseIterable, Identifiable {
-        case photos = "Photos", checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", tasks = "Tasks", forms = "Forms", rfis = "RFIs", schedule = "Schedule"
+        case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", forms = "Forms", rfis = "RFIs", schedule = "Schedule"
         var id: String { rawValue }
         var icon: String {
             switch self {
-            case .photos: return "photo.on.rectangle"
             case .checklists: return "checklist"
             case .logs: return "book.closed"
             case .documents: return "doc"
             case .timeline: return "clock.arrow.circlepath"
-            case .tasks: return "person.crop.circle.badge.checkmark"
             case .forms: return "list.clipboard"
             case .rfis: return "questionmark.bubble"
             case .schedule: return "calendar"
@@ -26,61 +25,46 @@ struct FieldView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
-    /// When given, Photos is one of this view's sections (bound to the job's "open photos" link), so the Field tab
-    /// has one section control instead of a Photos switch above this one.
-    private let photos: Binding<Bool>?
     @State private var section: Part
 
-    init(model: EditorModel, photos: Binding<Bool>? = nil) {
+    init(model: EditorModel) {
         self.model = model
-        self.photos = photos
         var start: Part = .checklists
         // Screenshot hook: `--field logs|documents|timeline`.
         let a = ProcessInfo.processInfo.arguments
         if let i = a.firstIndex(of: "--field"), a.indices.contains(i + 1) {
-            switch a[i + 1] { case "logs": start = .logs; case "documents": start = .documents; case "timeline": start = .timeline; case "tasks": start = .tasks; case "forms": start = .forms; case "rfis": start = .rfis; case "schedule": start = .schedule; case "photos" where photos != nil: start = .photos; default: break }
+            switch a[i + 1] { case "logs": start = .logs; case "documents": start = .documents; case "timeline": start = .timeline; case "forms": start = .forms; case "rfis": start = .rfis; case "schedule": start = .schedule; default: break }
         }
-        if photos?.wrappedValue == true { start = .photos }
         _section = State(initialValue: start)
     }
 
-    /// Sections offered here: Photos only when this view owns it.
-    private var parts: [Part] { photos == nil ? Part.allCases.filter { $0 != .photos } : Part.allCases }
+    private var parts: [Part] { Part.allCases }
 
     var body: some View {
         VStack(spacing: 0) {
             // Technicians get Today on top; everyone gets the quiet row to what only the web does.
-            if section != .photos {
-                VStack(spacing: 6) {
-                    if app.cloud.role == .tech { TodayCard(model: model) { section = $0 } }
-                    MoreOnWebRow(model: model)
-                }
-                .padding([.horizontal, .top])
+            VStack(spacing: 6) {
+                if app.cloud.role == .tech { TodayCard(model: model) { section = $0 } }
+                MoreOnWebRow(model: model)
             }
+            .padding([.horizontal, .top])
             sectionPicker
                 .padding([.horizontal, .top])
                 .padding(.bottom, 8)
             switch section {
-            case .photos: PhotosView(model: model)
             case .checklists: ChecklistsView(model: model)
             case .logs: DailyLogsView(model: model)
             case .documents: DocumentsView(model: model)
             case .timeline: TimelineView(model: model)
             case .forms: FormsListView(model: model)
-            case .tasks: TaskListView(model: model)
             case .rfis: RfiListView(model: model)
             case .schedule: ScheduleLookaheadView(model: model)
             }
         }
-        // Keep the job's "open photos" link and this section in step both ways.
-        .onChange(of: section) { _, s in if let photos, photos.wrappedValue != (s == .photos) { photos.wrappedValue = s == .photos } }
-        .onChange(of: photos?.wrappedValue ?? false) { _, on in
-            if on { section = .photos } else if section == .photos { section = .checklists }
-        }
     }
 
     /// One control: labelled segments on iPad; on iPhone a single menu button showing the open section
-    /// (nine sections don't fit in a row, and a scrolling chip strip hides most of them).
+    /// (seven sections don't fit in a row, and a scrolling chip strip hides most of them).
     @ViewBuilder private var sectionPicker: some View {
         if hSize == .compact {
             sectionMenu

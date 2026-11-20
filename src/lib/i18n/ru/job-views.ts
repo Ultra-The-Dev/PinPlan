@@ -59,8 +59,8 @@ const jobViews: Dictionary = {
   "No plan sheets yet": "Листов плана пока нет",
   "Upload the plan set (PDF or phone photos) to start placing devices.":
     "Загрузите комплект планов (PDF или фото с телефона), чтобы начать расставлять устройства.",
-  "Field view": "Раздел «На объекте»",
-  "Field work": "Работы на объекте",
+  "Punch items and to-dos for this job: who does what, by when.": "Доделки и дела по этому объекту: кто что делает и к какому сроку.",
+  "Device: {name}": "Устройство: {name}",
   Photos: "Фото",
 
   // Jobs list (ProjectsList) and view toggle

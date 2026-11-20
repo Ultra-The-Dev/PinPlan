@@ -16,6 +16,12 @@ final class WebLinksTests: XCTestCase {
         XCTAssertEqual(WebLinks.rfis(job: "j1"), "project?id=j1&tab=field&section=rfis")
         XCTAssertEqual(WebLinks.schedule(job: "j1"), "project?id=j1&tab=field&section=schedule")
         XCTAssertEqual(WebLinks.job("a b&c", tab: .plan), "project?id=a%20b%26c&tab=plan")
+        // Tasks and Photos are tabs of their own (not Field sections any more).
+        XCTAssertEqual(WebLinks.tasks(job: "j1"), "project?id=j1&tab=tasks")
+        XCTAssertEqual(WebLinks.tasks(job: "j1", task: "t1"), "project?id=j1&tab=tasks&task=t1")
+        XCTAssertEqual(WebLinks.photos(job: "j1"), "project?id=j1&tab=photos")
+        XCTAssertEqual(WebLinks.photos(job: "j1", device: "m 1"), "project?id=j1&tab=photos&device=m%201")
+        XCTAssertEqual(WebLinks.Tab.allCases.map(\.rawValue), ["overview", "plan", "takeoff", "tasks", "photos", "money", "field"])
         // Every tab id is one the app's own router knows too.
         for t in WebLinks.Tab.allCases { XCTAssertNotNil(ProjectTabRoute.resolve(t.rawValue)) }
     }

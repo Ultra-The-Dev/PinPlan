@@ -213,7 +213,7 @@ export default function TasksBoard() {
 function PlanTaskRow({ t: pt, project, onComplete }: { t: OpenPlanTask; project: Project; onComplete: () => void }) {
   const s = statusInfo(pt.task.status);
   const p = priorityInfo(pt.task.priority);
-  const href = `/project?id=${project.id}&tab=field&section=tasks&tf=&task=${pt.task.id}`;
+  const href = `/project?id=${project.id}&tab=tasks&tf=&task=${pt.task.id}`;
   const t = useT();
   return (
     <li className="flex items-start gap-2 px-2 py-1.5 sm:px-3">

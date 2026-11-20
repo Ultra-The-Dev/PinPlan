@@ -1,7 +1,8 @@
 import SwiftUI
 import PinPlanCore
 
-/// Field › Tasks: every task on the job. Filter, sort, swipe to complete, select several for bulk changes.
+/// Tasks (a job section of its own): every task on the job. Filter (also by device, from a device's card on the plan:
+/// JobNav.taskDevice), sort, swipe to complete, select several for bulk changes. New tasks start here ("+ Task").
 struct TaskListView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
@@ -16,17 +17,23 @@ struct TaskListView: View {
     private var shown: [PlanTask] {
         var f = filter
         f.text = search
-        return TaskLogic.sortTasks(TaskLogic.filterTasks(model.bundle.liveTasks, f, today: TaskDates.today()), by: sort)
+        var list = TaskLogic.filterTasks(model.bundle.liveTasks, f, today: TaskDates.today())
+        if let d = JobNav.shared.taskDevice { list = list.filter { $0.markerId == d } }
+        return TaskLogic.sortTasks(list, by: sort)
     }
+
+    /// The device the list is narrowed to, if any.
+    private var device: Marker? { JobNav.shared.taskDevice.flatMap { id in model.bundle.liveMarkers.first { $0.id == id } } }
 
     var body: some View {
         let list = shown
         let all = model.bundle.liveTasks
         List {
             Section { filterBar }
+            if JobNav.shared.taskDevice != nil { Section { deviceFilter } }
             if all.isEmpty {
-                ContentUnavailableView("No tasks yet", systemImage: "mappin.and.ellipse",
-                                       description: Text("On the plan, tap the pin button and tap the spot. Or add a general task here."))
+                ContentUnavailableView("No tasks yet", systemImage: "checklist",
+                                       description: Text("Tap + Task to add one. Pick a sheet or a device if it belongs somewhere."))
                     .listRowBackground(Color.clear)
             } else if list.isEmpty {
                 Text("No tasks match the filter.").foregroundStyle(.secondary)
@@ -45,6 +52,32 @@ struct TaskListView: View {
             })
         }
         .sheet(item: $quick) { d in TaskQuickCreateSheet(model: model, draft: d) }
+        // A device card's "1 task" on the plan opens that task.
+        .onAppear(perform: openRequested)
+        .onChange(of: JobNav.shared.openTask) { _, _ in openRequested() }
+    }
+
+    private func openRequested() {
+        guard let id = JobNav.shared.openTask else { return }
+        JobNav.shared.openTask = nil
+        if model.planTask(id) != nil { detail = TaskRef(id: id) }
+    }
+
+    /// "Device: P3 · Indoor camera ×" while the list shows one device's tasks.
+    private var deviceFilter: some View {
+        let name = device.map { m in [m.label, app.type(m.deviceTypeId)?.name ?? ""].filter { !$0.isEmpty }.joined(separator: " · ") } ?? "—"
+        return Button { JobNav.shared.taskDevice = nil } label: {
+            HStack(spacing: 6) {
+                Text("Device: \(name)").lineLimit(1)
+                Image(systemName: "xmark.circle.fill")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 12).frame(minHeight: 36)
+            .background(Color.brand, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Shows tasks for every device")
     }
 
     private func row(_ t: PlanTask) -> some View {
@@ -131,7 +164,10 @@ struct TaskListView: View {
                     selecting.toggle()
                     picked = []
                 }
-                Button { quick = TaskDraft() } label: { Label("Task", systemImage: "plus") }
+                Button {
+                    // Narrowed to a device: the new task starts at that device.
+                    if let m = device { quick = TaskDraft(sheetId: m.sheetId, x: m.x, y: m.y, room: m.room.isEmpty ? nil : m.room, markerId: m.id) } else { quick = TaskDraft() }
+                } label: { Label("Task", systemImage: "plus") }
                     .buttonStyle(.borderedProminent)
             }
         }

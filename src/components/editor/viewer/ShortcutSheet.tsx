@@ -27,7 +27,6 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ["M", msg("Measure")],
       ["L", msg("Device labels")],
       ["F", msg("Fit")],
-      ["Shift T", msg("Drop a task")],
       ["Enter", msg("Finish a run being drawn")],
       ["Delete", msg("Delete what's selected (Edit)")],
       ["⌘ Z  ⇧⌘ Z", msg("Undo / redo")],

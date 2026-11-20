@@ -1,5 +1,5 @@
 "use client";
-import { Camera, Copy, Minus, Plus, Trash, X } from "lucide-react";
+import { Camera, Copy, ListTodo, Minus, Plus, Trash, X } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { closetMeta, MOUNTS, PANEL_KINDS } from "@/lib/catalog";
@@ -20,6 +20,9 @@ import { getAuthor, importPhoto } from "@/lib/photos";
 import { useSyncStatus } from "@/lib/sync";
 import { useBlobUrl } from "@/lib/useImage";
 import type { Photo } from "@/lib/types";
+import { encodeTaskFilter } from "@/lib/tasks";
+import { useProjectTasks } from "../tasks/taskStore";
+import { useJobNav } from "../nav/useJobNav";
 import type { CircuitInfo, ClosetKind, Mount, Run } from "@/lib/types";
 
 /** Text/number field that commits on blur or Enter (so typing doesn't flood undo history). */
@@ -320,6 +323,7 @@ function MarkerInspector({ id }: { id: string }) {
           </p>
         </div>
       </div>
+      <DeviceLinks markerId={m.id} />
       <div>
         <label className="label" htmlFor={`${uid}-device`}>{t("Device")}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-device`} value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value, productId: null })}>
@@ -654,6 +658,41 @@ function SiteThumb({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>
+  );
+}
+
+/**
+ * "N photos" and "N tasks" for a device, when it has any: one tap opens the Photos tab filtered to the device, or the
+ * task (the Tasks tab filtered to the device when there are several). The plan shows where; the tabs hold the rest.
+ */
+function DeviceLinks({ markerId }: { markerId: string }) {
+  const t = useT();
+  const { setTab } = useJobNav();
+  const projectId = useEditor((s) => s.project?.id);
+  const photos = useEditor((s) => s.photos).filter((p) => !p.deleted && p.markerId === markerId).length;
+  const tasks = useProjectTasks(projectId).filter((tk) => !tk.deleted && tk.markerId === markerId);
+  if (!photos && !tasks.length) return null;
+  const chip = "chip h-9 gap-1.5 bg-brand-50 px-3 text-sm font-medium text-brand-700 ring-1 ring-brand-200 hover:bg-brand-100 [&_svg]:h-4 [&_svg]:w-4";
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="device-links">
+      {photos > 0 && (
+        <button type="button" className={chip} onClick={() => setTab("photos", { device: markerId })} data-testid="device-photos">
+          <Camera />
+          {t.tn("{n} photo", "{n} photos", photos)}
+        </button>
+      )}
+      {tasks.length > 0 && (
+        <button
+          type="button"
+          className={chip}
+          onClick={() => setTab("tasks", tasks.length === 1 ? { tf: "", task: tasks[0].id } : { tf: encodeTaskFilter({ markerId }) })}
+          data-testid="device-tasks"
+        >
+          <ListTodo />
+          {t.tn("{n} task", "{n} tasks", tasks.length)}
+        </button>
+      )}
+    </div>
   );
 }
 

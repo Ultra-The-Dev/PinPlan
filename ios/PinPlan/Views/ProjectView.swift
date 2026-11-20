@@ -1,10 +1,12 @@
 import SwiftUI
 import PinPlanCore
 
-/// A job's five sections, the same on the web, iPad and iPhone (docs/ux-audit.md):
-/// Overview · Plan (+ manage plans) · Takeoff (+ wiring sheets) · Money (office only) · Field (photos, checklists, logs).
+/// A job's sections, the same on the web, iPad and iPhone (docs/navigation.md):
+/// Overview · Plan (+ manage plans) · Takeoff (+ wiring sheets) · Tasks · Photos · Money (office only) · Field
+/// (today, checklists, logs, files, forms, RFIs, schedule, history). The plan is for devices: tasks and photos have
+/// sections of their own, and a device's card on the plan links to its photos and tasks (JobNav).
 enum ProjectTab: String, CaseIterable, Identifiable {
-    case overview, plan, takeoff, money, field
+    case overview, plan, takeoff, tasks, photos, money, field
     var id: String { rawValue }
     var title: String { tr(rawValue.capitalized) }
     var icon: String {
@@ -12,13 +14,15 @@ enum ProjectTab: String, CaseIterable, Identifiable {
         case .overview: return "house"
         case .plan: return "mappin.and.ellipse"
         case .takeoff: return "list.number"
+        case .tasks: return "checklist"
+        case .photos: return "photo.on.rectangle"
         case .money: return "dollarsign.circle"
         case .field: return "checklist.checked"
         }
     }
 
     /// A page inside a section that a link can open straight away.
-    enum Page { case managePlans, wiring, photos }
+    enum Page { case managePlans, wiring }
 
     /// Where a tab id leads. Takes this enum's ids plus the older and web ids (JobSummary's next steps use the web
     /// ids: plan, sheets, photos, field, takeoff, estimate, crew, info). The mapping is PinPlanCore's ProjectTabRoute
@@ -29,10 +33,42 @@ enum ProjectTab: String, CaseIterable, Identifiable {
         switch r.page {
         case .managePlans?: page = .managePlans
         case .wiring?: page = .wiring
-        case .photos?: page = .photos
         case nil: page = nil
         }
         return (tab, page)
+    }
+}
+
+/// Requests to move around the open job from deep inside a section (the device card on the plan opens that device's
+/// photos or tasks), and the filters they carry. One shared instance, like TaskOverlayState; ProjectView follows it.
+@MainActor
+@Observable
+final class JobNav {
+    static let shared = JobNav()
+    /// The section to switch to (ProjectView clears it once done).
+    var go: ProjectTab?
+    /// Photos: only this device's (marker id), until cleared.
+    var photoDevice: String?
+    /// Tasks: only this device's (marker id), until cleared.
+    var taskDevice: String?
+    /// Tasks: open this task.
+    var openTask: String?
+
+    /// "N photos" on a device card: the Photos section, filtered to the device.
+    func photos(device: String) {
+        photoDevice = device
+        go = .photos
+    }
+
+    /// "N tasks" on a device card: the task itself when there is one, else the Tasks section filtered to the device.
+    func tasks(device: String, ids: [String]) {
+        if ids.count == 1 { openTask = ids[0]; taskDevice = nil } else { taskDevice = device }
+        go = .tasks
+    }
+
+    /// A different job opened: no filters carried over.
+    func reset() {
+        go = nil; photoDevice = nil; taskDevice = nil; openTask = nil
     }
 }
 
@@ -42,20 +78,28 @@ struct ProjectView: View {
     let bundle: ProjectBundle
     @State private var model: EditorModel?
     @State private var tab: ProjectTab = .overview
+    /// iPhone: the section last opened under More (shown again when More is tapped).
+    @State private var lastMore: ProjectTab = .overview
     @State private var showWiring = false
-    @State private var showPhotos = false
+
+    /// iPhone tab bar slots: four sections and More.
+    private enum PhoneSlot: Hashable { case section(ProjectTab), more }
 
     var body: some View {
         Group {
             if let model {
                 if hSize == .compact {
-                    // iPhone: native bottom tab bar (five sections at most, so nothing hides under "More").
-                    TabView(selection: $tab) {
-                        ForEach(tabs) { t in
+                    // iPhone: Plan · Tasks · Photos · Money (technicians: Field) · More (the other sections, with a
+                    // section switch on top). ProjectTabRoute.phoneTabs, the same as the web's phone bar.
+                    TabView(selection: phoneSlot) {
+                        ForEach(phoneBar) { t in
                             content(model, t)
                                 .tabItem { Label(t.title, systemImage: t.icon) }
-                                .tag(t)
+                                .tag(PhoneSlot.section(t))
                         }
+                        moreSection(model)
+                            .tabItem { Label("More", systemImage: "ellipsis.circle") }
+                            .tag(PhoneSlot.more)
                     }
                     .navigationTitle(title(model))
                     .navigationBarTitleDisplayMode(.inline)
@@ -78,7 +122,7 @@ struct ProjectView: View {
                                     }
                                     .pickerStyle(.segmented)
                                 }
-                                .frame(maxWidth: 560)
+                                .frame(maxWidth: 700)
                             }
                         }
                 }
@@ -98,11 +142,19 @@ struct ProjectView: View {
         .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
         // A technician has no Money tab (also when the role arrives with a sync while the job is open).
         .onChange(of: app.cloud.can(.prices)) { _, ok in if !ok && tab == .money { tab = .overview } }
+        // The device card on the plan asks for its photos or tasks.
+        .onChange(of: JobNav.shared.go) { _, go in
+            guard let go else { return }
+            if tabs.contains(go) { tab = go }
+            JobNav.shared.go = nil
+        }
+        .onChange(of: tab) { _, t in if phoneMore.contains(t) { lastMore = t } }
         // Every plan deleted from "Add or manage plans": the plan section is the import screen again, so don't let
         // the closed sheet pop back up after the next import.
         .onChange(of: model?.sheets.isEmpty ?? false) { _, empty in if empty { model?.showManagePlans = false } }
         .onAppear {
             if model == nil {
+                JobNav.shared.reset()
                 let m = EditorModel(bundle: bundle, app: app)
                 model = m
                 // A new job starts on its plan (the import screen until the first plan is in).
@@ -130,6 +182,40 @@ struct ProjectView: View {
         app.cloud.can(.prices) ? ProjectTab.allCases : ProjectTab.allCases.filter { $0 != .money }
     }
 
+    /// iPhone: the sections in the tab bar, and the ones under More.
+    private var phoneBar: [ProjectTab] {
+        ProjectTabRoute.phoneTabs(office: app.cloud.can(.prices)).bar.compactMap { ProjectTab(rawValue: $0.rawValue) }
+    }
+    private var phoneMore: [ProjectTab] {
+        ProjectTabRoute.phoneTabs(office: app.cloud.can(.prices)).more.compactMap { ProjectTab(rawValue: $0.rawValue) }
+    }
+
+    /// The tab bar's selection, read from and written to `tab`: a More section selects More.
+    private var phoneSlot: Binding<PhoneSlot> {
+        Binding(get: { phoneBar.contains(tab) ? .section(tab) : .more }, set: { slot in
+            switch slot {
+            case .section(let t): tab = t
+            case .more: if !phoneMore.contains(tab) { tab = phoneMore.contains(lastMore) ? lastMore : (phoneMore.first ?? .overview) }
+            }
+        })
+    }
+
+    /// iPhone More: a section switch (Overview · Takeoff · Field) over the chosen section.
+    @ViewBuilder
+    private func moreSection(_ model: EditorModel) -> some View {
+        let more = phoneMore
+        let shown = more.contains(tab) ? tab : (more.contains(lastMore) ? lastMore : (more.first ?? .overview))
+        VStack(spacing: 0) {
+            Picker("Section", selection: Binding(get: { shown }, set: { tab = $0 })) {
+                ForEach(more) { t in Text(t.title).tag(t) }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal).padding(.vertical, 8)
+            .background(Color(.systemBackground))
+            content(model, shown)
+        }
+    }
+
     /// Opens a section (and a page inside it) by id. Used by the Overview's next step and the screenshot hooks.
     private func open(_ id: String, model: EditorModel) {
         guard let r = ProjectTab.resolve(id), tabs.contains(r.tab) else { return }
@@ -137,7 +223,6 @@ struct ProjectView: View {
         switch r.page {
         case .managePlans: if !model.sheets.isEmpty { model.showManagePlans = true }
         case .wiring: showWiring = true
-        case .photos: showPhotos = true
         case nil: break
         }
     }
@@ -155,9 +240,11 @@ struct ProjectView: View {
                 PlanEditorView(model: model)
             }
         case .takeoff: TakeoffView(model: model, showWiring: $showWiring)
+        case .tasks: TaskListView(model: model).background(Color.paper)
+        case .photos: PhotosView(model: model).background(Color.paper)
         case .money:
             if app.cloud.can(.prices) { MoneyView(model: model) } else { OfficeOnlyView(what: String(localized: "Quotes, invoices")) }
-        case .field: JobFieldView(model: model, photos: $showPhotos)
+        case .field: JobFieldView(model: model)
         }
     }
 }
@@ -202,14 +289,13 @@ private struct QuotesAndInvoicesLink: View {
     }
 }
 
-/// Field: photos, plus checklists, daily logs, files, forms, tasks and history.
+/// Field: today, checklists, daily logs, files, forms, RFIs, schedule and history (tasks and photos are sections of
+/// their own).
 struct JobFieldView: View {
     let model: EditorModel
-    @Binding var photos: Bool
 
-    /// One section control: given the binding, FieldView lists Photos among its own sections.
     var body: some View {
-        FieldView(model: model, photos: $photos)
+        FieldView(model: model)
             .background(Color.paper)
     }
 }

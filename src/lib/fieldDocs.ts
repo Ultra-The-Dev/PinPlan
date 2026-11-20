@@ -462,19 +462,21 @@ export function pageTimeline(events: TimelineEvent[], limit = TIMELINE_PAGE): { 
 
 // ---------------- Field sections ----------------
 
-/** Every section of a job's Field tab a link can open (&section=…); the tab groups some of them. */
-export const FIELD_SECTIONS = ["today", "tasks", "checklists", "forms", "logs", "photos", "files", "rfis", "schedule", "progress", "timeline"] as const;
+/**
+ * Every section of a job's Field tab a link can open (&section=…); the tab groups some of them. Tasks and photos are
+ * job tabs of their own now (src/lib/tabRoutes.ts sends old section=tasks / section=photos links there).
+ */
+export const FIELD_SECTIONS = ["today", "checklists", "forms", "logs", "files", "rfis", "schedule", "progress", "timeline"] as const;
 export type FieldSection = (typeof FIELD_SECTIONS)[number];
 
 /** Old section names in saved links. */
 const FIELD_ALIASES: Record<string, FieldSection> = { docs: "files", documents: "files", history: "timeline", log: "logs" };
 
-/** The section to show: the address's, else Tasks for a task link, else Today for technicians and Tasks for the office. */
-export function pickFieldSection(asked: string | null | undefined, opts: { taskLink?: boolean; tech?: boolean }): FieldSection {
+/** The section to show: the address's, else Today (what to do today, for the office and technicians alike). */
+export function pickFieldSection(asked: string | null | undefined): FieldSection {
   const s = asked ? (FIELD_ALIASES[asked] ?? asked) : null;
   if (s && (FIELD_SECTIONS as readonly string[]).includes(s)) return s as FieldSection;
-  if (opts.taskLink) return "tasks";
-  return opts.tech ? "today" : "tasks";
+  return "today";
 }
 
 // ---------------- Today card ----------------

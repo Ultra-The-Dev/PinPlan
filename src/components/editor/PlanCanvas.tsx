@@ -15,6 +15,7 @@ import { MOUSE_HIT, TOUCH_HIT, hitTestPlan, type HitInput, type PlanHit } from "
 import { usePlanOverlays, type PlanOverlay, type PlanOverlayContext, type PlanTapEvent } from "@/lib/planOverlays";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
+import { usePhotoPins } from "../photos/photoPinsUi";
 import { iconFor } from "@/lib/symbols";
 import { tileClient, usePyramid } from "@/lib/tiles/tileClient";
 import type { Layer as LayerId, Sheet } from "@/lib/types";
@@ -148,11 +149,13 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
   // ---------------- what's drawn ----------------
 
   const typeById = useMemo(() => new Map(catalog.map((d) => [d.id, d])), [catalog]);
+  // Camera badges on devices with photos: a layer, off by default (Layers → Show on plan → Photos).
+  const photoBadges = usePhotoPins((s) => s.visible);
   const photoCount = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of photos) if (!p.deleted && p.markerId) m.set(p.markerId, (m.get(p.markerId) ?? 0) + 1);
+    if (photoBadges) for (const p of photos) if (!p.deleted && p.markerId) m.set(p.markerId, (m.get(p.markerId) ?? 0) + 1);
     return m;
-  }, [photos]);
+  }, [photos, photoBadges]);
 
   const sheetId = sheet.id;
   const view = useMemo(() => {

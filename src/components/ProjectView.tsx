@@ -9,7 +9,7 @@ import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole, useTeam } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
-import { JOB_TABS, OFFICE_ONLY_TABS, resolveJobTab, withParam } from "@/lib/tabRoutes";
+import { JOB_TABS, OFFICE_ONLY_TABS, phoneTabs, resolveJobTab, withParam } from "@/lib/tabRoutes";
 import type { ProjectStatus } from "@/lib/types";
 import { ChevronLeft, FileText } from "lucide-react";
 import AppHeader, { Logo } from "./AppHeader";
@@ -25,6 +25,7 @@ const TakeoffTab = dynamic(() => import("./TakeoffTab"), { loading });
 const MoneyTab = dynamic(() => import("./money/MoneyTab"), { loading });
 const FieldTab = dynamic(() => import("./field/FieldTab"), { loading });
 const PhotosTab = dynamic(() => import("./photos/PhotosTab"), { loading });
+const TasksTab = dynamic(() => import("./tasks/TasksTab"), { loading });
 const ManageSheetsDrawer = dynamic(() => import("./SheetsTab").then((m) => m.ManageSheetsDrawer), { loading: () => null });
 
 const STATUS_STYLE: Record<ProjectStatus, string> = { estimate: statusChip("estimate"), approved: statusChip("approved"), installed: statusChip("installed") };
@@ -36,7 +37,7 @@ export default function ProjectView() {
   const id = params.get("id") ?? "";
   const office = can(useRole(), "prices");
   const t = useT();
-  // Old tab ids (?tab=sheets, billing, crew, …) and technicians asking for Money resolve to one of the five tabs; the
+  // Old tab ids (?tab=sheets, billing, crew, field&section=tasks, …) and technicians asking for Money resolve to a tab; the
   // URL is then rewritten so the sub-view (Money step, Field section, …) reads its own param.
   // Old `?tab=billing&doc=…` links (bookmarks, older emails) have no step: stay on Invoices & payments when that's where you were.
   const [lastMoneyStep, setLastMoneyStep] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function ProjectView() {
   // Remembered while rendering (React's "adjust state on prop change" pattern), not in an effect.
   if (moneyStep && moneyStep !== lastMoneyStep) setLastMoneyStep(moneyStep);
   const tabs = office ? JOB_TABS : JOB_TABS.filter((t) => !OFFICE_ONLY_TABS.includes(t));
+  const phone = phoneTabs(office);
   // With no tab asked for, the default depends on the role: wait until it's known so a technician on a fresh device
   // isn't sent to Overview for good before their role loads.
   const teamReady = useTeam((s) => s.ready);
@@ -61,7 +63,6 @@ export default function ProjectView() {
     if (id && resolved.redirect && mayRedirect) router.replace(`/project?${resolved.query}`);
   }, [id, resolved.redirect, resolved.query, mayRedirect, router]);
   const { loaded, project, load, updateProject, sheets } = useEditor();
-  const photoCount = useEditor((s) => s.photos.length);
 
   useEffect(() => {
     if (!id) return;
@@ -90,7 +91,6 @@ export default function ProjectView() {
   }
 
   const manage = tab === "plan" && view.get("manage") === "1";
-  const fieldPhotos = tab === "field" && view.get("section") === "photos";
 
   return (
     <>
@@ -156,25 +156,11 @@ export default function ProjectView() {
         {tab === "overview" && <ProjectInfo />}
         {tab === "takeoff" && <TakeoffTab view={view.get("view")} />}
         {tab === "money" && office && <MoneyTab step={moneyStep} />}
-        {tab === "field" && (
-          <div className="flex h-full flex-col">
-            {/* Photos live under Field (old ?tab=photos links land here). */}
-            <div className="flex shrink-0 justify-center border-b border-slate-200 bg-white px-3 py-2">
-              <div className="seg" role="tablist" aria-label={t("Field view")}>
-                <button type="button" role="tab" aria-selected={!fieldPhotos} className={`tab ${!fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field")}>
-                  {t("Field work")}
-                </button>
-                <button type="button" role="tab" aria-selected={fieldPhotos} className={`tab ${fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field", { section: "photos" })}>
-                  {t("Photos")}
-                  {photoCount > 0 && <span className="text-xs text-slate-400">{photoCount}</span>}
-                </button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1">{fieldPhotos ? <PhotosTab /> : <FieldTab />}</div>
-          </div>
-        )}
+        {tab === "tasks" && <TasksTab />}
+        {tab === "photos" && <PhotosTab />}
+        {tab === "field" && <FieldTab />}
       </main>
-      <JobTabBar tabs={tabs} active={tab} onSelect={(id) => setTab(id)} />
+      <JobTabBar tabs={phone.bar} more={phone.more} active={tab} onSelect={(id) => setTab(id)} />
     </>
   );
 }

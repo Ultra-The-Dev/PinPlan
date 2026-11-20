@@ -1,8 +1,9 @@
-// Job page tabs and the links into them. The job has five tabs (docs/ux-audit.md): Overview · Plan · Takeoff ·
-// Money (office) · Field. Older links (?tab=sheets, ?tab=billing&doc=…, ?tab=crew, …) and the job-health next step
-// still use the old tab ids, so they are mapped here to the new tab plus the sub-view they meant. Pure (no React).
+// Job page tabs and the links into them (docs/navigation.md): Overview · Plan · Takeoff · Tasks · Photos ·
+// Money (office) · Field. Older links (?tab=sheets, ?tab=billing&doc=…, ?tab=crew, ?tab=field&section=tasks, …) and the
+// job-health next step still use the old tab ids, so they are mapped here to the new tab plus the sub-view they meant.
+// Pure (no React).
 
-export const JOB_TABS = ["overview", "plan", "takeoff", "money", "field"] as const;
+export const JOB_TABS = ["overview", "plan", "takeoff", "tasks", "photos", "money", "field"] as const;
 export type JobTabId = (typeof JOB_TABS)[number];
 
 /** Steps on the Money tab, in order. */
@@ -12,10 +13,22 @@ export type MoneyStep = (typeof MONEY_STEPS)[number];
 /** Tabs a technician never sees (prices). */
 export const OFFICE_ONLY_TABS: readonly JobTabId[] = ["money"];
 
+/**
+ * Phones: the bottom bar holds four tabs and More (the rest, in JOB_TABS order). The office gets Money in the bar;
+ * technicians (no Money) get Field there instead.
+ */
+export function phoneTabs(office: boolean): { bar: JobTabId[]; more: JobTabId[] } {
+  const bar: JobTabId[] = office ? ["plan", "tasks", "photos", "money"] : ["plan", "tasks", "photos", "field"];
+  const more = JOB_TABS.filter((t) => !bar.includes(t) && (office || !OFFICE_ONLY_TABS.includes(t)));
+  return { bar, more };
+}
+
+/** Field sections that are job tabs of their own now (?tab=field&section=tasks → ?tab=tasks). */
+const MOVED_SECTIONS: Partial<Record<string, JobTabId>> = { tasks: "tasks", photos: "photos" };
+
 /** Old tab ids and what they open now: the new tab plus the query params that pick the sub-view. */
 export const LEGACY_TABS: Record<string, { tab: JobTabId; params: Record<string, string> }> = {
   sheets: { tab: "plan", params: { manage: "1" } },
-  photos: { tab: "field", params: { section: "photos" } },
   estimate: { tab: "money", params: { step: "pricing" } },
   billing: { tab: "money", params: { step: "quote" } },
   changes: { tab: "money", params: { step: "changes" } },
@@ -51,6 +64,16 @@ export function resolveJobTab(search: URLSearchParams | string, office: boolean)
   if (isJobTab(asked)) tab = asked;
   else if (asked && LEGACY_TABS[asked]) ({ tab, params: extra } = LEGACY_TABS[asked]);
   else ({ tab, params: extra } = defaultJobTab(office));
+  // Tasks and Photos used to be Field sections: old links (emails, My Tasks, bookmarks, the iPad app) open the tab.
+  // A Field link to a task (&task= or &tf= with no section) meant the task list too.
+  if (tab === "field") {
+    const section = params.get("section");
+    const moved = section ? MOVED_SECTIONS[section] : params.has("task") || params.has("tf") ? "tasks" : undefined;
+    if (moved) {
+      tab = moved;
+      params.delete("section");
+    }
+  }
   if (!office && OFFICE_ONLY_TABS.includes(tab)) {
     ({ tab, params: extra } = defaultJobTab(office));
     // The money sub-view means nothing on another tab.
@@ -70,7 +93,7 @@ export function jobHref(projectId: string, tab: JobTabId, params: Record<string,
 }
 
 /** Sub-view params that belong to one tab only: dropped when switching tabs so they don't leak into the next one. */
-export const TAB_PARAMS = ["manage", "section", "step", "view", "doc", "photo", "task", "tf"] as const;
+export const TAB_PARAMS = ["manage", "section", "step", "view", "doc", "photo", "task", "tf", "device"] as const;
 
 /** The URL after switching tab, keeping the job id and anything not tied to the old tab. */
 export function switchTabQuery(search: URLSearchParams | string, tab: JobTabId, params: Record<string, string> = {}): string {

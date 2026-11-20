@@ -59,8 +59,8 @@ const dict: Dictionary = {
   "No plan sheets yet": "Todavía no hay hojas de plano",
   "Upload the plan set (PDF or phone photos) to start placing devices.":
     "Sube el juego de planos (PDF o fotos del teléfono) para empezar a colocar dispositivos.",
-  "Field view": "Vista de Campo",
-  "Field work": "Trabajo en campo",
+  "Punch items and to-dos for this job: who does what, by when.": "Pendientes y tareas de esta obra: quién hace qué y para cuándo.",
+  "Device: {name}": "Dispositivo: {name}",
   Photos: "Fotos",
 
   // Jobs list (ProjectsList) and view toggle

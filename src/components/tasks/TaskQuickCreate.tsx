@@ -1,5 +1,7 @@
 "use client";
-// New task in one tap after dropping a pin: a title with quick entry ("Loose cover @P1 @Mike #lobby") and big chips.
+// New task: a title with quick entry ("Loose cover @P1 @Mike #lobby"), big chips, and where it is (a sheet and,
+// optionally, a device picked from a list; picking a device puts the task at the device). Opened from the Tasks tab
+// (Add task), a device set to Issue, or a spot picked on the plan.
 import { Camera, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { newId, nowIso } from "@/lib/db";
@@ -15,6 +17,8 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
   const tasks = useProjectTasks(projectId);
   const { me, role, people, categories } = useTaskOptions(tasks);
   const sheets = useEditor((s) => s.sheets);
+  const markers = useEditor((s) => s.markers);
+  const catalog = useEditor((s) => s.catalog);
   const t = useT();
   const [text, setText] = useState(draft.title ?? "");
   const [due, setDue] = useState("");
@@ -30,7 +34,25 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
   const pr = priority === undefined ? (parsed.priority ?? null) : priority;
   const cat = category === undefined ? (parsed.category ?? null) : category;
   const who = assignee === undefined ? (parsed.assignee ?? null) : assignee;
-  const sheet = sheets.find((s) => s.id === draft.sheetId);
+  // Where: the draft's sheet / device unless changed here.
+  const [sheetId, setSheetId] = useState<string | null>(draft.sheetId);
+  const [markerId, setMarkerId] = useState<string | null>(draft.markerId ?? null);
+  const sheet = sheets.find((s) => s.id === sheetId);
+  const devices = useMemo(
+    () =>
+      markers
+        .filter((m) => !m.deleted && m.sheetId === sheetId)
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+        .map((m) => ({ m, name: [m.label, catalog.find((d) => d.id === m.deviceTypeId)?.name].filter(Boolean).join(" · ") })),
+    [markers, catalog, sheetId],
+  );
+  const marker = markerId ? markers.find((m) => m.id === markerId && !m.deleted) : undefined;
+  // A device puts the task at the device; the spot picked on the plan stays while its sheet does.
+  const spot = marker
+    ? { x: marker.x, y: marker.y, room: marker.room || draft.room || null }
+    : sheetId === draft.sheetId
+      ? { x: draft.x, y: draft.y, room: draft.room ?? null }
+      : { x: null, y: null, room: null };
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
@@ -53,11 +75,11 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
           category: cat,
           assignee: who,
           tags: parsed.tags,
-          sheetId: draft.sheetId,
-          x: draft.x,
-          y: draft.y,
-          room: draft.room ?? null,
-          markerId: draft.markerId ?? null,
+          sheetId,
+          x: spot.x,
+          y: spot.y,
+          room: spot.room,
+          markerId: marker ? marker.id : null,
           description: draft.description ?? null,
           due: due || null,
           checklist: [],
@@ -108,8 +130,8 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">{t("New task")}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              {sheet ? (draft.x == null ? sheet.name : t("{sheet} · pinned", { sheet: sheet.name })) : t("General (not on a sheet)")}
-              {draft.room ? ` · ${draft.room}` : ""}
+              {sheet ? (spot.x == null ? sheet.name : t("{sheet} · pinned", { sheet: sheet.name })) : t("General (not on a sheet)")}
+              {spot.room ? ` · ${spot.room}` : ""}
             </p>
           </div>
           <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
@@ -132,6 +154,39 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
               “{parsed.title || "…"}”{parsed.tags.length ? ` · ${parsed.tags.map((tk) => `#${tk}`).join(" ")}` : ""}
             </p>
           )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block min-w-0">
+            <span className="label">{t("Sheet")}</span>
+            <select
+              className="input h-11"
+              value={sheetId ?? ""}
+              onChange={(e) => {
+                setSheetId(e.target.value || null);
+                setMarkerId(null);
+              }}
+              data-testid="task-sheet"
+            >
+              <option value="">{t("General (no sheet)")}</option>
+              {sheets.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block min-w-0">
+            <span className="label">{t("Device (optional)")}</span>
+            <select className="input h-11" value={marker?.id ?? ""} disabled={!sheetId || !devices.length} onChange={(e) => setMarkerId(e.target.value || null)} data-testid="task-device">
+              <option value="">{t("No device")}</option>
+              {devices.map(({ m, name }) => (
+                <option key={m.id} value={m.id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <ChipRow label={t("Status")}>

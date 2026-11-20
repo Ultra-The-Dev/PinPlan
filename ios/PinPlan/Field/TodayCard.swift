@@ -71,7 +71,7 @@ struct TodayCard: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        if tasks.count > 4 { moreButton(String(localized: "All \(tasks.count) tasks")) { open(.tasks) } }
+                        if tasks.count > 4 { moreButton(String(localized: "All \(tasks.count) tasks")) { JobNav.shared.go = .tasks } }
                     }
                 }
 

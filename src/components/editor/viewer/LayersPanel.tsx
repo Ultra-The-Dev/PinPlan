@@ -8,6 +8,7 @@ import { useMarkups } from "@/components/markups/useMarkups";
 import { useMeasureUi } from "@/components/measure/measureUi";
 import { useProgressUi } from "@/components/progress/progressStore";
 import { useTasks } from "@/components/tasks/taskStore";
+import { usePhotoPins } from "@/components/photos/photoPinsUi";
 import { msg, useT } from "@/lib/i18n";
 import { activeFilterCount, type PlanFilters, type PlanStatusFilter } from "@/lib/planFilter";
 import { useSheetLinks } from "@/lib/sheetLinks";
@@ -185,6 +186,7 @@ function ShowOnPlan() {
   const auto = useSheetLinks((s) => s.showAuto);
   const markupsHidden = useMarkups((s) => s.allHidden);
   const pins = useTasks((s) => s.showPins);
+  const photoPins = usePhotoPins((s) => s.visible);
   const progress = useProgressUi((s) => s.on);
   return (
     <section data-testid="show-on-plan">
@@ -194,6 +196,7 @@ function ShowOnPlan() {
       {links && <Switch on={auto} label={t("Links found automatically")} sub onChange={(v) => useSheetLinks.getState().setPrefs({ showAuto: v })} testId="show-auto-links" />}
       <Switch on={!markupsHidden} label={t("Markups")} onChange={(v) => useMarkups.getState().setAllHidden(!v)} testId="show-markups" />
       <Switch on={pins} label={t("Task pins")} onChange={(v) => useTasks.getState().set({ showPins: v })} testId="show-task-pins" />
+      <Switch on={photoPins} label={t("Photos")} onChange={(v) => usePhotoPins.getState().setVisible(v)} testId="show-photo-pins" />
       <Switch on={progress} label={t("Progress colours")} onChange={(v) => useProgressUi.getState().set(v ? { on: true } : { on: false, walk: false })} testId="show-progress" />
     </section>
   );

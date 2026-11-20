@@ -39,6 +39,10 @@ private struct MarkerForm: View {
                     Text([type?.name, marker.room.isEmpty ? nil : marker.room].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                 }
             }
+            // "N photos" / "N tasks": one tap to the Photos or Tasks section (only when the device has any).
+            if model.bundle.livePhotos.contains(where: { $0.markerId == marker.id }) || model.bundle.liveTasks.contains(where: { $0.markerId == marker.id }) {
+                HStack(spacing: 8) { DeviceLinkChips(model: model, markerId: marker.id) }
+            }
             // Label above, so long device names get the full row width (the iPad side panel is narrow).
             VStack(alignment: .leading, spacing: 2) {
                 Text("Device").font(.caption).foregroundStyle(.secondary)

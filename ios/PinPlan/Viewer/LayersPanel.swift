@@ -34,6 +34,8 @@ struct LayersPanel: View {
                         HStack { Text("Closets and panels"); Spacer(); Text("\(counts.closets)").monospacedDigit().foregroundStyle(.secondary) }
                     }
                     Toggle("Labels", isOn: binding(\.showLabels))
+                    // The plan is for devices: task pins are off until switched on here (tasks live in the Tasks section).
+                    Toggle("Task pins", isOn: Binding(get: { TaskOverlayState.shared.showPins }, set: { TaskOverlayState.shared.showPins = $0 }))
                 }
                 Section(sentence: String(localized: "Optional devices")) {
                     Picker("Optional", selection: binding(\.tentative)) {

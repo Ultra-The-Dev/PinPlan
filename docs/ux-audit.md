@@ -40,7 +40,8 @@ This is the brief for the simplification pass. Principle: **simple by default, p
   · **Price list** (office) · account menu (Settings, Team, Plan & billing, Sign out; sync status shown only when offline/failing).
 - Phone bottom bar: technician Jobs · Tasks · Photos · Me; office Jobs · Tasks · Money · Me.
 - Job tabs: **Overview** (default: health, next step, details) · **Plan** (+ manage sheets) · **Takeoff** (+ wiring) ·
-  **Money** (office) · **Field** (checklists, daily log, photos, files, history).
+  **Tasks** · **Photos** · **Money** (office) · **Field** (today, checklists, daily log, files, history). Tasks and
+  Photos got their own tabs later (docs/navigation.md): the plan is for devices.
 - Settings: Company · Pricing & wire · Quotes & invoices · Checklists · Team · Connected apps · Plan & billing · Account.
   Technicians see only Company (read-only), Team, Account.
 

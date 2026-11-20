@@ -3,9 +3,11 @@ import PinPlanCore
 
 // Tasks on the plan, through the plan overlay registry (Viewer/PlanOverlay.swift, docs/plan-viewer-ios.md):
 //   • "tasks": pins in the status colour with their number (constant size on screen, one Canvas), tap a pin to open
-//     the task, and tap-to-drop while "+ Task" (or "place"/"duplicate" from a task) is armed. View and Edit mode.
+//     the task, and tap-to-drop while "place"/"duplicate" from a task is armed. View and Edit mode.
 //   • "tasks-drag": Edit mode only, a touch target on the selected pin so it can be dragged to a new spot.
-//   • controls: "+ Task", show/hide pins, pin filters and this sheet's tasks, in the viewer's controls column.
+//   • controls: hide pins, pin filters and this sheet's tasks, in the viewer's controls column.
+// The plan is for devices: pins are a layer, off by default (Layers → "Task pins"), and the controls show only while
+// it is on. Tasks are made in the job's Tasks section, not on the plan (docs/navigation.md).
 // Registered once from PinPlanApp.
 
 enum TaskOverlays {
@@ -255,8 +257,8 @@ struct TaskPinHandle: View {
 
 // MARK: - controls
 
-/// "+ Task" (arms a drop: the next tap on the plan places it), show/hide pins (red while some are hidden), pin
-/// filters, and this sheet's tasks. Also presents the quick create, task detail and list sheets.
+/// While task pins are on: hide pins (red while some are filtered out), pin filters, and this sheet's tasks. The drop
+/// hint while a task from the Tasks section is being placed. Also presents the task detail and list sheets.
 struct TaskPlanControls: View {
     let ctx: PlanControlsContext
     @State private var showList = false
@@ -271,29 +273,29 @@ struct TaskPlanControls: View {
         let hiding = !st.showPins || (!st.filter.isEmpty && !st.greyOthers
             && sheetTasks.contains { TaskLogic.placement($0) == .pin && !TaskLogic.matches($0, st.filter, today: today) })
         VStack(alignment: .trailing, spacing: 8) {
-            HStack(spacing: 8) {
-                if let d = st.drop { dropHint(d) }
-                addButton
-            }
-            VStack(spacing: 0) {
-                control(icon: st.showPins ? "mappin.circle" : "mappin.slash.circle", label: st.showPins ? String(localized: "Hide task pins") : String(localized: "Show task pins"),
-                        tint: hiding ? Color.red : Color.primary) { st.showPins.toggle() }
-                Divider().frame(width: 44)
-                filterMenu
-                Divider().frame(width: 44)
-                control(icon: "list.bullet.rectangle", label: String(localized: "Tasks on this sheet"), tint: Color.primary) { showList = true }
-                    .overlay(alignment: .topTrailing) {
-                        if open > 0 {
-                            Text("\(open)").font(.caption2.weight(.bold)).foregroundStyle(Color.white)
-                                .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 18)
-                                .background(Color.red, in: Capsule())
-                                .offset(x: 4, y: -2)
-                                .allowsHitTesting(false)
+            if let d = st.drop { dropHint(d) }
+            if st.showPins {
+                VStack(spacing: 0) {
+                    // Shown only while the pins are on: this switches them off (also in Layers).
+                    control(icon: "mappin.circle", label: String(localized: "Hide task pins"),
+                            tint: hiding ? Color.red : Color.primary) { st.showPins = false }
+                    Divider().frame(width: 44)
+                    filterMenu
+                    Divider().frame(width: 44)
+                    control(icon: "list.bullet.rectangle", label: String(localized: "Tasks on this sheet"), tint: Color.primary) { showList = true }
+                        .overlay(alignment: .topTrailing) {
+                            if open > 0 {
+                                Text("\(open)").font(.caption2.weight(.bold)).foregroundStyle(Color.white)
+                                    .padding(.horizontal, 5).frame(minWidth: 18, minHeight: 18)
+                                    .background(Color.red, in: Capsule())
+                                    .offset(x: 4, y: -2)
+                                    .allowsHitTesting(false)
+                            }
                         }
-                    }
+                }
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
             }
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-            .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
         }
         // A drop waits for a plan tap; picking a device or drawing tool instead cancels it.
         .onChange(of: model.tool) { _, tool in if tool != .select && st.drop != nil { st.drop = nil } }
@@ -311,26 +313,6 @@ struct TaskPlanControls: View {
             })
         }
         .sheet(isPresented: $showList) { sheetList(sheetTasks) }
-    }
-
-    private var addButton: some View {
-        let st = TaskOverlayState.shared
-        let armed = st.drop == .new
-        return Button {
-            if !armed && model.viewerMode == .edit { model.use(.select) }
-            st.drop = armed ? nil : .new
-            Haptics.select()
-        } label: {
-            Label("Task", systemImage: "plus")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 14).frame(height: 44)
-                .foregroundStyle(armed ? Color.white : Color.brand)
-                .background(armed ? AnyShapeStyle(Color.brand) : AnyShapeStyle(Material.regularMaterial), in: Capsule())
-                .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(armed ? "Cancel adding a task" : "Add a task")
-        .accessibilityHint(armed ? "" : "Then tap the plan where it goes")
     }
 
     private func dropHint(_ d: TaskOverlayState.Drop) -> some View {
@@ -404,7 +386,7 @@ struct TaskPlanControls: View {
         NavigationStack {
             List {
                 if tasks.isEmpty {
-                    ContentUnavailableView("No tasks on this sheet", systemImage: "mappin.slash", description: Text("Tap + Task, then tap the plan."))
+                    ContentUnavailableView("No tasks on this sheet", systemImage: "mappin.slash", description: Text("Add tasks in the Tasks section."))
                 }
                 ForEach(tasks) { t in
                     Button { open(t) } label: { TaskRowView(task: t, sheetName: nil) }

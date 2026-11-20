@@ -1,7 +1,8 @@
 import SwiftUI
 import PinPlanCore
 
-/// New task after dropping a pin: one title (quick entry: "Loose cover @P1 @Mike #lobby"), big chips, a camera, Save.
+/// New task: one title (quick entry: "Loose cover @P1 @Mike #lobby"), where it is (a sheet and, optionally, a device
+/// picked from a list; a device puts the task at the device), big chips, a camera, Save. Opened from the Tasks section.
 struct TaskQuickCreateSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +15,9 @@ struct TaskQuickCreateSheet: View {
     @State private var category: String??
     @State private var assignee: String??
     @State private var photoIds: [String] = []
+    // Where: explicit picks win over the draft; nil = follow the draft.
+    @State private var pickedSheet: String??
+    @State private var pickedMarker: String??
     @State private var saved = false
     @FocusState private var titleFocused: Bool
 
@@ -21,12 +25,22 @@ struct TaskQuickCreateSheet: View {
     private var pr: Int? { priority ?? parsed.priority }
     private var cat: String? { category ?? parsed.category }
     private var who: String? { assignee ?? parsed.assignee }
+    private var placeSheet: String? { pickedSheet ?? draft.sheetId }
+    private var placeMarker: Marker? { (pickedMarker ?? draft.markerId).flatMap { id in model.bundle.liveMarkers.first { $0.id == id } } }
+    /// The draft with the picks applied: a device puts the task at the device; the spot picked on the plan stays while
+    /// its sheet does.
+    private var placed: TaskDraft {
+        if let m = placeMarker { return TaskDraft(sheetId: m.sheetId, x: m.x, y: m.y, room: m.room.isEmpty ? draft.room : m.room, markerId: m.id) }
+        if placeSheet == draft.sheetId { return TaskDraft(sheetId: draft.sheetId, x: draft.x, y: draft.y, room: draft.room) }
+        return TaskDraft(sheetId: placeSheet)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     titleField
+                    placeRow
                     statusRow
                     priorityRow
                     peopleRow
@@ -54,7 +68,7 @@ struct TaskQuickCreateSheet: View {
     }
 
     private var navTitle: String {
-        let sheet = model.sheets.first { $0.id == draft.sheetId }
+        let sheet = model.sheets.first { $0.id == placeSheet }
         return sheet.map { String(localized: "New task · \($0.name)") } ?? String(localized: "New task")
     }
 
@@ -71,10 +85,56 @@ struct TaskQuickCreateSheet: View {
                 Text("“\(parsed.title.isEmpty ? "…" : parsed.title)”" + (parsed.tags.isEmpty ? "" : "  " + parsed.tags.map { "#\($0)" }.joined(separator: " ")))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            if let room = draft.room, !room.isEmpty {
+            if let room = placed.room, !room.isEmpty {
                 Label(room, systemImage: "door.left.hand.open").font(.caption).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Sheet and device, each picked from a list.
+    private var placeRow: some View {
+        let devices = model.bundle.liveMarkers.filter { $0.sheetId == placeSheet }
+            .sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+        return HStack(spacing: 10) {
+            Menu {
+                Picker("Sheet", selection: Binding(get: { placeSheet ?? "" }, set: { v in
+                    pickedSheet = .some(v.isEmpty ? nil : v)
+                    pickedMarker = .some(nil)
+                })) {
+                    Text("General (no sheet)").tag("")
+                    ForEach(model.sheets) { s in Text(s.name).tag(s.id) }
+                }
+            } label: {
+                placeLabel("doc", model.sheets.first { $0.id == placeSheet }?.name ?? String(localized: "General (no sheet)"))
+            }
+            .accessibilityLabel("Sheet")
+            Menu {
+                Picker("Device", selection: Binding(get: { placeMarker?.id ?? "" }, set: { v in pickedMarker = .some(v.isEmpty ? nil : v) })) {
+                    Text("No device").tag("")
+                    ForEach(devices) { m in Text(deviceName(m)).tag(m.id) }
+                }
+            } label: {
+                placeLabel("smallcircle.filled.circle", placeMarker.map { deviceName($0) } ?? String(localized: "No device"))
+            }
+            .disabled(placeSheet == nil || devices.isEmpty)
+            .accessibilityLabel("Device")
+        }
+    }
+
+    private func deviceName(_ m: Marker) -> String {
+        [m.label, app.type(m.deviceTypeId)?.name ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    private func placeLabel(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).foregroundStyle(Color.brand)
+            Text(text).lineLimit(1).foregroundStyle(Color.primary)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(Color.secondary)
+        }
+        .font(.subheadline)
+        .padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var statusRow: some View {
@@ -116,8 +176,9 @@ struct TaskQuickCreateSheet: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     PhotoAddMenu(model: model, extra: { p in
-                        p.sheetId = draft.sheetId
-                        p.room = draft.room
+                        p.sheetId = placed.sheetId
+                        p.room = placed.room
+                        p.markerId = placed.markerId
                         p.tags = ["Task"]
                     }, onAdded: { added in photoIds += added.map(\.id) }) {
                         Image(systemName: "camera.fill").font(.title2)
@@ -137,7 +198,7 @@ struct TaskQuickCreateSheet: View {
         let title = parsed.title.isEmpty ? text.trimmingCharacters(in: .whitespacesAndNewlines) : parsed.title
         guard !title.isEmpty || !photoIds.isEmpty else { titleFocused = true; return }
         saved = true
-        let t = model.createTask(title: title.isEmpty ? "Photo task" : title, draft: draft, status: status, priority: pr, category: cat,
+        let t = model.createTask(title: title.isEmpty ? "Photo task" : title, draft: placed, status: status, priority: pr, category: cat,
                                  assignee: who, tags: parsed.tags, photoIds: photoIds)
         // Caption the photos with the task now that it has a number.
         if !photoIds.isEmpty { model.updateRows(Set(photoIds), in: \.photos) { $0.caption = "#\(t.number) \(t.title)" } }

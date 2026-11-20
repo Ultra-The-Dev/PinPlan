@@ -4,7 +4,6 @@
 import { useEffect, useMemo } from "react";
 import { create } from "zustand";
 import { db, newId, nowIso, put, putMany } from "@/lib/db";
-import { letterShortcutsOn, planKeyBlocked } from "@/lib/planOverlays";
 import { applyTaskChange, nextTaskNumber, type TaskFilter, type TaskPatch } from "@/lib/tasks";
 import type { PlanTask } from "@/lib/types";
 
@@ -27,7 +26,7 @@ interface TaskState {
   projectId: string | null;
   tasks: PlanTask[];
   loaded: boolean;
-  /** Filter for the pins on the plan (the Field → Tasks list keeps its own in the address). */
+  /** Filter for the pins on the plan (the Tasks tab keeps its own in the address). */
   filter: TaskFilter;
   showPins: boolean;
   greyOthers: boolean;
@@ -63,7 +62,8 @@ export const useTasks = create<TaskState>((set, get) => ({
   tasks: [],
   loaded: false,
   filter: {},
-  showPins: true,
+  // Off by default: the plan shows devices; task pins are a layer to switch on (Layers → Show on plan).
+  showPins: false,
   greyOthers: false,
   selectedId: null,
   detailId: null,
@@ -129,15 +129,6 @@ export const useTasks = create<TaskState>((set, get) => ({
     set({ drop, ...(drop ? { quick: null } : {}) });
   },
 }));
-
-/**
- * Shift+T drops a task. The plan's shared rules decide when shortcuts are off (planKeyBlocked: a modal or dialog is
- * open, or the key is in a text field; letters switched off on "?"); holding the key down doesn't toggle it over and over.
- */
-export function isTaskDropKey(e: Pick<KeyboardEvent, "key" | "shiftKey" | "metaKey" | "ctrlKey" | "altKey" | "repeat"> & { target: EventTarget | null }): boolean {
-  if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat || e.key.toLowerCase() !== "t") return false;
-  return !planKeyBlocked(e) && letterShortcutsOn();
-}
 
 /** A pin being dragged on the plan (relative position), drawn there until the move is saved. */
 export const useTaskDrag = create<{ drag: { id: string; x: number; y: number } | null }>(() => ({ drag: null }));

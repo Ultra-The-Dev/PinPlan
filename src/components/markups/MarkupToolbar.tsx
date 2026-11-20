@@ -154,7 +154,7 @@ export default function MarkupToolbar({ sheet }: { sheet: Sheet }) {
         const m = s.items.find((x) => x.id === s.selectedId);
         if (m && canEditMarkup(role, m, userId)) void s.remove(m.id);
       } else if (!mod && !e.altKey && !e.shiftKey && letterShortcutsOn()) {
-        // Shift+letter belongs to others (Shift+T drops a task), and letters can be switched off ("?").
+        // Shift+letter belongs to other tools, and letters can be switched off ("?").
         const hit = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
         if (hit) {
           stop();

@@ -1,12 +1,16 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { defaultJobTab, isJobTab, JOB_TABS, jobHref, LEGACY_TABS, resolveJobTab, switchTabQuery, withParam } from "@/lib/tabRoutes";
+import { defaultJobTab, isJobTab, JOB_TABS, jobHref, LEGACY_TABS, phoneTabs, resolveJobTab, switchTabQuery, withParam } from "@/lib/tabRoutes";
 
 const q = (s: string) => Object.fromEntries(new URLSearchParams(s));
 
 describe("resolveJobTab", () => {
-  it("keeps the five tabs as they are", () => {
+  it("has the seven tabs in order", () => {
+    expect([...JOB_TABS]).toEqual(["overview", "plan", "takeoff", "tasks", "photos", "money", "field"]);
+  });
+
+  it("keeps every tab as it is", () => {
     for (const t of JOB_TABS) {
       const r = resolveJobTab(`id=p1&tab=${t}`, true);
       expect(r.tab).toBe(t);
@@ -18,7 +22,6 @@ describe("resolveJobTab", () => {
   it("maps every old tab id to the new tab and sub-view", () => {
     const want: Record<string, Record<string, string>> = {
       sheets: { tab: "plan", manage: "1" },
-      photos: { tab: "field", section: "photos" },
       estimate: { tab: "money", step: "pricing" },
       billing: { tab: "money", step: "quote" },
       changes: { tab: "money", step: "changes" },
@@ -36,12 +39,26 @@ describe("resolveJobTab", () => {
 
   it("keeps the other params of an old link (invoice, photo, task)", () => {
     expect(q(resolveJobTab("id=p1&tab=billing&doc=d9", true).query)).toEqual({ id: "p1", tab: "money", step: "quote", doc: "d9" });
-    expect(q(resolveJobTab("id=p1&tab=photos&photo=ph2", true).query)).toEqual({ id: "p1", tab: "field", section: "photos", photo: "ph2" });
-    expect(q(resolveJobTab("id=p1&tab=field&tf=&task=t1", true).query)).toEqual({ id: "p1", tab: "field", tf: "", task: "t1" });
+    expect(q(resolveJobTab("id=p1&tab=photos&photo=ph2", true).query)).toEqual({ id: "p1", tab: "photos", photo: "ph2" });
+  });
+
+  it("sends the old Field sections for tasks and photos to their own tabs", () => {
+    const tasks = resolveJobTab("id=p1&tab=field&section=tasks&tf=&task=t1", true);
+    expect(tasks.redirect).toBe(true);
+    expect(q(tasks.query)).toEqual({ id: "p1", tab: "tasks", tf: "", task: "t1" });
+    // My Tasks links had no section: a task or task filter meant the task list.
+    expect(q(resolveJobTab("id=p1&tab=field&tf=&task=t1", true).query)).toEqual({ id: "p1", tab: "tasks", tf: "", task: "t1" });
+    expect(q(resolveJobTab("id=p1&tab=field&tf=s:open", false).query)).toEqual({ id: "p1", tab: "tasks", tf: "s:open" });
+    const photos = resolveJobTab("id=p1&tab=field&section=photos&photo=ph2", false);
+    expect(photos.redirect).toBe(true);
+    expect(q(photos.query)).toEqual({ id: "p1", tab: "photos", photo: "ph2" });
+    // Other Field sections stay.
+    expect(q(resolveJobTab("id=p1&tab=field&section=logs", true).query)).toEqual({ id: "p1", tab: "field", section: "logs" });
+    expect(resolveJobTab("id=p1&tab=field&section=logs", true).redirect).toBe(false);
   });
 
   it("doesn't override a sub-view the link already names", () => {
-    expect(q(resolveJobTab("id=p1&tab=photos&section=logs", true).query).section).toBe("logs");
+    expect(q(resolveJobTab("id=p1&tab=sheets&manage=0", true).query).manage).toBe("0");
   });
 
   it("opens Overview for the office and today's Field work for technicians", () => {
@@ -62,7 +79,24 @@ describe("resolveJobTab", () => {
       expect(q(r.query).step).toBeUndefined();
     }
     // Everything else stays open to them.
-    for (const t of ["overview", "plan", "takeoff", "field"]) expect(resolveJobTab(`id=p1&tab=${t}`, false).tab).toBe(t);
+    for (const t of ["overview", "plan", "takeoff", "tasks", "photos", "field"]) expect(resolveJobTab(`id=p1&tab=${t}`, false).tab).toBe(t);
+  });
+});
+
+describe("phone bottom bar", () => {
+  it("office: Plan · Tasks · Photos · Money · More (Overview, Takeoff, Field)", () => {
+    expect(phoneTabs(true)).toEqual({ bar: ["plan", "tasks", "photos", "money"], more: ["overview", "takeoff", "field"] });
+  });
+  it("technicians: Plan · Tasks · Photos · Field · More (Overview, Takeoff), never Money", () => {
+    expect(phoneTabs(false)).toEqual({ bar: ["plan", "tasks", "photos", "field"], more: ["overview", "takeoff"] });
+  });
+  it("every tab is in the bar or under More, once", () => {
+    for (const office of [true, false]) {
+      const { bar, more } = phoneTabs(office);
+      const all = [...bar, ...more].sort();
+      expect(new Set(all).size).toBe(all.length);
+      expect(all).toEqual(JOB_TABS.filter((t) => office || t !== "money").sort());
+    }
   });
 });
 
@@ -73,7 +107,7 @@ describe("tab links", () => {
 
   it("switching tab drops the old tab's sub-view but keeps the job", () => {
     expect(q(switchTabQuery("id=p1&tab=money&step=quote&doc=d1", "field"))).toEqual({ id: "p1", tab: "field" });
-    expect(q(switchTabQuery("id=p1&tab=field&section=photos&photo=x", "money", { step: "invoices" }))).toEqual({ id: "p1", tab: "money", step: "invoices" });
+    expect(q(switchTabQuery("id=p1&tab=photos&device=m1&photo=x", "money", { step: "invoices" }))).toEqual({ id: "p1", tab: "money", step: "invoices" });
     expect(q(withParam("id=p1&tab=takeoff&view=wiring", "view", null))).toEqual({ id: "p1", tab: "takeoff" });
   });
 });

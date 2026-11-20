@@ -1,5 +1,5 @@
 "use client";
-// Field → Tasks: every task on the job. Filters live in the address (&tf=) so they survive a reload; sort; select
+// Job → Tasks: every task on the job. Filters live in the address (&tf=) so they survive a reload; sort; select
 // several for bulk changes (status, assignee, due, category, priority, delete); download a filtered task / punch PDF.
 import { CheckSquare, FileDown, ListTodo, Plus, Search, SlidersHorizontal, Square, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -50,7 +50,7 @@ const toDataUrl = (b: Blob) =>
   });
 
 export default function TaskList() {
-  const { project, sheets, photos, settings, setActiveSheet } = useEditor();
+  const { project, sheets, photos, settings, setActiveSheet, markers, catalog } = useEditor();
   const params = useSearchParams();
   const router = useRouter();
   const t = useT();
@@ -79,6 +79,9 @@ export default function TaskList() {
   const shown = useMemo(() => sortTasks(filterTasks(tasks, filter, today), sort), [tasks, filter, today, sort]);
   const counts = useMemo(() => statusCounts(tasks), [tasks]);
   const sheetName = (id: string | null | undefined) => sheets.find((s) => s.id === id)?.name;
+  // The device the list is narrowed to (the device card's "N tasks" on the plan).
+  const device = filter.markerId ? markers.find((m) => m.id === filter.markerId) : undefined;
+  const deviceName = device ? [device.label, catalog.find((d) => d.id === device.deviceTypeId)?.name].filter(Boolean).join(" · ") : "";
   const picked = shown.filter((tk) => selected.has(tk.id));
   const toggle = <T,>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
   const mine = isMineFilter(filter, myNames);
@@ -258,13 +261,22 @@ export default function TaskList() {
             </div>
           )}
         </div>
-        <button className="btn btn-brand" onClick={() => setQuick({ sheetId: filter.sheetId || null, x: null, y: null })}>
+        <button
+          className="btn btn-brand"
+          onClick={() => setQuick(device ? { sheetId: device.sheetId, x: device.x, y: device.y, room: device.room || null, markerId: device.id } : { sheetId: filter.sheetId || null, x: null, y: null })}
+        >
           <Plus /> {t("Add task")}
         </button>
       </div>
 
       {/* Quick filters; the rest behind "Filter" */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {filter.markerId && (
+          <button type="button" className="chip h-10 gap-1.5 bg-brand-600 px-3 text-white" onClick={() => setFilter({ ...filter, markerId: null })} aria-label={t("Show tasks for every device")} data-testid="task-device-filter">
+            {t("Device: {name}", { name: deviceName || "—" })}
+            <X className="h-4 w-4" />
+          </button>
+        )}
         <Chip on={mine} onClick={() => setFilter(mine ? { ...filter, assignee: [], status: [] } : { ...filter, ...mineOpenFilter(myNames) })} title={t("Open tasks assigned to {name}", { name: me })}>
           {t("Mine")} <span className="tabular-nums opacity-80">{mineCount}</span>
         </Chip>

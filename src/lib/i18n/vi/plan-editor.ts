@@ -227,7 +227,6 @@ const dict: Dictionary = {
   Measure: "Đo",
   "Device labels": "Nhãn thiết bị",
   Fit: "Vừa khung",
-  "Drop a task": "Đặt việc",
   "Finish a run being drawn": "Hoàn tất tuyến đang vẽ",
   "Delete what's selected (Edit)": "Xóa mục đang chọn (Sửa)",
   "Undo / redo": "Hoàn tác / làm lại",

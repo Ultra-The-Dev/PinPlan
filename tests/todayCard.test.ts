@@ -84,13 +84,14 @@ describe("this week's phases for me", () => {
 });
 
 describe("Field sections", () => {
-  it("follows the address, then task links, then the role", () => {
-    expect(pickFieldSection("logs", { tech: true })).toBe("logs");
-    expect(pickFieldSection("docs", {})).toBe("files");
-    expect(pickFieldSection("history", {})).toBe("timeline");
-    expect(pickFieldSection(null, { taskLink: true, tech: true })).toBe("tasks");
-    expect(pickFieldSection(null, { tech: true })).toBe("today");
-    expect(pickFieldSection(null, { tech: false })).toBe("tasks");
-    expect(pickFieldSection("nonsense", { tech: true })).toBe("today");
+  it("follows the address, else Today", () => {
+    expect(pickFieldSection("logs")).toBe("logs");
+    expect(pickFieldSection("docs")).toBe("files");
+    expect(pickFieldSection("history")).toBe("timeline");
+    expect(pickFieldSection(null)).toBe("today");
+    // Tasks and photos are job tabs now, not Field sections.
+    expect(pickFieldSection("tasks")).toBe("today");
+    expect(pickFieldSection("photos")).toBe("today");
+    expect(pickFieldSection("nonsense")).toBe("today");
   });
 });

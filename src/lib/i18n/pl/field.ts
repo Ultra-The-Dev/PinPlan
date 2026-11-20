@@ -5,7 +5,7 @@ import type { Dictionary } from "../types";
 const dict: Dictionary = {
   // Field tab (FieldTab)
   Field: "Teren",
-  "What to do today, tasks, checklists, the daily log and files for this job.": "Co zrobić dziś, zadania, listy kontrolne, dziennik budowy i pliki tego zlecenia.",
+  "What to do today, checklists, the daily log and files for this job.": "Co zrobić dziś, listy kontrolne, dziennik budowy i pliki tego zlecenia.",
   "Field sections": "Sekcje „Teren”",
   "{name} sections": "Sekcje: {name}",
   Today: "Dzisiaj",
@@ -465,11 +465,12 @@ const dict: Dictionary = {
   "Tap where the copy of #{number} goes": "Dotknij miejsca na kopię nr {number}",
   "Tap the new spot for the task": "Dotknij nowego miejsca zadania",
   "Cancel dropping a task": "Anuluj stawianie zadania",
-  "Add a task: tap the plan where it goes (Shift+T)": "Dodaj zadanie: dotknij miejsca na planie (Shift+T)",
   "Filter task pins": "Filtruj pinezki zadań",
   "Show tasks": "Pokaż zadania",
   "Grey out the others instead of hiding them": "Wyszarz pozostałe zamiast je ukrywać",
-  "No tasks on this sheet yet. Tap + Task, then tap the plan.": "Na tym arkuszu nie ma jeszcze zadań. Dotknij „+ Zadanie”, a potem planu.",
+  "No tasks on this sheet. Add tasks in the Tasks tab.": "Na tym arkuszu nie ma zadań. Dodawaj zadania w karcie „Zadania”.",
+  "Show tasks for every device": "Pokaż zadania wszystkich urządzeń",
+  "Show photos of every device": "Pokaż zdjęcia wszystkich urządzeń",
   "no spot": "bez miejsca",
   "Open the job's photos": "Otwórz zdjęcia zlecenia",
   you: "ciebie",
@@ -529,11 +530,11 @@ const dict: Dictionary = {
     many: "Przed wysłaniem popraw {n} rzeczy",
     other: "Przed wysłaniem popraw {n} rzeczy",
   },
-  "{n} task added — see Field → Tasks": {
-    one: "Dodano {n} zadanie — zobacz Teren → Zadania",
-    few: "Dodano {n} zadania — zobacz Teren → Zadania",
-    many: "Dodano {n} zadań — zobacz Teren → Zadania",
-    other: "Dodano {n} zadania — zobacz Teren → Zadania",
+  "{n} task added — see Tasks": {
+    one: "Dodano {n} zadanie — zobacz „Zadania”",
+    few: "Dodano {n} zadania — zobacz „Zadania”",
+    many: "Dodano {n} zadań — zobacz „Zadania”",
+    other: "Dodano {n} zadania — zobacz „Zadania”",
   },
   "{n} cell to fix": {
     one: "{n} komórka do poprawy",

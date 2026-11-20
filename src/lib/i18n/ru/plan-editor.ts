@@ -233,7 +233,6 @@ const planEditor: Dictionary = {
   Measure: "Замер",
   "Device labels": "Метки устройств",
   Fit: "Вписать",
-  "Drop a task": "Поставить задачу",
   "Finish a run being drawn": "Завершить рисуемую трассу",
   "Delete what's selected (Edit)": "Удалить выбранное (правка)",
   "Undo / redo": "Отменить / повторить",

@@ -260,6 +260,8 @@ export interface TaskFilter {
   assignee?: string[];
   /** One sheet; "" = general tasks (no sheet). */
   sheetId?: string | null;
+  /** One device (marker id): the tasks linked to it (the device card's "N tasks" on the plan). */
+  markerId?: string | null;
   due?: TaskDueFilter | null;
   text?: string;
   tags?: string[];
@@ -267,7 +269,7 @@ export interface TaskFilter {
 
 /** True when the filter hides nothing. */
 export function filterIsEmpty(f: TaskFilter): boolean {
-  return !f.status?.length && !f.priority?.length && !f.category?.length && !f.assignee?.length && f.sheetId == null && !f.due && !f.text?.trim() && !f.tags?.length;
+  return !f.status?.length && !f.priority?.length && !f.category?.length && !f.assignee?.length && f.sheetId == null && !f.markerId && !f.due && !f.text?.trim() && !f.tags?.length;
 }
 
 const lc = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
@@ -280,6 +282,7 @@ export function taskMatches(t: PlanTask, f: TaskFilter, today: string): boolean 
   if (f.category?.length && !f.category.some((c) => lc(c) === lc(t.category))) return false;
   if (f.assignee?.length && !f.assignee.some((a) => lc(a) === lc(t.assignee))) return false;
   if (f.sheetId != null && (f.sheetId === "" ? !!t.sheetId : t.sheetId !== f.sheetId)) return false;
+  if (f.markerId && t.markerId !== f.markerId) return false;
   if (f.tags?.length && !f.tags.some((g) => (t.tags ?? []).some((x) => lc(x) === lc(g)))) return false;
   if (f.due) {
     const b = taskBucket(t.due, today);
@@ -313,6 +316,7 @@ const KEYS: [keyof TaskFilter, string][] = [
   ["category", "c"],
   ["assignee", "a"],
   ["sheetId", "sh"],
+  ["markerId", "dv"],
   ["due", "d"],
   ["text", "q"],
   ["tags", "t"],
@@ -359,6 +363,9 @@ export function decodeTaskFilter(raw: string | null | undefined): TaskFilter {
         break;
       case "sh":
         f.sheetId = dec(val);
+        break;
+      case "dv":
+        if (val) f.markerId = dec(val);
         break;
       case "d":
         if (val === "overdue" || val === "today" || val === "week" || val === "none") f.due = val;

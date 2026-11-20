@@ -238,7 +238,6 @@ const dict: Dictionary = {
   Measure: "Вимір",
   "Device labels": "Мітки пристроїв",
   Fit: "Вписати",
-  "Drop a task": "Поставити завдання",
   "Finish a run being drawn": "Завершити трасу, що малюється",
   "Delete what's selected (Edit)": "Видалити вибране (редагування)",
   "Undo / redo": "Відмінити / повторити",

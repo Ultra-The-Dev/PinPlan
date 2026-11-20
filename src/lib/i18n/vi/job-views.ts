@@ -59,8 +59,8 @@ const jobViews: Dictionary = {
   "No plan sheets yet": "Chưa có tờ bản vẽ",
   "Upload the plan set (PDF or phone photos) to start placing devices.":
     "Tải lên bộ bản vẽ (PDF hoặc ảnh chụp bằng điện thoại) để bắt đầu đặt thiết bị.",
-  "Field view": "Mục Hiện trường",
-  "Field work": "Công việc hiện trường",
+  "Punch items and to-dos for this job: who does what, by when.": "Việc tồn đọng và việc cần làm của công trình này: ai làm gì, khi nào xong.",
+  "Device: {name}": "Thiết bị: {name}",
   Photos: "Ảnh",
 
   // Jobs list (ProjectsList) and view toggle

@@ -10,6 +10,7 @@ import { localDay, openTasks, todayLog, unfinishedChecklists, type OpenTask } fr
 import { FORMS_EVENT } from "@/lib/forms/useForms";
 import { importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
+import { jobHref } from "@/lib/tabRoutes";
 import { applyTaskChange, isMyName, myTasksDueNow, type OpenPlanTask } from "@/lib/tasks";
 import { toast } from "@/lib/toast";
 import type { Checklist, JobForm, JobLog, Photo, PlanTask, Project } from "@/lib/types";
@@ -31,7 +32,9 @@ interface Data {
 }
 
 const jobName = (p?: Project) => p?.address || p?.clientName || t("Job");
-const fieldHref = (projectId: string, extra: Record<string, string>) => `/project?${new URLSearchParams({ id: projectId, tab: "field", ...extra }).toString()}`;
+/** A Field section on a job; tasks and photos are job tabs of their own. */
+const fieldHref = (projectId: string, { section, ...extra }: Record<string, string>) =>
+  section === "tasks" || section === "photos" ? jobHref(projectId, section, extra) : jobHref(projectId, "field", { section, ...extra });
 
 export default function TodayCard({ projectId, onOpen }: { projectId?: string | null; onOpen?: OpenSection }) {
   const { me, names } = useMe();

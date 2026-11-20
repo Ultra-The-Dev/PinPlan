@@ -130,7 +130,8 @@ the Tasks tab still arrives armed. Tested in `tests/planOverlays.test.ts`.
 ### Show on plan
 
 Layers & filters starts with "Show on plan" switches for what features draw: Measurements, Links (and links found
-automatically), Markups, Task pins and Progress colours. Features don't add their own eye buttons over the plan.
+automatically), Markups, Task pins (off by default: tasks are made in the job's Tasks tab, see docs/navigation.md)
+and Progress colours. Features don't add their own eye buttons over the plan.
 
 ### Selection and draft colours
 
@@ -182,13 +183,13 @@ the plan's gestures ignore it.
   quick drag across it pans the plan. Mouse/pen drags devices after a 4–6 px threshold.
 - Keys: `+`/`−`, `0` fit sheet, `W` fit width, `1` 100%, arrows pan (shift = more), `[`/`]` sheets, `E` view/edit,
   `F` fit, `L` labels, `M` Measure (the saved-measurements tool; there is no second, throwaway measure), `V`/Esc
-  select, `Shift T` drop a task, `?` the shortcut sheet. ⌘+/⌘−/⌘0 zoom the plan only while focus is in the editor
+  select, `?` the shortcut sheet. ⌘+/⌘−/⌘0 zoom the plan only while focus is in the editor
   (pressing the plan focuses it); elsewhere they zoom the page as usual. Zoom limits: half of fit to 4 screen px per
   image px. Animations are instant with `prefers-reduced-motion`.
 - Keyboard safety (`planKeyBlocked`, `repeatBlocked` in `src/lib/planOverlays.ts`, used by the editor, Measure,
   Markups and the Link tool): no plan shortcut acts while a modal (`aria-modal="true"`) is open, or when the key
   happens in a text field or inside a dialog; Space / Enter on a focused button are the button's; holding E or Delete
-  doesn't repeat. Markups' tool letters ignore Shift (Shift T is the task drop). The `?` sheet has a switch to turn
+  doesn't repeat. Markups' tool letters ignore Shift. The `?` sheet has a switch to turn
   single-key shortcuts off on this device (⌘ / Ctrl keys, Esc, arrows and Delete still work).
 
 ## View only vs edit

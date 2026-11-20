@@ -59,8 +59,8 @@ const dict: Dictionary = {
   "No plan sheets yet": "还没有图页",
   "Upload the plan set (PDF or phone photos) to start placing devices.":
     "上传整套图纸（PDF 或手机照片）即可开始放置设备。",
-  "Field view": "现场视图",
-  "Field work": "现场工作",
+  "Punch items and to-dos for this job: who does what, by when.": "本工程的待整改项和待办：谁做什么、何时完成。",
+  "Device: {name}": "设备：{name}",
   Photos: "照片",
 
   // Jobs list (ProjectsList) and view toggle

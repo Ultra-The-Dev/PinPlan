@@ -81,7 +81,9 @@ struct PhotoAddMenu<LabelView: View>: View {
     }
 }
 
-/// The job's photos, CompanyCam-style: grouped by day, filter by tag/person/text, tap to view, select to tag/set room/link device/report/delete.
+/// The job's photos (a job section of its own), CompanyCam-style: grouped by day, filter by device (from a device's
+/// card on the plan, JobNav.photoDevice) / tag / person / text, tap to view, select to tag/set room/link
+/// device/report/delete.
 struct PhotosView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
@@ -100,13 +102,20 @@ struct PhotosView: View {
     @State private var roomDraft = ""
 
     private var all: [Photo] { model.bundle.livePhotos }
-    private var shown: [Photo] { FieldDocs.filter(all, tags: tags, takenBy: person, text: search) }
+    /// The device the gallery is narrowed to (the device card's "N photos" on the plan), if any.
+    private var device: Marker? { JobNav.shared.photoDevice.flatMap { id in model.bundle.liveMarkers.first { $0.id == id } } }
+    private var shown: [Photo] {
+        let list = FieldDocs.filter(all, tags: tags, takenBy: person, text: search)
+        guard let d = JobNav.shared.photoDevice else { return list }
+        return list.filter { $0.markerId == d }
+    }
 
     var body: some View {
         let groups = FieldDocs.byDay(shown)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 uploadStatus
+                deviceFilter
                 filters
                 if all.isEmpty {
                     ContentUnavailableView {
@@ -151,7 +160,10 @@ struct PhotosView: View {
                     Toggle(isOn: $stampLocation) { Label("Stamp location", systemImage: "location") }
                     Button { nameDraft = FieldAuthor.name(app); askName = true } label: { Label("Your name: \(FieldAuthor.name(app))", systemImage: "person") }
                 } label: { Image(systemName: "ellipsis.circle") }
-                PhotoAddMenu(model: model) { Label("Add photos", systemImage: "camera.fill") }
+                // While narrowed to a device, new photos are linked to it.
+                PhotoAddMenu(model: model, extra: { p in
+                    if let m = device { p.markerId = m.id; p.sheetId = m.sheetId; if !m.room.isEmpty { p.room = m.room } }
+                }) { Label("Add photos", systemImage: "camera.fill") }
             }
         }
         .onChange(of: stampLocation) { _, v in LocationOnce.enabled = v }
@@ -213,6 +225,28 @@ struct PhotosView: View {
             }
             .padding(10)
             .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    /// "Device: P3 · Indoor camera ×" while the gallery shows one device's photos.
+    @ViewBuilder private var deviceFilter: some View {
+        if JobNav.shared.photoDevice != nil {
+            let name = device.map { m in [m.label, app.type(m.deviceTypeId)?.name ?? ""].filter { !$0.isEmpty }.joined(separator: " · ") } ?? "—"
+            HStack(spacing: 10) {
+                Button { JobNav.shared.photoDevice = nil } label: {
+                    HStack(spacing: 6) {
+                        Text("Device: \(name)").lineLimit(1)
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 12).frame(minHeight: 36)
+                    .background(Color.brand, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Shows photos of every device")
+                Text("\(shown.count) photos").font(.subheadline).foregroundStyle(.secondary)
+            }
         }
     }
 

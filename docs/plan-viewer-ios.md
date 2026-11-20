@@ -21,14 +21,23 @@ hyperlinks, revision compare…).
 
 ## Where the plan sits in the job
 
-A job has five sections, the same as on the web: **Overview · Plan · Takeoff · Money · Field** (Money is office
-only). iPhone shows them as the bottom tab bar, iPad as a segmented control in the navigation bar
-(`ios/PinPlan/Views/ProjectView.swift`, `ProjectTab`). The Plan section is this viewer. There is no separate Sheets
+A job has seven sections, the same as on the web (docs/navigation.md): **Overview · Plan · Takeoff · Tasks · Photos ·
+Money · Field** (Money is office only). iPad shows them as a segmented control in the navigation bar; iPhone's tab
+bar is **Plan · Tasks · Photos · Money · More** (technicians: Plan · Tasks · Photos · Field · More), with a section
+switch at the top of More for the rest (`ios/PinPlan/Views/ProjectView.swift`, `ProjectTab`;
+`ProjectTabRoute.phoneTabs` in PinPlanCore). The Plan section is this viewer. There is no separate Sheets
 tab any more: a job with no plans shows the import screen in Plan, and after that importing, renaming, reordering,
 rotating and deleting plans live in **Add or manage** in the sheet browser (also Tools → "Add or manage plans…").
 It opens `ManagePlansSheet` (`SheetsView` in a sheet) through `EditorModel.showManagePlans`. Wiring sheets (the old
-Crew tab) are a page of Takeoff; photos are part of Field. `ProjectTab.resolve(_:)` maps the old and web tab ids
-(`sheets`, `crew`, `estimate`, `photos`, `info`, `job`) to the new section and page.
+Crew tab) are a page of Takeoff. `ProjectTab.resolve(_:)` maps the old and web tab ids (`sheets`, `crew`,
+`estimate`, `info`, `job`) to the new section and page.
+
+The plan is for devices. Task pins are a layer, **off by default** (Layers → On the plan → *Task pins*;
+`TaskOverlayState.showPins`); the task controls in the controls column show only while it is on, and there is no
+"+ Task" on the plan: tasks are made in the Tasks section (`TaskListView`, "+ Task", where a sheet and a device can be
+picked from a list). A device's card (`SelectionPeek` in View mode, the inspector in Edit mode) shows **N photos** and
+**N tasks** chips when it has any (`DeviceLinkChips`): one tap opens the Photos section filtered to the device, or the
+task (the Tasks section filtered to the device when there are several), through `JobNav.shared`.
 
 ## Floating controls layout
 
@@ -194,5 +203,5 @@ fit, so it survives rotation and panels), recently viewed sheets per job, layer 
 `--viewer-zoomed` (opens the busiest sheet zoomed into its densest cluster), `--sheet-browser`, `--layers`,
 `--minimap`, `--view-mode`. Captured by `.github/workflows/ios-screenshots.yml` on iPhone and iPad.
 `--tab <id>` opens a job section; the old ids still work through `ProjectTab.resolve` (`sheets` opens Plan with
-"Add or manage", `crew` opens Takeoff → Wiring sheets, `estimate` opens Money, `photos` opens Field → Photos,
+"Add or manage", `crew` opens Takeoff → Wiring sheets, `estimate` opens Money, `photos` opens Photos,
 `job` opens Overview). Launch arguments are read in Debug builds only.

@@ -1,8 +1,9 @@
 "use client";
-// Job photos: take or upload, grouped by day, filter by tag / person / dates / text, select many to tag, set room or device, report or delete.
+// Job → Photos: take or upload, grouped by day, filter by device (&device=, the device card's "N photos" on the plan) /
+// tag / person / dates / text, select many to tag, set room or device, report or delete.
 // Tiles show small previews (src/lib/thumbs.ts), newest first, a page at a time.
 import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, UserRound, X } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { bulkEditPhotos, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
 import { currentPosition, firstPhotos, getAuthor, importPhoto, PHOTO_PAGE, setAuthor } from "@/lib/photos";
@@ -18,6 +19,7 @@ import DateRange from "./DateRange";
 import MorePhotos from "./MorePhotos";
 import UploadStatus from "../UploadStatus";
 import { fmtDate, useT } from "@/lib/i18n";
+import { withParam } from "@/lib/tabRoutes";
 
 const GPS_KEY = "pinplan.photoLocation";
 // Sentinel option values in the bulk-edit menus (never a real room or device id).
@@ -64,6 +66,10 @@ export default function PhotosTab() {
   const t = useT();
   // ?photo=<id> opens that photo (links from the company photo feed).
   const params = useSearchParams();
+  const router = useRouter();
+  // ?device=<marker id>: only that device's photos (from the plan); new photos taken here are linked to it.
+  const deviceId = params.get("device");
+  const clearDevice = () => router.replace(`/project?${withParam(params.toString(), "device", null)}`, { scroll: false });
   const [openId, setOpenId] = useState<string | null>(() => params.get("photo"));
   const [tags, setTags] = useState<string[]>([]);
   const [person, setPerson] = useState("");
@@ -86,10 +92,13 @@ export default function PhotosTab() {
   const camRef = useRef<HTMLInputElement>(null);
 
   const live = useMemo(() => photos.filter((p) => !p.deleted), [photos]);
-  const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
+  const shown = useMemo(
+    () => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null, markerId: deviceId }),
+    [live, tags, person, text, from, to, deviceId],
+  );
   const allGroups = useMemo(() => photosByDay(shown), [shown]);
   // A page at a time; changing a filter starts again from the newest.
-  const filterKey = JSON.stringify([tags, person, text, from, to]);
+  const filterKey = JSON.stringify([tags, person, text, from, to, deviceId]);
   const [page, setPage] = useState({ key: filterKey, n: PHOTO_PAGE });
   const limit = page.key === filterKey ? page.n : PHOTO_PAGE;
   const groups = useMemo(() => firstPhotos(allGroups, limit), [allGroups, limit]);
@@ -110,6 +119,7 @@ export default function PhotosTab() {
     for (const c of photoComments) if (!c.deleted) m.set(c.photoId, (m.get(c.photoId) ?? 0) + 1);
     return m;
   }, [photoComments]);
+  const device = deviceId ? devices.find((d) => d.m.id === deviceId) : undefined;
   if (!project) return null;
 
   async function addFiles(files: FileList | File[] | null, justTaken = false) {
@@ -123,7 +133,8 @@ export default function PhotosTab() {
       setBusy(t("Adding photo {n} of {total}…", { n: k + 1, total: list.length }));
       try {
         const recent = justTaken || Date.now() - f.lastModified < 5 * 60_000;
-        const photo = await importPhoto(f, { projectId: project!.id, author, position: recent ? pos : null });
+        const linked = device ? { extra: { markerId: device.m.id, sheetId: device.m.sheetId, room: device.m.room || null } } : {};
+        const photo = await importPhoto(f, { projectId: project!.id, author, position: recent ? pos : null, ...linked });
         await saveRow("photos", photo);
         n++;
       } catch (e) {
@@ -214,6 +225,16 @@ export default function PhotosTab() {
           </button>
         </div>
         <UploadStatus fileIds={imageIds} noun="photo" />
+
+        {deviceId && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="chip h-10 gap-1.5 bg-brand-600 px-3 text-sm text-white" onClick={clearDevice} aria-label={t("Show photos of every device")} data-testid="photo-device-filter">
+              {t("Device: {name}", { name: device?.name || "—" })}
+              <X className="h-4 w-4" />
+            </button>
+            <span className="text-sm text-slate-500">{t.tn("{n} photo", "{n} photos", shown.length)}</span>
+          </div>
+        )}
 
         {live.length > 0 && (
           <div className="card space-y-3 p-3">

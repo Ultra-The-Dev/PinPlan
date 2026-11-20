@@ -59,8 +59,8 @@ const dict: Dictionary = {
   "No plan sheets yet": "Аркушів плану поки немає",
   "Upload the plan set (PDF or phone photos) to start placing devices.":
     "Вивантажте комплект планів (PDF або фото з телефона), щоб почати розставляти пристрої.",
-  "Field view": "Розділ «Польові роботи»",
-  "Field work": "Польові роботи",
+  "Punch items and to-dos for this job: who does what, by when.": "Доробки та справи на цьому об'єкті: хто що робить і до якого терміну.",
+  "Device: {name}": "Пристрій: {name}",
   Photos: "Фото",
 
   // Jobs list (ProjectsList) and view toggle

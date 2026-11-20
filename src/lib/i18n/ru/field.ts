@@ -5,7 +5,7 @@ import type { Dictionary } from "../types";
 const field: Dictionary = {
   // Field tab (FieldTab)
   Field: "На объекте",
-  "What to do today, tasks, checklists, the daily log and files for this job.": "Что сделать сегодня, задачи, чек-листы, ежедневный отчёт и файлы по этому объекту.",
+  "What to do today, checklists, the daily log and files for this job.": "Что сделать сегодня, чек-листы, ежедневный отчёт и файлы по этому объекту.",
   "Field sections": "Разделы «На объекте»",
   "{name} sections": "Разделы: {name}",
   Today: "Сегодня",
@@ -419,11 +419,12 @@ const field: Dictionary = {
   "Tap where the copy of #{number} goes": "Коснитесь места для копии №{number}",
   "Tap the new spot for the task": "Коснитесь нового места для задачи",
   "Cancel dropping a task": "Отменить постановку задачи",
-  "Add a task: tap the plan where it goes (Shift+T)": "Добавить задачу: коснитесь нужного места на плане (Shift+T)",
   "Filter task pins": "Фильтр меток задач",
   "Show tasks": "Показать задачи",
   "Grey out the others instead of hiding them": "Затенять остальные, а не скрывать",
-  "No tasks on this sheet yet. Tap + Task, then tap the plan.": "На этом листе задач пока нет. Нажмите «+ Задача», затем коснитесь плана.",
+  "No tasks on this sheet. Add tasks in the Tasks tab.": "На этом листе нет задач. Добавляйте задачи во вкладке «Задачи».",
+  "Show tasks for every device": "Показать задачи всех устройств",
+  "Show photos of every device": "Показать фото всех устройств",
   "no spot": "без точки",
   "Open the job's photos": "Открыть фото объекта",
   you: "вас",
@@ -482,10 +483,10 @@ const field: Dictionary = {
     few: "Перед отправкой нужно исправить {n} пункта",
     many: "Перед отправкой нужно исправить {n} пунктов",
   },
-  "{n} task added — see Field → Tasks": {
-    one: "Добавлена {n} задача — см. На объекте → Задачи",
-    few: "Добавлено {n} задачи — см. На объекте → Задачи",
-    many: "Добавлено {n} задач — см. На объекте → Задачи",
+  "{n} task added — see Tasks": {
+    one: "Добавлена {n} задача — см. «Задачи»",
+    few: "Добавлено {n} задачи — см. «Задачи»",
+    many: "Добавлено {n} задач — см. «Задачи»",
   },
   "{n} cell to fix": { one: "Исправить {n} ячейку", few: "Исправить {n} ячейки", many: "Исправить {n} ячеек" },
   Yes: "Да",

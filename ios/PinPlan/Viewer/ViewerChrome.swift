@@ -183,6 +183,46 @@ struct ScaleChip: View {
     }
 }
 
+/// "N photos" and "N tasks" on a device's card (only when it has any): one tap opens the Photos section filtered to the
+/// device, or the task (the Tasks section filtered to the device when there are several). The plan shows where; the
+/// sections hold the rest (docs/navigation.md).
+struct DeviceLinkChips: View {
+    let model: EditorModel
+    let markerId: String
+
+    var body: some View {
+        let photos = model.bundle.livePhotos.filter { $0.markerId == markerId }.count
+        let tasks = model.bundle.liveTasks.filter { $0.markerId == markerId }.map(\.id)
+        if photos > 0 {
+            chip(String(localized: "\(photos) photos"), icon: "photo.on.rectangle") {
+                model.selection = nil
+                JobNav.shared.photos(device: markerId)
+            }
+            .accessibilityHint("Opens this device's photos")
+        }
+        if !tasks.isEmpty {
+            chip(String(localized: "\(tasks.count) tasks"), icon: "checklist") {
+                model.selection = nil
+                JobNav.shared.tasks(device: markerId, ids: tasks)
+            }
+            .accessibilityHint("Opens this device's tasks")
+        }
+    }
+
+    private func chip(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12).frame(minHeight: 44)
+                .foregroundStyle(Color.brand)
+                .background(Color.brand.opacity(0.12), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// View mode: what's under your finger, read-only, with a way into editing.
 struct SelectionPeek: View {
     @Environment(AppModel.self) private var app
@@ -201,12 +241,10 @@ struct SelectionPeek: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
             }
-            HStack {
+            HStack(spacing: 8) {
                 Button { model.setViewerMode(.edit) } label: { Label("Edit", systemImage: "pencil") }
                     .buttonStyle(.borderedProminent).tint(Color.brand)
-                if case .marker(let id) = selection, photoCount(id) > 0 {
-                    Text("\(photoCount(id)) photos on the Photos tab").font(.footnote).foregroundStyle(.secondary)
-                }
+                if case .marker(let id) = selection { DeviceLinkChips(model: model, markerId: id) }
             }
         }
         .padding(14)
@@ -215,8 +253,6 @@ struct SelectionPeek: View {
         .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
         .padding(.horizontal, 12)
     }
-
-    private func photoCount(_ markerId: String) -> Int { model.bundle.photos.filter { $0.markerId == markerId && $0.deleted != true }.count }
 
     @ViewBuilder
     private var content: some View {
