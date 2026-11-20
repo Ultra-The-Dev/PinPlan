@@ -10,6 +10,7 @@ import { openBillingPortal, startCheckout, useNow } from "@/lib/billing";
 import { bannerFor, soloBannerFor } from "@/lib/billingLogic";
 import { useCanEdit, useSoloBilling } from "@/lib/canEdit";
 import { useTeam } from "@/lib/team";
+import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 
 export default function BillingBanner() {
@@ -21,6 +22,7 @@ export default function BillingBanner() {
   const solo = useSoloBilling((s) => (s.userId === userId ? s.solo : null));
   useCanEdit(); // keeps the personal trial loaded for people on no team
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const now = useNow();
   const banner = !now ? null : onTeam ? bannerFor(billing, role, now) : ready && userId ? soloBannerFor(solo, now) : null;
   if (!banner) return null;
@@ -44,15 +46,15 @@ export default function BillingBanner() {
       <span className="min-w-0 flex-1">{banner.text}</span>
       {banner.action === "team" ? (
         <Link href="/settings#team" className={`btn btn-sm ${red ? "btn-brand" : ""}`}>
-          Start a company team
+          {t("Start a company team")}
         </Link>
       ) : banner.action ? (
         <button className={`btn btn-sm ${red ? "btn-brand" : ""}`} disabled={busy} onClick={() => void run()}>
-          {busy ? "Opening…" : banner.action === "portal" ? "Update billing" : "Start subscription"}
+          {busy ? t("Opening…") : banner.action === "portal" ? t("Update billing") : t("Start subscription")}
         </button>
       ) : (
         <Link href="/settings#billing" className="btn btn-sm">
-          Details
+          {t("Details")}
         </Link>
       )}
     </div>

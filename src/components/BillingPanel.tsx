@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { changeSeats, openBillingPortal, startCheckout, useNow } from "@/lib/billing";
 import { billingSummary, paidSeats, type Tone } from "@/lib/billingLogic";
 import { monthlyPrice, PLANS, PRICE_CURRENCY, PRODUCT_NAME, RENEWAL_NOTE, TRIAL_DAYS } from "@/lib/plans";
+import { t, useT } from "@/lib/i18n";
 import { useSyncStatus } from "@/lib/sync";
 import { reloadTeam, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -29,11 +30,11 @@ function useCheckoutReturn() {
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
     if (result === "cancel") {
-      toast("Checkout canceled — nothing was charged.", "info");
+      toast(t("Checkout canceled — nothing was charged."), "info");
       return;
     }
     if (result !== "success") return;
-    toast(`Thanks! Your ${PRODUCT_NAME} subscription is starting.`);
+    toast(t("Thanks! Your {product} subscription is starting.", { product: PRODUCT_NAME }));
     let stop = false;
     void (async () => {
       // Stripe's webhook usually lands within seconds.
@@ -75,9 +76,10 @@ function usePriceCheck(enabled: boolean) {
 export default function BillingPanel() {
   useCheckoutReturn();
   const sync = useSyncStatus();
-  const t = useTeam();
-  const b = t.billing;
-  const office = t.role === "owner" || t.role === "admin";
+  const tm = useTeam();
+  const t = useT();
+  const b = tm.billing;
+  const office = tm.role === "owner" || tm.role === "admin";
   const plan = PLANS[0];
   const [busy, setBusy] = useState<string | null>(null);
   const now = useNow();
@@ -96,17 +98,24 @@ export default function BillingPanel() {
   };
 
   let body: React.ReactNode;
-  if (!sync.configured || !sync.signedIn || !t.team) {
+  if (!sync.configured || !sync.signedIn || !tm.team) {
     body = (
       <p className="text-sm text-slate-600">
-        {PRODUCT_NAME} is billed per company team: {TRIAL_DAYS} days free, then ${plan.basePrice}/month including {plan.includedSeats} users and ${plan.seatPrice}/month for each extra user ({PRICE_CURRENCY}).
-        {sync.configured && sync.signedIn ? " Start a team below to begin your trial." : ""}
+        {t("{product} is billed per company team: {days} days free, then ${base}/month including {seats} users and ${seat}/month for each extra user ({currency}).", {
+          product: PRODUCT_NAME,
+          days: TRIAL_DAYS,
+          base: plan.basePrice,
+          seats: plan.includedSeats,
+          seat: plan.seatPrice,
+          currency: PRICE_CURRENCY,
+        })}
+        {sync.configured && sync.signedIn ? ` ${t("Start a team below to begin your trial.")}` : ""}
       </p>
     );
   } else if (!b) {
-    body = <p className="text-sm text-slate-600">Billing isn’t set up for this team.</p>;
+    body = <p className="text-sm text-slate-600">{t("Billing isn’t set up for this team.")}</p>;
   } else if (!now) {
-    body = <p className="text-sm text-slate-500">Loading…</p>;
+    body = <p className="text-sm text-slate-500">{t("Loading…")}</p>;
   } else {
     const summary = billingSummary(b, now);
     const comped = b.status === "comped";
@@ -116,54 +125,54 @@ export default function BillingPanel() {
     body = (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-md px-2 py-0.5 text-sm font-semibold ${TONE[summary.tone]}`}>{summary.label}</span>
-          <span className="text-sm text-slate-600">{summary.detail}</span>
+          <span className={`rounded-md px-2 py-0.5 text-sm font-semibold ${TONE[summary.tone]}`}>{t(summary.label)}</span>
+          <span className="text-sm text-slate-600">{t(summary.detail)}</span>
         </div>
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           <div className="rounded-xl p-3 ring-1 ring-slate-200">
-            <dt className="text-xs text-slate-500">Plan</dt>
-            <dd className="font-medium">{comped ? "Founder account" : plan.name}</dd>
+            <dt className="text-xs text-slate-500">{t("Plan")}</dt>
+            <dd className="font-medium">{comped ? t("Founder account") : plan.name}</dd>
           </div>
           <div className="rounded-xl p-3 ring-1 ring-slate-200">
-            <dt className="text-xs text-slate-500">Seats</dt>
+            <dt className="text-xs text-slate-500">{t("Seats")}</dt>
             <dd className="font-medium">
-              {b.seatLimit == null ? `${b.members} ${b.members === 1 ? "person" : "people"} · no limit` : `${b.members} of ${b.seatLimit} used`}
+              {b.seatLimit == null ? t.tn("{n} person · no limit", "{n} people · no limit", b.members) : t("{n} of {limit} used", { n: b.members, limit: b.seatLimit })}
             </dd>
           </div>
           <div className="rounded-xl p-3 ring-1 ring-slate-200">
-            <dt className="text-xs text-slate-500">{subscribed ? "Monthly" : "Monthly after the trial"}</dt>
-            <dd className="font-medium">{comped ? "Free" : `$${monthlyPrice(plan, seats)}/month`}</dd>
-            {!comped && <dd className="text-xs text-slate-500">{`$${plan.basePrice} incl. ${plan.includedSeats} users + $${plan.seatPrice} per extra user · ${PRICE_CURRENCY}`}</dd>}
+            <dt className="text-xs text-slate-500">{subscribed ? t("Monthly") : t("Monthly after the trial")}</dt>
+            <dd className="font-medium">{comped ? t("Free") : t("${price}/month", { price: monthlyPrice(plan, seats) })}</dd>
+            {!comped && <dd className="text-xs text-slate-500">{t("${base} incl. {seats} users + ${seat} per extra user · {currency}", { base: plan.basePrice, seats: plan.includedSeats, seat: plan.seatPrice, currency: PRICE_CURRENCY })}</dd>}
           </div>
         </dl>
         {office && !comped && (
           <div className="flex flex-wrap gap-2">
             {!subscribed && (
               <button className="btn btn-brand" disabled={!!busy} onClick={() => void act("checkout", startCheckout)}>
-                <Sparkles /> {busy === "checkout" ? "Opening checkout…" : "Start subscription"}
+                <Sparkles /> {busy === "checkout" ? t("Opening checkout…") : t("Start subscription")}
               </button>
             )}
             {subscribed && b.seatLimit != null && (
-              <button className="btn" disabled={!!busy} onClick={() => void act("add", () => changeSeats("add"), "Seat added — invite someone to fill it")}>
-                <Plus /> {busy === "add" ? "Adding…" : `Add a seat (+$${plan.seatPrice}/month)`}
+              <button className="btn" disabled={!!busy} onClick={() => void act("add", () => changeSeats("add"), t("Seat added — invite someone to fill it"))}>
+                <Plus /> {busy === "add" ? t("Adding…") : t("Add a seat (+${price}/month)", { price: plan.seatPrice })}
               </button>
             )}
             {subscribed && unused > 0 && (
-              <button className="btn" disabled={!!busy} onClick={() => void act("fit", () => changeSeats("fit"), "Unused seats removed")}>
-                <Minus /> {busy === "fit" ? "Removing…" : `Remove ${unused} unused seat${unused === 1 ? "" : "s"}`}
+              <button className="btn" disabled={!!busy} onClick={() => void act("fit", () => changeSeats("fit"), t("Unused seats removed"))}>
+                <Minus /> {busy === "fit" ? t("Removing…") : t.tn("Remove {n} unused seat", "Remove {n} unused seats", unused)}
               </button>
             )}
             {b.hasSubscription && (
               <button className="btn" disabled={!!busy} onClick={() => void act("portal", openBillingPortal)}>
-                <ExternalLink /> {busy === "portal" ? "Opening…" : "Manage billing & invoices"}
+                <ExternalLink /> {busy === "portal" ? t("Opening…") : t("Manage billing & invoices")}
               </button>
             )}
           </div>
         )}
-        {office && !comped && !subscribed && <p className="text-xs text-slate-500">{RENEWAL_NOTE}</p>}
+        {office && !comped && !subscribed && <p className="text-xs text-slate-500">{t(RENEWAL_NOTE)}</p>}
         {office && priceIssues && (
           <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200">
-            <p className="font-medium">Stripe’s prices don’t match the prices shown here. Checkout charges Stripe’s prices.</p>
+            <p className="font-medium">{t("Stripe’s prices don’t match the prices shown here. Checkout charges Stripe’s prices.")}</p>
             <ul className="mt-1 list-disc pl-4">
               {priceIssues.map((m) => (
                 <li key={m}>{m}</li>
@@ -171,9 +180,9 @@ export default function BillingPanel() {
             </ul>
           </div>
         )}
-        {!office && !comped && <p className="text-xs text-slate-500">The owner or an admin manages the subscription.</p>}
+        {!office && !comped && <p className="text-xs text-slate-500">{t("The owner or an admin manages the subscription.")}</p>}
         {office && subscribed && b.seatLimit != null && (
-          <p className="text-xs text-slate-500">When every seat is taken, new people can’t join until you add a seat. Stripe prorates seat changes on the next invoice.</p>
+          <p className="text-xs text-slate-500">{t("When every seat is taken, new people can’t join until you add a seat. Stripe prorates seat changes on the next invoice.")}</p>
         )}
       </div>
     );
@@ -183,9 +192,9 @@ export default function BillingPanel() {
     <section id="billing" className="card scroll-mt-6 space-y-4 p-5 sm:p-6">
       <div>
         <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <CreditCard className="h-5 w-5 text-slate-400" /> Billing
+          <CreditCard className="h-5 w-5 text-slate-400" /> {t("Billing")}
         </h2>
-        <p className="text-sm text-slate-500">Your company’s {PRODUCT_NAME} subscription.</p>
+        <p className="text-sm text-slate-500">{t("Your company’s {product} subscription.", { product: PRODUCT_NAME })}</p>
       </div>
       {body}
     </section>

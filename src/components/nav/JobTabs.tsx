@@ -1,14 +1,15 @@
 "use client";
 // The five job tabs, always labelled: a segmented strip in the header from sm up, a bottom tab bar on phones.
 import { ClipboardCheck, Info, ListChecks, MapPin, Receipt } from "lucide-react";
+import { msg, useT } from "@/lib/i18n";
 import type { JobTabId } from "@/lib/tabRoutes";
 
 export const JOB_TAB_META: Record<JobTabId, { label: string; icon: typeof Info }> = {
-  overview: { label: "Overview", icon: Info },
-  plan: { label: "Plan", icon: MapPin },
-  takeoff: { label: "Takeoff", icon: ListChecks },
-  money: { label: "Money", icon: Receipt },
-  field: { label: "Field", icon: ClipboardCheck },
+  overview: { label: msg("Overview"), icon: Info },
+  plan: { label: msg("Plan"), icon: MapPin },
+  takeoff: { label: msg("Takeoff"), icon: ListChecks },
+  money: { label: msg("Money"), icon: Receipt },
+  field: { label: msg("Field"), icon: ClipboardCheck },
 };
 
 interface Props {
@@ -19,14 +20,15 @@ interface Props {
 
 /** Header strip (hidden on phones, where the bottom bar takes over). */
 export function JobTabStrip({ tabs, active, onSelect }: Props) {
+  const t = useT();
   return (
-    <nav className="seg max-sm:hidden" aria-label="Job sections">
+    <nav className="seg max-sm:hidden" aria-label={t("Job sections")}>
       {tabs.map((id) => {
-        const t = JOB_TAB_META[id];
+        const m = JOB_TAB_META[id];
         return (
           <button key={id} type="button" className={`tab ${active === id ? "tab-active" : ""}`} onClick={() => onSelect(id)} aria-current={active === id ? "page" : undefined}>
-            <t.icon />
-            {t.label}
+            <m.icon />
+            {t(m.label)}
           </button>
         );
       })}
@@ -36,10 +38,11 @@ export function JobTabStrip({ tabs, active, onSelect }: Props) {
 
 /** Phone bottom bar: icon over label, thumb-sized targets, clear of the home indicator. */
 export function JobTabBar({ tabs, active, onSelect }: Props) {
+  const t = useT();
   return (
-    <nav className="flex shrink-0 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden" aria-label="Job sections">
+    <nav className="flex shrink-0 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden" aria-label={t("Job sections")}>
       {tabs.map((id) => {
-        const t = JOB_TAB_META[id];
+        const m = JOB_TAB_META[id];
         const on = active === id;
         return (
           <button
@@ -49,8 +52,8 @@ export function JobTabBar({ tabs, active, onSelect }: Props) {
             onClick={() => onSelect(id)}
             aria-current={on ? "page" : undefined}
           >
-            <t.icon />
-            <span className="truncate">{t.label}</span>
+            <m.icon />
+            <span className="truncate">{t(m.label)}</span>
           </button>
         );
       })}

@@ -3,6 +3,7 @@
 // checklists; nothing the company already has is replaced or deleted.
 import { PackagePlus, Save } from "lucide-react";
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
@@ -17,9 +18,10 @@ export default function TradeSettings() {
   const [draft, setDraft] = useState<TradeId[] | null>(null);
   const [addPacks, setAddPacks] = useState(true);
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const value = draft ?? trades;
   const dirty = draft != null && JSON.stringify(draft) !== JSON.stringify(trades);
-  const added = value.filter((t) => !trades.includes(t));
+  const added = value.filter((id) => !trades.includes(id));
 
   async function save() {
     if (!draft || !draft.length) return;
@@ -27,8 +29,17 @@ export default function TradeSettings() {
     try {
       const r = await chooseTrades(draft, { addPacks });
       setDraft(null);
-      const bits = [r.added.types ? `${r.added.types} catalog items` : "", r.added.wirePrices ? `${r.added.wirePrices} wire prices` : ""].filter(Boolean);
-      toast(bits.length ? `Trades saved · added ${bits.join(" and ")}` : "Trades saved", "success");
+      const { types, wirePrices } = r.added;
+      toast(
+        types && wirePrices
+          ? t("Trades saved · added {types} catalog items and {wire} wire prices", { types, wire: wirePrices })
+          : types
+            ? t("Trades saved · added {types} catalog items", { types })
+            : wirePrices
+              ? t("Trades saved · added {wire} wire prices", { wire: wirePrices })
+              : t("Trades saved"),
+        "success",
+      );
       if (r.error) toast(r.error, "info");
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
@@ -37,11 +48,12 @@ export default function TradeSettings() {
     }
   }
 
-  async function addMissing(t: TradeId) {
+  async function addMissing(id: TradeId) {
     setBusy(true);
     try {
-      const r = await addTradePack(t);
-      toast(r.types || r.wirePrices ? `Added ${r.types} items and ${r.wirePrices} wire prices from ${tradePack(t).short}` : `Your catalog already has everything from ${tradePack(t).short}`, "success");
+      const r = await addTradePack(id);
+      const trade = t(tradePack(id).short);
+      toast(r.types || r.wirePrices ? t("Added {types} items and {wire} wire prices from {trade}", { types: r.types, wire: r.wirePrices, trade }) : t("Your catalog already has everything from {trade}", { trade }), "success");
     } finally {
       setBusy(false);
     }
@@ -50,10 +62,10 @@ export default function TradeSettings() {
   return (
     <section id="trades" className="card scroll-mt-6 space-y-4 p-6">
       <div>
-        <h2 className="text-lg font-semibold">Trades</h2>
+        <h2 className="text-lg font-semibold">{t("Trades")}</h2>
         <p className="text-sm text-slate-500">
-          What your company works on. The first one is your primary trade — the plan’s device menu, layers, takeoff and crew sheets follow these.
-          {!office && " Your company’s owner or office sets them."}
+          {t("What your company works on. The first one is your primary trade — the plan’s device menu, layers, takeoff and crew sheets follow these.")}
+          {!office && ` ${t("Your company’s owner or office sets them.")}`}
         </p>
       </div>
       <TradePicker value={value} disabled={!office || busy} onChange={(next) => setDraft(next.length ? next : value)} />
@@ -62,19 +74,19 @@ export default function TradeSettings() {
           {added.length > 0 && (
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" className="accent-brand-600" checked={addPacks} onChange={(e) => setAddPacks(e.target.checked)} />
-              Add {added.map((t) => tradePack(t).short).join(" + ")} starting catalog, wire prices and checklists (nothing you have is replaced)
+              {t("Add {trades} starting catalog, wire prices and checklists (nothing you have is replaced)", { trades: added.map((id) => t(tradePack(id).short)).join(" + ") })}
             </label>
           )}
           <button className={`btn ml-auto ${dirty ? "btn-brand" : ""}`} disabled={!dirty || busy} onClick={() => void save()}>
-            <Save /> Save trades
+            <Save /> {t("Save trades")}
           </button>
         </div>
       )}
-      {office && !dirty && trades.some((t) => t !== "lowvoltage") && (
+      {office && !dirty && trades.some((id) => id !== "lowvoltage") && (
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-          {trades.filter((t) => t !== "lowvoltage").map((t) => (
-            <button key={t} className="btn btn-sm" disabled={busy} onClick={() => void addMissing(t)} title="Adds only items and wire prices your catalog doesn't have yet">
-              <PackagePlus /> Add missing {tradePack(t).short} items
+          {trades.filter((id) => id !== "lowvoltage").map((id) => (
+            <button key={id} className="btn btn-sm" disabled={busy} onClick={() => void addMissing(id)} title={t("Adds only items and wire prices your catalog doesn't have yet")}>
+              <PackagePlus /> {t("Add missing {trade} items", { trade: t(tradePack(id).short) })}
             </button>
           ))}
         </div>

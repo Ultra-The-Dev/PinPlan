@@ -4,6 +4,7 @@
 // can't swap code under someone mid-job; tapping Reload activates it and reloads once it is in control.
 import { RotateCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 /** Check for a new deploy this often while the app stays open (and whenever the tab comes back to the front). */
 const CHECK_EVERY_MS = 60 * 60_000;
@@ -12,6 +13,7 @@ export default function UpdatePrompt() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [hidden, setHidden] = useState(false);
   const reloading = useRef(false);
+  const t = useT();
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
@@ -71,11 +73,11 @@ export default function UpdatePrompt() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div role="status" className="pointer-events-auto flex items-center gap-2 rounded-xl bg-ink/95 py-2 pr-2 pl-3.5 text-sm text-white shadow-pop backdrop-blur animate-in">
-        <span>Update ready</span>
+        <span>{t("Update ready")}</span>
         <button className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100" onClick={update}>
-          <RotateCw className="h-3.5 w-3.5" /> Reload
+          <RotateCw className="h-3.5 w-3.5" /> {t("Reload")}
         </button>
-        <button className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => setHidden(true)} aria-label="Later">
+        <button className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => setHidden(true)} aria-label={t("Later")}>
           <X className="h-3.5 w-3.5" />
         </button>
       </div>

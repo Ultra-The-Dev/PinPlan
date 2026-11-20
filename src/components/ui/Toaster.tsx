@@ -7,32 +7,34 @@ import { CircleExclamationPoint, CircleCheck, Info, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "@/lib/i18n";
 import { useToasts, type Toast } from "@/lib/toast";
 import { useTopModalSlot } from "./Modal";
 
-function ToastItem({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
-  const Icon = t.kind === "error" ? CircleExclamationPoint : t.kind === "info" ? Info : CircleCheck;
+function ToastItem({ t: item, onDismiss }: { t: Toast; onDismiss: () => void }) {
+  const t = useT();
+  const Icon = item.kind === "error" ? CircleExclamationPoint : item.kind === "info" ? Info : CircleCheck;
   return (
     <div className="pointer-events-auto flex max-w-md items-center gap-1.5 rounded-xl bg-ink/95 py-0.5 pr-0.5 pl-3.5 text-sm text-white shadow-pop backdrop-blur animate-in">
-      <Icon aria-hidden className={`h-4 w-4 shrink-0 ${t.kind === "error" ? "text-red-400" : t.kind === "info" ? "text-sky-300" : "text-emerald-400"}`} />
+      <Icon aria-hidden className={`h-4 w-4 shrink-0 ${item.kind === "error" ? "text-red-400" : item.kind === "info" ? "text-sky-300" : "text-emerald-400"}`} />
       <span className="min-w-0 py-2">
-        {t.kind === "error" && <span className="sr-only">Error: </span>}
-        {t.text}
+        {item.kind === "error" && <span className="sr-only">{t("Error:")} </span>}
+        {item.text}
       </span>
-      {t.action && (
+      {item.action && (
         <Link
-          href={t.action.href}
+          href={item.action.href}
           onClick={onDismiss}
           className="flex h-9 shrink-0 items-center rounded-lg px-2.5 font-semibold whitespace-nowrap text-white underline-offset-2 hover:bg-white/10 hover:underline focus-visible:outline-2 focus-visible:outline-white"
         >
-          {t.action.label}
+          {item.action.label}
         </Link>
       )}
       <button
         type="button"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
         onClick={onDismiss}
-        aria-label="Dismiss"
+        aria-label={t("Dismiss")}
       >
         <X className="h-4 w-4" />
       </button>
