@@ -130,7 +130,7 @@ export function buildSnapshot(input: {
     version: 1,
     ...(review ? { kind: "review" as const } : {}),
     ...(input.legend?.length ? { legend: input.legend } : {}),
-    title: input.title?.trim() || `${review ? "Preliminary plan" : "Proposal"} — ${input.project.address || input.project.clientName || "your project"}`,
+    title: input.title?.trim() || `${review ? "Preliminary plan" : "Quote"} — ${input.project.address || input.project.clientName || "your project"}`,
     message: input.message?.trim() ?? "",
     createdAt: now.toISOString(),
     validUntil: review ? null : valid,

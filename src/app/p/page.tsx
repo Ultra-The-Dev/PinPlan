@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import ClientProposal from "@/components/ClientProposal";
 
-export const metadata: Metadata = { title: "Proposal", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Quote", robots: { index: false, follow: false } };
 
 export default function ProposalPage() {
   return (
