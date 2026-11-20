@@ -132,6 +132,19 @@ public enum BillingLogic {
         return planAllowsWork(b.status, trialEndsAt: b.trialEndsAt, now: now)
     }
 
+    /// May jobs be changed on this device? A lapsed team's jobs are read-only everywhere (view and export only), like
+    /// the web app: edits made anyway could never be sent. Solo users and unknown billing never lock.
+    public static func canEdit(_ b: TeamBilling?, now: Date = Date()) -> Bool { allowsWork(b, now: now) }
+
+    /// Why a change was refused on a read-only team (nil when changes are allowed).
+    public static func editBlockedMessage(_ b: TeamBilling?, role: TeamRole?, now: Date = Date()) -> String? {
+        guard !canEdit(b, now: now), let b else { return nil }
+        let ended = b.status == .trialing || b.status == .incomplete || b.status == .none
+        let why = ended ? "Your free trial has ended" : "Your PinPlan subscription is inactive"
+        let office = role == .owner || role == .admin
+        return "\(why), so jobs are read-only — you can still view and export everything. " + (office ? "Manage your account on the web to edit again." : askOfficeText)
+    }
+
     /// `team_billing()`'s answer. Nil for JSON null (not on a team) or anything unreadable.
     public static func parse(_ data: Data) -> TeamBilling? {
         guard let obj = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]), obj is [String: Any] else { return nil }

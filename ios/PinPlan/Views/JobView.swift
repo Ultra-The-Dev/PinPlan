@@ -28,6 +28,7 @@ struct JobView: View {
             if app.cloud.can(.prices) {
                 Section {
                     NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
+                    NavigationLink { QuotesInvoicesView(model: model) } label: { Label("Quotes & invoices", systemImage: "doc.text") }
                 }
             }
             Section(sentence: "Client") {

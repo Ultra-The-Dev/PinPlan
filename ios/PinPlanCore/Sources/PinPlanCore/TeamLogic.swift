@@ -191,9 +191,19 @@ public enum TeamLogic {
         }
     }
 
-    /// Whether this device may send rows of a table (technicians can't write prices: the database refuses them).
+    /// Whether this device may send rows of a table. Technicians can't write prices or plan links, nor change the
+    /// company catalog and products: the database refuses them (src/lib/sync.ts drops the same tables).
     public static func mayPush(_ table: SyncTable, role: TeamRole?) -> Bool {
-        table == .estimateLines ? can(role, .prices) : true
+        switch table {
+        case .estimateLines, .salesDocs, .salesPayments, .sheetLinks: return can(role, .prices)
+        case .deviceTypes, .products: return can(role, .editCatalog)
+        default: return true
+        }
+    }
+
+    /// Whether this device pulls a table: prices (estimate lines, quotes and invoices) only for people who see them.
+    public static func mayPull(_ table: SyncTable, role: TeamRole?) -> Bool {
+        SyncMap.pricesOnly.contains(table) ? can(role, .prices) : true
     }
 
     /// The friendly text sent with an invite (Messages, Mail, WhatsApp…).
@@ -213,13 +223,25 @@ public struct Team: Codable, Equatable, Sendable {
     public var id: String
     public var name: String
     public var ownerId: String
-    public init(id: String, name: String, ownerId: String) { self.id = id; self.name = name; self.ownerId = ownerId }
-    enum CodingKeys: String, CodingKey { case id, name, ownerId = "owner_id" }
+    /// The company's trades shared by everyone on the team (primary first); nil when not set or not loaded.
+    public var trades: [String]?
+    public init(id: String, name: String, ownerId: String, trades: [String]? = nil) { self.id = id; self.name = name; self.ownerId = ownerId; self.trades = trades }
+    enum CodingKeys: String, CodingKey { case id, name, ownerId = "owner_id", trades }
     public init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         ownerId = try c.decodeIfPresent(String.self, forKey: .ownerId) ?? ""
+        trades = (try? c.decodeIfPresent([String].self, forKey: .trades)) ?? nil
+    }
+
+    /// The team's trades to adopt on this device, or nil when there's nothing new: the team has none, or they are the
+    /// ones this device already took (`seen`) — then a change made on this device stands until the team changes them.
+    public static func tradesToAdopt(team: [String]?, seen: [String]?, local: [TradeId]) -> [TradeId]? {
+        guard let raw = team, !raw.isEmpty else { return nil }
+        let t = Trades.normalize(raw)
+        if let seen, Trades.normalize(seen) == t { return nil }
+        return t == Trades.normalize(local) ? nil : t
     }
 }
 

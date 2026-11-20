@@ -4,7 +4,7 @@ A per-job log of questions for the GC, architect or owner ("Where does the FACP 
 RFI carries the spot on the plan, photos, a due date and a clear **ball in court**, and goes out as an email with a
 link the other side can answer **without an account**. The log is the paper trail for change orders.
 
-Web: **Field → RFIs** (`src/components/rfis/`). iOS: not built yet; the data model below is what it should mirror.
+Web: **Field → RFIs** (`src/components/rfis/`). iOS: RFIs sync down (`PinPlanCore/FieldSync.swift`, lenient decoding) and drafts made on the device go up; there is no RFI screen yet — the data model below is what it should mirror.
 
 ## Workflow
 

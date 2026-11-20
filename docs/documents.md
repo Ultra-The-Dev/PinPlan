@@ -244,3 +244,11 @@ on/after each of `daysAfterDue`. The Invoices page lists them; sending is one cl
 
 `sales_documents`, `sales_document_payments` and `document_links` have the `job_write_guard` trigger: a lapsed
 subscription makes them read-only like every job table; `issue_document` checks it too.
+
+## iPad / iPhone
+
+The native app pulls `sales_documents` and `sales_document_payments` for people who see prices (never for
+technicians) and shows them read-only under **Job → Quotes & invoices**: number, status (overdue / expired worked out
+the same way as `displayStatus`), total and balance due, with **Open on the web** for everything else. It never
+writes these tables. The estimate's "Invoiced so far" bar adds issued invoices (less credit notes, before tax) to
+Billdu invoices. Code: `ios/PinPlanCore/Sources/PinPlanCore/SalesDocs.swift`, `ios/PinPlan/Money/`.
