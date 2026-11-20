@@ -115,23 +115,8 @@ struct APIClient {
     /// The support page on this server ("https://…/support").
     var supportURL: String { baseURL.absoluteString.hasSuffix("/") ? baseURL.absoluteString + "support" : baseURL.absoluteString + "/support" }
 
-    /// Delete the signed-in user's account and their data on the server (`DELETE /api/account`).
-    /// 409: they own a team that still has other people (the message says what to do). 501: not set up on this server.
-    func deleteAccount(token: String) async throws {
-        let (status, data) = try await authed("DELETE", "api/account", body: nil, token: token)
-        if (200..<300).contains(status) { return }
-        let msg = Self.errorText(data)
-        switch status {
-        case 409:
-            throw APIError(message: msg ?? "You own a team that still has other people on it. Remove them (or hand the team over) first, then try again.", status: status)
-        case 501, 404:
-            throw APIError(message: "Account deletion isn't switched on for this PinPlan server yet. Visit \(supportURL) and we'll delete your account for you.", status: status)
-        case 401:
-            throw APIError(message: msg ?? "Your sign-in has expired. Sign in again, then delete the account.", status: status)
-        default:
-            throw APIError(message: msg ?? "The server answered \(status). Try again in a moment.", status: status)
-        }
-    }
+    // Account deletion (DELETE /api/account) is CloudSync.deleteAccount(api:confirmEmail:): it sends the typed email
+    // and reads the server's 403 reauth_required through PinPlanCore's AccountDeletionResult.
 
     /// Can this server send email (team invites)? False when it can't, or can't be reached.
     func emailConfigured() async -> Bool {
