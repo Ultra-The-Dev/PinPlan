@@ -64,6 +64,7 @@ import AddFromPlanDialog from "./AddFromPlanDialog";
 import StatusChip from "./StatusChip";
 import DevicePicker from "./DevicePicker";
 import { useRowPending } from "./useChangeOrders";
+import { roundPct } from "@/lib/percent";
 
 const num = (s: string): number | null => {
   const n = parseFloat(s.replace(/[$,%\s]/g, ""));
@@ -650,7 +651,7 @@ export default function ChangeOrderEditor(props: {
               </div>
               <div>
                 <span className="label">Tax %</span>
-                <NumField key={`x${draft.taxPct}`} value={draft.taxPct ?? 0} label="Tax %" disabled={!editable} onCommit={(n) => change({ taxPct: n ?? 0 })} />
+                <NumField key={`x${draft.taxPct}`} value={draft.taxPct ?? 0} label="Tax %" disabled={!editable} onCommit={(n) => change({ taxPct: roundPct(n ?? 0) })} />
               </div>
               <div>
                 <span className="label">Labor rate / hr</span>

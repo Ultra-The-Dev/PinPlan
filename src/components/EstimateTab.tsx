@@ -20,6 +20,7 @@ import type { BillduDocRef, PricingSettings } from "@/lib/types";
 import JobProducts from "./JobProducts";
 import ProposalPanel from "./ProposalPanel";
 import AddChargeMenu from "./AddChargeMenu";
+import { fmtPct, roundPct } from "@/lib/percent";
 
 type DocType = "estimate" | "order" | "invoice";
 // Billdu's own document types; "estimate" is what Billdu calls a quote (the id stays, the words follow the glossary).
@@ -274,7 +275,7 @@ export default function EstimateTab() {
       {/* The total and the next step first; it stays in view while scrolling on a phone. */}
       <div className="card sticky top-0 z-20 mb-5 flex flex-wrap items-center gap-3 px-4 py-3 shadow-sm sm:static sm:shadow-none">
         <div className="mr-auto min-w-0">
-          <div className="text-xs text-slate-500">Total{pricing.taxPct ? ` with ${pricing.taxPct}% tax` : ""}</div>
+          <div className="text-xs text-slate-500">Total{pricing.taxPct ? ` with ${fmtPct(pricing.taxPct)}% tax` : ""}</div>
           <div className="text-2xl font-semibold tabular-nums" data-testid="pricing-total">
             {formatMoney(estimate.total, cur)}
           </div>
@@ -330,7 +331,7 @@ export default function EstimateTab() {
               <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
               Adjust pricing
               <span className="ml-auto truncate text-xs font-normal text-slate-500">
-                Markup {pricing.markupPct}% · tax {pricing.taxPct}% · labor {pricing.laborMode === "combined" ? "in the price" : "separate"}
+                Markup {pricing.markupPct}% · tax {fmtPct(pricing.taxPct)}% · labor {pricing.laborMode === "combined" ? "in the price" : "separate"}
               </span>
             </summary>
           <div className="flex flex-wrap items-end gap-4 border-t border-slate-100 p-4">
@@ -340,7 +341,7 @@ export default function EstimateTab() {
             </label>
             <label className="text-sm">
               <span className="label">Tax %</span>
-              <input className={input} defaultValue={pricing.taxPct} key={`tx${pricing.taxPct}`} inputMode="decimal" onBlur={(e) => setPricing({ taxPct: num(e.target.value) ?? 0 })} onKeyDown={enterBlurs} />
+              <input className={input} defaultValue={pricing.taxPct} key={`tx${pricing.taxPct}`} inputMode="decimal" onBlur={(e) => setPricing({ taxPct: roundPct(num(e.target.value) ?? 0) })} onKeyDown={enterBlurs} />
             </label>
             <label className="text-sm">
               <span className="label">Labor</span>
@@ -506,7 +507,7 @@ export default function EstimateTab() {
                 <dd className="tabular-nums">{formatMoney(estimate.subtotal, cur)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-slate-500">Tax ({pricing.taxPct}%)</dt>
+                <dt className="text-slate-500">Tax ({fmtPct(pricing.taxPct)}%)</dt>
                 <dd className="tabular-nums">{formatMoney(estimate.tax, cur)}</dd>
               </div>
               <div className="flex items-baseline justify-between border-t border-slate-200 pt-3">

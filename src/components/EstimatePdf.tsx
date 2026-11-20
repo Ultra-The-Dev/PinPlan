@@ -6,6 +6,7 @@ import type { ComputedLine, Estimate } from "@/lib/estimate";
 import { formatMoney } from "@/lib/estimate";
 import { localDay } from "@/lib/fieldDocs";
 import type { BusinessSettings, Project } from "@/lib/types";
+import { fmtPct } from "@/lib/percent";
 
 const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const BRAND = DOC_DEFAULT_BRAND;
@@ -186,7 +187,7 @@ export function EstimateDocument({ project, business, estimate, currency, taxPct
             <Text>{formatMoney(estimate.subtotal, currency)}</Text>
           </View>
           <View style={s.totalRow}>
-            <Text style={{ color: MUTED }}>Tax ({taxPct}%)</Text>
+            <Text style={{ color: MUTED }}>Tax ({fmtPct(taxPct)}%)</Text>
             <Text>{formatMoney(estimate.tax, currency)}</Text>
           </View>
           <View style={[s.totalRow, s.grand]}>

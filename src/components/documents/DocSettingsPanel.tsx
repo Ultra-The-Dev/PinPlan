@@ -11,6 +11,7 @@ import { useSyncStatus } from "@/lib/sync";
 import { toast } from "@/lib/toast";
 import type { DocKind, DocumentSettings } from "@/lib/types";
 import { parseAmount } from "./ui";
+import { roundPct } from "@/lib/percent";
 
 const KIND_NAMES: Record<DocKind, string> = { quote: "Quotes", invoice: "Invoices", credit_note: "Credit notes" };
 const KIND_ONE: Record<DocKind, string> = { quote: "quote", invoice: "invoice", credit_note: "credit note" };
@@ -193,7 +194,7 @@ export default function DocSettingsPanel() {
         {s.taxes.map((t, i) => (
           <div key={t.id} className="mb-2 flex flex-wrap items-center gap-2">
             <input className="input min-w-0 flex-1" aria-label="Tax name" value={t.name} placeholder="NY Sales Tax" onChange={(e) => set({ taxes: s.taxes.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
-            <input className="input w-24 text-right" aria-label={`${t.name} %`} inputMode="decimal" value={t.rate} onChange={(e) => set({ taxes: s.taxes.map((x, j) => (j === i ? { ...x, rate: parseAmount(e.target.value) ?? 0 } : x)) })} />
+            <input className="input w-24 text-right" aria-label={`${t.name} %`} inputMode="decimal" value={t.rate} onChange={(e) => set({ taxes: s.taxes.map((x, j) => (j === i ? { ...x, rate: roundPct(parseAmount(e.target.value) ?? 0) } : x)) })} />
             <span className="text-sm text-slate-500">%</span>
             <label className="flex items-center gap-1.5 text-sm">
               <input type="checkbox" className="accent-brand-600" checked={t.default} onChange={(e) => set({ taxes: s.taxes.map((x, j) => (j === i ? { ...x, default: e.target.checked } : x)) })} /> default

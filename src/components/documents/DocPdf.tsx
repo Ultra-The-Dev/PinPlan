@@ -5,6 +5,7 @@ import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 import type { DocLive } from "./DocView";
+import { fmtPct } from "@/lib/percent";
 
 const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const MUTED = "#64748b";
@@ -74,7 +75,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
   const counted = snap.lines.filter((l) => !l.optional);
   const optional = snap.lines.filter((l) => l.optional && (l.kind ?? "item") === "item");
   const price = !sections;
-  const pct = (n: number) => `${Number(n.toFixed(3))}%`;
+  const pct = (n: number) => `${fmtPct(n)}%`;
 
   const head = (
     <View style={[s.th, { borderBottomColor: brand }]} fixed>

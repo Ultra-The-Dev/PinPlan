@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PublicCoResponse } from "@/lib/changeOrders";
 import { formatMoney } from "@/lib/estimate";
 import SignaturePad from "../SignaturePad";
+import { fmtPct } from "@/lib/percent";
 
 const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
 const qtyText = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
@@ -207,7 +208,7 @@ export default function PublicChangeOrder() {
             </div>
             {v.tax !== 0 && (
               <div className="flex justify-between">
-                <dt className="text-slate-500">Tax ({v.taxPct}%)</dt>
+                <dt className="text-slate-500">Tax ({fmtPct(v.taxPct)}%)</dt>
                 <dd className="tabular-nums">{formatMoney(v.tax, cur)}</dd>
               </div>
             )}

@@ -38,6 +38,7 @@ import { EmailDialog, PaymentDialog, type EmailKind } from "./DocDialogs";
 import DocView from "./DocView";
 import LineEditor from "./LineEditor";
 import { KindChip, Menu, Modal, parseAmount, StatusChip } from "./ui";
+import { fmtPct, roundPct } from "@/lib/percent";
 
 export interface EditorActions {
   duplicate(doc: SalesDoc): void;
@@ -483,7 +484,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                       icon={<Plus />}
                       className="btn btn-sm btn-ghost text-brand-600"
                       items={[
-                        ...settings.taxes.filter((t) => !draft.taxes.some((x) => x.id === t.id)).map((t) => ({ label: `${t.name} (${t.rate}%)`, onClick: () => edit({ taxes: [...draft.taxes, { id: t.id, name: t.name, rate: t.rate }] }) })),
+                        ...settings.taxes.filter((t) => !draft.taxes.some((x) => x.id === t.id)).map((t) => ({ label: `${t.name} (${fmtPct(t.rate)}%)`, onClick: () => edit({ taxes: [...draft.taxes, { id: t.id, name: t.name, rate: t.rate }] }) })),
                         { label: "Custom tax rate…", onClick: () => edit({ taxes: [...draft.taxes, { id: lineId(), name: "Sales tax", rate: 0 }] }) },
                       ]}
                     />
@@ -499,7 +500,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                       inputMode="decimal"
                       readOnly={locked}
                       defaultValue={t.rate}
-                      onBlur={(e) => edit({ taxes: draft.taxes.map((x, j) => (j === i ? { ...x, rate: parseAmount(e.target.value) ?? 0 } : x)) })}
+                      onBlur={(e) => edit({ taxes: draft.taxes.map((x, j) => (j === i ? { ...x, rate: roundPct(parseAmount(e.target.value) ?? 0) } : x)) })}
                     />
                     <span className="text-sm text-slate-500">%</span>
                     {!locked && (
@@ -548,7 +549,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
               {totals.discountTotal ? <Total label="Discount" value={`−${money(totals.discountTotal)}`} /> : null}
               {totals.feeTotal ? <Total label="Fees" value={money(totals.feeTotal)} /> : null}
               {totals.taxLines.map((t) => (
-                <Total key={t.id} label={`${t.name} ${t.rate}% on ${money(t.base)}`} value={money(t.amount)} />
+                <Total key={t.id} label={`${t.name} ${fmtPct(t.rate)}% on ${money(t.base)}`} value={money(t.amount)} />
               ))}
               {(draft.deductions ?? []).length > 0 && (
                 <>

@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { formatDocMoney, lineAmounts, lineId } from "@/lib/documents";
 import type { DocLine, DocTaxRate } from "@/lib/types";
 import { parseAmount } from "./ui";
+import { fmtPct } from "@/lib/percent";
 
 type Col = "desc" | "qty" | "unit" | "price";
 
@@ -236,7 +237,7 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
                                 set(i, { taxIds: next.length === taxes.length ? null : next });
                               }}
                             />
-                            {t.name} ({t.rate}%)
+                            {t.name} ({fmtPct(t.rate)}%)
                           </label>
                         );
                       })}

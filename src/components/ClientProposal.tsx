@@ -11,6 +11,7 @@ import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/l
 import { supabaseConfigured } from "@/lib/supabase";
 import SignaturePad from "./SignaturePad";
 import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
+import { fmtPct } from "@/lib/percent";
 
 const fmtDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
 
@@ -440,7 +441,7 @@ export default function ClientProposal() {
             </div>
             {s.taxPct > 0 && (
               <div className="flex justify-between">
-                <dt className="text-slate-500">Tax ({s.taxPct}%)</dt>
+                <dt className="text-slate-500">Tax ({fmtPct(s.taxPct)}%)</dt>
                 <dd className="tabular-nums">{formatMoney(totals.tax, cur)}</dd>
               </div>
             )}

@@ -2,6 +2,7 @@
 // Renders a DocSnapshot in one of three looks: classic, modern, compact. No browser APIs: safe to prerender.
 import { docBrand } from "@/lib/brandDefaults";
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
+import { fmtPct } from "@/lib/percent";
 
 export interface DocLive {
   status?: string;
@@ -13,7 +14,7 @@ export interface DocLive {
   expired?: boolean;
 }
 
-const pctText = (n: number) => `${Number(n.toFixed(3))}%`;
+const pctText = (n: number) => `${fmtPct(n)}%`;
 
 export default function DocView({ snap, live, payLink, className = "" }: { snap: DocSnapshot; live?: DocLive; payLink?: string | null; className?: string }) {
   const money = (n: number) => formatDocMoney(n, snap.currency, snap.locale);

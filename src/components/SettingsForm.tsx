@@ -22,6 +22,7 @@ import TeamPanel from "./TeamPanel";
 import TemplatesSettings from "./templates/TemplatesSettings";
 import TradeSettings from "./TradeSettings";
 import InstallSettings from "./progress/InstallSettings";
+import { roundPct } from "@/lib/percent";
 
 /** A group of settings with a small heading; `id` is what the side nav (and links like /settings#team) jump to. */
 function Group({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
@@ -283,7 +284,7 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
               </div>
               <div>
                 <label className="label" htmlFor="set-sales-tax">Sales tax %</label>
-                <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
+                <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", roundPct(Number(e.target.value) || 0))} />
               </div>
               <div>
                 <label className="label" htmlFor="set-currency">Currency</label>

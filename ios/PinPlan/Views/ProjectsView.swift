@@ -257,6 +257,9 @@ private struct ProjectCard: View {
                     }
                 }
                 .frame(height: 150).frame(maxWidth: .infinity).clipped().background(Color(.secondarySystemBackground))
+                // A scaled-to-fill picture still catches taps outside its clipped frame (on the next card, or
+                // nowhere): the card itself takes the tap instead.
+                .allowsHitTesting(false)
                 StatusChip(status: p.status).padding(.horizontal, 8).padding(.vertical, 4)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
             }
@@ -273,6 +276,8 @@ private struct ProjectCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         .paperCard()
+        // The whole card is the tap target, gaps between the texts included.
+        .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         // A sheet lying on a desk: long, soft shadow.
         .shadow(color: Color.ink.opacity(0.10), radius: 14, y: 8)
     }
