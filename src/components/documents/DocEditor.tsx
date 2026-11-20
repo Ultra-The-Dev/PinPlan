@@ -570,7 +570,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                       <dt className="text-slate-500">
                         {d.label}
                         {!locked && (
-                          <button className="ml-1.5 text-xs text-slate-400 hover:text-red-600" aria-label={t("Remove: {name}", { name: d.label })} onClick={() => edit({ deductions: (draft.deductions ?? []).filter((x) => x.id !== d.id) })}>
+                          <button className="ml-1.5 text-xs text-slate-400 hover:text-red-600" aria-label={t("Remove {name}", { name: d.label })} onClick={() => edit({ deductions: (draft.deductions ?? []).filter((x) => x.id !== d.id) })}>
                             {t("remove")}
                           </button>
                         )}

@@ -29,7 +29,7 @@ export function NewQuoteDialog({ settings, pricingTotal, preview, onClose, onCre
   const quoteTotal = quote ? documentTotals(quote).total : null;
   const diff = quoteTotal == null ? 0 : Math.round((quoteTotal - pricingTotal) * 100) / 100;
   return (
-    <Modal title={t("New: {label}", { label })} description={t("Built from the job's pricing. Edit it freely: changes here never change the job's pricing.")} onClose={onClose}>
+    <Modal title={t("New {label}", { label })} description={t("Built from the job's pricing. Edit it freely: changes here never change the job's pricing.")} onClose={onClose}>
       <dl className="mb-4 grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-lg bg-slate-50 px-3 py-2">
           <dt className="text-xs text-slate-500">{t("Job pricing (with tax)")}</dt>
@@ -78,7 +78,7 @@ export function NewQuoteDialog({ settings, pricingTotal, preview, onClose, onCre
           {t("Cancel")}
         </button>
         <button className="btn btn-brand flex-1" onClick={() => onCreate(o)}>
-          {t("Create: {label}", { label })}
+          {t("Create {label}", { label })}
         </button>
       </div>
     </Modal>

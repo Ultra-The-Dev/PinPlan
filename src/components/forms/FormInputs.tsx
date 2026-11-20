@@ -58,7 +58,7 @@ export function NumberInput({ value, onChange, disabled, unit, compact, label, s
   return (
     <div className="flex items-center gap-1.5">
       {!compact && !disabled && (
-        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("Less: {name}", { name: label })} onClick={() => bump(-step)}>
+        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("Less {name}", { name: label })} onClick={() => bump(-step)}>
           <Minus />
         </button>
       )}
@@ -75,7 +75,7 @@ export function NumberInput({ value, onChange, disabled, unit, compact, label, s
         {unit && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">{unit}</span>}
       </div>
       {!compact && !disabled && (
-        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("More: {name}", { name: label })} onClick={() => bump(step)}>
+        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("More {name}", { name: label })} onClick={() => bump(step)}>
           <Plus />
         </button>
       )}

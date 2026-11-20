@@ -420,7 +420,7 @@ const moneyOffice: Dictionary = {
     "Раздел на каждое помещение (устройства без помещения — в разделе «Другие зоны»)",
   "One list": "Одним списком",
   "No sections": "Без разделов",
-  "New: {label}": "Новый документ: {label}",
+  "New {label}": "Новый документ: {label}",
   "Built from the job's pricing. Edit it freely: changes here never change the job's pricing.":
     "Составлен по расчёту цен объекта. Редактируйте свободно: изменения здесь не меняют расчёт цен объекта.",
   "Job pricing (with tax)": "Расчёт цен объекта (с налогом)",
@@ -436,7 +436,7 @@ const moneyOffice: Dictionary = {
   "Hide unit prices — show section totals only": "Скрыть цены за единицу — показывать только итоги разделов",
   "List optional items (the client can add them; not counted in the total)":
     "Показать опции (клиент может их добавить; в итог не входят)",
-  "Create: {label}": "Создать: {label}",
+  "Create {label}": "Создать: {label}",
   Deposit: "Аванс",
   "{pct}% of the {label} = {amount}": "{pct}% от документа ({label}) = {amount}",
   "Remaining balance": "Остаток",
