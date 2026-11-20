@@ -4,12 +4,13 @@
 import { FileSpreadsheet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_ACCOUNTS, exportableDocs, exportFileName, iifExport, invoiceLinesCsv, type AccountNames } from "@/lib/accountingExport";
+import { syncAndReload } from "@/lib/docActions";
 import { today } from "@/lib/documents";
 import { downloadText } from "@/lib/download";
 import { msg, useT } from "@/lib/i18n";
 import type { DocPayment, SalesDoc } from "@/lib/types";
 import { Modal } from "../documents/ui";
-import { FORMATS, listIntegrations, loadAccounts, pushDocument, rememberFormat, saveAccounts, savedFormat, type ExportFormat, type ProviderStatus } from "./accountingClient";
+import { ApiError, FORMATS, listIntegrations, loadAccounts, pushDocument, rememberFormat, saveAccounts, savedFormat, type ExportFormat, type ProviderStatus } from "./accountingClient";
 
 const monthStart = (day: string) => `${day.slice(0, 8)}01`;
 function lastMonth(day: string): { from: string; to: string } {
@@ -104,14 +105,18 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
     if (!confirm(question.filter(Boolean).join(" "))) return;
     setMessage(null);
     setSending({ done: 0, total: sendable.length });
+    // The server sends its own copy: push this device's changes first.
+    await syncAndReload();
     const problems: string[] = [];
     let sent = 0;
     for (const [i, d] of sendable.entries()) {
       try {
-        const r = await pushDocument(p.id, d, payments);
+        const r = await pushDocument(p.id, d);
         if (r.status === "sent" || r.status === "voided") sent++;
         problems.push(...r.warnings, ...r.payments.filter((x) => x.status === "error").map((x) => `${d.number ?? t("Invoice")}: ${x.message}`));
       } catch (e) {
+        // A void document that never went out: there is nothing to void there.
+        if (e instanceof ApiError && e.code === "void") continue;
         problems.push(`${d.number ?? t("Invoice")}: ${(e as Error).message}`);
         if ((e as { status?: number }).status === 402 || (e as { status?: number }).status === 409) break;
       }

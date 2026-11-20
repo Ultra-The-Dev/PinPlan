@@ -168,9 +168,9 @@ describe("totals", () => {
 });
 
 describe("numbering", () => {
-  it("numbers per job, never reusing void or revised numbers", () => {
+  it("numbers per job, never reusing void, revised or deleted numbers", () => {
     expect(nextCoNumber([])).toBe(1);
-    expect(nextCoNumber([{ number: 1 }, { number: 4, deleted: false }, { number: 9, deleted: true }])).toBe(5);
+    expect(nextCoNumber([{ number: 1 }, { number: 4, deleted: false }, { number: 9, deleted: true }])).toBe(10);
     expect(coCode(3)).toBe("CO-003");
     expect(coCode(1234)).toBe("CO-1234");
   });

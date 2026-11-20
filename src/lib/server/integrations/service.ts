@@ -90,7 +90,8 @@ const errMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Send one issued invoice or credit note (and an invoice's payments). Drafts are refused. A document whose content
- * hasn't changed since the last successful send is not sent again; a void one is voided remotely if it was sent.
+ * hasn't changed since the last successful send is not sent again; a void one is voided remotely if it was sent, and
+ * refused (400 "void") if it never was. The caller passes the database's copy (routes.ts loads it), never the browser's.
  */
 export async function pushDocument(provider: Provider, ic: IntegrationCaller, ctx: ProviderContext, doc: SalesDoc, payments: DocPayment[]): Promise<PushReport> {
   const owner = ic.owner;
@@ -117,10 +118,9 @@ export async function pushDocument(provider: Provider, ic: IntegrationCaller, ct
 
   const isVoid = doc.status === "void";
   const remoteGone = (l: Link | null) => !!l && ["void", "voided", "deleted"].includes(l.remoteStatus ?? "");
-  if (isVoid && (!link?.remoteId || remoteGone(link))) {
-    report.status = link?.remoteId ? "unchanged" : "skipped";
-    return report;
-  }
+  // A void document only goes out to void the copy already there; one that never went out is refused.
+  if (isVoid && !link?.remoteId) throw new IntegrationError(`This document is void and was never sent to ${provider.label}.`, 400, "void");
+  if (isVoid && remoteGone(link)) return report;
 
   if (!(link?.remoteId && link.hash === hash && !link.lastError)) {
     // The key also covers the mapping and the remote copy's state: after a failed send the user fixes the mapping and

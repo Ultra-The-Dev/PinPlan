@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, seedCatalog } from "@/lib/catalog";
 import { allocate, materialKey, quoteFromEstimate, quoteLinesFromEstimate } from "@/lib/docFromEstimate";
@@ -32,6 +33,7 @@ import {
 import { buildEstimate, money } from "@/lib/estimate";
 import { computeTakeoff } from "@/lib/takeoff";
 import type { DocLine, DocPayment, Project, SalesDoc } from "@/lib/types";
+import paymentCases from "./fixtures/paymentSummaryCases.json";
 import { buildSampleJob } from "./fixtures/sampleJob";
 
 const NOW = "2026-11-19T15:00:00.000Z";
@@ -402,5 +404,30 @@ describe("snapshot, links, CSV and clients", () => {
     expect(s.kinds.invoice.label).toBe("Invoice");
     expect(s.currency).toBe("CAD");
     expect(s.columns.qty).toBe(true);
+  });
+});
+
+// The database works invoice balances out itself (public.payment_summary in 20261124300400_money_integrity.sql), so a
+// device can't set them. supabase/tests/money_integrity_test.sql runs the same cases through the SQL function.
+describe("paymentSummary parity with the database", () => {
+  type Case = {
+    name: string;
+    total: number;
+    payments: { amount: number; date: string; voided?: boolean; deleted?: boolean }[];
+    credits: { total: number; status: SalesDoc["status"]; deleted?: boolean }[];
+    expect: { paid: number; credited: number; balance: number; paidOn: string | null };
+  };
+  const cases = paymentCases as Case[];
+
+  it.each(cases.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+    expect(paymentSummary(c.total, c.payments, c.credits)).toEqual(c.expect);
+  });
+
+  it("the SQL test reads the same cases", () => {
+    const sql = readFileSync("supabase/tests/money_integrity_test.sql", "utf8");
+    expect(sql).toContain("tests/fixtures/paymentSummaryCases.json");
+    expect(sql).toContain("public.payment_summary(");
+    expect(readFileSync("scripts/test-supabase.sh", "utf8")).toContain("money_integrity_test");
+    expect(cases.length).toBeGreaterThanOrEqual(10);
   });
 });

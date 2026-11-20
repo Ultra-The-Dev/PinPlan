@@ -1,28 +1,55 @@
 // The /api/integrations/* route handlers (server-only). The files under src/app/api/integrations only forward here.
 //   GET  /api/integrations                       every provider with this company's status
 //   GET  /api/integrations/[provider]/status     one provider: connection, mapping settings, last 20 events
-//   POST /api/integrations/[provider]/connect    → { url } to send the browser to (OAuth sign-in)
-//   GET  /api/integrations/[provider]/callback   the provider sends the browser back here
+//   POST /api/integrations/[provider]/connect    → { url }: the GET connect link for this browser (sets pp_oauth_start)
+//   GET  /api/integrations/[provider]/connect    ?ticket=… top-level navigation: swaps pp_oauth_start for pp_oauth and
+//                                                sends the browser on to the provider (303). See state.ts for why.
+//   GET  /api/integrations/[provider]/callback   the provider sends the browser back here (needs the pp_oauth cookie)
 //   POST /api/integrations/[provider]/test       check the connection
-//   POST /api/integrations/[provider]/push       { doc, payments } → send an issued invoice / credit note
+//   POST /api/integrations/[provider]/push       { docId } → send an issued invoice / credit note as the database has it
 //   POST /api/integrations/[provider]/disconnect forget the tokens (revoked at the provider, best effort)
 //   GET/POST /api/integrations/[provider]/settings  mapping settings ("export": the accountant export's account names)
 // Office only (techs 403); connect / test / push need an active subscription (402 subscription_inactive).
 import { normalizeAccounts, DEFAULT_ACCOUNTS } from "@/lib/accountingExport";
-import { documentTotals } from "@/lib/documents";
-import type { DocPayment, SalesDoc } from "@/lib/types";
 import { effectiveCreds } from "../billduCreds";
 import { appOrigin, appOriginMissing } from "../email";
-import { clientIp, rateLimit } from "../rateLimit";
+import { clientIp, durableRateLimit, tooManyRequests, waitText } from "../rateLimit";
 import { jsonError, resolveIntegrationCaller, type IntegrationCaller } from "./caller";
+import { loadServerDocument } from "./documents";
 import { getProvider, PROVIDERS, providerSummaries } from "./registry";
 import { markReconnect, makeContext, pushDocument } from "./service";
-import { newNonce, pkcePair, signState, verifyState } from "./state";
-import { addEvent, clearConnection, consumeOAuthState, readConnection, readLinks, recentEvents, saveConnection, saveOAuthState, saveSettings, setConnectionStatus, storageReady } from "./store";
+import { cookieHash, newCookieValue, newNonce, OAUTH_COOKIE, oauthCookie, pkceChallenge, pkcePair, readCookie, signState, signTicket, START_COOKIE, verifyState, verifyTicket } from "./state";
+import {
+  addEvent,
+  clearConnection,
+  consumeOAuthState,
+  readConnection,
+  readLinks,
+  readOAuthState,
+  rebindOAuthState,
+  recentEvents,
+  saveConnection,
+  saveOAuthState,
+  saveSettings,
+  setConnectionStatus,
+  stillManages,
+  storageReady,
+} from "./store";
 import { IntegrationError, type Connection, type Provider } from "./types";
 
 const PUSH_LIMIT = { limit: 60, windowMs: 60_000 };
 const CONNECT_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
+
+/** Counted in the shared store (every server instance), per signed-in user. */
+async function limit(request: Request, ic: IntegrationCaller, what: string, rule: { limit: number; windowMs: number }, message: string): Promise<Response | null> {
+  const r = await durableRateLimit(`integrations-${what}:${ic.userId ?? clientIp(request)}`, rule);
+  return r.ok ? null : tooManyRequests(r, `${message} Try again in ${waitText(r.retryAfter)}.`);
+}
+
+const connectPath = (provider: string) => `/api/integrations/${provider}/connect`;
+const callbackPath = (provider: string) => `/api/integrations/${provider}/callback`;
+/** Codes about the request, not the connection: they never become the connection's last error. */
+const REQUEST_CODES = new Set(["draft", "wrong_kind", "void", "deleted", "not_found"]);
 
 function unknownProvider() {
   return jsonError("Unknown accounting app.", "unknown_provider", 404);
@@ -44,7 +71,7 @@ function needsStorage(reason: string | null) {
 async function failure(p: Provider, ic: IntegrationCaller, e: unknown, what: string): Promise<Response> {
   if (e instanceof IntegrationError) {
     if (e.reconnect) await markReconnect(p, ic, e.message);
-    else if (ic.owner && e.code !== "draft" && e.code !== "wrong_kind") await setConnectionStatus(ic.owner, p.id, { lastError: e.message }).catch(() => undefined);
+    else if (ic.owner && !REQUEST_CODES.has(e.code)) await setConnectionStatus(ic.owner, p.id, { lastError: e.message }).catch(() => undefined);
     return jsonError(e.message, e.code, e.status);
   }
   const msg = e instanceof Error ? e.message : String(e);
@@ -125,69 +152,122 @@ export async function connectRoute(request: Request, providerId: string): Promis
   if (!ic.owner) return needsOwner();
   const ready = storageReady();
   if (!ready.ok) return needsStorage(ready.reason);
-  const limited = rateLimit(`integrations-connect:${ic.userId ?? clientIp(request)}`, CONNECT_LIMIT);
-  if (!limited.ok) return jsonError(`Too many tries. Try again in ${limited.retryAfter} seconds.`, "rate_limited", 429);
+  const limited = await limit(request, ic, "connect", CONNECT_LIMIT, "Too many tries.");
+  if (limited) return limited;
   const origin = appOrigin(request);
   if (!origin) return appOriginMissing();
   try {
     const nonce = newNonce();
-    const { verifier, challenge } = pkcePair();
-    const redirectUri = `${origin}/api/integrations/${p.id}/callback`;
-    await saveOAuthState({ nonce, owner: ic.owner, provider: p.id, verifier, redirectUri, userId: ic.userId });
-    const state = signState({ provider: p.id, owner: ic.owner, userId: ic.userId, nonce });
-    return Response.json({ url: p.connect({ state, codeChallenge: challenge, redirectUri }) });
+    const { verifier } = pkcePair();
+    const start = newCookieValue();
+    await saveOAuthState({ nonce, owner: ic.owner, provider: p.id, verifier, redirectUri: `${origin}${callbackPath(p.id)}`, userId: ic.userId, cookieHash: cookieHash(start) });
+    const url = `${origin}${connectPath(p.id)}?ticket=${encodeURIComponent(signTicket(p.id, nonce))}`;
+    return Response.json({ url }, { headers: { "Set-Cookie": oauthCookie(START_COOKIE, start, connectPath(p.id)), "Cache-Control": "no-store" } });
   } catch (e) {
     return failure(p, ic, e, "Connecting");
   }
 }
 
+/** A 303 with cookies (Response.redirect's headers can't be added to). */
+function redirect(location: string, cookies: string[] = []): Response {
+  const h = new Headers({ Location: location, "Cache-Control": "no-store" });
+  for (const c of cookies) h.append("Set-Cookie", c);
+  return new Response(null, { status: 303, headers: h });
+}
+
+/**
+ * GET /connect?ticket=…: the browser that asked for the sign-in (it holds pp_oauth_start) goes on to the provider with
+ * a fresh pp_oauth cookie for the callback. Any other browser lands back on Settings ("expired").
+ */
+export async function connectStartRoute(request: Request, providerId: string): Promise<Response> {
+  const p = getProvider(providerId);
+  if (!p || p.auth !== "oauth2") return unknownProvider();
+  if (!p.enabled() || !storageReady().ok) return backToSettings(request, p.id, "not_configured");
+  const clearStart = oauthCookie(START_COOKIE, "", connectPath(p.id), 0);
+  let ticket: { nonce: string } | null;
+  try {
+    ticket = verifyTicket(new URL(request.url).searchParams.get("ticket"), p.id);
+  } catch {
+    ticket = null;
+  }
+  const start = readCookie(request, START_COOKIE);
+  if (!ticket || !start) return backToSettings(request, p.id, "expired", [clearStart]);
+  try {
+    const pending = await readOAuthState(ticket.nonce, p.id, cookieHash(start));
+    if (!pending) return backToSettings(request, p.id, "expired", [clearStart]);
+    const value = newCookieValue();
+    // Only one browser can move the sign-in on (compare-and-swap on the start cookie's hash).
+    if (!(await rebindOAuthState(ticket.nonce, p.id, cookieHash(start), cookieHash(value)))) return backToSettings(request, p.id, "expired", [clearStart]);
+    const state = signState({ provider: p.id, owner: pending.owner, userId: pending.userId, nonce: ticket.nonce });
+    const location = p.connect({ state, codeChallenge: pkceChallenge(pending.verifier), redirectUri: pending.redirectUri });
+    return redirect(location, [oauthCookie(OAUTH_COOKIE, value, callbackPath(p.id)), clearStart]);
+  } catch {
+    return backToSettings(request, p.id, "error", [clearStart]);
+  }
+}
+
 /** Back to Settings with a short result code (never provider text in the URL). */
-function backToSettings(request: Request, provider: string, result: string) {
+function backToSettings(request: Request, provider: string, result: string, cookies: string[] = []) {
   const origin = appOrigin(request);
   if (!origin) return appOriginMissing();
   const u = new URL("/settings", origin);
   u.searchParams.set("integration", provider);
   u.searchParams.set("result", result);
   u.hash = "integrations";
-  return Response.redirect(u.toString(), 303);
+  return redirect(u.toString(), cookies);
 }
 
 export async function callbackRoute(request: Request, providerId: string): Promise<Response> {
   const p = getProvider(providerId);
   if (!p || p.auth !== "oauth2") return unknownProvider();
   const params = new URL(request.url).searchParams;
+  // The cookie is single use too: cleared whatever happens.
+  const back = (result: string) => backToSettings(request, p.id, result, [oauthCookie(OAUTH_COOKIE, "", callbackPath(p.id), 0)]);
   let st;
   try {
     st = verifyState(params.get("state"), p.id);
   } catch {
     st = null;
   }
-  if (!st) return backToSettings(request, p.id, "expired");
+  const cookie = readCookie(request, OAUTH_COOKIE);
+  // No cookie: this browser didn't start the sign-in (or it took too long).
+  if (!st || !cookie) return back("expired");
   const owner = { kind: st.o, id: st.i };
-  if (!p.enabled() || !storageReady().ok) return backToSettings(request, p.id, "not_configured");
+  if (!p.enabled() || !storageReady().ok) return back("not_configured");
   let saved;
   try {
-    // Single use: the nonce row is deleted here, so replaying this URL fails.
-    saved = await consumeOAuthState(st.n, owner, p.id);
+    // Single use, and only with the cookie it is bound to: the nonce row is deleted here, so replaying fails.
+    saved = await consumeOAuthState(st.n, owner, p.id, cookieHash(cookie));
   } catch {
-    return backToSettings(request, p.id, "error");
+    return back("error");
   }
-  if (!saved) return backToSettings(request, p.id, "expired");
+  if (!saved) return back("expired");
   if (params.get("error")) {
     await addEvent(owner, p.id, { kind: "connect", ok: false, message: "Sign-in cancelled.", actor: st.u });
-    return backToSettings(request, p.id, "cancelled");
+    return back("cancelled");
+  }
+  // Whoever started it may have lost the role (or left the team) in the meantime.
+  let allowed: boolean;
+  try {
+    allowed = await stillManages(owner, st.u);
+  } catch {
+    return back("error");
+  }
+  if (!allowed) {
+    await addEvent(owner, p.id, { kind: "connect", ok: false, message: "Sign-in refused: only the owner or an admin can connect accounting apps.", actor: st.u });
+    return back("error");
   }
   const code = params.get("code");
-  if (!code) return backToSettings(request, p.id, "error");
+  if (!code) return back("error");
   try {
     const result = await p.callback({ code, codeVerifier: saved.verifier, redirectUri: saved.redirectUri, params });
     await saveConnection(owner, p.id, { tokens: result.tokens, meta: result.meta, connectedBy: st.u });
     const name = typeof result.meta.companyName === "string" ? result.meta.companyName : null;
     await addEvent(owner, p.id, { kind: "connect", ok: true, message: name ? `Connected to ${name}` : "Connected", actor: st.u });
-    return backToSettings(request, p.id, "connected");
+    return back("connected");
   } catch (e) {
     await addEvent(owner, p.id, { kind: "connect", ok: false, message: e instanceof Error ? e.message : "Sign-in failed", actor: st.u });
-    return backToSettings(request, p.id, "error");
+    return back("error");
   }
 }
 
@@ -227,8 +307,8 @@ export async function testRoute(request: Request, providerId: string): Promise<R
     const ready = storageReady();
     if (!ready.ok) return needsStorage(ready.reason);
   }
-  const limited = rateLimit(`integrations-test:${ic.userId ?? clientIp(request)}`, CONNECT_LIMIT);
-  if (!limited.ok) return jsonError(`Too many tests. Try again in ${limited.retryAfter} seconds.`, "rate_limited", 429);
+  const limited = await limit(request, ic, "test", CONNECT_LIMIT, "Too many tests.");
+  if (limited) return limited;
   try {
     const conn = ic.owner && storageReady().ok ? await readConnection(ic.owner, p.id) : null;
     const result = await p.test(makeContext(p, ic, conn));
@@ -242,24 +322,12 @@ export async function testRoute(request: Request, providerId: string): Promise<R
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
-/** Minimal shape check of a document sent by the browser; money fields are recomputed from its lines. */
-export function readPushBody(body: unknown): { doc: SalesDoc; payments: DocPayment[] } | string {
-  if (!isObj(body) || !isObj(body.doc)) return "Send { doc, payments }.";
-  const d = body.doc as unknown as SalesDoc;
-  if (typeof d.id !== "string" || !d.id || d.id.length > 200) return "The document has no id.";
-  if (!["quote", "invoice", "credit_note"].includes(d.kind)) return "Unknown document kind.";
-  if (typeof d.status !== "string") return "The document has no status.";
-  if (!Array.isArray(d.lines) || d.lines.length > 2000) return "The document's lines are missing.";
-  if (!Array.isArray(d.taxes)) return "The document's taxes are missing.";
-  if (!isObj(d.client)) return "The document has no client.";
-  if (typeof d.currency !== "string" || !/^[A-Za-z]{3}$/.test(d.currency)) return "The document's currency is missing.";
-  const t = documentTotals(d);
-  const doc: SalesDoc = { ...d, subtotal: t.subtotal, discountTotal: t.discountTotal, taxTotal: t.taxTotal, total: t.total };
-  const raw = Array.isArray(body.payments) ? body.payments.slice(0, 500) : [];
-  const payments = raw.filter(
-    (p): p is DocPayment => isObj(p) && typeof p.id === "string" && p.documentId === d.id && typeof p.amount === "number" && Number.isFinite(p.amount) && typeof p.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.date),
-  );
-  return { doc, payments };
+/** The push body is only { docId }: what goes out is read from the database, never taken from the browser. */
+export function readPushBody(body: unknown): { docId: string } | string {
+  if (!isObj(body) || typeof body.docId !== "string") return "Send { docId }.";
+  const docId = body.docId.trim();
+  if (!docId || docId.length > 200) return "The document id is missing.";
+  return { docId };
 }
 
 export async function pushRoute(request: Request, providerId: string): Promise<Response> {
@@ -269,11 +337,11 @@ export async function pushRoute(request: Request, providerId: string): Promise<R
   if (!auth.ok) return auth.response;
   const ic = auth.value;
   if (!p.enabled()) return notEnabled(p);
-  if (!ic.owner) return needsOwner();
+  if (!ic.owner || ic.caller.mode === "single_company") return needsOwner();
   const ready = storageReady();
   if (!ready.ok) return needsStorage(ready.reason);
-  const limited = rateLimit(`integrations-push:${ic.userId ?? clientIp(request)}`, PUSH_LIMIT);
-  if (!limited.ok) return jsonError(`Too many at once. Try again in ${limited.retryAfter} seconds.`, "rate_limited", 429);
+  const limited = await limit(request, ic, "push", PUSH_LIMIT, "Too many at once.");
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await request.json();
@@ -283,9 +351,15 @@ export async function pushRoute(request: Request, providerId: string): Promise<R
   const parsed = readPushBody(body);
   if (typeof parsed === "string") return jsonError(parsed, "bad_request", 400);
   try {
+    // The cloud copy, read as the caller (row-level security: the office of that job only).
+    const loaded = await loadServerDocument(ic.caller.token, parsed.docId);
+    if (!loaded) return jsonError("This document isn't in the cloud yet. Let it sync, then send it again.", "not_found", 404);
+    const { doc, payments } = loaded;
+    if (doc.deleted) return jsonError("This document was deleted.", "deleted", 400);
+    if (doc.status === "draft") return jsonError("Drafts are never sent. Send the invoice to the client first, then to accounting.", "draft", 400);
     const conn = p.auth === "oauth2" ? await readConnection(ic.owner, p.id) : null;
     if (p.auth === "oauth2" && !conn?.tokens && !conn?.tokenError) return jsonError(`${p.label} isn't connected for your company.`, "not_connected", 412);
-    const report = await pushDocument(p, ic, makeContext(p, ic, conn), parsed.doc, parsed.payments);
+    const report = await pushDocument(p, ic, makeContext(p, ic, conn), doc, payments);
     return Response.json(report);
   } catch (e) {
     return failure(p, ic, e, "Sending");

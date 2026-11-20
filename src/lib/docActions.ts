@@ -4,10 +4,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { db, getAllDocs, getProjectDocs, newId, nowIso, put, remove } from "./db";
 import { buildDocSnapshot, documentUrl, formatDocNumber, snapshotHash, today, withTotals, type DocSnapshot } from "./documents";
-import { t } from "./i18n";
+import { msg, t } from "./i18n";
 import { newToken } from "./proposal";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { SYNCED_EVENT, useSyncStatus } from "./sync";
+import { useTeam } from "./team";
+import { can } from "./teamLogic";
 import type { BusinessSettings, DocKind, DocPayment, DocumentSettings, SalesDoc } from "./types";
 
 export const DOCS_EVENT = "pinplan:docs";
@@ -44,6 +46,33 @@ export async function refreshInvoice(id: string): Promise<SalesDoc | null> {
   changed();
   return saved;
 }
+
+/** Work out a job's invoices again (only the ones whose sums moved are written). */
+export async function refreshJobInvoices(projectIds: Iterable<string>): Promise<void> {
+  for (const pid of new Set(projectIds)) {
+    const invoices = (await db().salesDocs.where("projectId").equals(pid).toArray()).filter((d) => d.kind === "invoice" && !d.deleted);
+    for (const inv of invoices) await refreshInvoice(inv.id);
+  }
+}
+
+let watchingPulls = false;
+
+/**
+ * After a pull that brought payments or documents (another device recorded a payment or issued a credit note), the
+ * office works those jobs' invoices out again here, so this device shows the same balance as the database (which
+ * recomputes them itself: 20261124300400_money_integrity.sql). Installed once; technicians never hold money rows.
+ */
+export function watchPulledMoney() {
+  if (watchingPulls || typeof window === "undefined") return;
+  watchingPulls = true;
+  window.addEventListener(SYNCED_EVENT, (e) => {
+    const d = (e as CustomEvent<{ tables?: string[]; projectIds?: string[] }>).detail;
+    if (!d?.tables?.some((tb) => tb === "salesPayments" || tb === "salesDocs") || !d.projectIds?.length) return;
+    if (!can(useTeam.getState().role, "prices")) return;
+    void refreshJobInvoices(d.projectIds).catch(() => undefined);
+  });
+}
+watchPulledMoney();
 
 export async function recordPayment(doc: SalesDoc, p: Omit<DocPayment, "id" | "projectId" | "documentId" | "createdAt" | "updatedAt">): Promise<DocPayment> {
   const now = nowIso();
@@ -122,9 +151,18 @@ export async function issueDoc(doc: SalesDoc, s: DocumentSettings): Promise<Sale
   return (await db().salesDocs.get(saved.id)) ?? saved;
 }
 
-/** Finalize first when it's a draft, then record that the client has it (handed over, emailed or a link shared). */
+/**
+ * Finalize first when it's a draft, then record that the client has it (handed over, emailed or a link shared). With
+ * cloud sync the cloud must have it issued and numbered first (else it throws): what the client holds has a number.
+ */
 export async function markSent(doc: SalesDoc, s: DocumentSettings): Promise<SalesDoc> {
-  const cur = doc.status === "draft" ? await issueDoc(doc, s) : doc;
+  let cur = doc.status === "draft" ? await issueDoc(doc, s) : doc;
+  if (supabaseConfigured && getSupabase()) {
+    if (doc.status !== "draft") await syncAndReload();
+    const server = await confirmIssuedInCloud(cur.id);
+    cur = (await db().salesDocs.get(cur.id)) ?? cur;
+    if (!cur.number) cur = { ...cur, number: server.number };
+  }
   if (cur.sentAt) return cur;
   return saveDoc({ ...cur, sentAt: nowIso() });
 }
@@ -137,6 +175,25 @@ export async function syncAndReload(): Promise<void> {
     /* offline: it goes on the next sync */
   }
   changed();
+}
+
+export const NOT_IN_CLOUD = msg("This document hasn't reached the cloud yet. Check your connection and try again.");
+
+/**
+ * Read the document's status and number back from the cloud (after a sync): it must be issued (not a draft) and
+ * numbered there, or the client would get something the database doesn't know as sent. Throws with the sync's own
+ * error when there is one.
+ */
+export async function confirmIssuedInCloud(id: string): Promise<{ status: SalesDoc["status"]; number: string }> {
+  const sb = cloud();
+  const { data, error } = await sb.from("sales_documents").select("id, status, number").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  const row = data as { status?: SalesDoc["status"]; number?: string | null } | null;
+  if (!row || !row.status || row.status === "draft" || !row.number) {
+    const syncError = useSyncStatus.getState().error;
+    throw new Error(syncError ? `${t(NOT_IN_CLOUD)} (${syncError})` : t(NOT_IN_CLOUD));
+  }
+  return { status: row.status, number: row.number };
 }
 
 // ---------------------------------------------------------------- client links
@@ -179,10 +236,9 @@ export async function publishLink(doc: SalesDoc, input: { settings: DocumentSett
   // The link reads the document from the cloud: push it first.
   await syncAndReload();
   cur = (await db().salesDocs.get(cur.id)) ?? cur;
-  const check = await sb.from("sales_documents").select("id, number").eq("id", cur.id).maybeSingle();
-  if (check.error) throw new Error(check.error.message);
-  if (!check.data) throw new Error(t("This document hasn't reached the cloud yet. Check your connection and try again."));
-  if (!cur.number && check.data.number) cur = { ...cur, number: check.data.number };
+  // Issued and numbered in the cloud, or no link: the client page reads the cloud's copy.
+  const server = await confirmIssuedInCloud(cur.id);
+  if (!cur.number) cur = { ...cur, number: server.number };
   const snapshot = buildDocSnapshot(cur, { settings: input.settings, business: input.business, origin: input.origin, now: nowIso() });
   const token = newToken();
   const { error } = await sb.from("document_links").insert({ id: token, document_id: cur.id, project_id: cur.projectId, snapshot });

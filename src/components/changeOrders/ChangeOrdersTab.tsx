@@ -3,7 +3,7 @@
 import { CalendarClock, ChevronRight, Download, FilePlus2, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { baseContractMarkers, changeOrderTotals, coCode, contractFromQuote, nextCoNumber, reasonLabel, type CoPricing } from "@/lib/changeOrders";
-import { newId, nowIso } from "@/lib/db";
+import { db, newId, nowIso } from "@/lib/db";
 import { useJobDocs } from "@/lib/docActions";
 import { latestApprovedQuote } from "@/lib/documents";
 import { downloadBlob, slug } from "@/lib/download";
@@ -73,7 +73,8 @@ export default function ChangeOrdersTab() {
     const co: ChangeOrder = {
       id: newId(),
       projectId: project.id,
-      number: nextCoNumber(rows ?? []),
+      // Deleted change orders keep their numbers too (the list hides them).
+      number: nextCoNumber(await db().changeOrders.where("projectId").equals(project.id).toArray()),
       title: "",
       reason: "client_request",
       description: "",

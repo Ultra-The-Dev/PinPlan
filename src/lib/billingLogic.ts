@@ -308,6 +308,32 @@ export function seatItem(sub: SubscriptionLike, seatPriceId: string) {
   return sub.items?.data.find((i) => i.price?.id === seatPriceId) ?? null;
 }
 
+/** Does the subscription pay for PinPlan's base plan (STRIPE_PRICE_BASE)? */
+export function hasBasePrice(sub: SubscriptionLike, basePriceId: string): boolean {
+  return !!sub.items?.data.some((i) => i.price?.id === basePriceId && (i.quantity ?? 1) > 0);
+}
+
+/** Stripe states that let a team work. A subscription in one of them must carry the base price to count. */
+export function grantsAccess(status: string): boolean {
+  return status === "active" || status === "trialing" || status === "past_due";
+}
+
+/**
+ * More people on the team than the subscription pays for (people joined during the trial, or the seat item was
+ * lowered in Stripe): the seat count to set, else null. Only for a live subscription.
+ */
+export function seatsToFit(status: string, members: number, seatLimit: number | null): number | null {
+  if (status !== "active" && status !== "trialing") return null;
+  if (seatLimit == null || members <= seatLimit) return null;
+  return seatTarget("fit", { members, seatLimit });
+}
+
+/** sync-seats "add" when the team already has more than two free seats: refused (no stacking up seats by mistake). */
+export const MAX_FREE_SEATS_FOR_ADD = 2;
+export function canAddSeat(members: number, seatLimit: number | null): boolean {
+  return seatLimit == null || seatLimit <= members + MAX_FREE_SEATS_FOR_ADD;
+}
+
 /** What to write on the team row for this subscription. */
 export function teamPatchFromSubscription(sub: SubscriptionLike, opts: { seatPriceId: string; plan?: Plan }): TeamBillingPatch {
   const plan = opts.plan ?? PLANS[0];

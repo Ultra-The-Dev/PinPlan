@@ -188,10 +188,13 @@ export function changeOrderTotals(co: Pick<ChangeOrder, "lines" | "markupPct" | 
 
 // ---------------- numbering ----------------
 
-/** The next number on a job: one more than the highest used (void and revised ones included, so numbers never repeat). */
+/**
+ * The next number on a job: one more than the highest used (void, revised and deleted ones included, so numbers never
+ * repeat; the database gives the next free one when two devices pick the same number offline).
+ */
 export function nextCoNumber(cos: Pick<ChangeOrder, "number" | "deleted">[]): number {
   let max = 0;
-  for (const c of cos) if (!c.deleted && Number.isFinite(c.number)) max = Math.max(max, c.number);
+  for (const c of cos) if (Number.isFinite(c.number)) max = Math.max(max, c.number);
   return max + 1;
 }
 

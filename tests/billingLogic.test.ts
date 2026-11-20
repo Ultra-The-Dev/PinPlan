@@ -3,7 +3,11 @@ import {
   bannerFor,
   billingAllowsWork,
   billingSummary,
+  canAddSeat,
   canWork,
+  grantsAccess,
+  hasBasePrice,
+  seatsToFit,
   checkoutTrialEnd,
   daysLeft,
   extraSeats,
@@ -313,5 +317,32 @@ describe("Stripe → team", () => {
     expect(isSubscriptionInactive("projects: PinPlan subscription inactive")).toBe(true);
     expect(isSubscriptionInactive({ message: "PinPlan subscription inactive" })).toBe(true);
     expect(isSubscriptionInactive("new row violates row-level security policy")).toBe(false);
+  });
+});
+
+describe("seat and price guards", () => {
+  const sub = (items: { price: string; quantity?: number }[]) => ({ id: "sub_1", status: "active", customer: "cus_1", items: { data: items.map((i, n) => ({ id: `si_${n}`, quantity: i.quantity ?? 1, price: { id: i.price } })) } });
+
+  it("a subscription counts only with the base price", () => {
+    expect(hasBasePrice(sub([{ price: "price_base" }, { price: "price_seat", quantity: 2 }]), "price_base")).toBe(true);
+    expect(hasBasePrice(sub([{ price: "price_seat", quantity: 2 }]), "price_base")).toBe(false);
+    expect(hasBasePrice(sub([{ price: "price_base", quantity: 0 }]), "price_base")).toBe(false);
+    expect(hasBasePrice({ id: "s", status: "active", customer: null }, "price_base")).toBe(false);
+    expect(["active", "trialing", "past_due"].every(grantsAccess)).toBe(true);
+    expect(["canceled", "unpaid", "incomplete", "paused"].some(grantsAccess)).toBe(false);
+  });
+
+  it("refits seats only for a live subscription with more people than seats", () => {
+    expect(seatsToFit("active", 7, 5)).toBe(7);
+    expect(seatsToFit("trialing", 6, 5)).toBe(6);
+    expect(seatsToFit("active", 5, 5)).toBeNull();
+    expect(seatsToFit("past_due", 9, 5)).toBeNull();
+    expect(seatsToFit("active", 9, null)).toBeNull();
+  });
+
+  it("adding a seat is refused while more than two are free", () => {
+    expect(canAddSeat(5, 7)).toBe(true);
+    expect(canAddSeat(5, 8)).toBe(false);
+    expect(canAddSeat(5, null)).toBe(true);
   });
 });

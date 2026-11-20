@@ -1,6 +1,8 @@
 // /api/integrations/* against an in-memory Supabase (PostgREST subset) and fake QuickBooks / Xero APIs. No network.
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { newDocument, normalizeDocSettings, withTotals } from "@/lib/documents";
+import { toRemote } from "@/lib/syncMap";
 import type { DocLine, DocPayment, Project, SalesDoc } from "@/lib/types";
 
 // ---------------------------------------------------------------- fake Supabase
@@ -13,8 +15,11 @@ const KEYS: Record<string, string[]> = {
   integration_events: ["id"],
 };
 
+/** Tables read with the caller's own token: only the office (tok-owner here) sees them, like the RLS policies. */
+const USER_TABLES = new Set(["sales_documents", "sales_document_payments"]);
+
 function fakeDb() {
-  const tables: Record<string, Row[]> = { integration_connections: [], integration_links: [], integration_events: [], integration_oauth_states: [] };
+  const tables: Record<string, Row[]> = { integration_connections: [], integration_links: [], integration_events: [], integration_oauth_states: [], sales_documents: [], sales_document_payments: [] };
   const users: Record<string, string> = { "tok-owner": "u-owner", "tok-tech": "u-tech", "tok-lapsed": "u-lapsed", "tok-solo": "u-solo" };
   const members: Row[] = [
     { user_id: "u-owner", role: "owner", team_id: "00000000-0000-0000-0000-0000000000a1" },
@@ -48,11 +53,20 @@ function fakeDb() {
     const name = url.pathname.replace("/rest/v1/", "");
     const q = url.searchParams;
     if (name === "rpc/prune_integration_rows") return new Response(null, { status: 204 });
+    if (name === "rpc/my_billing_owner") {
+      const id = users[(headers.get("authorization") ?? "").replace(/^Bearer /, "")];
+      return id ? Response.json(`owner-of-${id}`) : new Response("{}", { status: 401 });
+    }
     if (name === "team_members") {
       const rows = members.filter((m) => match(m, q)).map((m) => ({ ...m, teams: teams.find((t) => t.id === m.team_id) }));
       return Response.json(rows);
     }
     if (name === "teams") return Response.json(teams.filter((t) => match(t, q)));
+    if (USER_TABLES.has(name)) {
+      const token = (headers.get("authorization") ?? "").replace(/^Bearer /, "");
+      const rows = token === "tok-owner" ? tables[name].filter((r) => match(r, q)) : [];
+      return Response.json(rows.map((r) => ({ ...r })));
+    }
     const table = tables[name];
     if (!table) return new Response('{"code":"PGRST205"}', { status: 404 });
     const body = init.body ? JSON.parse(String(init.body)) : null;
@@ -89,7 +103,7 @@ function fakeDb() {
     }
     return new Response("{}", { status: 405 });
   }
-  return { tables, teams, handle };
+  return { tables, teams, members, handle };
 }
 
 // ---------------------------------------------------------------- fake QuickBooks and Xero
@@ -258,6 +272,7 @@ async function routes() {
     list: (await import("@/app/api/integrations/route")).GET,
     status: (await import("@/app/api/integrations/[provider]/status/route")).GET,
     connect: (await import("@/app/api/integrations/[provider]/connect/route")).POST,
+    connectGo: (await import("@/app/api/integrations/[provider]/connect/route")).GET,
     callback: (await import("@/app/api/integrations/[provider]/callback/route")).GET,
     test: (await import("@/app/api/integrations/[provider]/test/route")).POST,
     push: (await import("@/app/api/integrations/[provider]/push/route")).POST,
@@ -267,18 +282,52 @@ async function routes() {
   };
 }
 
-/** Run the whole OAuth dance for the owner; returns the callback response. */
-async function connect(provider: "quickbooks" | "xero", token = "tok-owner") {
+/** The value of a cookie a response sets ("" when it clears it, null when it doesn't mention it). */
+function setCookie(res: Response, name: string): { value: string; attrs: string } | null {
+  const c = res.headers.getSetCookie().find((x) => x.startsWith(`${name}=`));
+  if (!c) return null;
+  const [pair, ...attrs] = c.split(";");
+  return { value: pair.slice(name.length + 1), attrs: attrs.map((a) => a.trim()).join("; ") };
+}
+const withCookie = (cookie: string) => ({ headers: { cookie } });
+
+/** POST connect (signed in) → GET connect in the same browser → the provider's sign-in URL and the callback cookie. */
+async function startConnect(provider: "quickbooks" | "xero", token = "tok-owner") {
   const r = await routes();
   const res = await r.connect(req(`/api/integrations/${provider}/connect`, token, { method: "POST" }), ctx(provider));
   expect(res.status).toBe(200);
-  const { url } = (await res.json()) as { url: string };
-  const state = new URL(url).searchParams.get("state")!;
-  const back = `/api/integrations/${provider}/callback?code=auth-code&state=${encodeURIComponent(state)}${provider === "quickbooks" ? "&realmId=4620816365" : ""}`;
-  return { url, back, res: await r.callback(req(back, null), ctx(provider)) };
+  const { url: ticketUrl } = (await res.json()) as { url: string };
+  const start = setCookie(res, "pp_oauth_start")!;
+  const t = new URL(ticketUrl);
+  const go = await r.connectGo(req(t.pathname + t.search, null, withCookie(`pp_oauth_start=${start.value}`)), ctx(provider));
+  expect(go.status).toBe(303);
+  const cookie = setCookie(go, "pp_oauth")!;
+  return { ticketUrl, start, go, url: go.headers.get("location")!, cookie: cookie?.value, cookieAttrs: cookie?.attrs };
 }
 
-const pushBody = (doc: SalesDoc, payments: DocPayment[] = []) => ({ method: "POST", body: JSON.stringify({ doc, payments }) });
+const callbackUrl = (provider: string, state: string) =>
+  `/api/integrations/${provider}/callback?code=auth-code&state=${encodeURIComponent(state)}${provider === "quickbooks" ? "&realmId=4620816365" : ""}`;
+
+/** Run the whole OAuth dance for the owner; returns the callback response. */
+async function connect(provider: "quickbooks" | "xero", token = "tok-owner") {
+  const r = await routes();
+  const s = await startConnect(provider, token);
+  const back = callbackUrl(provider, new URL(s.url).searchParams.get("state")!);
+  return { ...s, back, res: await r.callback(req(back, null, withCookie(`pp_oauth=${s.cookie}`)), ctx(provider)) };
+}
+
+/** Put the document (and its payments) in the cloud as sync would, and send { docId }. */
+function pushBody(doc: SalesDoc, payments: DocPayment[] = []) {
+  const put = (table: string, row: Row) => {
+    const rows = db.tables[table];
+    const i = rows.findIndex((x) => x.id === row.id);
+    if (i >= 0) rows[i] = row;
+    else rows.push(row);
+  };
+  put("sales_documents", toRemote("salesDocs", doc as unknown as Record<string, unknown>));
+  for (const p of payments) put("sales_document_payments", toRemote("salesPayments", p as unknown as Record<string, unknown>));
+  return { method: "POST", body: JSON.stringify({ docId: doc.id }) };
+}
 
 // ---------------------------------------------------------------- tests
 
@@ -405,6 +454,49 @@ describe("QuickBooks Online", () => {
     expect(qbo.calls.some((c) => c.url.pathname.endsWith("/invoice"))).toBe(false);
   });
 
+  it("pushes the cloud copy, not what the browser sends", async () => {
+    await connect("quickbooks");
+    const r = await routes();
+    const doc = invoice();
+    const pay: DocPayment = { id: "pay-cloud", projectId: "p1", documentId: doc.id, amount: 25, date: "2026-11-20", method: "cash", createdAt: NOW, updatedAt: NOW };
+    pushBody(doc, [pay]);
+    // A tampered body: other lines, a made-up payment. Only docId is read.
+    const forgedDoc = withTotals({ ...doc, number: "INV-FAKE", lines: [item({ qty: 1, unitPrice: 1 })] });
+    const fake: DocPayment = { ...pay, id: "pay-fake", amount: 9999 };
+    const out = await (await r.push(req("/api/integrations/quickbooks/push", "tok-owner", { method: "POST", body: JSON.stringify({ docId: doc.id, doc: forgedDoc, payments: [fake] }) }), ctx("quickbooks"))).json();
+    expect(out.status).toBe("sent");
+    const sent = qbo.calls.find((c) => c.method === "POST" && c.url.pathname.endsWith("/invoice"))!.body as { DocNumber: string };
+    expect(sent.DocNumber).toBe(doc.number);
+    expect(out.payments).toEqual([{ id: "pay-cloud", status: "sent" }]);
+    expect(qbo.calls.find((c) => c.url.pathname.endsWith("/payment"))!.body).toMatchObject({ TotalAmt: 25 });
+  });
+
+  it("refuses documents that aren't in the cloud, deleted ones, drafts and void ones that never went out", async () => {
+    await connect("quickbooks");
+    const r = await routes();
+    const send = async (init: { body: string }) => {
+      const res = await r.push(req("/api/integrations/quickbooks/push", "tok-owner", { method: "POST", body: init.body }), ctx("quickbooks"));
+      return [res.status, (await res.json()).code];
+    };
+    expect(await send({ body: JSON.stringify({ docId: "nope" }) })).toEqual([404, "not_found"]);
+    expect(await send(pushBody(invoice({ deleted: true })))).toEqual([400, "deleted"]);
+    expect(await send(pushBody(invoice({ status: "draft" })))).toEqual([400, "draft"]);
+    expect(await send(pushBody(invoice({ status: "void" })))).toEqual([400, "void"]);
+    expect(await send({ body: JSON.stringify({ doc: invoice() }) })).toEqual([400, "bad_request"]);
+    // A job shared from another company: its invoice is visible, but it isn't this company's to send.
+    const foreign = invoice();
+    pushBody(foreign);
+    db.tables.sales_documents.find((x) => x.id === foreign.id)!.owner_id = "owner-of-someone-else";
+    expect(await send({ body: JSON.stringify({ docId: foreign.id }) })).toEqual([404, "not_found"]);
+    db.tables.sales_documents.find((x) => x.id === foreign.id)!.owner_id = "owner-of-u-owner";
+    const own = await r.push(req("/api/integrations/quickbooks/push", "tok-owner", { method: "POST", body: JSON.stringify({ docId: foreign.id }) }), ctx("quickbooks"));
+    expect(own.status).toBe(200);
+    qbo.calls.length = 0;
+    expect(qbo.calls.some((c) => c.url.pathname.endsWith("/invoice"))).toBe(false);
+    // Request problems never mark the connection as failing.
+    expect(db.tables.integration_connections[0].last_error ?? null).toBeNull();
+  });
+
   it("sends payments against the invoice and credit notes as credit memos", async () => {
     await connect("quickbooks");
     const r = await routes();
@@ -462,35 +554,108 @@ describe("QuickBooks Online", () => {
 
 describe("OAuth callback", () => {
   it("works once: replaying the callback URL is refused", async () => {
-    const { back, res } = await connect("quickbooks");
+    const { back, res, cookie } = await connect("quickbooks");
     expect(res.headers.get("location")).toContain("result=connected");
+    expect(setCookie(res, "pp_oauth")).toMatchObject({ value: "", attrs: expect.stringContaining("Max-Age=0") });
     const r = await routes();
-    const again = await r.callback(req(back, null), ctx("quickbooks"));
+    const again = await r.callback(req(back, null, withCookie(`pp_oauth=${cookie}`)), ctx("quickbooks"));
     expect(again.headers.get("location")).toContain("result=expired");
     expect(qbo.calls.filter((c) => c.url.hostname === "oauth.platform.intuit.com").length).toBe(1);
   });
 
+  it("sets the sign-in cookies HttpOnly, Secure, SameSite=Lax, scoped to their path, for ten minutes", async () => {
+    const s = await startConnect("xero");
+    expect(s.start.attrs).toBe("HttpOnly; Secure; SameSite=Lax; Path=/api/integrations/xero/connect; Max-Age=600");
+    expect(s.cookieAttrs).toBe("HttpOnly; Secure; SameSite=Lax; Path=/api/integrations/xero/callback; Max-Age=600");
+    expect(setCookie(s.go, "pp_oauth_start")?.value).toBe("");
+    // Only the hash is stored, never the cookie itself.
+    const row = db.tables.integration_oauth_states[0];
+    expect(row.cookie_hash).toBe(createHash("sha256").update(s.cookie!).digest("hex"));
+    expect(JSON.stringify(row)).not.toContain(s.cookie!);
+    expect(new URL(s.ticketUrl).pathname).toBe("/api/integrations/xero/connect");
+    expect(s.url.startsWith("https://login.xero.com/")).toBe(true);
+  });
+
+  it("login CSRF: a victim's browser can't finish a sign-in someone else started (no cookie, wrong cookie)", async () => {
+    // The attacker starts a sign-in for their own company and lures the victim to the provider with that state.
+    const r = await routes();
+    const s = await startConnect("quickbooks");
+    const back = callbackUrl("quickbooks", new URL(s.url).searchParams.get("state")!);
+    for (const headers of [{}, withCookie("pp_oauth=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA").headers, withCookie(`other=${s.cookie}`).headers]) {
+      const out = await r.callback(req(back, null, { headers }), ctx("quickbooks"));
+      expect(out.headers.get("location")).toContain("result=expired");
+    }
+    expect(qbo.calls.some((c) => c.url.hostname === "oauth.platform.intuit.com")).toBe(false);
+    expect(db.tables.integration_connections.length).toBe(0);
+    // ...and the attempts didn't burn the sign-in: the browser that started it can still finish.
+    const ok = await r.callback(req(back, null, withCookie(`pp_oauth=${s.cookie}`)), ctx("quickbooks"));
+    expect(ok.headers.get("location")).toContain("result=connected");
+  });
+
+  it("the GET connect link only works in the browser that asked for it, once", async () => {
+    const r = await routes();
+    const res = await r.connect(req("/api/integrations/xero/connect", "tok-owner", { method: "POST" }), ctx("xero"));
+    const { url } = (await res.json()) as { url: string };
+    const start = setCookie(res, "pp_oauth_start")!.value;
+    const t = new URL(url);
+    const path = t.pathname + t.search;
+    // Sent to someone else: no start cookie, or another one.
+    for (const headers of [{}, withCookie("pp_oauth_start=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB").headers]) {
+      const out = await r.connectGo(req(path, null, { headers }), ctx("xero"));
+      expect(out.headers.get("location")).toContain("result=expired");
+    }
+    // A forged or foreign ticket.
+    const forged = await r.connectGo(req("/api/integrations/xero/connect?ticket=abc.def", null, withCookie(`pp_oauth_start=${start}`)), ctx("xero"));
+    expect(forged.headers.get("location")).toContain("result=expired");
+    const cross = await r.connectGo(req(`/api/integrations/quickbooks/connect${t.search}`, null, withCookie(`pp_oauth_start=${start}`)), ctx("quickbooks"));
+    expect(cross.headers.get("location")).toContain("result=expired");
+    // The right browser goes on to Xero; a second use of the same link is refused.
+    const go = await r.connectGo(req(path, null, withCookie(`pp_oauth_start=${start}`)), ctx("xero"));
+    expect(go.headers.get("location")).toMatch(/^https:\/\/login\.xero\.com\//);
+    const twice = await r.connectGo(req(path, null, withCookie(`pp_oauth_start=${start}`)), ctx("xero"));
+    expect(twice.headers.get("location")).toContain("result=expired");
+  });
+
+  it("refuses when whoever started the sign-in is no longer the owner or an admin", async () => {
+    const r = await routes();
+    const s = await startConnect("quickbooks");
+    db.members.find((m) => m.user_id === "u-owner")!.role = "tech";
+    const out = await r.callback(req(callbackUrl("quickbooks", new URL(s.url).searchParams.get("state")!), null, withCookie(`pp_oauth=${s.cookie}`)), ctx("quickbooks"));
+    expect(out.headers.get("location")).toContain("result=error");
+    expect(db.tables.integration_connections.length).toBe(0);
+    expect(qbo.calls.some((c) => c.url.hostname === "oauth.platform.intuit.com")).toBe(false);
+    expect(db.tables.integration_events.at(-1)).toMatchObject({ kind: "connect", ok: false });
+  });
+
+  it("connect is rate-limited per user", async () => {
+    const r = await routes();
+    let last: Response | null = null;
+    for (let i = 0; i < 11; i++) last = await r.connect(req("/api/integrations/xero/connect", "tok-owner", { method: "POST" }), ctx("xero"));
+    expect(last!.status).toBe(429);
+    expect(last!.headers.get("retry-after")).toBeTruthy();
+  });
+
   it("refuses a tampered or foreign state", async () => {
     const r = await routes();
-    const res = await r.connect(req("/api/integrations/quickbooks/connect", "tok-owner", { method: "POST" }), ctx("quickbooks"));
-    const state = new URL(((await res.json()) as { url: string }).url).searchParams.get("state")!;
+    const s = await startConnect("quickbooks");
+    const state = new URL(s.url).searchParams.get("state")!;
     const [body, sig] = state.split(".");
     const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, "base64url").toString()), i: "00000000-0000-0000-0000-0000000000a2" })).toString("base64url");
-    for (const s of [`${forged}.${sig}`, `${body}.${sig}x`, "garbage"]) {
-      const out = await r.callback(req(`/api/integrations/quickbooks/callback?code=c&realmId=1&state=${encodeURIComponent(s)}`, null), ctx("quickbooks"));
+    for (const bad of [`${forged}.${sig}`, `${body}.${sig}x`, "garbage"]) {
+      const out = await r.callback(req(`/api/integrations/quickbooks/callback?code=c&realmId=1&state=${encodeURIComponent(bad)}`, null, withCookie(`pp_oauth=${s.cookie}`)), ctx("quickbooks"));
       expect(out.headers.get("location")).toContain("result=expired");
     }
     // A QuickBooks state is no good for Xero.
-    const cross = await r.callback(req(`/api/integrations/xero/callback?code=c&state=${encodeURIComponent(state)}`, null), ctx("xero"));
+    const cross = await r.callback(req(`/api/integrations/xero/callback?code=c&state=${encodeURIComponent(state)}`, null, withCookie(`pp_oauth=${s.cookie}`)), ctx("xero"));
     expect(cross.headers.get("location")).toContain("result=expired");
     expect(db.tables.integration_connections.length).toBe(0);
   });
 
   it("records a cancelled sign-in", async () => {
     const r = await routes();
-    const res = await r.connect(req("/api/integrations/xero/connect", "tok-owner", { method: "POST" }), ctx("xero"));
-    const state = new URL(((await res.json()) as { url: string }).url).searchParams.get("state")!;
-    const out = await r.callback(req(`/api/integrations/xero/callback?error=access_denied&state=${encodeURIComponent(state)}`, null), ctx("xero"));
+    const s = await startConnect("xero");
+    const state = new URL(s.url).searchParams.get("state")!;
+    const out = await r.callback(req(`/api/integrations/xero/callback?error=access_denied&state=${encodeURIComponent(state)}`, null, withCookie(`pp_oauth=${s.cookie}`)), ctx("xero"));
     expect(out.headers.get("location")).toContain("result=cancelled");
     expect(db.tables.integration_events.at(-1)).toMatchObject({ kind: "connect", ok: false });
   });

@@ -301,7 +301,7 @@ export async function recentEvents(owner: Owner, provider: ProviderId, limit = 2
 
 const stateAad = (nonce: string) => `pinplan:oauth-state:${nonce}`;
 
-export async function saveOAuthState(input: { nonce: string; owner: Owner; provider: ProviderId; verifier: string; redirectUri: string; userId: string | null }) {
+export async function saveOAuthState(input: { nonce: string; owner: Owner; provider: ProviderId; verifier: string; redirectUri: string; userId: string | null; cookieHash: string }) {
   // Expired states are cleared now and then (best effort).
   if (Math.random() < 0.05) void serviceFetch(`/rest/v1/rpc/prune_integration_rows`, { method: "POST", headers: JSON_HEADERS, body: "{}" }).catch(() => undefined);
   const r = await serviceFetch(`/rest/v1/integration_oauth_states`, {
@@ -315,20 +315,65 @@ export async function saveOAuthState(input: { nonce: string; owner: Owner; provi
       verifier: encrypt(input.verifier, stateAad(input.nonce)),
       redirect_uri: input.redirectUri,
       created_by: input.userId,
+      cookie_hash: input.cookieHash,
       expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
     }),
   });
   if (!r.ok) await fail(r, "start the sign-in");
 }
 
-/** Delete the state and return it (only once, only before it expires, only for the owner it was made for). */
-export async function consumeOAuthState(nonce: string, owner: Owner, provider: ProviderId): Promise<{ verifier: string; redirectUri: string } | null> {
+export interface PendingOAuthState {
+  owner: Owner;
+  userId: string | null;
+  verifier: string;
+  redirectUri: string;
+}
+
+/**
+ * A sign-in still waiting for the browser (not expired) whose cookie hash is `cookieHash`. Not consumed: the connect
+ * GET reads it to send the browser on to the provider.
+ */
+export async function readOAuthState(nonce: string, provider: ProviderId, cookieHash: string): Promise<PendingOAuthState | null> {
   const r = await serviceFetch(
-    `/rest/v1/integration_oauth_states?nonce=eq.${enc(nonce)}&${ownerFilter(owner)}&provider=eq.${provider}&expires_at=gt.${enc(new Date().toISOString())}`,
+    `/rest/v1/integration_oauth_states?nonce=eq.${enc(nonce)}&provider=eq.${provider}&cookie_hash=eq.${enc(cookieHash)}&expires_at=gt.${enc(new Date().toISOString())}&select=owner_kind,owner_id,created_by,verifier,redirect_uri`,
+  );
+  if (!r.ok) await fail(r, "continue the sign-in");
+  const row = ((await r.json()) as { owner_kind: Owner["kind"]; owner_id: string; created_by: string | null; verifier: string; redirect_uri: string }[])[0];
+  if (!row) return null;
+  return { owner: { kind: row.owner_kind, id: row.owner_id }, userId: row.created_by ?? null, verifier: decrypt(row.verifier, stateAad(nonce)), redirectUri: row.redirect_uri };
+}
+
+/** Move the sign-in to a new cookie (compare-and-swap on the old hash, so only one browser can take it). */
+export async function rebindOAuthState(nonce: string, provider: ProviderId, fromHash: string, toHash: string): Promise<boolean> {
+  const r = await serviceFetch(
+    `/rest/v1/integration_oauth_states?nonce=eq.${enc(nonce)}&provider=eq.${provider}&cookie_hash=eq.${enc(fromHash)}&expires_at=gt.${enc(new Date().toISOString())}`,
+    { method: "PATCH", headers: { ...JSON_HEADERS, Prefer: "return=representation" }, body: JSON.stringify({ cookie_hash: toHash }) },
+  );
+  if (!r.ok) await fail(r, "continue the sign-in");
+  return ((await r.json()) as unknown[]).length > 0;
+}
+
+/**
+ * Delete the state and return it: only once, only before it expires, only for the owner it was made for and only
+ * from the browser holding the cookie it is bound to.
+ */
+export async function consumeOAuthState(nonce: string, owner: Owner, provider: ProviderId, cookieHash: string): Promise<{ verifier: string; redirectUri: string } | null> {
+  const r = await serviceFetch(
+    `/rest/v1/integration_oauth_states?nonce=eq.${enc(nonce)}&${ownerFilter(owner)}&provider=eq.${provider}&cookie_hash=eq.${enc(cookieHash)}&expires_at=gt.${enc(new Date().toISOString())}`,
     { method: "DELETE", headers: { Prefer: "return=representation" } },
   );
   if (!r.ok) await fail(r, "finish the sign-in");
   const row = ((await r.json()) as { verifier: string; redirect_uri: string }[])[0];
   if (!row) return null;
   return { verifier: decrypt(row.verifier, stateAad(nonce)), redirectUri: row.redirect_uri };
+}
+
+/** Is this user still the owner or an admin of the company (team) that started the sign-in? */
+export async function stillManages(owner: Owner, userId: string | null): Promise<boolean> {
+  if (!userId) return false;
+  if (owner.kind === "user") return owner.id === userId;
+  const r = await serviceFetch(`/rest/v1/team_members?user_id=eq.${enc(userId)}&team_id=eq.${enc(owner.id)}&select=role`);
+  if (!r.ok) await fail(r, "check your team");
+  const row = ((await r.json()) as { role?: string }[])[0];
+  return row?.role === "owner" || row?.role === "admin";
 }

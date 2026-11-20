@@ -516,6 +516,7 @@ const libStrings: Dictionary = {
   "The photo this link pointed to was deleted.": "Фото, на которое вела ссылка, удалено.",
   "This link's web address isn't valid.": "Неверный веб-адрес у ссылки.",
   "Project not found": "Объект не найден",
+  "Your company already has free seats. Invite someone before adding more.": "У вашей компании уже есть свободные места. Пригласите кого-нибудь, прежде чем добавлять новые.",
 };
 
 export default libStrings;
