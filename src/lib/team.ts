@@ -3,9 +3,10 @@
 // The role is cached on this device so the app hides the right things offline too.
 import { create } from "zustand";
 import { parseTeamBilling, type TeamBilling } from "./billingLogic";
+import { recordedOwner } from "./localOwner";
 import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
-import { newInviteCode, normalizeCode, teamErrorMessage, type TeamRole } from "./teamLogic";
+import { effectiveRole, inviteEmail, newInviteCode, normalizeCode, pendingInviteAction, teamErrorMessage, type PendingInviteNote, type TeamRole } from "./teamLogic";
 
 export interface Team {
   id: string;
@@ -23,6 +24,8 @@ export interface TeamInvite {
   code: string;
   role: Exclude<TeamRole, "owner">;
   name: string;
+  /** Only this address may use the invite (null or missing: anyone with the code). */
+  email?: string | null;
   createdAt: string;
   expiresAt: string;
   usedBy: string | null;
@@ -57,6 +60,7 @@ function readCache(): Partial<TeamState> | null {
     return null;
   }
 }
+type RoleCache = { userId?: string | null; role?: TeamRole | null };
 function writeCache(s: TeamState) {
   try {
     if (!s.userId) localStorage.removeItem(CACHE_KEY);
@@ -83,9 +87,11 @@ const isMissingSchema = (e: { code?: string; message?: string } | null) =>
 /** Load the team for `userId` (null = signed out). Uses this device's cache while offline. */
 export async function loadTeam(userId: string | null): Promise<TeamState> {
   if (!userId) {
-    const s = { ...empty, ready: true };
+    // Signed out. Jobs that belong to an account keep that account's last role (the cache is kept for it), and a
+    // technician's when it isn't known: signing out never shows prices. Data that never had an owner: full access.
+    const role = effectiveRole(null, { signedIn: false, owner: recordedOwner()?.userId ?? null, cached: readCache() as RoleCache | null });
+    const s = { ...empty, ready: true, role };
     useTeam.setState(s, true);
-    writeCache(s);
     return s;
   }
   const cached = readCache();
@@ -207,7 +213,7 @@ export async function listInvites(): Promise<TeamInvite[]> {
   if (!t) return [];
   const { data, error } = await client()
     .from("team_invites")
-    .select("code, role, name, created_at, expires_at, used_by, used_at, revoked")
+    .select("code, role, name, email, created_at, expires_at, used_by, used_at, revoked")
     .eq("team_id", t.id)
     .order("created_at", { ascending: false });
   if (error) fail(error);
@@ -215,6 +221,7 @@ export async function listInvites(): Promise<TeamInvite[]> {
     code: r.code,
     role: r.role,
     name: r.name ?? "",
+    email: r.email ?? null,
     createdAt: r.created_at,
     expiresAt: r.expires_at,
     usedBy: r.used_by,
@@ -223,13 +230,18 @@ export async function listInvites(): Promise<TeamInvite[]> {
   }));
 }
 
-export async function createInvite(role: "admin" | "tech", name: string): Promise<string> {
+/** Make an invite code. A technician's unless the office asks for more. With `email`, the invite is for that address
+ *  only (team_invites.email): the database refuses it to any other account. Office invites are best sent that way. */
+export async function createInvite(role: "admin" | "tech" = "tech", name = "", email?: string | null): Promise<string> {
   const t = useTeam.getState().team;
   if (!t) throw new Error("Start your team first.");
+  const to = inviteEmail(email);
   // A clash is astronomically unlikely, but retry rather than fail.
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = newInviteCode();
-    const { error } = await client().from("team_invites").insert({ code, team_id: t.id, role, name: name.trim() });
+    const { error } = await client()
+      .from("team_invites")
+      .insert({ code, team_id: t.id, role, name: name.trim(), ...(to ? { email: to } : {}) });
     if (!error) return code;
     if (error.code !== "23505") fail(error);
   }
@@ -277,25 +289,30 @@ export async function inviteInfo(code: string): Promise<InviteInfo | null> {
 export async function acceptInvite(code: string, name: string): Promise<{ team: string; role: TeamRole }> {
   const { data, error } = await client().rpc("accept_team_invite", { p_code: normalizeCode(code), p_name: name.trim() });
   if (error) fail(error);
+  if (pendingInvite()?.code === normalizeCode(code)) clearPendingInvite();
   await reload();
   const d = data as { team: string; role: TeamRole };
   return { team: d.team, role: d.role };
 }
 
 // An invite opened before the worker had an account (e.g. waiting for the confirmation email) is finished
-// automatically the next time they sign in on this device.
+// automatically the next time that same email signs in on this device. Anyone else signing in here is only offered it
+// on /join: a shared device must never put the next account on a team it didn't ask to join.
 const PENDING_KEY = "pinplan.pendingInvite";
-export function rememberPendingInvite(code: string, name: string) {
+/** `email`: the address the invite was started with (the login being made, or the one typed before "Forgot password?"). */
+export function rememberPendingInvite(code: string, name: string, email?: string | null) {
   try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ code: normalizeCode(code), name }));
+    const note: PendingInviteNote = { code: normalizeCode(code), name, email: inviteEmail(email) };
+    localStorage.setItem(PENDING_KEY, JSON.stringify(note));
   } catch {
     /* storage unavailable */
   }
 }
-export function pendingInvite(): { code: string; name: string } | null {
+export function pendingInvite(): PendingInviteNote | null {
   try {
     const raw = localStorage.getItem(PENDING_KEY);
-    return raw ? (JSON.parse(raw) as { code: string; name: string }) : null;
+    const v = raw ? (JSON.parse(raw) as Partial<PendingInviteNote>) : null;
+    return v?.code ? { code: v.code, name: v.name ?? "", email: v.email ?? null } : null;
   } catch {
     return null;
   }
@@ -308,10 +325,13 @@ export function clearPendingInvite() {
   }
 }
 
-/** Call after sign-in: joins the team from a remembered invite, if any. Returns the team name when it did. */
+/** Call after sign-in: joins the team from a remembered invite, but only for the email it was started with. Returns
+ *  the team name when it did. Otherwise the invite stays for the person to confirm on /join. */
 export async function finishPendingInvite(): Promise<string | null> {
   const p = pendingInvite();
   if (!p || !useTeam.getState().userId) return null;
+  const session = (await getSupabase()?.auth.getSession())?.data.session;
+  if (pendingInviteAction(p, session?.user.email) !== "accept") return null;
   try {
     const r = await acceptInvite(p.code, p.name);
     clearPendingInvite();

@@ -86,6 +86,11 @@ export function inferLocalOwner(userId: string): LocalOwner | null {
   return { userId: [...others][0], email: null };
 }
 
+/** The account the data on this device belongs to, recorded or inferred, whoever is signed in now (null: nobody's). */
+export function recordedOwner(): LocalOwner | null {
+  return readLocalOwner() ?? inferLocalOwner("");
+}
+
 /** Decide for a sign-in and remember the owner when the jobs here are (now) theirs. */
 export async function checkLocalOwner(userId: string, email: string | null): Promise<OwnerDecision> {
   // Read before awaiting: loading the new account's team rewrites the team cache.

@@ -19,13 +19,19 @@ export interface LandingInput {
   /** Signed in: on a company team (true), not on one (false), or not known yet (null). Leave it out where the team
    *  doesn't matter. */
   hasTeam?: boolean | null;
+  /** The data on this device belongs to an account (localOwner.ts: recorded, or inferred from its sync keys). */
+  hasOwner?: boolean;
 }
 
 /** "welcome": first-time visitor → landing page. "setup": signed in but not in a company yet → "Set up your company".
- *  "stay": show the jobs list. "wait": not known yet. */
-export function landingDecision(i: LandingInput): "welcome" | "setup" | "stay" | "wait" {
+ *  "login": nobody signed in, but the jobs here belong to an account → sign in first. "stay": show the jobs list.
+ *  "wait": not known yet. */
+export function landingDecision(i: LandingInput): "welcome" | "setup" | "login" | "stay" | "wait" {
   // A self-hosted, local-only copy has no accounts to sign up for: it's just the app.
   if (!i.configured) return "stay";
+  // Signed out (or someone else picked up the device): an account's jobs stay behind its sign-in. Demo mode is only for
+  // data that never had an owner.
+  if (i.authReady && !i.signedIn && i.hasOwner) return "login";
   // Every account belongs to a company: someone signed in without one sets it up (or joins one) first.
   if (i.authReady && i.signedIn && i.hasTeam === false) return "setup";
   if (i.authReady && i.signedIn && i.hasTeam === null && !i.localJobs) return "wait";
@@ -110,6 +116,51 @@ export const termsMetadata = (now = new Date()) => ({ terms_accepted_at: now.toI
 /** The account has agreed to the current terms. */
 export const acceptedTerms = (meta: Record<string, unknown> | null | undefined) =>
   meta?.terms_version === TERMS_VERSION && typeof meta?.terms_accepted_at === "string";
+
+/** The database doesn't have this function yet (its migration hasn't run): PostgREST's PGRST202, or Postgres' 42883. */
+export const missingFunction = (e: { code?: string | null; message?: string | null } | null | undefined) =>
+  !!e && (e.code === "PGRST202" || e.code === "42883" || /could not find the function/i.test(e.message ?? ""));
+
+// ---------------- changing the password ----------------
+
+/** The label of the current-password field (a new string: the one place it's written, for translation). */
+export const CURRENT_PASSWORD = "Current password";
+
+/**
+ * How a password change is proven. "recovery": opened from a reset email (the link is the proof). "current": the
+ * current password is checked with a fresh sign-in first. "code": no password typed (a login made with a sign-in link):
+ * Supabase emails a code (auth.reauthenticate) and the change carries it as the nonce. "nonce": that code was entered.
+ */
+export function passwordChangeProof(i: { recovery?: boolean; current?: string; nonce?: string }): "recovery" | "current" | "code" | "nonce" {
+  if (i.nonce?.trim()) return "nonce";
+  if (i.recovery) return "recovery";
+  return i.current ? "current" : "code";
+}
+
+/**
+ * The session came from a password-reset link in the last `maxAgeSec` seconds: its access token's `amr` has a
+ * "recovery" sign-in. (Only reads the token the client already holds; Supabase checks it on every request.)
+ */
+export function isRecoverySession(accessToken: string | null | undefined, now = Date.now(), maxAgeSec = 60 * 60): boolean {
+  const part = accessToken?.split(".")[1];
+  if (!part) return false;
+  try {
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4))) as { amr?: unknown };
+    if (!Array.isArray(claims.amr)) return false;
+    return claims.amr.some((m: { method?: unknown; timestamp?: unknown } | null) => {
+      if (m?.method !== "recovery" || typeof m.timestamp !== "number") return false;
+      const age = now / 1000 - m.timestamp;
+      return age < maxAgeSec && age > -60;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/** Supabase wants the emailed code before it changes the password ("Secure password change" is on). */
+export const needsReauthCode = (e: { code?: string | null; message?: string | null } | null | undefined) =>
+  !!e && (e.code === "reauthentication_needed" || e.code === "reauth_nonce_missing" || /reauthentication/i.test(e.message ?? ""));
 
 // ---------------- the company a new account is waiting for ----------------
 

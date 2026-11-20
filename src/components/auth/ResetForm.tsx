@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
-import { authErrorMessage } from "@/lib/onboardingLogic";
+import { changePassword } from "@/lib/onboarding";
+import { authErrorMessage, isRecoverySession } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
@@ -22,7 +23,11 @@ export default function ResetForm() {
   // PASSWORD_RECOVERY once the session is ready.
   const arrival = useArrivalParams();
   const [recoveryEvent, setRecoveryEvent] = useState(false);
-  const recovery = recoveryEvent || arrival?.hash.get("type") === "recovery" || !!arrival?.search.has("code");
+  // The session itself says it came from a reset link (its amr), in case PASSWORD_RECOVERY fired before this page
+  // listened. Only these prove it: being signed in, or a ?code= in the address, doesn't let anyone set a new password.
+  const [recoverySession, setRecoverySession] = useState(false);
+  const proven = recoveryEvent || recoverySession || arrival?.hash.get("type") === "recovery";
+  const recovery = proven || !!arrival?.search.has("code");
   const [timedOut, setTimedOut] = useState(false);
   const linkError =
     linkErrorFrom(arrival?.hash, "That reset link has expired or was already used. Send yourself a new one below.") ??
@@ -31,12 +36,15 @@ export default function ResetForm() {
   const [error, setError] = useState<string | null>(null);
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
+  /** Supabase asked for the emailed code before changing the password: null until then. */
+  const [code, setCode] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("reset");
 
   useEffect(() => {
-    const sub = getSupabase()?.auth.onAuthStateChange((evt) => {
+    const sub = getSupabase()?.auth.onAuthStateChange((evt, session) => {
       if (evt === "PASSWORD_RECOVERY") setRecoveryEvent(true);
+      if (isRecoverySession(session?.access_token)) setRecoverySession(true);
     });
     return () => sub?.data.subscription.unsubscribe();
   }, []);
@@ -44,10 +52,16 @@ export default function ResetForm() {
   // A link that never turns into a session (expired, opened in another browser): stop waiting and say so.
   const signedIn = sync.signedIn;
   useEffect(() => {
-    if (!recovery || signedIn) return;
+    if (!signedIn) return;
+    void getSupabase()
+      ?.auth.getSession()
+      .then(({ data }) => setRecoverySession(isRecoverySession(data.session?.access_token)));
+  }, [signedIn]);
+  useEffect(() => {
+    if (!recovery || (signedIn && proven)) return;
     const t = window.setTimeout(() => setTimedOut(true), 10_000);
     return () => window.clearTimeout(t);
-  }, [recovery, signedIn]);
+  }, [recovery, signedIn, proven]);
 
   if (!supabaseConfigured) {
     return (
@@ -59,8 +73,9 @@ export default function ResetForm() {
     );
   }
 
-  // Arrived from the email (or already signed in): choose a new password.
-  const setting = sync.authReady && sync.signedIn;
+  // Arrived from the reset email: choose a new password. (Signed in some other way, the change is in Settings › Account,
+  // which asks for the current password first; here they can send themselves a reset link.)
+  const setting = sync.authReady && sync.signedIn && proven;
   if (done) {
     return (
       <AuthShell>
@@ -97,9 +112,14 @@ export default function ResetForm() {
               setBusy(true);
               setError(null);
               try {
-                const { error } = await getSupabase()!.auth.updateUser({ password: pw });
-                if (error) setError(/different from the old/i.test(error.message) ? "Choose a password you haven’t used before." : authErrorMessage(error.message));
-                else setDone(true);
+                // The reset link is the proof; Supabase may still want the emailed code ("Secure password change").
+                // Every other session is signed out afterwards.
+                const r = await changePassword({ email: sync.email, password: pw, recovery: true, nonce: code ?? undefined });
+                if (r.ok) setDone(true);
+                else if ("codeSent" in r) {
+                  setCode("");
+                  setError("Enter the code to confirm it's you.");
+                } else setError(r.error);
               } catch (err) {
                 setError(authErrorMessage(errText(err)));
               } finally {
@@ -113,8 +133,14 @@ export default function ResetForm() {
               <input id="rs-repeat" className="input h-11" type="password" autoComplete="new-password" required value={pw2} onChange={(e) => setPw2(e.target.value)} />
               {mismatch && <p className="mt-1.5 text-xs text-amber-700">The two passwords don’t match yet.</p>}
             </div>
+            {code !== null && (
+              <div>
+                <label className="label" htmlFor="rs-code">Your code</label>
+                <input id="rs-code" className="input h-11" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
+              </div>
+            )}
             <FormError>{error}</FormError>
-            <button className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || pw.length < PASSWORD_MIN || pw !== pw2}>
+            <button className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || pw.length < PASSWORD_MIN || pw !== pw2 || (code !== null && !code.trim())}>
               {busy && <Loader2 className="animate-spin" />} Save new password
             </button>
           </form>

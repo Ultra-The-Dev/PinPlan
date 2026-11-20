@@ -8,9 +8,10 @@
 // the company: they move to the team owner before the login is deleted.
 //
 // Safety and billing:
-// - A stolen session alone can't delete an account: the sign-in must be fresh (in the last 5 minutes, by
-//   the token's amr sign-in time, else its iat)
-//   or the body must carry the account's email ({ "confirmEmail": "me@example.com" }), typed by the person.
+// - A stolen session alone can't delete an account: the sign-in must be fresh (a password, emailed code or sign-in
+//   link in the last 5 minutes, by the token's amr; never its iat, which every refresh renews). Anything else answers
+//   401 { code: "reauth_required" } and the apps ask the person to sign in again. Typing the account's email doesn't
+//   count: anyone holding the session can read it from the token.
 // - A team with a Stripe subscription is never deleted while billing is misconfigured (501): the subscription would
 //   keep charging with nobody left to cancel it. After cancelling, the Stripe customer is anonymised (name, email,
 //   phone, address and metadata cleared; Stripe keeps the invoices, as accounting requires).
@@ -20,7 +21,7 @@ import { accountDeletionPlan } from "@/lib/onboardingLogic";
 import type { TeamRole } from "@/lib/teamLogic";
 import { extraSeats, seatItem, seatTarget, type SubscriptionLike } from "@/lib/billingLogic";
 import { applySubscription, billingConfig, getStripe } from "@/lib/server/billing";
-import { tokenIssuedAt } from "@/lib/server/auth";
+import { requireFreshAuth } from "@/lib/server/auth";
 import { reportServerError } from "@/lib/server/serverErrors";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
@@ -31,25 +32,7 @@ const json = (body: Record<string, unknown>, status = 200) => Response.json(body
 
 class Upstream extends Error {}
 
-/** When the person last actually signed in. A refreshed token gets a new `iat` (the browser refreshes on its own, and
- *  so can anyone holding a stolen refresh token), so Supabase's `amr` sign-in timestamps win when the token has them. */
-function signedInAt(token: string): number | null {
-  const part = token.split(".")[1];
-  if (part) {
-    try {
-      const claims = JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) as { amr?: unknown };
-      if (Array.isArray(claims.amr)) {
-        const times = claims.amr.map((m) => (m as { timestamp?: unknown } | null)?.timestamp).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
-        if (times.length) return Math.max(...times);
-      }
-    } catch {
-      // fall through to iat
-    }
-  }
-  return tokenIssuedAt(token);
-}
-
-/** How recent a sign-in must be to delete without typing the email. */
+/** How recent the sign-in must be to delete the account. */
 const FRESH_SIGN_IN_SECONDS = 5 * 60;
 /** Subscription states that still bill for seats. */
 const LIVE = new Set(["active", "past_due", "trialing"]);
@@ -82,35 +65,20 @@ export async function DELETE(req: Request) {
 
   // Who is asking (their own token, checked by Supabase Auth).
   let userId: string;
-  let userEmail: string | null;
   try {
     const r = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` }, cache: "no-store" });
     if (r.status === 401 || r.status === 403) return json({ error: "Your sign-in has expired. Sign in again, then delete your account.", code: "unauthorized" }, 401);
     if (!r.ok) return json({ error: "Couldn’t check your sign-in. Try again.", code: "upstream" }, 502);
-    const u = (await r.json()) as { id?: string; email?: string | null };
+    const u = (await r.json()) as { id?: string };
     if (!u.id) return json({ error: "Sign in first.", code: "unauthorized" }, 401);
     userId = u.id;
-    userEmail = u.email?.trim().toLowerCase() || null;
   } catch {
     return json({ error: "Couldn’t reach the cloud database.", code: "upstream" }, 502);
   }
 
-  // A fresh sign-in, or the account's email typed again.
-  const body = (await req.json().catch(() => null)) as { confirmEmail?: unknown; email?: unknown } | null;
-  const typed = typeof body?.confirmEmail === "string" ? body.confirmEmail : typeof body?.email === "string" ? body.email : "";
-  const signedIn = signedInAt(token);
-  const fresh = signedIn != null && Date.now() / 1000 - signedIn < FRESH_SIGN_IN_SECONDS;
-  const emailMatches = !!userEmail && typed.trim().toLowerCase() === userEmail;
-  if (!fresh && !emailMatches)
-    return json(
-      {
-        error: typed
-          ? "That email doesn’t match your account. Type the email you sign in with, or sign out and sign in again, then delete your account."
-          : "To keep your account safe, type the email you sign in with, or sign out and sign in again, then delete your account.",
-        code: "reauth_required",
-      },
-      403,
-    );
+  // A fresh sign-in (Supabase accepted this token above, so its amr can be read). Nothing in the body counts.
+  const fresh = requireFreshAuth(token, FRESH_SIGN_IN_SECONDS, "To keep your account safe, enter your password again, then delete your account.");
+  if (!fresh.ok) return fresh.response;
 
   const admin = { apikey: service, Authorization: `Bearer ${service}` };
   const rest = async <T>(path: string, init?: RequestInit): Promise<T | null> => {

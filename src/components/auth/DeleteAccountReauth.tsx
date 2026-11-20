@@ -1,8 +1,9 @@
 "use client";
-// Deleting an account needs proof it's really the person (DELETE /api/account answers 403 reauth_required unless the
-// sign-in is fresh or the account's email is typed again). This hook makes the request and, when the server asks,
-// shows a password field (a fresh sign-in, with the bot check when it's on) or, for logins without a password, an
-// email field. The delete dialog (Settings › Account) renders `fields` and calls `request()` on submit.
+// Deleting an account needs proof it's really the person: DELETE /api/account answers 401 reauth_required unless the
+// sign-in is fresh (a password, emailed code or sign-in link in the last 5 minutes, checked on the server from the
+// token). This hook makes the request and, when the server asks, shows a password field (a fresh sign-in, with the bot
+// check when it's on) or, for logins without a password, sends a sign-in link; after opening it, they try again. The
+// delete dialog (Settings › Account) renders `fields` and calls `request()` on submit.
 import { useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
 import { authErrorMessage } from "@/lib/onboardingLogic";
@@ -11,9 +12,10 @@ import { accountDeleteReply } from "@/lib/teamLogic";
 
 export function useAccountDelete(email: string | null) {
   const [reauth, setReauth] = useState<string | null>(null);
-  const [mode, setMode] = useState<"password" | "email">("password");
+  const [mode, setMode] = useState<"password" | "link">("password");
   const [password, setPassword] = useState("");
-  const [typedEmail, setTypedEmail] = useState("");
+  const [linkNote, setLinkNote] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [expired, setExpired] = useState(false);
   const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("reauth");
 
@@ -21,18 +23,13 @@ export function useAccountDelete(email: string | null) {
   const request = async (): Promise<boolean> => {
     const sb = getSupabase();
     if (!sb) throw new Error("Not connected to the cloud.");
-    let body: string | undefined;
-    if (reauth) {
-      if (mode === "password") {
-        if (!email) throw new Error("Sign out, sign in again, then delete your account.");
-        if (!password) throw new Error("Enter your password.");
-        const { error } = await sb.auth.signInWithPassword({ email, password, options: { captchaToken: await takeCaptcha() } });
-        if (error) throw new Error(/invalid login/i.test(error.message) ? "That password isn’t right. Try again, or type your email instead." : authErrorMessage(error.message));
-      } else {
-        if (!typedEmail.trim()) throw new Error("Type the email you sign in with.");
-        body = JSON.stringify({ confirmEmail: typedEmail.trim() });
-      }
+    if (reauth && mode === "password") {
+      if (!email) throw new Error("Sign out, sign in again, then delete your account.");
+      if (!password) throw new Error("Enter your password.");
+      const { error } = await sb.auth.signInWithPassword({ email, password, options: { captchaToken: await takeCaptcha() } });
+      if (error) throw new Error(authErrorMessage(error.message));
     }
+    // With a sign-in link, the session it made (in this browser, shared between tabs) is the fresh sign-in.
     const token = (await sb.auth.getSession()).data.session?.access_token;
     if (!token) {
       setReauth("Your sign-in has expired. Sign out, sign in again, then delete your account.");
@@ -40,27 +37,48 @@ export function useAccountDelete(email: string | null) {
       setMode("password");
       return false;
     }
-    const r = await fetch("/api/account", {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
-      body,
-    });
-    const reply = accountDeleteReply(r.status, (await r.json().catch(() => ({}))) as Parameters<typeof accountDeleteReply>[1]);
+    const r = await fetch("/api/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    const body = (await r.json().catch(() => ({}))) as Parameters<typeof accountDeleteReply>[1];
+    const reply = accountDeleteReply(r.status, body);
     if (reply.kind === "deleted") return true;
     if (reply.kind === "reauth") {
       setReauth(reply.message);
-      setExpired(r.status === 401);
+      // 401 reauth_required: signed in, just not recently. Any other 401: the sign-in itself is gone.
+      setExpired(r.status === 401 && body?.code !== "reauth_required");
       setPassword("");
       return false;
     }
     throw new Error(reply.message);
   };
 
+  /** Logins without a password: a sign-in link to the account's own address is the fresh sign-in. */
+  const sendLink = async () => {
+    const sb = getSupabase();
+    if (!sb || !email) return;
+    setSending(true);
+    setLinkNote(null);
+    try {
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/settings`, captchaToken: await takeCaptcha() },
+      });
+      setMode("link");
+      setLinkNote(
+        !error || /signups? not allowed for otp/i.test(error.message)
+          ? "If there’s an account for this email, a sign-in link is on its way — check your email."
+          : authErrorMessage(error.message),
+      );
+    } catch (e) {
+      setLinkNote(authErrorMessage(e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const fields = reauth ? (
     <div className="space-y-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" role="alert">
       <p className="font-medium">Confirm it’s you</p>
-      {/* The server's words talk about typing the email; with the password field showing, say what to do here. */}
-      <p>{mode === "email" ? reauth : expired ? "Your sign-in has expired. Enter your password to continue." : "To keep your account safe, enter your password again."}</p>
+      <p>{expired ? "Your sign-in has expired. Enter your password to continue." : "To keep your account safe, enter your password again."}</p>
       {mode === "password" ? (
         <div>
           <label className="label" htmlFor="del-password">
@@ -77,25 +95,17 @@ export function useAccountDelete(email: string | null) {
           />
         </div>
       ) : (
-        <div>
-          <label className="label" htmlFor="del-email">
-            The email you sign in with
-          </label>
-          <input
-            id="del-email"
-            className="input"
-            type="email"
-            autoComplete="off"
-            inputMode="email"
-            value={typedEmail}
-            onChange={(e) => setTypedEmail(e.target.value)}
-            autoFocus
-          />
-        </div>
+        linkNote && <p>{linkNote}</p>
       )}
-      <button type="button" className="text-xs font-medium text-amber-900 underline" onClick={() => setMode(mode === "password" ? "email" : "password")}>
-        {mode === "password" ? "No password? Type your email instead" : "Use my password instead"}
-      </button>
+      {mode === "password" ? (
+        <button type="button" className="text-xs font-medium text-amber-900 underline" disabled={sending || !email} onClick={() => void sendLink()}>
+          Email me a sign-in link
+        </button>
+      ) : (
+        <button type="button" className="text-xs font-medium text-amber-900 underline" onClick={() => setMode("password")}>
+          Use my password instead
+        </button>
+      )}
       <div ref={captchaMount} className="flex justify-center empty:hidden" />
       {captchaError && <p className="text-xs text-red-700">{captchaError}</p>}
     </div>

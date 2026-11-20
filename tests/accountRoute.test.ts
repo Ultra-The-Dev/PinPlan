@@ -23,8 +23,12 @@ vi.mock("@/lib/server/billing", async (importOriginal) => ({
 const URL_ = "https://sb.example.co";
 type Call = { method: string; url: string; headers: Record<string, string>; body: unknown };
 
-/** A JWT-shaped token issued `ageSeconds` ago (only the payload is read; Supabase checks the signature). */
-const jwt = (ageSeconds = 10) => `h.${Buffer.from(JSON.stringify({ sub: "u1", iat: Math.floor(Date.now() / 1000) - ageSeconds })).toString("base64url")}.sig`;
+/** A JWT-shaped token from a password sign-in `ageSeconds` ago (only the payload is read; Supabase checks the signature). */
+const claims = (c: Record<string, unknown>) => `h.${Buffer.from(JSON.stringify({ sub: "u1", ...c })).toString("base64url")}.sig`;
+const jwt = (ageSeconds = 10, method = "password") => {
+  const t = Math.floor(Date.now() / 1000) - ageSeconds;
+  return claims({ iat: t, amr: [{ method, timestamp: t }] });
+};
 const FRESH = jwt(10);
 const STALE = jwt(3600);
 const req = (token: string | null = FRESH, body?: unknown) =>
@@ -111,28 +115,44 @@ describe("DELETE /api/account", () => {
   };
   const destructive = () => calls.filter((c) => c.method === "DELETE" || c.method === "PATCH");
 
-  it("needs a fresh sign-in, or the account's email typed again", async () => {
+  it("needs a fresh sign-in: 401 reauth_required otherwise, and nothing is touched", async () => {
     const { DELETE } = await import("@/app/api/account/route");
     const stale = await DELETE(req(STALE));
-    expect(stale.status).toBe(403);
+    expect(stale.status).toBe(401);
     expect((await stale.json()).code).toBe("reauth_required");
-    const wrong = await DELETE(req(STALE, { confirmEmail: "someone@else.com" }));
-    expect(wrong.status).toBe(403);
     expect(destructive()).toHaveLength(0);
-    const typed = await DELETE(req(STALE, { confirmEmail: " me@example.COM " }));
-    expect(typed.status).toBe(200);
+    expect(calls.some((c) => c.url.includes("/rest/v1/"))).toBe(false);
   });
 
-  it("a refreshed token isn't a fresh sign-in: the amr sign-in time counts", async () => {
+  it("the account's email in the body is no proof (anyone holding the session can read it from the token)", async () => {
+    const { DELETE } = await import("@/app/api/account/route");
+    for (const body of [{ confirmEmail: "me@example.com" }, { confirmEmail: " Me@Example.COM " }, { email: "me@example.com" }]) {
+      const r = await DELETE(req(STALE, body));
+      expect(r.status).toBe(401);
+      expect((await r.json()).code).toBe("reauth_required");
+    }
+    expect(destructive()).toHaveLength(0);
+    expect(calls.some((c) => c.url.includes("/admin/"))).toBe(false);
+  });
+
+  it("a refreshed token isn't a fresh sign-in: only the amr sign-in time counts, never iat", async () => {
     const now = Math.floor(Date.now() / 1000);
-    const tok = (amrAge: number) =>
-      `h.${Buffer.from(JSON.stringify({ sub: "u1", iat: now - 5, amr: [{ method: "password", timestamp: now - amrAge }] })).toString("base64url")}.sig`;
+    const tok = (amrAge: number) => claims({ iat: now - 5, amr: [{ method: "password", timestamp: now - amrAge }] });
     const { DELETE } = await import("@/app/api/account/route");
     const refreshed = await DELETE(req(tok(3 * 3600)));
-    expect(refreshed.status).toBe(403);
+    expect(refreshed.status).toBe(401);
     expect((await refreshed.json()).code).toBe("reauth_required");
+    // A brand-new token with no amr at all (iat only) isn't one either.
+    expect((await DELETE(req(claims({ iat: now - 5 })))).status).toBe(401);
     expect(destructive()).toHaveLength(0);
     expect((await DELETE(req(tok(20)))).status).toBe(200);
+  });
+
+  it("counts a password, an emailed code or a sign-in link, but not a refresh or a recovery link", async () => {
+    const { DELETE } = await import("@/app/api/account/route");
+    for (const m of ["token_refresh", "recovery", "anonymous", "oauth"]) expect((await DELETE(req(jwt(10, m)))).status).toBe(401);
+    expect(destructive()).toHaveLength(0);
+    for (const m of ["otp", "magiclink"]) expect((await DELETE(req(jwt(10, m)))).status).toBe(200);
   });
 
   it("needs a valid sign-in", async () => {
