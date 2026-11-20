@@ -123,11 +123,12 @@ private struct MarkerForm: View {
                 let m = marker
                 var newId = ""
                 if let t = app.type(m.deviceTypeId) {
-                    model.edit { b in
+                    let added = model.edit { b in
                         newId = b.addMarker(type: t, sheetId: m.sheetId, x: m.x + 0.015, y: m.y + 0.015, room: m.room, tentative: m.tentative).id
                         b.updateMarker(newId, pricing: model.pricing) { $0.mount = m.mount; $0.wireType = m.wireType; $0.wires = m.wires; $0.closetId = m.closetId }
                     }
-                    model.selection = .marker(newId)
+                    // Refused on a read-only job: keep the original selected.
+                    if added { model.selection = .marker(newId) }
                 }
             } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
             Button(role: .destructive) { model.deleteSelection() } label: { Label("Delete device", systemImage: "trash") }

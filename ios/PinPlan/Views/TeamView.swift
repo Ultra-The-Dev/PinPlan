@@ -191,7 +191,7 @@ private struct MigrationNeededSection: View {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("The cloud database needs the team update").font(.subheadline.weight(.semibold))
-                    Text("Run \(TeamLogic.migrationFile) in the Supabase SQL editor, then pull to refresh.")
+                    Text("Teams aren't switched on for this PinPlan server yet. Pull to refresh once it's updated.")
                         .font(.callout).foregroundStyle(Color.secondary)
                 }
             } icon: {

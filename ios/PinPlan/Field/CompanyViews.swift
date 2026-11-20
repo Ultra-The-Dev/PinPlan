@@ -232,6 +232,8 @@ struct TasksView: View {
     @Environment(\.dismiss) private var dismiss
     let onOpen: (String) -> Void
     @State private var who = "__me"
+    /// A tick refused because jobs are read-only (lapsed subscription or ended trial).
+    @State private var readOnlyNotice: String?
 
     var body: some View {
         let me = FieldAuthor.name(app)
@@ -259,6 +261,11 @@ struct TasksView: View {
             }
             .navigationTitle("Tasks")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("Jobs are read-only", isPresented: Binding(get: { readOnlyNotice != nil }, set: { if !$0 { readOnlyNotice = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(readOnlyNotice ?? "")
+            }
             .onAppear {
                 // Nothing assigned to you yet: show everyone's instead of an empty list.
                 if who == "__me", FieldDocs.openTasks(app.projects, today: today, who: me).isEmpty { who = "__all" }
@@ -305,6 +312,10 @@ struct TasksView: View {
 
     /// Tick an item done from the list (saved and synced like an edit on the job).
     private func complete(_ t: FieldDocs.OpenTask, me: String) {
+        guard app.cloud.canEdit else {
+            readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
+            return
+        }
         guard var b = app.projects.first(where: { $0.project.id == t.project.id }),
               var c = b.checklists.first(where: { $0.id == t.checklist.id }),
               let i = c.items.firstIndex(where: { $0.id == t.item.id }) else { return }

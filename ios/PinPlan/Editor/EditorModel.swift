@@ -157,30 +157,64 @@ final class EditorModel {
     var activeSheet: Sheet? { sheets.first { $0.id == activeSheetId } ?? sheets.first }
     var takeoff: Takeoff { TakeoffCalculator.compute(bundle) }
 
-    /// Apply a change as one undoable step, then save.
-    func edit(_ change: (inout ProjectBundle) -> Void) {
+    // MARK: read-only jobs
+
+    /// The job can't be changed on this device: the company's subscription lapsed, or a person on no team whose free
+    /// trial ended (`CloudSync.canEdit`, like the web app). Viewing and exporting still work.
+    var readOnly: Bool { !app.cloud.canEdit }
+    /// Why, shown as an alert the first time a change is refused in this job (later attempts get a short toast).
+    var readOnlyNotice: String?
+    @ObservationIgnored private var toldReadOnly = false
+    /// A change was refused in this turn of the run loop: the caller's own toast ("Added…", "Scale set") is dropped so
+    /// it doesn't claim a change that never happened.
+    @ObservationIgnored private var justRefused = false
+
+    /// True (and says why) when changes are refused right now.
+    func refuseIfReadOnly() -> Bool {
+        guard readOnly else { return false }
+        if !justRefused {
+            justRefused = true
+            Task { @MainActor in self.justRefused = false }
+        }
+        if toldReadOnly {
+            say(Self.readOnlyToast)
+        } else {
+            toldReadOnly = true
+            readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
+        }
+        return true
+    }
+
+    /// Apply a change as one undoable step, then save. False when nothing changed (or the job is read-only).
+    @discardableResult
+    func edit(_ change: (inout ProjectBundle) -> Void) -> Bool {
         // Mutate a copy so the closure may freely read the model (e.g. `pricing`) without overlapping access to `bundle`.
         let before = bundle
         var next = bundle
         change(&next)
-        guard next != before else { return }
+        guard next != before else { return false }
+        // Only a real change is refused (a sheet closing with nothing edited says nothing).
+        if refuseIfReadOnly() { return false }
         bundle = next
         past.append(before)
         if past.count > 100 { past.removeFirst() }
         future.removeAll()
         persist()
+        return true
     }
 
     /// Apply a change without an undo step (e.g. estimate edits, status).
     func editSilently(_ change: (inout ProjectBundle) -> Void) {
         var next = bundle
         change(&next)
+        // Only a real change is refused.
+        if next != bundle, refuseIfReadOnly() { return }
         bundle = next
         persist()
     }
 
     func undo() {
-        guard let prev = past.popLast() else { return }
+        guard !past.isEmpty, !refuseIfReadOnly(), let prev = past.popLast() else { return }
         future.append(bundle)
         bundle = prev
         selection = nil
@@ -188,7 +222,7 @@ final class EditorModel {
     }
 
     func redo() {
-        guard let next = future.popLast() else { return }
+        guard !future.isEmpty, !refuseIfReadOnly(), let next = future.popLast() else { return }
         past.append(bundle)
         bundle = next
         persist()
@@ -200,7 +234,10 @@ final class EditorModel {
         if activeSheetId == nil || !sheets.contains(where: { $0.id == activeSheetId }) { activeSheetId = sheets.first?.id }
     }
 
+    static let readOnlyToast = "Read-only — you can view and export, not change"
+
     func say(_ text: String) {
+        if justRefused && text != Self.readOnlyToast { return }
         toast = text
         let current = text
         Task { @MainActor in
@@ -228,11 +265,12 @@ final class EditorModel {
             guard let t = app.type(typeId) else { return }
             // No room typed in? Use the room name printed on the plan where the device lands.
             let r = room.isEmpty ? (PlanReader.room(atX: x, y: y, details: planDetails[sheet.id] ?? []) ?? "") : room
-            edit { $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if edit({ $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }) {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         case .closet(let kind):
             var newId = ""
-            edit { newId = $0.addCloset(kind: kind, sheetId: sheet.id, x: x, y: y).id }
+            guard edit({ newId = $0.addCloset(kind: kind, sheetId: sheet.id, x: x, y: y).id }) else { return }
             use(.select)
             selection = .closet(newId)
         case .led:

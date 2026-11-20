@@ -16,7 +16,7 @@ extension EditorModel {
 
     func removeRows<T: FieldRow>(_ ids: Set<String>, in list: WritableKeyPath<ProjectBundle, [T]>) {
         guard !ids.isEmpty else { return }
-        edit { $0.remove(ids, in: list) }
+        guard edit({ $0.remove(ids, in: list) }) else { return }
         say("Deleted — tap Undo to bring it back")
     }
 

@@ -49,8 +49,8 @@ final class BrandTests: XCTestCase {
             XCTAssertNil(full.tagline)
             XCTAssertNil(full.serviceArea)
             XCTAssertEqual(full.phone, "(212) 555-0100")
-            XCTAssertEqual(full.brandColor, "#c2410c")
-            XCTAssertEqual(full.accentColor, "#f59e0b")
+            XCTAssertEqual(full.brandColor, "#0F2340")
+            XCTAssertEqual(full.accentColor, "#0B6FE0")
             XCTAssertFalse(full.estimateTerms.isEmpty)
         }
         XCTAssertEqual(BusinessSettings.defaults(founder: false), BusinessSettings.neutral)
