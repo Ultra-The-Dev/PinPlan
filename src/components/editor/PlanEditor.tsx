@@ -174,6 +174,22 @@ export default function PlanEditor() {
     if (!activeSheetId && sheets[0]) setActiveSheet(sheets[0].id);
   }, [activeSheetId, sheets, setActiveSheet]);
 
+  // The Manage sheets drawer: Esc closes it wherever focus is, unless a field or one of its own dialogs has the key.
+  useEffect(() => {
+    if (!manageOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const t = e.target instanceof Element ? e.target : null;
+      if (t?.closest("input,textarea,select,[contenteditable]")) return;
+      const inner = t?.closest("[role=dialog],[role=alertdialog]");
+      if (inner && inner.getAttribute("data-testid") !== "manage-sheets-drawer") return;
+      if (document.querySelectorAll("[aria-modal='true']").length > 1) return;
+      setManageOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [manageOpen]);
+
   // Keyboard shortcuts (laptop). Never behind a dialog, while typing or on a focused button's Space / Enter
   // (planKeyBlocked); E and Delete don't repeat while held; single keys can be switched off ("?").
   useEffect(() => {
@@ -797,7 +813,6 @@ export default function PlanEditor() {
             aria-label="Manage sheets"
             className="animate-in flex h-full w-full max-w-3xl flex-col bg-slate-50 shadow-pop"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.key === "Escape" && !(e.target as HTMLElement).closest("input,textarea,select") && setManageOpen(false)}
             data-testid="manage-sheets-drawer"
           >
             <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">

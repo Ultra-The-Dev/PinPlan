@@ -42,6 +42,7 @@ export function resetPlanUi() {
   m.setPanelOpen(false);
   m.setLastDeleted(null);
   m.focus(null);
+  m.setRestoreView(false);
   useProgressUi.getState().set({ walk: false, sheet: null, snack: null, pendingPhoto: null, lastButton: 0 });
   useMarkups.getState().set({ selectedId: null, details: null, textDraft: null, listOpen: false });
 }

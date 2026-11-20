@@ -3,7 +3,7 @@
 // show in edit mode; setting the scale is for the office. Measuring lives in the left rail (Measure, M). On phones
 // Home runs and Counts sit under "More" (a bottom sheet), so the row fits.
 import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, Sparkles, Tag, Undo2, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export interface PlanToolbarProps {
@@ -35,6 +35,17 @@ export interface PlanToolbarProps {
 
 export default function PlanToolbar(p: PlanToolbarProps) {
   const [more, setMore] = useState(false);
+  // Esc closes the More sheet (it is a modal, so the plan's own keys are off while it is open).
+  useEffect(() => {
+    if (!more) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setMore(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [more]);
   const sep = <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-200" />;
   return (
     <div className="flex h-11 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md pointer-coarse:h-[52px]" role="toolbar" aria-label="Plan tools" data-plan-ui>
