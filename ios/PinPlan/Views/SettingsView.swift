@@ -92,7 +92,7 @@ struct SettingsView: View {
     }
 
     private var teamSummary: String {
-        if let t = app.cloud.team?.team, let r = app.cloud.role { return "\(t.name.isEmpty ? "Team" : t.name) · \(r.short)" }
+        if let t = app.cloud.team?.team, let r = app.cloud.teamRole { return "\(t.name.isEmpty ? "Team" : t.name) · \(r.short)" }
         return app.cloud.signedIn ? "Working alone" : "Off"
     }
 }
@@ -320,25 +320,38 @@ struct ServerSetupView: View {
     @State private var manualKey = ""
     @State private var showManual = false
     @State private var cloudProblem: String?
+    /// The address being typed; it takes effect with Save (never keystroke by keystroke).
+    @State private var draftURL = ""
+    /// A new address waiting for "this signs you out" / "use my sign-in with it" to be confirmed.
+    @State private var pendingURL: String?
+    @State private var confirmTrust = false
 
     var body: some View {
         @Bindable var app = app
         let builtIn = AppSettings.builtInServerURL
+        let current = app.settings.serverURL.trimmingCharacters(in: .whitespaces)
+        let draft = draftURL.trimmingCharacters(in: .whitespaces)
         SentenceForm {
             Section {
-                TextField(builtIn.isEmpty ? "your-server.example.com" : builtIn, text: $app.settings.serverURL)
+                TextField(builtIn.isEmpty ? "your-server.example.com" : builtIn, text: $draftURL)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .onSubmit { save(draft) }
+                if draft != current {
+                    Button("Save address") { save(draft) }
+                        .disabled(draft.isEmpty)
+                }
                 SecureField("Access code (self-hosted only)", text: $app.settings.accessCode)
                 if !builtIn.isEmpty && !app.settings.usesBuiltInServer {
                     Button("Use the standard PinPlan server") {
-                        app.settings.serverURL = builtIn
                         app.settings.accessCode = ""
-                        health = nil; problem = nil
-                        app.saveSettings()
+                        save(builtIn)
                     }
                 }
+                if !current.isEmpty && APIClient(settings: app.settings) != nil && !APIClient.mayCarrySession(current) {
+                    Button("Use my sign-in with this server…") { confirmTrust = true }
+                }
             } header: { Text("Server").textCase(nil) } footer: {
-                Text("Only change this if your company runs its own copy of PinPlan. The access code is only for a copy without sign-in; when you're signed in, your account is used instead.")
+                Text(serverFooter(current: current))
             }
             Section {
                 Button {
@@ -350,7 +363,7 @@ struct ServerSetupView: View {
                         if checking { ProgressView() }
                     }
                 }
-                .disabled(checking || app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(checking || current.isEmpty)
                 if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
                 if let h = health {
                     StatusRow(title: "PinPlan found", ok: true, detail: nil)
@@ -370,7 +383,10 @@ struct ServerSetupView: View {
                     DisclosureGroup("Enter them by hand", isExpanded: $showManual) {
                         TextField("https://xxxx.supabase.co", text: $manualURL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         TextField("Public key", text: $manualKey).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        Button("Save") { app.cloud.setConfig(url: manualURL, anonKey: manualKey) }.disabled(manualURL.isEmpty || manualKey.isEmpty)
+                        Button("Save") {
+                            cloudProblem = app.cloud.setConfig(url: manualURL, anonKey: manualKey) ? nil : "Use the project's https:// address."
+                        }
+                        .disabled(manualURL.isEmpty || manualKey.isEmpty)
                     }
                 }
                 if let cloudProblem { Text(cloudProblem).font(.callout).foregroundStyle(.red) }
@@ -381,15 +397,63 @@ struct ServerSetupView: View {
             }
         }
         .navigationTitle("Advanced")
+        .onAppear { draftURL = app.settings.serverURL }
         .onDisappear { app.saveSettings() }
         .animation(.easeOut(duration: 0.2), value: health?.authorized)
+        .confirmationDialog("Change the server?", isPresented: Binding(get: { pendingURL != nil }, set: { if !$0 { pendingURL = nil } }), titleVisibility: .visible) {
+            Button("Change and sign out", role: .destructive) {
+                if let u = pendingURL { apply(u, signOut: true) }
+                pendingURL = nil
+            }
+            Button("Cancel", role: .cancel) { draftURL = app.settings.serverURL; pendingURL = nil }
+        } message: {
+            Text("You're signed in. Changing the server signs you out; jobs stay on this device, hidden until you sign in again.")
+        }
+        .confirmationDialog("Use your sign-in with \(CloudEndpoint.host(current))?", isPresented: $confirmTrust, titleVisibility: .visible) {
+            Button("Use my sign-in with this server") { APIClient.trust(current); health = nil }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Only do this if your company runs this copy of PinPlan. The server will act as you: it can read and change your jobs.")
+        }
+    }
+
+    private func serverFooter(current: String) -> String {
+        var s = "Only change this if your company runs its own copy of PinPlan. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead."
+        if !current.isEmpty && APIClient(settings: app.settings) != nil && !APIClient.mayCarrySession(current) {
+            s += " Your sign-in isn't sent to this server until you choose to use it here."
+        }
+        return s
+    }
+
+    /// Take a new server address: https only (http in debug builds). Signed in, changing the server signs out first.
+    private func save(_ raw: String) {
+        let u = raw.trimmingCharacters(in: .whitespaces)
+        problem = nil
+        guard u != app.settings.serverURL.trimmingCharacters(in: .whitespaces) else { return }
+        guard !u.isEmpty, APIClient.url(u) != nil else {
+            problem = "Use the server's https:// address."
+            return
+        }
+        if app.cloud.signedIn && CloudEndpoint.host(u) != CloudEndpoint.host(app.settings.serverURL) {
+            pendingURL = u
+            return
+        }
+        apply(u, signOut: false)
+    }
+
+    private func apply(_ u: String, signOut: Bool) {
+        if signOut { app.cloud.signOutKeepingData() }
+        app.settings.serverURL = u
+        draftURL = u
+        health = nil; problem = nil
+        app.saveSettings()
     }
 
     private func check() async {
         app.saveSettings()
         problem = nil
         health = nil
-        guard let api = APIClient(settings: app.settings) else { problem = "Enter the server address first"; return }
+        guard let api = APIClient(settings: app.settings) else { problem = "Enter the server's https:// address first"; return }
         checking = true
         defer { checking = false }
         do { health = try await api.health() } catch {

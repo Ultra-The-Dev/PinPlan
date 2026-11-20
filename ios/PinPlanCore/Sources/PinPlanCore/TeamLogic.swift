@@ -70,6 +70,55 @@ public enum TeamLogic {
         role != .tech
     }
 
+    /// `can` with the device's situation: fails closed. See `effectiveRole`.
+    public static func can(_ role: TeamRole?, _ action: TeamAction, context: RoleContext) -> Bool {
+        can(effectiveRole(role, context), action)
+    }
+
+    /// Who is (or was) using this device, for deciding the role when the team isn't known.
+    public struct RoleContext: Equatable, Sendable {
+        /// Someone is signed in now.
+        public var signedIn: Bool
+        /// Signed in and the team was loaded for this account (from the cloud, or cached on this device for it).
+        public var teamKnown: Bool
+        /// The account the jobs on this device belong to (the last one that synced them), nil when they never had one.
+        public var dataOwner: String?
+        /// The last role cached on this device and whose it is (kept across sign-out). `cachedOnTeam` false: that
+        /// account was working alone (full access).
+        public var cachedUserId: String?
+        public var cachedRole: TeamRole?
+        public var cachedOnTeam: Bool
+        public init(signedIn: Bool, teamKnown: Bool, dataOwner: String?, cachedUserId: String? = nil, cachedRole: TeamRole? = nil, cachedOnTeam: Bool = false) {
+            self.signedIn = signedIn; self.teamKnown = teamKnown; self.dataOwner = dataOwner
+            self.cachedUserId = cachedUserId; self.cachedRole = cachedRole; self.cachedOnTeam = cachedOnTeam
+        }
+    }
+
+    /// The role to act on. Signed in with the team known: the account's own role (nil when working alone). Signed in
+    /// but the team not known yet (offline first sign-in, a failed lookup): a technician's, so no prices show and none
+    /// are sent before the role is known. Signed out with jobs that never belonged to an account (solo, demo): full
+    /// access. Signed out with jobs of an account: that account's last known role, else a technician's. Signing out
+    /// or a failed team lookup must never open the office side to whoever holds the device. Mirrors effectiveRole in
+    /// src/lib/teamLogic.ts.
+    public static func effectiveRole(_ role: TeamRole?, _ ctx: RoleContext) -> TeamRole? {
+        if ctx.signedIn { return ctx.teamKnown ? role : .tech }
+        guard let owner = ctx.dataOwner else { return role }
+        if ctx.cachedUserId == owner { return ctx.cachedOnTeam ? (ctx.cachedRole ?? .tech) : nil }
+        return .tech
+    }
+
+    /// What to do with an invite code remembered on this device once someone signs in. `accept`: the signed-in account
+    /// is the one the invite was started for. `confirm`: another account, or nobody said which, so it isn't used
+    /// automatically (the person enters the code themselves). `none`: nothing remembered. Mirrors pendingInviteAction
+    /// in src/lib/teamLogic.ts.
+    public enum PendingInviteAction: Equatable, Sendable { case accept, confirm, none }
+    public static func pendingInviteAction(code: String?, invitedEmail: String?, signedInEmail: String?) -> PendingInviteAction {
+        guard let code, !code.isEmpty else { return .none }
+        let want = (invitedEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let have = (signedInEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return !want.isEmpty && want == have ? .accept : .confirm
+    }
+
     /// Unambiguous characters (no 0/O, 1/I/L), so a code read aloud or typed on an iPad works first time.
     public static let codeAlphabet = Array("ABCDEFGHJKMNPQRSTUVWXYZ23456789")
     public static let codeLength = 10
@@ -195,7 +244,7 @@ public enum TeamLogic {
     /// company catalog and products: the database refuses them (src/lib/sync.ts drops the same tables).
     public static func mayPush(_ table: SyncTable, role: TeamRole?) -> Bool {
         switch table {
-        case .estimateLines, .salesDocs, .salesPayments, .sheetLinks: return can(role, .prices)
+        case .estimateLines, .salesDocs, .salesPayments, .sheetLinks, .deviceTypePrices, .productPrices, .projectFinance: return can(role, .prices)
         case .deviceTypes, .products: return can(role, .editCatalog)
         default: return true
         }

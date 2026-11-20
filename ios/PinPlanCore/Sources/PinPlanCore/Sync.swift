@@ -8,6 +8,9 @@ public enum SyncTable: String, CaseIterable, Codable, Sendable {
     case tasks
     /// Made on the web, pulled here (FieldSync.swift / SalesDocs.swift). See `SyncMap.pullOnly`.
     case salesDocs, salesPayments, rfis, scheduleItems, measurements, sheetLinks, planMarkups
+    /// Office-only price tables (20261124300100_price_split_stale_writes.sql). Not rows of their own here: each holds the
+    /// prices of a catalog type, a product or a job, and is merged into that row. Technicians never pull or push them.
+    case deviceTypePrices, productPrices, projectFinance
 }
 
 public struct TableSpec: Sendable {
@@ -15,6 +18,8 @@ public struct TableSpec: Sendable {
     public let conflict: String
     /// Local (JSON) key → remote column. Only these are sent and read.
     public let columns: [(local: String, remote: String)]
+    /// The remote column holding the row's key ("id", or the parent's id on a price table).
+    public var idColumn: String { columns.first { $0.local == "id" }?.remote ?? "id" }
 }
 
 public enum SyncMap {
@@ -24,8 +29,9 @@ public enum SyncMap {
     public static let specs: [SyncTable: TableSpec] = [
         .projects: TableSpec(remote: "projects", conflict: "id", columns: common + [
             ("clientName", "client_name"), ("clientEmail", "client_email"), ("clientPhone", "client_phone"), ("address", "address"),
-            ("status", "status"), ("notes", "notes"), ("billduClientId", "billdu_client_id"), ("billduDocs", "billdu_docs"),
-            ("pricing", "pricing"), ("productChoices", "product_choices"), ("labels", "labels"), ("lat", "lat"), ("lng", "lng"),
+            ("status", "status"), ("notes", "notes"),
+            // pricing, billdu_docs and billdu_client_id live in project_finance (office only): never sent or read here.
+            ("productChoices", "product_choices"), ("labels", "labels"), ("lat", "lat"), ("lng", "lng"),
         ]),
         .sheets: TableSpec(remote: "sheets", conflict: "id", columns: child + [
             ("name", "name"), ("pageNumber", "page_number"), ("order", "sort_order"), ("imageId", "image_id"), ("width", "width"),
@@ -36,13 +42,27 @@ public enum SyncMap {
         ]),
         .deviceTypes: TableSpec(remote: "device_types", conflict: "owner_id,id", columns: [
             ("id", "id"), ("updatedAt", "updated_at"), ("deleted", "deleted"), ("name", "name"), ("category", "category"), ("symbol", "symbol"),
-            ("icon", "icon"), ("abbrev", "abbrev"), ("shape", "shape"), ("color", "color"), ("unit", "unit"), ("unitPrice", "unit_price"),
-            ("laborPrice", "labor_price"), ("defaultWire", "default_wire"), ("defaultMount", "default_mount"), ("kind", "kind"),
-            ("billduProductId", "billdu_product_id"), ("sort", "sort_order"), ("archived", "archived"),
+            ("icon", "icon"), ("abbrev", "abbrev"), ("shape", "shape"), ("color", "color"), ("unit", "unit"),
+            // unit_price, labor_price and billdu_product_id live in device_type_prices (office only).
+            ("defaultWire", "default_wire"), ("defaultMount", "default_mount"), ("kind", "kind"),
+            ("sort", "sort_order"), ("archived", "archived"),
         ]),
         .products: TableSpec(remote: "products", conflict: "owner_id,id", columns: [
             ("id", "id"), ("updatedAt", "updated_at"), ("deleted", "deleted"), ("deviceTypeId", "device_type_id"), ("brand", "brand"),
-            ("model", "model"), ("sku", "sku"), ("unitPrice", "unit_price"), ("laborPrice", "labor_price"), ("notes", "notes"), ("archived", "archived"),
+            ("model", "model"), ("sku", "sku"), ("notes", "notes"), ("archived", "archived"),
+            // unit_price and labor_price live in product_prices (office only).
+        ]),
+        // Prices, office only (CONTRACT at the top of 20261124300100_price_split_stale_writes.sql). "id" is the parent row's id.
+        .deviceTypePrices: TableSpec(remote: "device_type_prices", conflict: "owner_id,device_type_id", columns: [
+            ("id", "device_type_id"), ("unitPrice", "unit_price"), ("laborPrice", "labor_price"), ("billduProductId", "billdu_product_id"),
+            ("updatedAt", "updated_at"),
+        ]),
+        .productPrices: TableSpec(remote: "product_prices", conflict: "owner_id,product_id", columns: [
+            ("id", "product_id"), ("unitPrice", "unit_price"), ("laborPrice", "labor_price"), ("updatedAt", "updated_at"),
+        ]),
+        .projectFinance: TableSpec(remote: "project_finance", conflict: "project_id", columns: [
+            ("id", "project_id"), ("pricing", "pricing"), ("billduDocs", "billdu_docs"), ("billduClientId", "billdu_client_id"),
+            ("updatedAt", "updated_at"),
         ]),
         .markers: TableSpec(remote: "markers", conflict: "id", columns: child + [
             ("sheetId", "sheet_id"), ("deviceTypeId", "device_type_id"), ("x", "x"), ("y", "y"), ("label", "label"), ("room", "room"),
@@ -138,13 +158,54 @@ public enum SyncMap {
     ]
 
     /// Parents before children so foreign keys and row security pass (the web app's order). Pulls run in this order too.
-    public static let pushOrder: [SyncTable] = [.projects, .deviceTypes, .products, .sheets, .closets, .markers, .runs, .estimateLines,
+    public static let pushOrder: [SyncTable] = [.projects, .projectFinance, .deviceTypes, .deviceTypePrices, .products, .productPrices, .sheets, .closets, .markers, .runs, .estimateLines,
                                                  .photos, .photoComments, .checklists, .jobLogs, .documents, .salesDocs, .salesPayments,
                                                  .rfis, .scheduleItems, .forms, .measurements, .sheetLinks, .tasks, .planMarkups]
     /// Tables this app only reads: made and changed on the web. Rows here are never sent.
     public static let pullOnly: Set<SyncTable> = [.salesDocs, .salesPayments, .scheduleItems, .measurements, .sheetLinks, .planMarkups]
     /// Tables only people who may see prices pull (the database hides them from technicians anyway).
-    public static let pricesOnly: Set<SyncTable> = [.estimateLines, .salesDocs, .salesPayments]
+    public static let pricesOnly: Set<SyncTable> = [.estimateLines, .salesDocs, .salesPayments, .deviceTypePrices, .productPrices, .projectFinance]
+    /// The price table of a row whose prices are kept apart (office only).
+    public static let priceTable: [SyncTable: SyncTable] = [.projects: .projectFinance, .deviceTypes: .deviceTypePrices, .products: .productPrices]
+    /// Columns read on pull besides the spec's own (never sent).
+    public static let readOnlyColumns: [SyncTable: [String]] = [.sheets: ["image_path"]]
+
+    /// The columns a pull asks for: never '*' (the server may hold columns this device must not read, like the old price
+    /// columns), and never a column in `missing` (one the cloud database doesn't have yet).
+    public static func selectColumns(_ t: SyncTable, missing: Set<String> = []) -> String {
+        var seen = Set<String>()
+        let all = specs[t]!.columns.map(\.remote) + (readOnlyColumns[t] ?? []) + ["synced_at"]
+        return all.filter { !missing.contains($0) && seen.insert($0).inserted }.joined(separator: ",")
+    }
+
+    /// PostgREST query for one page of a table: named columns, ordered by (synced_at, the row's key).
+    public static func pullQuery(_ t: SyncTable, _ cur: SyncPaging.Cursor, missing: Set<String> = [], pageSize: Int = SyncPaging.pageSize) -> String {
+        let since = cur.since.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? cur.since
+        return "select=\(selectColumns(t, missing: missing))&synced_at=gte.\(since)&order=synced_at.asc,\(specs[t]!.idColumn).asc&offset=\(cur.skip)&limit=\(pageSize)"
+    }
+
+    /// PostgREST query for rows by id (rows to fetch again), with named columns.
+    public static func byIdQuery(_ t: SyncTable, _ ids: [String], missing: Set<String> = []) -> String {
+        let star = SyncPaging.byIdQuery(ids)
+        let list = star.dropFirst("select=*&id=".count)
+        return "select=\(selectColumns(t, missing: missing))&\(specs[t]!.idColumn)=\(list)"
+    }
+
+    /// Ids this app writes: letters, digits, - and _ (1 to 64). A pulled row whose id (or job id) is anything else is
+    /// refused: ids become file names and storage paths on this device.
+    public static func isSafeId(_ id: String) -> Bool {
+        guard (1...64).contains(id.utf8.count) else { return false }
+        return id.utf8.allSatisfy { c in (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 45 || c == 95 }
+    }
+
+    /// Whether a pulled row may be merged: its id (and its job's id, when it has one) are safe.
+    public static func isSafeRow(_ t: SyncTable, _ remote: [String: Any]) -> Bool {
+        guard let id = remote[specs[t]!.idColumn] as? String, isSafeId(id) else { return false }
+        if let pid = remote["project_id"], !(pid is NSNull) {
+            guard let p = pid as? String, isSafeId(p) else { return false }
+        }
+        return true
+    }
 
     /// Whether a row of `t` made or changed on this device goes up. RFIs: only drafts (sending one is done on the web).
     public static func pushes(_ t: SyncTable, _ json: [String: Any]) -> Bool {
@@ -165,7 +226,10 @@ public enum SyncMap {
         for (local, remote) in specs[t]!.columns {
             if let v = row[local], !(v is NSNull) { out[remote] = v } else { out[remote] = boolDefaults.contains(local) ? false : NSNull() }
         }
-        if t == .projects, !(out["billdu_docs"] is [Any]) { out["billdu_docs"] = [Any]() }
+        if t == .projectFinance, !(out["billdu_docs"] is [Any]) { out["billdu_docs"] = [Any]() }
+        if t == .deviceTypePrices || t == .productPrices {
+            for k in ["unit_price", "labor_price"] where out[k] is NSNull { out[k] = 0 }
+        }
         if t == .runs, !(out["points"] is [Any]) { out["points"] = [Any]() }
         if t == .forms {
             if out["status"] is NSNull { out["status"] = "draft" }
@@ -196,6 +260,10 @@ public enum SyncMap {
             out[local] = (timestampKeys.contains(local) || timestampLike.contains(local)) ? normalizeTimestamp(v as? String ?? "") : v
         }
         if t == .projects, out["billduDocs"] == nil { out["billduDocs"] = [Any]() }
+        // Prices come from their own tables (office only): a catalog type or product new to this device starts at 0.
+        if t == .deviceTypes || t == .products {
+            for k in ["unitPrice", "laborPrice"] where out[k] == nil { out[k] = 0 }
+        }
         if t == .runs, out["points"] == nil { out["points"] = [Any]() }
         if t == .markers {
             if out["notes"] == nil { out["notes"] = "" }
@@ -226,6 +294,36 @@ public enum SyncMap {
     }
 }
 
+/// Where this device may connect, and which servers get the sign-in. The PinPlan server address and the cloud project
+/// address must be https (plain http only in debug builds, for a server on the developer's own machine), and the
+/// person's session token only goes to the server built into the app or one the person confirmed by hand.
+public enum CloudEndpoint {
+    /// The address as a URL, or nil when it can't be used: not https (http only with `allowHTTP`), no host, or a
+    /// user name / password in it. A bare host ("pinplan.example.com") is taken as https.
+    public static func url(_ raw: String, allowHTTP: Bool = false) -> URL? {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty else { return nil }
+        let withScheme = s.range(of: "^[A-Za-z][A-Za-z0-9+.-]*://", options: .regularExpression) != nil ? s : "https://" + s
+        guard let u = URL(string: withScheme), let scheme = u.scheme?.lowercased(), let host = u.host, !host.isEmpty else { return nil }
+        guard scheme == "https" || (scheme == "http" && allowHTTP) else { return nil }
+        guard u.user == nil, u.password == nil else { return nil }
+        return u
+    }
+
+    /// The host part of an address, lower case ("" when there isn't one).
+    public static func host(_ raw: String) -> String {
+        url(raw, allowHTTP: true)?.host?.lowercased() ?? ""
+    }
+
+    /// Whether a request to `host` may carry the person's session: only the built-in server's host, or a host the
+    /// person confirmed (Settings › More › Advanced).
+    public static func mayCarrySession(host: String?, builtIn: String, confirmed: Set<String>) -> Bool {
+        guard let h = host?.lowercased(), !h.isEmpty else { return false }
+        if h == Self.host(builtIn) { return true }
+        return confirmed.contains(h)
+    }
+}
+
 /// What this device last exchanged with the server: a fingerprint per row, pull watermarks and uploaded images.
 public struct SyncLedger: Codable, Sendable, Equatable {
     public var hashes: [String: String] = [:]
@@ -239,13 +337,55 @@ public struct SyncLedger: Codable, Sendable, Equatable {
     /// Rows a pull fetched but couldn't apply yet (table → ids): fetched again by id on the next pull, so moving the
     /// watermark past them never loses them.
     public var retry: [String: [String]] = [:]
+    /// When this device first saw each unsynced row change (row key → ISO time). Edits don't always stamp the row's
+    /// own `updatedAt`, so this is the edit time sent with the row (never the time of the push): the server keeps the
+    /// newer edit, and a row edited offline long ago doesn't beat a later edit made elsewhere.
+    public var dirtyAt: [String: String] = [:]
     /// At most this many ids wait per table (the oldest go first).
     public static let retryLimit = 500
 
     public init(userId: String? = nil) { self.userId = userId }
     public static func key(_ t: SyncTable, _ id: String) -> String { "\(t.rawValue):\(id)" }
 
-    private enum CodingKeys: String, CodingKey { case hashes, watermarks, uploadedImages, userId, teamId, retry }
+    /// How rows are fingerprinted. 2: a job's, catalog type's and product's fingerprint leaves out their prices (they
+    /// went into price tables). A ledger saved before that sees those rows as changed once without an edit.
+    public static let currentHashVersion = 2
+    public var hashVersion = SyncLedger.currentHashVersion
+
+    /// Note when the changed rows (all of them: `SyncState.changes(since:)`) were first seen changed (`now`). Rows already
+    /// noted keep their time; rows no longer changed are forgotten. A row that only looks changed because it was never
+    /// synced, or because the fingerprints changed in an update, isn't an edit made now: it keeps its own `updatedAt`
+    /// (so it can't beat a newer edit made elsewhere).
+    public mutating func noteDirty(_ rows: [SyncState.Row], now: String) {
+        let rehashed: Set<SyncTable> = hashVersion < Self.currentHashVersion ? [.projects, .deviceTypes, .products] : []
+        var next: [String: String] = [:]
+        for r in rows {
+            let k = Self.key(r.table, r.id)
+            if let seen = dirtyAt[k] { next[k] = seen; continue }
+            if hashes[k] == nil || rehashed.contains(r.table) {
+                next[k] = (r.json["updatedAt"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? now
+            } else {
+                next[k] = now
+            }
+        }
+        dirtyAt = next
+        hashVersion = Self.currentHashVersion
+    }
+
+    /// The edit time of a row: the later of its own `updatedAt` and when this device saw it change. `fallback` only when
+    /// the row has neither (it then goes up as changed now).
+    public func editTime(_ r: SyncState.Row, fallback: String) -> String {
+        let own = (r.json["updatedAt"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let seen = dirtyAt[Self.key(r.table, r.id)]
+        switch (own, seen) {
+        case let (o?, s?): return SyncMap.date(s) > SyncMap.date(o) ? s : o
+        case let (o?, nil): return o
+        case let (nil, s?): return s
+        default: return fallback
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey { case hashes, watermarks, uploadedImages, userId, teamId, retry, dirtyAt, hashVersion }
     /// Ledgers saved by older versions (without the newer fields) still load.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -255,6 +395,9 @@ public struct SyncLedger: Codable, Sendable, Equatable {
         userId = (try? c.decodeIfPresent(String.self, forKey: .userId)) ?? nil
         teamId = (try? c.decodeIfPresent(String.self, forKey: .teamId)) ?? nil
         retry = (try? c.decodeIfPresent([String: [String]].self, forKey: .retry)) ?? [:]
+        dirtyAt = (try? c.decodeIfPresent([String: String].self, forKey: .dirtyAt)) ?? [:]
+        // Saved before fingerprints left prices out: version 1.
+        hashVersion = (try? c.decodeIfPresent(Int.self, forKey: .hashVersion)) ?? 1
     }
 
     /// The ledger saved for `userId`, or a fresh one when the saved ledger belongs to someone else.
@@ -353,16 +496,77 @@ public struct SyncState: Sendable {
         return String(h, radix: 16)
     }
 
+    // MARK: prices kept apart (office only)
+
+    struct DeviceTypePriceRow: Codable { var id: String; var unitPrice: Double; var laborPrice: Double; var billduProductId: Int?; var updatedAt: String }
+    struct ProductPriceRow: Codable { var id: String; var unitPrice: Double; var laborPrice: Double; var updatedAt: String }
+    struct ProjectFinanceRow: Codable { var id: String; var pricing: PricingOverrides?; var billduDocs: [BillduDocRef]; var billduClientId: Int?; var updatedAt: String }
+
+    /// A price row's JSON and fingerprint. The fingerprint leaves out `updatedAt`: editing a type's name mustn't send its
+    /// prices again.
+    static func priceJSON<T: Codable>(_ row: T, clear: (inout T) -> Void) -> ([String: Any], String) {
+        var bare = row
+        clear(&bare)
+        return (json(row).0, json(bare).1)
+    }
+    static func priceRow(_ d: DeviceType) -> ([String: Any], String) {
+        priceJSON(DeviceTypePriceRow(id: d.id, unitPrice: d.unitPrice, laborPrice: d.laborPrice, billduProductId: d.billduProductId, updatedAt: d.updatedAt)) { $0.updatedAt = "" }
+    }
+    static func priceRow(_ p: Product) -> ([String: Any], String) {
+        priceJSON(ProductPriceRow(id: p.id, unitPrice: p.unitPrice, laborPrice: p.laborPrice, updatedAt: p.updatedAt)) { $0.updatedAt = "" }
+    }
+    static func priceRow(_ p: Project) -> ([String: Any], String) {
+        priceJSON(ProjectFinanceRow(id: p.id, pricing: p.pricing, billduDocs: p.billduDocs, billduClientId: p.billduClientId, updatedAt: p.updatedAt)) { $0.updatedAt = "" }
+    }
+
+    /// The JSON (whole, prices included: merges build on it) and fingerprint of a row. The fingerprint of a job, a
+    /// catalog type or a product leaves its prices out: they go up in their own price table, office only.
+    static func rowJSON(_ t: SyncTable, _ v: some Encodable) -> ([String: Any], String) {
+        let (j, h) = json(v)
+        switch v {
+        case var d as DeviceType where t == .deviceTypes:
+            d.unitPrice = 0; d.laborPrice = 0; d.billduProductId = nil
+            return (j, json(d).1)
+        case var p as Product where t == .products:
+            p.unitPrice = 0; p.laborPrice = 0
+            return (j, json(p).1)
+        case var p as Project where t == .projects:
+            p.pricing = nil; p.billduDocs = []; p.billduClientId = nil
+            return (j, json(p).1)
+        default:
+            return (j, h)
+        }
+    }
+
+    /// Techs: forget the catalog's and products' prices on this device (they never come back for a technician), without
+    /// sending anything. True when something changed.
+    @discardableResult
+    public mutating func dropPrices(ledger: inout SyncLedger) -> Bool {
+        var changed = false
+        for i in catalog.indices where catalog[i].unitPrice != 0 || catalog[i].laborPrice != 0 {
+            catalog[i].unitPrice = 0; catalog[i].laborPrice = 0; changed = true
+        }
+        for i in products.indices where products[i].unitPrice != 0 || products[i].laborPrice != 0 {
+            products[i].unitPrice = 0; products[i].laborPrice = 0; changed = true
+        }
+        markSynced(rows().filter { $0.table == .deviceTypePrices || $0.table == .productPrices }, ledger: &ledger)
+        return changed
+    }
+
     /// Every syncing row with its fingerprint.
     public func rows() -> [Row] {
         var out: [Row] = []
         func add<T: Encodable>(_ t: SyncTable, _ id: String, _ pid: String?, _ v: T) {
-            let (j, h) = Self.json(v)
+            let (j, h) = Self.rowJSON(t, v)
             out.append(Row(table: t, id: id, projectId: pid, json: j, hash: h))
+        }
+        func addPrice(_ t: SyncTable, _ id: String, _ pid: String?, _ jh: ([String: Any], String)) {
+            out.append(Row(table: t, id: id, projectId: pid, json: jh.0, hash: jh.1))
         }
         for b in bundles.values.sorted(by: { $0.project.id < $1.project.id }) {
             let pid = b.project.id
             add(.projects, pid, pid, b.project)
+            addPrice(.projectFinance, pid, pid, Self.priceRow(b.project))
             for s in b.sheets { add(.sheets, s.id, pid, s) }
             for c in b.closets { add(.closets, c.id, pid, c) }
             for m in b.markers { add(.markers, m.id, pid, m) }
@@ -383,8 +587,14 @@ public struct SyncState: Sendable {
             for x in b.sheetLinks { add(.sheetLinks, x.id, pid, x) }
             for x in b.planMarkups { add(.planMarkups, x.id, pid, x) }
         }
-        for d in catalog { add(.deviceTypes, d.id, nil, d) }
-        for p in products { add(.products, p.id, nil, p) }
+        for d in catalog {
+            add(.deviceTypes, d.id, nil, d)
+            addPrice(.deviceTypePrices, d.id, nil, Self.priceRow(d))
+        }
+        for p in products {
+            add(.products, p.id, nil, p)
+            addPrice(.productPrices, p.id, nil, Self.priceRow(p))
+        }
         return out
     }
 
@@ -404,11 +614,14 @@ public struct SyncState: Sendable {
     }
 
     private func local(_ t: SyncTable, _ id: String, projectId: String?) -> ([String: Any], String)? {
-        func pick<T: Encodable & Identifiable>(_ xs: [T]) -> ([String: Any], String)? where T.ID == String { xs.first { $0.id == id }.map(Self.json) }
+        func pick<T: Encodable & Identifiable>(_ xs: [T]) -> ([String: Any], String)? where T.ID == String { xs.first { $0.id == id }.map { Self.rowJSON(t, $0) } }
         switch t {
         case .deviceTypes: return pick(catalog)
         case .products: return pick(products)
-        case .projects: return bundles[id].map { Self.json($0.project) }
+        case .projects: return bundles[id].map { Self.rowJSON(t, $0.project) }
+        case .deviceTypePrices: return catalog.first { $0.id == id }.map(Self.priceRow)
+        case .productPrices: return products.first { $0.id == id }.map(Self.priceRow)
+        case .projectFinance: return bundles[id].map { Self.priceRow($0.project) }
         default:
             guard let pid = projectId, let b = bundles[pid] else { return nil }
             switch t {
@@ -437,8 +650,9 @@ public struct SyncState: Sendable {
     }
 
     /// `skipped`: nothing to do with the row (a deletion of something not here, no id). `unreadable`: this build couldn't
-    /// read the row — fetch it again later. `orphan`: its job isn't on this device (yet).
-    public enum MergeResult: Equatable { case applied, keptLocal, skipped, removedProject, unreadable, orphan }
+    /// read the row — fetch it again later. `orphan`: its job isn't on this device (yet). `refused`: its id (or its job's)
+    /// isn't one this app makes, so it never reaches this device's files (counted, never fetched again).
+    public enum MergeResult: Equatable { case applied, keptLocal, skipped, removedProject, unreadable, orphan, refused }
 
     /// Whether a merge result means the row should be fetched again on a later pull.
     public static func needsRetry(_ r: MergeResult, parentsFailed: Bool) -> Bool {
@@ -448,14 +662,21 @@ public struct SyncState: Sendable {
     /// Merge one remote row. Remote wins when this device hasn't changed the row since the last sync, or when it is newer.
     @discardableResult
     public mutating func merge(_ t: SyncTable, remote: [String: Any], ledger: inout SyncLedger) -> MergeResult {
-        guard let id = remote["id"] as? String else { return .skipped }
-        let pid = (t == .projects) ? id : remote["project_id"] as? String
+        guard let spec = SyncMap.specs[t], let id = remote[spec.idColumn] as? String else { return .skipped }
+        // Ids become file names and storage paths here: anything but letters, digits, - and _ is refused.
+        guard SyncMap.isSafeRow(t, remote) else { return .refused }
+        let pid = (t == .projects || t == .projectFinance) ? id : remote["project_id"] as? String
         let key = SyncLedger.key(t, id)
         let existing = local(t, id, projectId: pid)
         if let (json, hash) = existing, ledger.hashes[key] != hash {
-            // Changed here since the last sync: keep ours unless the server copy is newer.
+            // Changed here since the last sync: keep ours unless the server copy is newer than the edit.
             let remoteAt = SyncMap.date(SyncMap.normalizeTimestamp(remote["updated_at"] as? String ?? ""))
-            if remoteAt <= SyncMap.date(json["updatedAt"] as? String) { return .keptLocal }
+            let row = Row(table: t, id: id, projectId: pid, json: json, hash: hash)
+            if remoteAt <= SyncMap.date(ledger.editTime(row, fallback: "")) { return .keptLocal }
+        }
+        ledger.dirtyAt.removeValue(forKey: key)
+        if t == .deviceTypePrices || t == .productPrices || t == .projectFinance {
+            return mergePrices(t, id: id, key: key, remote: remote, ledger: &ledger)
         }
         if t == .projects, (remote["deleted"] as? Bool) == true {
             if bundles.removeValue(forKey: id) != nil {
@@ -477,17 +698,28 @@ public struct SyncState: Sendable {
         func put<T: Codable & Identifiable>(_ xs: inout [T]) -> Bool where T.ID == String {
             guard let v = try? dec.decode(T.self, from: data) else { return false }
             if let i = xs.firstIndex(where: { $0.id == id }) { xs[i] = v } else { xs.append(v) }
-            ledger.hashes[key] = Self.json(v).1
+            ledger.hashes[key] = Self.rowJSON(t, v).1
             return true
+        }
+        /// A row new to this device has no prices of its own here yet: its price row isn't a change to send (the
+        /// office's prices come down from the price table).
+        func seedPrices(_ pt: SyncTable, _ hash: String) {
+            let pk = SyncLedger.key(pt, id)
+            if existing == nil, ledger.hashes[pk] == nil { ledger.hashes[pk] = hash }
         }
         var ok = false
         switch t {
-        case .deviceTypes: ok = put(&catalog)
-        case .products: ok = put(&products)
+        case .deviceTypes:
+            ok = put(&catalog)
+            if ok, let d = catalog.first(where: { $0.id == id }) { seedPrices(.deviceTypePrices, Self.priceRow(d).1) }
+        case .products:
+            ok = put(&products)
+            if ok, let p = products.first(where: { $0.id == id }) { seedPrices(.productPrices, Self.priceRow(p).1) }
         case .projects:
             guard let p = try? dec.decode(Project.self, from: data) else { return .unreadable }
             if bundles[id] != nil { bundles[id]!.project = p } else { bundles[id] = ProjectBundle(project: p) }
-            ledger.hashes[key] = Self.json(p).1
+            ledger.hashes[key] = Self.rowJSON(t, p).1
+            seedPrices(.projectFinance, Self.priceRow(p).1)
             ok = true
         default:
             guard let pid, var b = bundles[pid] else { return (remote["deleted"] as? Bool) == true ? .skipped : .orphan }
@@ -518,9 +750,50 @@ public struct SyncState: Sendable {
         return ok ? .applied : .unreadable
     }
 
+    /// A pulled price row (office only) laid over its catalog type, product or job. Only the price fields change: the
+    /// row's own `updatedAt` stays, so the row itself isn't sent again.
+    private mutating func mergePrices(_ t: SyncTable, id: String, key: String, remote: [String: Any], ledger: inout SyncLedger) -> MergeResult {
+        let fields = SyncMap.specs[t]!.columns.filter { $0.local != "id" && $0.local != "updatedAt" }
+        func overlay<T: Codable>(_ v: T) -> T? {
+            var j = Self.json(v).0
+            for (local, col) in fields {
+                guard let x = remote[col] else { continue }
+                if x is NSNull { j.removeValue(forKey: local) } else { j[local] = x }
+            }
+            if t == .projectFinance, !(j["billduDocs"] is [Any]) { j["billduDocs"] = [Any]() }
+            for k in ["unitPrice", "laborPrice"] where t != .projectFinance && j[k] == nil { j[k] = 0 }
+            guard let data = try? JSONSerialization.data(withJSONObject: j) else { return nil }
+            return try? JSONDecoder().decode(T.self, from: data)
+        }
+        switch t {
+        case .deviceTypePrices:
+            guard let i = catalog.firstIndex(where: { $0.id == id }) else { return .orphan }
+            guard let v = overlay(catalog[i]) else { return .unreadable }
+            catalog[i] = v
+            ledger.hashes[key] = Self.priceRow(v).1
+        case .productPrices:
+            guard let i = products.firstIndex(where: { $0.id == id }) else { return .orphan }
+            guard let v = overlay(products[i]) else { return .unreadable }
+            products[i] = v
+            ledger.hashes[key] = Self.priceRow(v).1
+        case .projectFinance:
+            guard let b = bundles[id] else { return .orphan }
+            guard let v = overlay(b.project) else { return .unreadable }
+            bundles[id]!.project = v
+            ledger.hashes[key] = Self.priceRow(v).1
+        default:
+            return .skipped
+        }
+        return .applied
+    }
+
     /// Record that these rows are now on the server as they are here.
     public func markSynced(_ rows: [Row], ledger: inout SyncLedger) {
-        for r in rows { ledger.hashes[SyncLedger.key(r.table, r.id)] = r.hash }
+        for r in rows {
+            let k = SyncLedger.key(r.table, r.id)
+            ledger.hashes[k] = r.hash
+            ledger.dirtyAt.removeValue(forKey: k)
+        }
     }
 }
 

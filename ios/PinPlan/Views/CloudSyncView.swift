@@ -7,6 +7,7 @@ struct CloudSyncView: View {
     @Environment(AppModel.self) private var app
     @State private var connecting = false
     @State private var problem: String?
+    @State private var confirmSignOut = false
 
     var body: some View {
         let cloud = app.cloud
@@ -58,7 +59,7 @@ struct CloudSyncView: View {
                         Label(n, systemImage: "info.circle").font(.callout).foregroundStyle(.secondary)
                     }
                 }
-                Section { Button("Sign out", role: .destructive) { cloud.signOut() } }
+                Section { Button("Sign out…", role: .destructive) { confirmSignOut = true } }
                 Section {
                     NavigationLink { DeleteAccountView() } label: {
                         Label("Delete account…", systemImage: "person.crop.circle.badge.xmark").foregroundStyle(Color.red)
@@ -69,6 +70,7 @@ struct CloudSyncView: View {
             }
         }
         .navigationTitle("Account")
+        .modifier(SignOutDialog(isPresented: $confirmSignOut))
         .task {
             if cloud.config == nil { await connect() }
             // A company named at sign-up on another visit (email confirmed since) is set up now.
@@ -91,6 +93,7 @@ private struct AccountSwitchSection: View {
     let prompt: CloudSync.AccountSwitchPrompt
     @State private var confirming = false
     @State private var removing = false
+    @State private var confirmSignOut = false
 
     var body: some View {
         let cloud = app.cloud
@@ -104,13 +107,14 @@ private struct AccountSwitchSection: View {
                 }
             }
             .disabled(removing || cloud.syncing)
-            Button("Sign out instead") { cloud.signOut() }
+            Button("Sign out instead") { confirmSignOut = true }
                 .disabled(removing)
         } header: {
             Text("Jobs from another account").textCase(nil)
         } footer: {
             Text("Removing them only clears this device. Sign in with the other account to see them again.")
         }
+        .modifier(SignOutDialog(isPresented: $confirmSignOut))
         .confirmationDialog("Remove \(prompt.jobs) job\(prompt.jobs == 1 ? "" : "s") from this device?", isPresented: $confirming, titleVisibility: .visible) {
             Button("Remove from this device", role: .destructive) {
                 Task {
@@ -238,6 +242,9 @@ struct AccountSection: View {
             problem = p
             return
         }
+        // A remembered invite is used automatically only by the account signing in from the invite screen right now
+        // (the one that shows `intro`), never by whoever signs in on this device later.
+        if intro != nil { app.cloud.notePendingInviteEmail(e) }
         busy = true
         defer { busy = false }
         do {
@@ -272,6 +279,31 @@ private struct LegalLinks: View {
             }
             .font(.footnote)
             .buttonStyle(.borderless)   // two links in one row: each opens its own page
+        }
+    }
+}
+
+/// Signing out asks what happens to this device's data. Removing it is the default: the next person to pick up the
+/// device sees nothing of this account. Keeping it hides the jobs until the same account signs in again.
+private struct SignOutDialog: ViewModifier {
+    @Environment(AppModel.self) private var app
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        let device = UIDevice.current.model
+        let waiting = app.cloud.unsyncedChanges
+        content.confirmationDialog("Sign out?", isPresented: $isPresented, titleVisibility: .visible) {
+            Button("Sign out and remove data from this \(device)", role: .destructive) {
+                Task { await app.cloud.signOut(removeData: true) }
+            }
+            Button("Sign out and keep jobs on this \(device)") {
+                Task { await app.cloud.signOut(removeData: false) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(waiting > 0
+                 ? "\(waiting) change\(waiting == 1 ? " hasn't" : "s haven't") synced yet and would be lost if you remove the data. Kept jobs stay hidden until you sign in again with this account."
+                 : "Removing the data clears jobs, plans, photos and settings from this \(device); what's synced stays in your account. Kept jobs stay hidden until you sign in again with this account.")
         }
     }
 }

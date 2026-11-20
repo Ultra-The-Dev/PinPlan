@@ -5,27 +5,69 @@ import Observation
 import PinPlanCore
 
 /// Session tokens for the cloud account, kept in the Keychain (never in the documents folder or backups).
+///
+/// Items are "this device only": they never move to another device through an encrypted backup or a device transfer.
+/// Keychain items outlive deleting the app, so `CloudSync.init` removes the session on the first launch of a fresh
+/// install (no `installIdKey` in UserDefaults, which is deleted with the app): a reinstall starts signed out.
 enum Keychain {
     private static let service = "app.pinplan.cloud"
+    static let accessible = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    /// Set on the first launch of this install.
+    static let installIdKey = "pinplan.installId"
 
-    static func save(_ data: Data, account: String) {
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+    private static func query(_ account: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+    }
+
+    /// Store `data`. False (and nothing stored) when the Keychain refused it: the sign-in then lasts until the app closes.
+    @discardableResult
+    static func save(_ data: Data, account: String) -> Bool {
+        let q = query(account)
         SecItemDelete(q as CFDictionary)
         var add = q
         add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        add[kSecAttrAccessible as String] = accessible
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status != errSecSuccess {
+            NSLog("PinPlan: couldn't save the sign-in to the Keychain (OSStatus %d)", status)
+            return false
+        }
+        return true
     }
 
     static func load(account: String) -> Data? {
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
-                                kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
+        var q = query(account)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: AnyObject?
         return SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess ? out as? Data : nil
     }
 
+    /// Items saved by older versions could move to a new device in a backup: make them this-device-only.
+    static func migrateAccessibility(account: String) {
+        let status = SecItemUpdate(query(account) as CFDictionary, [kSecAttrAccessible as String: accessible] as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            // Can't change it in place: drop it (signing in again saves it the new way).
+            NSLog("PinPlan: couldn't update the saved sign-in (OSStatus %d); removing it", status)
+            delete(account: account)
+        }
+    }
+
     static func delete(account: String) {
-        SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account] as CFDictionary)
+        SecItemDelete(query(account) as CFDictionary)
+    }
+
+    /// First launch of this install (the app was just installed, or reinstalled): forget any sign-in an earlier
+    /// install left in the Keychain. True when it was a first launch. `upgradeKeys`: settings an earlier version of
+    /// this same install wrote (UserDefaults go with the app, the Keychain doesn't), so updating the app from a version
+    /// without the marker doesn't sign everyone out.
+    @discardableResult
+    static func resetOnFreshInstall(account: String, upgradeKeys: [String] = [], defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.string(forKey: installIdKey) == nil else { return false }
+        defaults.set(UUID().uuidString, forKey: installIdKey)
+        if upgradeKeys.contains(where: { defaults.object(forKey: $0) != nil }) { return false }
+        delete(account: account)
+        return true
     }
 }
 
@@ -126,6 +168,28 @@ struct SupabaseClient {
         _ = try await send(r)
     }
 
+    /// End this session on the server (`POST /auth/v1/logout?scope=local`): its refresh token stops working.
+    func logout(token: String) async throws {
+        let r = request("/auth/v1/logout", query: "scope=local", method: "POST", token: token)
+        _ = try await send(r)
+    }
+
+    /// Ask for a one-time sign-in code by email (`POST /auth/v1/otp`), for an existing account only.
+    func sendCode(email: String) async throws {
+        var r = request("/auth/v1/otp", method: "POST")
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "create_user": false])
+        _ = try await send(r)
+    }
+
+    /// Sign in with the emailed code (`POST /auth/v1/verify`, type email).
+    func verifyCode(email: String, code: String) async throws -> Session {
+        var r = request("/auth/v1/verify", method: "POST")
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try JSONSerialization.data(withJSONObject: ["type": "email", "email": email, "token": code])
+        return try session(from: try await send(r))
+    }
+
     func refresh(_ s: Session) async throws -> Session {
         var r = request("/auth/v1/token", query: "grant_type=refresh_token", method: "POST")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -151,16 +215,17 @@ struct SupabaseClient {
         _ = try await send(r)
     }
 
-    /// One page of rows changed on the server since the cursor (synced_at >= since, oldest first, by id within a stamp).
-    func page(_ table: String, cursor: SyncPaging.Cursor, token: String) async throws -> [[String: Any]] {
-        let r = request("/rest/v1/\(table)", query: SyncPaging.query(cursor), token: token)
+    /// One page of rows changed on the server since the cursor (synced_at >= since, oldest first, by key within a
+    /// stamp), with named columns only (`SyncMap.pullQuery`: never '*', never the price columns).
+    func page(_ t: SyncTable, cursor: SyncPaging.Cursor, missing: Set<String>, token: String) async throws -> [[String: Any]] {
+        let r = request("/rest/v1/\(SyncMap.specs[t]!.remote)", query: SyncMap.pullQuery(t, cursor, missing: missing), token: token)
         return (try JSONSerialization.jsonObject(with: try await send(r)) as? [[String: Any]]) ?? []
     }
 
     /// Rows by id (rows a pull couldn't apply before).
-    func rows(_ table: String, ids: [String], token: String) async throws -> [[String: Any]] {
+    func rows(_ t: SyncTable, ids: [String], missing: Set<String>, token: String) async throws -> [[String: Any]] {
         guard !ids.isEmpty else { return [] }
-        let r = request("/rest/v1/\(table)", query: SyncPaging.byIdQuery(ids), token: token)
+        let r = request("/rest/v1/\(SyncMap.specs[t]!.remote)", query: SyncMap.byIdQuery(t, ids, missing: missing), token: token)
         return (try JSONSerialization.jsonObject(with: try await send(r)) as? [[String: Any]]) ?? []
     }
 
@@ -266,6 +331,10 @@ final class CloudSync {
     }
     /// Cloud tables the database doesn't have yet (the latest migration hasn't been run): their rows wait.
     private(set) var missingTables: [String] = []
+    /// Columns this build names that the cloud database doesn't have yet (left out of pulls until the app restarts).
+    @ObservationIgnored private var missingColumns: [SyncTable: Set<String>] = [:]
+    /// Rows the last pull refused because their ids aren't ones this app makes (never merged, never fetched again).
+    private(set) var refusedRows = 0
 
     @ObservationIgnored private weak var app: AppModel?
     @ObservationIgnored private var ledger = SyncLedger()
@@ -275,23 +344,40 @@ final class CloudSync {
     private static let configKey = "pinplan.cloud.config"
     private static let sessionAccount = "session"
     /// The account the jobs on this device were last synced with (and its email, for the prompt).
-    private static let dataOwnerKey = "pinplan.cloud.dataOwner"
+    static let dataOwnerKey = "pinplan.cloud.dataOwner"
     private static let dataOwnerEmailKey = "pinplan.cloud.dataOwnerEmail"
+    /// Signed out and chose to keep the jobs on this device: they stay hidden until this account (its user id) signs
+    /// in again.
+    static let jobsLockedKey = "pinplan.cloud.jobsLockedFor"
+    /// The last team loaded on this device (any account), kept across sign-out so the role fails closed.
+    @ObservationIgnored private(set) var lastTeam: TeamSnapshot?
 
     init() {
-        if let d = UserDefaults.standard.data(forKey: Self.configKey) { config = try? JSONDecoder().decode(SupabaseClient.Config.self, from: d) }
+        if let d = UserDefaults.standard.data(forKey: Self.configKey) {
+            config = (try? JSONDecoder().decode(SupabaseClient.Config.self, from: d)).flatMap { Self.allowed($0) ? $0 : nil }
+        }
+        // A reinstall starts signed out: the Keychain keeps items after the app is deleted.
+        Keychain.resetOnFreshInstall(account: Self.sessionAccount, upgradeKeys: [Self.configKey, Self.dataOwnerKey])
         if let d = Keychain.load(account: Self.sessionAccount) {
+            Keychain.migrateAccessibility(account: Self.sessionAccount)
             let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
             session = try? dec.decode(SupabaseClient.Session.self, from: d)
         }
+        // Signed in without a cloud project to use it with: nothing to keep.
+        if config == nil, session != nil { session = nil; Keychain.delete(account: Self.sessionAccount) }
+        lastTeam = Self.cachedTeam()
         loadTeamCache()
     }
+
+    /// A cloud project address this build may use: https (http only in debug builds, for a local test project).
+    static func allowed(_ c: SupabaseClient.Config) -> Bool { CloudEndpoint.url(c.url, allowHTTP: APIClient.allowsHTTP) != nil }
 
     var signedIn: Bool { session != nil && config != nil }
     private var client: SupabaseClient? { config.map { SupabaseClient(config: $0) } }
 
     func attach(_ app: AppModel) {
         self.app = app
+        hideLockedJobs()
         loadLedger()
         refreshUploadBacklogs()
         startLoop()
@@ -323,10 +409,22 @@ final class CloudSync {
 
     // MARK: setup
 
-    func setConfig(url: String, anonKey: String) {
+    /// Use this cloud project (empty: none). Only an https address is taken (http only in debug builds). Switching to
+    /// another project while signed in signs out first: the sign-in belongs to the old one.
+    @discardableResult
+    func setConfig(url: String, anonKey: String) -> Bool {
         let u = url.trimmingCharacters(in: .whitespacesAndNewlines), k = anonKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        config = (u.isEmpty || k.isEmpty) ? nil : .init(url: u.hasPrefix("http") ? u : "https://\(u)", anonKey: k)
+        var next: SupabaseClient.Config?
+        if !u.isEmpty && !k.isEmpty {
+            guard let parsed = CloudEndpoint.url(u, allowHTTP: APIClient.allowsHTTP) else { return false }
+            var s = parsed.absoluteString
+            while s.hasSuffix("/") { s.removeLast() }
+            next = .init(url: s, anonKey: k)
+        }
+        if next != config, signedIn { signOutKeepingData() }
+        config = next
         if let config, let d = try? JSONEncoder().encode(config) { UserDefaults.standard.set(d, forKey: Self.configKey) } else { UserDefaults.standard.removeObject(forKey: Self.configKey) }
+        return true
     }
 
     /// Fetch the cloud settings from the PinPlan server (they are public values: project URL + anon key).
@@ -338,7 +436,10 @@ final class CloudSync {
               !url.isEmpty, !key.isEmpty else {
             throw SupabaseClient.Failure(message: "Cloud sync isn't switched on for that PinPlan server yet.")
         }
-        setConfig(url: url, anonKey: key)
+        // Passwords and session tokens go to this address: never over plain http.
+        guard CloudEndpoint.url(url, allowHTTP: APIClient.allowsHTTP) != nil, setConfig(url: url, anonKey: key) else {
+            throw SupabaseClient.Failure(message: "That PinPlan server gave a cloud address that isn't secure (https), so it wasn't used.")
+        }
     }
 
     func signIn(email: String, password: String, create: Bool) async throws {
@@ -380,6 +481,7 @@ final class CloudSync {
     private func begin(_ s: SupabaseClient.Session) async {
         if let old = session, old.userId != s.userId { ledger = SyncLedger(); team = nil; soloBilling = nil; soloUserId = nil }
         store(s)
+        unlockJobs(for: s.userId)
         loadLedger()
         loadTeamCache()
         await loadTeam()
@@ -387,13 +489,55 @@ final class CloudSync {
         await syncNow()
     }
 
-    func signOut() {
+    // MARK: signing out
+
+    /// Sign out: the session is revoked on the server first (`POST /auth/v1/logout?scope=local`, so a copied token
+    /// stops working), then forgotten here. `removeData` (the default the screen offers) removes everything this
+    /// app keeps on this device (`AppModel.wipeLocalData`); otherwise the jobs stay on the device, hidden until the
+    /// same account signs in again.
+    func signOut(removeData: Bool) async {
+        if let client, let s = session { await revoke(s, client: client) }
+        if removeData, let app {
+            app.wipeLocalData()   // also ends the session here (wipeForAccountDeletion)
+        } else {
+            endSession(lockJobs: true)
+        }
+    }
+
+    /// Sign out without asking (a different cloud project or server was chosen): revoke in the background, keep the
+    /// jobs hidden for this account.
+    func signOutKeepingData() {
+        if let client, let s = session { Task { await self.revoke(s, client: client) } }
+        endSession(lockJobs: true)
+    }
+
+    /// Changes on this device the cloud doesn't have yet (asked before signing out).
+    var unsyncedChanges: Int {
+        guard let app, signedIn else { return 0 }
+        return countPending(app)
+    }
+
+    /// Ask the server to end this session. Errors (offline, already ended) are ignored: signing out goes on.
+    private func revoke(_ s: SupabaseClient.Session, client: SupabaseClient) async {
+        try? await client.logout(token: s.accessToken)
+    }
+
+    /// Forget the session and everything tied to it on this device. The last team stays cached (`teamKey`), so the role
+    /// keeps failing closed while nobody is signed in; `lockJobs` hides the jobs until this account signs in again.
+    private func endSession(lockJobs: Bool) {
+        if lockJobs, let uid = session?.userId {
+            let owner = UserDefaults.standard.string(forKey: Self.dataOwnerKey) ?? uid
+            UserDefaults.standard.set(owner, forKey: Self.jobsLockedKey)
+        }
+        pendingKick?.cancel()
         session = nil
         accountSwitch = nil
         missingTables = []
+        missingColumns = [:]
         Keychain.delete(account: Self.sessionAccount)
         lastSync = nil
         lastSummary = nil
+        lastError = nil
         uploadBacklogs = [:]
         team = nil
         teamNeedsMigration = false
@@ -403,14 +547,38 @@ final class CloudSync {
         readOnlyUntil = nil
         soloBilling = nil
         soloUserId = nil
-        UserDefaults.standard.removeObject(forKey: Self.teamKey)
         UserDefaults.standard.removeObject(forKey: Self.soloKey)
+        clearPendingInvite()
+        hideLockedJobs()
+    }
+
+    /// Jobs kept on this device by a signed-out account stay off the screens (in memory only: they remain on disk)
+    /// until that account signs in again.
+    private func hideLockedJobs() {
+        guard let app, let locked = UserDefaults.standard.string(forKey: Self.jobsLockedKey), session?.userId != locked else { return }
+        if !app.projects.isEmpty { app.projects = [] }
+    }
+
+    /// The account the hidden jobs belong to signed in: show them again.
+    private func unlockJobs(for userId: String) {
+        guard let app, let locked = UserDefaults.standard.string(forKey: Self.jobsLockedKey), locked == userId else { return }
+        UserDefaults.standard.removeObject(forKey: Self.jobsLockedKey)
+        app.projects = app.store.loadAllProjects().sorted { $0.project.updatedAt > $1.project.updatedAt }
+    }
+
+    /// Another account's jobs are hidden on this device (they are still on disk).
+    private var lockedJobsOnDisk: [ProjectBundle] {
+        guard let app, let locked = UserDefaults.standard.string(forKey: Self.jobsLockedKey), session?.userId != locked else { return [] }
+        return app.store.loadAllProjects()
     }
 
     private func store(_ s: SupabaseClient.Session) {
         session = s
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601
-        if let d = try? enc.encode(s) { Keychain.save(d, account: Self.sessionAccount) }
+        if let d = try? enc.encode(s), !Keychain.save(d, account: Self.sessionAccount) {
+            // Still signed in until the app closes; say so rather than fail silently.
+            lastError = "Couldn't keep your sign-in on this device, so you'll need to sign in again after closing the app."
+        }
     }
 
     @ObservationIgnored private var refreshing: Task<SupabaseClient.Session, Error>?
@@ -430,7 +598,7 @@ final class CloudSync {
             store(fresh)
             return fresh.accessToken
         } catch let e as SupabaseClient.Failure where e.status == 400 || e.status == 401 {
-            signOut()
+            endSession(lockJobs: true)
             throw SupabaseClient.Failure(message: "Your sign-in ended — please sign in again.")
         } catch {
             // Offline or the server didn't answer: keep the sign-in and try again on the next sync.
@@ -469,10 +637,12 @@ final class CloudSync {
         let files = ledgerFiles(app.store)
         let own = "sync-\(uid).json"
         let others = files.contains { $0 != own }, ownFile = files.contains(own)
-        let decision = AccountSwitch.decide(dataOwner: owner, signingIn: uid, hasLocalJobs: !app.projects.isEmpty,
+        // Jobs another account kept on this device when it signed out are hidden, but still there.
+        let hidden = lockedJobsOnDisk.count
+        let decision = AccountSwitch.decide(dataOwner: owner, signingIn: uid, hasLocalJobs: !app.projects.isEmpty || hidden > 0,
                                             otherAccountLedgers: others, ownLedger: ownFile)
         guard decision == .proceed else {
-            accountSwitch = AccountSwitchPrompt(jobs: app.projects.count, previousEmail: owner == nil ? nil : defaults.string(forKey: Self.dataOwnerEmailKey))
+            accountSwitch = AccountSwitchPrompt(jobs: max(app.projects.count, hidden), previousEmail: owner == nil ? nil : defaults.string(forKey: Self.dataOwnerEmailKey))
             lastError = accountSwitch?.message
             return false
         }
@@ -494,10 +664,12 @@ final class CloudSync {
     /// aren't sent (this account's own come down).
     func removeOtherAccountsJobs() async {
         guard let app, let uid = session?.userId, accountSwitch != nil else { return }
-        let before = state(app)
+        var before = state(app)
+        for b in lockedJobsOnDisk where before.bundles[b.project.id] == nil { before.bundles[b.project.id] = b }
         var after = before
         after.bundles = [:]
         app.applySync(from: before, to: after)
+        UserDefaults.standard.removeObject(forKey: Self.jobsLockedKey)
         ledger = AccountSwitch.freshLedger(for: uid, keeping: app.catalog, products: app.products)
         imagePaths = [:]
         saveLedger()
@@ -529,8 +701,18 @@ final class CloudSync {
         pendingKick = Task { [weak self] in
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled else { return }
+            // The edit time is noted now, even when the sync can't run (offline, another sync under way).
+            self?.noteEdits()
             await self?.syncNow()
         }
+    }
+
+    /// Note when unsynced rows were first seen changed: that time, not the push's, goes up as their `updated_at`.
+    private func noteEdits() {
+        guard let app, signedIn, accountSwitch == nil else { return }
+        let before = ledger.dirtyAt
+        ledger.noteDirty(state(app).changes(since: ledger), now: isoNow())
+        if ledger.dirtyAt != before { saveLedger() }
     }
 
     /// `force` (the Sync now button) also retries pushing right away after a "subscription inactive" refusal.
@@ -540,12 +722,19 @@ final class CloudSync {
         guard checkAccount(app) else { return }
         syncing = true
         defer { syncing = false; refreshUploadBacklogs() }
+        noteEdits()
         do {
             let token = try await token()
             // Know the role (and the team's billing) before pushing, so this device never sends what the database
             // would refuse.
             await loadTeam(maxAge: 50)
             applyTeamTrades(app)
+            // A technician's device keeps no prices (they never come down for a technician either).
+            if teamKnown, role == .tech {
+                var s = state(app)
+                let before = s
+                if s.dropPrices(ledger: &ledger) { app.applySync(from: before, to: s) }
+            }
             // A lapsed subscription makes the team read-only: keep local edits queued (nothing is lost), don't keep
             // sending what the database refuses, and keep pulling. Billing is re-read on every sync, so pushing
             // resumes once the team is active again (or ~10 minutes after a refused push).
@@ -576,6 +765,7 @@ final class CloudSync {
             func text(_ e: Error) -> String { (e as? LocalizedError)?.errorDescription ?? e.localizedDescription }
             lastError = refused.map { "Some changes weren't accepted by the cloud (they'll be tried again): " + text($0) }
                 ?? pullError.map { "Some changes couldn't be received (they'll be tried again): " + text($0) }
+                ?? (refusedRows == 0 ? nil : "\(refusedRows) item\(refusedRows == 1 ? "" : "s") from the cloud weren't taken: \(refusedRows == 1 ? "its id isn't" : "their ids aren't") one PinPlan makes.")
                 ?? (missingTables.isEmpty ? nil : "The cloud isn't up to date yet, so some job data doesn't sync (" + missingTables.joined(separator: ", ") + "). Everything else is synced.")
             if blocked {
                 lastSummary = BillingLogic.readOnlyStatus(pending: pendingChanges, device: UIDevice.current.model)
@@ -607,7 +797,7 @@ final class CloudSync {
 
     func proposals(projectId: String) async throws -> [ProposalRow] {
         guard let client else { throw SupabaseClient.Failure(message: "Cloud sync isn't connected.") }
-        let data = try await client.select("proposals", query: "select=*&project_id=eq.\(projectId)&order=created_at.desc", token: try await token())
+        let data = try await client.select("proposals", query: "select=id,project_id,snapshot,status,viewed_at,responded_at,client_name,signature,chosen_options,accepted_total,client_note,created_at&project_id=eq.\(projectId)&order=created_at.desc", token: try await token())
         // One row this version can't read (e.g. a newer web app's snapshot) mustn't hide the job's other links.
         return try JSONDecoder().decode([Lossy<ProposalRow>].self, from: data).compactMap(\.value)
     }
@@ -689,20 +879,25 @@ final class CloudSync {
         let changed = s.changes(since: ledger)
         let now = isoNow()
         let role = self.role
+        let known = teamKnown
+        // Refusals are only taken as final for a role that is actually known (not the "team unknown" stand-in).
+        let refusalRole: TeamRole? = known ? role : nil
         var refused: Error?
         var sent = 0
         for t in SyncMap.pushOrder {
             let rows = changed.filter { $0.table == t }
             guard !rows.isEmpty, let spec = SyncMap.specs[t] else { continue }
-            // Technicians can't write prices (the database refuses): drop those edits instead of retrying forever.
             guard TeamLogic.mayPush(t, role: role) else {
-                s.markSynced(rows, ledger: &ledger)
+                // Technicians can't write prices (the database refuses): drop those edits instead of retrying forever.
+                // While the team isn't known yet they wait instead: an office edit mustn't be lost to a failed lookup.
+                if known { s.markSynced(rows, ledger: &ledger) }
                 continue
             }
             func payload(_ chunk: [SyncState.Row]) -> [[String: Any]] {
                 chunk.map { r -> [String: Any] in
                     var row = SyncMap.toRemote(t, r.json)
-                    row["updated_at"] = now   // newer than any copy elsewhere, so other devices take this edit
+                    // The edit's own time (never the time of this push): the server keeps whichever edit is newer.
+                    row["updated_at"] = ledger.editTime(r, fallback: now)
                     return row
                 }
             }
@@ -715,7 +910,7 @@ final class CloudSync {
                     throw e   // the whole team is read-only: stop pushing, keep everything queued
                 } catch let e as SupabaseClient.Failure where e.isRefusal {
                     if chunk.count == 1 {
-                        noteRefusal(e, rows: chunk, role: role, refused: &refused)
+                        noteRefusal(e, rows: chunk, role: refusalRole, refused: &refused)
                         continue
                     }
                     // Find the refused rows: send one at a time. Three refusals in a row means the whole table is
@@ -730,7 +925,7 @@ final class CloudSync {
                         } catch let one as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(one.message) {
                             throw one
                         } catch let one as SupabaseClient.Failure where one.isRefusal {
-                            noteRefusal(one, rows: [r], role: role, refused: &refused)
+                            noteRefusal(one, rows: [r], role: refusalRole, refused: &refused)
                             strikes += 1
                         }
                     }
@@ -794,6 +989,7 @@ final class CloudSync {
     private func pull(app: AppModel, client: SupabaseClient, token: String) async throws -> (Int, Error?) {
         // Fetch first (async), then merge into whatever is current on the main actor, so edits made meanwhile are kept.
         var fetched: [(SyncTable, [String: Any])] = []
+        refusedRows = 0
         var marks: [String: String] = [:]
         var askedAgain: [SyncTable: Set<String>] = [:]
         var failure: Error?
@@ -801,22 +997,36 @@ final class CloudSync {
         var missing: [String] = []
         let role = self.role
         tables: for t in SyncMap.pushOrder {
+            // Prices (and estimates, quotes, invoices) only for the office. While the team isn't known, `role` is a
+            // technician's, so nothing priced is asked for.
             guard let spec = SyncMap.specs[t], TeamLogic.mayPull(t, role: role) else { continue }
+            var attempts = 0
             do {
-                var cur = SyncPaging.Cursor(since: SyncPaging.pullStart(ledger.watermarks[t.rawValue]))
                 while true {
-                    let rows = try await client.page(spec.remote, cursor: cur, token: token)
-                    fetched += rows.map { (t, $0) }
-                    let next = SyncPaging.next(cur, rows: rows)
-                    cur = next.cursor
-                    if !rows.isEmpty { marks[t.rawValue] = cur.since }
-                    if next.done { break }
-                }
-                let waiting = ledger.retry[t.rawValue] ?? []
-                for i in stride(from: 0, to: waiting.count, by: 100) {
-                    let ids = Array(waiting[i..<min(i + 100, waiting.count)])
-                    fetched += try await client.rows(spec.remote, ids: ids, token: token).map { (t, $0) }
-                    askedAgain[t, default: []].formUnion(ids)
+                    do {
+                        let cols = missingColumns[t] ?? []
+                        var cur = SyncPaging.Cursor(since: SyncPaging.pullStart(ledger.watermarks[t.rawValue]))
+                        while true {
+                            let rows = try await client.page(t, cursor: cur, missing: cols, token: token)
+                            fetched += rows.map { (t, $0) }
+                            let next = SyncPaging.next(cur, rows: rows)
+                            cur = next.cursor
+                            if !rows.isEmpty { marks[t.rawValue] = cur.since }
+                            if next.done { break }
+                        }
+                        let waiting = ledger.retry[t.rawValue] ?? []
+                        for i in stride(from: 0, to: waiting.count, by: 100) {
+                            let ids = Array(waiting[i..<min(i + 100, waiting.count)])
+                            fetched += try await client.rows(t, ids: ids, missing: cols, token: token).map { (t, $0) }
+                            askedAgain[t, default: []].formUnion(ids)
+                        }
+                        break
+                    } catch let e as SupabaseClient.Failure where attempts < 5 && Self.missingColumn(e).map({ !(missingColumns[t] ?? []).contains($0) }) == true {
+                        // A column this build names that the cloud database doesn't have yet: leave it out and ask again.
+                        missingColumns[t, default: []].insert(Self.missingColumn(e)!)
+                        attempts += 1
+                        continue
+                    }
                 }
             } catch let e as SupabaseClient.Failure where e.isMissingTable {
                 missing.append(Self.plainName(t, remote: spec.remote))
@@ -837,15 +1047,23 @@ final class CloudSync {
             let before = s
             var again: [SyncTable: [String]] = [:]
             var settled: [SyncTable: Set<String>] = [:]
+            var refusedIds = 0
             for (t, row) in fetched {
                 let r = s.merge(t, remote: row, ledger: &ledger)
                 if r == .applied || r == .removedProject { applied += 1 }
-                if let id = row["id"] as? String {
+                // Ids that would become unsafe file names or paths here: never merged, never asked for again.
+                if r == .refused { refusedIds += 1; continue }
+                if let id = row[SyncMap.specs[t]!.idColumn] as? String {
                     if SyncState.needsRetry(r, parentsFailed: parentsFailed) { again[t, default: []].append(id) } else { settled[t, default: []].insert(id) }
                 }
-                // Only a path that names this image (a new revision's row can arrive before its image_path moves on).
-                if t == .sheets, let path = row["image_path"] as? String, let id = row["image_id"] as? String, path.hasSuffix("/\(id)") { imagePaths[id] = path }
+                // Only a path that names this image (a new revision's row can arrive before its image_path moves on),
+                // made of safe parts.
+                if t == .sheets, let path = row["image_path"] as? String, let id = row["image_id"] as? String, SyncMap.isSafeId(id),
+                   path.hasSuffix("/\(id)"), path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy({ SyncMap.isSafeId(String($0)) }) {
+                    imagePaths[id] = path
+                }
             }
+            refusedRows = refusedIds
             app.applySync(from: before, to: s)
             for t in SyncMap.pushOrder {
                 let retry = again[t] ?? []
@@ -974,18 +1192,50 @@ extension CloudSync {
     static let soloKey = "pinplan.soloBilling"
     private static let pendingInviteKey = "pinplan.pendingInvite"
 
-    /// My role, or nil when working alone (full access) or signed out.
-    var role: TeamRole? {
+    /// My role on my company team as loaded, or nil when working alone, signed out or not known yet.
+    var teamRole: TeamRole? {
         guard signedIn, let t = team, t.userId == session?.userId, t.team != nil else { return nil }
         return t.role
     }
-    /// What this user may do. Solo users (no team) can do everything.
+    /// Signed in and the team was loaded for this account (from the cloud, or cached on this device for it).
+    var teamKnown: Bool { signedIn && team?.userId == session?.userId }
+    /// The device's situation for deciding the role when the team isn't known.
+    var roleContext: TeamLogic.RoleContext {
+        let cached = lastTeam
+        return TeamLogic.RoleContext(signedIn: signedIn, teamKnown: teamKnown, dataOwner: UserDefaults.standard.string(forKey: Self.dataOwnerKey),
+                                     cachedUserId: cached?.userId, cachedRole: cached?.role, cachedOnTeam: cached?.team != nil)
+    }
+    /// The role the app acts on, failing closed (TeamLogic.effectiveRole): my team role when known; a technician's while
+    /// signed in with the team not known yet; signed out, the last known role of the account whose jobs these are
+    /// (a technician's when that isn't known); nil (full access) only when working alone or for jobs that never had an
+    /// account.
+    var role: TeamRole? { TeamLogic.effectiveRole(teamRole, roleContext) }
+    /// What this user may do (fails closed, see `role`). Solo users (no team) can do everything.
     func can(_ action: TeamAction) -> Bool { TeamLogic.can(role, action) }
-    var onTeam: Bool { role != nil }
+
+    /// The team cached on this device, whoever it belongs to (kept across sign-out).
+    static func cachedTeam() -> TeamSnapshot? {
+        guard let d = UserDefaults.standard.data(forKey: teamKey) else { return nil }
+        return try? JSONDecoder().decode(TeamSnapshot.self, from: d)
+    }
+
+    /// The column a 42703 / PGRST204 error says the cloud database doesn't have ("column projects.labels does not exist").
+    static func missingColumn(_ e: SupabaseClient.Failure) -> String? {
+        guard e.code == "42703" || e.code == "PGRST204" || e.message.contains("does not exist") || e.message.contains("Could not find the") else { return nil }
+        for pattern in [#"column "?(?:[A-Za-z0-9_]+\.)?([A-Za-z0-9_]+)"? does not exist"#, #"Could not find the '([A-Za-z0-9_]+)' column"#] {
+            if let re = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let m = re.firstMatch(in: e.message, range: NSRange(e.message.startIndex..., in: e.message)), m.numberOfRanges > 1,
+               let r = Range(m.range(at: 1), in: e.message) {
+                return String(e.message[r])
+            }
+        }
+        return nil
+    }
+    var onTeam: Bool { teamRole != nil }
     /// My row on the team.
-    var teamMe: TeamMember? { role == nil ? nil : team?.me }
+    var teamMe: TeamMember? { teamRole == nil ? nil : team?.me }
     /// Everyone on the team, owner first.
-    var teamMembers: [TeamMember] { role == nil ? [] : TeamLogic.sortMembers(team?.members ?? []) }
+    var teamMembers: [TeamMember] { teamRole == nil ? [] : TeamLogic.sortMembers(team?.members ?? []) }
 
     func loadTeamCache() {
         loadSoloCache()
@@ -997,6 +1247,7 @@ extension CloudSync {
     private func saveTeam(_ snap: TeamSnapshot) {
         team = snap
         teamLoadedAt = Date()
+        lastTeam = snap
         if let d = try? JSONEncoder().encode(snap) { UserDefaults.standard.set(d, forKey: Self.teamKey) }
         // Joining or changing teams (create, invite, another device): pull everything again once.
         if snap.userId == session?.userId, ledger.noteTeam(snap.team?.id) { saveLedger() }
@@ -1007,7 +1258,7 @@ extension CloudSync {
     /// Follow the team's trades (set by the office on the web or another device). A change made on this device stands
     /// until the team's trades change again. Catalog packs are added only for people who may change the catalog.
     func applyTeamTrades(_ app: AppModel) {
-        guard role != nil, let t = team?.team else { return }
+        guard teamRole != nil, let t = team?.team else { return }
         let key = "\(Self.teamTradesSeenKey).\(t.id)"
         let seen = UserDefaults.standard.stringArray(forKey: key)
         if let next = Team.tradesToAdopt(team: t.trades, seen: seen, local: app.trades) {
@@ -1050,6 +1301,8 @@ extension CloudSync {
             if TeamLogic.isMissingSchema(code: e.code, message: e.message) {
                 teamNeedsMigration = true
                 teamError = nil
+                // No team tables: nobody is on a team, so this account works alone.
+                if team?.userId != uid { saveTeam(TeamSnapshot(userId: uid)) }
                 teamLoadedAt = Date()
             } else if e.status != 0 {
                 teamError = TeamLogic.errorMessage(e.message, code: e.code)
@@ -1104,7 +1357,7 @@ extension CloudSync {
 
     /// The personal trial when signed in and on no team. Nil otherwise (or not loaded yet: never locks).
     var solo: SoloBilling? {
-        guard signedIn, role == nil, let uid = session?.userId, soloUserId == uid else { return nil }
+        guard signedIn, teamRole == nil, let uid = session?.userId, soloUserId == uid else { return nil }
         if ProcessInfo.processInfo.arguments.contains("--billing-banner") { return nil }
         return soloBilling
     }
@@ -1112,7 +1365,7 @@ extension CloudSync {
     /// The team's subscription as last loaded. Nil when working alone (never locked).
     /// Screenshot hook: `--billing-banner` shows a read-only team, `--billing-banner trial` a trial about to end.
     var billing: TeamBilling? {
-        guard role != nil else { return nil }
+        guard teamRole != nil else { return nil }
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "--billing-banner") {
             if args.indices.contains(i + 1), args[i + 1] == "trial" {
@@ -1130,14 +1383,14 @@ extension CloudSync {
         return team?.billing
     }
     /// The team may change jobs; on no team, the personal trial decides (mirrors the database's team_can_write()).
-    var canWork: Bool { BillingLogic.allowsWork(onTeam: role != nil, billing: billing, solo: solo) }
+    var canWork: Bool { BillingLogic.allowsWork(onTeam: teamRole != nil, billing: billing, solo: solo) }
     /// Jobs may be changed on this device (a lapsed team, or an ended personal trial, is read-only: view and export
     /// only, like the web app).
-    var canEdit: Bool { BillingLogic.canEdit(onTeam: role != nil, billing: billing, solo: solo) }
+    var canEdit: Bool { BillingLogic.canEdit(onTeam: teamRole != nil, billing: billing, solo: solo) }
     /// Why changes are blocked, for an alert (nil when they're allowed).
-    var editBlockedMessage: String? { BillingLogic.editBlockedMessage(onTeam: role != nil, billing: billing, solo: solo, role: role) }
+    var editBlockedMessage: String? { BillingLogic.editBlockedMessage(onTeam: teamRole != nil, billing: billing, solo: solo, role: role) }
     /// The notice for the Projects screen and the job view, if any.
-    var billingBanner: BillingBanner? { role != nil ? BillingLogic.banner(billing, role: role) : BillingLogic.soloBanner(solo) }
+    var billingBanner: BillingBanner? { teamRole != nil ? BillingLogic.banner(billing, role: role) : BillingLogic.soloBanner(solo) }
     /// Plan status line for Settings › Team.
     var billingStatus: BillingStatusLine? { billing.map { BillingLogic.statusLine($0) } }
 
@@ -1268,6 +1521,9 @@ extension CloudSync {
     struct PendingInvite: Codable, Equatable {
         var code: String
         var name: String
+        /// The email the person signed in or created their account with right after entering the code (lower case).
+        /// The invite is used automatically only by that account.
+        var email: String?
     }
 
     var pendingInvite: PendingInvite? {
@@ -1280,11 +1536,29 @@ extension CloudSync {
         if let d = try? JSONEncoder().encode(p) { UserDefaults.standard.set(d, forKey: Self.pendingInviteKey) }
     }
 
+    /// The person is signing in (or creating an account) with this email to use the remembered invite.
+    func notePendingInviteEmail(_ email: String) {
+        guard var p = pendingInvite, p.email == nil else { return }
+        let e = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !e.isEmpty else { return }
+        p.email = e
+        if let d = try? JSONEncoder().encode(p) { UserDefaults.standard.set(d, forKey: Self.pendingInviteKey) }
+    }
+
     func clearPendingInvite() { UserDefaults.standard.removeObject(forKey: Self.pendingInviteKey) }
 
     /// Call after sign-in: joins the team from a remembered invite, if any.
     func finishPendingInvite() async {
         guard let p = pendingInvite, signedIn else { return }
+        switch TeamLogic.pendingInviteAction(code: p.code, invitedEmail: p.email, signedInEmail: session?.email) {
+        case .none: return
+        case .confirm:
+            // Saved for another account (or nobody said which): never joins a team on its own.
+            clearPendingInvite()
+            teamNotice = "An invite code saved on this device was for another sign-in, so it wasn't used. To join, enter the code under Settings › Team."
+            return
+        case .accept: break
+        }
         do {
             let r = try await acceptInvite(p.code, name: p.name)
             clearPendingInvite()
@@ -1315,21 +1589,51 @@ extension CloudSync {
     }
 
     /// Delete the account on the server (`DELETE /api/account`). The caller wipes this device after `.deleted`.
-    /// Unless the sign-in is fresh (the last 5 minutes), the server wants the account's email typed again
-    /// (`confirmEmail`) and answers 403 `reauth_required` without it: `.needsEmail`, so the screen asks for it.
-    func deleteAccount(api: APIClient, confirmEmail: String? = nil) async throws -> AccountDeletionResult {
+    /// The server only deletes on a fresh sign-in (a password or emailed code in the last 5 minutes, read from the
+    /// token); otherwise it answers 401 `reauth_required` (`.needsEmail`), and the screen asks for the password or a
+    /// code (`reauthenticate`, `verifyReauthCode`) and tries again with the fresh token. A stolen session alone can't
+    /// delete the account.
+    func deleteAccount(api: APIClient) async throws -> AccountDeletionResult {
         guard signedIn else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        guard api.mayCarrySession else {
+            throw SupabaseClient.Failure(message: "Your sign-in isn't used with this PinPlan server. Delete your account on the web instead, or contact support.")
+        }
         let tok = try await token()
         var req = URLRequest(url: api.baseURL.appendingPathComponent("api/account"))
         req.httpMethod = "DELETE"
         req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
-        if let body = AccountDeletionResult.body(confirmEmail: confirmEmail) {
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        }
         req.timeoutInterval = 60
         let (data, resp) = try await URLSession.shared.data(for: req)
         return AccountDeletionResult.from(status: (resp as? HTTPURLResponse)?.statusCode ?? 0, body: data)
+    }
+
+    /// Prove it's really the account's owner: sign in again with the password. The fresh session replaces the old one
+    /// (same account only).
+    func reauthenticate(password: String) async throws {
+        guard let client, let s = session else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        guard !password.isEmpty else { throw SupabaseClient.Failure(message: "Enter your password.") }
+        try adoptFresh(try await client.signIn(email: s.email, password: password))
+    }
+
+    /// For sign-ins without a password: email a one-time code to the account's own address.
+    func sendReauthCode() async throws {
+        guard let client, let s = session, !s.email.isEmpty else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        try await client.sendCode(email: s.email)
+    }
+
+    /// Sign in again with the emailed code (same account only).
+    func verifyReauthCode(_ code: String) async throws {
+        guard let client, let s = session else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        let c = code.filter(\.isNumber)
+        guard !c.isEmpty else { throw SupabaseClient.Failure(message: "Enter the code from the email.") }
+        try adoptFresh(try await client.verifyCode(email: s.email, code: c))
+    }
+
+    private func adoptFresh(_ fresh: SupabaseClient.Session) throws {
+        guard fresh.userId == session?.userId else {
+            throw SupabaseClient.Failure(message: "That's a different account. Sign in again with the account you want to delete.")
+        }
+        store(fresh)
     }
 
     /// Email a team invite through the PinPlan web server.
@@ -1342,7 +1646,10 @@ extension CloudSync {
     /// Forget everything about the account on this device: sign-in, cloud settings, ledger, team and invites.
     func wipeForAccountDeletion() {
         pendingKick?.cancel()
-        signOut()
+        endSession(lockJobs: false)
+        UserDefaults.standard.removeObject(forKey: Self.jobsLockedKey)
+        UserDefaults.standard.removeObject(forKey: Self.teamKey)
+        lastTeam = nil
         ledger = SyncLedger()
         imagePaths = [:]
         UserDefaults.standard.removeObject(forKey: Self.dataOwnerKey)

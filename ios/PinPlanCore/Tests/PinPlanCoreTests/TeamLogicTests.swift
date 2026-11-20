@@ -17,6 +17,36 @@ final class TeamLogicTests: XCTestCase {
         XCTAssertTrue(TeamLogic.mayPush(.photos, role: .tech))
     }
 
+    /// Mirrors effectiveRole in tests/teamLogic.test.ts: the role fails closed.
+    func testRoleFailsClosedWhenTheTeamIsntKnown() {
+        typealias C = TeamLogic.RoleContext
+        // Signed in, team loaded: the account's own role (nil: working alone).
+        XCTAssertEqual(TeamLogic.effectiveRole(.admin, C(signedIn: true, teamKnown: true, dataOwner: "u1")), .admin)
+        XCTAssertNil(TeamLogic.effectiveRole(nil, C(signedIn: true, teamKnown: true, dataOwner: "u1")))
+        // Signed in, team not known yet (offline first sign-in, failed lookup): a technician.
+        XCTAssertEqual(TeamLogic.effectiveRole(nil, C(signedIn: true, teamKnown: false, dataOwner: "u1")), .tech)
+        XCTAssertFalse(TeamLogic.can(nil, .prices, context: C(signedIn: true, teamKnown: false, dataOwner: nil)))
+        // Signed out, jobs that never had an account: full access.
+        XCTAssertNil(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: nil)))
+        // Signed out, an account's jobs: its last known role…
+        XCTAssertEqual(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: "u1", cachedUserId: "u1", cachedRole: .tech, cachedOnTeam: true)), .tech)
+        XCTAssertEqual(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: "u1", cachedUserId: "u1", cachedRole: .owner, cachedOnTeam: true)), .owner)
+        XCTAssertNil(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: "u1", cachedUserId: "u1", cachedOnTeam: false)), "that account worked alone")
+        // …and a technician's when it isn't known (or the cache is someone else's).
+        XCTAssertEqual(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: "u1")), .tech)
+        XCTAssertEqual(TeamLogic.effectiveRole(nil, C(signedIn: false, teamKnown: false, dataOwner: "u1", cachedUserId: "u2", cachedRole: .owner, cachedOnTeam: true)), .tech)
+        XCTAssertFalse(TeamLogic.can(nil, .prices, context: C(signedIn: false, teamKnown: false, dataOwner: "u1")))
+    }
+
+    /// Mirrors pendingInviteAction in tests/teamLogic.test.ts.
+    func testARememberedInviteIsOnlyUsedByTheAccountItWasFor() {
+        XCTAssertEqual(TeamLogic.pendingInviteAction(code: "K7QMXR4TPA", invitedEmail: "Ann@Acme.com ", signedInEmail: "ann@acme.com"), .accept)
+        XCTAssertEqual(TeamLogic.pendingInviteAction(code: "K7QMXR4TPA", invitedEmail: "ann@acme.com", signedInEmail: "bob@acme.com"), .confirm)
+        XCTAssertEqual(TeamLogic.pendingInviteAction(code: "K7QMXR4TPA", invitedEmail: nil, signedInEmail: "bob@acme.com"), .confirm)
+        XCTAssertEqual(TeamLogic.pendingInviteAction(code: "K7QMXR4TPA", invitedEmail: "", signedInEmail: ""), .confirm)
+        XCTAssertEqual(TeamLogic.pendingInviteAction(code: nil, invitedEmail: "ann@acme.com", signedInEmail: "ann@acme.com"), .none)
+    }
+
     func testUnknownRolesAreTheMostLimited() {
         XCTAssertEqual(TeamRole(remote: "owner"), .owner)
         XCTAssertEqual(TeamRole(remote: "supervisor"), .tech)

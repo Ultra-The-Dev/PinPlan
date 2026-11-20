@@ -64,7 +64,7 @@ struct PhotoReportSheet: View {
                     Section("Client link") {
                         Text(link.absoluteString).font(.footnote).textSelection(.enabled)
                         HStack {
-                            Button { UIPasteboard.general.url = link } label: { Label("Copy", systemImage: "doc.on.doc") }
+                            Button { PrivateClipboard.copy(link) } label: { Label("Copy", systemImage: "doc.on.doc") }
                             Spacer()
                             ShareLink(item: link) { Label("Send", systemImage: "square.and.arrow.up") }
                         }
@@ -161,7 +161,7 @@ struct PhotoReportSheet: View {
             try await app.cloud.publishPhotoReport(token: token, projectId: model.bundle.project.id, snapshot: snapshot)
             let url = URL(string: "\(origin)/r?t=\(token)")
             link = url
-            if let url { UIPasteboard.general.url = url }
+            if let url { PrivateClipboard.copy(url) }
             model.say("Report link copied")
         } catch {
             self.error = error.localizedDescription

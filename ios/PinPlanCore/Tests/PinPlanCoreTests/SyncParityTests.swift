@@ -258,7 +258,7 @@ final class SyncMergeTests: XCTestCase {
         b.rfis = [draft, sent]
         let state = SyncState(bundles: [b], catalog: [], products: [])
         let changed = state.changes(since: SyncLedger())
-        XCTAssertEqual(Set(changed.map(\.table)), [.projects, .sheets, .rfis])
+        XCTAssertEqual(Set(changed.map(\.table)), [.projects, .projectFinance, .sheets, .rfis])
         XCTAssertEqual(changed.filter { $0.table == .rfis }.map(\.id), [draft.id], "only a draft RFI made here goes up")
         let row = SyncMap.toRemote(.rfis, changed.first { $0.table == .rfis }!.json)
         XCTAssertEqual(row["ball_in_court"] as? String, "us")

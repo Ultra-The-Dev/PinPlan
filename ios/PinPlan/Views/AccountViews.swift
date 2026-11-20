@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import LocalAuthentication
 import PinPlanCore
 
 // Account and subscription pieces: the billing notice, the team's plan line, account deletion and the About links.
@@ -177,6 +178,9 @@ struct ReadOnlySyncRow: View {
 // MARK: - account deletion (App Store 5.1.1(v))
 
 /// Explains what is deleted, asks to type DELETE, then deletes the account on the server and clears this device.
+/// The server only deletes on a fresh sign-in: when it asks (401 reauth_required), the person enters their password
+/// or a code emailed to the account, and the delete is sent again with that fresh sign-in. The device's passcode or
+/// Face ID is asked first when the device has one.
 struct DeleteAccountView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -186,9 +190,11 @@ struct DeleteAccountView: View {
     /// The server said no because the user owns a team that still has other people (409).
     @State private var teamInTheWay = false
     @State private var deletedEmail: String?
-    /// The sign-in isn't fresh: the server wants the account's email typed again (403 reauth_required).
-    @State private var needsEmail = false
-    @State private var typedEmail = ""
+    /// The sign-in isn't fresh: the server wants the person to sign in again (401 reauth_required).
+    @State private var needsReauth = false
+    @State private var password = ""
+    @State private var code = ""
+    @State private var codeSent = false
 
     var body: some View {
         SentenceForm {
@@ -196,8 +202,9 @@ struct DeleteAccountView: View {
                 AccountDeletedSection(email: email) { dismiss() }
             } else {
                 DeleteExplanationSection()
-                DeleteAccountActionSection(confirm: $confirm, typedEmail: $typedEmail, needsEmail: needsEmail, busy: busy, problem: problem,
-                                           teamInTheWay: teamInTheWay) { Task { await delete() } }
+                DeleteAccountActionSection(confirm: $confirm, password: $password, code: $code, needsReauth: needsReauth, codeSent: codeSent,
+                                           busy: busy, problem: problem, teamInTheWay: teamInTheWay,
+                                           onDelete: { Task { await delete() } }, onSendCode: { Task { await sendCode() } })
             }
         }
         .navigationTitle("Delete account")
@@ -214,13 +221,27 @@ struct DeleteAccountView: View {
         defer { busy = false }
         let email = app.cloud.session?.email ?? ""
         do {
-            switch try await app.cloud.deleteAccount(api: api, confirmEmail: needsEmail ? typedEmail : nil) {
+            // The device's own lock first (passcode, Face ID or Touch ID), when it has one.
+            guard await deviceOwnerConfirms() else { problem = "Deleting the account needs your device passcode."; return }
+            if needsReauth {
+                if !code.trimmingCharacters(in: .whitespaces).isEmpty {
+                    try await app.cloud.verifyReauthCode(code)
+                } else {
+                    try await app.cloud.reauthenticate(password: password)
+                }
+                password = ""
+                code = ""
+            }
+            switch try await app.cloud.deleteAccount(api: api) {
             case .deleted:
                 app.wipeLocalData()
                 deletedEmail = email
             case .needsEmail(let message):
-                needsEmail = true
-                problem = message
+                // 401 reauth_required: signed in, just not recently enough. Sign in again here and try once more.
+                needsReauth = true
+                problem = message == AccountDeletionResult.needsEmailFallback
+                    ? "To keep your account safe, enter your password again (or get a code by email), then delete your account."
+                    : message
             case .teamInTheWay(let message):
                 problem = message
                 teamInTheWay = true
@@ -232,6 +253,27 @@ struct DeleteAccountView: View {
         } catch {
             problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private func sendCode() async {
+        guard !busy else { return }
+        busy = true
+        problem = nil
+        defer { busy = false }
+        do {
+            try await app.cloud.sendReauthCode()
+            codeSent = true
+        } catch {
+            problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// True when the device has no passcode set (nothing to ask) or its owner confirmed.
+    private func deviceOwnerConfirms() async -> Bool {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return true }
+        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Confirm it's you to delete your PinPlan account")) == true
     }
 }
 
@@ -264,16 +306,20 @@ private struct DeleteBullet: View {
 private struct DeleteAccountActionSection: View {
     @Environment(AppModel.self) private var app
     @Binding var confirm: String
-    @Binding var typedEmail: String
-    /// The server asked for the account's email (the sign-in isn't fresh).
-    let needsEmail: Bool
+    @Binding var password: String
+    @Binding var code: String
+    /// The server asked for a fresh sign-in.
+    let needsReauth: Bool
+    let codeSent: Bool
     let busy: Bool
     let problem: String?
     var teamInTheWay = false
     let onDelete: () -> Void
+    let onSendCode: () -> Void
 
     private var ready: Bool {
-        confirm.trimmingCharacters(in: .whitespaces) == "DELETE" && !busy && (!needsEmail || typedEmail.contains("@"))
+        guard confirm.trimmingCharacters(in: .whitespaces) == "DELETE", !busy else { return false }
+        return !needsReauth || !password.isEmpty || !code.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -294,13 +340,19 @@ private struct DeleteAccountActionSection: View {
                 TextField("Type DELETE to confirm", text: $confirm)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
-                if needsEmail {
-                    // Keeps the account safe from a borrowed device: the email isn't filled in for them.
-                    TextField("The email you sign in with", text: $typedEmail)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                if needsReauth {
+                    // A fresh sign-in, so a borrowed or stolen session alone can't delete the account.
+                    SecureField("Your password", text: $password)
+                        .textContentType(.password)
+                    if codeSent {
+                        TextField("Code from the email", text: $code)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                    } else {
+                        Button("No password? Email me a code", action: onSendCode)
+                            .font(.callout)
+                            .disabled(busy)
+                    }
                 }
                 Button(role: .destructive, action: onDelete) {
                     HStack {
@@ -318,8 +370,9 @@ private struct DeleteAccountActionSection: View {
                     NavigationLink { TeamView() } label: { Label("Open Team", systemImage: "person.2") }
                 }
             } footer: {
-                Text(needsEmail ? "Type DELETE in capitals and the email you sign in with to confirm. Or sign out and sign in again, then delete within 5 minutes."
-                                : "Type DELETE in capitals to confirm.")
+                Text(needsReauth
+                     ? (codeSent ? "Type DELETE in capitals, and your password or the code we emailed to \(cloud.session?.email ?? "your address")." : "Type DELETE in capitals and your password to confirm it's you.")
+                     : "Type DELETE in capitals to confirm.")
             }
         }
     }
