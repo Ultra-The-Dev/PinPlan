@@ -1,6 +1,6 @@
 "use client";
-// English / Русский. Saved on this device, and on the account when signed in (src/lib/i18n/account.ts).
-import { Languages } from "lucide-react";
+// The language picker. Saved on this device, and on the account when signed in (src/lib/i18n/account.ts).
+import { ChevronDown, Languages } from "lucide-react";
 import { LOCALES, setLocale, useT, type Locale } from "@/lib/i18n";
 import { saveLocaleToAccount } from "@/lib/i18n/account";
 
@@ -10,30 +10,30 @@ export function chooseLocale(locale: Locale) {
 }
 
 /**
- * A pair of buttons with each language in its own name. `tone="dark"` for dark footers. Each label carries its own
- * `lang` so screen readers pronounce it right.
+ * A compact dropdown with each language in its own name (people find theirs whatever language the page is in now).
+ * `tone="dark"` for dark footers. Each option carries its own `lang` so screen readers pronounce it right.
  */
 export default function LanguageSwitcher({ className = "", tone = "light", showIcon = true }: { className?: string; tone?: "light" | "dark"; showIcon?: boolean }) {
   const t = useT();
-  const on = tone === "dark" ? "bg-white/15 text-white" : "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200";
-  const off = tone === "dark" ? "text-white/70 hover:text-white" : "text-slate-500 hover:text-slate-800";
+  const dark = tone === "dark";
   return (
-    <div role="group" aria-label={t("Language")} className={`inline-flex items-center gap-1 text-xs ${className}`}>
-      {showIcon && <Languages aria-hidden className={`h-4 w-4 ${tone === "dark" ? "text-white/60" : "text-slate-400"}`} />}
-      <div className={`inline-flex rounded-md p-0.5 ${tone === "dark" ? "bg-white/5" : "bg-slate-100"}`}>
+    <label className={`relative inline-flex items-center gap-1 text-xs ${className}`}>
+      {showIcon && <Languages aria-hidden className={`h-4 w-4 shrink-0 ${dark ? "text-white/60" : "text-slate-400"}`} />}
+      <span className="sr-only">{t("Language")}</span>
+      <select
+        value={t.locale}
+        onChange={(e) => chooseLocale(e.target.value as Locale)}
+        className={`min-h-8 cursor-pointer appearance-none rounded-md py-1 pr-7 pl-2.5 font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
+          dark ? "bg-white/10 text-white hover:bg-white/15 focus-visible:outline-white [&>option]:text-slate-900" : "bg-slate-100 text-slate-700 hover:bg-slate-200/70 focus-visible:outline-blue-600"
+        }`}
+      >
         {LOCALES.map((l) => (
-          <button
-            key={l.code}
-            type="button"
-            lang={l.code}
-            aria-pressed={t.locale === l.code}
-            className={`min-h-7 rounded px-2 py-1 font-medium transition ${t.locale === l.code ? on : off}`}
-            onClick={() => chooseLocale(l.code)}
-          >
+          <option key={l.code} value={l.code} lang={l.code}>
             {l.label}
-          </button>
+          </option>
         ))}
-      </div>
-    </div>
+      </select>
+      <ChevronDown aria-hidden className={`pointer-events-none absolute right-2 h-3.5 w-3.5 ${dark ? "text-white/70" : "text-slate-500"}`} />
+    </label>
   );
 }

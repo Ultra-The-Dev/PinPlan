@@ -4,6 +4,12 @@ import { localeFromLanguages } from "@/lib/i18n/locales";
 import { localeOnAuth } from "@/lib/i18n/account";
 import { DICTIONARIES } from "@/lib/i18n/dictionaries";
 import { RU_AREAS } from "@/lib/i18n/ru";
+import { ES_AREAS } from "@/lib/i18n/es";
+import { PT_AREAS } from "@/lib/i18n/pt";
+import { UK_AREAS } from "@/lib/i18n/uk";
+import { PL_AREAS } from "@/lib/i18n/pl";
+import { ZH_AREAS } from "@/lib/i18n/zh";
+import { VI_AREAS } from "@/lib/i18n/vi";
 import type { Dictionary } from "@/lib/i18n/types";
 import * as i18n from "@/lib/i18n";
 import { checkDictionaries, extractKeys, scanSources } from "../scripts/check-i18n.mjs";
@@ -76,7 +82,10 @@ describe("core", () => {
     expect(localeFromLanguages(["RU"])).toBe("ru");
     expect(localeFromLanguages(["de-DE", "ru"])).toBe("ru");
     expect(localeFromLanguages(["en-GB", "ru"])).toBe("en");
-    expect(localeFromLanguages(["uk-UA"])).toBe("en");
+    expect(localeFromLanguages(["uk-UA"])).toBe("uk");
+    expect(localeFromLanguages(["pt-PT", "en"])).toBe("pt");
+    expect(localeFromLanguages(["zh-Hans-CN"])).toBe("zh");
+    expect(localeFromLanguages(["de-DE", "fr"])).toBe("en");
     expect(localeFromLanguages([])).toBe("en");
     expect(localeFromLanguages(undefined)).toBe("en");
   });
@@ -183,6 +192,8 @@ describe("dictionaries and checker", () => {
     expect(Object.keys(DICTIONARIES.ru).length).toBeLessThanOrEqual(n);
     expect(DICTIONARIES.ru["Settings"]).toBe("Настройки");
     expect(Object.keys(DICTIONARIES.en)).toHaveLength(0);
+    // The other languages load on first use.
+    expect(DICTIONARIES.es).toBeUndefined();
   });
 
   it("extracts t / tn / msg / <T> literals", () => {
@@ -241,5 +252,15 @@ describe("dictionaries and checker", () => {
   it("the real Russian dictionaries pass the checker", () => {
     const { errors } = checkDictionaries(RU_AREAS, scanSources());
     expect(errors).toEqual([]);
+  });
+
+  it("every other language passes the checker with its own plural forms", () => {
+    const used = scanSources();
+    const all = { es: ES_AREAS, pt: PT_AREAS, uk: UK_AREAS, pl: PL_AREAS, zh: ZH_AREAS, vi: VI_AREAS };
+    for (const [lang, areas] of Object.entries(all)) expect(checkDictionaries(areas, used, lang).errors, lang).toEqual([]);
+    // Chinese and Vietnamese have one form; Spanish and Portuguese one / other; Ukrainian and Polish one / few / many.
+    expect(checkDictionaries({ a: { "{n} job": { other: "{n} 个工作" } } }, new Map(), "zh").errors).toEqual([]);
+    expect(checkDictionaries({ a: { "{n} job": { one: "{n} trabajo" } } }, new Map(), "es").errors.join()).toMatch(/needs "other"/);
+    expect(checkDictionaries({ a: { "{n} job": { one: "{n} об'єкт", few: "{n} об'єкти" } } }, new Map(), "uk").errors.join()).toMatch(/needs "many"/);
   });
 });

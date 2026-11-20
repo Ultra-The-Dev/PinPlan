@@ -6,6 +6,12 @@ export const LOCALES: readonly { code: Locale; label: string; intl: string }[] =
   // `label` is the language's own name, so people find it whatever language the page is in now.
   { code: "en", label: "English", intl: "en-US" },
   { code: "ru", label: "Русский", intl: "ru-RU" },
+  { code: "es", label: "Español", intl: "es-US" },
+  { code: "pt", label: "Português (Brasil)", intl: "pt-BR" },
+  { code: "uk", label: "Українська", intl: "uk-UA" },
+  { code: "pl", label: "Polski", intl: "pl-PL" },
+  { code: "zh", label: "中文（简体）", intl: "zh-CN" },
+  { code: "vi", label: "Tiếng Việt", intl: "vi-VN" },
 ];
 
 export const SOURCE_LOCALE: Locale = "en";
@@ -22,7 +28,7 @@ export function intlTag(locale: Locale): string {
   return LOCALES.find((l) => l.code === locale)?.intl ?? "en-US";
 }
 
-/** The first supported language in the browser's list (`ru-RU`, `ru` → ru), else English. */
+/** The first supported language in the browser's list (`ru-RU`, `ru` → ru; `pt-PT` → pt, `zh-TW` → zh), else English. */
 export function localeFromLanguages(langs: readonly string[] | undefined | null): Locale {
   for (const raw of langs ?? []) {
     const base = String(raw).toLowerCase().split(/[-_]/)[0];

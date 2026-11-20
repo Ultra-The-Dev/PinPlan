@@ -2,7 +2,7 @@
 // these types, can be loaded by scripts/check-i18n.mjs with Node's type stripping.
 
 /** A language the app can show. "en" is the source language: its text is the key, so it has no dictionary. */
-export type Locale = "en" | "ru";
+export type Locale = "en" | "ru" | "es" | "pt" | "uk" | "pl" | "zh" | "vi";
 
 /** Plural forms of one entry, by CLDR category (Intl.PluralRules). Russian needs one / few / many. */
 export type PluralForms = Partial<Record<"zero" | "one" | "two" | "few" | "many" | "other", string>>;

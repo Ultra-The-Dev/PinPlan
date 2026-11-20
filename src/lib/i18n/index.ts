@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { create } from "zustand";
 import { translate, translatePlural } from "./core";
-import { DICTIONARIES } from "./dictionaries";
+import { dictionaryFor, hasDictionary, loadDictionary } from "./dictionaries";
 import { SOURCE_LOCALE, STORAGE_KEY, intlTag, isLocale, localeFromLanguages } from "./locales";
 import type { Locale, Vars } from "./types";
 
@@ -16,7 +16,27 @@ export { LOCALES, SOURCE_LOCALE, STORAGE_KEY, intlTag, isLocale, localeFromLangu
  * render (zustand hands React the initial state for hydration); in the browser the device's choice is applied right
  * after module load, and components re-render in it.
  */
-export const useLocaleStore = create<{ locale: Locale }>(() => ({ locale: SOURCE_LOCALE }));
+export const useLocaleStore = create<{ locale: Locale; loaded: number }>(() => ({ locale: SOURCE_LOCALE, loaded: 0 }));
+
+/** Show `locale` once its translations are in memory (they're fetched on first use, except Russian). The last choice wins. */
+let wanted: Locale = SOURCE_LOCALE;
+function show(locale: Locale): void {
+  wanted = locale;
+  applyDocumentLang(locale);
+  if (hasDictionary(locale)) {
+    if (useLocaleStore.getState().locale !== locale) useLocaleStore.setState({ locale });
+    return;
+  }
+  loadDictionary(locale).then(
+    () => {
+      if (wanted === locale) useLocaleStore.setState((st) => ({ locale, loaded: st.loaded + 1 }));
+    },
+    () => {
+      // Offline before this language was ever loaded: stay in the current language.
+      if (wanted === locale) applyDocumentLang(useLocaleStore.getState().locale);
+    },
+  );
+}
 
 /** This device's saved choice, or null when the person never picked one (or storage is blocked). */
 export function storedLocale(): Locale | null {
@@ -53,16 +73,13 @@ export function setLocale(locale: Locale, opts: { remember?: boolean } = {}): vo
       // Private mode or blocked storage: the choice lasts until the page closes.
     }
   }
-  applyDocumentLang(locale);
-  if (useLocaleStore.getState().locale !== locale) useLocaleStore.setState({ locale });
+  show(locale);
 }
 
 /** Apply the device's language (browser only; called once below, and again by tests). */
 export function initLocale(): void {
   if (typeof window === "undefined") return;
-  const locale = detectLocale();
-  applyDocumentLang(locale);
-  useLocaleStore.setState({ locale });
+  show(detectLocale());
 }
 initLocale();
 
@@ -79,13 +96,13 @@ export function useLocale(): Locale {
 /** Translate English text in the active language: `t("New job")`, `t("Hi {name}", { name })`. Missing → English. */
 export function t(key: string, vars?: Vars): string {
   const locale = getLocale();
-  return translate(DICTIONARIES[locale], locale, key, vars);
+  return translate(dictionaryFor(locale), locale, key, vars);
 }
 
 /** Plural: `tn("{n} device", "{n} devices", count)`. `{n}` is filled in; extra vars are allowed. */
 export function tn(one: string, other: string, n: number, vars?: Vars): string {
   const locale = getLocale();
-  return translatePlural(DICTIONARIES[locale], locale, one, other, n, vars);
+  return translatePlural(dictionaryFor(locale), locale, one, other, n, vars);
 }
 
 /** t() bound to one language, with tn and the locale attached. */
@@ -95,7 +112,7 @@ export type BoundT = ((key: string, vars?: Vars) => string) & {
 };
 
 export function makeT(locale: Locale): BoundT {
-  const dict = DICTIONARIES[locale];
+  const dict = dictionaryFor(locale);
   const bound = ((key: string, vars?: Vars) => translate(dict, locale, key, vars)) as BoundT;
   bound.tn = (one, other, n, vars) => translatePlural(dict, locale, one, other, n, vars);
   bound.locale = locale;
