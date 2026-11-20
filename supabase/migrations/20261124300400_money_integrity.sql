@@ -68,9 +68,12 @@ begin
   if new.kind <> 'invoice' then return new; end if;
   before := jsonb_build_array(new.amount_paid, new.balance_due, new.status, new.paid_at);
   select coalesce(jsonb_agg(jsonb_build_object('amount', p.amount, 'date', p.paid_on, 'voided', p.voided, 'deleted', p.deleted) order by p.paid_on, p.created_at, p.id), '[]'::jsonb)
-    into pays from public.sales_document_payments p where p.document_id = new.id;
+    into pays from public.sales_document_payments p where p.document_id = new.id and p.project_id = new.project_id;
+  -- Only the job's own credit notes: converted_from is not checked on write, so another company's row could name
+  -- this invoice.
   select coalesce(jsonb_agg(jsonb_build_object('total', c.total, 'status', c.status, 'deleted', c.deleted)), '[]'::jsonb)
-    into credits from public.sales_documents c where c.kind = 'credit_note' and c.converted_from = new.id;
+    into credits from public.sales_documents c
+    where c.kind = 'credit_note' and c.converted_from = new.id and c.project_id = new.project_id;
   select * into s from public.payment_summary(new.total, pays, credits);
   -- invoiceStatus(): drafts and void stay; otherwise the balance decides.
   if new.status in ('draft', 'void') then
@@ -100,23 +103,27 @@ create trigger sales_documents_zz_money before insert or update on public.sales_
   for each row execute function public.sales_documents_money();
 
 -- Recompute the invoice(s) a payment or credit note belongs to (the BEFORE trigger above does the work).
-create or replace function public.refresh_invoice_money(p_ids text[]) returns void
+-- Only invoices of the job the payment or credit note belongs to.
+create or replace function public.refresh_invoice_money(p_ids text[], p_project text) returns void
 language sql security definer set search_path = public as $$
   update public.sales_documents set updated_at = greatest(updated_at + interval '1 millisecond', now())
-  where kind = 'invoice' and id = any (p_ids);
+  where kind = 'invoice' and id = any (p_ids) and project_id = p_project;
 $$;
 
 create or replace function public.sales_document_payments_money() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'DELETE' then
-    perform public.refresh_invoice_money(array[old.document_id]);
+    perform public.refresh_invoice_money(array[old.document_id], old.project_id);
     return old;
   end if;
   if tg_op = 'UPDATE' and (to_jsonb(new) - array['updated_at', 'synced_at']) is not distinct from (to_jsonb(old) - array['updated_at', 'synced_at']) then
     return new;
   end if;
-  perform public.refresh_invoice_money(array_remove(array[new.document_id, case when tg_op = 'UPDATE' and old.document_id <> new.document_id then old.document_id end], null));
+  perform public.refresh_invoice_money(array[new.document_id], new.project_id);
+  if tg_op = 'UPDATE' and (old.document_id is distinct from new.document_id or old.project_id is distinct from new.project_id) then
+    perform public.refresh_invoice_money(array[old.document_id], old.project_id);
+  end if;
   return new;
 end $$;
 drop trigger if exists sales_document_payments_money on public.sales_document_payments;
@@ -125,18 +132,18 @@ create trigger sales_document_payments_money after insert or update or delete on
 
 create or replace function public.sales_documents_credit_money() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare ids text[] := '{}';
+declare changed boolean;
 begin
-  if tg_op in ('UPDATE', 'DELETE') and old.kind = 'credit_note' and old.converted_from is not null then ids := ids || old.converted_from; end if;
-  if tg_op in ('INSERT', 'UPDATE') and new.kind = 'credit_note' and new.converted_from is not null then
-    if tg_op = 'INSERT' or new.total is distinct from old.total or new.status is distinct from old.status
-       or new.deleted is distinct from old.deleted or new.converted_from is distinct from old.converted_from then
-      ids := ids || new.converted_from;
-    elsif tg_op = 'UPDATE' then
-      ids := '{}';
-    end if;
+  changed := tg_op <> 'UPDATE' or new.total is distinct from old.total or new.status is distinct from old.status
+    or new.deleted is distinct from old.deleted or new.converted_from is distinct from old.converted_from
+    or new.kind is distinct from old.kind or new.project_id is distinct from old.project_id;
+  if not changed then return null; end if;
+  if tg_op in ('UPDATE', 'DELETE') and old.kind = 'credit_note' and old.converted_from is not null then
+    perform public.refresh_invoice_money(array[old.converted_from], old.project_id);
   end if;
-  if cardinality(ids) > 0 then perform public.refresh_invoice_money(ids); end if;
+  if tg_op in ('INSERT', 'UPDATE') and new.kind = 'credit_note' and new.converted_from is not null then
+    perform public.refresh_invoice_money(array[new.converted_from], new.project_id);
+  end if;
   return null;
 end $$;
 drop trigger if exists sales_documents_credit_money on public.sales_documents;
@@ -144,7 +151,7 @@ create trigger sales_documents_credit_money after insert or update or delete on 
   for each row execute function public.sales_documents_credit_money();
 
 revoke all on function public.payment_summary(double precision, jsonb, jsonb) from public, anon;
-revoke all on function public.refresh_invoice_money(text[]) from public, anon, authenticated;
+revoke all on function public.refresh_invoice_money(text[], text) from public, anon, authenticated;
 revoke all on function public.sales_documents_money() from public, anon;
 revoke all on function public.sales_document_payments_money() from public, anon;
 revoke all on function public.sales_documents_credit_money() from public, anon;
@@ -197,16 +204,23 @@ begin
     need := public.job_number_taken(tg_table_name, new.project_id, new.number, new.id, true);
   end if;
   if need then
-    execute format('select coalesce(max(number), 0) from public.%I where project_id = $1 and id <> $2', tg_table_name)
-      into top using new.project_id, new.id;
-    new.number := top + 1;
+    -- A device that hasn't pulled a renumber yet sends its old number again: the row keeps the one it has (when still
+    -- free) rather than burning a new number on every stale save.
+    if tg_op = 'UPDATE' and old.number > 0 and old.project_id = new.project_id
+       and not public.job_number_taken(tg_table_name, new.project_id, old.number, new.id, new.deleted) then
+      new.number := old.number;
+    else
+      execute format('select coalesce(max(number), 0) from public.%I where project_id = $1 and id <> $2', tg_table_name)
+        into top using new.project_id, new.id;
+      new.number := top + 1;
+    end if;
     new.updated_at := greatest(coalesce(new.updated_at, now()) + interval '1 millisecond', now());
   end if;
   return new;
 end $$;
 
--- Existing duplicates: the earliest row (created_at, then id) keeps its number, the others get the next free ones in
--- the same order. Stamped newer so devices pull the new numbers. Returns how many rows moved.
+-- Existing duplicates: the earliest row (created_at, then id; for change orders an approved, then a sent one first)
+-- keeps its number, the others get the next free ones in the same order. Stamped newer so devices pull the new numbers. Returns how many rows moved.
 create or replace function public.renumber_job_duplicates() returns integer
 language plpgsql set search_path = public as $$
 declare
@@ -220,12 +234,14 @@ begin
     live := case when t = 'change_orders' then 'not deleted and status not in (''void'', ''rejected'')' else 'not deleted' end;
     for r in execute format(
       'select id, project_id, created_at from (
-         select id, project_id, created_at, row_number() over (partition by project_id, number order by created_at, id) as rn
+         select id, project_id, created_at, row_number() over (partition by project_id, number order by %s created_at, id) as rn
          from public.%I where number > 0 and %s
        ) x where rn > 1
        union all
        select id, project_id, created_at from public.%I where (number is null or number <= 0) and not deleted
-       order by project_id, created_at, id', t, live, t)
+       order by project_id, created_at, id',
+      -- A change order the client approved (or has) keeps its number over a later-created draft duplicate.
+      case when t = 'change_orders' then 'case status when ''approved'' then 0 when ''sent'' then 1 else 2 end,' else '' end, t, live, t)
     loop
       execute format('select coalesce(max(number), 0) from public.%I where project_id = $1', t) into top using r.project_id;
       execute format('update public.%I set number = $1, updated_at = greatest(updated_at + interval ''1 millisecond'', now()) where id = $2', t)

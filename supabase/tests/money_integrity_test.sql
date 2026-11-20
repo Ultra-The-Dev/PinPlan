@@ -83,6 +83,18 @@ select pg_temp.check((select balance_due = 0 and status = 'paid' and paid_at is 
 update public.sales_documents set status = 'void' where id = 'mcn1';
 select pg_temp.check((select balance_due = 1000 and status = 'viewed' from public.sales_documents where id = 'mi1'), 'a void credit note no longer counts');
 
+-- Another company's credit note naming this invoice changes nothing here.
+reset role;
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000004b1', 'other@example.com');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000004b1');
+insert into public.projects (id, client_name, address, status) values ('mpx', 'Other Client', '9 Example St', 'estimate');
+insert into public.sales_documents (id, project_id, kind, status, total, converted_from) values ('mcnx', 'mpx', 'credit_note', 'sent', 900, 'mi1');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000004a1');
+select pg_temp.check((select balance_due = 1000 and status = 'viewed' from public.sales_documents where id = 'mi1'), 'another company''s credit note does not lower this invoice');
+update public.sales_documents set updated_at = updated_at where id = 'mi1';
+select pg_temp.check((select balance_due = 1000 from public.sales_documents where id = 'mi1'), '... not even when the invoice is worked out again');
+
 -- Drafts and void invoices keep their status.
 insert into public.sales_documents (id, project_id, kind, status, total, balance_due) values ('mi2', 'mp1', 'invoice', 'draft', 300, 300);
 insert into public.sales_document_payments (id, project_id, document_id, amount, paid_on) values ('mpc', 'mp1', 'mi2', 300, '2026-11-22');
@@ -119,9 +131,14 @@ insert into public.change_orders (id, project_id, number, title, status) values 
 select pg_temp.check((select number from public.change_orders where id = 'mco1r') = 1, 'a revision keeps the void original''s number');
 insert into public.change_orders (id, project_id, number, title, status) values ('mco1s', 'mp1', 1, 'Extra camera (rev 1)', 'draft');
 select pg_temp.check((select number from public.change_orders where id = 'mco1s') = 5, 'but not twice');
--- Changing a number to one that is taken moves it to the next free one.
+-- Changing a number to one that is taken keeps the row's own number (no number is burnt).
 update public.change_orders set number = 2 where id = 'mco4';
-select pg_temp.check((select number from public.change_orders where id = 'mco4') = 6, 'a device cannot move a row onto a taken number');
+select pg_temp.check((select number from public.change_orders where id = 'mco4') = 4, 'a device cannot move a row onto a taken number');
+-- A device that never pulled the renumber saves its copy again (number 1, as it created it): the row keeps 2.
+update public.change_orders set number = 1, title = 'Move a reader (edited)' where id = 'mco2';
+update public.change_orders set number = 1, deleted = true where id = 'mco2';
+select pg_temp.check((select number = 2 and deleted from public.change_orders where id = 'mco2'), 'a stale copy keeps the row''s number instead of taking a new one each save');
+select pg_temp.check((select max(number) from public.change_orders where project_id = 'mp1') = 5, 'no number was burnt by stale saves');
 
 -- RFIs and tasks (technicians create tasks too).
 insert into public.rfis (id, project_id, number, subject, status) values ('mr1', 'mp1', 1, 'Mount height?', 'draft');
@@ -158,6 +175,17 @@ select pg_temp.check((select string_agg(id || '=' || number, ',' order by id) fr
   'oldest keeps its number; the rest follow the highest number (deleted ones included), oldest first');
 select pg_temp.check((select bool_and(updated_at > '2026-06-01') from public.tasks where id in ('dup-b', 'dup-c', 'dup-z')), 'renumbered rows are stamped newer');
 select pg_temp.check(public.renumber_job_duplicates() = 0, 'running it again changes nothing');
+-- Change orders: an approved duplicate keeps its number even when a draft with the same number is older.
+alter table public.change_orders disable trigger change_orders_zz_number;
+drop index public.change_orders_number_uniq;
+insert into public.change_orders (id, project_id, number, title, status, created_at) values
+  ('dco-draft', 'mp2', 1, 'Draft', 'draft', '2026-01-01'), ('dco-ok', 'mp2', 1, 'Signed', 'approved', '2026-01-02');
+select pg_temp.check(public.renumber_job_duplicates() = 1, 'one change order moves');
+select pg_temp.check((select string_agg(id || '=' || number, ',' order by id) from public.change_orders where project_id = 'mp2') = 'dco-draft=2,dco-ok=1',
+  'the approved change order keeps its number');
+create unique index change_orders_number_uniq on public.change_orders (project_id, number)
+  where number > 0 and not deleted and status not in ('void', 'rejected');
+alter table public.change_orders enable trigger change_orders_zz_number;
 create unique index tasks_number_uniq on public.tasks (project_id, number) where number > 0 and not deleted;
 alter table public.tasks enable trigger tasks_zz_number;
 select pg_temp.check(pg_temp.fails($$

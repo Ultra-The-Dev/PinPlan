@@ -53,6 +53,10 @@ function fakeDb() {
     const name = url.pathname.replace("/rest/v1/", "");
     const q = url.searchParams;
     if (name === "rpc/prune_integration_rows") return new Response(null, { status: 204 });
+    if (name === "rpc/my_billing_owner") {
+      const id = users[(headers.get("authorization") ?? "").replace(/^Bearer /, "")];
+      return id ? Response.json(`owner-of-${id}`) : new Response("{}", { status: 401 });
+    }
     if (name === "team_members") {
       const rows = members.filter((m) => match(m, q)).map((m) => ({ ...m, teams: teams.find((t) => t.id === m.team_id) }));
       return Response.json(rows);
@@ -479,6 +483,15 @@ describe("QuickBooks Online", () => {
     expect(await send(pushBody(invoice({ status: "draft" })))).toEqual([400, "draft"]);
     expect(await send(pushBody(invoice({ status: "void" })))).toEqual([400, "void"]);
     expect(await send({ body: JSON.stringify({ doc: invoice() }) })).toEqual([400, "bad_request"]);
+    // A job shared from another company: its invoice is visible, but it isn't this company's to send.
+    const foreign = invoice();
+    pushBody(foreign);
+    db.tables.sales_documents.find((x) => x.id === foreign.id)!.owner_id = "owner-of-someone-else";
+    expect(await send({ body: JSON.stringify({ docId: foreign.id }) })).toEqual([404, "not_found"]);
+    db.tables.sales_documents.find((x) => x.id === foreign.id)!.owner_id = "owner-of-u-owner";
+    const own = await r.push(req("/api/integrations/quickbooks/push", "tok-owner", { method: "POST", body: JSON.stringify({ docId: foreign.id }) }), ctx("quickbooks"));
+    expect(own.status).toBe(200);
+    qbo.calls.length = 0;
     expect(qbo.calls.some((c) => c.url.pathname.endsWith("/invoice"))).toBe(false);
     // Request problems never mark the connection as failing.
     expect(db.tables.integration_connections[0].last_error ?? null).toBeNull();
