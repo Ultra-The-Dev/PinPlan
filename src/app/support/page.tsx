@@ -144,7 +144,7 @@ export default function SupportPage() {
             <strong>Download backup</strong>. This saves a single file that PinPlan can restore on any device (Jobs → <strong>Restore backup</strong>).
           </li>
           <li>
-            <strong>Takeoff, pricing and reports:</strong> download PDFs and CSV files from the <strong>Takeoff</strong>, <strong>Money</strong> (Pricing),{" "}
+            <strong>Takeoff, pricing and reports:</strong> download PDFs and CSV files from the <strong>Takeoff</strong>, <strong>Money</strong> (Pricing section),{" "}
             <strong>Plan</strong> and <strong>Field</strong> tabs of a job.
           </li>
           <li>
