@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { configWarning, isProduction, missingProductionConfig, REQUIRED_PRODUCTION_VARS, REQUIRED_SCHEMA_VERSION, schemaStatus } from "@/lib/server/envCheck";
+import { configWarning, featureStatus, isProduction, missingProductionConfig, OPTIONAL_FEATURE_VARS, REQUIRED_PRODUCTION_VARS, REQUIRED_SCHEMA_VERSION, schemaStatus } from "@/lib/server/envCheck";
 
 const full = Object.fromEntries(REQUIRED_PRODUCTION_VARS.map((n) => [n, n === "PINPLAN_APP_URL" ? "https://app.example.com" : `value-of-${n}`]));
 
@@ -44,7 +44,7 @@ describe("schema version", () => {
     expect(schemaStatus("20261121020000_ops")).toBe("behind");
     // The access guards (invites, catalog, storage, proposals) are needed by this code.
     expect(schemaStatus("20261124100800_ops_hardening")).toBe("behind");
-    expect(REQUIRED_SCHEMA_VERSION).toBe("20261125001000_access_guards");
+    expect(REQUIRED_SCHEMA_VERSION).toBe("20261125002100_online_payments");
     expect(schemaStatus(null)).toBe("behind"); // function missing: migration not run
     expect(schemaStatus(undefined)).toBe("unknown");
     expect(schemaStatus([])).toBe("unknown");
@@ -61,5 +61,15 @@ describe("schema version", () => {
     const name = latest.replace(/\.sql$/, "");
     expect(readFileSync(join(dir, latest), "utf8")).toContain(`'${name}'`);
     expect(name >= REQUIRED_SCHEMA_VERSION).toBe(true);
+  });
+});
+
+describe("optional features", () => {
+  it("online payments are off until the Connect webhook secret is set, and never required for health", () => {
+    expect(featureStatus("onlinePayments", full)).toEqual({ status: "off", missing: ["STRIPE_CONNECT_WEBHOOK_SECRET"] });
+    expect(featureStatus("onlinePayments", { ...full, STRIPE_CONNECT_WEBHOOK_SECRET: "whsec" }).status).toBe("on");
+    expect(featureStatus("onlinePayments", { STRIPE_CONNECT_WEBHOOK_SECRET: "whsec" })).toMatchObject({ status: "incomplete" });
+    expect(REQUIRED_PRODUCTION_VARS).not.toContain("STRIPE_CONNECT_WEBHOOK_SECRET");
+    expect(OPTIONAL_FEATURE_VARS.onlinePayments).toContain("STRIPE_CONNECT_WEBHOOK_SECRET");
   });
 });

@@ -7,7 +7,7 @@
  * when the database is behind. Bump it (and redefine schema_version() in that migration) when code starts depending on
  * a newer migration.
  */
-export const REQUIRED_SCHEMA_VERSION = "20261125001000_access_guards";
+export const REQUIRED_SCHEMA_VERSION = "20261125002100_online_payments";
 
 /** What a paid production deployment can't run without. */
 export const REQUIRED_PRODUCTION_VARS = [
@@ -31,6 +31,15 @@ export const REQUIRED_PRODUCTION_VARS = [
   "TURNSTILE_SECRET_KEY",
 ] as const;
 
+/**
+ * Optional features: off (and invisible in the apps) until all of their settings are set. Never required for health.
+ * Online invoice payments (docs/payments.md) reuse STRIPE_SECRET_KEY and the service-role key, and add the Connect
+ * webhook's own signing secret. PINPLAN_PAYMENTS_FEE_BPS (platform fee, default 0) is optional on top.
+ */
+export const OPTIONAL_FEATURE_VARS = {
+  onlinePayments: ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+} as const;
+
 type Env = Record<string, string | undefined>;
 
 /**
@@ -49,6 +58,19 @@ export function missingProductionConfig(env: Env = process.env): string[] {
   const missing: string[] = REQUIRED_PRODUCTION_VARS.filter((n) => !present(env[n]));
   if (present(env.PINPLAN_APP_URL) && !/^https:\/\/[^\s/]+/i.test(env.PINPLAN_APP_URL!.trim())) missing.push("PINPLAN_APP_URL (must start with https://)");
   return missing;
+}
+
+/**
+ * An optional feature's state: "on" (every setting present), "off" (none of its own settings: the feature is simply not
+ * used) or "incomplete" (some of its own settings but not all; the feature stays off, which is worth a log line).
+ */
+export function featureStatus(feature: keyof typeof OPTIONAL_FEATURE_VARS, env: Env = process.env): { status: "on" | "off" | "incomplete"; missing: string[] } {
+  const names: readonly string[] = OPTIONAL_FEATURE_VARS[feature];
+  const missing = names.filter((n) => !present(env[n]));
+  if (!missing.length) return { status: "on", missing };
+  // The feature's own switch: the Connect webhook secret (the Stripe key and database settings serve other features too).
+  const own = feature === "onlinePayments" ? present(env.STRIPE_CONNECT_WEBHOOK_SECRET) : false;
+  return { status: own ? "incomplete" : "off", missing };
 }
 
 /** The single start-up log line, or null when nothing is missing (or this isn't production). */
