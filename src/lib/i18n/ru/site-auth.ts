@@ -470,14 +470,6 @@ const siteAuth: Dictionary = {
   "Your material and labor prices, markup and wire by the foot turn the count into a quote. Send the client a link: they tick the options they want, sign with a finger and approve. No account or app for them.":
     "Ваши цены на материалы и работу, наценка и стоимость кабеля за фут превращают подсчёт в смету. Отправьте клиенту ссылку: он отмечает нужные опции, расписывается пальцем и утверждает. Аккаунт и приложение ему не нужны.",
   "Change orders signed the same way as quotes": "Доп. сметы подписываются так же, как сметы",
-  "The crew reads it in Russian. The client gets English.": "Бригада читает по-русски. Клиент получает на английском.",
-  "Each person picks English or Russian, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.":
-    "Каждый выбирает английский или русский, и выбор сохраняется в его аккаунте. Планы, чек-листы, задачи и ежедневные отчёты — на его языке, а сметы, счета и письма клиентам всегда уходят на английском.",
-  "Russian is in the web app today, in any computer, tablet or phone browser.":
-    "Русский язык уже есть в веб-версии — в браузере на компьютере, планшете или телефоне.",
-  "Can my crew use it in Russian?": "Может ли бригада работать на русском?",
-  "Yes. Anyone can switch the web app to Russian from the menu or the page footer, and the choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Да. Любой может переключить веб-версию на русский в меню или внизу страницы, и выбор сохранится в его аккаунте. Сметы, счета и всё, что видит клиент, остаются на английском.",
 
   // Pictures of the app on /welcome (illustrations; names, sheet numbers and wire types stay as they are)
   "An electrical floor plan with {n} device pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {total} quote that the client signed and approved on their phone.":
@@ -643,6 +635,16 @@ const siteAuth: Dictionary = {
   "Do I pay for the iPad and iPhone apps?": "Нужно ли платить за приложения для iPad и iPhone?",
   "No. One subscription covers the web app and the iPad and iPhone apps for everyone on your team.":
     "Нет. Одна подписка покрывает веб-приложение и приложения для iPad и iPhone для всей вашей команды.",
+  "The crew reads it in their language. The client gets English.":
+    "Бригада читает на своём языке. Клиент получает английский.",
+  "Each person picks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese or Vietnamese, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.":
+    "Каждый выбирает английский, испанский, русский, украинский, польский, португальский, китайский или вьетнамский, и выбор сохраняется в его аккаунте. Планы, чек-листы, задачи и журналы — на его языке; сметы, счета и письма клиентам всегда уходят на английском.",
+  "All eight languages work in the web app today, in any computer, tablet or phone browser, and on the iPad and iPhone app.":
+    "Все восемь языков уже работают в веб-версии — в браузере компьютера, планшета или телефона — и в приложении для iPad и iPhone.",
+  "Can my crew use it in their own language?":
+    "Может ли бригада работать на своём языке?",
+  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Да. Northpin говорит на английском, испанском, русском, украинском, польском, португальском, китайском и вьетнамском. В веб-версии язык меняется в меню или внизу страницы, а приложение для iPad и iPhone следует языку устройства. Выбор сохраняется в аккаунте. Сметы, счета и всё, что видит клиент, остаются на английском.",
 };
 
 export default siteAuth;

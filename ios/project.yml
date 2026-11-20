@@ -55,7 +55,7 @@ targets:
         PinPlanServerURL: "$(PINPLAN_SERVER_URL)"
         # Languages the app ships (String Catalogs: Localizable, Labels, InfoPlist). Lets iOS offer Russian per app.
         CFBundleDevelopmentRegion: en
-        CFBundleLocalizations: [en, ru]
+        CFBundleLocalizations: [en, ru, es, pt-BR, uk, pl, zh-Hans, vi]
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF plan
             CFBundleTypeRole: Viewer

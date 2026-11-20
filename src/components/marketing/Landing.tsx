@@ -203,12 +203,12 @@ export default function Landing() {
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
             <div>
               <h2 id="crew-title" className="mk-h2 max-w-[12em]">
-                {t("The crew reads it in Russian. The client gets English.")}
+                {t("The crew reads it in their language. The client gets English.")}
               </h2>
               <p className="mk-lede mt-5">
-                {t("Each person picks English or Russian, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.")}
+                {t("Each person picks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese or Vietnamese, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.")}
               </p>
-              <p className="mt-4 text-[15px] text-mk-pencil">{t("Russian is in the web app today, in any computer, tablet or phone browser.")}</p>
+              <p className="mt-4 text-[15px] text-mk-pencil">{t("All eight languages work in the web app today, in any computer, tablet or phone browser, and on the iPad and iPhone app.")}</p>
             </div>
             <CrewVisual />
           </div>
@@ -307,8 +307,8 @@ export default function Landing() {
                 t("Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app."),
               ],
               [
-                t("Can my crew use it in Russian?"),
-                t("Yes. Anyone can switch the web app to Russian from the menu or the page footer, and the choice is saved on their login. Quotes, invoices and everything the client sees stay in English."),
+                t("Can my crew use it in their own language?"),
+                t("Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English."),
               ],
               [
                 t("Does it work with my accounting?"),
