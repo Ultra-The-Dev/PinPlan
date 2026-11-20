@@ -194,7 +194,7 @@ struct EstimateView: View {
                 }
                 if let m = message { Text(m.text).foregroundStyle(m.ok ? .green : .red).font(.callout) }
                 ForEach(model.bundle.project.billduDocs, id: \.id) { d in
-                    LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
+                    LabeledContent("\(tr(d.type.capitalized)) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
             } header: { Text("Billdu").textCase(nil) } footer: {
                 Text("Sent through your PinPlan server; Billdu keys never live on this device")

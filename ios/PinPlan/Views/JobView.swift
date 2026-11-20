@@ -87,7 +87,7 @@ struct JobMoreView: View {
             if !p.billduDocs.isEmpty && app.cloud.can(.prices) {
                 Section(sentence: String(localized: "Billdu")) {
                     ForEach(p.billduDocs, id: \.id) { d in
-                        LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
+                        LabeledContent("\(tr(d.type.capitalized)) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
                     }
                 }
             }

@@ -245,7 +245,7 @@ struct SelectionPeek: View {
     private func detailLine(_ m: Marker) -> String {
         var parts: [String] = []
         if !m.room.isEmpty { parts.append(m.room) }
-        parts.append(m.mount.rawValue.capitalized)
+        parts.append(tr(m.mount.rawValue.capitalized, context: "Catalog"))
         if !m.cables.isEmpty { parts.append(Cables.summary(m.cables)) }
         if m.tentative { parts.append(String(localized: "Optional")) }
         return parts.joined(separator: ", ")

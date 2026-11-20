@@ -39,7 +39,7 @@ struct PaletteView: View {
                 }
             }
             if query.isEmpty || vocab.run.localizedCaseInsensitiveContains(query) {
-                Section(sentence: vocab.run == "Wire run" ? "Wiring" : vocab.runs) {
+                Section(sentence: vocab.run == "Wire run" ? String(localized: "Wiring") : vocab.runs) {
                     toolRow(.wire, title: vocab.run, subtitle: vocab.runHint, count: 0) {
                         Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(.blue).frame(width: 28, height: 28)
                     }

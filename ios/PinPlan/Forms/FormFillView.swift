@@ -219,7 +219,7 @@ private struct FormHeader: View {
                 }
                 .tint(p.requiredDone == p.required ? Color.green : Color.accentColor)
                 if form.isSubmitted {
-                    let who: String = form.submittedBy.map { " by \($0)" } ?? ""
+                    let who: String = form.submittedBy.map { String(localized: " by \($0)") } ?? ""
                     let when: String = form.submittedAt.map { " · \(FormDates.full($0))" } ?? ""
                     Text("Submitted\(who)\(when). Locked — no more changes.").font(.subheadline).foregroundStyle(.green)
                 }

@@ -83,7 +83,7 @@ struct PlanReviewView: View {
             if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if let url = link(r.id) {
-            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
+            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
             Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }

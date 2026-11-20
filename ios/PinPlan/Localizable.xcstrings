@@ -664,7 +664,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %#@arg2@т фото"
+            "value" : "%1$@ · %#@arg2@ фото"
           },
           "substitutions" : {
             "arg2" : {
@@ -675,25 +675,25 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg требуе"
+                      "value" : "%arg требует"
                     }
                   },
                   "few" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg требую"
+                      "value" : "%arg требуют"
                     }
                   },
                   "many" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg требую"
+                      "value" : "%arg требуют"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg требую"
+                      "value" : "%arg требуют"
                     }
                   }
                 }
@@ -784,7 +784,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · в%2$lld"
+            "value" : "%1$@ · версия %2$lld"
           }
         }
       }
@@ -1726,7 +1726,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld из %2$lld событий"
+            "value" : "Событий: %1$lld из %2$lld"
           }
         }
       }
@@ -2363,25 +2363,25 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld задача к сроку"
+                  "value" : "%lld задача на сегодня"
                 }
               },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld задачи к сроку"
+                  "value" : "%lld задачи на сегодня"
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld задач к сроку"
+                  "value" : "%lld задач на сегодня"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld задач к сроку"
+                  "value" : "%lld задач на сегодня"
                 }
               }
             }
@@ -2528,7 +2528,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$lld · последнее %2$@"
+            "value" : "%1$lld · последнее: %2$@"
           }
         }
       }
@@ -3174,7 +3174,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Добавлен%#@arg1@ · масштаб прочитан на %2$lld"
+            "value" : "%#@arg1@ · масштаб прочитан на %2$lld"
           },
           "substitutions" : {
             "arg1" : {
@@ -3185,25 +3185,25 @@
                   "one" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : " %arg лист"
+                      "value" : "Добавлен %arg лист"
                     }
                   },
                   "few" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "о %arg листа"
+                      "value" : "Добавлено %arg листа"
                     }
                   },
                   "many" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "о %arg листов"
+                      "value" : "Добавлено %arg листов"
                     }
                   },
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "о %arg листов"
+                      "value" : "Добавлено %arg листов"
                     }
                   }
                 }
@@ -3558,7 +3558,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple Pencil рисует, палец двигает"
+            "value" : "Apple Pencil рисует, пальцем — прокрутка"
           }
         }
       }
@@ -4966,7 +4966,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скопировать с %@"
+            "value" : "Скопировать из отчёта за %@"
           }
         }
       }
@@ -4976,7 +4976,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скопировать со вчера"
+            "value" : "Скопировать из вчерашнего отчёта"
           }
         }
       }
@@ -5968,7 +5968,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Рисунок"
+            "value" : "Карандаш"
           }
         }
       }
@@ -7041,26 +7041,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "есть фото"
-          }
-        }
-      }
-    },
-    "Here is your quote — you can review it and approve it online:" : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ваша смета — её можно посмотреть и утвердить онлайн:"
-          }
-        }
-      }
-    },
-    "Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:" : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вот предварительный план с размещением — легенда объясняет каждый символ. Сообщите, всё ли верно или что вы хотели бы изменить:"
           }
         }
       }
@@ -9560,7 +9540,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нечего копировать с %@."
+            "value" : "Нечего копировать из отчёта за %@."
           }
         }
       }
@@ -12102,7 +12082,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Помещение убрано"
+            "value" : "Помещение сброшено"
           }
         }
       }
@@ -13288,7 +13268,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Показано %1$lld из %2$lld устройств"
+            "value" : "Показано устройств: %1$lld из %2$lld"
           }
         }
       }
@@ -14118,7 +14098,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Тег «%2$@» добавлен: %1$lld"
+            "value" : "Тег «%2$@» добавлен к %1$lld фото"
           }
         }
       }
@@ -16346,7 +16326,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Работаю один"
+            "value" : "Без команды"
           }
         }
       }
@@ -16727,6 +16707,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "…и ещё %lld"
+          }
+        }
+      }
+    },
+    "Options: %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Опции: %@"
+          }
+        }
+      }
+    },
+    " by %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ", автор: %@"
+          }
+        }
+      }
+    },
+    "Wiring" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кабельные трассы"
           }
         }
       }

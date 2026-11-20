@@ -82,7 +82,7 @@ struct ClientProposalView: View {
         if r.status == "accepted" {
             Label("\(r.client_name ?? String(localized: "The client")) approved · \(Money.format(r.accepted_total ?? 0, currency: cur))", systemImage: "checkmark.seal.fill").foregroundStyle(Color.approved)
             let chosen = r.snapshot.lines.filter { (r.chosen_options ?? []).contains($0.key) }
-            if !chosen.isEmpty { Text("Options: " + chosen.map(\.description).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
+            if !chosen.isEmpty { Text("Options: \(chosen.map(\.description).joined(separator: ", "))").font(.caption).foregroundStyle(.secondary) }
             if let sig = r.signature, let data = Data(base64Encoded: String(sig.split(separator: ",").last ?? "")), let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 60).background(.white)
             }
@@ -90,7 +90,7 @@ struct ClientProposalView: View {
         }
         if r.status == "declined" { Text("\(r.client_name ?? String(localized: "The client")) declined\(r.client_note.map { ": “\($0)”" } ?? ".")") }
         if let url = link(r.id) {
-            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here is your quote — you can review it and approve it online:")) {
+            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here is your quote — you can review it and approve it online:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
             Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
