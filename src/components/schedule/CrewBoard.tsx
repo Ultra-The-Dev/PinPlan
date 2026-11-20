@@ -10,6 +10,7 @@ import { getAuthor } from "@/lib/photos";
 import { addDays, crewLoad, isWeekend, normalizeItem, weekStart } from "@/lib/schedule";
 import { useSyncStatus } from "@/lib/sync";
 import type { Project, ScheduleItem } from "@/lib/types";
+import { TONE_CHIP } from "@/lib/statusStyle";
 import { Avatar, fmtDay, jobColor } from "./shared";
 
 const DAYS = 14;
@@ -115,8 +116,8 @@ export default function CrewBoard() {
 
       {board && (overbooked > 0 || unstaffed > 0) && (
         <div className="flex flex-wrap gap-2 text-xs">
-          {overbooked > 0 && <span className="chip bg-red-50 text-red-700 ring-1 ring-red-200">{overbooked} overbooked day{overbooked === 1 ? "" : "s"}</span>}
-          {unstaffed > 0 && <span className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200">{unstaffed} phase{unstaffed === 1 ? "" : "s"} with no crew</span>}
+          {overbooked > 0 && <span className={`chip ${TONE_CHIP.bad}`}>{overbooked} overbooked day{overbooked === 1 ? "" : "s"}</span>}
+          {unstaffed > 0 && <span className={`chip ${TONE_CHIP.warn}`}>{unstaffed} phase{unstaffed === 1 ? "" : "s"} with no crew</span>}
         </div>
       )}
 

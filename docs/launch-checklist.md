@@ -328,18 +328,14 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 
 ## Developer items still open when the launch work merged
 
-Not owner tasks, but check they're done before launch:
+Not owner tasks, but check they're done before launch. (Done since: the jsdom dialog and signature tests run in CI,
+the join page and `/api/team/join` agree on the Turnstile token, the quote number fallback is `Q-{0000}`, and the iOS
+cloud sync screen has the account-switch choice.)
 
-- Add `jsdom` as a dev dependency and `tests/**/*.test.tsx` to the vitest include, so the dialog and signature tests
-  run in CI. Then a short manual accessibility pass (Escape closes dialogs and focus returns; a client can sign a
-  quote by typing a name; messages stay readable while a dialog is open), ideally with VoiceOver or NVDA.
-- Turnstile on the invite join page: the page sends the token as `captchaToken`, but `/api/team/join` reads
-  `turnstileToken`. Make them match (with a test) before `TURNSTILE_SECRET_KEY` is set, or every join is refused with
-  "Finish the security check".
-- iOS: the account-switch button in the cloud sync screen; build once in Xcode after merging the iOS branches; check the
-  dark and tinted app icons in the asset catalog; set the server address in each build (Settings → PinPlan server) so
-  the web links, quotes and invoices and the Billdu card appear.
-- Optional: a migration changing the `EST-{0000}` fallback in `public.document_number_format` to `Q-{0000}` (test on the
-  local database first).
+- A short manual accessibility pass: Escape closes dialogs and focus returns; a client can sign a quote by typing a
+  name; messages stay readable while a dialog is open. Ideally with VoiceOver or NVDA.
+- iOS: build once in Xcode after merging the iOS branches; check the dark and tinted app icons in the asset catalog;
+  set the server address in each build (Settings → PinPlan server) so the web links, quotes and invoices and the Billdu
+  card appear.
 - Optional: run `scripts/e2e-plan-viewer.cjs`, `scripts/e2e-sheet-links.cjs` and `scripts/e2e-install-progress.cjs`
   against a dev build and look at the plan at 390 px and 1280 px wide.

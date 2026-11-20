@@ -249,7 +249,7 @@ export function Dots({ points, scale, color }: { points: { x: number; y: number;
         <div
           key={p.key}
           className="pointer-events-none absolute rounded-full"
-          style={{ left: p.x - r, top: p.y - r, width: 2 * r, height: 2 * r, background: p.color ?? color ?? "#ea580c", border: `${1.5 / scale}px solid white`, boxShadow: `0 0 ${2 / scale}px rgba(0,0,0,.5)` }}
+          style={{ left: p.x - r, top: p.y - r, width: 2 * r, height: 2 * r, background: p.color ?? color ?? "#0B6FE0", border: `${1.5 / scale}px solid white`, boxShadow: `0 0 ${2 / scale}px rgba(0,0,0,.5)` }}
         />
       ))}
     </>

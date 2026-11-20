@@ -7,6 +7,7 @@ import { applyTransform, clampWarning, invertTransform, similarityFromPairs, typ
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import type { Sheet } from "@/lib/types";
+import { TONE_HEX } from "@/lib/statusStyle";
 import { alignToPrevious, replaceCurrentImage, type CarryReport } from "./revisionActions";
 import { Dots, ImageState, Pin, Screen, useStoredImage, ZoomPane } from "./ui";
 
@@ -19,7 +20,8 @@ export interface AlignSide {
   dots?: { x: number; y: number; key: string; color?: string }[];
 }
 
-const COLORS = ["#2563eb", "#ea580c"];
+/** Pin 1 and pin 2: action blue and ink (Blueprint Ink, docs/brand.md). */
+const COLORS = ["#0B6FE0", "#0F2340"];
 
 /** Two drawings side by side; tap the same 2 spots on each. Reports the transform A → B once both have 2 points. */
 export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: AlignSide; onTransform: (T: Affine | null) => void; preview?: boolean; fitKey?: string }) {
@@ -67,7 +69,7 @@ export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: Align
               // eslint-disable-next-line @next/next/no-img-element
               <img src={img.url} alt={s.label} draggable={false} className="pointer-events-none absolute inset-0 h-full w-full bg-white" />
             )}
-            {dots && <Dots points={dots.map((d) => ({ ...d, x: d.x * s.width, y: d.y * s.height }))} scale={scale} color={side === "a" ? "#64748b" : "#16a34a"} />}
+            {dots && <Dots points={dots.map((d) => ({ ...d, x: d.x * s.width, y: d.y * s.height }))} scale={scale} color={side === "a" ? TONE_HEX.neutral : TONE_HEX.ok} />}
             {pts[side].map((p, i) => (
               <Pin key={i} x={p[0] * s.width} y={p[1] * s.height} n={i + 1} scale={scale} color={COLORS[i]} />
             ))}

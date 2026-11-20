@@ -2,15 +2,16 @@
 // Small pieces shared by the job schedule, the crew board and the My Tasks strip.
 import { memberInitials } from "@/lib/teamLogic";
 import { dayNum } from "@/lib/schedule";
+import { TONE_HEX } from "@/lib/statusStyle";
 
 /** Bars without a colour of their own: action blue (Blueprint Ink, docs/brand.md). */
 export const DEFAULT_BAR = "#0B6FE0";
 
-/** Phase colours offered in the editor. */
-export const SWATCHES = ["#0B6FE0", "#d97706", "#7c3aed", "#0B7F72", "#16a34a", "#e11d48", "#0F2340", "#526580"];
+/** Phase colours offered in the editor (Blueprint Ink tones where one fits, src/lib/statusStyle.ts). */
+export const SWATCHES = [TONE_HEX.info, TONE_HEX.warn, "#7c3aed", TONE_HEX.ok, "#16a34a", TONE_HEX.bad, "#0F2340", "#526580"];
 
 /** A stable colour per job (crew board chips). */
-const JOB_COLORS = ["#0B6FE0", "#7c3aed", "#0B7F72", "#d97706", "#db2777", "#16a34a", "#0891b2", "#9333ea", "#65a30d", "#0F2340"];
+const JOB_COLORS = ["#0B6FE0", "#7c3aed", "#0B7F72", TONE_HEX.warn, "#db2777", "#16a34a", "#0891b2", "#9333ea", "#65a30d", "#0F2340"];
 export function jobColor(id: string): string {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

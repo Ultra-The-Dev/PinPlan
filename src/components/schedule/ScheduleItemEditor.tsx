@@ -230,7 +230,7 @@ export default function ScheduleItemEditor(props: {
               <Link2 className="h-3.5 w-3.5" /> Starts after (finish-to-start)
             </span>
             {missing.length > 0 && (
-              <div className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <div className="mb-2 rounded-lg bg-warn-50 px-3 py-2 text-xs text-warn-700">
                 Waits on {missing.length === 1 ? "a phase that was deleted" : `${missing.length} phases that were deleted`} — ignored.{" "}
                 {full && (
                   <button type="button" className="font-medium underline" onClick={() => set({ dependsOn: (f.dependsOn ?? []).filter((d) => !missing.includes(d)) })}>

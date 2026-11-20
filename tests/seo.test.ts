@@ -82,8 +82,7 @@ describe("page metadata", () => {
   });
 
   it("each public page we own sets its canonical path, and / points at /welcome", () => {
-    const owned = PUBLIC_PAGES.filter((p) => p.path !== "/signup");
-    for (const p of owned) expect(read(`src/app${p.path}/page.tsx`), p.path).toMatch(new RegExp(`publicMetadata\\(\\{\\s*path: "${p.path}"`));
+    for (const p of PUBLIC_PAGES) expect(read(`src/app${p.path}/page.tsx`), p.path).toMatch(new RegExp(`publicMetadata\\(\\{\\s*path: "${p.path}"`));
     expect(read("src/app/page.tsx")).toMatch(/publicMetadata\(\{\s*path: "\/welcome"/);
   });
 

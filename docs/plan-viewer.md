@@ -98,8 +98,8 @@ Overlay controls never position themselves over the plan; they go in one of thre
 
 | Place | Where | Who (order) |
 | --- | --- | --- |
-| Right rail — `<RailSlot order={n}>` | top right, under View / Edit, one button wide | tasks 10, markups 20, revisions 30 |
-| Left rail — `<RailSlot side="left" order={n}>` | top left, under the sheet pill; at most `calc(100% - 4rem)` wide on phones | Back to sheet 10, Measure 20, Progress 30, Link tool 40 |
+| Right rail — `<RailSlot order={n}>` | top right, under View / Edit, one button wide | tasks 10, markups 20, revisions 30, Link tool 40 (phones only) |
+| Left rail — `<RailSlot side="left" order={n}>` | top left, under the sheet pill; at most `calc(100% - 4rem)` wide on phones | Back to sheet 10, Measure 20, Progress 30, Link tool 40 (tablet and desktop; on phones it moves to the right rail so the left rail stays short) |
 | Status slot — `<StatusSlot order={n}>` | bottom centre, above the bottom controls (above the toolbar row on phones) | editor hint / drawing bar 10, measure bars 20, link tool bar 30, progress snackbar 40 / photo prompt 41, phone bottom sheets 80–90 |
 
 - Slots sort by `order` (CSS order, so mount order doesn't matter). `shrink` lets a tall right-rail column shrink and
