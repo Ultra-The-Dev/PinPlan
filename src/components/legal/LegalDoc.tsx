@@ -6,6 +6,7 @@ import { MAIN_ID, MK_ROOT } from "@/components/marketing/fonts";
 import { SiteHeader } from "@/components/marketing/Site";
 import { msg } from "@/lib/i18n/msg";
 import { T } from "@/lib/i18n/T";
+import type { Locale } from "@/lib/i18n/types";
 import ByLocale from "./ByLocale";
 
 /**
@@ -60,9 +61,9 @@ export interface TocItem {
 }
 
 /**
- * A Russian translation of a legal or support page, shown instead of the English text when the visitor's language is
- * Russian. It is marked as a translation for convenience: the English version governs. Keep it in step with the English
- * page (src/components/legal/ru/).
+ * A translation of a legal or support page, shown instead of the English text when the visitor's language matches. It
+ * is marked as a translation for convenience: the English version governs. Keep it in step with the English page
+ * (src/components/legal/<lang>/).
  */
 export interface LegalTranslation {
   title: string;
@@ -79,6 +80,7 @@ export default function LegalDoc({
   toc,
   children,
   ru,
+  translations,
 }: {
   title: string;
   intro?: React.ReactNode;
@@ -89,7 +91,10 @@ export default function LegalDoc({
   children: React.ReactNode;
   /** The Russian translation for convenience (the English text stays the binding one). */
   ru?: LegalTranslation;
+  /** Translations in other languages, by locale (same rule: English governs). */
+  translations?: Partial<Record<Locale, LegalTranslation>>;
 }) {
+  const all: Partial<Record<Locale, LegalTranslation>> = { ...translations, ...(ru ? { ru } : {}) };
   const english = (
     <DocBody title={title} intro={intro} effective={effective} updated={updated} toc={toc}>
       {children}
@@ -115,14 +120,17 @@ export default function LegalDoc({
         </nav>
 
         <main id={MAIN_ID} tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 outline-none sm:px-6 sm:py-14">
-          {ru ? (
+          {Object.keys(all).length ? (
             <ByLocale
               en={english}
-              ru={
-                <DocBody title={ru.title} intro={ru.intro} effective={effective} updated={updated} toc={ru.toc} translated>
-                  {ru.children}
-                </DocBody>
-              }
+              versions={Object.fromEntries(
+                Object.entries(all).map(([code, v]) => [
+                  code,
+                  <DocBody key={code} title={v.title} intro={v.intro} effective={effective} updated={updated} toc={v.toc} translated>
+                    {v.children}
+                  </DocBody>,
+                ]),
+              )}
             />
           ) : (
             english
