@@ -44,8 +44,8 @@ In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so exis
 |---|---|---|
 | `brand-50` … `brand-300` | `#EEF6FF` `#DDEDFF` `#B9DAFF` `#84BFFF` | Action-blue tints: selected states, `.btn-on`, focus ring on inputs |
 | `brand-400` | `#33A9FF` | Electric (logo pin, focus on dark). Not for text on white |
-| `brand-500` | `#1A86F0` | Input focus border, small accents |
-| `brand-600` | `#0B6FE0` | Action blue: `.btn-brand`, links, focus outline. White text 4.8:1 |
+| `brand-500` | `#1A86F0` | Small accents |
+| `brand-600` | `#0B6FE0` | Action blue: `.btn-brand`, links, focus outline, input focus border. White text 4.8:1 |
 | `brand-700` / `brand-800` | `#0958B5` / `#0A4690` | Action deep (hover), text on blue tints (6.3:1 on brand-50) |
 | `ink` | `#0F2340` | `.btn-primary`, page titles, theme colour (14.5:1 on paper) |
 | `slate-50` | `#F2F6FA` | Paper: page background |
