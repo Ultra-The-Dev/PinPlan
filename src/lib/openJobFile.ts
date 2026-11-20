@@ -53,19 +53,21 @@ export function openBlankTab(mime: string | null | undefined): Window | null {
 }
 
 /**
- * Show a job file: in `win` (from openBlankTab) when its bytes are a PDF or a raster image, else download it.
+ * Show a job file: in `win` (from openBlankTab, already cut off from this window) when its bytes are a PDF or a raster
+ * image, else download it.
  * Returns what happened, for callers and tests.
  */
 export async function openJobFile(rec: { blob: Blob }, doc: { name: string }, win: Window | null = null): Promise<"opened" | "downloaded"> {
   const bytes = new Uint8Array(await rec.blob.arrayBuffer());
   const type = sniffViewableType(bytes);
-  if (type) {
+  if (type && win) {
     const url = URL.createObjectURL(new Blob([bytes], { type }));
-    if (win) win.location.href = url;
-    else window.open(url, "_blank", "noopener,noreferrer");
+    win.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return "opened";
   }
+  // No tab ready (the row didn't look viewable, or the browser blocked the tab): download, as before. A tab opened
+  // here, after an await, is blocked without a word on Safari/iPad.
   win?.close();
   downloadBlob(new Blob([bytes], { type: "application/octet-stream" }), doc.name || "file");
   return "downloaded";

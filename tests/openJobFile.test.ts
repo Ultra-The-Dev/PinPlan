@@ -94,11 +94,13 @@ describe("openJobFile", () => {
     expect(downloads[0].blob.type).toBe("application/octet-stream");
   });
 
-  it("without a pre-opened tab opens with noopener", async () => {
+  it("without a pre-opened tab downloads (a tab opened after an await is blocked on Safari) and opens nothing", async () => {
     const r = await openJobFile({ blob: new Blob([PNG]) }, { name: "photo.png" });
-    expect(r).toBe("opened");
-    expect(opened).toEqual([{ url: "blob:app/1", target: "_blank", features: "noopener,noreferrer" }]);
-    expect(created[0].type).toBe("image/png");
+    expect(r).toBe("downloaded");
+    expect(opened).toEqual([]);
+    expect(created).toHaveLength(0);
+    expect(downloads[0].name).toBe("photo.png");
+    expect(downloads[0].blob.type).toBe("application/octet-stream");
   });
 });
 
