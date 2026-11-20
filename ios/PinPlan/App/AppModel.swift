@@ -17,8 +17,31 @@ final class AppModel {
     /// The project open in the editor, so synced changes show up there.
     @ObservationIgnored weak var openEditor: EditorModel?
 
+    /// True while the app was started with the device locked (iOS can pre-launch apps): Store files are written
+    /// complete-unless-open, so they can't be read yet. Nothing is loaded, saved or synced until the device is
+    /// unlocked (`loadIfWaiting`), so empty data read while locked never overwrites the real files.
+    private(set) var waitingForUnlock = false
+
     init(store: Store = .shared) {
         self.store = store
+        guard store.isReadable() else {
+            waitingForUnlock = true
+            NotificationCenter.default.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.loadIfWaiting() }
+            }
+            return
+        }
+        load()
+    }
+
+    /// Load what a launch while locked skipped. `force` when the user is in the app (the device is unlocked).
+    func loadIfWaiting(force: Bool = false) {
+        guard waitingForUnlock, force || store.isReadable() else { return }
+        waitingForUnlock = false
+        load()
+    }
+
+    private func load() {
         projects = store.loadAllProjects().sorted { $0.project.updatedAt > $1.project.updatedAt }
         catalog = store.loadCatalog()
         products = store.loadProducts()
@@ -32,6 +55,8 @@ final class AppModel {
     /// Write rows that sync brought in (or removed) to disk and to the screens.
     func applySync(from before: SyncState, to after: SyncState) {
         for (id, b) in after.bundles where before.bundles[id] != b {
+            // A row whose ids can't be file names never reaches the disk or the screens (PinPlanCore.SafeId).
+            guard b.unsafeFileIds.isEmpty else { continue }
             store.save(b)
             if let i = projects.firstIndex(where: { $0.project.id == id }) { projects[i] = b } else { projects.append(b) }
             if openEditor?.bundle.project.id == id { openEditor?.replaceFromSync(b) }
@@ -57,18 +82,31 @@ final class AppModel {
         return s
     }
 
-    /// Remove everything this app keeps on this device: jobs, plans, photos, documents, catalog, products,
-    /// settings, the sync ledger and cached team (after deleting the account). The app starts fresh, as if new.
+    /// Device preferences that survive `wipeLocalData()`: how this device shows things, nothing about the company,
+    /// the account or a job.
+    static let devicePreferenceKeys = ["viewer.minimap", "viewer.pencilDraws", "pinplan.field.todayOpen", "pinplan.photoLocation", "pinplan.officeOverlays"]
+
+    /// Remove everything this app keeps on this device except device preferences: jobs, plans, photos, documents,
+    /// catalog, products, settings, the sync ledger, cached team and plan tiles, waiting files and backups (after
+    /// deleting the account, or on sign-out). The app starts fresh, as if new.
     func wipeLocalData() {
         cloud.wipeForAccountDeletion()
         openEditor = nil
         incomingFiles = []
         pendingImport = nil
+        pendingRestore = nil
+        restoreMessage = nil
         store.wipeAll()
-        if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id) }
-        let tmp = FileManager.default.temporaryDirectory
-        for url in (try? FileManager.default.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? [] {
-            try? FileManager.default.removeItem(at: url)
+        let defaults = UserDefaults.standard
+        let keep = Self.devicePreferenceKeys.compactMap { k in defaults.object(forKey: k).map { (k, $0) } }
+        if let id = Bundle.main.bundleIdentifier { defaults.removePersistentDomain(forName: id) }
+        for (k, v) in keep { defaults.set(v, forKey: k) }
+        let fm = FileManager.default
+        var folders = [fm.temporaryDirectory, fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]]
+        // Files other apps opened in PinPlan land in Documents/Inbox; older installs kept the store in Documents.
+        folders.append(fm.urls(for: .documentDirectory, in: .userDomainMask)[0])
+        for dir in folders {
+            for url in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] { try? fm.removeItem(at: url) }
         }
         projects = []
         catalog = store.loadCatalog()
@@ -121,15 +159,36 @@ final class AppModel {
     /// Files to import once the chosen project's Sheets screen appears.
     var pendingImport: (projectId: String, urls: [URL])?
 
-    /// Copy an opened file into our temp folder right away (inbox / security-scoped URLs can disappear).
+    /// A backup waiting for the user to confirm what it brings in (never restored straight away).
+    var pendingRestore: PendingRestore?
+    /// The outcome of a restore (or why a file was refused), shown once.
+    var restoreMessage: String?
+
+    /// Copy an opened file into our temp folder right away (inbox / security-scoped URLs can disappear). A PinPlan
+    /// backup waits for confirmation (`pendingRestore`); other files wait for the user to pick a job.
     func receive(_ url: URL) {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
-        let copy = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
-        if (try? FileManager.default.copyItem(at: url, to: copy)) != nil {
-            if url.pathExtension.lowercased() == "json", let n = try? restore(from: copy), n > 0 { return }
-            incomingFiles.append(copy)
+        let fm = FileManager.default
+        let copy = fm.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+        guard (try? fm.copyItem(at: url, to: copy)) != nil else { return }
+        // iOS puts files opened from other apps in Documents/Inbox: we have our copy, so the original goes.
+        let inbox = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Inbox", isDirectory: true)
+        if PinPlanCore.SafeId.isContained(url.resolvingSymlinksInPath(), in: inbox.resolvingSymlinksInPath()) { try? fm.removeItem(at: url) }
+        if url.pathExtension.lowercased() == "json" {
+            do {
+                try prepareRestore(from: copy)
+                try? fm.removeItem(at: copy)
+                return
+            } catch let e as PinPlanCore.UnsafeIdError {
+                try? fm.removeItem(at: copy)
+                restoreMessage = tr(e.localizedDescription)
+                return
+            } catch {
+                // Not a backup: treat it like any other file.
+            }
         }
+        incomingFiles.append(copy)
     }
 
     /// A ready-made demo job to explore every feature (plans are drawn off the main thread).
@@ -235,12 +294,46 @@ final class AppModel {
         saveSettings()
     }
 
-    func restore(from url: URL) throws -> Int {
-        let restored = try store.restore(from: url, catalog: &catalog, products: &products)
-        store.saveCatalog(catalog)
-        store.saveProducts(products)
+    /// May this user bring products and catalog types in from a backup? Office roles only (and people working alone).
+    var mayImportLibrary: Bool { cloud.can(.editCatalog) }
+
+    /// Read a backup and wait for the user to confirm (`pendingRestore`). Nothing is written yet. Throws when the
+    /// file isn't a PinPlan backup or contains an unsafe id.
+    func prepareRestore(from url: URL) throws {
+        let file = try store.readBackup(from: url)
+        let plan = PinPlanCore.BackupRestore.plan(file, existingProjectIds: Set(projects.map(\.project.id)), catalog: catalog,
+                                                  products: products, mayImportLibrary: mayImportLibrary)
+        pendingRestore = PendingRestore(file: file, plan: plan)
+    }
+
+    /// Restore the confirmed backup. Jobs already on this device come in as copies with new ids unless
+    /// `replaceExisting`. Returns how many jobs were restored.
+    @discardableResult
+    func confirmRestore(replaceExisting: Bool) throws -> Int {
+        guard let pending = pendingRestore else { return 0 }
+        pendingRestore = nil
+        // The role may have changed while the sheet was open: plan again with what is true now.
+        let plan = PinPlanCore.BackupRestore.plan(pending.file, existingProjectIds: Set(projects.map(\.project.id)), catalog: catalog,
+                                                  products: products, mayImportLibrary: mayImportLibrary)
+        let copies = replaceExisting ? Set<String>() : Set(plan.existingJobs.map(\.projectId))
+        let keep = Set(catalog.map(\.id) + products.map(\.id) + (pending.file.catalog ?? []).map(\.id) + (pending.file.products ?? []).map(\.id))
+        let restored = try store.restoreJobs(from: pending.file, asCopies: copies, keepIds: keep)
+        if plan.includesLibrary {
+            PinPlanCore.BackupRestore.applyLibrary(plan, catalog: &catalog, products: &products)
+            store.saveCatalog(catalog)
+            store.saveProducts(products)
+        }
         for b in restored { didSave(b) }
         projects.sort { $0.project.updatedAt > $1.project.updatedAt }
         return restored.count
     }
+
+    func cancelRestore() { pendingRestore = nil }
+}
+
+/// A backup read from a file, waiting for the user to confirm (AppModel.pendingRestore).
+struct PendingRestore: Identifiable {
+    let id = UUID()
+    let file: PinPlanCore.BackupFile
+    let plan: PinPlanCore.RestorePlan
 }

@@ -142,10 +142,8 @@ struct ProjectsView: View {
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .sheet(isPresented: $showTeam) { TeamSheet() }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
-                do {
-                    let n = try app.restore(from: result.get())
-                    message = String(localized: "Restored \(n) jobs")
-                } catch { message = error.localizedDescription }
+                // Nothing is written until the user confirms what the backup brings in (PinPlanApp: RestoreConfirmSheet).
+                do { try app.prepareRestore(from: result.get()) } catch { message = tr(error.localizedDescription) }
             }
             .task {
                 // Server calls carry the user's session; a fresh install connects to the built-in server (AccountViews.swift).

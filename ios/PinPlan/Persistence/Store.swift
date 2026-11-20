@@ -33,11 +33,14 @@ struct AppSettings: Codable, Equatable {
     }
 }
 
-/// File-based, offline-first storage in the app's Documents folder:
+/// File-based, offline-first storage in the app's Application Support folder (not Documents, so nothing shows in the
+/// Files app; older installs are moved over once):
 ///   projects/<id>.json   one ProjectBundle per project
 ///   images/<id>.jpg      plan sheets and device photos
 ///   catalog.json, settings.json
-/// Documents is visible in the Files app (UIFileSharingEnabled) and included in iCloud/iTunes device backups.
+/// Every file is written with complete-unless-open data protection (unreadable while the device is locked, except
+/// files already open). Ids come from sync and from backups, so every id is checked with `PinPlanCore.SafeId` before
+/// it becomes a file name, and the resulting path must stay inside its folder.
 final class Store: @unchecked Sendable {
     static let shared = Store()
 
@@ -49,15 +52,86 @@ final class Store: @unchecked Sendable {
     private let queue = DispatchQueue(label: "pinplan.store")
     private let imageCache = NSCache<NSString, UIImage>()
 
+    /// Writes: atomic and unreadable while the device is locked (unless the file is already open).
+    static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUnlessOpen]
+    private static let protection: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUnlessOpen]
+
     init(root: URL? = nil) {
-        let docs = root ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("PinPlan", isDirectory: true)
-        self.root = docs
-        projectsDir = docs.appendingPathComponent("projects", isDirectory: true)
-        imagesDir = docs.appendingPathComponent("images", isDirectory: true)
-        pdfsDir = docs.appendingPathComponent("pdfs", isDirectory: true)
-        for d in [docs, projectsDir, imagesDir, pdfsDir] { try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        let base = root ?? Store.defaultRoot()
+        self.root = base
+        projectsDir = base.appendingPathComponent("projects", isDirectory: true)
+        imagesDir = base.appendingPathComponent("images", isDirectory: true)
+        pdfsDir = base.appendingPathComponent("pdfs", isDirectory: true)
+        createFolders()
         imageCache.totalCostLimit = 300 * 1024 * 1024
     }
+
+    private func createFolders() {
+        for d in [root, projectsDir, imagesDir, pdfsDir] {
+            try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true, attributes: Self.protection)
+        }
+    }
+
+    /// Application Support/PinPlan. The first launch after an update moves Documents/PinPlan here (once) and
+    /// re-protects what it moved.
+    static func defaultRoot() -> URL {
+        let fm = FileManager.default
+        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let newRoot = support.appendingPathComponent("PinPlan", isDirectory: true)
+        let oldRoot = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("PinPlan", isDirectory: true)
+        guard fm.fileExists(atPath: oldRoot.path) else { return newRoot }
+        try? fm.createDirectory(at: support, withIntermediateDirectories: true, attributes: protection)
+        if !fm.fileExists(atPath: newRoot.path) {
+            try? fm.moveItem(at: oldRoot, to: newRoot)
+        } else {
+            // Both exist (an interrupted move): bring over whatever isn't here yet, folder by folder.
+            mergeMove(from: oldRoot, to: newRoot)
+        }
+        protectTree(newRoot)
+        return newRoot
+    }
+
+    private static func mergeMove(from: URL, to: URL) {
+        let fm = FileManager.default
+        for name in (try? fm.contentsOfDirectory(atPath: from.path)) ?? [] {
+            let src = from.appendingPathComponent(name), dst = to.appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            if fm.fileExists(atPath: dst.path, isDirectory: &isDir) {
+                if isDir.boolValue { mergeMove(from: src, to: dst) }
+                continue
+            }
+            try? fm.moveItem(at: src, to: dst)
+        }
+        // What is left was already here (the newer copy wins); the old folder goes.
+        try? fm.removeItem(at: from)
+    }
+
+    private static func protectTree(_ dir: URL) {
+        let fm = FileManager.default
+        try? fm.setAttributes(protection, ofItemAtPath: dir.path)
+        guard let e = fm.enumerator(at: dir, includingPropertiesForKeys: nil) else { return }
+        for case let url as URL in e { try? fm.setAttributes(protection, ofItemAtPath: url.path) }
+    }
+
+    /// Can this app read its files right now? False while the device is locked (complete-unless-open protection):
+    /// a small check file is written if missing and read back.
+    func isReadable() -> Bool {
+        let url = root.appendingPathComponent(".readable")
+        if !FileManager.default.fileExists(atPath: url.path) { try? Data("ok".utf8).write(to: url, options: Self.writeOptions) }
+        return (try? Data(contentsOf: url)) != nil
+    }
+
+    // MARK: safe paths
+
+    /// `dir/<id>.<ext>` for a safe id (PinPlanCore.SafeId: checked, and the path must stay inside `dir`); nil otherwise.
+    private func path(_ id: String, _ ext: String, in dir: URL) -> URL? { PinPlanCore.SafeId.file(id, ext: ext, in: dir) }
+    private func projectURL(_ id: String) -> URL? { path(id, "json", in: projectsDir) }
+    private func imageURL(_ id: String) -> URL? { path(id, "jpg", in: imagesDir) }
+    /// A path no id can produce (ids have no dots), for callers that need a URL for a bad id: nothing is ever there.
+    private func nowhere(_ dir: URL, _ ext: String) -> URL { dir.appendingPathComponent(".invalid-id.\(ext)") }
+
+    /// A job whose id or stored file ids are unsafe (a bad sync row or backup) is never written.
+    private func isSafe(_ bundle: ProjectBundle) -> Bool { bundle.unsafeFileIds.isEmpty }
 
     // MARK: projects
 
@@ -66,28 +140,28 @@ final class Store: @unchecked Sendable {
         return files.filter { $0.pathExtension == "json" }.compactMap { url in
             guard let data = try? Data(contentsOf: url) else { return nil }
             return try? JSONDecoder().decode(ProjectBundle.self, from: data)
-        }.filter { $0.project.deleted != true }
+        }.filter { $0.project.deleted != true && isSafe($0) }
     }
 
+    /// Writes the job. A job with an unsafe id (or unsafe stored file ids) is skipped.
     func save(_ bundle: ProjectBundle) {
-        let url = projectsDir.appendingPathComponent("\(bundle.project.id).json")
+        guard isSafe(bundle), let url = projectURL(bundle.project.id) else { return }
         guard let data = try? encoder.encode(bundle) else { return }
-        queue.async { try? data.write(to: url, options: .atomic) }
+        queue.async { try? data.write(to: url, options: Self.writeOptions) }
     }
 
     func deleteProject(_ bundle: ProjectBundle) {
-        let url = projectsDir.appendingPathComponent("\(bundle.project.id).json")
-        let imageIds = bundle.storedImageIds
-        let fileIds = bundle.storedFileIds
+        // Only safe ids become paths: a bad id never deletes anything outside the job's folders.
+        let url = projectURL(bundle.project.id)
+        let imageURLs = bundle.storedImageIds.compactMap { imageURL($0) }
+        let fileURLs = bundle.storedFileIds.compactMap { path($0, "file", in: imagesDir) }
         // Source PDFs are per import (never shared between jobs), so they go with the job too.
-        let pdfIds = Set(bundle.sheets.compactMap(\.sourcePdfId))
+        let pdfURLs = bundle.storedPdfIds.compactMap { path($0, "pdf", in: pdfsDir) }
         queue.async {
-            try? FileManager.default.removeItem(at: url)
-            for id in imageIds { try? FileManager.default.removeItem(at: self.imagesDir.appendingPathComponent("\(id).jpg")) }
-            for id in fileIds { try? FileManager.default.removeItem(at: self.fileURL(id)) }
-            for id in pdfIds { try? FileManager.default.removeItem(at: self.pdfURL(id)) }
+            if let url { try? FileManager.default.removeItem(at: url) }
+            for u in imageURLs + fileURLs + pdfURLs { try? FileManager.default.removeItem(at: u) }
         }
-        for id in imageIds { imageCache.removeObject(forKey: id as NSString) }
+        for id in bundle.storedImageIds { imageCache.removeObject(forKey: id as NSString) }
     }
 
     // MARK: images
@@ -100,32 +174,34 @@ final class Store: @unchecked Sendable {
 
     @discardableResult
     func saveImageData(_ data: Data, id: String = newId(), image: UIImage? = nil) -> String? {
-        let url = imagesDir.appendingPathComponent("\(id).jpg")
-        do { try data.write(to: url, options: .atomic) } catch { return nil }
+        guard let url = imageURL(id) else { return nil }
+        do { try data.write(to: url, options: Self.writeOptions) } catch { return nil }
         if let image { imageCache.setObject(image, forKey: id as NSString, cost: data.count) } else { imageCache.removeObject(forKey: id as NSString) }
         return id
     }
 
     func image(_ id: String) -> UIImage? {
+        guard let url = imageURL(id) else { return nil }
         if let img = imageCache.object(forKey: id as NSString) { return img }
-        let url = imagesDir.appendingPathComponent("\(id).jpg")
         guard let img = UIImage(contentsOfFile: url.path) else { return nil }
         imageCache.setObject(img, forKey: id as NSString, cost: Int(img.size.width * img.size.height * 4))
         return img
     }
 
-    func imageData(_ id: String) -> Data? { try? Data(contentsOf: imagesDir.appendingPathComponent("\(id).jpg")) }
+    func imageData(_ id: String) -> Data? { imageURL(id).flatMap { try? Data(contentsOf: $0) } }
     /// Whether the image is on this device (without reading it).
-    func hasImage(_ id: String) -> Bool { FileManager.default.fileExists(atPath: imagesDir.appendingPathComponent("\(id).jpg").path) }
+    func hasImage(_ id: String) -> Bool { imageURL(id).map { FileManager.default.fileExists(atPath: $0.path) } ?? false }
 
     // MARK: job documents (any file type), kept next to the images
 
-    func fileURL(_ id: String) -> URL { imagesDir.appendingPathComponent("\(id).file") }
+    /// The document's path; for an unsafe id a path where nothing is ever stored.
+    func fileURL(_ id: String) -> URL { path(id, "file", in: imagesDir) ?? nowhere(imagesDir, "file") }
     func fileData(_ id: String) -> Data? { try? Data(contentsOf: fileURL(id)) }
     /// Whether the document is on this device (without reading it — files can be 25 MB).
     func hasFile(_ id: String) -> Bool { FileManager.default.fileExists(atPath: fileURL(id).path) }
     func saveFile(_ data: Data, id: String = newId()) {
-        try? data.write(to: fileURL(id), options: .atomic)
+        guard let url = path(id, "file", in: imagesDir) else { return }
+        try? data.write(to: url, options: Self.writeOptions)
     }
 
     // MARK: source PDFs (kept for crisp vector detail when zooming)
@@ -134,11 +210,14 @@ final class Store: @unchecked Sendable {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         let id = newId()
-        do { try FileManager.default.copyItem(at: url, to: pdfURL(id)) } catch { return nil }
+        let dest = pdfURL(id)
+        do { try FileManager.default.copyItem(at: url, to: dest) } catch { return nil }
+        try? FileManager.default.setAttributes(Self.protection, ofItemAtPath: dest.path)
         return id
     }
 
-    func pdfURL(_ id: String) -> URL { pdfsDir.appendingPathComponent("\(id).pdf") }
+    /// The source PDF's path; for an unsafe id a path where nothing is ever stored.
+    func pdfURL(_ id: String) -> URL { path(id, "pdf", in: pdfsDir) ?? nowhere(pdfsDir, "pdf") }
     func hasPDF(_ id: String) -> Bool { FileManager.default.fileExists(atPath: pdfURL(id).path) }
 
     // MARK: catalog & settings
@@ -152,7 +231,7 @@ final class Store: @unchecked Sendable {
     func saveCatalog(_ c: [DeviceType]) {
         guard let data = try? encoder.encode(c) else { return }
         let url = root.appendingPathComponent("catalog.json")
-        queue.async { try? data.write(to: url, options: .atomic) }
+        queue.async { try? data.write(to: url, options: Self.writeOptions) }
     }
 
     func loadProducts() -> [Product] {
@@ -164,7 +243,7 @@ final class Store: @unchecked Sendable {
     func saveProducts(_ p: [Product]) {
         guard let data = try? encoder.encode(p) else { return }
         let url = root.appendingPathComponent("products.json")
-        queue.async { try? data.write(to: url, options: .atomic) }
+        queue.async { try? data.write(to: url, options: Self.writeOptions) }
     }
 
     func loadSettings() -> AppSettings {
@@ -189,13 +268,13 @@ final class Store: @unchecked Sendable {
         queue.sync {}
         imageCache.removeAllObjects()
         try? FileManager.default.removeItem(at: root)
-        for d in [root, projectsDir, imagesDir, pdfsDir] { try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
+        createFolders()
     }
 
     func saveSettings(_ s: AppSettings) {
         guard let data = try? encoder.encode(s) else { return }
         let url = root.appendingPathComponent("settings.json")
-        queue.async { try? data.write(to: url, options: .atomic) }
+        queue.async { try? data.write(to: url, options: Self.writeOptions) }
     }
 
     // MARK: backup (same format as the web app)
@@ -218,31 +297,44 @@ final class Store: @unchecked Sendable {
         let file = BackupFile(catalog: catalog, products: live.isEmpty ? nil : live, projects: entries)
         let name = (bundles.count == 1 ? slug(bundles[0].project.address) : "pinplan") + ".pinplan.json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try file.encoded().write(to: url, options: .atomic)
+        try file.encoded().write(to: url, options: Self.writeOptions)
         return url
     }
 
-    /// Restores projects (replacing ones with the same id) and adds unknown catalog types. Returns restored bundles.
-    func restore(from url: URL, catalog: inout [DeviceType], products: inout [Product]) throws -> [ProjectBundle] {
+    /// Read a backup without changing anything. Throws when it isn't a PinPlan backup or when any id in it is unsafe
+    /// (PinPlanCore.SafeId): a bad file is refused as a whole.
+    func readBackup(from url: URL) throws -> BackupFile {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         let file = try BackupFile.decode(Data(contentsOf: url))
-        let known = Set(catalog.map(\.id))
-        catalog += (file.catalog ?? []).filter { !known.contains($0.id) }
-        // Products: add new ones, take the newer copy of ones we already have.
-        for p in file.products ?? [] {
-            if let i = products.firstIndex(where: { $0.id == p.id }) { if p.updatedAt > products[i].updatedAt { products[i] = p } } else { products.append(p) }
-        }
+        try file.validateIds()
+        return file
+    }
+
+    /// Write the jobs of a backup the user confirmed. Jobs whose id is in `asCopies` come in as copies with new ids
+    /// (their plan images and documents too, so the original's files are never overwritten); the others keep their
+    /// ids. `keepIds` (catalog types, products) are never renamed. Products and catalog types are applied by the caller
+    /// from the confirmed plan (PinPlanCore.BackupRestore). Returns the jobs written.
+    func restoreJobs(from file: BackupFile, asCopies: Set<String>, keepIds: Set<String>) throws -> [ProjectBundle] {
+        try file.validateIds()
         var out: [ProjectBundle] = []
         for entry in file.projects {
             let docs = entry.documentFileIds
+            var b = entry.bundle
+            var rename: [String: String] = [:]
+            if asCopies.contains(b.project.id) {
+                let copy = try PinPlanCore.BackupRestore.copyWithNewIds(b, keep: keepIds)
+                b = copy.bundle
+                rename = copy.fileIds
+            }
+            b.project.deleted = nil
+            guard isSafe(b) else { continue }
             for img in entry.images {
                 guard let data = Data(base64Encoded: img.data) else { continue }
+                let id = rename[img.id] ?? img.id
                 // Documents (PDFs, spreadsheets…) are stored as files, not as JPEG images.
-                if docs.contains(img.id) { saveFile(data, id: img.id) } else { saveImageData(data, id: img.id) }
+                if docs.contains(img.id) { saveFile(data, id: id) } else { saveImageData(data, id: id) }
             }
-            var b = entry.bundle
-            b.project.deleted = nil
             save(b)
             out.append(b)
         }

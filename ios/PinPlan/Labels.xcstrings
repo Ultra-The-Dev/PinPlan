@@ -1320,6 +1320,36 @@
       },
       "extractionState" : "manual"
     },
+    "Restore: Copy" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копия"
+          }
+        }
+      }
+    },
+    "Restore: New" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый"
+          }
+        }
+      }
+    },
+    "Restore: Replaces" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заменит"
+          }
+        }
+      }
+    },
     "RFI filter: Open" : {
       "localizations" : {
         "ru" : {

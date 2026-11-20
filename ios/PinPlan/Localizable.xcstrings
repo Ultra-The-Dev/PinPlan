@@ -1411,6 +1411,40 @@
         }
       }
     },
+    "%lld jobs" : {
+      "localizations" : {
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld объект"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld объекта"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld объектов"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld объекта"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld labels" : {
       "localizations" : {
         "ru" : {
@@ -4093,6 +4127,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подпись"
+          }
+        }
+      }
+    },
+    "Catalog" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каталог"
           }
         }
       }
@@ -7585,6 +7629,26 @@
         }
       }
     },
+    "Jobs already on this device are replaced by the backup's copy." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объекты, которые уже есть на этом устройстве, заменяются копией из резервной копии."
+          }
+        }
+      }
+    },
+    "Jobs already on this device come in as copies; the originals stay as they are." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объекты, которые уже есть на этом устройстве, добавляются как копии; оригиналы остаются без изменений."
+          }
+        }
+      }
+    },
     "Jobs are read-only" : {
       "localizations" : {
         "ru" : {
@@ -11069,12 +11133,32 @@
         }
       }
     },
+    "Products" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Товары"
+          }
+        }
+      }
+    },
     "Products (brands and models)" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Товары (марки и модели)"
+          }
+        }
+      }
+    },
+    "Products and catalog items are left out: only the office brings them in." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Товары и позиции каталога не восстанавливаются: их добавляет только офис."
           }
         }
       }
@@ -11781,6 +11865,16 @@
         }
       }
     },
+    "Replace jobs on this device" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заменить объекты на этом устройстве"
+          }
+        }
+      }
+    },
     "Replace photo" : {
       "localizations" : {
         "ru" : {
@@ -11851,6 +11945,16 @@
         }
       }
     },
+    "Restore" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстановить"
+          }
+        }
+      }
+    },
     "Restore %lld removed lines" : {
       "localizations" : {
         "ru" : {
@@ -11899,6 +12003,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Restore backup" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Восстановление из копии"
           }
         }
       }
@@ -14609,6 +14723,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Этого устройства больше нет"
+          }
+        }
+      }
+    },
+    "That file isn't a PinPlan backup." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот файл не является резервной копией PinPlan."
           }
         }
       }
