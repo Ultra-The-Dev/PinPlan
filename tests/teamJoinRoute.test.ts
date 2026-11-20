@@ -8,7 +8,7 @@ const URL_ = "https://sb.example.co";
 type Call = { method: string; url: string; headers: Record<string, string>; body: Record<string, unknown> };
 
 function req(body: unknown, ip = "1.2.3.4") {
-  return new Request("http://localhost/api/team/join", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": ip }, body: JSON.stringify(body) });
+  return new Request("http://localhost/api/team/join", { method: "POST", headers: { "Content-Type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify(body) });
 }
 const good = { code: "k7qm-xr4t-pa", email: "Sam@Acme.com ", password: "longenough", name: "Sam" };
 

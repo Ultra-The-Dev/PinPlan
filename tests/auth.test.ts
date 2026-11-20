@@ -186,7 +186,7 @@ describe("health endpoint", () => {
   afterEach(() => vi.unstubAllEnvs());
   const get = (headers: Record<string, string> = {}) => new Request("http://x/api/health", { headers });
 
-  it("tells strangers only the sign-in mode, and authorised callers which features are set (as yes/no)", async () => {
+  it("tells strangers nothing about the setup, and the access-code caller which features are set (as yes/no)", async () => {
     const { GET } = await import("@/app/api/health/route");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
@@ -194,9 +194,10 @@ describe("health endpoint", () => {
     vi.stubEnv("BILLDU_API_KEY", "k");
     vi.stubEnv("BILLDU_API_SECRET", "s");
     const anon = await (await GET(get())).json();
-    expect(anon).toEqual({ ok: true, app: "pinplan", authMode: "access_code", authorized: false });
+    expect(anon).toEqual({ ok: true, app: "pinplan", authorized: false });
     const me = await (await GET(get({ "x-pinplan-access": "s3cret" }))).json();
-    expect(me).toMatchObject({ authorized: true, ai: true, billdu: true });
+    // AI is switched on in this file, but without the shared rate limiter (service key) it stays off.
+    expect(me).toMatchObject({ authorized: true, authMode: "access_code", ai: false, billdu: true });
     expect(JSON.stringify(me)).not.toContain("sk-ant-test");
   });
 
@@ -215,7 +216,7 @@ describe("health endpoint", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
     const stranger = await GET(get());
     expect(stranger.status).toBe(200);
-    expect(await stranger.json()).toEqual({ ok: true, app: "pinplan", authMode: "supabase", authorized: false, database: "ok" });
+    expect(await stranger.json()).toEqual({ ok: true, app: "pinplan", authorized: false, database: "ok" });
     const me = await (await GET(get({ "x-pinplan-access": "s3cret" }))).json();
     expect(me.config).toMatchObject({ supabase: true, serviceRoleKey: true, stripe: true, resend: false });
     expect(JSON.stringify(me)).not.toMatch(/service-secret-value|sk_test_value|anon-key/);

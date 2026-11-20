@@ -1,21 +1,23 @@
 import { aiEnabledOnServer } from "@/lib/features";
-import { authMode, requireUser } from "@/lib/server/auth";
+import { adminEmails, requirePlatformAdmin } from "@/lib/server/admin";
+import { accessCodeAccepted, authMode, requireUser } from "@/lib/server/auth";
 import { billingConfig } from "@/lib/server/billing";
 import { emailConfigured } from "@/lib/server/email";
 import { isProduction, missingProductionConfig, REQUIRED_SCHEMA_VERSION, schemaStatus } from "@/lib/server/envCheck";
 import { loadBillduCreds } from "@/lib/server/secrets";
-import { bearer } from "@/lib/server/supabaseAdmin";
 
 /**
  * Connection check for the apps and for uptime monitors.
- * - Anyone: that this is a PinPlan server, how it signs callers in (never "open": an unprotected server doesn't say
- *   so), whether the database answers ("database": "ok" | "unreachable") and, only when something is wrong, which
- *   required production settings are missing (names only) and whether the database schema is behind the code.
- *   The response is 503 when the database is down, the schema is behind, or (on the production deployment) a
- *   required setting is missing — so an uptime monitor catches misconfiguration too.
- * - An authorised caller (access code / session) also learns which features are configured — as yes/no, never values.
- *   Whether the server-wide Billdu account is set is only told to single-company callers (the access code), never to a
- *   signed-in customer: their own company's Billdu connection is in Settings › Billdu.
+ * - Anyone, including every ordinary signed-in customer: only that this is a PinPlan server ("app"), whether it is
+ *   healthy ("ok"), whether the database answers ("database": "ok" | "unreachable") and whether the caller's own
+ *   sign-in or access code was accepted ("authorized", for the apps' connection check). Nothing about how the server
+ *   is set up: missing settings and a schema behind the code are written to the server log instead. The response is
+ *   503 when the database is down, the schema is behind, or (on the production deployment) a required setting is
+ *   missing, so an uptime monitor still catches misconfiguration.
+ * - Whoever runs the server, i.e. a PinPlan platform admin (signed in, confirmed email in PLATFORM_ADMIN_EMAILS) or a
+ *   caller holding the access code where the server accepts it: also the details (names of missing settings, schema
+ *   state, which features are configured as yes/no, never values, and whether the server-wide Billdu account is set).
+ *   A customer's own company's Billdu connection is in Settings › Billdu.
  */
 export async function GET(request: Request) {
   const mode = authMode();
@@ -23,25 +25,22 @@ export async function GET(request: Request) {
   const [auth, db] = await Promise.all([requireUser(request), databaseStatus()]);
   const missingConfig = prod ? missingProductionConfig() : [];
   const schema = db.status === "ok" ? schemaStatus(db.schema) : null;
-  // An open (unprotected) production server must not hand its configuration to everyone.
+  if (missingConfig.length) console.warn(`[health] missing production settings: ${missingConfig.join(", ")}`);
+  if (schema === "behind") console.warn(`[health] database schema is behind the code (needs ${REQUIRED_SCHEMA_VERSION})`);
+  // An open (unprotected) production server accepts nobody.
   const authorized = auth.ok && !(prod && mode === "open");
+  // The access code, where this server accepts it: requireUser then answers ok without a user id.
+  const codeCaller = authorized && !auth.userId && !!request.headers.get("x-pinplan-access") && accessCodeAccepted();
+  const admin = !codeCaller && authorized && !!auth.userId && adminEmails().length > 0 && (await requirePlatformAdmin(request)).ok;
   const ok = db.status !== "unreachable" && schema !== "behind" && missingConfig.length === 0;
-  const base = {
-    ok,
-    app: "pinplan",
-    ...(mode !== "open" ? { authMode: mode } : {}),
-    authorized,
-    ...(db.status ? { database: db.status } : {}),
-    ...(schema === "behind" ? { schema, schemaRequired: REQUIRED_SCHEMA_VERSION } : {}),
-    ...(missingConfig.length ? { missingConfig } : {}),
-  };
+  const base = { ok, app: "pinplan", authorized, ...(db.status ? { database: db.status } : {}) };
   const init = { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } };
-  if (!authorized) return Response.json(base, init);
+  if (!codeCaller && !admin) return Response.json(base, init);
 
-  // Server-wide Billdu credentials: only single-company callers (no session token) may use them, so only they hear about them.
-  const singleCompany = mode !== "supabase" || !bearer(request);
+  // Server-wide Billdu credentials: only single-company callers (the access code) may use them. The platform admin
+  // sees the switch too; a signed-in customer never does.
   let billdu: boolean | undefined;
-  if (singleCompany) {
+  if (codeCaller || admin) {
     try {
       billdu = !!(await loadBillduCreds()).creds;
     } catch {
@@ -69,6 +68,9 @@ export async function GET(request: Request) {
   return Response.json(
     {
       ...base,
+      ...(mode !== "open" ? { authMode: mode } : {}),
+      ...(schema === "behind" ? { schema, schemaRequired: REQUIRED_SCHEMA_VERSION } : {}),
+      ...(missingConfig.length ? { missingConfig } : {}),
       ai: config.ai,
       ...(billdu !== undefined ? { billdu } : {}),
       encryptionKey: config.encryptionKey,

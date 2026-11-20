@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (!aiEnabledOnServer()) return Response.json({ error: "AI features are turned off on this server.", code: "ai_disabled" }, { status: 404 });
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
-  const limited = limitAi(request, auth.userId, "photoDescribe");
+  const limited = await limitAi(request, auth.userId, "photoDescribe");
   if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "AI is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
   // No built-in default: the model is chosen per deployment (ANTHROPIC_MODEL), never hard-coded here.

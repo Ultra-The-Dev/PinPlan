@@ -20,9 +20,11 @@ import {
   verifyWebhook,
   type InvoiceLike,
 } from "@/lib/server/billing";
+import { readTextLimited } from "@/lib/server/readBody";
 import { reportServerError } from "@/lib/server/serverErrors";
 
 const HANDLED = new Set<string>(HANDLED_EVENTS);
+const MAX_WEBHOOK_BYTES = 1024 * 1024;
 
 export async function POST(request: Request) {
   const c = billingConfig();
@@ -30,7 +32,10 @@ export async function POST(request: Request) {
   const cfg = c.config;
   const signature = request.headers.get("stripe-signature");
   if (!signature) return jsonError("Missing Stripe-Signature.", "bad_signature", 400);
-  const raw = await request.text();
+  // Stripe's events are a few KB; anything far bigger is refused before it is read (and before the signature check).
+  const body = await readTextLimited(request, MAX_WEBHOOK_BYTES);
+  if (!body.ok) return jsonError(body.status === 413 ? "Request too large." : "Couldn't read the request.", body.code, body.status);
+  const raw = body.text;
   let event;
   try {
     event = verifyWebhook(raw, signature, cfg.webhookSecret);

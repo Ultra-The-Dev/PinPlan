@@ -2,6 +2,13 @@ process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are o
 // End-to-end test of the AI scan route with the Claude API mocked at the HTTP layer.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// The AI routes run only with the shared rate limiter (service key set). Its RPC is answered here, so the model mock
+// below sees only model calls.
+vi.mock("@/lib/server/supabaseAdmin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/server/supabaseAdmin")>()),
+  serviceFetch: async () => Response.json({ ok: true, remaining: 100, retry_after: 0 }),
+}));
+
 const CATALOG = [
   { id: "cam-indoor", name: "Indoor camera", symbol: "C", category: "security" },
   { id: "speaker", name: "In-ceiling speaker", symbol: "S", category: "audio" },
@@ -28,7 +35,9 @@ describe("POST /api/scan", () => {
   let calls: { url: string; body: Record<string, unknown> }[] = [];
   beforeEach(() => {
     calls = [];
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "");
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
     vi.stubEnv("ANTHROPIC_MODEL", "test-model");

@@ -6,8 +6,12 @@
 // 501 when the server has no service key (sharing needs cloud sync; the app falls back to email).
 // After an answer whoever raised it is emailed once (src/app/api/notify/answers.ts); a failed email never fails the
 // answer. Answers are limited per IP and per link in memory and, when the database has answer_rate_hit, across every
-// server instance.
-import { clientIp, rateLimiter } from "@/lib/server/email";
+// server instance. The answer body is read with a size limit (readBody.ts).
+// Signed file links: only `<this RFI's project id>/<plain image name>` is ever signed (storagePath.ts), because the
+// photo and sheet rows are written by the job's members and must not point the link at another company's files.
+import { clientIpKey, rateLimiter } from "@/lib/server/email";
+import { readJsonLimited } from "@/lib/server/readBody";
+import { jobImagePath, sheetImagePath } from "@/lib/server/storagePath";
 import { durableLimited, keyHash } from "@/lib/server/sendGuard";
 import { notifyRfiAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
@@ -20,6 +24,8 @@ const readsPerIp = rateLimiter(HOUR, 300);
 const answersPerIp = rateLimiter(HOUR, 30);
 const answersPerToken = rateLimiter(HOUR, 10);
 const SIGN_SECONDS = 60 * 60 * 24;
+/** Largest answer request read (an answer of up to 5,000 characters, a name and the token). */
+const MAX_BODY_BYTES = 64 * 1024;
 const BUCKET = "plans";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -76,9 +82,13 @@ async function buildView(raw: Record<string, unknown>) {
         )
       : Promise.resolve([]),
   ]);
-  const ordered = photoIds.map((id) => photoRows.find((p) => p.id === id)).filter((p): p is (typeof photoRows)[number] => !!p);
-  const sheet = sheetRows[0];
-  const paths = [...ordered.map((p) => `${rfi.projectId}/${p.image_id}`), ...(sheet ? [sheet.image_path || `${rfi.projectId}/${sheet.image_id}`] : [])];
+  // A photo or sheet whose image isn't a plain name inside this job is left out, never signed.
+  const ordered = photoIds
+    .map((id) => photoRows.find((p) => p.id === id))
+    .filter((p): p is (typeof photoRows)[number] => !!p && jobImagePath(rfi.projectId, p.image_id) != null);
+  const sheetPath = sheetRows[0] ? sheetImagePath(rfi.projectId, sheetRows[0]) : null;
+  const sheet = sheetPath ? sheetRows[0] : undefined;
+  const paths = [...ordered.map((p) => jobImagePath(rfi.projectId, p.image_id) as string), ...(sheetPath ? [sheetPath] : [])];
   const urls = await signPaths(paths);
   const photos: PublicRfiPhoto[] = [];
   ordered.forEach((p, i) => {
@@ -94,7 +104,7 @@ export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("t")?.trim() ?? "";
   if (!SHARE_TOKEN_RE.test(token)) return notFound();
   if (!serviceConfigured()) return json({ error: "Answer links need cloud sync on this server.", code: "not_configured" }, 501);
-  if (readsPerIp.limited(clientIp(req))) return json({ error: "Too many requests. Wait a few minutes and try again.", code: "rate_limited" }, 429);
+  if (readsPerIp.limited(clientIpKey(req))) return json({ error: "Too many requests. Wait a few minutes and try again.", code: "rate_limited" }, 429);
   try {
     const raw = await findByToken(token);
     if (!raw) return notFound();
@@ -106,12 +116,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let body: { t?: unknown; answer?: unknown; name?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Invalid request.", code: "bad_request" }, 400);
-  }
+  const read = await readJsonLimited<{ t?: unknown; answer?: unknown; name?: unknown } | null>(req, MAX_BODY_BYTES);
+  if (!read.ok) return read.status === 413 ? json({ error: "That answer is too long.", code: "payload_too_large" }, 413) : json({ error: "Invalid request.", code: "bad_request" }, 400);
+  const body = read.value && typeof read.value === "object" ? read.value : {};
   const token = typeof body.t === "string" ? body.t.trim() : "";
   const answer = typeof body.answer === "string" ? body.answer.trim() : "";
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -119,9 +126,10 @@ export async function POST(req: Request) {
   if (!answer || answer.length > 5000) return json({ error: "Write an answer (up to 5,000 characters).", code: "bad_request" }, 400);
   if (!name || name.length > 80) return json({ error: "Add your name so they know who answered.", code: "bad_request" }, 400);
   if (!serviceConfigured()) return json({ error: "Answer links need cloud sync on this server.", code: "not_configured" }, 501);
-  if (answersPerIp.limited(clientIp(req)) || answersPerToken.limited(token))
+  const ip = clientIpKey(req);
+  if (answersPerIp.limited(ip) || answersPerToken.limited(token))
     return json({ error: "Too many tries. Wait a few minutes and try again.", code: "rate_limited" }, 429);
-  const [ipOver, linkOver] = await Promise.all([durableLimited(keyHash("rfi-ip", clientIp(req)), HOUR, 30), durableLimited(keyHash("rfi-link", token), HOUR, 10)]);
+  const [ipOver, linkOver] = await Promise.all([durableLimited(keyHash("rfi-ip", ip), HOUR, 30), durableLimited(keyHash("rfi-link", token), HOUR, 10)]);
   if (ipOver === true || linkOver === true) return json({ error: "Too many tries. Wait a few minutes and try again.", code: "rate_limited" }, 429);
 
   try {

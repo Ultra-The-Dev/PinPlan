@@ -8,8 +8,26 @@ interface Env {
   PINPLAN_APP_URL?: string;
 }
 
+/**
+ * A ceiling for every /api/* request body, checked on the declared Content-Length before Next.js runs. The largest
+ * legitimate body (photos for the AI daily summary, base64) is well under it. Routes open to the public read their
+ * bodies through src/lib/server/readBody.ts with much tighter limits, which also stop a body sent without a length.
+ */
+const MAX_API_BODY_BYTES = 20 * 1024 * 1024;
+
+function tooLarge(request: Request): boolean {
+  if (request.method === "GET" || request.method === "HEAD") return false;
+  if (!new URL(request.url).pathname.startsWith("/api/")) return false;
+  const len = request.headers.get("content-length");
+  return len != null && /^\d+$/.test(len.trim()) && Number(len.trim()) > MAX_API_BODY_BYTES;
+}
+
 export default {
-  fetch: handler.fetch,
+  fetch(request: Request, env: unknown, ctx: unknown) {
+    if (tooLarge(request))
+      return Response.json({ error: "The request is too large.", code: "payload_too_large" }, { status: 413, headers: { "Cache-Control": "no-store" } });
+    return handler.fetch(request, env, ctx);
+  },
 
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }) {
     if (!env.CRON_SECRET) {

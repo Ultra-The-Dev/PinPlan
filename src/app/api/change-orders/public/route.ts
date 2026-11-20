@@ -9,9 +9,13 @@
 // signature PNG is stored like every job file (plans bucket, <project>/<image id>), so the office devices pull it.
 // After an answer the office is emailed once (src/app/api/notify/answers.ts); a failed email never fails the answer.
 // Answers are limited per IP and per link in memory and, when the database has answer_rate_hit, across every server.
+// The answer body is read with a size limit (readBody.ts). Photo links are signed only for `<project>/<plain image
+// name>` (storagePath.ts): the frozen view is written by the job's members, so its image ids aren't trusted.
 import { randomBytes } from "node:crypto";
 import { connection } from "next/server";
-import { clientIp, rateLimiter } from "@/lib/server/email";
+import { clientIpKey, rateLimiter } from "@/lib/server/email";
+import { readJsonLimited } from "@/lib/server/readBody";
+import { jobImagePath } from "@/lib/server/storagePath";
 import { durableLimited, keyHash } from "@/lib/server/sendGuard";
 import { notifyChangeOrderAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
@@ -22,6 +26,8 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{20,128}$/;
 const PNG_RE = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/;
 /** Largest signature image accepted (decoded bytes). */
 const MAX_SIGNATURE_BYTES = 200 * 1024;
+/** Largest answer request read: the signature as base64 (4/3 of its bytes), a comment of up to 4,000 characters. */
+const MAX_BODY_BYTES = 600 * 1024;
 const BUCKET = "plans";
 const HOUR = 60 * 60 * 1000;
 const perIpRead = rateLimiter(HOUR, 300);
@@ -30,7 +36,7 @@ const perToken = rateLimiter(HOUR, 10);
 
 /** The shared (database) limit: per IP and per link. When it can't answer, the in-memory limits above still apply. */
 async function overDurableLimit(req: Request, token: string): Promise<boolean> {
-  const [ip, link] = await Promise.all([durableLimited(keyHash("co-ip", clientIp(req)), HOUR, 30), durableLimited(keyHash("co-link", token), HOUR, 10)]);
+  const [ip, link] = await Promise.all([durableLimited(keyHash("co-ip", clientIpKey(req)), HOUR, 30), durableLimited(keyHash("co-link", token), HOUR, 10)]);
   return ip === true || link === true;
 }
 
@@ -60,9 +66,14 @@ async function findByToken(token: string): Promise<CoRow | null> {
 
 /** Short-lived links to the photos the office attached (they live in the private plans bucket). */
 async function signPhotos(projectId: string, photos: ChangeOrderPublicView["photos"]): Promise<{ url: string; caption: string }[]> {
-  if (!photos?.length) return [];
+  // Anything that isn't a plain image name inside this job is dropped, never signed.
+  const safe = (Array.isArray(photos) ? photos : [])
+    .map((p) => ({ p, path: p && typeof p === "object" ? jobImagePath(projectId, p.imageId) : null }))
+    .filter((x): x is { p: (typeof photos)[number]; path: string } => x.path != null)
+    .slice(0, 50);
+  if (!safe.length) return [];
   try {
-    const paths = photos.map((p) => `${projectId}/${p.imageId}`);
+    const paths = safe.map((x) => x.path);
     const r = await serviceFetch(`/storage/v1/object/sign/${BUCKET}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -72,9 +83,9 @@ async function signPhotos(projectId: string, photos: ChangeOrderPublicView["phot
     const signed = (await r.json()) as { path?: string; signedURL?: string | null; error?: string | null }[];
     const base = `${supabaseUrl()}/storage/v1`;
     const out: { url: string; caption: string }[] = [];
-    photos.forEach((p, i) => {
+    safe.forEach(({ p }, i) => {
       const s = signed.find((x) => x.path === paths[i]) ?? signed[i];
-      if (s?.signedURL && !s.error) out.push({ url: base + s.signedURL, caption: p.caption ?? "" });
+      if (s?.signedURL && !s.error) out.push({ url: base + s.signedURL, caption: typeof p.caption === "string" ? p.caption : "" });
     });
     return out;
   } catch {
@@ -102,7 +113,7 @@ export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("t")?.trim() ?? "";
   if (!TOKEN_RE.test(token)) return fail("This link isn't valid.", 400);
   if (!serviceConfigured()) return fail("Change order links aren't set up on this server.", 501);
-  if (perIpRead.limited(clientIp(req))) return fail("Too many requests. Please wait a few minutes and try again.", 429);
+  if (perIpRead.limited(clientIpKey(req))) return fail("Too many requests. Please wait a few minutes and try again.", 429);
   try {
     const row = await findByToken(token);
     if (!row) return fail("This change order isn't available.", 404);
@@ -122,12 +133,9 @@ function signatureBytes(dataUrl: string): Buffer | null {
 }
 
 export async function POST(req: Request) {
-  let body: { t?: unknown; decision?: unknown; name?: unknown; signature?: unknown; comment?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return fail("Bad request.", 400);
-  }
+  const read = await readJsonLimited<{ t?: unknown; decision?: unknown; name?: unknown; signature?: unknown; comment?: unknown } | null>(req, MAX_BODY_BYTES);
+  if (!read.ok) return read.status === 413 ? fail("The signature image is too large.", 413) : fail("Bad request.", 400);
+  const body = read.value && typeof read.value === "object" ? read.value : {};
   const token = typeof body.t === "string" ? body.t.trim() : "";
   const decision = body.decision === "approve" || body.decision === "reject" ? body.decision : null;
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
@@ -135,7 +143,7 @@ export async function POST(req: Request) {
   const signature = typeof body.signature === "string" ? body.signature : "";
   if (!TOKEN_RE.test(token) || !decision) return fail("Bad request.", 400);
   if (!serviceConfigured()) return fail("Change order links aren't set up on this server.", 501);
-  if (perIp.limited(clientIp(req)) || perToken.limited(token)) return fail("Too many requests. Please wait a few minutes and try again.", 429);
+  if (perIp.limited(clientIpKey(req)) || perToken.limited(token)) return fail("Too many requests. Please wait a few minutes and try again.", 429);
 
   let png: Buffer | null = null;
   if (decision === "approve") {
