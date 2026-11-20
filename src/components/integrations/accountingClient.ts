@@ -2,15 +2,16 @@
 // Browser side of the accounting integrations: the /api/integrations calls and the per-device fallbacks.
 import { DEFAULT_ACCOUNTS, normalizeAccounts, type AccountNames, type CsvFormat } from "@/lib/accountingExport";
 import { apiFetch } from "@/lib/api";
+import { msg } from "@/lib/i18n/msg";
 import type { DocPayment, SalesDoc } from "@/lib/types";
 
 export type ExportFormat = CsvFormat | "iif";
 
 export const FORMATS: { id: ExportFormat; label: string; hint: string }[] = [
-  { id: "qbo", label: "QuickBooks Online (CSV)", hint: "Import in QuickBooks: Settings → Import data → Invoices." },
-  { id: "xero", label: "Xero (CSV)", hint: "Import in Xero: Business → Invoices → Import." },
-  { id: "iif", label: "QuickBooks Desktop (IIF)", hint: "Invoices, credit memos and payments. File → Utilities → Import → IIF Files." },
-  { id: "generic", label: "Plain CSV (any app or spreadsheet)", hint: "One row per line, with the document total on each row." },
+  { id: "qbo", label: "QuickBooks Online (CSV)", hint: msg("Import in QuickBooks: Settings → Import data → Invoices.") },
+  { id: "xero", label: "Xero (CSV)", hint: msg("Import in Xero: Business → Invoices → Import.") },
+  { id: "iif", label: "QuickBooks Desktop (IIF)", hint: msg("Invoices, credit memos and payments. File → Utilities → Import → IIF Files.") },
+  { id: "generic", label: msg("Plain CSV (any app or spreadsheet)"), hint: msg("One row per line, with the document total on each row.") },
 ];
 
 export interface ProviderStatus {

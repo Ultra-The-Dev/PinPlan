@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import PriceListNav from "@/components/nav/PriceListNav";
 import ProductsEditor from "@/components/ProductsEditor";
 import RoleGate from "@/components/RoleGate";
+import { msg } from "@/lib/i18n/msg";
 
 export const metadata: Metadata = { title: "Price list · Products" };
 
@@ -12,7 +13,7 @@ export default function ProductsPage() {
     <>
       <AppHeader />
       <main className="flex-1 overflow-auto">
-        <RoleGate action="editCatalog" what="The price list">
+        <RoleGate action="editCatalog" what={msg("The price list")}>
           <PriceListNav />
           <ProductsEditor />
         </RoleGate>

@@ -8,6 +8,7 @@ import { categoryOf, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
 import { allCategoriesFor, hasTrade, tradeCategories, tradeWireTypes, typeVisible } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
 import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
+import { msg, useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import type { Category, DeviceType, Mount, Shape, Unit } from "@/lib/types";
 import SymbolIcon from "./editor/SymbolIcon";
@@ -53,7 +54,26 @@ function PriceInput({ value, onCommit, label }: { value: number; onCommit: (n: n
   );
 }
 
+const SHAPE_LABELS: Record<Shape, string> = {
+  circle: msg("Circle"),
+  square: msg("Square"),
+  triangle: msg("Triangle"),
+  diamond: msg("Diamond"),
+  hexagon: msg("Hexagon"),
+  star: msg("Star"),
+};
+
+const MOUNT_LABELS: Record<string, string> = {
+  ceiling: msg("Ceiling"),
+  wall: msg("Wall"),
+  exterior: msg("Exterior"),
+  floor: msg("On the floor"),
+  cabinet: msg("Cabinet"),
+  other: msg("Other"),
+};
+
 export default function CatalogEditor() {
+  const t = useT();
   const [types, setTypes] = useState<DeviceType[] | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<DeviceType | null>(null);
@@ -71,10 +91,10 @@ export default function CatalogEditor() {
     return () => window.removeEventListener("pinplan:catalog", reload);
   }, []);
 
-  async function save(t: DeviceType, quiet = false) {
-    const saved = await put("deviceTypes", t);
-    setTypes((ts) => (ts!.some((x) => x.id === t.id) ? ts!.map((x) => (x.id === t.id ? saved : x)) : [...ts!, saved]));
-    if (!quiet) toast(`Saved ${t.name}`);
+  async function save(dt: DeviceType, quiet = false) {
+    const saved = await put("deviceTypes", dt);
+    setTypes((ts) => (ts!.some((x) => x.id === dt.id) ? ts!.map((x) => (x.id === dt.id ? saved : x)) : [...ts!, saved]));
+    if (!quiet) toast(t("Saved {name}", { name: dt.name }));
   }
 
   function newType(category: Category) {
@@ -111,50 +131,50 @@ export default function CatalogEditor() {
     const rows = [...preview.updated, ...preview.created];
     if (rows.length) await putMany("deviceTypes", rows);
     setTypes(await getCatalog());
-    toast(`Price list applied: ${preview.updated.length} updated, ${preview.created.length} added`);
+    toast(t("Price list applied: {updated} updated, {added} added", { updated: preview.updated.length, added: preview.created.length }));
     setPreview(null);
   }
 
-  if (!types) return <p className="p-6 text-slate-500">Loading…</p>;
-  const inTrades = (t: DeviceType) => typeVisible({ ...t, archived: false }, trades);
-  const hiddenOther = types.filter((t) => !t.archived && !inTrades(t)).length;
-  const unpriced = types.filter((t) => !t.archived && t.unitPrice === 0 && inTrades(t)).length;
+  if (!types) return <p className="p-6 text-slate-500">{t("Loading…")}</p>;
+  const inTrades = (dt: DeviceType) => typeVisible({ ...dt, archived: false }, trades);
+  const hiddenOther = types.filter((dt) => !dt.archived && !inTrades(dt)).length;
+  const unpriced = types.filter((dt) => !dt.archived && dt.unitPrice === 0 && inTrades(dt)).length;
   const mine = tradeCategories(trades);
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Price list</h1>
-          <p className="mt-1 text-sm text-slate-500">Symbols and prices used on the plan, the takeoff and the estimate. Prices are per unit — each, or per linear foot for LED.</p>
+          <h1 className="page-title">{t("Price list")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("Symbols and prices used on the plan, the takeoff and the estimate. Prices are per unit — each, or per linear foot for LED.")}</p>
         </div>
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search" aria-label="Search device types" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9" placeholder={t("Search")} aria-label={t("Search device types")} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" aria-label="Price list file" onChange={(e) => onPriceFile(e.target.files?.[0])} />
-        <button className="btn" onClick={() => downloadText(catalogToCsv(types), "pinplan-price-list.csv")} title="Download the catalog as a CSV price list">
-          <Download /> Price list
+        <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" aria-label={t("Price list file")} onChange={(e) => onPriceFile(e.target.files?.[0])} />
+        <button className="btn" onClick={() => downloadText(catalogToCsv(types), "pinplan-price-list.csv")} title={t("Download the catalog as a CSV price list")}>
+          <Download /> {t("Price list")}
         </button>
-        <button className="btn" onClick={() => fileRef.current?.click()} title="Import prices from a CSV (id or name, price, labor)">
-          <Upload /> Import prices
+        <button className="btn" onClick={() => fileRef.current?.click()} title={t("Import prices from a CSV (id or name, price, labor)")}>
+          <Upload /> {t("Import prices")}
         </button>
         <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived
+          <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> {t("Show archived")}
         </label>
         {hiddenOther > 0 && (
-          <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600" title="Starting items of trades your company doesn't use (Settings → Trades)">
-            <input type="checkbox" className="accent-brand-600" checked={otherTrades} onChange={(e) => setOtherTrades(e.target.checked)} /> Other trades ({hiddenOther})
+          <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-600" title={t("Starting items of trades your company doesn't use (Settings → Trades)")}>
+            <input type="checkbox" className="accent-brand-600" checked={otherTrades} onChange={(e) => setOtherTrades(e.target.checked)} /> {t("Other trades ({n})", { n: hiddenOther })}
           </label>
         )}
       </div>
       {unpriced > 0 && (
         <p className="mb-5 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200">
-          {unpriced} device type{unpriced === 1 ? "" : "s"} still at $0. Type the price and labor right in the list — it saves as you go.
+          {t.tn("{n} device type still at $0.", "{n} device types still at $0.", unpriced)} {t("Type the price and labor right in the list — it saves as you go.")}
         </p>
       )}
       {allCategoriesFor(trades).map((cat) => {
         const rows = types
-          .filter((t) => t.category === cat.id && (showArchived || !t.archived) && (otherTrades || inTrades(t) || t.archived) && (!q || t.name.toLowerCase().includes(q.toLowerCase())))
+          .filter((dt) => dt.category === cat.id && (showArchived || !dt.archived) && (otherTrades || inTrades(dt) || dt.archived) && (!q || dt.name.toLowerCase().includes(q.toLowerCase())))
           .sort((a, b) => a.sort - b.sort);
         // The company's own sections always show (to add types); other categories only when they have items.
         if (!rows.length && (q || !mine.some((m) => m.id === cat.id))) return null;
@@ -165,53 +185,53 @@ export default function CatalogEditor() {
               <h2 className="font-semibold">{cat.name}</h2>
               <span className="text-xs text-slate-500">{rows.length}</span>
               <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => newType(cat.id)}>
-                <Plus /> Add type
+                <Plus /> {t("Add type")}
               </button>
             </div>
             <div className="card divide-y divide-slate-100">
               <div className="hidden grid-cols-[40px_1fr_70px_120px_120px_140px_80px] items-center gap-3 px-4 py-2 text-[11px] font-semibold text-slate-500 sm:grid">
                 <span />
-                <span>Device</span>
-                <span>Unit</span>
-                <span className="text-right">Price</span>
-                <span className="text-right">Labor</span>
-                <span>Default wire</span>
+                <span>{t("Device")}</span>
+                <span>{t("Unit")}</span>
+                <span className="text-right">{t("Price")}</span>
+                <span className="text-right">{t("Labor")}</span>
+                <span>{t("Default wire")}</span>
                 <span />
               </div>
-              {rows.map((t) => (
-                <div key={t.id} className={`grid grid-cols-[40px_1fr_auto] items-center gap-3 px-4 py-2.5 sm:grid-cols-[40px_1fr_70px_120px_120px_140px_80px] ${t.archived ? "opacity-50" : ""}`}>
-                  {t.kind === "led" ? <span className="mx-auto block h-1.5 w-7 rounded" style={{ background: t.color }} /> : <SymbolIcon type={t} size={32} />}
+              {rows.map((dt) => (
+                <div key={dt.id} className={`grid grid-cols-[40px_1fr_auto] items-center gap-3 px-4 py-2.5 sm:grid-cols-[40px_1fr_70px_120px_120px_140px_80px] ${dt.archived ? "opacity-50" : ""}`}>
+                  {dt.kind === "led" ? <span className="mx-auto block h-1.5 w-7 rounded" style={{ background: dt.color }} /> : <SymbolIcon type={dt} size={32} />}
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{t.name}</div>
+                    <div className="truncate text-sm font-medium">{dt.name}</div>
                     <div className="truncate text-xs text-slate-500">
-                      {t.abbrev}-1-01 · {t.defaultMount}
-                      {t.billduProductId ? ` · Billdu #${t.billduProductId}` : ""}
+                      {dt.abbrev}-1-01 · {MOUNT_LABELS[dt.defaultMount] ? t(MOUNT_LABELS[dt.defaultMount]) : dt.defaultMount}
+                      {dt.billduProductId ? ` · Billdu #${dt.billduProductId}` : ""}
                     </div>
                   </div>
-                  <span className="hidden text-sm text-slate-500 sm:block">{t.unit === "LF" ? "per LF" : "each"}</span>
+                  <span className="hidden text-sm text-slate-500 sm:block">{dt.unit === "LF" ? t("per LF") : t("each")}</span>
                   <div className="hidden justify-end sm:flex">
-                    <PriceInput key={`p${t.unitPrice}`} label={`${t.name} price`} value={t.unitPrice} onCommit={(n) => save({ ...t, unitPrice: n }, true)} />
+                    <PriceInput key={`p${dt.unitPrice}`} label={t("{name} price", { name: dt.name })} value={dt.unitPrice} onCommit={(n) => save({ ...dt, unitPrice: n }, true)} />
                   </div>
                   <div className="hidden justify-end sm:flex">
-                    <PriceInput key={`l${t.laborPrice}`} label={`${t.name} labor`} value={t.laborPrice} onCommit={(n) => save({ ...t, laborPrice: n }, true)} />
+                    <PriceInput key={`l${dt.laborPrice}`} label={t("{name} labor", { name: dt.name })} value={dt.laborPrice} onCommit={(n) => save({ ...dt, laborPrice: n }, true)} />
                   </div>
-                  <span className="hidden truncate text-sm text-slate-500 sm:block">{t.defaultWire}</span>
+                  <span className="hidden truncate text-sm text-slate-500 sm:block">{dt.defaultWire}</span>
                   <div className="flex justify-end gap-1">
-                    <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setEditing(t)} title="Edit" aria-label={`Edit ${t.name}`}>
+                    <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setEditing(dt)} title={t("Edit")} aria-label={t("Edit {name}", { name: dt.name })}>
                       <Pencil />
                     </button>
                     <button
                       className="btn btn-sm btn-icon btn-ghost"
-                      onClick={() => save({ ...t, archived: !t.archived })}
-                      title={t.archived ? "Restore" : "Archive (hide from the device menu)"}
-                      aria-label={t.archived ? "Restore" : "Archive"}
+                      onClick={() => save({ ...dt, archived: !dt.archived })}
+                      title={dt.archived ? t("Restore") : t("Archive (hide from the device menu)")}
+                      aria-label={dt.archived ? t("Restore") : t("Archive")}
                     >
-                      {t.archived ? <ArchiveArrowUp /> : <Archive />}
+                      {dt.archived ? <ArchiveArrowUp /> : <Archive />}
                     </button>
                   </div>
                 </div>
               ))}
-              {!rows.length && <p className="px-4 py-4 text-sm text-slate-500">No device types.</p>}
+              {!rows.length && <p className="px-4 py-4 text-sm text-slate-500">{t("No device types.")}</p>}
             </div>
           </section>
         );
@@ -219,11 +239,11 @@ export default function CatalogEditor() {
       {preview && <ImportPreview res={preview} onApply={applyPreview} onCancel={() => setPreview(null)} />}
       {editing && (
         <EditDialog
-          t={editing}
+          type={editing}
           isNew={!types.some((x) => x.id === editing.id)}
           onCancel={() => setEditing(null)}
-          onSave={async (t) => {
-            await save(t);
+          onSave={async (dt) => {
+            await save(dt);
             setEditing(null);
           }}
         />
@@ -232,8 +252,9 @@ export default function CatalogEditor() {
   );
 }
 
-function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: boolean; onSave: (t: DeviceType) => void; onCancel: () => void }) {
-  const [d, setD] = useState(t);
+function EditDialog({ type, isNew, onSave, onCancel }: { type: DeviceType; isNew: boolean; onSave: (dt: DeviceType) => void; onCancel: () => void }) {
+  const t = useT();
+  const [d, setD] = useState(type);
   const trades = useTrades();
   const set = <K extends keyof DeviceType>(k: K, v: DeviceType[K]) => setD({ ...d, [k]: v });
   const id = useId();
@@ -253,23 +274,23 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
           </div>
           <div className="flex-1">
             <h2 id={f("title")} className="text-lg font-semibold">
-              {isNew ? "New device type" : "Edit device type"}
+              {isNew ? t("New device type") : t("Edit device type")}
             </h2>
-            <p className="text-xs text-slate-500">Labels look like {d.abbrev || "DEV"}-1-01</p>
+            <p className="text-xs text-slate-500">{t("Labels look like {example}", { example: `${d.abbrev || "DEV"}-1-01` })}</p>
           </div>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label={t("Close")}>
             <X />
           </button>
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor={f("name")}>
-            Name
+            {t("Name")}
           </label>
-          <input id={f("name")} className="input" autoFocus value={d.name} placeholder="e.g. Doorbell camera" onChange={(e) => set("name", e.target.value)} />
+          <input id={f("name")} className="input" autoFocus value={d.name} placeholder={t("e.g. Doorbell camera")} onChange={(e) => set("name", e.target.value)} />
         </div>
         <div>
           <label className="label" htmlFor={f("category")}>
-            Category
+            {t("Category")}
           </label>
           <select id={f("category")} className="input" value={d.category} onChange={(e) => set("category", e.target.value as Category)}>
             {allCategoriesFor(trades).map((c) => (
@@ -281,17 +302,17 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         </div>
         <div>
           <label className="label" htmlFor={f("unit")}>
-            Measured as
+            {t("Measured as")}
           </label>
           <select id={f("unit")} className="input" value={d.unit} onChange={(e) => setD({ ...d, unit: e.target.value as Unit, kind: e.target.value === "LF" ? "led" : "device" })}>
-            <option value="each">Each (tap to place)</option>
-            <option value="LF">Linear feet (draw a run)</option>
+            <option value="each">{t("Each (tap to place)")}</option>
+            <option value="LF">{t("Linear feet (draw a run)")}</option>
           </select>
         </div>
         {d.kind !== "led" && (
           <div className="sm:col-span-2">
             <span id={f("icon")} className="label">
-              Icon
+              {t("Icon")}
             </span>
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={f("icon")}>
               {[...Object.keys(DEVICE_ICONS), "letters"].map((k) => {
@@ -302,8 +323,8 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    title={k === "letters" ? `Letters (${d.symbol || "?"})` : DEVICE_ICONS[k].label}
-                    aria-label={k === "letters" ? "Letters" : DEVICE_ICONS[k].label}
+                    title={k === "letters" ? t("Letters ({symbol})", { symbol: d.symbol || "?" }) : t(DEVICE_ICONS[k].label)}
+                    aria-label={k === "letters" ? t("Letters") : t(DEVICE_ICONS[k].label)}
                     onClick={() => set("icon", k)}
                     className={`flex h-9 w-9 items-center justify-center rounded-lg ring-1 transition ${on ? "text-white ring-transparent" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}
                     style={on ? { background: d.color } : undefined}
@@ -318,13 +339,13 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label" htmlFor={f("symbol")}>
-              Symbol
+              {t("Symbol")}
             </label>
             <input id={f("symbol")} className="input text-center font-semibold" maxLength={3} value={d.symbol} onChange={(e) => set("symbol", e.target.value.toUpperCase())} />
           </div>
           <div>
             <label className="label" htmlFor={f("abbrev")}>
-              Label prefix
+              {t("Label prefix")}
             </label>
             <input id={f("abbrev")} className="input" maxLength={6} value={d.abbrev} onChange={(e) => set("abbrev", e.target.value.toUpperCase())} />
           </div>
@@ -332,59 +353,65 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <div>
             <label className="label" htmlFor={f("shape")}>
-              Shape
+              {t("Shape")}
             </label>
-            <select id={f("shape")} className="input capitalize" value={d.shape} onChange={(e) => set("shape", e.target.value as Shape)}>
+            <select id={f("shape")} className="input" value={d.shape} onChange={(e) => set("shape", e.target.value as Shape)}>
               {SHAPES.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {t(SHAPE_LABELS[s])}
+                </option>
               ))}
             </select>
           </div>
           <div>
             <label className="label" htmlFor={f("color")}>
-              Color
+              {t("Color")}
             </label>
             <input id={f("color")} type="color" className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" value={d.color} onChange={(e) => set("color", e.target.value)} />
           </div>
         </div>
         <div>
           <label className="label" htmlFor={f("price")}>
-            Price ({d.unit === "LF" ? "per LF" : "each"})
+            {d.unit === "LF" ? t("Price (per LF)") : t("Price (each)")}
           </label>
           <input id={f("price")} className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.unitPrice} onChange={(e) => set("unitPrice", Number(e.target.value) || 0)} />
         </div>
         <div>
           <label className="label" htmlFor={f("labor")}>
-            Labor ({d.unit === "LF" ? "per LF" : "each"})
+            {d.unit === "LF" ? t("Labor (per LF)") : t("Labor (each)")}
           </label>
           <input id={f("labor")} className="input text-right" type="number" min={0} step="0.01" inputMode="decimal" value={d.laborPrice} onChange={(e) => set("laborPrice", Number(e.target.value) || 0)} />
         </div>
         <div>
           <label className="label" htmlFor={f("wire")}>
-            Default wire
+            {t("Default wire")}
           </label>
           <select id={f("wire")} className="input" value={d.defaultWire} onChange={(e) => set("defaultWire", e.target.value)}>
             {Array.from(new Set([...(hasTrade(trades, "lowvoltage") ? WIRE_TYPES : []), ...tradeWireTypes(trades), "None", d.defaultWire])).map((w) => (
-              <option key={w}>{w}</option>
+              <option key={w} value={w}>
+                {w === "None" ? t("None") : w}
+              </option>
             ))}
           </select>
         </div>
         <div>
           <label className="label" htmlFor={f("mount")}>
-            Default mount
+            {t("Default mount")}
           </label>
-          <select id={f("mount")} className="input capitalize" value={d.defaultMount} onChange={(e) => set("defaultMount", e.target.value as Mount)}>
+          <select id={f("mount")} className="input" value={d.defaultMount} onChange={(e) => set("defaultMount", e.target.value as Mount)}>
             {MOUNTS.map((m) => (
-              <option key={m}>{m}</option>
+              <option key={m} value={m}>
+                {MOUNT_LABELS[m] ? t(MOUNT_LABELS[m]) : m}
+              </option>
             ))}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-1 sm:col-span-2">
           <button type="button" className="btn" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand" disabled={!d.name.trim()}>
-            {isNew ? "Add device type" : "Save"}
+            {isNew ? t("Add device type") : t("Save")}
           </button>
         </div>
       </form>
@@ -393,6 +420,7 @@ function EditDialog({ t, isNew, onSave, onCancel }: { t: DeviceType; isNew: bool
 }
 
 function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onApply: () => void; onCancel: () => void }) {
+  const t = useT();
   const n = res.updated.length + res.created.length;
   const id = useId();
   return (
@@ -401,19 +429,19 @@ function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onA
         <div className="flex items-start">
           <div className="flex-1">
             <h2 id={`${id}-title`} className="text-lg font-semibold">
-              Import prices
+              {t("Import prices")}
             </h2>
-            <p className="text-sm text-slate-500">Review the changes before applying them.</p>
+            <p className="text-sm text-slate-500">{t("Review the changes before applying them.")}</p>
           </div>
-          <button className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={onCancel} aria-label={t("Close")}>
             <X />
           </button>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           {[
-            ["Updated", res.updated.length, "text-brand-700"],
-            ["New types", res.created.length, "text-emerald-700"],
-            ["Skipped", res.unmatched.length + res.errors.length, "text-amber-700"],
+            [t("Updated"), res.updated.length, "text-brand-700"],
+            [t("New types"), res.created.length, "text-emerald-700"],
+            [t("Skipped"), res.unmatched.length + res.errors.length, "text-amber-700"],
           ].map(([label, v, cls]) => (
             <div key={label as string} className="rounded-xl bg-slate-50 py-2 ring-1 ring-slate-100">
               <div className={`text-xl font-semibold tabular-nums ${cls}`}>{v}</div>
@@ -423,12 +451,12 @@ function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onA
         </div>
         {n > 0 && (
           <ul className="scroll-thin max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 text-sm">
-            {[...res.updated, ...res.created].map((t) => (
-              <li key={t.id} className="flex items-center gap-2 px-3 py-1.5">
-                <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                {res.created.includes(t) && <span className="chip bg-emerald-50 text-emerald-700">new</span>}
+            {[...res.updated, ...res.created].map((dt) => (
+              <li key={dt.id} className="flex items-center gap-2 px-3 py-1.5">
+                <span className="min-w-0 flex-1 truncate">{dt.name}</span>
+                {res.created.includes(dt) && <span className="chip bg-emerald-50 text-emerald-700">{t("new")}</span>}
                 <span className="tabular-nums text-slate-600">
-                  {formatMoney(t.unitPrice)} + {formatMoney(t.laborPrice)} labor
+                  {t("{price} + {labor} labor", { price: formatMoney(dt.unitPrice), labor: formatMoney(dt.laborPrice) })}
                 </span>
               </li>
             ))}
@@ -437,18 +465,18 @@ function ImportPreview({ res, onApply, onCancel }: { res: PriceImportResult; onA
         {(res.errors.length > 0 || res.unmatched.length > 0) && (
           <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900 ring-1 ring-amber-200">
             {res.errors.map((e) => (
-              <div key={e}>{e}</div>
+              <div key={e}>{t(e)}</div>
             ))}
-            {res.unmatched.length > 0 && <div>Not matched (add a valid category to create them): {res.unmatched.join(", ")}</div>}
+            {res.unmatched.length > 0 && <div>{t("Not matched (add a valid category to create them): {items}", { items: res.unmatched.join(", ") })}</div>}
           </div>
         )}
-        <p className="text-xs text-slate-500">Columns: id or name, price, labor (optional: category, unit, default_wire). Download the price list for a ready-made template.</p>
+        <p className="text-xs text-slate-500">{t("Columns: id or name, price, labor (optional: category, unit, default_wire). Download the price list for a ready-made template.")}</p>
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand" disabled={!n} onClick={onApply}>
-            Apply {n} change{n === 1 ? "" : "s"}
+            {t.tn("Apply {n} change", "Apply {n} changes", n)}
           </button>
         </div>
       </div>

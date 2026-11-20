@@ -6,26 +6,32 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useJobDocs } from "@/lib/docActions";
 import { useDocSettings } from "@/lib/docSettings";
+import { msg, useT } from "@/lib/i18n";
 import { normalizeDocSettings } from "@/lib/documents";
 import { useEditor } from "@/lib/store";
 import { isMoneyStep, MONEY_STEPS, type MoneyStep } from "@/lib/tabRoutes";
 import { useApprovedProposalQuote } from "../documents/useApprovedProposalQuote";
 import { useJobNav } from "../nav/useJobNav";
 
-const loading = () => <div className="p-6 text-slate-500">Loading…</div>;
+function Loading() {
+  const t = useT();
+  return <div className="p-6 text-slate-500">{t("Loading…")}</div>;
+}
+const loading = () => <Loading />;
 const EstimateTab = dynamic(() => import("../EstimateTab"), { loading });
 const DocumentsTab = dynamic(() => import("../documents/DocumentsTab"), { loading });
 const ChangeOrdersTab = dynamic(() => import("../changeOrders/ChangeOrdersTab"), { loading });
 
 export const MONEY_STEP_LABELS: Record<MoneyStep, string> = {
-  pricing: "Pricing",
-  quote: "Quote",
-  changes: "Change orders",
-  invoices: "Invoices & payments",
+  pricing: msg("Pricing"),
+  quote: msg("Quote"),
+  changes: msg("Change orders"),
+  invoices: msg("Invoices & payments"),
 };
 
 /** `step` is the resolved ?step= from the job page (old links like ?tab=billing already mapped to theirs). */
 export default function MoneyTab({ step: asked }: { step?: string | null }) {
+  const t = useT();
   const { setTab } = useJobNav();
   const step: MoneyStep = isMoneyStep(asked) ? asked : "pricing";
   // A client approved the quote link: the approved quote is made here, once for the whole tab, so it is there on every
@@ -38,7 +44,7 @@ export default function MoneyTab({ step: asked }: { step?: string | null }) {
   useApprovedProposalQuote(docs, ds);
   return (
     <div className="flex h-full flex-col">
-      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 sm:justify-center sm:px-6" aria-label="Money steps">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 sm:justify-center sm:px-6" aria-label={t("Money steps")}>
         {MONEY_STEPS.map((s, i) => {
           const on = s === step;
           return (
@@ -51,7 +57,7 @@ export default function MoneyTab({ step: asked }: { step?: string | null }) {
               className={`flex h-11 shrink-0 items-center gap-2 border-b-2 px-2 text-sm font-medium whitespace-nowrap transition sm:px-3 ${on ? "border-brand-600 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-900"}`}
             >
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold ${on ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-500"}`}>{i + 1}</span>
-              {MONEY_STEP_LABELS[s]}
+              {t(MONEY_STEP_LABELS[s])}
             </button>
           );
         })}

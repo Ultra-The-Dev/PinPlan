@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useId, useRef, useState } from "react";
 import { chargeKey, countOf, DEFAULT_CHARGES, type QuickCharge } from "@/lib/charges";
 import { formatMoney } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import type { TakeoffBucket } from "@/lib/takeoff";
 import type { EstimateLine } from "@/lib/types";
 
@@ -16,6 +17,7 @@ export default function AddChargeMenu(props: {
   currency: string;
   onAdd: (key: string, patch: Partial<EstimateLine>) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   // Fixed on screen above the button, so tables that scroll sideways don't clip it.
   const [pos, setPos] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
@@ -62,7 +64,7 @@ export default function AddChargeMenu(props: {
         }}
         aria-expanded={open}
       >
-        <Plus /> Add charge — labor, prewire…
+        <Plus /> {t("Add charge — labor, prewire…")}
       </button>
       {open && (
         <div
@@ -78,16 +80,16 @@ export default function AddChargeMenu(props: {
             return (
               <button key={c.id} type="button" className="flex w-full items-baseline gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add(c)}>
                 <span className="min-w-0 flex-1">
-                  {c.name}
-                  {n != null && <span className="block text-xs text-slate-500">× {n} from the plan — updates as you place devices</span>}
+                  {t(c.name)}
+                  {n != null && <span className="block text-xs text-slate-500">{t("× {n} from the plan — updates as you place devices", { n })}</span>}
                 </span>
-                <span className="shrink-0 text-xs text-slate-500 tabular-nums">{c.price ? `${formatMoney(c.price, props.currency)}/${c.unit === "each" ? "ea" : c.unit}` : "set price"}</span>
+                <span className="shrink-0 text-xs text-slate-500 tabular-nums">{c.price ? `${formatMoney(c.price, props.currency)}/${c.unit === "each" ? t("ea") : c.unit}` : t("set price")}</span>
               </button>
             );
           })}
           <div className="my-1 h-px bg-slate-100" />
           <button type="button" className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => add({ id: "custom", name: "Custom item", unit: "each", price: 0 })}>
-            Custom line
+            {t("Custom line")}
           </button>
         </div>
       )}

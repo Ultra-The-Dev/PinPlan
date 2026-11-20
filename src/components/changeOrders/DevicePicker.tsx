@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { categoryOf } from "@/lib/catalog";
 import { priceDeviceLine, type CoPricing } from "@/lib/changeOrders";
 import { formatMoney } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import type { DeviceType, Product } from "@/lib/types";
 import Modal from "../ui/Modal";
 
@@ -15,6 +16,7 @@ export default function DevicePicker(props: {
   onPick: (d: DeviceType) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const list = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -28,14 +30,14 @@ export default function DevicePicker(props: {
   }, [props.catalog, q]);
 
   return (
-    <Modal onClose={props.onClose} label="Add a device" className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4">
+    <Modal onClose={props.onClose} label={t("Add a device")} className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4">
       <div className="card animate-in flex max-h-[85vh] w-full max-w-md flex-col rounded-b-none shadow-pop sm:rounded-b-xl">
         <div className="flex items-center gap-2 border-b border-slate-100 p-3">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input autoFocus className="input pl-8" placeholder="Search devices…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search devices" />
+            <input autoFocus className="input pl-8" placeholder={t("Search devices…")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Search devices")} />
           </div>
-          <button type="button" className="btn btn-icon btn-ghost" onClick={props.onClose} aria-label="Close">
+          <button type="button" className="btn btn-icon btn-ghost" onClick={props.onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
@@ -57,7 +59,7 @@ export default function DevicePicker(props: {
               </li>
             );
           })}
-          {!list.length && <li className="p-6 text-center text-sm text-slate-500">No device matches “{q}”.</li>}
+          {!list.length && <li className="p-6 text-center text-sm text-slate-500">{t("No device matches “{q}”.", { q })}</li>}
         </ul>
       </div>
     </Modal>

@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { getCatalog, getProducts, newId, nowIso, put, putMany, remove } from "@/lib/db";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import { CABLE_TYPES, cableKey, cableTypeFromKey, parseProductCsv, productCsvTemplate, productTitle, typeKeyName, type ProductImport } from "@/lib/products";
 import { wireColor } from "@/lib/symbols";
 import { toast } from "@/lib/toast";
@@ -26,12 +27,13 @@ export function ProductDialog(props: {
   onSave: (p: Product) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [p, setP] = useState(props.product);
   const [price, setPrice] = useState(String(props.product.unitPrice || ""));
   const [labor, setLabor] = useState(String(props.product.laborPrice || ""));
   const cable = cableTypeFromKey(p.deviceTypeId);
   const type = props.catalog.find((d) => d.id === p.deviceTypeId);
-  const per = cable ? "per ft" : type?.unit === "LF" ? "per LF" : "each";
+  const per = cable ? "ft" : type?.unit === "LF" ? "LF" : "each";
   const n = (s: string) => {
     const v = Number(s.replace(/[$,\s]/g, ""));
     return Number.isFinite(v) && v >= 0 ? v : 0;
@@ -49,16 +51,16 @@ export function ProductDialog(props: {
       >
         <div className="flex items-start gap-3">
           <h2 id={`${id}-title`} className="flex-1 text-base font-semibold">
-            {props.isNew ? "New product" : "Edit product"}
+            {props.isNew ? t("New product") : t("Edit product")}
           </h2>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-2" aria-label="Close" onClick={props.onCancel}>
+          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-2" aria-label={t("Close")} onClick={props.onCancel}>
             <X />
           </button>
         </div>
         <label className="block text-sm">
-          <span className="label">For</span>
+          <span className="label">{t("For")}</span>
           <select className="input" value={p.deviceTypeId} disabled={props.lockType} onChange={(e) => setP({ ...p, deviceTypeId: e.target.value })}>
-            <optgroup label="Devices">
+            <optgroup label={t("Devices")}>
               {props.catalog
                 .filter((d) => !d.archived || d.id === p.deviceTypeId)
                 .map((d) => (
@@ -67,10 +69,10 @@ export function ProductDialog(props: {
                   </option>
                 ))}
             </optgroup>
-            <optgroup label="Cable (priced per ft)">
+            <optgroup label={t("Cable (priced per ft)")}>
               {CABLE_TYPES.map((w) => (
                 <option key={w} value={cableKey(w)}>
-                  {w} cable
+                  {t("{wire} cable", { wire: w })}
                 </option>
               ))}
             </optgroup>
@@ -78,36 +80,36 @@ export function ProductDialog(props: {
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm">
-            <span className="label">Brand</span>
+            <span className="label">{t("Brand")}</span>
             <input className="input" autoFocus={props.isNew} placeholder="Ubiquiti" value={p.brand} onChange={(e) => setP({ ...p, brand: e.target.value })} />
           </label>
           <label className="block text-sm">
-            <span className="label">Model</span>
+            <span className="label">{t("Model")}</span>
             <input className="input" placeholder="U7 Pro" value={p.model} onChange={(e) => setP({ ...p, model: e.target.value })} />
           </label>
           <label className="block text-sm">
-            <span className="label">Price ({per})</span>
+            <span className="label">{per === "ft" ? t("Price (per ft)") : per === "LF" ? t("Price (per LF)") : t("Price (each)")}</span>
             <input className="input text-right tabular-nums" inputMode="decimal" placeholder="0" value={price} onChange={(e) => setPrice(e.target.value)} />
           </label>
           <label className="block text-sm">
-            <span className="label">Labor ({per})</span>
+            <span className="label">{per === "ft" ? t("Labor (per ft)") : per === "LF" ? t("Labor (per LF)") : t("Labor (each)")}</span>
             <input className="input text-right tabular-nums" inputMode="decimal" placeholder="0" value={labor} onChange={(e) => setLabor(e.target.value)} />
           </label>
           <label className="col-span-2 block text-sm">
-            <span className="label">SKU / part number</span>
+            <span className="label">{t("SKU / part number")}</span>
             <input className="input" value={p.sku ?? ""} onChange={(e) => setP({ ...p, sku: e.target.value })} />
           </label>
           <label className="col-span-2 block text-sm">
-            <span className="label">Notes</span>
-            <input className="input" placeholder="Color, finish, supplier…" value={p.notes ?? ""} onChange={(e) => setP({ ...p, notes: e.target.value })} />
+            <span className="label">{t("Notes")}</span>
+            <input className="input" placeholder={t("Color, finish, supplier…")} value={p.notes ?? ""} onChange={(e) => setP({ ...p, notes: e.target.value })} />
           </label>
         </div>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={props.onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand" disabled={!valid}>
-            {props.isNew ? "Add product" : "Save"}
+            {props.isNew ? t("Add product") : t("Save")}
           </button>
         </div>
       </form>
@@ -116,6 +118,7 @@ export function ProductDialog(props: {
 }
 
 export default function ProductsEditor() {
+  const t = useT();
   const [catalog, setCatalog] = useState<DeviceType[] | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -134,10 +137,10 @@ export default function ProductsEditor() {
   async function save(p: Product, quiet = false) {
     const saved = await put("products", p);
     setProducts((ps) => (ps.some((x) => x.id === p.id) ? ps.map((x) => (x.id === p.id ? saved : x)) : [...ps, saved]));
-    if (!quiet) toast(`Saved ${productTitle(p)}`);
+    if (!quiet) toast(t("Saved {name}", { name: productTitle(p) }));
   }
   async function del(p: Product) {
-    if (!confirm(`Delete ${productTitle(p)}? Jobs that use it go back to the device type's price.`)) return;
+    if (!confirm(t("Delete {name}? Jobs that use it go back to the device type's price.", { name: productTitle(p) }))) return;
     await remove("products", p.id);
     setProducts((ps) => ps.filter((x) => x.id !== p.id));
   }
@@ -157,7 +160,7 @@ export default function ProductsEditor() {
     });
     if (rows.length) await putMany("products", rows);
     setProducts(await getProducts());
-    toast(`Imported ${rows.length} product${rows.length === 1 ? "" : "s"}`);
+    toast(t.tn("Imported {n} product", "Imported {n} products", rows.length));
     setPreview(null);
   }
 
@@ -175,43 +178,43 @@ export default function ProductsEditor() {
       .filter((g) => g.items.length);
   }, [catalog, products, q, showArchived]);
 
-  if (!catalog) return <p className="p-6 text-slate-500">Loading…</p>;
+  if (!catalog) return <p className="p-6 text-slate-500">{t("Loading…")}</p>;
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="mr-auto max-w-xl">
-          <h1 className="page-title">Products</h1>
+          <h1 className="page-title">{t("Products")}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            The brands and models you install. Pick one per device type on each job (Estimate tab), or a different one on a single device. Cable products are priced per foot.
+            {t("The brands and models you install. Pick one per device type on each job (Estimate tab), or a different one on a single device. Cable products are priced per foot.")}
           </p>
         </div>
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search" aria-label="Search products" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9" placeholder={t("Search")} aria-label={t("Search products")} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <input ref={fileRef} type="file" accept=".csv,.tsv,text/csv,text/plain" className="hidden" aria-label="Price list file" onChange={(e) => onFile(e.target.files?.[0])} />
-        <button className="btn" onClick={() => fileRef.current?.click()} title="Import a price list: device type, brand, model, SKU, price, labor, notes">
-          <Upload /> Import price list
+        <input ref={fileRef} type="file" accept=".csv,.tsv,text/csv,text/plain" className="hidden" aria-label={t("Price list file")} onChange={(e) => onFile(e.target.files?.[0])} />
+        <button className="btn" onClick={() => fileRef.current?.click()} title={t("Import a price list: device type, brand, model, SKU, price, labor, notes")}>
+          <Upload /> {t("Import price list")}
         </button>
         <button className="btn btn-brand" onClick={() => setEditing(blankProduct(catalog.find((d) => !d.archived)?.id ?? cableKey("Cat6")))}>
-          <Plus /> Add product
+          <Plus /> {t("Add product")}
         </button>
       </div>
 
       {products.length === 0 ? (
         <div className="card px-6 py-10 text-center">
-          <p className="font-medium">No products yet</p>
+          <p className="font-medium">{t("No products yet")}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-            Add the cameras, access points, speakers and cable you buy, or import your supplier price list as a CSV.
+            {t("Add the cameras, access points, speakers and cable you buy, or import your supplier price list as a CSV.")}
           </p>
           <button className="btn btn-sm mt-4" onClick={() => downloadText(productCsvTemplate(catalog), "pinplan-products-template.csv")}>
-            <Download /> CSV template
+            <Download /> {t("CSV template")}
           </button>
         </div>
       ) : (
         <>
           <label className="mb-3 flex cursor-pointer items-center justify-end gap-2 text-sm text-slate-600">
-            <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived
+            <input type="checkbox" className="accent-brand-600" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> {t("Show archived")}
           </label>
           {groups.map(({ key, items }) => {
             const d = catalog.find((x) => x.id === key);
@@ -223,7 +226,7 @@ export default function ProductsEditor() {
                   <h2 className="font-semibold">{typeKeyName(key, catalog)}</h2>
                   <span className="text-xs text-slate-500">{items.length}</span>
                   <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => setEditing(blankProduct(key))}>
-                    <Plus /> Add
+                    <Plus /> {t("Add")}
                   </button>
                 </div>
                 <div className="card divide-y divide-slate-100">
@@ -238,16 +241,16 @@ export default function ProductsEditor() {
                           {formatMoney(p.unitPrice)}
                           <span className="text-slate-500">{per}</span>
                         </div>
-                        <div className="text-xs text-slate-500">+ {formatMoney(p.laborPrice)} labor</div>
+                        <div className="text-xs text-slate-500">{t("+ {amount} labor", { amount: formatMoney(p.laborPrice) })}</div>
                       </div>
                       <div className="flex gap-1">
-                        <button className="btn btn-sm btn-icon btn-ghost" aria-label={`Edit ${productTitle(p)}`} title="Edit" onClick={() => setEditing(p)}>
+                        <button className="btn btn-sm btn-icon btn-ghost" aria-label={t("Edit {name}", { name: productTitle(p) })} title={t("Edit")} onClick={() => setEditing(p)}>
                           <Pencil />
                         </button>
-                        <button className="btn btn-sm btn-icon btn-ghost" aria-label={p.archived ? "Restore" : "Archive"} title={p.archived ? "Restore" : "Archive (hide from pickers)"} onClick={() => save({ ...p, archived: !p.archived }, true)}>
+                        <button className="btn btn-sm btn-icon btn-ghost" aria-label={p.archived ? t("Restore") : t("Archive")} title={p.archived ? t("Restore") : t("Archive (hide from pickers)")} onClick={() => save({ ...p, archived: !p.archived }, true)}>
                           {p.archived ? <ArchiveArrowUp /> : <Archive />}
                         </button>
-                        <button className="btn btn-sm btn-icon btn-ghost text-slate-500" aria-label={`Delete ${productTitle(p)}`} title="Delete" onClick={() => del(p)}>
+                        <button className="btn btn-sm btn-icon btn-ghost text-slate-500" aria-label={t("Delete {name}", { name: productTitle(p) })} title={t("Delete")} onClick={() => del(p)}>
                           <Trash />
                         </button>
                       </div>
@@ -257,9 +260,9 @@ export default function ProductsEditor() {
               </section>
             );
           })}
-          {!groups.length && <p className="px-1 text-sm text-slate-500">Nothing matches “{q}”.</p>}
+          {!groups.length && <p className="px-1 text-sm text-slate-500">{t("Nothing matches “{q}”.", { q })}</p>}
           <button className="btn btn-sm btn-ghost mt-2" onClick={() => downloadText(productCsvTemplate(catalog), "pinplan-products-template.csv")}>
-            <Download /> CSV template
+            <Download /> {t("CSV template")}
           </button>
         </>
       )}
@@ -268,10 +271,10 @@ export default function ProductsEditor() {
         <Modal onClose={() => setPreview(null)} labelledBy="products-import-title">
           <div className="card animate-in flex max-h-[80vh] w-full max-w-lg flex-col p-5 shadow-pop">
             <h2 id="products-import-title" className="text-base font-semibold">
-              Import price list
+              {t("Import price list")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {preview.products.length} product{preview.products.length === 1 ? "" : "s"} found. Ones you already have (same brand and model) get the new prices.
+              {t.tn("{n} product found.", "{n} products found.", preview.products.length)} {t("Ones you already have (same brand and model) get the new prices.")}
             </p>
             <div className="mt-3 min-h-0 flex-1 divide-y divide-slate-100 overflow-auto rounded-lg ring-1 ring-slate-200">
               {preview.products.map((p) => (
@@ -284,16 +287,16 @@ export default function ProductsEditor() {
               ))}
               {preview.skipped.map((s) => (
                 <div key={s} className="px-3 py-2 text-sm text-amber-700">
-                  {s}
+                  {t(s)}
                 </div>
               ))}
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="btn" onClick={() => setPreview(null)}>
-                Cancel
+                {t("Cancel")}
               </button>
               <button className="btn btn-brand" disabled={!preview.products.length} onClick={applyImport}>
-                Import {preview.products.length}
+                {t("Import {n}", { n: preview.products.length })}
               </button>
             </div>
           </div>

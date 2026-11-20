@@ -33,6 +33,7 @@ import {
   type InvoiceMode,
 } from "@/lib/documents";
 import { projectEstimate } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
@@ -45,6 +46,7 @@ import { KindChip, StatusChip } from "./ui";
 type ConvertMode = InvoiceMode["mode"];
 
 export default function DocumentsTab() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const docId = params.get("doc");
@@ -78,8 +80,15 @@ export default function DocumentsTab() {
     } catch {
       /* storage unavailable: the status check above still stops repeats */
     }
-    void updateProject({ status: "approved" }).then(() => toast(`${accepted.signerName ?? "The client"} approved ${accepted.number ?? "the quote"} — job marked approved`, "success"));
-  }, [accepted, project, updateProject]);
+    void updateProject({ status: "approved" }).then(() =>
+      toast(
+        accepted.number
+          ? t("{name} approved {number} — job marked approved", { name: accepted.signerName ?? t("The client"), number: accepted.number })
+          : t("{name} approved the quote — job marked approved", { name: accepted.signerName ?? t("The client") }),
+        "success",
+      ),
+    );
+  }, [accepted, project, updateProject, t]);
 
   const all = useMemo(() => docs ?? [], [docs]);
   // Approved change orders not on an invoice yet (each is billed once).
@@ -90,11 +99,11 @@ export default function DocumentsTab() {
   const asked = billAsk && docId ? all.find((d) => d.id === docId && d.kind === "quote") : null;
   useEffect(() => {
     if (!asked || !project) return;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setDialog({ convert: asked, mode: billAsk === "deposit" ? "deposit" : billAsk === "balance" ? "final" : undefined });
       router.replace(`/project?id=${encodeURIComponent(project.id)}&tab=money&step=quote&doc=${encodeURIComponent(asked.id)}`);
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [asked, billAsk, project, router]);
 
   const ctx = useCallback(() => ({ id: newId(), now: nowIso(), day: today(), settings: ds }), [ds]);
@@ -107,7 +116,7 @@ export default function DocumentsTab() {
     [estimate, project, ctx, ds, sheets, markers, runs, closets, catalog, products, pricing?.taxPct],
   );
 
-  if (!project || !settings) return <div className="p-6 text-slate-500">Loading…</div>;
+  if (!project || !settings) return <div className="p-6 text-slate-500">{t("Loading…")}</div>;
   const stepHref = (st: DocStep) => `/project?id=${encodeURIComponent(project.id)}&tab=money&step=${st}`;
   // A document opens under its own step (quotes under Quote, invoices and credit notes under Invoices & payments).
   const openDoc = (d: Pick<SalesDoc, "id" | "kind">) => router.push(`${stepHref(docStepFor(d.kind))}&doc=${encodeURIComponent(d.id)}`);
@@ -154,9 +163,9 @@ export default function DocumentsTab() {
   if (docId && docs && !current)
     return (
       <div className="p-6 text-slate-500">
-        That document isn’t on this device.{" "}
+        {t("That document isn’t on this device.")}{" "}
         <button className="underline" onClick={back}>
-          Back to the list
+          {t("Back to the list")}
         </button>
       </div>
     );
@@ -170,7 +179,7 @@ export default function DocumentsTab() {
 
   const money = (n: number) => formatDocMoney(n, ds.currency, ds.locale);
   const b = jobBilling(all, approvedChanges);
-  const label = (k: DocKind) => ds.kinds[k].label;
+  const label = (k: DocKind) => t(ds.kinds[k].label);
   const quoteLabel = label("quote").toLowerCase();
 
   const shown = docsForStep(all, step);
@@ -180,7 +189,7 @@ export default function DocumentsTab() {
   const firstBill = !!billQuote && !invoicesFromQuote(billQuote.id, all).length;
   const settingsLink = (
     <Link href="/settings#invoicing" className="font-medium text-brand-600 hover:underline">
-      Invoicing settings
+      {t("Invoicing settings")}
     </Link>
   );
 
@@ -190,63 +199,63 @@ export default function DocumentsTab() {
         <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="mr-auto">
             <h2 className="page-title">{label("quote")}</h2>
-            <p className="mt-1 text-sm text-slate-500">What the client approves and signs online, built from the job’s pricing. {settingsLink}</p>
+            <p className="mt-1 text-sm text-slate-500">{t("What the client approves and signs online, built from the job’s pricing.")} {settingsLink}</p>
           </div>
-          <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : "Place devices and price the job first"}>
-            <FilePlus2 /> New {quoteLabel} from job pricing
+          <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : t("Place devices and price the job first")}>
+            <FilePlus2 /> {t("New {label} from job pricing", { label: quoteLabel })}
           </button>
           <button className="btn" onClick={() => newBlank("quote")}>
-            <FileText /> Blank {quoteLabel}
+            <FileText /> {t("Blank {label}", { label: quoteLabel })}
           </button>
         </div>
       ) : (
         <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="mr-auto">
-            <h2 className="page-title">Invoices &amp; payments</h2>
-            <p className="mt-1 text-sm text-slate-500">Bill the approved {quoteLabel}, record payments and credit notes. {settingsLink}</p>
+            <h2 className="page-title">{t("Invoices & payments")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("Bill the approved {label}, record payments and credit notes.", { label: quoteLabel })} {settingsLink}</p>
           </div>
           {/* The first bill has its own "Next: bill the …" banner below, so the button shows from the second bill on. */}
           {billQuote && !firstBill && (
             <button className="btn btn-brand" onClick={() => actions.convert(billQuote)}>
-              <Receipt /> Create invoice
+              <Receipt /> {t("Create invoice")}
             </button>
           )}
           <button className="btn" onClick={() => newBlank("invoice")}>
-            <FileText /> Blank invoice
+            <FileText /> {t("Blank invoice")}
           </button>
         </div>
       )}
 
       <div className={`mb-5 grid grid-cols-2 gap-3 ${step === "invoices" ? "sm:grid-cols-4" : ""}`}>
         <Stat
-          label={`Approved ${quoteLabel}`}
-          value={b.quote ? money(b.contract ?? 0) : "Not yet"}
-          sub={b.quote ? `${docName(b.quote, ds)}${approvedChanges ? ` + ${money(approvedChanges)} in changes` : ""}` : undefined}
+          label={t("Approved {label}", { label: quoteLabel })}
+          value={b.quote ? money(b.contract ?? 0) : t("Not yet")}
+          sub={b.quote ? (approvedChanges ? t("{name} + {amount} in changes", { name: docName(b.quote, ds), amount: money(approvedChanges) }) : docName(b.quote, ds)) : undefined}
           onClick={b.quote ? () => openDoc(b.quote!) : undefined}
         />
         {step === "quote" ? (
-          <Stat label="Left to bill" value={b.leftToBill == null ? "—" : money(b.leftToBill)} sub={b.billed ? `${money(b.billed)} billed` : undefined} />
+          <Stat label={t("Left to bill")} value={b.leftToBill == null ? "—" : money(b.leftToBill)} sub={b.billed ? t("{amount} billed", { amount: money(b.billed) }) : undefined} />
         ) : (
           <>
-            <Stat label="Billed" value={money(b.billed)} sub={b.paid ? `${money(b.paid)} paid` : undefined} />
-            <Stat label="Left to bill" value={b.leftToBill == null ? "—" : money(b.leftToBill)} strong={!!b.leftToBill} />
-            <Stat label="Unpaid" value={money(b.unpaid)} strong={b.unpaid > 0} />
+            <Stat label={t("Billed")} value={money(b.billed)} sub={b.paid ? t("{amount} paid", { amount: money(b.paid) }) : undefined} />
+            <Stat label={t("Left to bill")} value={b.leftToBill == null ? "—" : money(b.leftToBill)} strong={!!b.leftToBill} />
+            <Stat label={t("Unpaid")} value={money(b.unpaid)} strong={b.unpaid > 0} />
           </>
         )}
       </div>
       {billQuote && firstBill ? (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200">
           <span className="min-w-0 flex-1">
-            {docName(billQuote, ds)} is approved. {billQuote.deposit ? "Next: bill the deposit." : "Next: bill the client."}
+            {t("{name} is approved.", { name: docName(billQuote, ds) })} {billQuote.deposit ? t("Next: bill the deposit.") : t("Next: bill the client.")}
           </span>
           <button className="btn btn-sm btn-brand" onClick={() => actions.convert(billQuote, billQuote.deposit ? "deposit" : "final")}>
-            <Receipt /> {billQuote.deposit ? `Bill the deposit (${money(documentTotals(billQuote).deposit ?? 0)})` : "Create invoice"}
+            <Receipt /> {billQuote.deposit ? t("Bill the deposit ({amount})", { amount: money(documentTotals(billQuote).deposit ?? 0) }) : t("Create invoice")}
           </button>
         </div>
       ) : null}
 
       {docs === null ? (
-        <p className="text-slate-500">Loading…</p>
+        <p className="text-slate-500">{t("Loading…")}</p>
       ) : shown.length === 0 ? (
         <div className="card p-8 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
@@ -254,17 +263,19 @@ export default function DocumentsTab() {
           </div>
           {step === "quote" ? (
             <>
-              <p className="font-semibold">No {quoteLabel}s yet</p>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Turn the job’s pricing into a {quoteLabel} the client can approve and sign online. Once it’s approved, bill it under Invoices &amp; payments.</p>
+              <p className="font-semibold">{t("Nothing here yet: {label}", { label: quoteLabel })}</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("Turn the job’s pricing into a {label} the client can approve and sign online. Once it’s approved, bill it under Invoices & payments.", { label: quoteLabel })}</p>
             </>
           ) : (
             <>
-              <p className="font-semibold">No invoices yet</p>
+              <p className="font-semibold">{t("No invoices yet")}</p>
               <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                {b.quote ? `Bill the deposit and the balance of ${docName(b.quote, ds)}, then record payments here.` : `Once the client approves a ${quoteLabel}, bill the deposit and the balance here and record payments.`}{" "}
+                {b.quote
+                  ? t("Bill the deposit and the balance of {name}, then record payments here.", { name: docName(b.quote, ds) })
+                  : t("Once the client approves a {label}, bill the deposit and the balance here and record payments.", { label: quoteLabel })}{" "}
                 {!b.quote && (
                   <Link href={stepHref("quote")} className="font-medium text-brand-600 hover:underline">
-                    Go to {label("quote")}
+                    {t("Go to {label}", { label: label("quote") })}
                   </Link>
                 )}
               </p>
@@ -272,11 +283,10 @@ export default function DocumentsTab() {
           )}
           <p className="mt-3 text-xs text-slate-400">
             <Settings className="mr-1 inline h-3.5 w-3.5" />
-            Set your numbering, terms, taxes and payment details in{" "}
+            {t("Set your numbering, terms, taxes and payment details in Settings:")}{" "}
             <Link href="/settings#invoicing" className="underline">
-              Settings → Invoicing
+              {t("Settings → Invoicing")}
             </Link>
-            .
           </p>
         </div>
       ) : (
@@ -292,7 +302,7 @@ export default function DocumentsTab() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{docName(d, ds)}</span>
                     <span className="block truncate text-xs text-slate-500">
-                      {[d.title, d.client?.name, d.issueDate ? formatDocDate(d.issueDate, ds.locale) : null, d.kind === "invoice" && d.dueDate ? `due ${formatDocDate(d.dueDate, ds.locale)}` : null, d.invoiceType && d.invoiceType !== "standard" ? d.invoiceType : null, d.options?.changeOrderIds?.length ? "change orders" : null].filter(Boolean).join(" · ")}
+                      {[d.title, d.client?.name, d.issueDate ? formatDocDate(d.issueDate, ds.locale) : null, d.kind === "invoice" && d.dueDate ? t("due {date}", { date: formatDocDate(d.dueDate, ds.locale) }) : null, d.invoiceType && d.invoiceType !== "standard" ? t(d.invoiceType) : null, d.options?.changeOrderIds?.length ? t("change orders") : null].filter(Boolean).join(" · ")}
                     </span>
                     {/* Phones: type and status under the name, so the number isn't cut off. */}
                     <span className="mt-1 flex gap-1.5 sm:hidden">
@@ -305,7 +315,7 @@ export default function DocumentsTab() {
                   </span>
                   <span className="w-28 shrink-0 text-right">
                     <span className="block font-semibold tabular-nums">{formatDocMoney(d.total, d.currency, ds.locale)}</span>
-                    {d.kind === "invoice" && d.status !== "draft" && d.status !== "void" && d.balanceDue !== d.total ? <span className="block text-xs text-slate-500 tabular-nums">due {formatDocMoney(d.balanceDue, d.currency, ds.locale)}</span> : null}
+                    {d.kind === "invoice" && d.status !== "draft" && d.status !== "void" && d.balanceDue !== d.total ? <span className="block text-xs text-slate-500 tabular-nums">{t("due {amount}", { amount: formatDocMoney(d.balanceDue, d.currency, ds.locale) })}</span> : null}
                   </span>
                 </button>
               </li>
@@ -316,8 +326,8 @@ export default function DocumentsTab() {
 
       {step === "invoices" && livePayments.length > 0 && (
         <section className="mt-6">
-          <h3 className="section-title mb-2">Payments</h3>
-          <ul className="card divide-y divide-slate-100" aria-label="Payments">
+          <h3 className="section-title mb-2">{t("Payments")}</h3>
+          <ul className="card divide-y divide-slate-100" aria-label={t("Payments")}>
             {livePayments.map((p) => {
               const inv = docById.get(p.documentId);
               return (
@@ -325,7 +335,7 @@ export default function DocumentsTab() {
                   <button className={`flex w-full items-center gap-x-3 px-4 py-2.5 text-left text-sm hover:bg-slate-50 ${p.voided ? "text-slate-400 line-through" : ""}`} onClick={() => inv && openDoc(inv)} disabled={!inv}>
                     <span className="w-24 shrink-0 tabular-nums text-slate-500">{formatDocDate(p.date, ds.locale)}</span>
                     <span className="min-w-0 flex-1 truncate">
-                      {PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method}
+                      {t(PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method)}
                       {p.reference ? ` · ${p.reference}` : ""}
                       {inv ? <span className="text-slate-500"> · {docName(inv, ds)}</span> : null}
                     </span>

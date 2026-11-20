@@ -2,6 +2,7 @@
 // in plain words. Read from the same pricing the table below uses (buildEstimate with the job's own changes), so the
 // two always agree. Pure (no React).
 import { buildEstimate, money } from "@/lib/estimate";
+import { t } from "@/lib/i18n";
 import type { Takeoff } from "@/lib/takeoff";
 import type { DeviceType, EstimateLine, PricingSettings, Product } from "@/lib/types";
 
@@ -29,7 +30,7 @@ export function jobPriceSources(
   const est = buildEstimate(takeoff, catalog, pricing, live.map((o) => (o.removed ? { ...o, removed: false } : o)));
   const typed = new Map(live.filter((o) => o.unitPrice != null).map((o) => [o.key, o]));
   const byId = new Map(catalog.map((d) => [d.id, d]));
-  const markup = pricing.markupPct ? ` + ${pricing.markupPct}% markup` : "";
+  const pct = pricing.markupPct;
   const out = new Map<string, PriceSource>();
   for (const l of est.lines) {
     let key: string;
@@ -40,13 +41,19 @@ export function jobPriceSources(
       key = d.id;
       // The confirmed line wins over the optional (?) one when both exist.
       if (out.has(key) && l.key.startsWith("opt:")) continue;
-      const labor = pricing.laborMode === "combined" && d.laborPrice ? " + labor" : "";
-      fromList = `price list${markup}${labor}`;
+      const labor = pricing.laborMode === "combined" && !!d.laborPrice;
+      fromList = pct
+        ? labor
+          ? t("price list + {pct}% markup + labor", { pct })
+          : t("price list + {pct}% markup", { pct })
+        : labor
+          ? t("price list + labor")
+          : t("price list");
     } else if (l.key.startsWith("wire:")) {
       key = cableKeyOf(l.key.slice(5));
-      fromList = `wire price in Settings${markup}`;
+      fromList = pct ? t("wire price in Settings + {pct}% markup", { pct }) : t("wire price in Settings");
     } else continue;
-    const source = typed.has(l.key) ? "typed for this job" : l.unitPrice === 0 ? "no price yet" : fromList;
+    const source = typed.has(l.key) ? t("typed for this job") : l.unitPrice === 0 ? t("no price yet") : fromList;
     out.set(key, { price: l.unitPrice, source });
   }
   return out;
