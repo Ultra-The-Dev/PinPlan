@@ -14,6 +14,7 @@ export function useAccountDelete(email: string | null) {
   const [mode, setMode] = useState<"password" | "email">("password");
   const [password, setPassword] = useState("");
   const [typedEmail, setTypedEmail] = useState("");
+  const [expired, setExpired] = useState(false);
   const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("reauth");
 
   /** True when the account was deleted; false when the person must prove it's them first (the fields now show). */
@@ -34,7 +35,8 @@ export function useAccountDelete(email: string | null) {
     }
     const token = (await sb.auth.getSession()).data.session?.access_token;
     if (!token) {
-      setReauth("Your sign-in has expired. Enter your password to continue.");
+      setReauth("Your sign-in has expired. Sign out, sign in again, then delete your account.");
+      setExpired(true);
       setMode("password");
       return false;
     }
@@ -47,6 +49,7 @@ export function useAccountDelete(email: string | null) {
     if (reply.kind === "deleted") return true;
     if (reply.kind === "reauth") {
       setReauth(reply.message);
+      setExpired(r.status === 401);
       setPassword("");
       return false;
     }
@@ -56,7 +59,8 @@ export function useAccountDelete(email: string | null) {
   const fields = reauth ? (
     <div className="space-y-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" role="alert">
       <p className="font-medium">Confirm it’s you</p>
-      <p>{reauth}</p>
+      {/* The server's words talk about typing the email; with the password field showing, say what to do here. */}
+      <p>{mode === "email" ? reauth : expired ? "Your sign-in has expired. Enter your password to continue." : "To keep your account safe, enter your password again."}</p>
       {mode === "password" ? (
         <div>
           <label className="label" htmlFor="del-password">

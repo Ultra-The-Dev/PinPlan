@@ -8,7 +8,8 @@
 // the company: they move to the team owner before the login is deleted.
 //
 // Safety and billing:
-// - A stolen session alone can't delete an account: the sign-in must be fresh (token issued in the last 5 minutes)
+// - A stolen session alone can't delete an account: the sign-in must be fresh (in the last 5 minutes, by
+//   the token's amr sign-in time, else its iat)
 //   or the body must carry the account's email ({ "confirmEmail": "me@example.com" }), typed by the person.
 // - A team with a Stripe subscription is never deleted while billing is misconfigured (501): the subscription would
 //   keep charging with nobody left to cancel it. After cancelling, the Stripe customer is anonymised (name, email,
@@ -29,6 +30,24 @@ const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
 
 class Upstream extends Error {}
+
+/** When the person last actually signed in. A refreshed token gets a new `iat` (the browser refreshes on its own, and
+ *  so can anyone holding a stolen refresh token), so Supabase's `amr` sign-in timestamps win when the token has them. */
+function signedInAt(token: string): number | null {
+  const part = token.split(".")[1];
+  if (part) {
+    try {
+      const claims = JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) as { amr?: unknown };
+      if (Array.isArray(claims.amr)) {
+        const times = claims.amr.map((m) => (m as { timestamp?: unknown } | null)?.timestamp).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+        if (times.length) return Math.max(...times);
+      }
+    } catch {
+      // fall through to iat
+    }
+  }
+  return tokenIssuedAt(token);
+}
 
 /** How recent a sign-in must be to delete without typing the email. */
 const FRESH_SIGN_IN_SECONDS = 5 * 60;
@@ -79,8 +98,8 @@ export async function DELETE(req: Request) {
   // A fresh sign-in, or the account's email typed again.
   const body = (await req.json().catch(() => null)) as { confirmEmail?: unknown; email?: unknown } | null;
   const typed = typeof body?.confirmEmail === "string" ? body.confirmEmail : typeof body?.email === "string" ? body.email : "";
-  const iat = tokenIssuedAt(token);
-  const fresh = iat != null && Date.now() / 1000 - iat < FRESH_SIGN_IN_SECONDS;
+  const signedIn = signedInAt(token);
+  const fresh = signedIn != null && Date.now() / 1000 - signedIn < FRESH_SIGN_IN_SECONDS;
   const emailMatches = !!userEmail && typed.trim().toLowerCase() === userEmail;
   if (!fresh && !emailMatches)
     return json(

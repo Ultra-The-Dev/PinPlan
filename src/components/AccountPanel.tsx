@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
 import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
+import { authErrorMessage } from "@/lib/onboardingLogic";
 import { getSupabase } from "@/lib/supabase";
 import type { RefusedChange, SyncTable } from "@/lib/db";
 import { discardRefused, keepPreviousAccountData, listRefused, removePreviousAccountData, retryRefused, signOut, useSyncStatus } from "@/lib/sync";
@@ -39,9 +40,10 @@ export default function AccountPanel() {
     setMsg(null);
     try {
       const { error } = await fn();
-      setMsg(error ? error.message : ok);
+      // A link for an email with no account (shouldCreateUser: false) gets the same answer as one that has an account.
+      setMsg(!error || /signups? not allowed for otp/i.test(error.message) ? ok : authErrorMessage(error.message));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
+      setMsg(authErrorMessage(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }

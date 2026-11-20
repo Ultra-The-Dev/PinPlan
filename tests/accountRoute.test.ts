@@ -72,7 +72,7 @@ describe("DELETE /api/account", () => {
         const path = url.slice(URL_.length);
         if (path === "/auth/v1/user") {
           const auth = new Headers(init?.headers).get("authorization");
-          return auth === `Bearer ${FRESH}` || auth === `Bearer ${STALE}` ? Response.json({ id: "u1", email: "Me@Example.com" }) : new Response("bad jwt", { status: 401 });
+          return /^Bearer h\.[\w-]+\.sig$/.test(auth ?? "") ? Response.json({ id: "u1", email: "Me@Example.com" }) : new Response("bad jwt", { status: 401 });
         }
         if (path.startsWith("/rest/v1/team_members?user_id=")) return Response.json(membership);
         if (path.startsWith("/rest/v1/team_members?team_id=")) return Response.json(members);
@@ -121,6 +121,18 @@ describe("DELETE /api/account", () => {
     expect(destructive()).toHaveLength(0);
     const typed = await DELETE(req(STALE, { confirmEmail: " me@example.COM " }));
     expect(typed.status).toBe(200);
+  });
+
+  it("a refreshed token isn't a fresh sign-in: the amr sign-in time counts", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const tok = (amrAge: number) =>
+      `h.${Buffer.from(JSON.stringify({ sub: "u1", iat: now - 5, amr: [{ method: "password", timestamp: now - amrAge }] })).toString("base64url")}.sig`;
+    const { DELETE } = await import("@/app/api/account/route");
+    const refreshed = await DELETE(req(tok(3 * 3600)));
+    expect(refreshed.status).toBe(403);
+    expect((await refreshed.json()).code).toBe("reauth_required");
+    expect(destructive()).toHaveLength(0);
+    expect((await DELETE(req(tok(20)))).status).toBe(200);
   });
 
   it("needs a valid sign-in", async () => {
