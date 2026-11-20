@@ -77,6 +77,8 @@ describe("the editor refuses changes while read-only", () => {
     expect(useEditor.getState().past).toHaveLength(0);
     expect(useToasts.getState().toasts.map((t) => [t.kind, t.text])).toEqual([["error", READ_ONLY_MESSAGE]]);
     expect(READ_ONLY_MESSAGE).toMatch(/view and export/);
-    expect(READ_ONLY_MESSAGE).toMatch(/Settings → Billing/);
+    expect(READ_ONLY_MESSAGE).toMatch(/Settings → Plan & billing/);
+    // The toast has a button straight to Settings › Plan & billing.
+    expect(useToasts.getState().toasts[0].action).toEqual({ label: "Plan & billing", href: "/settings#billing" });
   });
 });

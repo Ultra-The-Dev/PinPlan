@@ -135,6 +135,9 @@ export interface AddedPack {
 
 /** Add a trade's starting catalog and wire prices to the company's own (only what's missing; nothing is replaced or deleted). */
 export async function addTradePack(trade: TradeId, opts: { unarchive?: boolean } = {}): Promise<AddedPack> {
+  // The price list belongs to the office: a technician's device never adds items (the database would refuse them,
+  // and they would sit in this device's queue as refused changes).
+  if (useTeam.getState().role === "tech") return { types: 0, wirePrices: 0, checklists: 0 };
   const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
   const add = packAdditions(trade, catalog, settings.pricing.wirePrices, nowIso());
   // Archived items come back only when the trade is newly switched on (not from "add missing items").

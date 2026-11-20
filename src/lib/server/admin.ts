@@ -114,18 +114,45 @@ export interface Raw {
   members: RawMember[] | null;
   usage: RawUsage[] | null;
   errors: RawError[] | null;
+  /** Every error report in the last 24 hours (an exact count), or null/absent when it couldn't be counted. */
+  errors24h?: number | null;
 }
 
-export async function loadRaw(): Promise<Raw> {
+/** How many rows match (PostgREST's exact count from Content-Range), or null when it couldn't be counted. */
+async function countRows(path: string): Promise<number | null> {
+  try {
+    const r = await service(path, { headers: { Prefer: "count=exact", Range: "0-0", "Range-Unit": "items" } });
+    if (!r.ok) return null;
+    const total = /\/(\d+)$/.exec(r.headers.get("content-range") ?? "")?.[1];
+    return total == null ? null : Number(total);
+  } catch {
+    return null;
+  }
+}
+
+/** The newest reports of both lists, once each, newest first. */
+export function mergeErrors(...lists: (RawError[] | null)[]): RawError[] | null {
+  if (lists.every((l) => l === null)) return null;
+  const byId = new Map<string, RawError>();
+  for (const l of lists) for (const e of l ?? []) if (!byId.has(e.id)) byId.set(e.id, e);
+  return [...byId.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+}
+
+export async function loadRaw(now = new Date()): Promise<Raw> {
+  const since = encodeURIComponent(new Date(now.getTime() - 864e5).toISOString());
   // select=* so billing columns (plan_status, trial_ends_at, current_period_end, seat_limit) come along once they exist.
-  const [users, teams, members, usage, errors] = await Promise.all([
+  // Server errors are read on their own as well: a client stuck in a crash loop can fill the newest 50 by itself, and
+  // the server's own failures must still show.
+  const [users, teams, members, usage, recent, server, errors24h] = await Promise.all([
     allUsers(),
     rows<RawTeam>("/rest/v1/teams?select=*&order=created_at.desc"),
     rows<RawMember>("/rest/v1/team_members?select=team_id,user_id,role"),
     rows<RawUsage>("/rest/v1/rpc/admin_usage", { method: "POST", body: "{}" }),
     rows<RawError>("/rest/v1/app_errors?select=*&order=created_at.desc&limit=50"),
+    rows<RawError>("/rest/v1/app_errors?select=*&platform=eq.server&order=created_at.desc&limit=50").catch(() => null),
+    countRows(`/rest/v1/app_errors?select=id&created_at=gt.${since}`),
   ]);
-  return { users, teams, members, usage, errors };
+  return { users, teams, members, usage, errors: mergeErrors(recent, server), errors24h };
 }
 
 // ---------- shaping (pure) ----------
@@ -211,7 +238,8 @@ export function buildOverview(raw: Raw, now = new Date()): Overview {
       photos: all.reduce((n, u) => n + Number(u.photos), 0),
       storageBytes: all.reduce((n, u) => n + Number(u.storage_bytes), 0),
       signups7d: raw.users.filter((u) => u.created_at && Date.parse(u.created_at) > weekAgo).length,
-      errors24h: (raw.errors ?? []).filter((e) => Date.parse(e.created_at) > dayAgo).length,
+      // The exact count when the database gave one; otherwise what the lists hold (each report once).
+      errors24h: raw.errors24h ?? new Set((raw.errors ?? []).filter((e) => Date.parse(e.created_at) > dayAgo).map((e) => e.id)).size,
     },
     companies,
     errors: (raw.errors ?? []).map((e) => ({ ...e, email: (e.user_id && byId.get(e.user_id)?.email) || null })),

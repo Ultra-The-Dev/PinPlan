@@ -4,6 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SignaturePad, { drawTypedSignature } from "@/components/SignaturePad";
 
+// next/font only works inside a Next build; the client pages just need a class name and a font family.
+vi.mock("next/font/google", () => ({ Manrope: () => ({ className: "font-manrope", style: { fontFamily: "Manrope" } }) }));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // jsdom has no canvas drawing: a recording 2D context and a fixed PNG are enough to follow what the pad does.

@@ -106,6 +106,13 @@ vi.mock("@/lib/supabase", () => {
   return { supabaseConfigured: true, getSupabase: () => client, PLANS_BUCKET: "plans" };
 });
 vi.mock("@/lib/docSettings", () => ({ pullDocSettings: async () => undefined }));
+const pullCompany = vi.hoisted(() => ({ calls: 0, fail: false }));
+vi.mock("@/lib/companySettings", () => ({
+  pullCompanySettings: async () => {
+    pullCompany.calls += 1;
+    if (pullCompany.fail) throw new Error("company_settings unavailable");
+  },
+}));
 vi.mock("@/lib/team", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/team")>();
   return { ...mod, loadTeamIfStale: async () => mod.useTeam.getState() };
@@ -136,6 +143,8 @@ beforeEach(async () => {
   fake.upserts.length = 0;
   fake.uploads.length = 0;
   fake.sheetPathUpdates.length = 0;
+  pullCompany.calls = 0;
+  pullCompany.fail = false;
   fake.tables.set("projects", new Map([["p-remote", { ...remoteJob }]]));
   __resetSyncForTests();
   useTeam.setState({ role: null, billing: null, userId: "u1", ready: true });
@@ -291,5 +300,23 @@ describe("refused changes", () => {
     await retryRefused();
     expect(remote("markers").has("m1")).toBe(true);
     expect(await db().syncRefused.count()).toBe(0);
+  });
+});
+
+describe("company settings", () => {
+  it("every sync brings the company's details in step, for technicians too", async () => {
+    await __syncForTests("u1");
+    expect(pullCompany.calls).toBe(1);
+    useTeam.setState({ role: "tech" });
+    await __syncForTests("u1");
+    expect(pullCompany.calls).toBe(2);
+  });
+
+  it("a failure there never fails the sync", async () => {
+    pullCompany.fail = true;
+    await put("markers", marker("m1"));
+    await __syncForTests("u1");
+    expect(remote("markers").has("m1")).toBe(true);
+    expect(useSyncStatus.getState().error).toBeNull();
   });
 });

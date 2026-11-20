@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_TOASTS, TOAST_MS, toast, useToasts } from "@/lib/toast";
+import { MAX_TOASTS, setToastAction, TOAST_MS, toast, useToasts } from "@/lib/toast";
 
 const texts = () => useToasts.getState().toasts.map((t) => t.text);
 
@@ -49,5 +49,19 @@ describe("toasts", () => {
     for (let i = 0; i < MAX_TOASTS + 2; i++) toast(`T${i}`);
     expect(texts()).toHaveLength(MAX_TOASTS);
     expect(texts()[MAX_TOASTS - 1]).toBe(`T${MAX_TOASTS + 1}`);
+  });
+
+  it("can carry a button that goes somewhere, given each time or always for one message", () => {
+    toast("Saved", "success", { action: { label: "Open", href: "/project?id=p1" } });
+    expect(useToasts.getState().toasts[0].action).toEqual({ label: "Open", href: "/project?id=p1" });
+    setToastAction("Read-only", { label: "Plan & billing", href: "/settings#billing" });
+    toast("Read-only", "error");
+    toast("Something else", "error");
+    const [, ro, other] = useToasts.getState().toasts;
+    expect(ro.action).toEqual({ label: "Plan & billing", href: "/settings#billing" });
+    expect(other.action).toBeUndefined();
+    setToastAction("Read-only", null);
+    toast("Read-only", "error");
+    expect(useToasts.getState().toasts.at(-1)?.action).toBeUndefined();
   });
 });
