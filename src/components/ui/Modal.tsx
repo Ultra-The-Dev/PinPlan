@@ -5,7 +5,9 @@
 //   - close on a click on the dimmed area around the panel;
 //   - cycle Tab / Shift+Tab inside the dialog (browsers otherwise let focus leave for the address bar);
 //   - give focus back to whatever opened the dialog when it goes away;
-//   - name the dialog with aria-labelledby (an id inside it) or aria-label.
+//   - name the dialog with aria-labelledby (an id inside it) or aria-label;
+//   - mark it aria-modal="true", so the plan's shortcuts and Escape handlers (which look for [aria-modal='true'])
+//     stand down while it is open.
 // Render it only while open: mounting opens it, unmounting closes it.
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
@@ -134,6 +136,7 @@ export default function Modal(props: {
       aria-label={props.labelledBy ? undefined : props.label}
       aria-describedby={props.describedBy}
       role={props.alert ? "alertdialog" : undefined}
+      aria-modal="true"
       tabIndex={-1}
       // A transparent full-screen box: the panel inside keeps its own card classes.
       className="m-0 h-full max-h-none w-full max-w-none overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"

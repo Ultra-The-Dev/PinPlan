@@ -148,7 +148,7 @@ describe("POST /api/notify/document-response", () => {
     expect(claim.url).toContain("responded_at=not.is.null");
     expect(claim.url).toContain("response_notified_at=is.null");
     expect(sends()[0].body).toMatchObject({ to: ["owner@brightline.example"], reply_to: "jane@example.com" });
-    expect((sends()[0].body as { text: string }).text).toContain("https://app.example.com/project?id=p1&tab=billing&doc=d1");
+    expect((sends()[0].body as { text: string }).text).toContain("https://app.example.com/project?id=p1&tab=money&step=quote&doc=d1");
   });
 
   it("does nothing for an unanswered or already-notified link", async () => {

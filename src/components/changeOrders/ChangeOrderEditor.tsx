@@ -55,6 +55,7 @@ import { productIdFor } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
+import { jobHref } from "@/lib/tabRoutes";
 import { toast } from "@/lib/toast";
 import { useBlobUrl } from "@/lib/useImage";
 import type { ChangeOrder, ChangeOrderLine, DeviceType, Marker, Photo } from "@/lib/types";
@@ -281,7 +282,8 @@ export default function ChangeOrderEditor(props: {
   const liveDocSettings = useDocSettings();
   const docSettings = liveDocSettings ?? normalizeDocSettings(settings.documents, settings.pricing.currency);
   const billedOn = (jobDocs ?? []).find((d) => d.kind === "invoice" && !d.deleted && d.status !== "void" && d.options?.changeOrderIds?.includes(draft.id)) ?? null;
-  const openDoc = (id: string) => router.push(`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(id)}`);
+  // Both are invoices: they open on the Money tab's Invoices & payments step.
+  const openDoc = (id: string) => router.push(jobHref(project.id, "money", { step: "invoices", doc: id }));
   async function billThis() {
     const changes = billableChanges([draft], billedChangeOrderIds(jobDocs ?? []));
     if (!changes.length) return;

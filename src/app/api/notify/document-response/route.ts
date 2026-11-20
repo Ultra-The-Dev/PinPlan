@@ -7,6 +7,7 @@ import { documentResponseEmail } from "@/lib/emailTemplates";
 import { logNotification } from "@/lib/server/sendGuard";
 import { appOrigin, clientIp, emailConfigured, rateLimiter, sendEmail, validEmail } from "@/lib/server/email";
 import { getAuthUser, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
+import { jobHref } from "@/lib/tabRoutes";
 
 const nothing = () => new Response(null, { status: 204 });
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,128}$/;
@@ -99,7 +100,8 @@ export async function POST(req: Request) {
     currency: doc.currency,
     note: doc.client_note,
     respondedAt: doc.responded_at,
-    url: `${origin}/project?id=${encodeURIComponent(link.project_id)}&tab=billing&doc=${encodeURIComponent(link.document_id)}`,
+    // Client links are quotes: open it on the Money tab's Quote step.
+    url: `${origin}${jobHref(link.project_id, "money", { step: "quote", doc: link.document_id })}`,
     companyName: s.business?.name,
   });
   const clientEmail = s.client?.email?.trim() ?? "";

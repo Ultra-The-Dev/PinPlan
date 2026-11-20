@@ -108,7 +108,7 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(r.status).toBe(400);
     const j = await r.json();
     expect(j.code).toBe("business_email_required");
-    expect(j.error).toBe("Add your business email in Settings → Business, then choose Update link on the document and send it again.");
+    expect(j.error).toBe("Add your business email in Settings → Company → Your business, then choose Update link on the document and send it again.");
     expect(sends()).toHaveLength(0);
     expect(calls.some((c) => c.url === RESERVE)).toBe(false);
   });

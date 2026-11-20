@@ -41,7 +41,6 @@ import { useChangeOrders } from "../changeOrders/useChangeOrders";
 import { ConvertDialog, NewQuoteDialog } from "./DocDialogs";
 import DocEditor from "./DocEditor";
 import { KindChip, StatusChip } from "./ui";
-import { useApprovedProposalQuote } from "./useApprovedProposalQuote";
 
 type ConvertMode = InvoiceMode["mode"];
 
@@ -57,8 +56,7 @@ export default function DocumentsTab() {
   const liveSettings = useDocSettings();
   const ds = useMemo(() => liveSettings ?? normalizeDocSettings(settings?.documents, settings?.pricing.currency), [liveSettings, settings]);
   const { docs, payments } = useJobDocs(project?.id);
-  // A client approved the quote link: the approved quote is made here too, not only when Pricing is opened.
-  useApprovedProposalQuote(docs, ds);
+  // A client's approval becomes the approved quote in MoneyTab (useApprovedProposalQuote), on every step.
   const { rows: changeOrders } = useChangeOrders(project?.id);
   const [dialog, setDialog] = useState<null | "quote" | { convert: SalesDoc; mode?: ConvertMode }>(null);
 

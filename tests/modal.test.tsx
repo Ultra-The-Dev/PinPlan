@@ -44,14 +44,24 @@ function Page({ onCancel }: { onCancel?: () => void }) {
 }
 
 describe("Modal", () => {
-  // Known bug, kept visible: React's autoFocus runs while the <dialog> is still closed (a closed dialog can't take
-  // focus, in browsers as in jsdom), so Modal falls back to the first focusable element, the Close button. The fix is
-  // for Dialog to mark its first field with data-autofocus (Modal already honours it). Flip this to it() once fixed.
-  it.fails("focuses the first field of a Dialog", () => {
+  // React's autoFocus would run while the <dialog> is still closed (a closed dialog can't take focus), so Dialog marks
+  // its first field with data-autofocus and Modal focuses it once the dialog is open.
+  it("focuses the first field of a Dialog", () => {
     act(() => root.render(<Page />));
     const open = host.querySelector("button")!;
     act(() => open.click());
     expect(document.activeElement).toBe(host.querySelector("dialog input"));
+  });
+
+  it("marks the dialog aria-modal itself", () => {
+    act(() =>
+      root.render(
+        <Modal onClose={() => {}} label="Test">
+          <button>One</button>
+        </Modal>,
+      ),
+    );
+    expect(host.querySelector("dialog")?.getAttribute("aria-modal")).toBe("true");
   });
 
   it("opens as a named dialog, focus starts inside it, closes on Escape and gives focus back", () => {

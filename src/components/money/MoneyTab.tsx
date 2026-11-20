@@ -3,7 +3,13 @@
 // Quote (what the client approves), Change orders, then Invoices & payments. The step lives in ?step= so links can
 // open it directly; the step bodies are their own components.
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
+import { useJobDocs } from "@/lib/docActions";
+import { useDocSettings } from "@/lib/docSettings";
+import { normalizeDocSettings } from "@/lib/documents";
+import { useEditor } from "@/lib/store";
 import { isMoneyStep, MONEY_STEPS, type MoneyStep } from "@/lib/tabRoutes";
+import { useApprovedProposalQuote } from "../documents/useApprovedProposalQuote";
 import { useJobNav } from "../nav/useJobNav";
 
 const loading = () => <div className="p-6 text-slate-500">Loading…</div>;
@@ -22,6 +28,14 @@ export const MONEY_STEP_LABELS: Record<MoneyStep, string> = {
 export default function MoneyTab({ step: asked }: { step?: string | null }) {
   const { setTab } = useJobNav();
   const step: MoneyStep = isMoneyStep(asked) ? asked : "pricing";
+  // A client approved the quote link: the approved quote is made here, once for the whole tab, so it is there on every
+  // step (Change orders too) without anyone opening Pricing or Quote first.
+  const project = useEditor((s) => s.project);
+  const settings = useEditor((s) => s.settings);
+  const liveDocSettings = useDocSettings();
+  const ds = useMemo(() => liveDocSettings ?? normalizeDocSettings(settings?.documents, settings?.pricing.currency), [liveDocSettings, settings]);
+  const { docs } = useJobDocs(project?.id);
+  useApprovedProposalQuote(docs, ds);
   return (
     <div className="flex h-full flex-col">
       <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 sm:justify-center sm:px-6" aria-label="Money steps">

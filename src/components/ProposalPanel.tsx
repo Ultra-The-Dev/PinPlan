@@ -5,18 +5,18 @@ import { Ban, Check, Copy, ExternalLink, FileSignature, HandCoins, Mail, Refresh
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { db, nowIso } from "@/lib/db";
-import { saveDoc, useJobDocs } from "@/lib/docActions";
-import { quoteForProposal, quoteFromProposal } from "@/lib/docFromEstimate";
+import { useJobDocs } from "@/lib/docActions";
+import { quoteForProposal } from "@/lib/docFromEstimate";
 import { useDocSettings } from "@/lib/docSettings";
-import { docName, documentTotals, formatDocMoney, newDocument, normalizeDocSettings, today } from "@/lib/documents";
+import { approvalNeedsQuote, docName, documentTotals, formatDocMoney, normalizeDocSettings } from "@/lib/documents";
 import { formatMoney, type Estimate } from "@/lib/estimate";
 import { buildSnapshot, newToken, proposalUrl, type ProposalSnapshot } from "@/lib/proposal";
 import { explainCloudError } from "@/lib/cloudCheck";
 import { listProposals, publishProposal, revokeProposal, type ProposalRow } from "@/lib/proposalCloud";
 import { useEditor } from "@/lib/store";
 import { supabaseConfigured } from "@/lib/supabase";
-import { useSyncStatus } from "@/lib/sync";
+import { SYNCED_EVENT, useSyncStatus } from "@/lib/sync";
+import { jobHref } from "@/lib/tabRoutes";
 import type { Takeoff } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
 import type { PricingSettings, SalesDoc } from "@/lib/types";
@@ -31,12 +31,9 @@ const STATUS: Record<ProposalRow["status"], { text: string; cls: string }> = {
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 
-/** The approved quote made from a proposal has an id tied to it, so two devices never make two. */
-export const proposalQuoteId = (proposalId: string) => `quote-from-${proposalId}`;
-
 export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0 }: { estimate: Estimate; takeoff: Takeoff; pricing: PricingSettings; /** Bumped by "Send to client" at the top of the page. */ openForm?: number }) {
   const router = useRouter();
-  const { project, sheets, markers, runs, closets, catalog, settings, updateProject, upsertEstimateLine } = useEditor();
+  const { project, sheets, markers, runs, closets, catalog, settings } = useEditor();
   const { signedIn, userId, authReady } = useSyncStatus();
   const liveDocSettings = useDocSettings();
   const ds = liveDocSettings ?? normalizeDocSettings(settings?.documents, settings?.pricing.currency);
@@ -46,7 +43,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
   const [form, setForm] = useState(false);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  // Blank = the company's defaults (Settings → Invoicing); typing a value changes it for this job's link only.
+  // Blank = the company's defaults (Settings → Quotes & invoices); typing a value changes it for this job's link only.
   const [validDays, setValidDays] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProposalSnapshot["detail"]>("lines");
   const [deposit, setDeposit] = useState<string | null>(null);
@@ -84,52 +81,21 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
     };
   }, [refresh]);
 
-  // A client approved: approve the job and switch on the options they picked (once — the job is then approved).
+  // A client approved: the Money tab (useApprovedProposalQuote) approves the job, switches on the options they picked
+  // and makes the approved quote (locked, with the signature), once, on every step. Shown here when it is there.
   const accepted = rows?.find((r) => r.status === "accepted");
-  useEffect(() => {
-    if (!accepted || !project || project.status !== "estimate") return;
-    const key = `pinplan.proposal.applied.${accepted.id}`;
-    try {
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, "1");
-    } catch {
-      /* storage unavailable: the status check above still stops repeats */
-    }
-    void (async () => {
-      const chosen = new Set(accepted.chosen_options ?? []);
-      for (const l of accepted.snapshot.lines.filter((x) => x.optional)) await upsertEstimateLine(l.key, { include: chosen.has(l.key) });
-      await updateProject({ status: "approved" });
-      toast(`${accepted.client_name ?? "The client"} approved the quote — job marked approved`, "success");
-    })();
-  }, [accepted, project, updateProject, upsertEstimateLine]);
-
-  // ...and the approval becomes the job's approved quote (locked, with the signature), once.
   const approvedQuote: SalesDoc | null = accepted && docs ? quoteForProposal(docs, accepted.id) : null;
   // Jobs approved before approvals became quotes: when the office has since made its own approved quote (or billed from
-  // one), that quote stands, so no second one is added next to it.
-  const handledByHand =
-    !!accepted &&
-    !!docs &&
-    !approvedQuote &&
-    docs.some(
-      (d) =>
-        !d.deleted &&
-        d.status !== "void" &&
-        !d.options?.approval &&
-        d.createdAt >= (accepted.responded_at ?? "") &&
-        ((d.kind === "quote" && d.status === "accepted") || (d.kind === "invoice" && d.source === "quote" && !docs.some((q) => q.id === d.convertedFrom && !!q.options?.approval))),
-    );
-  const making = useRef(new Set<string>());
+  // one), that quote stands and no second one is made.
+  const handledByHand = !!accepted && !!docs && !approvedQuote && !approvalNeedsQuote(docs, accepted);
+  // The hook reloads approvals on each sync; when this card's 30 s poll sees one first, tell it now (once per approval).
+  const waiting = !!accepted && !!docs && !approvedQuote && !handledByHand;
+  const nudged = useRef(new Set<string>());
   useEffect(() => {
-    if (!accepted || !project || !docs || approvedQuote || handledByHand || making.current.has(accepted.id)) return;
-    making.current.add(accepted.id);
-    void (async () => {
-      const id = proposalQuoteId(accepted.id);
-      if (await db().salesDocs.get(id)) return; // made on this device already (the list catches up)
-      const base = newDocument({ id, kind: "quote", project, settings: ds, now: nowIso(), day: today() });
-      await saveDoc(quoteFromProposal(base, accepted));
-    })().catch((e) => toast(`Couldn't save the approved quote: ${(e as Error).message}`, "error"));
-  }, [accepted, project, docs, approvedQuote, handledByHand, ds]);
+    if (!waiting || !accepted || nudged.current.has(accepted.id)) return;
+    nudged.current.add(accepted.id);
+    window.dispatchEvent(new CustomEvent(SYNCED_EVENT, { detail: { tables: ["proposals"], projectIds: projectId ? [projectId] : [] } }));
+  }, [waiting, accepted, projectId]);
 
   if (!project) return null;
 
@@ -231,7 +197,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
     if (navigator.share) await navigator.share({ title: r.snapshot.title, url: link(r.id) }).catch(() => undefined);
     else await copy(r.id);
   };
-  const bill = (q: SalesDoc, what: "deposit" | "balance") => router.push(`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(q.id)}&bill=${what}`);
+  const bill = (q: SalesDoc, what: "deposit" | "balance") => router.push(jobHref(project.id, "money", { step: "quote", doc: q.id, bill: what }));
 
   const live = (rows ?? []).filter((r) => r.status !== "revoked");
   const old = (rows ?? []).filter((r) => r.status === "revoked");
@@ -270,12 +236,12 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
                     <button className="btn btn-sm btn-brand" onClick={() => bill(q, dep ? "deposit" : "balance")}>
                       <HandCoins /> {dep ? `Bill the deposit (${fmtDoc(dep)})` : "Create invoice"}
                     </button>
-                    <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(q.id)}`} className="text-xs font-medium text-brand-600 hover:underline">
+                    <Link href={jobHref(project.id, "money", { step: "quote", doc: q.id })} className="text-xs font-medium text-brand-600 hover:underline">
                       Approved quote {docName(q, ds)}
                     </Link>
                   </div>
                 ) : handledByHand ? (
-                  <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=billing`} className="text-xs font-medium text-brand-600 hover:underline">
+                  <Link href={jobHref(project.id, "money", { step: "quote" })} className="text-xs font-medium text-brand-600 hover:underline">
                     Quotes & invoices
                   </Link>
                 ) : (
@@ -341,7 +307,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
           <p className="-mt-1 text-xs text-slate-500">
             Your usual validity and deposit come from{" "}
             <Link href="/settings#invoicing" className="underline">
-              Settings → Invoicing
+              Settings → Quotes & invoices
             </Link>
             ; changes here are for this job only.
           </p>

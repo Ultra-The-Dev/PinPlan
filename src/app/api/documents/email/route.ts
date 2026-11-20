@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   // Replies go to the company. Without its own email the client would reply to nobody (or to PinPlan): refuse.
   const replyTo = snap.business?.email?.trim() ?? "";
   if (!validEmail(replyTo))
-    return json({ error: "Add your business email in Settings → Business, then choose Update link on the document and send it again.", code: "business_email_required" }, 400);
+    return json({ error: "Add your business email in Settings → Company → Your business, then choose Update link on the document and send it again.", code: "business_email_required" }, 400);
 
   const guard = await reserveSend(auth.userId, kind, to);
   if (!guard.ok) return guard.response;
