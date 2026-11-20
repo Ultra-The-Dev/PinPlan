@@ -76,9 +76,9 @@ const siteAuth: Dictionary = {
   "Got an invite from your company?": "Получили приглашение от своей компании?",
 
   "There’s already an account with this email. {signIn} or {reset}.": "Аккаунт с этой почтой уже есть. {signIn} или {reset}.",
-  "reset your password": "сбросьте пароль",
+  "reset your password": "сбросить пароль",
   "Your login is ready, but setting up {company} didn’t finish: {error} Press the button to try again.":
-    "Ваш вход готов, но настройка компании «{company}» не завершилась: {error} Нажмите кнопку, чтобы попробовать снова.",
+    "Аккаунт создан, но настройка компании «{company}» не завершилась: {error} Нажмите кнопку, чтобы попробовать снова.",
   "Sign-up isn’t available here": "Регистрация здесь недоступна",
   "This copy of {product} isn’t connected to the cloud, so there are no accounts. You can still use it on this device.":
     "Эта копия {product} не подключена к облаку, поэтому аккаунтов нет. Но ею можно пользоваться на этом устройстве.",
@@ -108,7 +108,7 @@ const siteAuth: Dictionary = {
   "Joining your company’s team?": "Присоединяетесь к команде своей компании?",
   "Use your invite code": "Введите код приглашения",
   "We sent a confirmation link to {email}. Open it on any device — phone, tablet or computer — and sign in. We’ll finish setting up {company} for you.":
-    "Мы отправили ссылку для подтверждения на {email}. Откройте её на любом устройстве — телефоне, планшете или компьютере — и войдите. Мы завершим настройку компании {company} за вас.",
+    "Мы отправили ссылку для подтверждения на {email}. Откройте её на любом устройстве — телефоне, планшете или компьютере — и войдите. Мы завершим настройку компании «{company}» за вас.",
   "It can take a few minutes to arrive.": "Письмо может идти несколько минут.",
   "Check spam or promotions if you don’t see it.": "Если его нет, проверьте «Спам» и «Промоакции».",
   "I’ve confirmed — sign in": "Почта подтверждена — войти",
@@ -120,7 +120,7 @@ const siteAuth: Dictionary = {
   "Couldn’t open that reset link. Send yourself a new one below and open it in this browser.":
     "Не удалось открыть ссылку для сброса. Отправьте себе новую ниже и откройте её в этом браузере.",
   "This copy of {product} isn’t connected to the cloud, so there’s no password to reset.":
-    "Эта копия {product} не подключена к облаку, поэтому сбрасывать нечего.",
+    "Эта копия {product} не подключена к облаку, поэтому пароля для сброса нет.",
   "Password updated": "Пароль обновлён",
   "Use your new password to sign in on the iPad, iPhone and web.": "Входите с новым паролем на iPad, iPhone и в веб-версии.",
   "Continue to {product}": "Перейти в {product}",
@@ -145,7 +145,7 @@ const siteAuth: Dictionary = {
   "Reset your password": "Сброс пароля",
   "Enter the email you sign in with and we’ll send you a link to choose a new password. It may take a few minutes to arrive.":
     "Введите почту, с которой входите, и мы пришлём ссылку для нового пароля. Письмо может идти несколько минут.",
-  "Enter a valid email address.": "Введите правильный адрес электронной почты.",
+  "Enter a valid email address.": "Введите корректный адрес электронной почты.",
   "Send reset link": "Отправить ссылку для сброса",
 
   // Account deletion: confirm it's you (the dialog itself is in Settings)
@@ -155,9 +155,9 @@ const siteAuth: Dictionary = {
   "That password isn’t right. Try again, or type your email instead.": "Неверный пароль. Попробуйте ещё раз или введите вместо него свою почту.",
   "Type the email you sign in with.": "Введите почту, с которой входите.",
   "Your sign-in has expired. Sign out, sign in again, then delete your account.":
-    "Срок входа истёк. Выйдите, войдите снова и затем удалите аккаунт.",
+    "Сеанс истёк. Выйдите, войдите снова и затем удалите аккаунт.",
   "Confirm it’s you": "Подтвердите, что это вы",
-  "Your sign-in has expired. Enter your password to continue.": "Срок входа истёк. Введите пароль, чтобы продолжить.",
+  "Your sign-in has expired. Enter your password to continue.": "Сеанс истёк. Введите пароль, чтобы продолжить.",
   "To keep your account safe, enter your password again.": "Для защиты аккаунта введите пароль ещё раз.",
   "Your password": "Ваш пароль",
   "The email you sign in with": "Почта, с которой вы входите",
@@ -183,18 +183,18 @@ const siteAuth: Dictionary = {
   "as {role}": "в роли: {role}",
   "Please accept the Terms and Privacy Policy.": "Пожалуйста, примите Условия использования и Политику конфиденциальности.",
   "That email and password don’t match an account. Check them, or create a new login.":
-    "Нет аккаунта с такой почтой и паролем. Проверьте их или создайте новый вход.",
+    "Нет аккаунта с такой почтой и паролем. Проверьте их или создайте новый аккаунт.",
   "You already have a {product} account with this email. Sign in with its password to join.":
     "У вас уже есть аккаунт {product} с этой почтой. Войдите с его паролем, чтобы присоединиться.",
   "You already have an account with this email. Choose “I have an account” and sign in.":
     "У вас уже есть аккаунт с этой почтой. Выберите «У меня есть аккаунт» и войдите.",
-  "You’re already on {team} as {email}.": "Вы уже в команде {team} как {email}.",
+  "You’re already on {team} as {email}.": "Вы уже в команде «{team}» как {email}.",
   "You’re signed in as {email}, which is already on {team}. Leave that team in Settings → Team first, or sign out and use a different email.":
-    "Вы вошли как {email}, а этот аккаунт уже в команде «{team}». Сначала выйдите из той команды в разделе «Настройки → Команда» или выйдите из аккаунта и используйте другую почту.",
-  "another team": "другая команда",
+    "Вы вошли как {email}, а этот аккаунт уже состоит в {team}. Сначала выйдите из той команды в разделе «Настройки → Команда» или выйдите из аккаунта и используйте другую почту.",
+  "another team": "другой команде",
   "Open jobs": "Открыть объекты",
   "Your team sees this when they give you tasks, and it’s on the photos you take.":
-    "Его видит команда, когда назначает вам задачи, и оно стоит на ваших фото.",
+    "Его видит команда, когда назначает вам задачи, и оно указывается на ваших фото.",
   "You’ll join as {name}.": "Вы присоединитесь как {name}.",
   Change: "Изменить",
   "Checking sign-in…": "Проверяем вход…",
@@ -202,7 +202,7 @@ const siteAuth: Dictionary = {
   "Not you?": "Это не вы?",
   "Join {team}": "Присоединиться к «{team}»",
   "Join the team": "Присоединиться к команде",
-  "New to {product}": "Я новичок в {product}",
+  "New to {product}": "Впервые в {product}",
   "I have an account": "У меня есть аккаунт",
   "Choose a password": "Придумайте пароль",
   "At least {n} character": {
@@ -211,15 +211,15 @@ const siteAuth: Dictionary = {
     many: "Не менее {n} символов",
   },
   "You’ll use this email and password on the iPad and iPhone app too.": "Эти почта и пароль подойдут и для приложения на iPad и iPhone.",
-  "Creating your login…": "Создаём ваш вход…",
-  "Create login & join": "Создать вход и присоединиться",
+  "Creating your login…": "Создаём аккаунт…",
+  "Create login & join": "Создать аккаунт и присоединиться",
   "Signing in…": "Входим…",
   "Sign in & join": "Войти и присоединиться",
   "Use a different code": "Ввести другой код",
   "You’re signed in and on {team}.": "Вы вошли и состоите в команде «{team}».",
   "Check your email to finish": "Проверьте почту, чтобы завершить",
   "Your login is made, but it won’t work until you confirm it. We sent a confirmation link to {email}.":
-    "Вход создан, но заработает только после подтверждения. Мы отправили ссылку для подтверждения на {email}.",
+    "Аккаунт создан, но заработает только после подтверждения. Мы отправили ссылку для подтверждения на {email}.",
   "Open the email from {product} and tap the confirmation link.": "Откройте письмо от {product} и нажмите ссылку для подтверждения.",
   "Sign in with your password — you’ll join {team} automatically.": "Войдите с паролем — вы автоматически присоединитесь к {team}.",
   "the team": "команде",
@@ -240,11 +240,11 @@ const siteAuth: Dictionary = {
 
   // /start: first-run checklist, technicians' start, "Set up your company"
   "Your business": "Ваша компания",
-  "Name, phone and logo for your estimates and client proposals.": "Название, телефон и логотип для смет и предложений клиентам.",
+  "Name, phone and logo for your estimates and client proposals.": "Название, телефон и логотип для смет и других документов клиентам.",
   "Upload your first floor plan": "Загрузите первый план этажа",
   "Start a job and add the plan — a PDF or a photo of it.": "Создайте объект и добавьте план — PDF или его фото.",
   "Invite your team": "Пригласите команду",
-  "Office staff and technicians each get their own login.": "У каждого офисного сотрудника и монтажника свой вход.",
+  "Office staff and technicians each get their own login.": "У каждого офисного сотрудника и монтажника свой аккаунт.",
   "Get the iPad and iPhone app": "Установите приложение для iPad и iPhone",
   "Walk the site with the plan; it all syncs to the office.": "Обходите объект с планом — всё синхронизируется с офисом.",
   "Setting up {company}…": "Настраиваем {company}…",
@@ -259,10 +259,10 @@ const siteAuth: Dictionary = {
     few: "{n} дня бесплатно",
     many: "{n} дней бесплатно",
   },
-  "{team} is ready": "«{team}» готова к работе",
+  "{team} is ready": "Компания «{team}» готова к работе",
   "Welcome to {product}": "Добро пожаловать в {product}",
   "Four quick steps and you’re ready for your next walkthrough. You can come back to this any time.":
-    "Четыре коротких шага — и можно на следующий обход объекта. Вернуться к ним можно в любое время.",
+    "Четыре коротких шага — и вы готовы к следующему обходу объекта. Вернуться к ним можно в любое время.",
   "All done": "Всё готово",
   "{done} of {total} done": "Готово {done} из {total}",
   "Hide this checklist": "Скрыть этот список",
@@ -290,7 +290,7 @@ const siteAuth: Dictionary = {
   "Next you’ll pick the plan file: every page of a PDF becomes a floor.": "Дальше выберите файл плана: каждая страница PDF станет этажом.",
   "Make an invite code for each person and text it to them. Technicians see plans, devices, photos and checklists — never prices.":
     "Создайте код приглашения для каждого и отправьте его по SMS. Монтажники видят планы, устройства, фото и чек-листы — но никогда не видят цены.",
-  "I work alone — skip": "Я работаю один — пропустить",
+  "I work alone — skip": "Работаю без команды — пропустить",
   "Get it on the App Store": "Скачать в App Store",
   "Or scan the code with your iPhone or iPad camera.": "Или наведите камеру iPhone или iPad на код.",
   "The iPhone and iPad app is coming to the App Store. Until then, use this website on any device: on iPhone or iPad, open it in Safari and tap Share → Add to Home Screen.":
@@ -303,7 +303,7 @@ const siteAuth: Dictionary = {
     few: "Всё в {product} принадлежит вашей компании: объекты, прайс-лист и бригада. Бесплатный пробный период на {n} дня начинается сейчас.",
     many: "Всё в {product} принадлежит вашей компании: объекты, прайс-лист и бригада. Бесплатный пробный период на {n} дней начинается сейчас.",
   },
-  "Your crew sees this, and it’s on the photos you take.": "Его видит ваша бригада, и оно стоит на ваших фото.",
+  "Your crew sees this, and it’s on the photos you take.": "Его видит ваша бригада, и оно указывается на ваших фото.",
   "Pick one or more. It sets up your device list, price list and checklists. You can change it later in Settings.":
     "Выберите один или несколько. От этого зависят список устройств, прайс-лист и чек-листы. Позже это можно изменить в настройках.",
   "Set up my company": "Настроить компанию",
@@ -360,7 +360,7 @@ const siteAuth: Dictionary = {
   "{list} and more": "{list} и другие",
   "The office sees the money. The crew sees the work.": "Офис видит деньги. Бригада видит работу.",
   "Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technician logins hide prices in the app.":
-    "Пригласите офисных сотрудников и монтажников по коду. Все работают с одними объектами под своим входом, а у монтажников цены в приложении скрыты.",
+    "Пригласите офисных сотрудников и монтажников по коду. Все работают с одними объектами под своими аккаунтами, а у монтажников цены в приложении скрыты.",
   "Owner and office": "Владелец и офис",
   "Plans, counts, prices, quotes, invoices and settings.": "Планы, подсчёт, цены, сметы, счета и настройки.",
   Technicians: "Монтажники",
@@ -425,7 +425,7 @@ const siteAuth: Dictionary = {
     "Слаботочные системы и умный дом, электрика, пожарная сигнализация, ОВК, сантехника, солнечные панели и зарядка электромобилей. Выберите один или несколько и добавляйте свои устройства в любой список.",
   "Can my technicians use it without seeing prices?": "Могут ли монтажники работать, не видя цен?",
   "Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app.":
-    "Да. У монтажников свой вход для планов, устройств, фото, чек-листов и задач. Цены, сметы и счета в приложении от них скрыты.",
+    "Да. У монтажников свой аккаунт для планов, устройств, фото, чек-листов и задач. Цены, сметы и счета в приложении от них скрыты.",
   "Does it work with my accounting?": "Работает ли это с моей бухгалтерией?",
   "Quotes, invoices and payments are built into {product}, so you don’t need anything else. You can also export counts, quotes and plan sheets as PDF or CSV.":
     "Сметы, счета и оплаты встроены в {product}, так что больше ничего не нужно. Подсчёты, сметы и листы планов можно также выгрузить в PDF или CSV.",
@@ -440,7 +440,7 @@ const siteAuth: Dictionary = {
   "Is my data private?": "Мои данные защищены?",
   "Each company’s jobs are private to its team, enforced in the database. You can export everything or delete your account from Settings.":
     "Объекты каждой компании видит только её команда — это обеспечивается на уровне базы данных. В настройках можно выгрузить всё или удалить аккаунт.",
-  "Bring your next set of plans": "Приходите со следующим комплектом планов",
+  "Bring your next set of plans": "Попробуйте на следующем комплекте планов",
   "Set up your company, upload a plan and send a real quote during the {n}-day trial. Bring the crew in when you’re ready.": {
     one: "Настройте компанию, загрузите план и отправьте настоящую смету за {n} день пробного периода. Бригаду подключите, когда будете готовы.",
     few: "Настройте компанию, загрузите план и отправьте настоящую смету за {n} дня пробного периода. Бригаду подключите, когда будете готовы.",
@@ -474,7 +474,7 @@ const siteAuth: Dictionary = {
     few: "и ещё {n} строки",
     many: "и ещё {n} строк",
   },
-  "Signed by {name}": "Подписал(а): {name}",
+  "Signed by {name}": "Подпись: {name}",
   Approved: "Утверждена",
   Basement: "Подвал",
   "First floor": "Первый этаж",
@@ -505,7 +505,7 @@ const siteAuth: Dictionary = {
   "Add under-cabinet lights": "Добавить подсветку под шкафами",
   "Add EV outlet in garage": "Добавить розетку для электромобиля в гараже",
   "Sign here": "Подпишите здесь",
-  "Approved by {name}": "Утвердил(а): {name}",
+  "Approved by {name}": "Утверждено: {name}",
   Money: "Финансы",
   "Approved quote {total}": "Утверждённая смета {total}",
   "Deposit, 50%": "Аванс, 50%",
@@ -573,7 +573,7 @@ const siteAuth: Dictionary = {
     "Все функции с первого дня. Настройте компанию, загрузите план и отправьте настоящую смету, прежде чем решить.",
   "Prices stay with the office": "Цены остаются у офиса",
   "Techs get their own login for plans, devices, photos, checklists and tasks. Their logins hide prices, quotes and invoices in the app.":
-    "У монтажников свой вход для планов, устройств, фото, чек-листов и задач. Цены, сметы и счета в приложении у них скрыты.",
+    "У монтажников свой аккаунт для планов, устройств, фото, чек-листов и задач. Цены, сметы и счета в приложении у них скрыты.",
   "Your data, always": "Ваши данные — всегда ваши",
   "Export every job as a backup file any time: during the trial, after it, or after you cancel.":
     "Выгружайте любой объект в файл резервной копии в любое время: во время пробного периода, после него или после отмены подписки.",
@@ -581,7 +581,7 @@ const siteAuth: Dictionary = {
   "Jobs are visible only to your team, enforced in the database. Delete your account from Settings whenever you like.":
     "Объекты видит только ваша команда — это обеспечивается на уровне базы данных. Удалить аккаунт можно в настройках в любой момент.",
   "Pricing questions": "Вопросы о ценах",
-  "Still deciding? {ask} or {demo}.": "Ещё думаете? {ask} или {demo}.",
+  "Still deciding? {ask} or {demo}.": "Ещё думаете? {ask}. Или: {demo}.",
   "Ask us anything": "Задайте нам вопрос",
   "Can I cancel any time?": "Можно ли отменить подписку в любой момент?",
   "Yes. There’s no contract: cancel from Settings and you won’t be charged again. Your jobs stay readable and exportable.":
@@ -594,9 +594,9 @@ const siteAuth: Dictionary = {
   },
   "Who counts as a user?": "Кто считается пользователем?",
   "Anyone with their own login on your team: you, office staff and technicians. {n} is included; each extra person is {price} a month.": {
-    one: "Каждый в вашей команде со своим входом: вы, офисные сотрудники и монтажники. Включён {n} пользователь; каждый следующий — {price} в месяц.",
-    few: "Каждый в вашей команде со своим входом: вы, офисные сотрудники и монтажники. Включены {n} пользователя; каждый следующий — {price} в месяц.",
-    many: "Каждый в вашей команде со своим входом: вы, офисные сотрудники и монтажники. Включены {n} пользователей; каждый следующий — {price} в месяц.",
+    one: "Каждый в вашей команде со своим аккаунтом: вы, офисные сотрудники и монтажники. Включён {n} пользователь; каждый следующий — {price} в месяц.",
+    few: "Каждый в вашей команде со своим аккаунтом: вы, офисные сотрудники и монтажники. Включено {n} пользователя; каждый следующий — {price} в месяц.",
+    many: "Каждый в вашей команде со своим аккаунтом: вы, офисные сотрудники и монтажники. Включено {n} пользователей; каждый следующий — {price} в месяц.",
   },
   "What do technicians see?": "Что видят монтажники?",
   "Plans, devices, wire runs, photos, checklists, daily logs and tasks on every team job. Prices, quotes and invoices are hidden from their logins in the app, and they can’t delete jobs.":
