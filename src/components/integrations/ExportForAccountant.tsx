@@ -69,6 +69,12 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
 
   const range = useMemo(() => ({ from, to }), [from, to]);
   const picked = useMemo(() => exportableDocs(docs, range), [docs, range]);
+  // Sending also takes the void ones, so a document voided in PinPlan is voided in the accounting app too (one never
+  // sent is skipped by the server).
+  const sendable = useMemo(() => {
+    const voided = docs.filter((d) => !d.deleted && (d.kind === "invoice" || d.kind === "credit_note") && d.status === "void" && !!d.issueDate && (!from || d.issueDate >= from) && (!to || d.issueDate <= to));
+    return [...picked, ...voided];
+  }, [docs, picked, from, to]);
   const drafts = docs.filter((d) => !d.deleted && (d.kind === "invoice" || d.kind === "credit_note") && d.status === "draft" && (!from || (d.issueDate ?? "") >= from) && (!to || (d.issueDate ?? "") <= to)).length;
   const fmt = FORMATS.find((f) => f.id === format)!;
 
@@ -86,12 +92,13 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
   }
 
   async function send(p: ProviderStatus) {
-    if (!confirm(`Send ${picked.length} invoice${picked.length === 1 ? "" : "s"} and credit note${picked.length === 1 ? "" : "s"} to ${p.label}? Ones already sent and unchanged are skipped.`)) return;
+    const voids = sendable.length - picked.length;
+    if (!confirm(`Send ${picked.length} document${picked.length === 1 ? "" : "s"} (invoices and credit notes) to ${p.label}?${voids ? ` ${voids} void one${voids === 1 ? " is" : "s are"} voided there too.` : ""} Ones already sent and unchanged are skipped.`)) return;
     setMsg(null);
-    setSending({ done: 0, total: picked.length });
+    setSending({ done: 0, total: sendable.length });
     const problems: string[] = [];
     let sent = 0;
-    for (const [i, d] of picked.entries()) {
+    for (const [i, d] of sendable.entries()) {
       try {
         const r = await pushDocument(p.id, d, payments);
         if (r.status === "sent" || r.status === "voided") sent++;
@@ -100,7 +107,7 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
         problems.push(`${d.number ?? "Invoice"}: ${(e as Error).message}`);
         if ((e as { status?: number }).status === 402 || (e as { status?: number }).status === 409) break;
       }
-      setSending({ done: i + 1, total: picked.length });
+      setSending({ done: i + 1, total: sendable.length });
     }
     setSending(null);
     setMsg(problems.length ? { ok: false, text: `${sent} sent. ${problems.slice(0, 5).join(" ")}${problems.length > 5 ? ` (+${problems.length - 5} more)` : ""}` } : { ok: true, text: `${sent} sent to ${p.label}; the rest were already up to date.` });
@@ -138,7 +145,7 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
             <FileSpreadsheet /> Download for {fmt.label.replace(/ \(.*\)$/, "")}
           </button>
           {connected.map((p) => (
-            <button key={p.id} className="btn" disabled={!picked.length || !!sending} onClick={() => void send(p)}>
+            <button key={p.id} className="btn" disabled={!sendable.length || !!sending} onClick={() => void send(p)}>
               Send to {p.label}
             </button>
           ))}

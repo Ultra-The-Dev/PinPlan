@@ -138,7 +138,8 @@ function fakeQbo() {
         store[String(b.Id)] = { ...store[String(b.Id)], status: url.searchParams.get("operation") };
         return Response.json({ [key]: store[String(b.Id)] });
       }
-      const lines = (b.Line as { Amount: number; DetailType: string }[]) ?? [];
+      const lines = (b.Line as { Amount: number; DetailType: string; SalesItemLineDetail?: { ItemRef: { value: string } } }[]) ?? [];
+      if (lines.some((l) => l.SalesItemLineDetail?.ItemRef.value === "bad")) return Response.json({ Fault: { Error: [{ Message: "Invalid Reference Id" }] } }, { status: 400 });
       const total = Math.round(lines.reduce((s, l) => s + (l.DetailType === "DiscountLineDetail" ? -l.Amount : l.Amount), 0) * 100) / 100;
       const rid = b.Id ? String(b.Id) : String(id++);
       const prev = store[rid];
@@ -375,6 +376,22 @@ describe("QuickBooks Online", () => {
 
     const links = await (await r.links(req(`/api/integrations/quickbooks/links?ids=${doc.id}`, "tok-owner"), ctx("quickbooks"))).json();
     expect(links.links[0]).toMatchObject({ localId: doc.id, remoteStatus: "void", lastError: null });
+  });
+
+  it("a retry after fixing the mapping goes out with a new requestid (not QuickBooks' saved failure)", async () => {
+    await connect("quickbooks");
+    const r = await routes();
+    const save = (itemId: string) => r.settings(req("/api/integrations/quickbooks/settings", "tok-owner", { method: "POST", body: JSON.stringify({ settings: { itemId } }) }), ctx("quickbooks"));
+    await save("bad");
+    const doc = invoice();
+    const failed = await r.push(req("/api/integrations/quickbooks/push", "tok-owner", pushBody(doc)), ctx("quickbooks"));
+    expect(failed.status).toBe(502);
+    const first = qbo.calls.filter((c) => c.method === "POST" && c.url.pathname.endsWith("/invoice")).at(-1)!.url.searchParams.get("requestid");
+    await save("7");
+    const ok = await (await r.push(req("/api/integrations/quickbooks/push", "tok-owner", pushBody(doc)), ctx("quickbooks"))).json();
+    expect(ok.status).toBe("sent");
+    const second = qbo.calls.filter((c) => c.method === "POST" && c.url.pathname.endsWith("/invoice")).at(-1)!.url.searchParams.get("requestid");
+    expect(second).not.toBe(first);
   });
 
   it("never sends drafts or quotes", async () => {

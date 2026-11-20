@@ -262,7 +262,8 @@ export function iifExport(docs: SalesDoc[], payments: DocPayment[], opts: Partia
     }
     out.push(iifRow(["ENDTRNS"]));
   }
-  const invoices = new Map(issued.filter((d) => d.kind === "invoice").map((d) => [d.id, d]));
+  // Payments go by their own date: a payment this month on an invoice issued last month is still in this file.
+  const invoices = new Map(exportableDocs(docs).filter((d) => d.kind === "invoice").map((d) => [d.id, d]));
   for (const p of [...payments].sort((x, y) => x.date.localeCompare(y.date))) {
     const d = invoices.get(p.documentId);
     if (!d || p.deleted || p.voided || !inRange(p.date, range) || !money(p.amount)) continue;

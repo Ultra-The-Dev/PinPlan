@@ -123,7 +123,9 @@ export async function pushDocument(provider: Provider, ic: IntegrationCaller, ct
   }
 
   if (!(link?.remoteId && link.hash === hash && !link.lastError)) {
-    const key = idempotencyKey([owner.kind, owner.id, provider.id, localType, doc.id, hash]);
+    // The key also covers the mapping and the remote copy's state: after a failed send the user fixes the mapping and
+    // retries, and the accounting app must not answer with its saved reply to the earlier (failed) request.
+    const key = idempotencyKey([owner.kind, owner.id, provider.id, localType, doc.id, hash, stableJson(ctx.settings), link?.remoteId, link?.syncToken]);
     let out;
     try {
       out = await provider.pushInvoice(ctx, { doc, customerId: isVoid ? "" : await customerId(), link, idempotencyKey: key });
@@ -175,9 +177,15 @@ export async function pushDocument(provider: Provider, ic: IntegrationCaller, ct
         report.payments.push({ id: p.id, status: "skipped", message: "The invoice isn't in the accounting app yet." });
         continue;
       }
-      const key = idempotencyKey([owner.kind, owner.id, provider.id, "payment", p.id, phash]);
+      const key = idempotencyKey([owner.kind, owner.id, provider.id, "payment", p.id, phash, stableJson(ctx.settings), invoiceLink.remoteId, plink?.remoteId, plink?.syncToken]);
       try {
         const out = await provider.pushPayment(ctx, { payment: p, doc, invoice: invoiceLink, customerId: gone ? "" : await customerId(), link: plink, idempotencyKey: key });
+        if (!out && gone) {
+          // Already gone in the accounting app: remember that, so it isn't tried again.
+          await saveLink(owner, provider.id, { localType: "payment", localId: p.id, hash: phash, remoteStatus: "deleted", lastError: null });
+          report.payments.push({ id: p.id, status: "deleted" });
+          continue;
+        }
         if (!out) {
           report.payments.push({ id: p.id, status: "skipped", message: `Record payments in ${provider.label}.` });
           continue;

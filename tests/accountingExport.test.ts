@@ -202,6 +202,13 @@ describe("iifExport", () => {
     const t = iifExport([inv], pays, { range: { from: "2026-11-01", to: "2026-11-19" } });
     expect(t).not.toContain("PAYMENT");
   });
+
+  it("includes a payment in the range on an invoice issued before it (the invoice itself is not repeated)", () => {
+    const t = iifExport([inv], pays, { range: { from: "2026-11-20", to: "2026-11-30" } });
+    const r = t.split("\r\n").filter(Boolean).map((x) => x.split("\t"));
+    expect(r.filter((x) => x[0] === "TRNS").map((x) => x[2])).toEqual(["PAYMENT"]);
+    expect(r.find((x) => x[0] === "SPL")).toEqual(expect.arrayContaining(["PAYMENT", "-500.00", inv.number!]));
+  });
 });
 
 describe("settings and names", () => {
