@@ -27,9 +27,9 @@ const VIEWS = [
 ] as const;
 
 /** Takeoff: the counts, plus the wiring sheets for the crew (?view=wiring). */
-export default function TakeoffTab() {
-  const { params, setParam } = useJobNav();
-  const view = params.get("view") === "wiring" ? "wiring" : "counts";
+export default function TakeoffTab({ view: asked }: { view?: string | null }) {
+  const { setParam } = useJobNav();
+  const view = asked === "wiring" ? "wiring" : "counts";
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 justify-center border-b border-slate-200 bg-white px-3 py-2">

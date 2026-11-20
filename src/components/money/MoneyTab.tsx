@@ -18,9 +18,9 @@ export const MONEY_STEP_LABELS: Record<MoneyStep, string> = {
   invoices: "Invoices & payments",
 };
 
-export default function MoneyTab() {
-  const { params, setTab } = useJobNav();
-  const asked = params.get("step");
+/** `step` is the resolved ?step= from the job page (old links like ?tab=billing already mapped to theirs). */
+export default function MoneyTab({ step: asked }: { step?: string | null }) {
+  const { setTab } = useJobNav();
   const step: MoneyStep = isMoneyStep(asked) ? asked : "pricing";
   return (
     <div className="flex h-full flex-col">

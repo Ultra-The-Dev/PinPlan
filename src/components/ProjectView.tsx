@@ -2,11 +2,12 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useEditor } from "@/lib/store";
-import { useRole } from "@/lib/team";
+import { useSyncStatus } from "@/lib/sync";
+import { useRole, useTeam } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
-import { JOB_TABS, OFFICE_ONLY_TABS, resolveJobTab } from "@/lib/tabRoutes";
+import { JOB_TABS, OFFICE_ONLY_TABS, resolveJobTab, withParam } from "@/lib/tabRoutes";
 import type { ProjectStatus } from "@/lib/types";
 import { ChevronLeft, FileText } from "lucide-react";
 import AppHeader, { Logo } from "./AppHeader";
@@ -38,13 +39,28 @@ export default function ProjectView() {
   const office = can(useRole(), "prices");
   // Old tab ids (?tab=sheets, billing, crew, …) and technicians asking for Money resolve to one of the five tabs; the
   // URL is then rewritten so the sub-view (Money step, Field section, …) reads its own param.
-  const search = params.toString();
+  // Documents still link `?tab=billing&doc=…` with no step: stay on Invoices & payments when that's where you were.
+  const [lastMoneyStep, setLastMoneyStep] = useState<string | null>(null);
+  let search = params.toString();
+  if (params.get("tab") === "billing" && !params.has("step") && lastMoneyStep === "invoices") search = withParam(search, "step", "invoices");
   const resolved = resolveJobTab(search, office);
   const tab = resolved.tab;
+  // Sub-views read the resolved params, so an old link shows the right step/view on its first render (no flash of
+  // another step, and an open document isn't unmounted while the URL is rewritten).
+  const view = new URLSearchParams(resolved.query);
+  const moneyStep = tab === "money" ? view.get("step") : null;
+  // Remembered while rendering (React's "adjust state on prop change" pattern), not in an effect.
+  if (moneyStep && moneyStep !== lastMoneyStep) setLastMoneyStep(moneyStep);
   const tabs = office ? JOB_TABS : JOB_TABS.filter((t) => !OFFICE_ONLY_TABS.includes(t));
+  // With no tab asked for, the default depends on the role: wait until it's known so a technician on a fresh device
+  // isn't sent to Overview for good before their role loads.
+  const teamReady = useTeam((s) => s.ready);
+  const { configured } = useSyncStatus();
+  const roleKnown = teamReady || !configured;
+  const mayRedirect = params.has("tab") || roleKnown;
   useEffect(() => {
-    if (id && resolved.redirect) router.replace(`/project?${resolved.query}`);
-  }, [id, resolved.redirect, resolved.query, router]);
+    if (id && resolved.redirect && mayRedirect) router.replace(`/project?${resolved.query}`);
+  }, [id, resolved.redirect, resolved.query, mayRedirect, router]);
   const { loaded, project, load, updateProject, sheets } = useEditor();
   const photoCount = useEditor((s) => s.photos.length);
 
@@ -74,8 +90,8 @@ export default function ProjectView() {
     );
   }
 
-  const manage = tab === "plan" && params.get("manage") === "1";
-  const fieldPhotos = tab === "field" && params.get("section") === "photos";
+  const manage = tab === "plan" && view.get("manage") === "1";
+  const fieldPhotos = tab === "field" && view.get("section") === "photos";
 
   return (
     <>
@@ -136,8 +152,8 @@ export default function ProjectView() {
           ))}
         {manage && <ManageSheetsDrawer onClose={closeManageSheets} onOpenSheet={closeManageSheets} />}
         {tab === "overview" && <ProjectInfo />}
-        {tab === "takeoff" && <TakeoffTab />}
-        {tab === "money" && office && <MoneyTab />}
+        {tab === "takeoff" && <TakeoffTab view={view.get("view")} />}
+        {tab === "money" && office && <MoneyTab step={moneyStep} />}
         {tab === "field" && (
           <div className="flex h-full flex-col">
             {/* Photos live under Field (old ?tab=photos links land here). */}

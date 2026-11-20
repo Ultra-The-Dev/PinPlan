@@ -61,9 +61,13 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
 
   const dirty = JSON.stringify(s) !== orig;
   const save = async () => {
-    await saveSettings(s);
-    setOrig(JSON.stringify(s));
-    toast("Settings saved");
+    try {
+      await saveSettings(s);
+      setOrig(JSON.stringify(s));
+      toast("Settings saved");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "error");
+    }
   };
   // The cards that edit the settings record (business, wire, pricing) save together with the bar at the bottom.
   const onSubmit = (e: React.FormEvent) => {
