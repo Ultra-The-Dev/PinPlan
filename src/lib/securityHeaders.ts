@@ -8,8 +8,8 @@
 //   Emscripten builds whose bindings call `new Function`. Drop it once both are replaced or rebuilt without it.
 //   The public client pages (/d, /p, /r, /co, /q: documents, proposals, photo reports, change orders, RFIs) load
 //   neither, so they get a stricter policy without it (publicPageHeaders below). `next dev` still needs it there.
-// - 'wasm-unsafe-eval': PDF.js image decoders, react-pdf's layout engine and OpenCV run WebAssembly.
-// - OpenCV.js is self-hosted (public/vendor), so no third-party script host is allowed.
+// - 'wasm-unsafe-eval': PDF.js image decoders, react-pdf's layout engine, OpenCV and the OCR engine (Tesseract.js) run WebAssembly.
+// - OpenCV.js and Tesseract.js (with its worker and English data) are self-hosted (public/vendor), so no third-party host is allowed.
 // - worker-src blob:: PDF.js runs from /pdf.worker.<version>.min.mjs; heic2any starts its worker from a blob: URL.
 // - img-src: sheet/photo blobs and data: URLs, OpenStreetMap tiles (Leaflet map), Supabase public proposal images, and
 //   any https: image: proposal/report snapshots store absolute logo/image URLs, which must keep working after a domain

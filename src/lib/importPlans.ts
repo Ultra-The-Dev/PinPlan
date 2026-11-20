@@ -1,5 +1,6 @@
 "use client";
 // Plan import: PDF pages -> sheet images (PDF.js), photos -> straightened sheet images.
+import { parseFloorName } from "./floorName";
 
 /** Keep canvases under iPad Safari's ~16.7M pixel limit while staying sharp. */
 const MAX_SIDE = 4800;
@@ -88,13 +89,18 @@ async function pdfjs() {
   return lib;
 }
 
-export async function renderPdf(file: File | Blob, onProgress?: (done: number, total: number) => void): Promise<RenderedPage[]> {
+/**
+ * Render a PDF's pages to sheet images (with their text). `only`: the page numbers to render (the import page picker's
+ * ticked pages), in that order; default every page. Progress counts the pages rendered.
+ */
+export async function renderPdf(file: File | Blob, onProgress?: (done: number, total: number) => void, only?: number[]): Promise<RenderedPage[]> {
   const lib = await pdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
   const task = lib.getDocument({ data });
   const doc = await task.promise;
   const pages: RenderedPage[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
+  const list = only ? only.filter((n) => n >= 1 && n <= doc.numPages) : Array.from({ length: doc.numPages }, (_, k) => k + 1);
+  for (const [done, i] of list.entries()) {
     const page = await doc.getPage(i);
     const base = page.getViewport({ scale: 1 });
     const scale = Math.min(MAX_SIDE / Math.max(base.width, base.height), Math.sqrt(MAX_PIXELS / (base.width * base.height)), 6);
@@ -119,32 +125,15 @@ export async function renderPdf(file: File | Blob, onProgress?: (done: number, t
     pages.push({ blob, width: canvas.width, height: canvas.height, pageNumber: i, pxPerInch: 72 * scale, text, items });
     canvas.width = canvas.height = 0;
     page.cleanup();
-    onProgress?.(i, doc.numPages);
+    onProgress?.(done + 1, list.length);
   }
   await task.destroy();
   return pages;
 }
 
-/** Guess a floor name from a page's text layer, e.g. "ATTIC", "1ST. FL", "CELLAR". */
+/** Guess a floor name from a page's text, e.g. "ATTIC" → "Attic", "1ST. FL" → "1st Fl", "LEVEL 2". See `parseFloorName`. */
 export function guessFloorName(text: string, fallback: string): string {
-  const t = text.toUpperCase();
-  const patterns: [RegExp, string][] = [
-    [/\bATTIC\b/, "Attic"],
-    [/\bCELLAR\b/, "Cellar"],
-    [/\bBASEMENT\b/, "Basement"],
-    [/\b(1ST|FIRST)\.?\s*(FL|FLOOR)\b/, "1st Fl"],
-    [/\b(2ND|SECOND)\.?\s*(FL|FLOOR)\b/, "2nd Fl"],
-    [/\b(3RD|THIRD)\.?\s*(FL|FLOOR)\b/, "3rd Fl"],
-    [/\bGROUND\s*(FL|FLOOR)\b/, "Ground Fl"],
-    [/\bROOF\b/, "Roof"],
-    [/\bSITE\s*PLAN\b/, "Site plan"],
-  ];
-  // A sheet title ("2ND FLOOR PLAN", "ATTIC PLAN") beats a passing mention in the notes ("ATTIC ACCESS", "STAIRS TO BASEMENT").
-  // Patterns that already end in PLAN ("SITE PLAN") are titles as they stand.
-  const title = (re: RegExp) => (/PLAN\\b$/.test(re.source) ? re : new RegExp(`${re.source}\\.?\\s*(?:FLOOR\\s*)?PLAN\\b`));
-  for (const [re, name] of patterns) if (title(re).test(t)) return name;
-  for (const [re, name] of patterns) if (re.test(t)) return name;
-  return fallback;
+  return parseFloorName(text) ?? fallback;
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement, type = "image/jpeg", quality = 0.9): Promise<Blob> {

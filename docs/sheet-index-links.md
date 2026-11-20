@@ -3,8 +3,9 @@
 On a 40-sheet set, crews lose time hunting for the detail or the riser diagram. PinPlan reads real sheet numbers,
 titles and disciplines from the PDF's text layer and turns callouts ("E-501", a "3" over "E-501" in a section bubble)
 into tappable red boxes that jump to that sheet. Office staff can also draw links to job documents (cut sheets,
-specs), photos and web pages. No AI: only the text the PDF already carries. Scanned PDFs (no text layer) simply give
-no proposals.
+specs), photos and web pages. No AI: only the text the PDF already carries, plus on-device OCR (self-hosted Tesseract) to read the floor name of
+scanned pages and photos. Floor names ("1ST. FL", "LEVEL 2", "BASEMENT") become the sheet names at import, in a page
+picker where unwanted pages are skipped.
 
 Web today; the data model is plain and synced so the iPad app can read and follow the same links.
 
@@ -79,11 +80,79 @@ box with y from the top (`textItemBox` / `pageTextItems` in `src/lib/importPlans
 Helpers for the sheet browser (viewer team): `sheetDisplayName`, `sheetDiscipline`, `groupSheetsByDiscipline`,
 `matchSheet`, `compareSheetNumbers`.
 
+## Floor names (`src/lib/floorName.ts`, pure; Swift: `PinPlanCore/FloorName.swift`, same rules)
+
+Title blocks often carry only the floor ("ATTIC", "1ST. FL", "CELLAR", "LEVEL 2"), with no PLAN / DETAILS word, so
+`parseSheetTitle` proposes nothing for them. `parseFloorName(items | text)` reads them:
+
+- Phrases: ordinals with a floor word (`1ST FL`, `1ST. FL`, `FIRST FLOOR`, `2ND FLR`, `TWELFTH FLOOR`,
+  `FIRST & SECOND FLOOR`), named floors and levels (`GROUND FLOOR`, `MAIN LEVEL`, `LOWER LEVEL`, `UPPER FLOOR`,
+  `BASEMENT LEVEL`), numbered levels (`LEVEL 2`, `LEVEL B1`, `LVL 3`, `FLOOR 3`; `L2` only as a line of its own),
+  `BASEMENT`, `SUB-BASEMENT`, `CELLAR`, `ATTIC`, `ROOF`, `MEZZANINE`, `PENTHOUSE`, `CRAWL SPACE`, units
+  (`UNIT 3B`, `APT 4`, `SUITE 200`) and `SITE PLAN`.
+- Where: with positions (PDF text layer or OCR lines) each line is scored: the title block (bottom-right 30%, or a
+  vertical strip down the right edge — rotated runs are tall, narrow boxes), a line that is only the floor plus title
+  words (`FIRST FLOOR ELECTRICAL POWER PLAN`), `PLAN` on the line, and type size against the largest on the page.
+  Plain text: a phrase followed by `PLAN` wins, else the first one not inside a pointer.
+- Not floors: things on a floor or marks (`FLOOR DRAIN`, `FLOOR BOX`, `ATTIC ACCESS`, `ROOF DRAIN`, `ROOF TOP UNIT`),
+  elevation marks (`FIN. FL. ELEV`, `T.O. 2ND FLOOR`, `2ND FL. ELEV.`), levels of something else (`SOUND LEVEL 3`),
+  pointers and notes (`STAIR DOWN TO BASEMENT`, `SEE 2ND FLOOR PLAN`, lines with SEE / TO / FROM / PROVIDE…), long
+  sentences, and small schedule rows outside the title block.
+- Name: the plan's own wording in Title Case — `1ST. FL` → `1st Fl`, `FIRST FLOOR` → `First Floor`, `LEVEL 2` →
+  `Level 2`, `L2` → `Level 2`, `UNIT 3B` → `Unit 3B`; a trailing `PLAN` is dropped (`ROOF PLAN` → `Roof`).
+- `floorKey(name)` compares floors however written (`FIRST FLOOR` = `1st Fl` = `1ST FLR` → `f1`); re-issued sets match
+  pages to sheets with it (`src/lib/revisions.ts`). `guessFloorName(text, fallback)` is `parseFloorName` on text.
+- Proposed sheet name (`proposeSheetName`): the floor if found, else the sheet title (Title Case), else the sheet
+  number, else the current name. `isDefaultSheetName` tells a made-up name ("Sheet 3", "Page 2", `IMG_4031`, the file
+  name) from one someone typed: only made-up names are ever replaced.
+- Tests: `tests/floorName.test.ts` and `FloorNameTests.swift` share `tests/fixtures/floorNames.json` (title-block
+  wording, false positives, plain text, and the text PDF.js reads from `samples/demo-plan-set.pdf` and
+  `samples/doors-windows-demo.pdf`, written by `scripts/floor-name-fixture.mjs`).
+
+The samples show the gap this closed: their title blocks say `ATTIC`, `1ST. FL`, `2ND. FL`, `CELLAR` (and `1ST. FL` in
+small print on the doors and windows set): `parseSheetTitle` returns null for every page; `parseFloorName` reads
+`Attic`, `1st Fl`, `2nd Fl`, `Cellar`.
+
+## OCR for scans and photos (web: `src/lib/ocr.ts`)
+
+Pages with no text layer (scanned PDFs) and photos are read on the device by Tesseract.js 7 (Apache-2.0) with the
+English `best_int` model, self-hosted in `public/vendor/tesseract-7.0.0/` (≈ 7 MB: engine 3.9 MB, English data 3 MB,
+scripts 0.2 MB; see `public/vendor/README.md`). It loads only when a page needs it, runs in a Web Worker served from
+our own origin (so the service worker caches it on first use and it works offline after), reports progress ("Getting
+text recognition ready… / Reading page n (scanned)…") and can be stopped. It reads the bottom-right 38% at full detail
+first, then the whole page downscaled, and hands the lines to `parseFloorName`. When the files are missing or the
+browser lacks WebAssembly SIMD, the picker says "Scanned pages can't be read here — name them by hand." No AI service
+is involved. `node scripts/vendor-ocr.mjs` downloads the pinned files from the npm registry and checks each SHA-256;
+`--check` only verifies them.
+
+iPad: Vision text recognition (`ScanProcessing.recognizeLines` / `floorName(in:)`) with the same `FloorName` rules:
+scan review, photos, and PDF pages without a text layer (`PlanImporter.floorName(text:image:)`).
+
 ## UI (web)
 
-- **Import** (Sheets tab): after a PDF is rendered, office users get **Review sheet names** — number, title and
-  discipline per page, editable, "Use page numbers" to drop them, a duplicate-number warning. Saving names creates
-  automatic links from callouts (optional checkbox).
+- **Import: choose and name pages** (`src/components/ImportPagePicker.tsx`). Choosing a PDF opens one screen with every
+  page: a large thumbnail (rendered as it scrolls into view, so 60-page sets open at once; tap to enlarge), a tick to
+  keep or skip it (cover, specs, near-duplicates; "Skip all" / "Keep all"), and its name, filled in with the floor read
+  from the page ("Read from the page" / "Read from the scan"), else "please name it". Scanned pages are read by OCR in
+  the background, one at a time, without overwriting a name being typed. **Import N pages** renders only the kept pages
+  (`renderPdf(file, onProgress, pages)`); a page left unnamed is called "Page n". Touch targets are 44 px. iPad:
+  `PDFPagePickerView` (same step).
+- **Review sheet names** follows when the title blocks carry sheet numbers or titles — name, number, title and
+  discipline per page, editable, "Use page numbers" to drop numbers and titles, a duplicate-number warning. A floor
+  name read from the page fills the name only when the sheet still has a made-up one (never a typed name). Saving
+  creates automatic links from callouts (optional checkbox). From **Detect names & links from PDF** it also appears
+  when only floor names were found.
+- **Photos** are named from the photo by OCR after they are straightened, while the name is still the file name.
+- **Sheet menu on the plan** (`src/components/editor/viewer/SheetMenu.tsx`, office): the ⋯ button on the sheet pill,
+  a long press on the pill (touch) or a right-click: Rename (in place), Move up / down, Manage sheets, Delete (asks;
+  one undo step, **Undo** on the toast and on the plan toolbar; the plan steps to the neighbouring sheet).
+- **Manage sheets**: inline rename as before; **Select sheets** → tick several → **Delete selected** (one undo step,
+  Undo on the toast). Move up / down is one undo step (`moveSheet`).
+- Deleting keeps the soft delete: the sheet row gets `deleted: true` and syncs; its devices, runs and closets stay
+  stored but leave the takeoff, estimate and exports with the sheet (`computeTakeoff` counts live sheets only); Undo
+  brings everything back (`tests/sheetDelete.test.ts`, `SheetDeleteTakeoffTests`). iPad: the sheet pill and the
+  sheet browser have Rename / Move / Delete in their long-press menus, the plans screen has **Select plans** →
+  **Delete selected** (one undo step, `SheetActions`).
 - **Sheet index** (Sheets tab button): every sheet grouped by discipline; edit number / title / discipline / tags,
   bulk-set discipline, add or remove tags, **Detect names & links from PDF** for sheets imported earlier (re-pick the
   source PDF; pages match by page number and shape, nothing is re-rendered), **Remove auto links**. Sheet cards show
@@ -99,6 +168,10 @@ Helpers for the sheet browser (viewer team): `sheetDisplayName`, `sheetDisciplin
 
 ## Known limits
 
+- OCR reads English only, horizontal text best (a title strip turned 90° on a scan is read by the whole-page pass
+  only if Tesseract finds it). Handwritten floor names are not read.
+- The iPad import changes (page picker, OCR naming of scanned PDFs, sheet menus) were written without compiling the
+  app target here; `PinPlanCore` (with `FloorName`) is built and tested with `swift test`.
 - Rotating a sheet (Sheets › Rotate) rotates devices and runs but not its links yet: redraw them, or run
   "Detect names & links from PDF" after removing the auto links (only unrotated sheets match the PDF).
 - Links from sheets imported before this feature appear only after "Detect names & links from PDF".
@@ -110,6 +183,10 @@ Technicians follow links and may edit sheet tags only (the database enforces the
 
 ## Tests
 
+- `tests/floorName.test.ts`, `tests/sheetDelete.test.ts`, `ios/PinPlanCore/Tests/PinPlanCoreTests/FloorNameTests.swift`
+  (see above); `e2e/sheets.spec.ts`: the page picker on `samples/demo-plan-set.pdf` (names read, a page skipped, one
+  renamed), the review, the sheet menu (rename, delete, Undo, long press), Manage sheets multi-delete with Undo, and a
+  scanned PDF (`e2e/fixtures/scanned-plan.pdf`, no text layer) named `1st Fl` / `2nd Fl` by OCR.
 - `tests/sheetIndex.test.ts`: numbers (with scale / date / revision look-alikes), titles, disciplines, grouping,
   display names, callouts (own number and title block excluded, duplicates skipped), dedupe, hit testing, text-item
   transforms (incl. rotation), page matching, sync round trip; and the real fixture `tests/fixtures/sheet-links.pdf`

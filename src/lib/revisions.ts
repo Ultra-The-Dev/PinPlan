@@ -2,6 +2,7 @@
 // closet, photo and task pinned to it carries over by sheetId. Pure (no browser or database): history, scale rules,
 // 2-point alignment transforms and page→sheet matching. See docs/sheet-revisions.md for the data model.
 import { nanoid } from "nanoid";
+import { floorKey } from "./floorName";
 import { guessFloorName } from "./importPlans";
 import type { EstimateLine, RevisionTransform, Sheet, SheetRevision } from "./types";
 
@@ -421,6 +422,7 @@ export function matchPagesToSheets(pages: { text: string; pageNumber: number }[]
   for (const p of pages) {
     const nos = extractSheetNumbers(p.text);
     const floor = guessFloorName(p.text, "").toLowerCase();
+    const fkey = floor ? floorKey(floor) : "";
     const pw = words(p.text);
     live.forEach((s, idx) => {
       let conf = 0;
@@ -428,7 +430,8 @@ export function matchPagesToSheets(pages: { text: string; pageNumber: number }[]
       const hit = nos.findIndex((n) => sn.has(n));
       if (hit >= 0) conf = Math.max(conf, hit === 0 ? 0.95 : 0.85);
       const name = s.name.trim().toLowerCase();
-      if (floor && (name === floor || name.includes(floor))) conf = Math.max(conf, 0.8);
+      // Same floor however it is written ("SECOND FLOOR" on the page, "2nd Fl" as the sheet's name).
+      if (floor && (name === floor || name.includes(floor) || floorKey(s.name) === fkey)) conf = Math.max(conf, 0.8);
       const sw = [...words(s.name)].filter((w) => !/^SHEET$|^\d+$/.test(w));
       if (sw.length) {
         const share = sw.filter((w) => pw.has(w)).length / sw.length;

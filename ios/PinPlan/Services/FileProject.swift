@@ -18,10 +18,10 @@ enum FileProject {
         guard let raw = UIImage(contentsOfFile: url.path) else { return b }
         let quad = ScanProcessing.detectPage(in: raw)
         let cleaned = PlanImporter.normalized(ScanProcessing.process(raw, quad: quad, rotation: 0, mode: .clean))
-        let text = ScanProcessing.recognizeText(in: cleaned)
+        let floor = ScanProcessing.floorName(in: cleaned)
         guard let id = store.saveImage(cleaned, quality: 0.92) else { return b }
         let px = cleaned.pixelSize
-        b.sheets = [Sheet(projectId: b.project.id, name: PlanImporter.guessFloorName(text, fallback: "Sheet 1"),
+        b.sheets = [Sheet(projectId: b.project.id, name: floor ?? "Sheet 1",
                           pageNumber: 1, order: 0, imageId: id, width: px.width, height: px.height)]
         return b
     }

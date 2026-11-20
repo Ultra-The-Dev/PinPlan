@@ -16,6 +16,18 @@ struct SheetsView: View {
     @State private var toDelete: Sheet?
     @State private var review: ReviewBatch?
     @State private var dropTargeted = false
+    /// PDFs waiting for the page picker (choose pages, confirm names), one at a time.
+    @State private var pdfPick: PendingPDF?
+    @State private var pdfQueue: [URL] = []
+    /// Several plans ticked for "Delete selected".
+    @State private var selecting = false
+    @State private var selected: Set<String> = []
+    @State private var confirmDeleteSelected = false
+
+    struct PendingPDF: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     struct ReviewBatch: Identifiable {
         let id = UUID()
@@ -37,11 +49,15 @@ struct SheetsView: View {
                 if let busy { HStack { ProgressView(); Text(busy).foregroundStyle(.secondary) } }
                 if let error { Text(error).foregroundStyle(.red).font(.callout) }
 
+                if model.sheets.count > 1 { selectionBar }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 16)], spacing: 16) {
                     ForEach(Array(model.sheets.enumerated()), id: \.element.id) { i, s in
                         SheetCard(model: model, sheet: s, index: i, count: model.bundle.liveMarkers.filter { $0.sheetId == s.id }.count,
-                                  onOpen: { model.setActiveSheet(s.id); openPlan() },
-                                  onMove: { move(s, by: $0) },
+                                  selecting: selecting, selected: selected.contains(s.id),
+                                  onOpen: {
+                                      if selecting { toggle(s.id) } else { model.setActiveSheet(s.id); openPlan() }
+                                  },
+                                  onMove: { SheetActions.move(model, s.id, by: $0) },
                                   onRotate: { rotate(s) },
                                   onDelete: { toDelete = s })
                     }
@@ -60,6 +76,10 @@ struct SheetsView: View {
                 if !pages.isEmpty { review = ReviewBatch(images: pages, source: .scanner) }
             }, onCancel: { showScanner = false })
                 .ignoresSafeArea()
+        }
+        .sheet(item: $pdfPick, onDismiss: { if busy == nil { nextPDF() } }) { pending in
+            PDFPagePickerView(url: pending.url) { names in importPDF(pending.url, names: names) }
+                .interactiveDismissDisabled()
         }
         .sheet(item: $review) { batch in
             ScanReviewView(images: batch.images, source: batch.source, startIndex: model.sheets.count) { pages in
@@ -95,48 +115,99 @@ struct SheetsView: View {
         }
         .confirmationDialog("Delete this sheet and its devices?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
             Button("Delete sheet", role: .destructive) {
-                if let s = toDelete { model.edit { b in if let i = b.sheets.firstIndex(where: { $0.id == s.id }) { b.sheets[i].deleted = true } } }
+                if let s = toDelete { SheetActions.delete(model, ids: [s.id]) }
                 toDelete = nil
             }
         }
+        .confirmationDialog("Delete \(selected.count) plans and their devices?", isPresented: $confirmDeleteSelected, titleVisibility: .visible) {
+            Button("Delete selected", role: .destructive) {
+                SheetActions.delete(model, ids: selected)
+                selected = []
+                selecting = false
+            }
+        } message: {
+            Text("Undo brings them back.")
+        }
+    }
+
+    /// Select several plans to delete them in one go (one undo step).
+    private var selectionBar: some View {
+        HStack(spacing: 10) {
+            if selecting {
+                let live = Set(model.sheets.map(\.id))
+                let n = selected.intersection(live).count
+                Button(n == live.count ? LocalizedStringKey("Select none") : LocalizedStringKey("Select all")) {
+                    selected = n == live.count ? [] : live
+                }
+                Text("\(n) selected").foregroundStyle(.secondary).monospacedDigit()
+                Spacer()
+                Button(role: .destructive) { confirmDeleteSelected = true } label: { Label("Delete selected", systemImage: "trash") }
+                    .disabled(n == 0)
+                Button("Done") { selecting = false; selected = [] }
+            } else {
+                Spacer()
+                Button { selecting = true } label: { Label("Select plans", systemImage: "checkmark.circle") }
+            }
+        }
+        .buttonStyle(.bordered)
+        .frame(minHeight: 44)
+    }
+
+    private func toggle(_ id: String) {
+        if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
     }
 
     private var nextOrder: Int { (model.sheets.map(\.order).max() ?? -1) + 1 }
 
-    private func importPDFs(_ urls: [URL]) {
+    /// PDFs open the page picker first (keep or skip pages, confirm the names read from them), one file at a time.
+    private func queuePDFs(_ urls: [URL]) {
+        // Work on copies: the picker and the importer read the file later, outside the file picker's access window.
+        let copies: [URL] = urls.compactMap { url in
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            let copy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+            return (try? FileManager.default.copyItem(at: url, to: copy)) != nil ? copy : nil
+        }
+        guard !copies.isEmpty else { error = String(localized: "That PDF couldn't be opened."); return }
+        pdfQueue += copies
+        if pdfPick == nil { nextPDF() }
+    }
+
+    private func nextPDF() {
+        guard pdfPick == nil, !pdfQueue.isEmpty else { return }
+        pdfPick = PendingPDF(url: pdfQueue.removeFirst())
+    }
+
+    /// Render the pages kept in the picker, with the names confirmed there.
+    private func importPDF(_ url: URL, names: [Int: String]) {
+        guard !names.isEmpty else { return }
         busy = String(localized: "Rendering PDF…")
         error = nil
         let projectId = model.bundle.project.id
         let store = app.store
-        var order = nextOrder
+        let order = nextOrder
         Task.detached(priority: .userInitiated) {
             do {
-                var newSheets: [Sheet] = []
-                var scaled = 0
-                for url in urls {
-                    let r = try PlanImporter.sheets(fromPDF: url, store: store, projectId: projectId, startOrder: order,
-                                                    fallbackName: { "Sheet \($0 + 1)" }) { done, total in
-                        Task { @MainActor in busy = String(localized: "Rendering page \(done) of \(total)…") }
-                    }
-                    newSheets += r.sheets
-                    scaled += r.scaled
-                    order += r.sheets.count
+                let r = try PlanImporter.sheets(fromPDF: url, store: store, projectId: projectId, startOrder: order, names: names,
+                                                fallbackName: { "Sheet \($0 + 1)" }) { done, total in
+                    Task { @MainActor in busy = String(localized: "Rendering page \(done) of \(total)…") }
                 }
-                let added = newSheets
-                let scaledCount = scaled
+                let added = r.sheets
+                let scaledCount = r.scaled
                 await MainActor.run {
                     model.edit { $0.sheets += added }
                     if model.activeSheetId == nil { model.activeSheetId = added.first?.id }
                     busy = nil
                     model.say(scaledCount > 0 ? String(localized: "Added \(added.count) sheets · scale read from \(scaledCount)") : String(localized: "Added \(added.count) sheets"))
+                    nextPDF()
                 }
             } catch {
-                await MainActor.run { busy = nil; self.error = error.localizedDescription }
+                await MainActor.run { busy = nil; self.error = error.localizedDescription; nextPDF() }
             }
         }
     }
 
-    /// PDFs are rendered directly; image files go through review.
+    /// PDFs go through the page picker; image files go through review.
     private func importFiles(_ urls: [URL]) {
         let pdfs = urls.filter { $0.pathExtension.lowercased() == "pdf" }
         let images: [UIImage] = urls.filter { $0.pathExtension.lowercased() != "pdf" }.compactMap { url in
@@ -144,7 +215,7 @@ struct SheetsView: View {
             defer { if access { url.stopAccessingSecurityScopedResource() } }
             return (try? Data(contentsOf: url)).flatMap(UIImage.init(data:))
         }
-        if !pdfs.isEmpty { importPDFs(pdfs) }
+        if !pdfs.isEmpty { queuePDFs(pdfs) }
         if !images.isEmpty { review = ReviewBatch(images: images, source: .files) }
         if pdfs.isEmpty && images.isEmpty { error = String(localized: "Those files couldn't be read as plans (use PDF, JPG, PNG, HEIC or TIFF).") }
     }
@@ -173,7 +244,7 @@ struct SheetsView: View {
             }
         }
         group.notify(queue: .main) {
-            if !urls.isEmpty { importPDFs(urls) }
+            if !urls.isEmpty { queuePDFs(urls) }
             if !images.isEmpty { review = ReviewBatch(images: images, source: .files) }
         }
     }
@@ -202,19 +273,6 @@ struct SheetsView: View {
         model.say(String(localized: "Added \(added.count) sheets — set the scale on each by drawing a line over a known dimension"))
     }
 
-    private func move(_ s: Sheet, by d: Int) {
-        let list = model.sheets
-        guard let i = list.firstIndex(where: { $0.id == s.id }), list.indices.contains(i + d) else { return }
-        let other = list[i + d]
-        model.edit { b in
-            if let a = b.sheets.firstIndex(where: { $0.id == s.id }), let c = b.sheets.firstIndex(where: { $0.id == other.id }) {
-                let tmp = b.sheets[a].order
-                b.sheets[a].order = b.sheets[c].order
-                b.sheets[c].order = tmp
-            }
-        }
-    }
-
     private func rotate(_ s: Sheet) {
         guard let img = app.store.image(s.imageId) else { return }
         busy = String(localized: "Rotating…")
@@ -237,6 +295,8 @@ private struct SheetCard: View {
     let sheet: Sheet
     let index: Int
     let count: Int
+    var selecting = false
+    var selected = false
     let onOpen: () -> Void
     let onMove: (Int) -> Void
     let onRotate: () -> Void
@@ -251,9 +311,19 @@ private struct SheetCard: View {
                     }
                     .frame(height: 170).frame(maxWidth: .infinity).padding(8).background(Color(.secondarySystemBackground))
                     Chip(text: String(localized: "Plan \(index + 1)"), tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
+                    if selecting {
+                        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundStyle(selected ? Color.brand : Color.secondary)
+                            .frame(width: 44, height: 44)
+                            .background(.thinMaterial, in: Circle())
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(6)
+                    }
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityAddTraits(selecting && selected ? .isSelected : [])
             VStack(alignment: .leading, spacing: 10) {
                 CommitField(title: String(localized: "Plan name"), value: sheet.name) { name in
                     let n = name.trimmingCharacters(in: .whitespaces)
@@ -279,6 +349,7 @@ private struct SheetCard: View {
             .padding(12)
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Color.brand, lineWidth: selecting && selected ? 2.5 : 0))
         .paperCard()
     }
 }

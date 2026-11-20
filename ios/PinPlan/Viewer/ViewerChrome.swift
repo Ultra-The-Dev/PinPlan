@@ -5,11 +5,16 @@ import PinPlanCore
 // The one loud element is the mode: Edit puts an action-blue frame around the plan and fills its segment blue,
 // so nobody moves a device thinking they were only looking.
 
-/// Current sheet: previous / name (opens the sheet browser) / next.
+/// Current sheet: previous / name (opens the sheet browser) / next. A long press on the name offers Rename, Move up /
+/// down, Delete (one undo step) and "Add or manage plans" (`onManage`).
 struct SheetPill: View {
     let model: EditorModel
     let onBrowse: () -> Void
     let onStep: (Int) -> Void
+    var onManage: (() -> Void)? = nil
+    @State private var renaming = false
+    @State private var newName = ""
+    @State private var confirmDelete = false
 
     var body: some View {
         let sheet = model.activeSheet
@@ -34,12 +39,37 @@ struct SheetPill: View {
             .hoverEffect(.highlight)
             .accessibilityLabel(a11yName(sheet, pos))
             .accessibilityHint("Shows all plans")
+            .contextMenu { if let sheet { menu(sheet) } }
             stepButton(1, icon: "chevron.right", label: String(localized: "Next plan"))
         }
         .padding(.horizontal, 2)
         .background(.regularMaterial, in: Capsule())
         .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .alert("Rename plan", isPresented: $renaming) {
+            TextField("Plan name", text: $newName)
+            Button("Save") { if let id = model.activeSheet?.id { SheetActions.rename(model, id, to: newName) } }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Delete this sheet and its devices?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete sheet", role: .destructive) { if let id = model.activeSheet?.id { SheetActions.delete(model, ids: [id]) } }
+        } message: {
+            Text("Undo brings it back.")
+        }
+    }
+
+    @ViewBuilder
+    private func menu(_ sheet: Sheet) -> some View {
+        Button { newName = sheet.name; renaming = true } label: { Label("Rename", systemImage: "pencil") }
+        Button { SheetActions.move(model, sheet.id, by: -1) } label: { Label("Move up", systemImage: "arrow.up") }
+            .disabled(model.neighborSheet(-1) == nil)
+        Button { SheetActions.move(model, sheet.id, by: 1) } label: { Label("Move down", systemImage: "arrow.down") }
+            .disabled(model.neighborSheet(1) == nil)
+        if let onManage {
+            Button(action: onManage) { Label("Add or manage plans…", systemImage: "doc.badge.plus") }
+        }
+        Divider()
+        Button(role: .destructive) { confirmDelete = true } label: { Label("Delete sheet", systemImage: "trash") }
     }
 
     private func a11yName(_ sheet: Sheet?, _ pos: (index: Int, count: Int)?) -> String {

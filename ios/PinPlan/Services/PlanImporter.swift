@@ -16,39 +16,44 @@ enum PlanImporter {
         let text: String
     }
 
-    /// Render every page from its vector content (crop box + page rotation honoured) at up to ~16 MP.
-    static func renderPDF(at url: URL, progress: @escaping (Int, Int) -> Void = { _, _ in }) throws -> [RenderedPage] {
+    /// Render pages from their vector content (crop box + page rotation honoured) at up to ~16 MP. `pages`: the
+    /// 1-based page numbers to render (the import page picker's ticked pages); nil renders every page.
+    static func renderPDF(at url: URL, pages only: Set<Int>? = nil, progress: @escaping (Int, Int) -> Void = { _, _ in }) throws -> [RenderedPage] {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         guard let doc = PDFDocument(url: url), let cg = doc.documentRef else { throw ImportError.unreadablePDF }
         if doc.isLocked { throw ImportError.locked }
         var pages: [RenderedPage] = []
-        for i in 0..<doc.pageCount {
+        let wanted = (0..<doc.pageCount).filter { only?.contains($0 + 1) ?? true }
+        for (done, i) in wanted.enumerated() {
             guard let page = cg.page(at: i + 1) else { continue }
             let o = PDFRender.orientedSize(page)
             let scale = min(maxSide / max(o.width, o.height), sqrt(maxPixels / (o.width * o.height)), 8)
             let img = autoreleasepool { PDFRender.render(page, pixelSize: CGSize(width: floor(o.width * scale), height: floor(o.height * scale))) }
             pages.append(RenderedPage(image: img, pageNumber: i + 1, pxPerInch: 72 * Double(scale), text: doc.page(at: i)?.string ?? ""))
-            progress(i + 1, doc.pageCount)
+            progress(done + 1, wanted.count)
         }
         return pages
     }
 
-    /// Guess the floor from the title block text, e.g. "ATTIC", "1ST. FL", "CELLAR".
-    /// Imports every page of a PDF as sheets: keeps the vector original (for zoom detail and the text layer),
-    /// renders each page, names the floor and reads the printed scale from the page text.
-    static func sheets(fromPDF url: URL, store: Store, projectId: String, startOrder: Int,
+    /// Imports a PDF's pages as sheets: keeps the vector original (for zoom detail and the text layer), renders each
+    /// page, names the floor and reads the printed scale from the page text. `names`: the pages chosen in the import
+    /// page picker (1-based page number → confirmed name; an empty name is read from the page); nil imports every page.
+    /// Pages without a text layer (scans saved as PDF) are named by on-device text recognition.
+    static func sheets(fromPDF url: URL, store: Store, projectId: String, startOrder: Int, names: [Int: String]? = nil,
                        fallbackName: (Int) -> String, progress: @escaping (Int, Int) -> Void = { _, _ in }) throws -> (sheets: [Sheet], scaled: Int) {
         let pdfId = store.savePDF(from: url)
         let source = pdfId.map { store.pdfURL($0) } ?? url
-        let pages = try renderPDF(at: source, progress: progress)
+        let pages = try renderPDF(at: source, pages: names.map { Set($0.keys) }, progress: progress)
         var out: [Sheet] = []
         var scaled = 0
         var order = startOrder
         for p in pages {
             guard let imageId = store.saveImage(p.image, quality: 0.92) else { continue }
             let px = p.image.pixelSize
-            var sheet = Sheet(projectId: projectId, name: guessFloorName(p.text, fallback: fallbackName(order)),
+            let chosen = names?[p.pageNumber]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let name = !chosen.isEmpty ? chosen : floorName(text: p.text, image: p.image) ?? fallbackName(order)
+            var sheet = Sheet(projectId: projectId, name: name,
                               pageNumber: p.pageNumber, order: order, imageId: imageId, width: px.width, height: px.height, pxPerInch: p.pxPerInch)
             sheet.sourcePdfId = pdfId
             sheet.sourcePage = p.pageNumber - 1
@@ -64,8 +69,15 @@ enum PlanImporter {
         return (out, scaled)
     }
 
+    /// Guess the floor from the title block text, e.g. "ATTIC" → "Attic", "1ST. FL" → "1st Fl" (`FloorName`).
     static func guessFloorName(_ text: String, fallback: String) -> String {
         PlanReader.floorName(in: text) ?? fallback
+    }
+
+    /// A page's floor name: from its text layer, else (a scan saved as PDF) by text recognition on the rendered page.
+    static func floorName(text: String, image: UIImage?) -> String? {
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return PlanReader.floorName(in: text) }
+        return image.flatMap { ScanProcessing.floorName(in: $0) }
     }
 
     /// Downscale a photo/scan to the sheet size limits.

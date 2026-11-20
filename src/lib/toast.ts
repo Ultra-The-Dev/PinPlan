@@ -3,11 +3,11 @@ import { create } from "zustand";
 import { t } from "./i18n";
 
 export type ToastKind = "success" | "error" | "info";
-/** A button on the toast that goes somewhere in the app (e.g. "Plan & billing" → /settings#billing). */
-export interface ToastAction {
-  label: string;
-  href: string;
-}
+/**
+ * A button on the toast: it goes somewhere in the app (e.g. "Plan & billing" → /settings#billing), or runs `onClick`
+ * (e.g. "Undo" after deleting sheets). The toast closes when it is pressed.
+ */
+export type ToastAction = { label: string; href: string; onClick?: undefined } | { label: string; onClick: () => void; href?: undefined };
 export interface Toast {
   id: number;
   kind: ToastKind;

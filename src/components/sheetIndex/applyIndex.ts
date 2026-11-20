@@ -5,7 +5,7 @@ import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
 
-export type SheetMetaPatch = Partial<Pick<Sheet, "number" | "title" | "discipline" | "tags">>;
+export type SheetMetaPatch = Partial<Pick<Sheet, "name" | "number" | "title" | "discipline" | "tags">>;
 
 /** Tags as stored: trimmed, no repeats (case-insensitive), null when none. */
 export function cleanTags(tags: (string | null | undefined)[] | null | undefined): string[] | null {
@@ -25,7 +25,8 @@ export async function saveSheetMeta(patches: { id: string; patch: SheetMetaPatch
     const before = st.sheets.find((s) => s.id === id);
     if (!before) continue;
     const after: Sheet = { ...before, ...patch };
-    const same = (["number", "title", "discipline"] as const).every((k) => (before[k] ?? null) === (after[k] ?? null)) && JSON.stringify(before.tags ?? null) === JSON.stringify(after.tags ?? null);
+    if (!after.name?.trim()) after.name = before.name;
+    const same = (["name", "number", "title", "discipline"] as const).every((k) => (before[k] ?? null) === (after[k] ?? null)) && JSON.stringify(before.tags ?? null) === JSON.stringify(after.tags ?? null);
     if (!same) changes.push({ table: "sheets" as const, before, after });
   }
   if (changes.length) await st.commit(changes);

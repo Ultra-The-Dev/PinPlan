@@ -174,7 +174,7 @@ struct PlanEditorView: View {
     private var topChrome: some View {
         VStack(spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
-                SheetPill(model: model, onBrowse: { showBrowser = true }, onStep: step)
+                SheetPill(model: model, onBrowse: { showBrowser = true }, onStep: step, onManage: { model.showManagePlans = true })
                 Spacer(minLength: 4)
                 ViewerModeSwitch(model: model, compact: !regular)
             }

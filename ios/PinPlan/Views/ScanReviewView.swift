@@ -84,13 +84,14 @@ struct ScanReviewView: View {
             let detectCorners = source == .photos
             let result = await Task.detached(priority: .userInitiated) { () -> (ScanProcessing.Quad?, String) in
                 let quad = detectCorners ? ScanProcessing.detectPage(in: img) : nil
-                let text = ScanProcessing.recognizeText(in: img)
-                return (quad, text)
+                // The floor name from the title block (corner first, then the whole page): FloorName, as on the web.
+                let name = ScanProcessing.floorName(in: img) ?? ""
+                return (quad, name)
             }.value
             guard let i = pages.firstIndex(where: { $0.id == id }) else { continue }
             if let q = result.0 { pages[i].quad = q }
-            let guess = PlanImporter.guessFloorName(result.1, fallback: "")
-            if !guess.isEmpty { pages[i].name = guess }
+            // Only a name nobody typed yet is replaced.
+            if !result.1.isEmpty, FloorName.isDefaultSheetName(pages[i].name) { pages[i].name = result.1 }
             pages[i].recognizing = false
             reprocess(id)
         }

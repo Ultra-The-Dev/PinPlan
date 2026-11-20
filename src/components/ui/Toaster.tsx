@@ -21,7 +21,7 @@ function ToastItem({ t: item, onDismiss }: { t: Toast; onDismiss: () => void }) 
         {item.kind === "error" && <span className="sr-only">{t("Error:")} </span>}
         {item.text}
       </span>
-      {item.action && (
+      {item.action?.href != null && (
         <Link
           href={item.action.href}
           onClick={onDismiss}
@@ -29,6 +29,19 @@ function ToastItem({ t: item, onDismiss }: { t: Toast; onDismiss: () => void }) 
         >
           {item.action.label}
         </Link>
+      )}
+      {item.action?.onClick && (
+        <button
+          type="button"
+          onClick={() => {
+            onDismiss();
+            item.action?.onClick?.();
+          }}
+          className="flex h-11 shrink-0 items-center rounded-lg px-2.5 font-semibold whitespace-nowrap text-white underline-offset-2 hover:bg-white/10 hover:underline focus-visible:outline-2 focus-visible:outline-white"
+          data-testid="toast-action"
+        >
+          {item.action.label}
+        </button>
       )}
       <button
         type="button"

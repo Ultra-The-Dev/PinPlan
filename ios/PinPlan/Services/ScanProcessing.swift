@@ -2,6 +2,7 @@ import UIKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import Vision
+import PinPlanCore
 
 /// How a scanned/photographed plan page is cleaned up.
 enum EnhanceMode: String, CaseIterable, Identifiable, Sendable {
@@ -58,6 +59,42 @@ enum ScanProcessing {
         request.minimumTextHeight = 0.008
         try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+    }
+
+    /// Recognised lines with their boxes (relative 0…1, top-left origin) for floor naming. `region` (relative,
+    /// top-left origin) reads only that part of the page, at more detail; boxes are still relative to the whole page.
+    static func recognizeLines(in image: UIImage, region: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) -> [FloorTextItem] {
+        let upright = image.normalizedOrientation()
+        guard let full = upright.cgImage else { return [] }
+        let px = CGRect(x: region.minX * CGFloat(full.width), y: region.minY * CGFloat(full.height),
+                        width: region.width * CGFloat(full.width), height: region.height * CGFloat(full.height)).integral
+        guard let cropped = full.cropping(to: px) else { return [] }
+        let part = UIImage(cgImage: cropped).downscaled(maxSide: 2400)
+        guard let cg = part.cgImage else { return [] }
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        request.minimumTextHeight = 0.008
+        try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
+        return (request.results ?? []).compactMap { obs in
+            guard let c = obs.topCandidates(1).first else { return nil }
+            let b = obs.boundingBox   // bottom-left origin, relative to the crop
+            return FloorTextItem(text: c.string,
+                                 x: Double(region.minX + b.minX * region.width),
+                                 y: Double(region.minY + (1 - b.maxY) * region.height),
+                                 w: Double(b.width * region.width),
+                                 h: Double(b.height * region.height))
+        }
+    }
+
+    /// The floor name on a scanned or photographed page ("1st Fl", "Level 2", "Basement"): the title-block corner
+    /// read at full detail first, then the whole page (`FloorName`, same rules as the web app). Nil when none is found.
+    static func floorName(in image: UIImage) -> String? {
+        let corner = recognizeLines(in: image, region: CGRect(x: 0.62, y: 0.62, width: 0.38, height: 0.38))
+        if let name = FloorName.parse(corner) { return name }
+        let whole = recognizeLines(in: image)
+        let items = corner + whole.filter { !($0.x >= 0.62 && $0.y >= 0.62) }
+        return FloorName.parse(items) ?? FloorName.parse(text: whole.map(\.text).joined(separator: "\n"))
     }
 
     // MARK: processing

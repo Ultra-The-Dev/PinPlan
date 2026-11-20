@@ -12,6 +12,10 @@ struct SheetBrowserView: View {
     /// "Add or manage": the caller opens the plans screen once this browser has closed.
     var onManage: (() -> Void)? = nil
     @State private var query = ""
+    /// Long press on a plan: rename it, or delete it (one undo step).
+    @State private var renaming: Sheet?
+    @State private var renameText = ""
+    @State private var deleting: Sheet?
 
     var body: some View {
         let results = SheetNav.search(model.sheets, query: query)
@@ -57,6 +61,16 @@ struct SheetBrowserView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
+            .alert("Rename plan", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("Plan name", text: $renameText)
+                Button("Save") { if let s = renaming { SheetActions.rename(model, s.id, to: renameText) } }
+                Button("Cancel", role: .cancel) {}
+            }
+            .confirmationDialog("Delete this sheet and its devices?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("Delete sheet", role: .destructive) { if let s = deleting { SheetActions.delete(model, ids: [s.id]) } }
+            } message: {
+                Text("Undo brings it back.")
+            }
         }
     }
 
@@ -86,6 +100,10 @@ struct SheetBrowserView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(current ? "\(s.name), page \(s.pageNumber), \(count) devices, open now" : "\(s.name), page \(s.pageNumber), \(count) devices")
+        .contextMenu {
+            Button { renameText = s.name; renaming = s } label: { Label("Rename", systemImage: "pencil") }
+            Button(role: .destructive) { deleting = s } label: { Label("Delete sheet", systemImage: "trash") }
+        }
     }
 
     private func subtitle(_ s: Sheet, count: Int, current: Bool) -> String {

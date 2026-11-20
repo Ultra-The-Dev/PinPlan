@@ -30,6 +30,7 @@ import Minimap from "./viewer/Minimap";
 import ModeToggle from "./viewer/ModeToggle";
 import PlanToolbar from "./viewer/PlanToolbar";
 import SheetBrowser from "./viewer/SheetBrowser";
+import SheetMenu from "./viewer/SheetMenu";
 import SheetPill from "./viewer/SheetPill";
 import ShortcutSheet from "./viewer/ShortcutSheet";
 import ZoomControls from "./viewer/ZoomControls";
@@ -104,6 +105,8 @@ export default function PlanEditor() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [keysOpen, setKeysOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  // The current sheet's menu (rename, move, delete, Manage sheets) under the sheet pill.
+  const [sheetMenu, setSheetMenu] = useState(false);
 
   // Viewer preferences (this device, this user): mode, minimap, layers & filters, per-sheet views, recent sheets.
   const role = useRole();
@@ -587,7 +590,7 @@ export default function PlanEditor() {
         {editing && <div className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_0_3px_var(--color-brand-500)]" aria-hidden />}
 
         {/* Top: sheet title (opens the browser) on the left, tools and mode on the right. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-2 sm:p-3">
+        <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3 ${sheetMenu ? "z-40" : "z-10"}`}>
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
             {editing && wide && (
               <button
@@ -600,7 +603,32 @@ export default function PlanEditor() {
                 {paletteOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
               </button>
             )}
-            <SheetPill sheet={sheet} index={sheetIndex} count={sheets.length} onOpen={() => viewer.setBrowserOpen(true)} onStep={step} compact={phone} />
+            <div className="relative min-w-0">
+              <SheetPill
+                sheet={sheet}
+                index={sheetIndex}
+                count={sheets.length}
+                onOpen={() => viewer.setBrowserOpen(true)}
+                onStep={step}
+                compact={phone}
+                onMenu={role === "tech" ? undefined : () => setSheetMenu((o) => !o)}
+                menuOpen={sheetMenu}
+              />
+              {sheetMenu && role !== "tech" && (
+                <SheetMenu
+                  key={sheet.id}
+                  sheet={sheet}
+                  index={sheetIndex}
+                  count={sheets.length}
+                  onClose={() => setSheetMenu(false)}
+                  onManage={() => {
+                    setSheetMenu(false);
+                    if (fullscreen) toggleFullscreen(false);
+                    setManageOpen(true);
+                  }}
+                />
+              )}
+            </div>
           </div>
           <div className="flex-1" />
           <div className="pointer-events-auto flex shrink-0 items-center gap-2">
