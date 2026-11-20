@@ -217,7 +217,7 @@ const shellSettings: Dictionary = {
   Website: "Сайт",
   Address: "Адрес",
   Tagline: "Слоган",
-  "Electrical · Low voltage · Security": "Электрика · Слаботочка · Охранные системы",
+  "Electrical · Low voltage · Security": "Электрика · Слаботочные системы · Безопасность",
   "Service area": "Район работы",
   "Serving the metro area and nearby towns": "Работаем по городу и ближайшим пригородам",
   "Quote terms": "Условия сметы",
@@ -292,6 +292,7 @@ const shellSettings: Dictionary = {
   "You’ll be the owner. Everyone you invite works on your jobs and uses your price list.":
     "Вы будете владельцем. Все приглашённые работают на ваших объектах и пользуются вашим прайс-листом.",
   "Company name": "Название компании",
+  "Acme Low Voltage": "ООО «Слаботочные системы»",
   "Your name": "Ваше имя",
   "Shown to your team and on the photos you take.": "Его видит ваша команда, и оно стоит на ваших фото.",
   "Setting up…": "Создаём…",
@@ -306,8 +307,8 @@ const shellSettings: Dictionary = {
   "First and last name": "Имя и фамилия",
   "Shown to the team and on photos you take.": "Его видит команда, и оно стоит на ваших фото.",
   People: "Люди",
-  "{name} is now an admin": "{name} теперь в офисе",
-  "{name} is now a technician": "{name} теперь монтажник",
+  "{name} is now an admin": "{name}: теперь роль «Офис»",
+  "{name} is now a technician": "{name}: теперь роль «Монтажник»",
   "Remove {name}?": "Удалить из команды: {name}?",
   "They lose access to {team}’s jobs right away. Photos, notes and checklists they added stay on the jobs.":
     "Доступ к объектам команды «{team}» пропадёт сразу. Добавленные этим человеком фото, заметки и чек-листы останутся на объектах.",
@@ -319,7 +320,7 @@ const shellSettings: Dictionary = {
     "Все места ({n}) заняты, поэтому новое приглашение пока нельзя принять. Сначала {link}.",
   "Add a seat": "добавьте место",
   "As a technician you work on every team job — plans, devices, photos, checklists, logs and tasks. Prices, estimates, proposals and Billdu stay with the office.":
-    "Как монтажник вы работаете на всех объектах команды — планы, устройства, фото, чек-листы, отчёты и задачи. Цены, сметы, предложения клиентам и Billdu остаются у офиса.",
+    "Как монтажник вы работаете на всех объектах команды — планы, устройства, фото, чек-листы, отчёты и задачи. Цены, сметы и Billdu остаются у офиса.",
   "Leave {team}?": "Выйти из команды «{team}»?",
   "Leave the team?": "Выйти из команды?",
   "You’ll stop seeing the team’s jobs on this account. Ask an owner or admin for a new invite to come back.":
@@ -343,7 +344,7 @@ const shellSettings: Dictionary = {
   "expires {date}": "действует до {date}",
   "Hide past invites ({n})": "Скрыть прошлые приглашения ({n})",
   "Show past invites ({n})": "Показать прошлые приглашения ({n})",
-  joined: "присоединился",
+  joined: "принято",
   "expired {date}": "истекло {date}",
   "made {date}": "создано {date}",
   "Cancel this invite?": "Отменить это приглашение?",
@@ -381,7 +382,7 @@ const shellSettings: Dictionary = {
 
   // Plan & billing (BillingPanel)
   "Checkout canceled — nothing was charged.": "Оплата отменена — деньги не списаны.",
-  "Thanks! Your {product} subscription is starting.": "Спасибо! Ваша подписка {product} начинается.",
+  "Thanks! Your {product} subscription is starting.": "Спасибо! Подписка {product} оформляется.",
   "{product} is billed per company team: {days} days free, then ${base}/month including {seats} users and ${seat}/month for each extra user ({currency}).":
     "{product} оплачивается за команду компании: {days} дн. бесплатно, затем ${base}/мес. (включено пользователей: {seats}) и ${seat}/мес. за каждого дополнительного ({currency}).",
   "Start a team below to begin your trial.": "Создайте команду ниже, чтобы начать пробный период.",
@@ -412,7 +413,7 @@ const shellSettings: Dictionary = {
     many: "Убрать {n} свободных мест",
     other: "Убрать {n} свободного места",
   },
-  "Manage billing & invoices": "Оплата и счета подписки",
+  "Manage billing & invoices": "Управлять оплатой и счетами",
   "Stripe’s prices don’t match the prices shown here. Checkout charges Stripe’s prices.":
     "Цены в Stripe не совпадают с показанными здесь. При оплате списываются цены Stripe.",
   "The owner or an admin manages the subscription.": "Подпиской управляет владелец или офис.",
@@ -447,7 +448,7 @@ const shellSettings: Dictionary = {
   "Remove them from this device before syncing, so they don’t end up in this account. Anything that account didn’t sync yet will be lost.":
     "Удалите их с этого устройства перед синхронизацией, чтобы они не попали в этот аккаунт. Всё, что тот аккаунт ещё не синхронизировал, будет потеряно.",
   "Remove and sync": "Удалить и синхронизировать",
-  "Sign out instead": "Лучше выйти",
+  "Sign out instead": "Просто выйти",
   "Same company, new login? You can keep the jobs and add them to this account instead.":
     "Та же компания, новый вход? Можно оставить объекты и добавить их в этот аккаунт.",
   "Keep the jobs and add them to this account": "Оставить объекты и добавить их в этот аккаунт",
@@ -495,10 +496,10 @@ const shellSettings: Dictionary = {
   "They stay on this device and sync when you sign in again.": "Они останутся на этом устройстве и синхронизируются при следующем входе.",
   "Sign out and remove": "Выйти и удалить",
   "Something not syncing or proposals failing? Check every part of the cloud setup.":
-    "Что-то не синхронизируется или не открываются предложения клиентам? Проверьте каждую часть облачной настройки.",
+    "Что-то не синхронизируется или не открываются ссылки на сметы? Проверьте все части облачной настройки.",
   "Checking…": "Проверяем…",
   "Check cloud setup": "Проверить облако",
-  "All good — sync and proposal links are ready.": "Всё в порядке — синхронизация и ссылки для клиентов работают.",
+  "All good — sync and proposal links are ready.": "Всё в порядке — синхронизация и ссылки на сметы работают.",
   "Not connected": "Не подключено",
   "Password set. On the iPad/iPhone, sign in with this email and password.": "Пароль задан. На iPad/iPhone входите с этой почтой и паролем.",
   "Set or change password": "Задать или сменить пароль",
@@ -534,13 +535,13 @@ const shellSettings: Dictionary = {
   "Permanently delete your {product} login and the jobs you own in the cloud.": "Безвозвратно удалить ваш вход в {product} и ваши объекты в облаке.",
   "Delete account": "Удалить аккаунт",
   "Delete your account?": "Удалить аккаунт?",
-  "your team": "вашей команды",
+  "your team": "Ваша команда",
   "Settings › Team": "Настройки › Команда",
   "You own {team} and {n} other person is on it. Remove them in {link} first (their own logins stay), then delete your account.": {
-    one: "Вы владелец команды {team}, и в ней есть ещё {n} человек. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
-    few: "Вы владелец команды {team}, и в ней есть ещё {n} человека. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
-    many: "Вы владелец команды {team}, и в ней есть ещё {n} человек. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
-    other: "Вы владелец команды {team}, и в ней есть ещё {n} человека. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
+    one: "{team}: вы владелец, и в команде ещё {n} человек. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
+    few: "{team}: вы владелец, и в команде ещё {n} человека. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
+    many: "{team}: вы владелец, и в команде ещё {n} человек. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
+    other: "{team}: вы владелец, и в команде ещё {n} человека. Сначала удалите участников в разделе {link} (их собственные входы сохранятся), затем удалите аккаунт.",
   },
   "Your login is deleted — it won’t sign in on any device again.": "Ваш вход будет удалён — войти с ним больше не получится ни на одном устройстве.",
   "The jobs you created stay with {company}.": "Созданные вами объекты останутся в компании «{company}».",
@@ -614,7 +615,7 @@ const shellSettings: Dictionary = {
   "Connected — key ends in …{hint}": "Подключено — ключ заканчивается на …{hint}",
   "(the server-wide founder credentials)": "(общие ключи основателя на сервере)",
   "(from server environment variables)": "(из переменных окружения сервера)",
-  "Saved by {name} on {date}": "Сохранил(а) {name}, {date}",
+  "Saved by {name} on {date}": "Сохранено: {name}, {date}",
   "Saved on {date}": "Сохранено {date}",
   "last test {date}: worked": "последняя проверка {date}: успешно",
   "last test {date}: failed ({error})": "последняя проверка {date}: ошибка ({error})",
@@ -686,7 +687,7 @@ const shellSettings: Dictionary = {
   "Sign in first": "Сначала войдите",
   "Not set up yet": "Ещё не настроено",
   "Couldn't load": "Не удалось загрузить",
-  "Go to Settings → Account": "Перейти в Настройки → Аккаунт",
+  "Go to Settings → Account": "Открыть «Настройки → Аккаунт»",
   "Some data is unavailable until migrations are run: {tables}.": "Часть данных недоступна, пока не выполнены миграции: {tables}.",
   Companies: "Компании",
   Users: "Пользователи",

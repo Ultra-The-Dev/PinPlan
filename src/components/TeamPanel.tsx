@@ -176,7 +176,7 @@ function StartTeam({ businessName, email }: { businessName?: string; email: stri
         </div>
         <div>
           <label className="label" htmlFor="team-company">{t("Company name")}</label>
-          <input id="team-company" className="input" required maxLength={120} placeholder="Acme Low Voltage" value={company} onChange={(e) => setCompany(e.target.value)} />
+          <input id="team-company" className="input" required maxLength={120} placeholder={t("Acme Low Voltage")} value={company} onChange={(e) => setCompany(e.target.value)} />
         </div>
         <div>
           <label className="label" htmlFor="team-myname">{t("Your name")}</label>
