@@ -1,8 +1,8 @@
 "use client";
 // Jobs on a map (Leaflet; tiles from NEXT_PUBLIC_MAP_TILE_URL, else none in production — src/lib/endpoints.ts). A job's
-// location comes from its first geotagged photo, or is set on its Job tab. Filter by status and label; the list beside
+// location comes from its first geotagged photo, or is set on its Overview tab. Filter by status and label; the list beside
 // the map flies to a job's pin. Offline, the pins and the list still work; only the background map is missing.
-import { PROJECT_STATUS_HEX } from "@/lib/statusStyle";
+import { PROJECT_STATUS_HEX, projectStatusLabel } from "@/lib/statusStyle";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
@@ -23,7 +23,7 @@ function popup(j: Project): HTMLElement {
   title.textContent = jobTitle(j, "Job");
   title.style.fontWeight = "600";
   const sub = document.createElement("div");
-  sub.textContent = [j.address ? j.clientName : "", j.status].filter(Boolean).join(" · ");
+  sub.textContent = [j.address ? j.clientName : "", projectStatusLabel(j.status)].filter(Boolean).join(" · ");
   sub.style.color = "#64748b";
   div.append(title, sub);
   const labels = jobLabelList(j);
@@ -154,15 +154,15 @@ export default function JobsMap() {
       <div>
         <h1 className="page-title">Map</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {placed.length} job{placed.length === 1 ? "" : "s"} on the map{filtered ? " (filtered)" : ""} · location comes from the first photo with GPS, or set it on the job’s Job tab.
+          {placed.length} job{placed.length === 1 ? "" : "s"} on the map{filtered ? " (filtered)" : ""} · location comes from the first photo with GPS, or set it on the job’s Overview tab.
         </p>
       </div>
       {loaded && live.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter jobs">
           {STATUSES.map((s) => (
-            <button key={s} className={`${chip(statuses.includes(s))} capitalize`} aria-pressed={statuses.includes(s)} onClick={() => toggleStatus(s)}>
+            <button key={s} className={chip(statuses.includes(s))} aria-pressed={statuses.includes(s)} onClick={() => toggleStatus(s)}>
               <span className="h-2.5 w-2.5 rounded-full ring-1 ring-white" style={{ background: COLOR[s] }} />
-              {s} <span className="opacity-60">{counts[s]}</span>
+              {projectStatusLabel(s)} <span className="opacity-60">{counts[s]}</span>
             </button>
           ))}
           {labels.length > 0 && <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />}
@@ -196,7 +196,7 @@ export default function JobsMap() {
                   <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLOR[j.status] }} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{jobTitle(j)}</span>
-                    <span className="block truncate text-xs text-slate-500">{[j.address ? j.clientName : "", j.status, ...jobLabelList(j)].filter(Boolean).join(" · ")}</span>
+                    <span className="block truncate text-xs text-slate-500">{[j.address ? j.clientName : "", projectStatusLabel(j.status), ...jobLabelList(j)].filter(Boolean).join(" · ")}</span>
                   </span>
                 </button>
               </li>
@@ -211,7 +211,7 @@ export default function JobsMap() {
           {unplaced.slice(0, 8).map((j, i) => (
             <span key={j.id}>
               {i > 0 && ", "}
-              <Link className="text-brand-600 hover:underline" href={`/project?id=${j.id}&tab=info`}>
+              <Link className="text-brand-600 hover:underline" href={`/project?id=${encodeURIComponent(j.id)}&tab=overview`}>
                 {jobTitle(j)}
               </Link>
             </span>

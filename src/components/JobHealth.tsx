@@ -65,7 +65,7 @@ export default function JobHealth() {
         <h2 className="font-semibold">Job health</h2>
       </div>
       <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${prices ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
-        <Stat icon={MapPin} label="Devices" value={String(s.devices)} sub={[s.tentative ? `${s.tentative} tentative` : "", s.ledRuns ? `${s.ledRuns} LED run${s.ledRuns === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || `${s.sheets} sheet${s.sheets === 1 ? "" : "s"}`} />
+        <Stat icon={MapPin} label="Devices" value={String(s.devices)} sub={[s.tentative ? `${s.tentative} tentative` : "", s.ledRuns ? `${s.ledRuns} LED run${s.ledRuns === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || `${s.sheets} plan${s.sheets === 1 ? "" : "s"}`} />
         <Stat
           icon={ClipboardCheck}
           label="Checklists"

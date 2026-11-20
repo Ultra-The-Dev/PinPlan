@@ -77,3 +77,17 @@ export const PROJECT_STATUS_HEX = {
   approved: "#14A391",
   installed: "#075A51",
 } as const;
+
+/** What a job's stage is called on screen. The stored value "estimate" stays (sync, iOS, the database); people see
+ *  "Quoting" (docs/ux-audit.md glossary: a Quote is what the client approves, not an estimate). */
+export const PROJECT_STATUS_LABEL = {
+  estimate: "Quoting",
+  approved: "Approved",
+  installed: "Installed",
+} as const satisfies Record<keyof typeof PROJECT_STATUS_HEX, string>;
+
+/** The label for a job status; an unknown one (synced from a newer app) shows as stored, capitalised. */
+export function projectStatusLabel(status: string): string {
+  if (Object.prototype.hasOwnProperty.call(PROJECT_STATUS_LABEL, status)) return PROJECT_STATUS_LABEL[status as keyof typeof PROJECT_STATUS_LABEL];
+  return status ? status.charAt(0).toUpperCase() + status.slice(1) : "";
+}

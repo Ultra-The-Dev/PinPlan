@@ -1,6 +1,6 @@
 "use client";
 // Shared chrome for the public pages (/welcome, /pricing, the legal pages) and the auth pages (/signup, /login, /reset).
-// The public pages use the brand in docs/brand.md, scoped under `.mk`; the auth pages keep the app's look (Brand).
+// The public pages use the brand in docs/brand.md, scoped under `.mk`.
 import { CheckCircle2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,17 +13,6 @@ import SiteFooter from "@/components/SiteFooter";
 import { MAIN_ID, MK_ROOT } from "./fonts";
 import { Wordmark } from "./Wordmark";
 import "./marketing.css";
-
-/** The app-styled logo link, used by the sign-in and sign-up pages. */
-export function Brand({ href = "/welcome" }: { href?: string }) {
-  return (
-    <Link href={href} className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-slate-900" aria-label={`${PRODUCT_NAME} home`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
-      <span className="text-[15px] tracking-tight">{PRODUCT_NAME}</span>
-    </Link>
-  );
-}
 
 const NAV = [
   { href: "/welcome#how", label: "How it works" },
