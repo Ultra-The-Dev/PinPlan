@@ -5,7 +5,6 @@ import { priceMismatches, type PriceLike } from "@/lib/billingLogic";
 import { PLANS } from "@/lib/plans";
 import { billingConfig, billingFailure, getStripe, notConfigured, requireTeamOffice } from "@/lib/server/billing";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const c = billingConfig();

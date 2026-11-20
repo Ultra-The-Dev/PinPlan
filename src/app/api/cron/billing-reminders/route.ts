@@ -5,7 +5,6 @@
 import { billingConfig, billingEnforced, notConfigured, originMissing, originOf, requireCron, sendTrialReminder, teamsNeedingTrialReminder } from "@/lib/server/billing";
 import { emailConfigured, emailUnavailable } from "@/lib/server/email";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const denied = requireCron(request);
