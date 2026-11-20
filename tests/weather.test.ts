@@ -40,6 +40,12 @@ describe("weather session token", () => {
     expect(await weatherHeaders("/api/weather/v1/forecast", async () => Promise.reject(new Error("no session")))).toEqual({});
   });
 
+  it("adds the team access code for the own proxy only (access-code servers with a paid weather key)", async () => {
+    const none = async () => null;
+    expect(await weatherHeaders("/api/weather/v1/forecast", none, () => "code-1")).toEqual({ "x-pinplan-access": "code-1" });
+    expect(await weatherHeaders("https://api.open-meteo.com/v1/forecast", none, () => "code-1")).toEqual({});
+  });
+
   it("sends Authorization to /api/weather when signed in", async () => {
     vi.stubEnv("NEXT_PUBLIC_WEATHER_URL", "/api/weather");
     const calls = stubFetch();

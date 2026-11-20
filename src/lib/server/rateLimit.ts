@@ -118,19 +118,15 @@ const plausibleIp = (v: string | null | undefined) => (v && IP_RE.test(v) ? v : 
  * - Cloudflare Workers: cf-connecting-ip, set by Cloudflare; a caller can't choose it, and X-Forwarded-For (which the
  *   caller can) is ignored.
  * - Vercel (VERCEL_ENV set) or behind a proxy the owner runs (PINPLAN_TRUST_XFF=1): that edge overwrites
- *   x-real-ip / x-forwarded-for. On Vercel they are read first (a cf-connecting-ip header there is the caller's own).
+ *   x-real-ip / x-forwarded-for, and only they are read (a cf-connecting-ip header there is the caller's own).
  * - Anything else: X-Forwarded-For is whatever the caller sent, so it is never read. Every caller then shares the
  *   "unknown" key, which is strict but can't be dodged; per-user and per-link limits still apply.
  */
 export function clientIp(request: Request): string {
-  if (process.env.VERCEL_ENV) {
-    const v = plausibleIp(firstForwarded(request));
-    if (v) return v;
-  }
-  const cf = plausibleIp(request.headers.get("cf-connecting-ip")?.trim());
-  if (cf) return cf;
+  // Where the forwarded headers are trusted, a cf-connecting-ip header is whatever the caller sent (Vercel's edge and
+  // an ordinary reverse proxy pass it through untouched), so it is never read there.
   if (trustForwardedFor()) return plausibleIp(firstForwarded(request)) ?? "unknown";
-  return "unknown";
+  return plausibleIp(request.headers.get("cf-connecting-ip")?.trim()) ?? "unknown";
 }
 
 /**

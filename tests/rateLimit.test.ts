@@ -71,9 +71,10 @@ describe("clientIp", () => {
     expect(clientIp(forged("203.0.113.9"))).toBe("192.0.2.7");
     // A caller rotating X-Forwarded-For still lands in one bucket.
     expect(new Set(["1.1.1.1", "2.2.2.2", "3.3.3.3"].map((x) => clientIpKey(forged(x))))).toEqual(new Set(["192.0.2.7"]));
-    // Even where X-Forwarded-For is trusted, Cloudflare's own header wins.
+    // Behind the owner's own proxy (PINPLAN_TRUST_XFF=1) cf-connecting-ip is the caller's own header: never read there.
     vi.stubEnv("PINPLAN_TRUST_XFF", "1");
-    expect(clientIp(forged("203.0.113.9"))).toBe("192.0.2.7");
+    expect(clientIp(req({ "cf-connecting-ip": "192.0.2.7", "x-forwarded-for": "203.0.113.9" }))).toBe("203.0.113.9");
+    expect(clientIp(req({ "cf-connecting-ip": "192.0.2.7" }))).toBe("unknown");
   });
 
   it("ignores X-Forwarded-For and X-Real-IP unless the host says they are trustworthy", () => {
@@ -88,7 +89,7 @@ describe("clientIp", () => {
   it("on Vercel reads Vercel's own headers before a cf-connecting-ip the caller could have sent", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     expect(clientIp(req({ "cf-connecting-ip": "192.0.2.7", "x-real-ip": "198.51.100.2" }))).toBe("198.51.100.2");
-    expect(clientIp(req({ "cf-connecting-ip": "192.0.2.7" }))).toBe("192.0.2.7");
+    expect(clientIp(req({ "cf-connecting-ip": "192.0.2.7" }))).toBe("unknown");
   });
 
   it("treats junk as no address, so it can't mint fresh keys", () => {
