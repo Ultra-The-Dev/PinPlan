@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph } from "@/components/legal/LegalDoc";
+import { subprocessorsRu } from "@/components/legal/ru/SubprocessorsRu";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, SUBPROCESSORS, SUBPROCESSORS_UPDATED } from "@/lib/legal";
 
@@ -20,6 +21,7 @@ export default function SubprocessorsPage() {
     <LegalDoc
       title="Subprocessors"
       updated={SUBPROCESSORS_UPDATED}
+      ru={subprocessorsRu}
       intro={
         <p>
           These companies host and operate parts of PinPlan for us and may process Customer Data on our behalf. Each is bound by a contract that limits its use

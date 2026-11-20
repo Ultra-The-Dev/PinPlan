@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
+import { useT } from "@/lib/i18n";
 import { authErrorMessage } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
@@ -12,8 +13,10 @@ import { useSyncStatus } from "@/lib/sync";
 import { linkErrorFrom, useArrivalParams } from "@/lib/useArrivalUrl";
 import { PASSWORD_MIN } from "@/lib/teamLogic";
 import { AuthCard, AuthShell, AuthTitle, errText, FormError, PasswordField } from "./AuthShell";
+import { rich } from "./rich";
 
 export default function ResetForm() {
+  const t = useT();
   const params = useSearchParams();
   const sync = useSyncStatus();
   const [email, setEmail] = useState(() => params.get("email") ?? "");
@@ -25,8 +28,8 @@ export default function ResetForm() {
   const recovery = recoveryEvent || arrival?.hash.get("type") === "recovery" || !!arrival?.search.has("code");
   const [timedOut, setTimedOut] = useState(false);
   const linkError =
-    linkErrorFrom(arrival?.hash, "That reset link has expired or was already used. Send yourself a new one below.") ??
-    (timedOut ? "Couldn’t open that reset link. Send yourself a new one below and open it in this browser." : null);
+    linkErrorFrom(arrival?.hash, t("That reset link has expired or was already used. Send yourself a new one below.")) ??
+    (timedOut ? t("Couldn’t open that reset link. Send yourself a new one below and open it in this browser.") : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pw, setPw] = useState("");
@@ -45,15 +48,18 @@ export default function ResetForm() {
   const signedIn = sync.signedIn;
   useEffect(() => {
     if (!recovery || signedIn) return;
-    const t = window.setTimeout(() => setTimedOut(true), 10_000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setTimedOut(true), 10_000);
+    return () => window.clearTimeout(timer);
   }, [recovery, signedIn]);
 
   if (!supabaseConfigured) {
     return (
       <AuthShell>
         <AuthCard>
-          <AuthTitle title="Accounts aren’t available here" sub={`This copy of ${PRODUCT_NAME} isn’t connected to the cloud, so there’s no password to reset.`} />
+          <AuthTitle
+            title={t("Accounts aren’t available here")}
+            sub={t("This copy of {product} isn’t connected to the cloud, so there’s no password to reset.", { product: PRODUCT_NAME })}
+          />
         </AuthCard>
       </AuthShell>
     );
@@ -65,9 +71,9 @@ export default function ResetForm() {
     return (
       <AuthShell>
         <AuthCard>
-          <AuthTitle icon={<CheckCircle2 />} title="Password updated" sub={`Use your new password to sign in on the iPad, iPhone and web.`} />
+          <AuthTitle icon={<CheckCircle2 />} title={t("Password updated")} sub={t("Use your new password to sign in on the iPad, iPhone and web.")} />
           <Link href="/" className="btn btn-brand h-11 w-full">
-            Continue to {PRODUCT_NAME} <ArrowRight />
+            {t("Continue to {product}", { product: PRODUCT_NAME })} <ArrowRight />
           </Link>
         </AuthCard>
       </AuthShell>
@@ -81,41 +87,39 @@ export default function ResetForm() {
         <AuthCard>
           <AuthTitle
             icon={<KeyRound />}
-            title="Choose a new password"
-            sub={
-              <>
-                {recovery ? "For" : "Signed in as"} <span className="font-medium break-all text-slate-700">{sync.email}</span>.
-              </>
-            }
+            title={t("Choose a new password")}
+            sub={rich(recovery ? t("For {email}.") : t("Signed in as {email}."), {
+              email: <span className="font-medium break-all text-slate-700">{sync.email}</span>,
+            })}
           />
           <form
             className="space-y-4"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (pw.length < PASSWORD_MIN) return setError(`Use at least ${PASSWORD_MIN} characters.`);
-              if (pw !== pw2) return setError("The two passwords don’t match.");
+              if (pw.length < PASSWORD_MIN) return setError(t.tn("Use at least {n} character.", "Use at least {n} characters.", PASSWORD_MIN));
+              if (pw !== pw2) return setError(t("The two passwords don’t match."));
               setBusy(true);
               setError(null);
               try {
                 const { error } = await getSupabase()!.auth.updateUser({ password: pw });
-                if (error) setError(/different from the old/i.test(error.message) ? "Choose a password you haven’t used before." : authErrorMessage(error.message));
+                if (error) setError(/different from the old/i.test(error.message) ? t("Choose a password you haven’t used before.") : t(authErrorMessage(error.message)));
                 else setDone(true);
               } catch (err) {
-                setError(authErrorMessage(errText(err)));
+                setError(t(authErrorMessage(errText(err))));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            <PasswordField id="rs-new" label="New password" isNew autoFocus value={pw} onChange={setPw} />
+            <PasswordField id="rs-new" label={t("New password")} isNew autoFocus value={pw} onChange={setPw} />
             <div>
-              <label className="label" htmlFor="rs-repeat">Repeat new password</label>
+              <label className="label" htmlFor="rs-repeat">{t("Repeat new password")}</label>
               <input id="rs-repeat" className="input h-11" type="password" autoComplete="new-password" required value={pw2} onChange={(e) => setPw2(e.target.value)} />
-              {mismatch && <p className="mt-1.5 text-xs text-amber-700">The two passwords don’t match yet.</p>}
+              {mismatch && <p className="mt-1.5 text-xs text-amber-700">{t("The two passwords don’t match yet.")}</p>}
             </div>
             <FormError>{error}</FormError>
             <button className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || pw.length < PASSWORD_MIN || pw !== pw2}>
-              {busy && <Loader2 className="animate-spin" />} Save new password
+              {busy && <Loader2 className="animate-spin" />} {t("Save new password")}
             </button>
           </form>
         </AuthCard>
@@ -127,7 +131,7 @@ export default function ResetForm() {
     return (
       <AuthShell>
         <p className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> {recovery ? "Opening your reset link…" : "Loading…"}
+          <Loader2 className="h-4 w-4 animate-spin" /> {recovery ? t("Opening your reset link…") : t("Loading…")}
         </p>
       </AuthShell>
     );
@@ -139,23 +143,21 @@ export default function ResetForm() {
         <AuthCard>
           <AuthTitle
             icon={<Mail />}
-            title="Check your email"
-            sub={
-              <>
-                If <span className="font-medium break-all text-slate-700">{email.trim()}</span> has a {PRODUCT_NAME} account, a reset link is on its way.
-              </>
-            }
+            title={t("Check your email")}
+            sub={rich(t("If {email} has a {product} account, a reset link is on its way.", { product: PRODUCT_NAME }), {
+              email: <span className="font-medium break-all text-slate-700">{email.trim()}</span>,
+            })}
           />
           <ul className="mb-5 space-y-1.5 text-sm text-slate-500">
-            <li>· The email may take a few minutes to arrive — check spam too.</li>
-            <li>· Open the link in this browser to choose a new password.</li>
+            <li>· {t("The email may take a few minutes to arrive — check spam too.")}</li>
+            <li>· {t("Open the link in this browser to choose a new password.")}</li>
           </ul>
           <div className="space-y-2">
             <Link href="/login" className="btn h-11 w-full">
-              Back to sign in
+              {t("Back to sign in")}
             </Link>
             <button className="btn btn-ghost h-10 w-full text-slate-500" onClick={() => setSent(false)}>
-              Use a different email
+              {t("Use a different email")}
             </button>
           </div>
         </AuthCard>
@@ -167,12 +169,16 @@ export default function ResetForm() {
     <AuthShell
       aside={
         <Link href="/login" className="font-medium text-slate-900 hover:underline">
-          Sign in
+          {t("Sign in")}
         </Link>
       }
     >
       <AuthCard>
-        <AuthTitle icon={<KeyRound />} title="Reset your password" sub="Enter the email you sign in with and we’ll send you a link to choose a new password. It may take a few minutes to arrive." />
+        <AuthTitle
+          icon={<KeyRound />}
+          title={t("Reset your password")}
+          sub={t("Enter the email you sign in with and we’ll send you a link to choose a new password. It may take a few minutes to arrive.")}
+        />
         {linkError && (
           <div className="mb-4">
             <FormError>{linkError}</FormError>
@@ -182,28 +188,28 @@ export default function ResetForm() {
           className="space-y-4"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter a valid email address.");
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError(t("Enter a valid email address."));
             setBusy(true);
             setError(null);
             try {
               const { error } = await getSupabase()!.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset`, captchaToken: await takeCaptcha() });
-              if (error) setError(authErrorMessage(error.message));
+              if (error) setError(t(authErrorMessage(error.message)));
               else setSent(true);
             } catch (err) {
-              setError(authErrorMessage(errText(err)));
+              setError(t(authErrorMessage(errText(err))));
             } finally {
               setBusy(false);
             }
           }}
         >
           <div>
-            <label className="label" htmlFor="rs-email">Email</label>
+            <label className="label" htmlFor="rs-email">{t("Email")}</label>
             <input id="rs-email" className="input h-11" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div ref={captchaMount} className="flex justify-center empty:hidden" />
           <FormError>{error ?? captchaError}</FormError>
           <button className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || !email.trim()}>
-            {busy ? <Loader2 className="animate-spin" /> : <Mail />} Send reset link
+            {busy ? <Loader2 className="animate-spin" /> : <Mail />} {t("Send reset link")}
           </button>
         </form>
       </AuthCard>

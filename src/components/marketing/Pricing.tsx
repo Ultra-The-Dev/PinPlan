@@ -1,12 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import { monthlyPrice, PLANS, TRIAL_DAYS, type Plan } from "@/lib/plans";
 
 const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 
 /** Users → monthly total, from the plan's base price, included seats and per-seat price. */
 export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; initial?: number }) {
+  const t = useT();
   const [users, setUsers] = useState(initial);
   const total = monthlyPrice(plan, users);
   const extra = Math.max(0, users - plan.includedSeats);
@@ -15,11 +17,9 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor="seat-slider" className="text-[15px] font-semibold">
-          People who log in
+          {t("People who log in")}
         </label>
-        <span className="mk-num text-[15px] font-semibold">
-          {users} {users === 1 ? "user" : "users"}
-        </span>
+        <span className="mk-num text-[15px] font-semibold whitespace-nowrap">{t.tn("{n} user", "{n} users", users)}</span>
       </div>
       <input
         id="seat-slider"
@@ -30,7 +30,7 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
         onChange={(e) => setUsers(Number(e.target.value))}
         className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full accent-mk-graphite"
         style={{ background: `linear-gradient(to right, var(--mk-graphite) ${pct}%, var(--mk-rule) ${pct}%)` }}
-        aria-valuetext={`${users} users, ${money(total)} a month`}
+        aria-valuetext={t.tn("{n} user, {total} a month", "{n} users, {total} a month", users, { total: money(total) })}
       />
       {/* A scale bar under the slider, one tick per user, like the scale on a drawing. */}
       <div className="px-2" aria-hidden="true">
@@ -52,11 +52,11 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
       </div>
       <div className="mt-5 flex items-end justify-between gap-4 border-t border-mk-rule pt-5">
         <p className="text-[14px] leading-relaxed text-mk-pencil">
-          {money(plan.basePrice)} includes {plan.includedSeats} users
+          {t.tn("{price} includes {n} user", "{price} includes {n} users", plan.includedSeats, { price: money(plan.basePrice) })}
           {extra > 0 && (
             <>
               <br />
-              plus {extra} extra {extra === 1 ? "user" : "users"} at {money(plan.seatPrice)}
+              {t.tn("plus {n} extra user at {price}", "plus {n} extra users at {price}", extra, { price: money(plan.seatPrice) })}
             </>
           )}
         </p>
@@ -64,7 +64,7 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
           <div className="mk-figure text-[48px]" aria-live="polite">
             {money(total)}
           </div>
-          <div className="text-[14px] text-mk-pencil">a month, plus tax</div>
+          <div className="text-[14px] text-mk-pencil">{t("a month, plus tax")}</div>
         </div>
       </div>
     </div>
@@ -72,38 +72,44 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
 }
 
 export function PlanCard({ plan = PLANS[0], calculator = true }: { plan?: Plan; calculator?: boolean }) {
+  const t = useT();
   return (
     <div className="mk-sheet overflow-hidden">
       <div className="grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="border-b border-mk-rule p-6 sm:border-r sm:border-b-0 sm:p-8">
           <h2 className="text-[20px] font-[750]" style={{ fontStretch: "75%" }}>
-            {plan.name}
+            {t(plan.name)}
           </h2>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="mk-figure text-[64px]">{money(plan.basePrice)}</span>
-            <span className="text-[15px] text-mk-pencil">a month</span>
+            <span className="text-[15px] text-mk-pencil">{t("a month")}</span>
           </div>
           <p className="mt-2 text-[15px] text-mk-pencil">
-            Includes {plan.includedSeats} users. Each extra user is {money(plan.seatPrice)} a month. USD, plus applicable tax.
+            {t.tn(
+              "Includes {n} user. Each extra user is {price} a month. USD, plus applicable tax.",
+              "Includes {n} users. Each extra user is {price} a month. USD, plus applicable tax.",
+              plan.includedSeats,
+              { price: money(plan.seatPrice) },
+            )}
           </p>
           <ul className="mt-6 space-y-2.5 text-[15px]">
             {plan.features.map((f) => (
               <li key={f} className="flex gap-3">
                 <span className="mt-[10px] h-[2px] w-3 shrink-0 bg-mk-graphite" aria-hidden="true" />
-                {f}
+                {t(f)}
               </li>
             ))}
           </ul>
         </div>
         <div className="flex flex-col bg-mk-paper/60 p-6 sm:p-8">
           {calculator && <SeatCalculator plan={plan} />}
-          <p className="mt-5 text-[14px] leading-relaxed text-mk-pencil">You, office staff and technicians each count as one user. Clients never need a login.</p>
+          <p className="mt-5 text-[14px] leading-relaxed text-mk-pencil">{t("You, office staff and technicians each count as one user. Clients never need a login.")}</p>
           <div className="mt-auto pt-8">
             <Link href="/signup" className="mk-btn mk-btn-primary w-full">
-              Start free trial
+              {t("Start free trial")}
             </Link>
             <p className="mt-3 text-center text-[14px] text-mk-pencil">
-              {TRIAL_DAYS} days free. Cancel any time, and your jobs stay yours to export.
+              {t.tn("{n} day free. Cancel any time, and your jobs stay yours to export.", "{n} days free. Cancel any time, and your jobs stay yours to export.", TRIAL_DAYS)}
             </p>
           </div>
         </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
+import { useT } from "@/lib/i18n";
 import { rememberPendingCompany, welcomeNewCompany } from "@/lib/onboarding";
 import { authErrorMessage, companySignupProblem, termsMetadata } from "@/lib/onboardingLogic";
 import { setAuthor } from "@/lib/photos";
@@ -16,10 +17,12 @@ import type { TradeId } from "@/lib/types";
 import TradePicker from "../TradePicker";
 import { TryDemoLink } from "../marketing/Site";
 import { AuthCard, AuthShell, AuthTitle, errText, FormError, FormNotice, PasswordField } from "./AuthShell";
+import { rich } from "./rich";
 
 const confirmRedirect = () => `${window.location.origin}/login?confirmed=1`;
 
 export default function SignupForm() {
+  const t = useT();
   const router = useRouter();
   const sync = useSyncStatus();
   const [f, setF] = useState({ company: "", name: "", email: "", password: "", accepted: false, trades: [] as TradeId[] });
@@ -50,7 +53,7 @@ export default function SignupForm() {
   const submit = async () => {
     const problem = companySignupProblem(f);
     if (problem) {
-      setError(problem);
+      setError(t(problem));
       return;
     }
     const sb = getSupabase();
@@ -79,19 +82,20 @@ export default function SignupForm() {
         const msg = authErrorMessage(exists ? "User already registered" : error!.message);
         setError(
           /already an account/.test(msg) ? (
-            <>
-              There’s already an account with this email.{" "}
-              <Link href={`/login?email=${encodeURIComponent(email)}`} className="font-medium underline">
-                Sign in
-              </Link>{" "}
-              or{" "}
-              <Link href={`/reset?email=${encodeURIComponent(email)}`} className="font-medium underline">
-                reset your password
-              </Link>
-              .
-            </>
+            rich(t("There’s already an account with this email. {signIn} or {reset}."), {
+              signIn: (
+                <Link href={`/login?email=${encodeURIComponent(email)}`} className="font-medium underline">
+                  {t("Sign in")}
+                </Link>
+              ),
+              reset: (
+                <Link href={`/reset?email=${encodeURIComponent(email)}`} className="font-medium underline">
+                  {t("reset your password")}
+                </Link>
+              ),
+            })
           ) : (
-            msg
+            t(msg)
           ),
         );
         return;
@@ -108,10 +112,10 @@ export default function SignupForm() {
         await makeCompany();
       } catch (e) {
         setTeamRetry(true);
-        setError(`Your login is ready, but setting up ${f.company.trim()} didn’t finish: ${errText(e)} Press the button to try again.`);
+        setError(t("Your login is ready, but setting up {company} didn’t finish: {error} Press the button to try again.", { company: f.company.trim(), error: errText(e) }));
       }
     } catch (e) {
-      setError(authErrorMessage(errText(e)));
+      setError(t(authErrorMessage(errText(e))));
     } finally {
       setBusy(false);
     }
@@ -121,7 +125,11 @@ export default function SignupForm() {
     return (
       <AuthShell>
         <AuthCard>
-          <AuthTitle icon={<Building2 />} title="Sign-up isn’t available here" sub={`This copy of ${PRODUCT_NAME} isn’t connected to the cloud, so there are no accounts. You can still use it on this device.`} />
+          <AuthTitle
+            icon={<Building2 />}
+            title={t("Sign-up isn’t available here")}
+            sub={t("This copy of {product} isn’t connected to the cloud, so there are no accounts. You can still use it on this device.", { product: PRODUCT_NAME })}
+          />
           <TryDemoLink className="btn btn-brand h-11 w-full" />
         </AuthCard>
       </AuthShell>
@@ -134,13 +142,13 @@ export default function SignupForm() {
     return (
       <AuthShell>
         <AuthCard>
-          <AuthTitle title="You’re already signed in" sub={<>Signed in as <span className="font-medium text-slate-700">{sync.email}</span>.</>} />
+          <AuthTitle title={t("You’re already signed in")} sub={rich(t("Signed in as {email}."), { email: <span className="font-medium text-slate-700">{sync.email}</span> })} />
           <div className="space-y-2">
             <Link href="/" className="btn btn-brand h-11 w-full">
-              Open {PRODUCT_NAME} <ArrowRight />
+              {t("Open {product}", { product: PRODUCT_NAME })} <ArrowRight />
             </Link>
-            <button className="btn h-11 w-full" onClick={() => void getSupabase()?.auth.signOut()}>
-              <LogOut /> Sign out to create another company
+            <button className="btn h-auto min-h-11 w-full py-2 text-center whitespace-normal" onClick={() => void getSupabase()?.auth.signOut()}>
+              <LogOut /> {t("Sign out to create another company")}
             </button>
           </div>
         </AuthCard>
@@ -153,15 +161,23 @@ export default function SignupForm() {
       wide
       aside={
         <>
-          <span className="hidden sm:inline">Have an account? </span>
+          <span className="hidden sm:inline">{t("Have an account?")} </span>
           <Link href="/login" className="font-medium text-slate-900 hover:underline">
-            Sign in
+            {t("Sign in")}
           </Link>
         </>
       }
     >
       <AuthCard>
-        <AuthTitle title="Start your free trial" sub={`${TRIAL_DAYS} days of everything in ${PRODUCT_NAME}. Set up your company now and invite your crew when you’re ready.`} />
+        <AuthTitle
+          title={t("Start your free trial")}
+          sub={t.tn(
+            "{n} day of everything in {product}. Set up your company now and invite your crew when you’re ready.",
+            "{n} days of everything in {product}. Set up your company now and invite your crew when you’re ready.",
+            TRIAL_DAYS,
+            { product: PRODUCT_NAME },
+          )}
+        />
         <form
           className="space-y-4"
           noValidate
@@ -172,37 +188,42 @@ export default function SignupForm() {
         >
           {!teamRetry && (
             <div>
-              <span className="label">What does your company do?</span>
+              <span className="label">{t("What does your company do?")}</span>
               <TradePicker compact value={f.trades} onChange={(t) => set("trades", t)} />
-              <p className="mt-1.5 text-xs text-slate-500">Pick one or more — the first is your main trade. It sets up your device menu, catalog, wire types and checklists. You can change it later in Settings.</p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {t("Pick one or more — the first is your main trade. It sets up your device menu, catalog, wire types and checklists. You can change it later in Settings.")}
+              </p>
             </div>
           )}
           <div>
-            <label className="label" htmlFor="su-company">Company name</label>
+            <label className="label" htmlFor="su-company">{t("Company name")}</label>
             <input id="su-company" className="input h-11" autoComplete="organization" maxLength={120} required placeholder="Brightline Integration" value={f.company} onChange={(e) => set("company", e.target.value)} disabled={teamRetry} />
           </div>
           <div>
-            <label className="label" htmlFor="su-name">Your name</label>
-            <input id="su-name" className="input h-11" autoComplete="name" maxLength={80} required placeholder="First and last name" value={f.name} onChange={(e) => set("name", e.target.value)} disabled={teamRetry} />
+            <label className="label" htmlFor="su-name">{t("Your name")}</label>
+            <input id="su-name" className="input h-11" autoComplete="name" maxLength={80} required placeholder={t("First and last name")} value={f.name} onChange={(e) => set("name", e.target.value)} disabled={teamRetry} />
           </div>
           <div>
-            <label className="label" htmlFor="su-email">Work email</label>
+            <label className="label" htmlFor="su-email">{t("Work email")}</label>
             <input id="su-email" className="input h-11" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@company.com" value={f.email} onChange={(e) => set("email", e.target.value)} disabled={teamRetry} />
           </div>
-          {!teamRetry && <PasswordField id="su-password" label="Password" isNew value={f.password} onChange={(v) => set("password", v)} />}
+          {!teamRetry && <PasswordField id="su-password" label={t("Password")} isNew value={f.password} onChange={(v) => set("password", v)} />}
           {!teamRetry && (
             <label className="flex items-start gap-2.5 text-sm text-slate-600">
               <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" checked={f.accepted} onChange={(e) => set("accepted", e.target.checked)} />
               <span>
-                I agree to the{" "}
-                <Link href="/terms" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
-                  Privacy Policy
-                </Link>
-                .
+                {rich(t("I agree to the {terms} and {privacy}."), {
+                  terms: (
+                    <Link href="/terms" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+                      {t("Terms of Service")}
+                    </Link>
+                  ),
+                  privacy: (
+                    <Link href="/privacy" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+                      {t("Privacy Policy")}
+                    </Link>
+                  ),
+                })}
               </span>
             </label>
           )}
@@ -210,12 +231,12 @@ export default function SignupForm() {
           <FormError>{error ?? captchaError}</FormError>
           <button type="submit" className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || leaving}>
             {busy || leaving ? <Loader2 className="animate-spin" /> : teamRetry ? <RefreshCw /> : null}
-            {busy || leaving ? "Setting up your company…" : teamRetry ? "Try again" : "Create company account"}
+            {busy || leaving ? t("Setting up your company…") : teamRetry ? t("Try again") : t("Create company account")}
           </button>
           <p className="text-center text-xs text-slate-500">
-            Joining your company’s team?{" "}
+            {t("Joining your company’s team?")}{" "}
             <Link href="/join" className="font-medium text-slate-700 underline underline-offset-2">
-              Use your invite code
+              {t("Use your invite code")}
             </Link>
           </p>
         </form>
@@ -225,6 +246,7 @@ export default function SignupForm() {
 }
 
 function CheckEmail({ email, company }: { email: string; company: string }) {
+  const t = useT();
   const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("resend");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -233,21 +255,22 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
       <AuthCard>
         <AuthTitle
           icon={<Mail />}
-          title="Check your email"
-          sub={
-            <>
-              We sent a confirmation link to <span className="font-medium break-all text-slate-700">{email}</span>. Open it on any device — phone, tablet or
-              computer — and sign in. We’ll finish setting up <span className="font-medium text-slate-700">{company}</span> for you.
-            </>
-          }
+          title={t("Check your email")}
+          sub={rich(
+            t("We sent a confirmation link to {email}. Open it on any device — phone, tablet or computer — and sign in. We’ll finish setting up {company} for you."),
+            {
+              email: <span className="font-medium break-all text-slate-700">{email}</span>,
+              company: <span className="font-medium text-slate-700">{company}</span>,
+            },
+          )}
         />
         <ul className="mb-5 space-y-1.5 text-sm text-slate-500">
-          <li>· It can take a few minutes to arrive.</li>
-          <li>· Check spam or promotions if you don’t see it.</li>
+          <li>· {t("It can take a few minutes to arrive.")}</li>
+          <li>· {t("Check spam or promotions if you don’t see it.")}</li>
         </ul>
         <div className="space-y-2">
           <Link href={`/login?email=${encodeURIComponent(email)}`} className="btn btn-brand h-11 w-full">
-            I’ve confirmed — sign in
+            {t("I’ve confirmed — sign in")}
           </Link>
           <button
             className="btn h-11 w-full"
@@ -257,15 +280,15 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
               setMsg(null);
               try {
                 const r = await getSupabase()?.auth.resend({ type: "signup", email, options: { emailRedirectTo: confirmRedirect(), captchaToken: await takeCaptcha() } });
-                setMsg(r?.error ? { ok: false, text: authErrorMessage(r.error.message) } : { ok: true, text: "Sent again. Give it a few minutes." });
+                setMsg(r?.error ? { ok: false, text: t(authErrorMessage(r.error.message)) } : { ok: true, text: t("Sent again. Give it a few minutes.") });
               } catch (e) {
-                setMsg({ ok: false, text: authErrorMessage(errText(e)) });
+                setMsg({ ok: false, text: t(authErrorMessage(errText(e))) });
               } finally {
                 setBusy(false);
               }
             }}
           >
-            <RefreshCw /> Resend the email
+            <RefreshCw /> {t("Resend the email")}
           </button>
         </div>
         <div ref={captchaMount} className="mt-3 flex justify-center empty:hidden" />

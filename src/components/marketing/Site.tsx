@@ -92,7 +92,7 @@ export function SiteHeader() {
               >
                 {t("Sign in")}
               </Link>
-              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm max-[359px]:px-2.5">
+              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 py-1 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
                 {t("Start free trial")}
               </Link>
             </>
@@ -150,6 +150,7 @@ export function Faq({ items }: { items: [string, React.ReactNode][] }) {
 /** "Try it without an account": local demo mode on this device, then the jobs list. */
 export function TryDemoLink({ className = "" }: { className?: string }) {
   const router = useRouter();
+  const t = useT();
   return (
     <button
       type="button"
@@ -159,7 +160,7 @@ export function TryDemoLink({ className = "" }: { className?: string }) {
         router.push("/");
       }}
     >
-      Try it without an account
+      {t("Try it without an account")}
     </button>
   );
 }
@@ -168,13 +169,14 @@ export function TryDemoLink({ className = "" }: { className?: string }) {
 export function DeletedNotice() {
   const deleted = useArrivalParams()?.search.get("deleted") === "1";
   const [hidden, setHidden] = useState(false);
+  const t = useT();
   if (!deleted || hidden) return null;
   return (
     <div className="mx-auto mt-4 flex max-w-[1240px] items-center gap-3 px-4 sm:px-6" role="status">
       <div className="flex flex-1 items-center gap-2 rounded-lg bg-mk-sheet px-3 py-2.5 text-[15px] ring-1 ring-mk-rule">
         <CheckCircle2 className="h-4 w-4 shrink-0 text-mk-ok" />
-        <span className="flex-1">Your account was deleted and this device was cleared.</span>
-        <button className="rounded p-1 hover:bg-mk-paper" onClick={() => setHidden(true)} aria-label="Dismiss">
+        <span className="flex-1">{t("Your account was deleted and this device was cleared.")}</span>
+        <button className="rounded p-1 hover:bg-mk-paper" onClick={() => setHidden(true)} aria-label={t("Dismiss")}>
           <X className="h-4 w-4" />
         </button>
       </div>

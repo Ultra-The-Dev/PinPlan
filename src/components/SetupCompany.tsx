@@ -5,6 +5,7 @@
 import { Building2, Loader2, LogOut, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { accountMetadata, clearPendingCompany, pendingCompany, recordTermsAccepted, welcomeNewCompany } from "@/lib/onboarding";
 import { acceptedTerms, companyFromMetadata, setupCompanyProblem } from "@/lib/onboardingLogic";
 import { getAuthor } from "@/lib/photos";
@@ -15,9 +16,11 @@ import { createTeam, reloadTeam } from "@/lib/team";
 import { teamErrorMessage } from "@/lib/teamLogic";
 import type { TradeId } from "@/lib/types";
 import TradePicker from "./TradePicker";
+import { rich } from "./auth/rich";
 
 export default function SetupCompany() {
   const sync = useSyncStatus();
+  const t = useT();
   const [f, setF] = useState(() => {
     const p = pendingCompany();
     const me = getAuthor(null);
@@ -48,7 +51,7 @@ export default function SetupCompany() {
 
   const submit = async () => {
     const problem = setupCompanyProblem({ company: f.company, name: f.name, accepted: termsNeeded === false || f.accepted });
-    if (problem) return setError(problem);
+    if (problem) return setError(t(problem));
     setBusy(true);
     setError(null);
     try {
@@ -68,7 +71,7 @@ export default function SetupCompany() {
       void useSyncStatus.getState().syncNow().catch(() => undefined);
       // /start now shows the checklist (the team store has the new company).
     } catch (e) {
-      setError(teamErrorMessage(e as Error));
+      setError(t(teamErrorMessage(e as Error)));
     } finally {
       setBusy(false);
     }
@@ -80,9 +83,14 @@ export default function SetupCompany() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
           <Building2 className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Set up your company</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{t("Set up your company")}</h1>
         <p className="mt-1.5 text-slate-500">
-          Everything in {PRODUCT_NAME} belongs to your company: jobs, price list and crew. Your {TRIAL_DAYS}-day free trial starts now.
+          {t.tn(
+            "Everything in {product} belongs to your company: jobs, price list and crew. Your {n}-day free trial starts now.",
+            "Everything in {product} belongs to your company: jobs, price list and crew. Your {n}-day free trial starts now.",
+            TRIAL_DAYS,
+            { product: PRODUCT_NAME },
+          )}
         </p>
       </div>
       <form
@@ -94,32 +102,35 @@ export default function SetupCompany() {
         }}
       >
         <div>
-          <label className="label" htmlFor="setup-company">Company name</label>
+          <label className="label" htmlFor="setup-company">{t("Company name")}</label>
           <input id="setup-company" className="input h-11" autoComplete="organization" maxLength={120} required value={f.company} onChange={(e) => set("company", e.target.value)} />
         </div>
         <div>
-          <label className="label" htmlFor="setup-name">Your name</label>
-          <input id="setup-name" className="input h-11" autoComplete="name" maxLength={80} required placeholder="First and last name" value={f.name} onChange={(e) => set("name", e.target.value)} />
-          <p className="mt-1 text-xs text-slate-500">Your crew sees this, and it’s on the photos you take.</p>
+          <label className="label" htmlFor="setup-name">{t("Your name")}</label>
+          <input id="setup-name" className="input h-11" autoComplete="name" maxLength={80} required placeholder={t("First and last name")} value={f.name} onChange={(e) => set("name", e.target.value)} />
+          <p className="mt-1 text-xs text-slate-500">{t("Your crew sees this, and it’s on the photos you take.")}</p>
         </div>
         <div>
-          <span className="label">What does your company do?</span>
+          <span className="label">{t("What does your company do?")}</span>
           <TradePicker compact value={f.trades} onChange={(t) => set("trades", t)} />
-          <p className="mt-1.5 text-xs text-slate-500">Pick one or more. It sets up your device list, price list and checklists. You can change it later in Settings.</p>
+          <p className="mt-1.5 text-xs text-slate-500">{t("Pick one or more. It sets up your device list, price list and checklists. You can change it later in Settings.")}</p>
         </div>
         {termsNeeded && (
           <label className="flex items-start gap-2.5 text-sm text-slate-600">
             <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" checked={f.accepted} onChange={(e) => set("accepted", e.target.checked)} />
             <span>
-              I agree to the{" "}
-              <Link href="/terms" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
-                Privacy Policy
-              </Link>
-              .
+              {rich(t("I agree to the {terms} and {privacy}."), {
+                terms: (
+                  <Link href="/terms" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+                    {t("Terms of Service")}
+                  </Link>
+                ),
+                privacy: (
+                  <Link href="/privacy" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+                    {t("Privacy Policy")}
+                  </Link>
+                ),
+              })}
             </span>
           </label>
         )}
@@ -129,16 +140,16 @@ export default function SetupCompany() {
           </p>
         )}
         <button type="submit" className="btn btn-brand h-11 w-full text-[15px]" disabled={busy || termsNeeded === null}>
-          {busy ? <Loader2 className="animate-spin" /> : <Building2 />} {busy ? "Setting up your company…" : "Set up my company"}
+          {busy ? <Loader2 className="animate-spin" /> : <Building2 />} {busy ? t("Setting up your company…") : t("Set up my company")}
         </button>
         <Link href="/join" className="btn h-11 w-full">
-          <Ticket /> I have an invite code
+          <Ticket /> {t("I have an invite code")}
         </Link>
       </form>
       <p className="mt-5 text-center text-sm text-slate-500">
-        Signed in as <span className="font-medium break-all text-slate-700">{sync.email}</span> ·{" "}
+        {rich(t("Signed in as {email}"), { email: <span className="font-medium break-all text-slate-700">{sync.email}</span> })} ·{" "}
         <button className="inline-flex items-center gap-1 font-medium text-slate-700 hover:underline" onClick={() => void getSupabase()?.auth.signOut()}>
-          <LogOut className="h-3.5 w-3.5" /> Sign out
+          <LogOut className="h-3.5 w-3.5" /> {t("Sign out")}
         </button>
       </p>
     </div>

@@ -1,5 +1,6 @@
 // Small, believable pictures of each step of a job, drawn in code. Figures come from the electrical trade pack so the
 // names, symbols and prices are the ones a new company actually starts with.
+import { msg, useT } from "@/lib/i18n";
 import { TRADE_PACKS, tradePack } from "@/lib/trades";
 import { HERO_TOTAL } from "./HeroPlan";
 import { Symbol } from "./Symbol";
@@ -13,8 +14,8 @@ function Panel({ title, aside, children, className = "" }: { title: string; asid
   return (
     <div className={`mk-sheet overflow-hidden text-[14px] ${className}`}>
       <div className="flex items-baseline justify-between gap-3 border-b border-mk-rule px-4 py-2.5">
-        <span className="font-semibold">{title}</span>
-        {aside && <span className="text-[13px] text-mk-pencil">{aside}</span>}
+        <span className="min-w-0 font-semibold">{title}</span>
+        {aside && <span className="text-right text-[13px] text-mk-pencil">{aside}</span>}
       </div>
       {children}
     </div>
@@ -32,28 +33,29 @@ function Thumb({ variant }: { variant: number }) {
 }
 
 export function PlansVisual() {
+  const t = useT();
   const sheets = [
-    ["E-100", "Basement"],
-    ["E-101", "First floor"],
-    ["E-102", "Second floor"],
+    ["E-100", msg("Basement")],
+    ["E-101", msg("First floor")],
+    ["E-102", msg("Second floor")],
   ];
   const palette = ["el-rec15", "el-gfci", "el-sw", "el-sw3", "el-can6", "el-smoke"];
   return (
-    <Panel title="Harbor View Rd, unit 2" aside="3 floors from one PDF">
+    <Panel title="Harbor View Rd, unit 2" aside={t.tn("{n} floor from one PDF", "{n} floors from one PDF", 3)}>
       <ul>
         {sheets.map(([no, name], i) => (
           <li key={no} className={`flex items-center gap-3 px-4 py-2.5 ${i === 1 ? "bg-mk-paper" : ""} ${i > 0 ? "border-t border-mk-rule" : ""}`}>
             <Thumb variant={i} />
             <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{name}</span>
-              <span className="block text-[13px] text-mk-pencil">Sheet {no}</span>
+              <span className="block font-semibold">{t(name)}</span>
+              <span className="block text-[13px] text-mk-pencil">{t("Sheet {number}", { number: no })}</span>
             </span>
-            {i === 1 && <span className="rounded-full bg-mk-graphite px-2 py-0.5 text-[12px] font-semibold text-white">Open</span>}
+            {i === 1 && <span className="rounded-full bg-mk-graphite px-2 py-0.5 text-[12px] font-semibold text-white">{t("Viewing")}</span>}
           </li>
         ))}
       </ul>
       <div className="border-t border-mk-rule bg-mk-paper px-4 py-3">
-        <div className="text-[13px] text-mk-pencil">Tap a device, then tap the plan</div>
+        <div className="text-[13px] text-mk-pencil">{t("Tap a device, then tap the plan")}</div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {palette.map((id) => {
             const s = seed(id);
@@ -71,23 +73,24 @@ export function PlansVisual() {
 }
 
 export function CountVisual() {
+  const t = useT();
   const rows: [string, string, number, number][] = [
-    ["el-rec15", "Receptacles", 8, 11],
-    ["el-gfci", "GFCI receptacles", 7, 3],
-    ["el-can6", "Recessed lights", 11, 9],
-    ["el-sw", "Switches", 5, 8],
-    ["el-smoke", "Smoke alarms", 2, 4],
+    ["el-rec15", msg("Receptacles"), 8, 11],
+    ["el-gfci", msg("GFCI receptacles"), 7, 3],
+    ["el-can6", msg("Recessed lights"), 11, 9],
+    ["el-sw", msg("Switches"), 5, 8],
+    ["el-smoke", msg("Smoke alarms"), 2, 4],
   ];
   return (
     <div className="space-y-4">
-      <Panel title="Device and wire count" aside="Updated as you pin">
+      <Panel title={t("Device and wire count")} aside={t("Updated as you pin")}>
         <table className="w-full table-fixed text-[14px]">
           <thead>
             <tr className="text-left text-[13px] text-mk-pencil">
-              <th className="py-2 pr-1 pl-3 font-medium sm:pl-4">Device</th>
-              <th className="w-[44px] px-1 py-2 text-right font-medium sm:w-[56px] sm:px-2">1st fl</th>
-              <th className="w-[48px] px-1 py-2 text-right font-medium sm:w-[60px] sm:px-2">2nd fl</th>
-              <th className="w-[70px] py-2 pr-3 pl-1 text-right font-medium sm:w-[88px] sm:pr-4">Total</th>
+              <th className="py-2 pr-1 pl-3 font-medium sm:pl-4">{t("Device")}</th>
+              <th className="w-[44px] px-1 py-2 text-right font-medium sm:w-[56px] sm:px-2">{t("1st fl")}</th>
+              <th className="w-[48px] px-1 py-2 text-right font-medium sm:w-[60px] sm:px-2">{t("2nd fl")}</th>
+              <th className="w-[70px] py-2 pr-3 pl-1 text-right font-medium sm:w-[88px] sm:pr-4">{t("Total")}</th>
             </tr>
           </thead>
           <tbody>
@@ -98,7 +101,7 @@ export function CountVisual() {
                   <td className="px-4 py-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <Symbol symbol={s.symbol} color={s.color} shape={s.shape} size={22} className="shrink-0" />
-                      <span className="truncate">{name}</span>
+                      <span className="truncate">{t(name)}</span>
                     </span>
                   </td>
                   <td className="mk-num px-2 py-2 text-right">{a}</td>
@@ -114,22 +117,22 @@ export function CountVisual() {
               <td className="mk-num px-2 py-2 text-right">286</td>
               <td className="mk-num px-2 py-2 text-right">341</td>
               <td className="mk-num px-4 py-2 text-right font-semibold">
-                <span className="mk-hl">627 ft</span>
+                <span className="mk-hl">{t("{ft} ft", { ft: 627 })}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </Panel>
-      <Panel title="Panel schedule, MP" className="sm:ml-12">
+      <Panel title={t("Panel schedule, {panel}", { panel: "MP" })} className="sm:ml-12">
         <ul className="text-[13px]">
           {[
-            ["1", "Kitchen counter receptacles", "20 A"],
-            ["3", "Kitchen and dining lights", "15 A"],
-            ["5", "Laundry and garage", "20 A"],
+            ["1", msg("Kitchen counter receptacles"), "20 A"],
+            ["3", msg("Kitchen and dining lights"), "15 A"],
+            ["5", msg("Laundry and garage"), "20 A"],
           ].map(([c, n, a]) => (
             <li key={c} className="flex items-center gap-3 border-t border-mk-rule px-4 py-1.5 first:border-t-0">
               <span className="mk-num w-4 text-mk-pencil">{c}</span>
-              <span className="min-w-0 flex-1 truncate">{n}</span>
+              <span className="min-w-0 flex-1 truncate">{t(n)}</span>
               <span className="mk-num">{a}</span>
             </li>
           ))}
@@ -146,9 +149,10 @@ export function QuoteVisual() {
     ["el-gfci", "GFCI receptacle", 10],
     ["el-sw", "Single-pole switch", 13],
   ];
+  const t = useT();
   const sub = lines.reduce((s, [id, , n]) => s + n * price(id), 0) + 627 * (EL.wirePrices["14/2 NM-B"] ?? 0);
   return (
-    <Panel title="Pricing" aside="From your price list">
+    <Panel title={t("Pricing")} aside={t("From your price list")}>
       <table className="w-full text-[14px]">
         <tbody>
           {lines.map(([id, name, n]) => (
@@ -161,15 +165,15 @@ export function QuoteVisual() {
             </tr>
           ))}
           <tr className="border-b border-mk-rule">
-            <td className="py-2 pl-4">14/2 NM-B wire</td>
-            <td className="mk-num px-2 py-2 text-right whitespace-nowrap text-mk-pencil">627 ft</td>
+            <td className="py-2 pl-4">{t("{wire} wire", { wire: "14/2 NM-B" })}</td>
+            <td className="mk-num px-2 py-2 text-right whitespace-nowrap text-mk-pencil">{t("{ft} ft", { ft: 627 })}</td>
             <td className="mk-num py-2 pr-4 text-right">{money(627 * (EL.wirePrices["14/2 NM-B"] ?? 0))}</td>
           </tr>
           <tr className="border-b border-mk-rule bg-mk-paper">
             <td className="py-2 pl-4" colSpan={2}>
               <span className="flex items-center gap-2">
                 <span className="inline-block h-4 w-4 rounded-[3px] border-[1.5px] border-mk-graphite" aria-hidden="true" />
-                Optional: under-cabinet lights, 12 ft
+                {t("Optional: under-cabinet lights, {ft} ft", { ft: 12 })}
               </span>
             </td>
             <td className="mk-num py-2 pr-4 text-right text-mk-pencil">+{money(12 * price("el-ucab"))}</td>
@@ -177,7 +181,7 @@ export function QuoteVisual() {
         </tbody>
       </table>
       <div className="flex items-baseline justify-between px-4 py-3">
-        <span className="text-mk-pencil">Markup 15%, labor included</span>
+        <span className="text-mk-pencil">{t("Markup {pct}%, labor included", { pct: 15 })}</span>
         <span className="mk-figure text-[24px]">{money(sub * 1.15)}</span>
       </div>
     </Panel>
@@ -185,14 +189,15 @@ export function QuoteVisual() {
 }
 
 export function ApproveVisual() {
+  const t = useT();
   return (
     <div className="mx-auto w-full max-w-[290px]">
       <div className="mk-phone">
         <div className="mk-screen text-[13px]">
           <div className="px-5 pt-6 pb-4">
-            <div className="text-mk-pencil">Quote from Northline Electric</div>
+            <div className="text-mk-pencil">{t("Quote from {company}", { company: "Northline Electric" })}</div>
             <div className="mk-figure mt-1 text-[30px]">{money(HERO_TOTAL)}</div>
-            <div className="text-mk-pencil">First floor power and lighting</div>
+            <div className="text-mk-pencil">{t("First floor power and lighting")}</div>
           </div>
           <div className="space-y-2 border-t border-mk-rule px-5 py-4">
             <div className="flex items-center gap-2.5">
@@ -201,17 +206,17 @@ export function ApproveVisual() {
                   <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#33a9ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </span>
-              Add under-cabinet lights
+              {t("Add under-cabinet lights")}
               <span className="mk-num ml-auto">+{money(12 * price("el-ucab"))}</span>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="h-[18px] w-[18px] rounded-[4px] border-[1.5px] border-mk-graphite" aria-hidden="true" />
-              Add EV outlet in garage
+              {t("Add EV outlet in garage")}
               <span className="mk-num ml-auto text-mk-pencil">+{money(price("ev-outlet"))}</span>
             </div>
           </div>
           <div className="border-t border-mk-rule px-5 py-4">
-            <div className="text-mk-pencil">Sign here</div>
+            <div className="text-mk-pencil">{t("Sign here")}</div>
             <svg viewBox="0 0 200 44" className="mt-1 h-10 w-full" aria-hidden="true">
               <path
                 d="M8 32c10-18 18-26 21-18s-6 20 1 16 12-21 17-17-3 16 4 15 11-15 16-12 1 11 8 10 12-10 18-9 5 8 12 6 15-8 22-6 13 4 26 1"
@@ -222,7 +227,9 @@ export function ApproveVisual() {
               />
               <path d="M6 40h188" stroke="#c9d6e5" />
             </svg>
-            <div className="mt-3 flex h-11 items-center justify-center rounded-[10px] bg-mk-ok font-semibold text-white">Approved by Dana Whitfield</div>
+            <div className="mt-3 flex min-h-11 items-center justify-center rounded-[10px] bg-mk-ok px-2 text-center font-semibold text-white">
+              {t("Approved by {name}", { name: "Dana Whitfield" })}
+            </div>
           </div>
         </div>
       </div>
@@ -231,31 +238,33 @@ export function ApproveVisual() {
 }
 
 export function InvoiceVisual() {
+  const t = useT();
   const total = HERO_TOTAL;
   const deposit = Math.round(total * 0.5);
   const progress = Math.round(total * 0.3);
   const rows: [string, number, "Paid" | "Sent" | "Draft"][] = [
-    ["Deposit, 50%", deposit, "Paid"],
-    ["Progress, rough-in done", progress, "Sent"],
-    ["Final", total - deposit - progress, "Draft"],
+    [msg("Deposit, 50%"), deposit, "Paid"],
+    [msg("Progress, rough-in done"), progress, "Sent"],
+    [msg("Final"), total - deposit - progress, "Draft"],
   ];
+  const statusLabel = { Paid: t("Paid"), Sent: t("Sent"), Draft: t("Draft") };
   const tone = { Paid: "bg-mk-ok text-white", Sent: "bg-mk-marker text-white", Draft: "bg-mk-paper text-mk-pencil ring-1 ring-mk-rule" };
   return (
-    <Panel title="Money" aside={`Approved quote ${money(total)}`}>
+    <Panel title={t("Money")} aside={t("Approved quote {total}", { total: money(total) })}>
       <ul>
         {rows.map(([name, amount, status], i) => (
           <li key={name} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-mk-rule" : ""}`}>
             <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{name}</span>
-              <span className="block text-[13px] text-mk-pencil">Invoice INV-2026-{String(41 + i).padStart(4, "0")}</span>
+              <span className="block font-semibold">{t(name)}</span>
+              <span className="block text-[13px] text-mk-pencil">{t("Invoice {number}", { number: `INV-2026-${String(41 + i).padStart(4, "0")}` })}</span>
             </span>
             <span className="mk-num">{money(amount)}</span>
-            <span className={`w-14 rounded-full py-0.5 text-center text-[12px] font-semibold ${tone[status]}`}>{status}</span>
+            <span className={`min-w-14 rounded-full px-2 py-0.5 text-center text-[12px] font-semibold ${tone[status]}`}>{statusLabel[status]}</span>
           </li>
         ))}
       </ul>
       <div className="flex items-baseline justify-between border-t border-mk-rule bg-mk-paper px-4 py-3">
-        <span className="text-mk-pencil">Left to collect</span>
+        <span className="text-mk-pencil">{t("Left to collect")}</span>
         <span className="mk-figure text-[22px]">{money(total - deposit)}</span>
       </div>
     </Panel>
@@ -263,6 +272,7 @@ export function InvoiceVisual() {
 }
 
 export function FieldVisual() {
+  const t = useT();
   return (
     <div className="grid gap-4 sm:grid-cols-[1.1fr_1fr]">
       <div className="mk-sheet overflow-hidden">
@@ -287,23 +297,23 @@ export function FieldVisual() {
           <path d="M120 160L76 160M86 152l-10 8 10 8" fill="none" stroke="#c73a2c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           <rect x="18" y="168" width="134" height="22" rx="4" fill="#c73a2c" />
           <text x="85" y="183" textAnchor="middle" fill="#fff" fontSize="11.5" fontWeight="600">
-            Move box 6 in. left
+            {t("Move box 6 in. left")}
           </text>
         </svg>
         <div className="px-3 py-2 text-[13px]">
-          <span className="font-semibold">Kitchen, island wall</span>
-          <span className="block text-mk-pencil">Pinned to E-101, tagged rough-in</span>
+          <span className="font-semibold">{t("Kitchen, island wall")}</span>
+          <span className="block text-mk-pencil">{t("Pinned to {sheet}, tagged rough-in", { sheet: "E-101" })}</span>
         </div>
       </div>
       <div className="space-y-4 text-[14px]">
-        <Panel title="Rough-in checklist" aside="2 of 3">
+        <Panel title={t("Rough-in checklist")} aside={t("{done} of {total}", { done: 2, total: 3 })}>
           <ul className="space-y-2 px-4 py-3">
             {[
-              ["Boxes set at 16 in. to center", true],
-              ["Home runs labelled at the panel", true],
-              ["Photo every wall before drywall", false],
-            ].map(([t, done]) => (
-              <li key={String(t)} className="flex items-start gap-2.5">
+              [msg("Boxes set at 16 in. to center"), true],
+              [msg("Home runs labelled at the panel"), true],
+              [msg("Photo every wall before drywall"), false],
+            ].map(([item, done]) => (
+              <li key={String(item)} className="flex items-start gap-2.5">
                 <span
                   className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] ${done ? "bg-mk-graphite" : "border-[1.5px] border-mk-graphite"}`}
                   aria-hidden="true"
@@ -314,17 +324,17 @@ export function FieldVisual() {
                     </svg>
                   )}
                 </span>
-                <span className={done ? "text-mk-pencil line-through decoration-mk-rule" : ""}>{t}</span>
+                <span className={done ? "text-mk-pencil line-through decoration-mk-rule" : ""}>{t(String(item))}</span>
               </li>
             ))}
           </ul>
         </Panel>
-        <Panel title="Task">
+        <Panel title={t("Task")}>
           <div className="px-4 py-3">
-            <div className="font-semibold">Pull circuits 7 to 12 to MP</div>
+            <div className="font-semibold">{t("Pull circuits {from} to {to} to {panel}", { from: 7, to: 12, panel: "MP" })}</div>
             <div className="mt-2 flex items-center gap-2 text-[13px] text-mk-pencil">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-mk-paper text-[11px] font-semibold text-mk-graphite ring-1 ring-mk-rule">MK</span>
-              Marcus King, due Thursday
+              {t("{name}, due Thursday", { name: "Marcus King" })}
             </div>
           </div>
         </Panel>

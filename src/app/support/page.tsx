@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
+import { supportRu } from "@/components/legal/ru/SupportRu";
 import StatusCheck from "@/components/legal/StatusCheck";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
@@ -86,6 +87,7 @@ export default function SupportPage() {
     <LegalDoc
       title="Support"
       toc={toc}
+      ru={supportRu}
       intro={<p>We’re a small team that builds PinPlan for electrical, low-voltage and specialty contractors. Real people answer every message.</p>}
     >
       <Section item={S.contact}>

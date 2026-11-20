@@ -10,6 +10,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
+import { termsRu } from "@/components/legal/ru/TermsRu";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
@@ -52,6 +53,7 @@ export default function TermsPage() {
       title="Terms of Service"
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
+      ru={termsRu}
       intro={
         <p>
           PinPlan helps electrical, low-voltage and specialty trade contractors count from plans, send quotes and invoices, and run their jobs in the field.

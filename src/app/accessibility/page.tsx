@@ -4,6 +4,7 @@
  */
 import type { Metadata } from "next";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
+import { accessibilityRu } from "@/components/legal/ru/AccessibilityRu";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
 
@@ -27,6 +28,7 @@ export default function AccessibilityPage() {
       title="Accessibility"
       updated={LEGAL_EFFECTIVE_DATE}
       toc={toc}
+      ru={accessibilityRu}
       intro={<p>We want everyone on a crew, in the office and on the client side to be able to use PinPlan, whatever device or assistive technology they use.</p>}
     >
       <Section item={S.goal}>
