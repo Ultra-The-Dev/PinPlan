@@ -98,7 +98,9 @@ begin
   if t.id is not null and not public.plan_allows_work(t.plan_status, t.trial_ends_at) then
     return jsonb_build_object('ok', false, 'reason', 'plan_inactive', 'team_id', t.id);
   end if;
-  trial := t.id is null or t.plan_status in ('trialing', 'incomplete');
+  -- Anything not paid for counts as a trial here: a team that cancelled during its trial (or has no status) is still
+  -- working for free, so it gets the trial allowance and share, not a paying company's.
+  trial := t.id is null or coalesce(t.plan_status, 'none') not in ('active', 'past_due', 'comped');
 
   -- One lock for every sender: the company counts and the platform count below are taken together, so two requests
   -- can't both take the last slot of either.
@@ -178,7 +180,8 @@ declare st text; n int; cap int;
 begin
   perform pg_advisory_xact_lock(hashtext('pinplan_team_invites'), hashtext(new.team_id::text));
   select plan_status into st from public.teams where id = new.team_id;
-  cap := case when coalesce(st, 'trialing') in ('trialing', 'incomplete') then 20 else 200 end;
+  -- Paying (or comped) teams get the larger allowance; trials, cancelled teams and unknown statuses the small one.
+  cap := case when coalesce(st, 'none') in ('active', 'past_due', 'comped') then 200 else 20 end;
   select count(*) into n from public.team_invites i
     where i.team_id = new.team_id and not i.revoked and i.used_by is null and i.expires_at > now();
   if n >= cap then
@@ -277,6 +280,9 @@ begin
   if p_version is null or p_version !~ '^[A-Za-z0-9_.-]{1,32}$' then
     raise exception 'Unknown terms version' using errcode = '22023';
   end if;
+  -- One record per person and version (the first acceptance): calling again changes nothing and can't fill the table.
+  perform pg_advisory_xact_lock(hashtext('pinplan_terms'), hashtext(uid::text));
+  if exists (select 1 from public.terms_acceptances a where a.user_id = uid and a.version = p_version) then return; end if;
   begin
     hdr := nullif(current_setting('request.headers', true), '')::json;
   exception when others then

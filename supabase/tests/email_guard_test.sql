@@ -216,6 +216,20 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000e9e1');
 select pg_temp.check(pg_temp.fails($$select * from public.email_settings$$), 'members cannot read the email settings');
 select pg_temp.check(pg_temp.fails($$update public.email_settings set daily_platform_cap = 1000000$$), 'members cannot raise the platform cap');
 reset role;
+-- A team that cancelled during its trial still works for free: it counts as a trial.
+delete from public.email_sends;
+update public.email_settings set daily_platform_cap = 10, trial_share = 0;
+update public.teams set plan_status = 'canceled', trial_ends_at = now() + interval '5 days'
+  where id = (select team_id from public.team_members where user_id = '00000000-0000-0000-0000-00000000e9e5');
+set role service_role;
+select pg_temp.as_service();
+select pg_temp.check((select r ->> 'reason' = 'platform_cap' and (r ->> 'trial')::boolean
+                      from public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pcx@example.com')) r),
+  'a team cancelled during its trial gets the trial share, not a paying company''s');
+reset role;
+update public.teams set plan_status = 'active', trial_ends_at = null
+  where id = (select team_id from public.team_members where user_id = '00000000-0000-0000-0000-00000000e9e5');
+delete from public.email_sends;
 update public.email_settings set daily_platform_cap = 2000, trial_share = 0.3, last_alert_at = null;
 
 -- ---------- one trial per address ----------
@@ -262,6 +276,8 @@ select public.accept_terms('2026-12');
 select pg_temp.check((select ip = '203.0.113.9' and user_agent = 'TestBrowser/1' and version = '2026-12' from public.terms_acceptances where user_id = auth.uid()),
   'accept_terms records the version, address and browser');
 select pg_temp.check(pg_temp.fails($$select public.accept_terms('bad version!')$$), 'a junk version is refused');
+select public.accept_terms('2026-12');
+select pg_temp.check((select count(*) from public.terms_acceptances where user_id = auth.uid() and version = '2026-12') = 1, 'accepting the same version again adds no row');
 select pg_temp.check((select count(*) from public.terms_acceptances) = 1, 'people see only their own record');
 select pg_temp.check(pg_temp.fails($$insert into public.terms_acceptances (user_id, version) values (auth.uid(), 'x')$$), 'no direct inserts');
 select pg_temp.check(pg_temp.fails($$update public.terms_acceptances set version = 'x'$$), 'no updates');
