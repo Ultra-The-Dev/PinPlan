@@ -93,10 +93,27 @@ export default function Modal(props: {
       onClose.current();
     };
     dlg.addEventListener("cancel", cancel);
+    // Some browsers close the dialog themselves anyway (e.g. a repeated Escape / back gesture ignores the cancel's
+    // preventDefault). If we're still mounted (onClose chose to keep it open, say after a "Discard?" question),
+    // open it again so it doesn't stay on the page invisible and non-modal.
+    let mounted = true;
+    const reopen = () => {
+      if (!mounted || dlg.open || !dlg.isConnected) return;
+      try {
+        if (typeof dlg.showModal === "function") dlg.showModal();
+        else dlg.setAttribute("open", "");
+      } catch {
+        dlg.setAttribute("open", "");
+      }
+    };
+    const closed = () => queueMicrotask(reopen);
+    dlg.addEventListener("close", closed);
     const mySlot = slot.current;
     if (mySlot) setSlots([...slots, mySlot]);
     return () => {
+      mounted = false;
       dlg.removeEventListener("cancel", cancel);
+      dlg.removeEventListener("close", closed);
       if (mySlot) setSlots(slots.filter((s) => s !== mySlot));
       try {
         if (dlg.open && typeof dlg.close === "function") dlg.close();

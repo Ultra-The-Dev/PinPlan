@@ -57,10 +57,15 @@ export default function Annotator(props: { imageId: string; width: number; heigh
     setDraft(null);
   };
 
+  // Escape / the back gesture: don't throw away new marks without asking (the Cancel button is a deliberate choice).
+  const closeByKey = () => {
+    if (shapes === props.shapes || window.confirm("Discard your changes to this mark-up?")) props.onCancel();
+  };
+
   // Fit the photo to the screen, keeping its shape.
   const aspect = props.width / props.height;
   return (
-    <Modal onClose={props.onCancel} label="Mark up photo" closeOnBackdrop={false} className="fixed inset-0 flex flex-col bg-slate-950/95 text-white">
+    <Modal onClose={closeByKey} label="Mark up photo" closeOnBackdrop={false} className="fixed inset-0 flex flex-col bg-slate-950/95 text-white">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2">
         <button className="btn btn-sm btn-ghost text-white hover:bg-white/10" onClick={props.onCancel} aria-label="Cancel">
           <X />

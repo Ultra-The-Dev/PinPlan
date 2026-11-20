@@ -2,7 +2,7 @@
 // What the client sees: the installer's proposal by link — plans, scope, price, optional add-ons, sign and accept.
 import { Check, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
 import { floorLabels, GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
 import { notifyProposalResponse } from "@/lib/emailClient";
@@ -27,6 +27,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
   const focus = useRef<number | null>(null);
   // Keyboard crosshair: shown on the plan that has focus, moved with the arrows, Enter drops a pin there.
   const [cross, setCross] = useState<{ floor: string; x: number; y: number } | null>(null);
+  const hintId = useId();
   const drop = (floor: string, x: number, y: number) => {
     onChange([...pins, { floor, x, y, note: "" }]);
     focus.current = pins.length;
@@ -44,7 +45,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
   return (
     <div className="mt-4">
       <span className="label">Point at the plan (optional)</span>
-      <p id="pinpad-hint" className="-mt-0.5 mb-2 text-xs text-slate-500">
+      <p id={hintId} className="-mt-0.5 mb-2 text-xs text-slate-500">
         Tap a spot to drop a numbered pin, then say what should change there. Tap a pin’s × to remove it. With a keyboard: Tab to the plan, move with the arrow keys (Shift for bigger steps) and press Enter.
       </p>
       <div className="space-y-3">
@@ -55,7 +56,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
               tabIndex={0}
               role="application"
               aria-label={`${f.name} plan: tap a spot, or move the crosshair with the arrow keys and press Enter to drop a pin`}
-              aria-describedby="pinpad-hint"
+              aria-describedby={hintId}
               onFocus={() => setCross((c) => (c?.floor === f.name ? c : { floor: f.name, x: 0.5, y: 0.5 }))}
               onBlur={() => setCross((c) => (c?.floor === f.name ? null : c))}
               onKeyDown={(e) => {
