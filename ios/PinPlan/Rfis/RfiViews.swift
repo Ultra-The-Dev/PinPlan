@@ -186,7 +186,9 @@ struct RfiDetailView: View {
                         }
                     }
                 }
-                if r.status == .draft {
+                // Technicians can't send on the web either (canRfi "send"); the Answer section already says the
+                // office sends it.
+                if r.status == .draft && FieldParity.RFI.can(app.cloud.role, "send") {
                     Section {
                         WebOnlyLink(title: "Send it from the web", path: "project?id=\(model.bundle.project.id)&tab=field&section=rfis")
                     } footer: {
@@ -196,7 +198,9 @@ struct RfiDetailView: View {
             }
             .navigationTitle(r.label)
             .toolbar {
-                if FieldParity.RFI.canEdit(app.cloud.role, status: r.status.rawValue) {
+                // Only drafts are edited here: changes to a sent RFI never sync up (Sync.pushes), so they'd stay on
+                // this device. Sent RFIs are changed on the web.
+                if r.status == .draft && FieldParity.RFI.canEdit(app.cloud.role, status: r.status.rawValue) {
                     ToolbarItem(placement: .topBarTrailing) { Button("Edit") { editing = r } }
                 }
             }

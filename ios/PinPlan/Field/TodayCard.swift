@@ -157,12 +157,17 @@ struct MoreOnWebRow: View {
     var body: some View {
         let job = model.bundle.project.id
         let office = app.cloud.can(.prices)
-        let pages: [(String, String, String)] = (office ? [
+        // Technicians can't send RFIs, plan the schedule or see job templates on the web either (rfis.ts canRfi,
+        // schedule.ts canEditSchedule, SettingsForm "templates" is office only): they get the schedule, where a crew
+        // member updates progress.
+        let pages: [(String, String, String)] = office ? [
             ("Change orders", "doc.badge.plus", "project?id=\(job)&tab=changes"),
             ("Quotes and invoices", "doc.text", "project?id=\(job)&tab=billing"),
-        ] : []) + [
-            ("Send RFIs and plan the schedule", "questionmark.bubble", "project?id=\(job)&tab=field&section=rfis"),
-            ("Job templates", "square.on.square", "settings"),
+            ("Send RFIs", "questionmark.bubble", "project?id=\(job)&tab=field&section=rfis"),
+            ("Plan the schedule", "calendar", "project?id=\(job)&tab=field&section=schedule"),
+            ("Job templates", "square.on.square", "settings#templates"),
+        ] : [
+            ("Update schedule progress", "calendar", "project?id=\(job)&tab=field&section=schedule"),
         ]
         let links = pages.compactMap { p in serverPageURL(app.settings, p.2).map { (p.0, p.1, $0) } }
         if !links.isEmpty {
@@ -174,7 +179,7 @@ struct MoreOnWebRow: View {
                 HStack(spacing: 6) {
                     Image(systemName: "safari")
                     Text("More on the web")
-                    Text(office ? "Change orders, quotes, invoices, templates" : "RFIs, schedule, templates").foregroundStyle(.secondary).lineLimit(1)
+                    Text(office ? "Change orders, quotes, invoices, RFIs, templates" : "Schedule progress").foregroundStyle(.secondary).lineLimit(1)
                     Spacer(minLength: 0)
                 }
                 .font(.footnote)

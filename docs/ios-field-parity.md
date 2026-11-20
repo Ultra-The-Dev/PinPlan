@@ -39,11 +39,12 @@ Layers › **From the office** has a switch for each (remembered on the device).
   overdue, this week's phases on my crew, open checklists.
 - **RFIs**: Open / With them / All; each row shows the number, status, who has to act and the due day. The detail shows
   the question, our suggestion, the answer, the spot on the plan and photos. **New RFI** (subject, question, suggestion,
-  photos, spot on the plan) saves a **draft**; the office sends it from the web. Technicians can edit their drafts
-  only, like the web (`canEditRfi`).
+  photos, spot on the plan) saves a **draft**; the office sends it from the web. Only drafts can be edited on the
+  device (a sent RFI is changed on the web, and only drafts sync up); technicians may edit drafts, like the web
+  (`canEditRfi`). "Send it from the web" shows only to people who may send.
 - **Schedule**: This week / Next 2 weeks, read-only, "Only my crew" (on by default for technicians).
-- **More on the web**: one quiet row that opens the web app in Safari for what only the web does — change orders,
-  quotes and invoices (office only), sending RFIs and planning the schedule, job templates. It uses the server set in
-  Settings and is hidden when none is set.
+- **More on the web**: one quiet row that opens the web app in Safari for what only the web does. Office: change
+  orders, quotes and invoices, sending RFIs, planning the schedule, job templates. Technicians: updating schedule
+  progress (the rest is office only on the web too). It uses the server set in Settings and is hidden when none is set.
 
 On iPhone the Field sections are a scrolling row of chips; on iPad, segments.

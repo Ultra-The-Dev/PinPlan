@@ -30,7 +30,7 @@ enum OfficeOverlays {
     }
 }
 
-/// Which of the office's drawings show on the plan (this device; Layers › Drawn on the web). Hiding never changes
+/// Which of the office's drawings show on the plan (this device; Layers › From the office). Hiding never changes
 /// anything saved.
 @MainActor
 @Observable

@@ -76,7 +76,7 @@ struct ScheduleLookaheadView: View {
                                        systemImage: "calendar",
                                        description: Text(all.isEmpty
                                                          ? "The office plans the job's phases on the web; they show here."
-                                                         : onlyMine ? "You're not on a crew for \(range == .week ? "this week" : "the next two weeks")." : "No phases in these dates."))
+                                                         : onlyMine ? "You're not on the crew of any phase \(range == .week ? "this week" : "in the next two weeks"). Turn off Only my crew to see them all." : "No phases in these dates."))
                     .listRowBackground(Color.clear)
             }
             ForEach(ScheduleField.byWeek(items, today: today), id: \.week) { group in
