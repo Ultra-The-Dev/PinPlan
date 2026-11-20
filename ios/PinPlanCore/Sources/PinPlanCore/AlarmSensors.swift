@@ -91,6 +91,7 @@ public enum AlarmSensors {
         /// Openings (door / window) or rooms (glass) that already have that sensor.
         public var covered: [SensorKind: Int] = [.door: 0, .window: 0, .glass: 0]
         public func count(_ k: SensorKind) -> Int { counts[k] ?? 0 }
+        public init() {}
     }
 
     /// An existing device on the plan (only its type, place, room and sheet matter).
