@@ -3,10 +3,13 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 10
+      interval: monthly
+    # Few, bundled PRs: each one also gets a Vercel preview (skipped for dependabot/* branches in vercel.json).
+    open-pull-requests-limit: 3
     groups:
+      # Everything that isn't a major version, in one PR a month.
+      minor-and-patch:
+        update-types: ["minor", "patch"]
       # Upgrade together: mismatched versions break the build or the tests.
       next:
         patterns: ["next", "eslint-config-next"]
@@ -22,6 +25,9 @@ updates:
         dependency-type: development
         update-types: ["minor", "patch"]
     ignore:
+      # Major versions are done by hand and tested (e.g. ESLint 10 needs eslint-config-next support first).
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
       # The PDF.js worker file is versioned with the app build; bump it by hand and test plan import.
       - dependency-name: pdfjs-dist
         update-types: ["version-update:semver-major"]
