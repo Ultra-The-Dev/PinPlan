@@ -95,4 +95,24 @@ on phones; it owns plan taps while open (`claimPlanInput("find-similar")`), like
 - Read tags needs the PDF's own text (not a scan) and tags that are real text, not lines; tags split into two text
   runs ("D" and "1") are not joined.
 - Suggestions aren't saved: reloading the page drops them (run it again; it takes a second).
-- Web only (the iPad app doesn't have it yet).
+
+## iPad and iPhone
+
+Same tool, same rules: plan → **Tools (⋯) → Find similar**, Edit mode. The card sits in the plan's controls column
+(bottom right). Files: `ios/PinPlanCore/Sources/PinPlanCore/FindSimilar.swift` and `FindTags.swift` (pure, tested with
+`swift test` in `FindSimilarTests`), `ios/PinPlan/FindSimilar/` (state, overlay, card).
+
+- **Matching** is native Swift, no OpenCV: the sheet is decoded with ImageIO / Core Graphics at twice the work size,
+  area-averaged and blurred 3×3 (`FindSimilar.prepare`), then normalised cross-correlation (TM_CCOEFF_NORMED) for every
+  distinct turn and mirror, the orientations side by side on all cores, Accelerate's vDSP for the inner loop. Instead of
+  OpenCV's FFT it searches each orientation at half size first and scores every promising spot exactly at full size
+  (±2 px); windows of blank paper are skipped. Scores are full-size NCC, so the slider and the thresholds are the web's.
+  About 1 s for a 3200 px sheet on a 4-core Linux runner without vDSP (`testBenchmarkFullSheet`).
+- **Read tags** uses the plan's original PDF, which the app keeps (`Sheet.sourcePdfId`), so there is no "Choose the
+  PDF" step; one item per word (`PlanTextExtractor.words`). Scans and photos have no text layer, so the app reads them
+  with on-device text recognition (Vision) instead — the web points those to Match a symbol.
+- **Draw a box**: a switch on the card. While it's on, one finger draws the box and the plan doesn't move (turn it off,
+  or tap a symbol instead). A tap on a symbol works without it.
+- Accept all: `EditorModel.addMarkers`, one undo step; each device takes the room printed where it lands.
+- Debug builds: `--demo --tab plan --find-similar open|match|review|tags` opens the tool on the demo job (its doors
+  have tags D1–D3). `.github/workflows/ios-sim-screens.yml` screenshots these on an iPad simulator.

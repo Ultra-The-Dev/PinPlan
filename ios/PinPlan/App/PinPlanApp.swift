@@ -15,6 +15,7 @@ struct PinPlanApp: App {
         MainActor.assumeIsolated {
             ProgressOverlays.register()
             TaskOverlays.register()
+            FindSimilarOverlays.register()
         }
     }
 

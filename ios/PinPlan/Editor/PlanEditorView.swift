@@ -34,6 +34,8 @@ struct PlanEditorView: View {
         .onAppear(perform: appeared)
         .onChange(of: model.activeSheet?.id) { _, id in if let id { model.noteSheetViewed(id) } }
         .onChange(of: model.viewerMode) { _, m in if m == .view { showPalette = false } else if regular { showPalette = true } }
+        // Picking a device or drawing tool ends Find similar (its taps would otherwise compete with placing).
+        .onChange(of: model.tool) { _, t in if t != .select { FindSimilarUI.shared.close() } }
         // Remembered on this device (a screenshot flag doesn't change the saved choice).
         .onChange(of: showMinimap) { _, on in if !ViewerPrefs.launchFlag("minimap") { savedMinimap = on } }
     }
@@ -68,6 +70,7 @@ struct PlanEditorView: View {
             model.setActiveSheet(busiest.id)
         }
         showMinimap = savedMinimap || ViewerPrefs.launchFlag("minimap")
+        FindSimilarUI.runLaunchDemo(model: model, viewport: viewport)
         if ViewerPrefs.launchFlag("sheet-browser") || ViewerPrefs.launchFlag("layers") {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(800))
@@ -341,6 +344,8 @@ struct PlanEditorView: View {
             Button { scaleInput = true } label: { Label(model.activeSheet?.pxPerFt == nil ? "Set scale…" : "Change scale…", systemImage: "ruler") }
             Button { model.use(.calibrate) } label: { Label("Draw a scale line", systemImage: "line.diagonal") }
             Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
+            Button { FindSimilarUI.shared.show(model: model) } label: { Label("Find similar", systemImage: "square.on.square.dashed") }
+                .accessibilityIdentifier("find-similar-menu")
             Divider()
             Button { model.autoHomeRuns(sheetOnly: true) } label: { Label("Draw home runs (this floor)", systemImage: "cable.connector") }
             Button { model.showLabels.toggle(); model.saveFilter() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
@@ -353,6 +358,7 @@ struct PlanEditorView: View {
             }
         } label: { Image(systemName: "ellipsis.circle") }
         .accessibilityLabel("Tools")
+        .accessibilityIdentifier("plan-tools")
     }
 
     private var drawingBar: some View {

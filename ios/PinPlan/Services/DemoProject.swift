@@ -235,11 +235,13 @@ enum DemoProject {
             c.move(to: CGPoint(x: a.0, y: a.1)); c.addLine(to: CGPoint(x: b.0, y: b.1))
         }
         c.strokePath()
-        // Door swings
+        // Door swings, each with its door tag (Find similar can match the swing or read the tags).
         c.setLineWidth(2.5)
-        for (x, y) in [(1100.0, 760.0), (700.0, 980.0), (2000.0, 1300.0)] {
+        let tag: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 28, weight: .semibold), .foregroundColor: UIColor.black]
+        for (i, (x, y)) in [(1100.0, 760.0), (700.0, 980.0), (2000.0, 1300.0)].enumerated() {
             c.addArc(center: CGPoint(x: x, y: y), radius: 90, startAngle: 0, endAngle: .pi / 2, clockwise: false)
             c.strokePath()
+            NSAttributedString(string: "D\(i + 1)", attributes: tag).draw(at: CGPoint(x: x - 60, y: y - 70))
         }
         // Stair treads
         c.setLineWidth(2.5)

@@ -92,8 +92,33 @@ targets:
         # Compile the String Catalogs and keep their keys in sync with the code when building in Xcode.
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
         SWIFT_EMIT_LOC_STRINGS: YES
+  # UI tests that take screenshots on a simulator (.github/workflows/ios-sim-screens.yml). Only in their own scheme,
+  # so the app's builds (ios.yml, TestFlight, IPA) don't change.
+  PinPlanUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: PinPlanUITests
+    dependencies:
+      - target: PinPlan
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pinplan.app.uitests
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        TEST_TARGET_NAME: PinPlan
 schemes:
   PinPlan:
     build:
       targets:
         PinPlan: all
+  PinPlanUITests:
+    build:
+      targets:
+        PinPlan: all
+        PinPlanUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - PinPlanUITests

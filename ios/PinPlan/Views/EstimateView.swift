@@ -78,8 +78,8 @@ struct EstimateView: View {
                 }
             }
             Section(sentence: String(localized: "Adjust pricing (this job)")) {
-                LabeledContent("Markup %") { numberField(pricing.markupPct) { v in setPricing { $0.markupPct = v } } }
-                LabeledContent("Tax %") { numberField(pricing.taxPct) { v in setPricing { $0.taxPct = v } } }
+                LabeledContent("Markup %") { pctField(pricing.markupPct) { v in setPricing { $0.markupPct = v } } }
+                LabeledContent("Tax %") { pctField(pricing.taxPct) { v in setPricing { $0.taxPct = v } } }
                 Picker("Labor", selection: Binding(get: { pricing.laborMode }, set: { v in setPricing { $0.laborMode = v } })) {
                     Text("Combined (installed price)").tag(LaborMode.combined)
                     Text("Separate labor lines").tag(LaborMode.separate)
@@ -226,9 +226,12 @@ struct EstimateView: View {
         }
     }
 
-    private func numberField(_ v: Double, commit: @escaping (Double) -> Void) -> some View {
-        CommitField(title: "", value: v.clean, keyboard: .decimalPad) { s in commit(Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0) }
-            .multilineTextAlignment(.trailing).frame(maxWidth: 100)
+    /// Percentages: shown and kept with at most three decimals (NYC's 8.875% stays exact), like Settings and the web.
+    private func pctField(_ v: Double, commit: @escaping (Double) -> Void) -> some View {
+        CommitField(title: "", value: v.pctText, keyboard: .decimalPad) { s in
+            commit(((Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0) * 1000).rounded() / 1000)
+        }
+        .multilineTextAlignment(.trailing).frame(maxWidth: 100)
     }
 
     private func setPricing(_ change: (inout PricingOverrides) -> Void) {

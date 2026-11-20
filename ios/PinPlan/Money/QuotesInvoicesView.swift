@@ -51,7 +51,7 @@ struct QuotesInvoicesView: View {
     }
 
     @ViewBuilder private var webButton: some View {
-        if let s = BillingLogic.webURL(origin: app.settings.serverURL, path: "project?id=\(model.bundle.project.id)&tab=billing"), let url = URL(string: s) {
+        if let s = BillingLogic.webURL(origin: app.settings.serverURL, path: WebLinks.quotes(job: model.bundle.project.id)), let url = URL(string: s) {
             Button { openURL(url) } label: { Label("Open on the web", systemImage: "safari") }
         } else {
             ServerSetupPrompt(feature: String(localized: "Opening quotes and invoices on the web"))
