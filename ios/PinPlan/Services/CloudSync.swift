@@ -1125,7 +1125,7 @@ final class CloudSync {
             }
             for d in b.liveDocuments where !ledger.uploadedImages.contains(d.fileId) {
                 guard let data = app.store.fileData(d.fileId) else { continue }
-                try await attempt(d.fileId) { try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: d.mime) }
+                try await attempt(d.fileId) { try await client.upload(bucket: "plans", path: "\(pid)/\(d.fileId)", data: data, token: token, contentType: StorageTypes.plansUploadType(d.mime)) }
             }
             // Form signatures: stored at <project>/<image id>, like the web app.
             for f in b.liveForms {

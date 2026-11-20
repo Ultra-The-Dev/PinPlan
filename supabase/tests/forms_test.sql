@@ -66,6 +66,32 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000a4');
 select pg_temp.check((select count(*) from public.job_forms) = 0, 'outsider sees no forms');
 select pg_temp.check(pg_temp.fails($$insert into public.job_forms (id, project_id, template, status) values ('jf3', 'fp1', '{}', 'draft')$$), 'outsider cannot add a form');
 
+-- Who started a form, and who submitted it and when, are the database's to say (20261124301000_access_guards.sql).
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+insert into public.job_forms (id, project_id, template_id, name, template, status, created_by, submitted_by, submitted_at)
+  values ('jf4', 'fp1', 'jha', 'JHA', '{}', 'draft', 'Someone else', 'Someone else', '2000-01-01');
+select pg_temp.check((select created_by = 'Olga' and submitted_by is null and submitted_at is null from public.job_forms where id = 'jf4'),
+  'created_by is stamped with the caller''s name; a draft has no submitter');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a2');
+update public.job_forms set created_by = 'Tim' where id = 'jf4';
+select pg_temp.check((select created_by from public.job_forms where id = 'jf4') = 'Olga', 'created_by never changes');
+update public.job_forms set status = 'submitted', submitted_by = 'Olga', submitted_at = '2000-01-01', photo_ids = '["ph1"]' where id = 'jf4';
+select pg_temp.check((select submitted_by = 'Tim' and submitted_at > now() - interval '1 minute' from public.job_forms where id = 'jf4'),
+  'submitted_by and submitted_at are stamped on submit');
+update public.job_forms set submitted_by = 'Olga', submitted_at = '2001-01-01' where id = 'jf4';
+select pg_temp.check((select submitted_by = 'Tim' and submitted_at > now() - interval '1 minute' from public.job_forms where id = 'jf4'),
+  'the submitter and time stay while the form is submitted');
+select pg_temp.check(pg_temp.fails($$update public.job_forms set name = 'Renamed' where id = 'jf4'$$), 'tech cannot rename a submitted form');
+select pg_temp.check(pg_temp.fails($$update public.job_forms set photo_ids = '[]' where id = 'jf4'$$), 'tech cannot change a submitted form''s photos');
+insert into public.job_forms (id, project_id, template_id, name, template, status, submitted_by, submitted_at)
+  values ('jf5', 'fp1', 'jha', 'JHA', '{}', 'submitted', 'Olga', '2000-01-01');
+select pg_temp.check((select created_by = 'Tim' and submitted_by = 'Tim' and submitted_at > now() - interval '1 minute' from public.job_forms where id = 'jf5'),
+  'a form sent already submitted is stamped too');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
+update public.job_forms set status = 'draft' where id = 'jf4';
+select pg_temp.check((select status = 'draft' and submitted_by is null and submitted_at is null from public.job_forms where id = 'jf4'),
+  'reopening clears the submitter');
+
 reset role;
 select pg_temp.check(exists (select 1 from pg_trigger where tgname = 'job_forms_write_guard'), 'billing write guard is installed');
 select 'FORMS TESTS PASSED';

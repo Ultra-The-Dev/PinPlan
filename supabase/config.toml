@@ -1,0 +1,54 @@
+# Supabase CLI settings for local development (`supabase start`) and the auth settings PinPlan expects in production.
+# The hosted project's Auth settings are set in the Supabase dashboard (Authentication → Providers / Policies / MFA);
+# keep them the same as below (see docs/launch-checklist.md). No secrets here: the repo is public.
+
+project_id = "pinplan"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+# No anonymous accounts: every account has a confirmed email (create_team and emailed invites check it).
+enable_anonymous_sign_ins = false
+# Matches PASSWORD_MIN in src/lib/teamLogic.ts.
+minimum_password_length = 10
+password_requirements = "letters_digits"
+
+[auth.email]
+enable_signup = true
+# Both the old and the new address confirm an email change.
+double_confirm_changes = true
+# New accounts confirm their email before they can sign in.
+enable_confirmations = true
+# Changing the password needs a recent sign-in.
+secure_password_change = true
+max_frequency = "1m0s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+# Authenticator-app (TOTP) two-factor sign-in.
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

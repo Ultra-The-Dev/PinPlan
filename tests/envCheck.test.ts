@@ -12,6 +12,12 @@ describe("production config check", () => {
     expect(missingProductionConfig(env)).toEqual(["SUPABASE_SERVICE_ROLE_KEY", "STRIPE_WEBHOOK_SECRET", "RESEND_API_KEY"]);
   });
 
+  it("requires the Turnstile secret in production (invite sign-ups are bot-checked)", () => {
+    expect(REQUIRED_PRODUCTION_VARS).toContain("TURNSTILE_SECRET_KEY");
+    expect(missingProductionConfig({ ...full, TURNSTILE_SECRET_KEY: "" })).toEqual(["TURNSTILE_SECRET_KEY"]);
+    expect(configWarning({ ...full, PINPLAN_ENV: "production", TURNSTILE_SECRET_KEY: " " })).toContain("TURNSTILE_SECRET_KEY");
+  });
+
   it("wants an https app address", () => {
     expect(missingProductionConfig({ ...full, PINPLAN_APP_URL: "app.example.com" })).toEqual(["PINPLAN_APP_URL (must start with https://)"]);
     expect(missingProductionConfig({ ...full, PINPLAN_APP_URL: "http://app.example.com" })).toHaveLength(1);
@@ -36,6 +42,9 @@ describe("schema version", () => {
     expect(schemaStatus(REQUIRED_SCHEMA_VERSION)).toBe("ok");
     expect(schemaStatus("29991231000000_future")).toBe("ok");
     expect(schemaStatus("20261121020000_ops")).toBe("behind");
+    // The access guards (invites, catalog, storage, proposals) are needed by this code.
+    expect(schemaStatus("20261124100800_ops_hardening")).toBe("behind");
+    expect(REQUIRED_SCHEMA_VERSION).toBe("20261124301000_access_guards");
     expect(schemaStatus(null)).toBe("behind"); // function missing: migration not run
     expect(schemaStatus(undefined)).toBe("unknown");
     expect(schemaStatus([])).toBe("unknown");

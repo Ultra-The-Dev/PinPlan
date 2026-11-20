@@ -16,6 +16,7 @@ import { reportError } from "./errorReporting";
 import { t } from "./i18n";
 import { adoptLocalData, checkLocalOwner, readLocalOwner, removeLocalData } from "./localOwner";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
+import { plansUploadBody, plansUploadType } from "./storageTypes";
 import {
   dedupeQueue,
   gapTag,
@@ -32,7 +33,6 @@ import {
   PUSH_ORDER,
   refusedKey,
   remoteWins,
-  safeUploadType,
   schemaGap,
   selectColumns,
   TABLES,
@@ -423,8 +423,9 @@ async function pushImage(sb: Client, imageId: string, owners: Map<string, ImageO
     const owner = owners.get(imageId);
     if (!owner) return "waiting";
     const path = `${owner.projectId}/${imageId}`;
-    // Only known-safe file types keep their content type: an SVG, HTML or XML file is stored as a plain download.
-    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, img.blob, { upsert: true, contentType: safeUploadType(img.mime || img.blob.type || "image/jpeg") });
+    // Only types the bucket takes keep their content type (storageTypes.ts); an SVG, HTML or XML file is stored as a
+    // plain download, and the body is re-typed too (supabase-js sends a Blob with its own type).
+    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, plansUploadBody(img.blob, img.mime), { upsert: true, contentType: plansUploadType(img.blob.type || img.mime) });
     if (error) return "failed";
     // Only a sheet's current image is named on its row.
     if (owner.sheet) {

@@ -43,7 +43,7 @@ create function pg_temp.h(s text) returns text language sql as $$ select md5(s) 
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000e9e1');
 select pg_temp.check(public.create_team('Guard Trial Co', 'Erin') is not null, 'trial owner creates a team');
-insert into public.team_invites (code, team_id, role, name) values ('EGUARDADM1', public.my_team_id(), 'admin', 'Ed');
+insert into public.team_invites (code, team_id, role, name, email) values ('EGUARDADM1', public.my_team_id(), 'admin', 'Ed', 'eadmin@example.com');
 insert into public.projects (id, client_name, address, status) values ('egp1', 'Client', '1 Guard St', 'estimate');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000e9e2');
 select pg_temp.check(public.accept_team_invite('EGUARDADM1', '') ->> 'role' = 'admin', 'admin joins');

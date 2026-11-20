@@ -60,9 +60,9 @@ insert into public.sheets (id, project_id, name, page_number, sort_order, image_
 insert into public.markers (id, project_id, sheet_id, device_type_id, x, y) values ('sec-m1', 'sec-p1', 'sec-s1', 'cam', 0.5, 0.5),
                                                                                  ('sec-m2', 'sec-p1', 'sec-s1', 'cam', 0.4, 0.4);
 select pg_temp.check(public.create_team('Security Test Co', 'Owner') is not null, 'owner starts a team');
-insert into public.team_invites (code, team_id, role) values ('SECADMIN1', public.my_team_id(), 'admin'),
-                                                            ('SECTECH01', public.my_team_id(), 'tech'),
-                                                            ('SECLEAVE1', public.my_team_id(), 'admin');
+insert into public.team_invites (code, team_id, role, email) values ('SECADMIN1', public.my_team_id(), 'admin', 'sec-admin@example.com'),
+                                                                   ('SECTECH01', public.my_team_id(), 'tech', null),
+                                                                   ('SECLEAVE1', public.my_team_id(), 'admin', 'sec-leaver@example.com');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
 select public.accept_team_invite('SECADMIN1', 'Admin');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
@@ -222,7 +222,11 @@ insert into public.plan_markups (id, project_id, sheet_id, kind, points, private
 select pg_temp.check((select count(*) from public.plan_markups where id = 'sec-mk1') = 1, 'author sees their private markup');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
 select pg_temp.check((select count(*) from public.plan_markups where id = 'sec-mk1') = 0, 'others (even the office) can''t see a private markup');
-select pg_temp.check(pg_temp.fails($$insert into public.plan_markups (id, project_id, sheet_id, kind, private, author_id) values ('sec-mk2', 'sec-p1', 'sec-s1', 'pen', true, '00000000-0000-0000-0000-0000000005e3')$$),
+-- The database stamps the author (20261124301000_access_guards.sql): a markup sent under someone else's id is filed
+-- under the sender's own.
+insert into public.plan_markups (id, project_id, sheet_id, kind, private, author_id)
+  values ('sec-mk2', 'sec-p1', 'sec-s1', 'pen', true, '00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check((select author_id from public.plan_markups where id = 'sec-mk2') = '00000000-0000-0000-0000-0000000005e2',
   'nobody files a private markup under someone else''s name');
 
 -- ---------- a stale RFI copy never blanks an answer ----------
@@ -273,6 +277,81 @@ set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
 select pg_temp.check(pg_temp.fails($$truncate public.markers$$), 'signed in: no TRUNCATE (it skips row security)');
 reset role;
+
+-- ---------- access guards (20261124301000_access_guards.sql) ----------
+-- Plan files: a technician can't overwrite a file someone else uploaded; the office can.
+update storage.objects set owner = '00000000-0000-0000-0000-0000000005e1' where bucket_id = 'plans' and name = 'sec-p1/sec-img1';
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-img1'$$) = 0,
+  'tech can''t overwrite a plan file the office uploaded');
+insert into storage.objects (bucket_id, name, owner) values ('plans', 'sec-p1/sec-tech1', '00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-tech1'$$) = 1,
+  'tech can replace a plan file they uploaded');
+-- Current Supabase storage fills owner_id (text) too.
+insert into storage.objects (bucket_id, name, owner_id) values ('plans', 'sec-p1/sec-tech2', '00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-tech2'$$) = 1,
+  'tech can replace a plan file they uploaded (owner_id)');
+select pg_temp.check(pg_temp.rows($$update storage.objects set owner_id = '00000000-0000-0000-0000-0000000005e3' where bucket_id = 'plans' and name = 'sec-p1/sec-img1'$$) = 0,
+  'tech can''t claim a plan file the office uploaded');
+select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name, owner) values ('plans', 'sec-op1/x', '00000000-0000-0000-0000-0000000005e3')$$),
+  'nobody uploads into another company''s job folder');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
+select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-img1'$$) = 1,
+  'the office can replace any plan file on the job');
+
+-- Proposal and photo report images: only <me>/<token>/<id>.jpg or <me>/reports/<token>/<id>.jpg.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e1');
+select pg_temp.check(not pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/tok_sec_owner_bbbbbbbbbb/sheet_1.jpg')$$),
+  'a proposal plan render uploads');
+select pg_temp.check(not pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/reports/rep_sec_owner_bbbbbbbbbb/ph-1.jpg')$$),
+  'a photo report image uploads');
+select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/page.html')$$),
+  'no loose files at the top of the folder');
+select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/tok_sec_owner_bbbbbbbbbb/x.svg')$$),
+  'no SVG (or anything but .jpg) in the public bucket');
+select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/short/x.jpg')$$),
+  'the folder must be a link token');
+select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000005e1/tok_sec_owner_bbbbbbbbbb/a/b.jpg')$$),
+  'no deeper folders');
+reset role;
+select pg_temp.check((select file_size_limit = 10485760 and allowed_mime_types @> array['image/jpeg'] and not allowed_mime_types && array['image/svg+xml', 'text/html']
+  from storage.buckets where id = 'proposals'), 'proposals bucket: 10 MB, images only, no SVG');
+select pg_temp.check((select file_size_limit = 52428800 and allowed_mime_types @> array['image/jpeg', 'image/png', 'application/pdf']
+  and not allowed_mime_types && array['image/svg+xml', 'text/html', 'application/xhtml+xml', 'text/javascript']
+  from storage.buckets where id = 'plans'), 'plans bucket: 50 MB, images, PDF and office files, no SVG or HTML');
+
+-- Markups: the author is stamped and never changes; markups with no author are the office's.
+insert into public.plan_markups (id, project_id, sheet_id, kind) values ('sec-mk3', 'sec-p1', 'sec-s1', 'pen');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update public.plan_markups set text = 'tech' where id = 'sec-mk3'$$) = 0, 'tech can''t edit a markup with no author');
+select pg_temp.check(pg_temp.rows($$delete from public.plan_markups where id = 'sec-mk3'$$) = 0, 'tech can''t delete a markup with no author');
+insert into public.plan_markups (id, project_id, sheet_id, kind) values ('sec-mk4', 'sec-p1', 'sec-s1', 'pen');
+update public.plan_markups set author_id = '00000000-0000-0000-0000-0000000005e2' where id = 'sec-mk4';
+select pg_temp.check((select author_id from public.plan_markups where id = 'sec-mk4') = '00000000-0000-0000-0000-0000000005e3', 'a markup''s author never changes');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
+select pg_temp.check(pg_temp.rows($$update public.plan_markups set text = 'office' where id = 'sec-mk3'$$) = 1, 'the office edits a markup with no author');
+
+-- Ids that become storage paths are plain ids.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000005e1');
+select pg_temp.check(pg_temp.fails($$insert into public.projects (id, client_name, address, status) values ('sec-p9/../sec-p1', 'C', 'A', 'estimate')$$), 'a job id can''t hold a path');
+select pg_temp.check(pg_temp.fails($$insert into public.projects (id, client_name, address, status) values (repeat('a', 65), 'C', 'A', 'estimate')$$), 'a job id is at most 64 characters');
+select pg_temp.check(pg_temp.fails($$insert into public.sheets (id, project_id, name, page_number, sort_order, image_id, width, height) values ('sec-s9', 'sec-p1', 'X', 1, 0, '../x', 10, 10)$$),
+  'a sheet image id can''t hold a path');
+select pg_temp.check(pg_temp.fails($$update public.sheets set image_path = 'sec-op1/sec-img1' where id = 'sec-s1'$$), 'a sheet image path stays in its own job folder');
+select pg_temp.check(pg_temp.fails($$update public.sheets set image_path = 'sec-p1/a/b' where id = 'sec-s1'$$), 'a sheet image path is <job>/<id>');
+update public.sheets set image_path = 'sec-p1/sec-img1' where id = 'sec-s1';
+select pg_temp.check((select image_path from public.sheets where id = 'sec-s1') = 'sec-p1/sec-img1', 'a normal sheet image path is fine');
+select pg_temp.check(pg_temp.fails($$insert into public.photos (id, project_id, image_id) values ('sec-ph9', 'sec-p1', 'a b')$$), 'a photo image id is a plain id');
+select pg_temp.check(pg_temp.fails($$insert into public.job_documents (id, project_id, file_id) values ('sec-jd9', 'sec-p1', 'x.html')$$), 'a document file id is a plain id');
+-- The apps send '' for a row that lost its file id (syncMap NOT_NULL_DEFAULTS); it names no file, so it isn't refused.
+select pg_temp.check(not pg_temp.fails($$insert into public.photos (id, project_id, image_id) values ('sec-ph8', 'sec-p1', '')$$), 'a photo row without an image id still syncs');
+reset role;
+select pg_temp.check((select bool_and(convalidated) from pg_constraint where conname in
+  ('projects_id_format', 'sheets_image_id_format', 'sheets_image_path_format', 'photos_image_id_format', 'job_documents_file_id_format')), 'the id checks are validated');
+select pg_temp.check((select count(*) from pg_constraint where conname in
+  ('projects_id_format', 'sheets_image_id_format', 'sheets_image_path_format', 'photos_image_id_format', 'job_documents_file_id_format')) = 5, 'all five id checks exist');
 
 -- ---------- catalog ----------
 select pg_temp.check(not exists (

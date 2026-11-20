@@ -160,6 +160,34 @@ set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000c1');
 select pg_temp.check(pg_temp.error_of($$update public.markers set notes = 'x' where id = 'cm1'$$) = 'PinPlan subscription inactive', 'canceled after the trial: read-only');
 
+-- Read-only covers company-wide rows, photo reports and files too (20261124301000_access_guards.sql).
+select pg_temp.check(pg_temp.error_of($$insert into public.device_types (id, name, category) values ('ccam2', 'Camera', 'security')$$) = 'PinPlan subscription inactive',
+  'lapsed: no new catalog items');
+select pg_temp.check(pg_temp.error_of($$update public.device_types set unit_price = 1 where id = 'ccam'$$) = 'PinPlan subscription inactive', 'lapsed: no catalog price changes');
+select pg_temp.check(pg_temp.error_of($$insert into public.products (id, device_type_id, brand, model) values ('cprod', 'ccam', 'B', 'M')$$) = 'PinPlan subscription inactive',
+  'lapsed: no new products');
+select pg_temp.check(pg_temp.error_of($$insert into public.company_settings (owner_id, business_name) values ('00000000-0000-0000-0000-0000000000c1', 'Early Co')$$) = 'PinPlan subscription inactive',
+  'lapsed: company settings are read-only');
+select pg_temp.check(pg_temp.error_of($$insert into public.document_settings (owner_id, config) values ('00000000-0000-0000-0000-0000000000c1', '{}')$$) = 'PinPlan subscription inactive',
+  'lapsed: document settings are read-only');
+select pg_temp.check(pg_temp.error_of($$insert into public.photo_reports (id, project_id, snapshot) values ('rep_lapsed_aaaaaaaaaaaaaa', 'cp1', '{}')$$) = 'PinPlan subscription inactive',
+  'lapsed: no new photo reports');
+select pg_temp.check(pg_temp.error_of($$insert into storage.objects (bucket_id, name) values ('plans', 'cp1/cimg9')$$) <> '', 'lapsed: no new plan files');
+select pg_temp.check(pg_temp.error_of($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000000c1/tok_lapsed_aaaaaaaaaaaaa/cs1.jpg')$$) <> '',
+  'lapsed: no new proposal images');
+select pg_temp.check((select count(*) from public.device_types where id = 'ccam') = 1, 'lapsed: the catalog is still readable');
+-- Back on a plan, the same writes work.
+select pg_temp.as_service();
+set role service_role;
+update public.teams set plan_status = 'active' where owner_id = '00000000-0000-0000-0000-0000000000c1';
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000c1');
+select pg_temp.check(pg_temp.error_of($$insert into public.device_types (id, name, category) values ('ccam2', 'Camera', 'security')$$) = '', 'active: catalog items go in');
+select pg_temp.check(pg_temp.error_of($$insert into public.photo_reports (id, project_id, snapshot) values ('rep_active_aaaaaaaaaaaaaa', 'cp1', '{}')$$) = '', 'active: photo reports go in');
+select pg_temp.check(pg_temp.error_of($$insert into storage.objects (bucket_id, name) values ('plans', 'cp1/cimg9')$$) = '', 'active: plan files go in');
+select pg_temp.check(pg_temp.error_of($$insert into storage.objects (bucket_id, name) values ('proposals', '00000000-0000-0000-0000-0000000000c1/tok_active_aaaaaaaaaaaaa/cs1.jpg')$$) = '',
+  'active: proposal images go in');
+
 reset role;
 -- Leave the settings as the other tests expect them.
 update public.billing_settings set enforce = false, comp_owner_ids = '{}';

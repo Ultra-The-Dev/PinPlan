@@ -66,7 +66,7 @@ select pg_temp.check(pg_temp.fails($$update public.teams set stripe_customer_id 
 update public.teams set name = 'Billing Test Company';
 select pg_temp.check((select name from public.teams) = 'Billing Test Company', 'owner can still rename the team');
 insert into public.team_invites (code, team_id, role, name) values ('BTECHCODE', public.my_team_id(), 'tech', 'Ty');
-insert into public.team_invites (code, team_id, role, name) values ('BOFFICE01', public.my_team_id(), 'admin', 'Al');
+insert into public.team_invites (code, team_id, role, name, email) values ('BOFFICE01', public.my_team_id(), 'admin', 'Al', 'boffice@example.com');
 insert into public.team_invites (code, team_id, role, name) values ('BLATE0001', public.my_team_id(), 'tech', 'Lee');
 
 -- The webhook (service role) records a paid subscription with 2 seats.
