@@ -176,4 +176,103 @@ update public.rfis set response_notified_at = null, subject = 'Mount height? (ed
 select pg_temp.check((select response_notified_at is not null and subject = 'Mount height? (edited)' from public.rfis where id = 'egr1'), 'the apps cannot clear it either, other edits still land');
 
 reset role;
+
+-- ================= 20261124300600_email_signup_abuse.sql =================
+
+-- ---------- one address however it is written (same hash as sendGuard.ts recipientHash) ----------
+select pg_temp.check(public.email_normalize(' A.B+promo@GoogleMail.com ') = 'ab@gmail.com', 'gmail: dots and +tag dropped, googlemail read as gmail');
+select pg_temp.check(public.email_normalize('Sam+x@Acme.com') = 'sam@acme.com', 'other domains: +tag dropped, dots kept');
+select pg_temp.check(public.email_normalize('s.am@acme.com') = 's.am@acme.com', 'dots matter outside gmail');
+select pg_temp.check(public.email_hash('a.b+1@gmail.com') = '86ca2ad27318696b41cfc650acfad97bb32194c43e119e465a16359ea74c7105', 'hash matches the server''s (sha256 of ab@gmail.com)');
+select pg_temp.check(public.email_hash('') is null and public.email_hash(null) is null, 'no address, no hash');
+
+-- ---------- the platform cap and the trials' share ----------
+delete from public.email_sends;
+update public.email_settings set daily_platform_cap = 10, trial_share = 0.5, alert_pct = 80, last_alert_at = null;
+set role service_role;
+select pg_temp.as_service();
+do $$
+declare i int; r jsonb;
+begin
+  for i in 1..5 loop
+    r := public.email_send_reserve('00000000-0000-0000-0000-00000000e9e1', 'document', pg_temp.h('pc' || i || '@example.com'));
+    if not (r ->> 'ok')::boolean then raise exception 'EMAIL GUARD CHECK FAILED: trial platform send % refused: %', i, r; end if;
+  end loop;
+end $$;
+select pg_temp.check((select count(*) from public.email_sends where trial) = 5, 'trial sends are marked as trial');
+select pg_temp.check(public.email_send_reserve('00000000-0000-0000-0000-00000000e9e1', 'document', pg_temp.h('pc6@example.com')) ->> 'reason' = 'platform_cap', 'trials together stop at their share of the platform');
+select pg_temp.check(public.email_send_reserve('00000000-0000-0000-0000-00000000e9e4', 'document', pg_temp.h('pc7@example.com')) ->> 'reason' = 'platform_cap', 'another trial (solo) is refused too');
+select pg_temp.check((public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pp1@example.com')) ->> 'ok')::boolean, 'a paying company still sends');
+select pg_temp.check(not (public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pp2@example.com')) ->> 'platform_alert')::boolean, 'no alert below 80 %');
+select pg_temp.check((public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pp3@example.com')) ->> 'platform_alert')::boolean, 'the send that reaches 80 % raises the alert');
+select pg_temp.check(not (public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pp4@example.com')) ->> 'platform_alert')::boolean, 'once a day');
+select pg_temp.check(public.email_send_log('00000000-0000-0000-0000-00000000e9e1', 'notify', pg_temp.h('eowner@example.com')) is not null, 'notifications are logged (and count towards the platform)');
+select pg_temp.check(public.email_send_reserve('00000000-0000-0000-0000-00000000e9e5', 'document', pg_temp.h('pp5@example.com')) ->> 'reason' = 'platform_cap', 'nobody sends past the platform cap');
+update public.email_sends set created_at = now() - interval '25 hours';
+select pg_temp.check((public.email_send_reserve('00000000-0000-0000-0000-00000000e9e1', 'document', pg_temp.h('pc8@example.com')) ->> 'ok')::boolean, 'the platform window rolls over');
+reset role;
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000e9e1');
+select pg_temp.check(pg_temp.fails($$select * from public.email_settings$$), 'members cannot read the email settings');
+select pg_temp.check(pg_temp.fails($$update public.email_settings set daily_platform_cap = 1000000$$), 'members cannot raise the platform cap');
+reset role;
+update public.email_settings set daily_platform_cap = 2000, trial_share = 0.3, last_alert_at = null;
+
+-- ---------- one trial per address ----------
+-- The address already had an account (deleted since): a new account with the same mailbox doesn't start a fresh trial.
+update public.billing_settings set launched_at = now() - interval '60 days';
+insert into public.used_trials (email_hash, first_trial_at) values (public.email_hash('farmer@gmail.com'), now() - interval '30 days');
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-00000000e9f1', 'Far.Mer+2@gmail.com', now()),
+  ('00000000-0000-0000-0000-00000000e9f2', 'newcomer@example.com', now());
+select pg_temp.check((select first_trial_at < now() - interval '29 days' from public.used_trials where email_hash = public.email_hash('farmer@gmail.com')), 'a new sign-up keeps the first trial date');
+select pg_temp.check(exists (select 1 from public.used_trials where email_hash = public.email_hash('newcomer@example.com')), 'sign-up records the address as having had its trial');
+select pg_temp.check(public.solo_trial_ends_at('00000000-0000-0000-0000-00000000e9f1') < now(), 'the re-made account''s personal trial is already over');
+select pg_temp.check(public.solo_trial_ends_at('00000000-0000-0000-0000-00000000e9f2') > now() + interval '13 days', 'a new address gets 14 days');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000e9f1');
+select pg_temp.check(public.create_team('Farm Co', 'F') is not null, 'the farmer starts a team');
+select pg_temp.check((public.team_billing() ->> 'trial_ends_at')::timestamptz < now(), 'and it gets no fresh trial');
+select pg_temp.as_user('00000000-0000-0000-0000-00000000e9f2');
+select pg_temp.check(public.create_team('New Co', 'N') is not null, 'a newcomer starts a team');
+select pg_temp.check((public.team_billing() ->> 'trial_ends_at')::timestamptz > now() + interval '13 days', 'a newcomer''s team gets the trial');
+select pg_temp.check(pg_temp.fails($$select count(*) from public.used_trials$$), 'members cannot read the used trials');
+reset role;
+-- Deleting the account keeps the record (no foreign key).
+delete from public.team_members where user_id = '00000000-0000-0000-0000-00000000e9f2';
+delete from public.teams where owner_id = '00000000-0000-0000-0000-00000000e9f2';
+delete from public.billing_trials where user_id = '00000000-0000-0000-0000-00000000e9f2';
+delete from auth.users where id = '00000000-0000-0000-0000-00000000e9f2';
+select pg_temp.check(exists (select 1 from public.used_trials where email_hash = public.email_hash('newcomer@example.com')), 'a deleted account''s trial stays used');
+
+-- ---------- terms record ----------
+alter table auth.users add column if not exists raw_user_meta_data jsonb;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-00000000e9f3', 'terms@example.com', '{"terms_version": "2026-11", "terms_accepted_at": "2020-01-01T00:00:00Z"}'),
+  ('00000000-0000-0000-0000-00000000e9f4', 'noterms@example.com', '{"name": "No"}'),
+  ('00000000-0000-0000-0000-00000000e9f5', 'junkterms@example.com', '{"terms_version": "<script>"}');
+select pg_temp.check((select version = '2026-11' and accepted_at > now() - interval '1 minute' from public.terms_acceptances where user_id = '00000000-0000-0000-0000-00000000e9f3'),
+  'terms ticked at sign-up are recorded, at the database''s time');
+select pg_temp.check(not exists (select 1 from public.terms_acceptances where user_id = '00000000-0000-0000-0000-00000000e9f4'), 'no terms, no record');
+select pg_temp.check((select version from public.terms_acceptances where user_id = '00000000-0000-0000-0000-00000000e9f5') = 'unknown', 'a junk version is not stored as given');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000e9f4');
+select set_config('request.headers', '{"x-forwarded-for": "203.0.113.9, 10.0.0.1", "user-agent": "TestBrowser/1"}', false);
+select public.accept_terms('2026-12');
+select pg_temp.check((select ip = '203.0.113.9' and user_agent = 'TestBrowser/1' and version = '2026-12' from public.terms_acceptances where user_id = auth.uid()),
+  'accept_terms records the version, address and browser');
+select pg_temp.check(pg_temp.fails($$select public.accept_terms('bad version!')$$), 'a junk version is refused');
+select pg_temp.check((select count(*) from public.terms_acceptances) = 1, 'people see only their own record');
+select pg_temp.check(pg_temp.fails($$insert into public.terms_acceptances (user_id, version) values (auth.uid(), 'x')$$), 'no direct inserts');
+select pg_temp.check(pg_temp.fails($$update public.terms_acceptances set version = 'x'$$), 'no updates');
+select pg_temp.check(pg_temp.fails($$delete from public.terms_acceptances$$), 'no deletes');
+reset role;
+set role anon;
+select pg_temp.check(pg_temp.fails($$select public.accept_terms('2026-12')$$), 'signed-out callers cannot accept terms');
+reset role;
+set role service_role;
+select pg_temp.check(pg_temp.fails($$update public.terms_acceptances set version = 'x'$$), 'not even the server can change the record');
+select pg_temp.check(pg_temp.fails($$delete from public.terms_acceptances$$), 'or remove it');
+reset role;
+select set_config('request.headers', '', false);
 select 'EMAIL GUARD TESTS PASSED';

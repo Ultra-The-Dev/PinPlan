@@ -84,6 +84,23 @@ export function httpsUrl(u: string | null | undefined): string | null {
   return ok && ok.startsWith("https://") ? ok : null;
 }
 
+/** The payment sites a pay-online button may point at (the host itself or a subdomain of it). */
+export const PAY_HOSTS = ["checkout.stripe.com", "buy.stripe.com", "paypal.com", "squareup.com", "quickbooks.intuit.com"] as const;
+
+/**
+ * A pay-online link for an email: https, no user name or password in it, and on a known payment site. Anything else
+ * (a look-alike domain, a shortener, plain http) gives null, so a company's settings can't turn PinPlan's email
+ * button into a link to any site.
+ */
+export function allowedPayUrl(u: string | null | undefined): string | null {
+  const ok = httpsUrl(u);
+  if (!ok) return null;
+  const url = new URL(ok);
+  if (url.username || url.password || url.port) return null;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  return PAY_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)) ? ok : null;
+}
+
 /** One line of user text for a subject or heading: no line breaks, collapsed spaces, capped length. */
 const line = (s: string | null | undefined, max = 80) => {
   // eslint-disable-next-line no-control-regex
@@ -587,7 +604,8 @@ export function documentEmail(o: DocumentEmail): EmailContent {
   const due = fmtDate(o.dueDate);
   const valid = fmtDate(o.validUntil);
   const balance = typeof o.balanceDue === "number" ? o.balanceDue : o.total;
-  const pay = o.docKind === "invoice" && o.kind !== "receipt" && balance > 0 ? httpsUrl(o.payUrl) : null;
+  // Only a known payment site (allowedPayUrl), whatever the caller passed.
+  const pay = o.docKind === "invoice" && o.kind !== "receipt" && balance > 0 ? allowedPayUrl(o.payUrl) : null;
   const out: Block[] = [];
   let subject: string;
   let preheader: string;

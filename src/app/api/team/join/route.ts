@@ -1,22 +1,30 @@
-// Creates a worker's account from a team invite code, so they can join their team.
-// Only works when SUPABASE_SERVICE_ROLE_KEY is set on the server, and only for a live invite code. The key never
-// leaves the server. Without it this answers 501 and the join page falls back to a normal sign-up.
+// Creates a worker's account from a team invite, so they can join their team.
+// Only works when SUPABASE_SERVICE_ROLE_KEY is set on the server, and only for a live invite code that PinPlan itself
+// emailed. The key never leaves the server. Otherwise this answers 501 and the join page falls back to a normal
+// sign-up (Supabase's own sign-up, with its own confirmation email and limits).
 //
-// Abuse rules (a live invite code must not become a free account factory):
+// Abuse rules (a live invite code must not become a free account factory or a way to send email):
+// - Only for an invite that was emailed by /api/team/invite-email (team_invites.email and invite_emailed_at, both set
+//   by the server), and only for that address. A code shared by text or copied link uses the normal sign-up.
 // - One account per code: the account created is remembered on the invite (team_invites.created_user_id), and the
 //   code creates no more. A short claim (signup_claimed_at) stops two sign-ups racing with one code.
-// - When the invite was sent to an email address (team_invites.email), only that address can sign up with it.
-// - The account is always created unconfirmed and Supabase emails a confirmation link (answer:
-//   { ok: true, confirmEmail: true }). Never pre-confirmed, even for an invite with an email: the team's owner and
-//   admins choose that address and can see the code, so a matching email doesn't prove the person owns the inbox.
+// - The email Supabase sends counts against the inviting company's invite allowance (sendGuard reserveSend with the
+//   invite's created_by), so it can't be used to send unlimited auth email.
+// - No password from the requester: the account is created without one and Supabase emails an invite link to the
+//   address. Only whoever reads that inbox can get in, so nobody can make (and keep the password of) an account for
+//   someone else's address before they sign up.
+// - An address that already has an account gets the same answer ({ ok: true, confirmEmail: true }) and a sign-in link
+//   instead, so this can't be used to find out who has an account.
+// - The terms must be accepted (acceptedTerms: true); the version is kept in the user's metadata and recorded in
+//   terms_acceptances by the database when the account is created.
 // - Shared rate limits per IP and per code (src/lib/server/rateLimit.ts durableRateLimit), and a Cloudflare
 //   Turnstile check when TURNSTILE_SECRET_KEY is set: the page sends the widget's token as `captchaToken` (the name
 //   Supabase Auth uses too; `turnstileToken` is still read for older pages), and it is checked with Cloudflare.
-// Terms: when the page sends acceptedTerms: true, the time and terms version are kept in the user's metadata.
 import { connection } from "next/server";
-import { joinUrl, normalizeCode, PASSWORD_MIN, signupProblem } from "@/lib/teamLogic";
-import { appOrigin } from "@/lib/server/email";
+import { joinUrl, normalizeCode } from "@/lib/teamLogic";
+import { appOrigin, validEmail } from "@/lib/server/email";
 import { clientIp, durableRateLimit, waitText } from "@/lib/server/rateLimit";
+import { finishSend, reserveSend } from "@/lib/server/sendGuard";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const anonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -33,8 +41,15 @@ const MAX_PER_IP = 20;
 const CLAIM_TTL_MS = 2 * 60 * 1000;
 /** Terms version recorded when the page doesn't say which one the person accepted. */
 const DEFAULT_TERMS_VERSION = () => process.env.PINPLAN_TERMS_VERSION?.trim() || "2026-11";
+/** The join form is a few short fields. */
+const MAX_BODY_BYTES = 8 * 1024;
 
 const TURNSTILE_VERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/** The same answer whether the account is new or the address already had one. */
+const CHECK_EMAIL = { ok: true, confirmEmail: true } as const;
+/** Use the normal sign-up (the page falls back on 501). */
+const normalSignup = () => json({ error: "Sign up with your email and a password instead.", code: "signup_required" }, 501);
 
 /** GET: does this server create accounts here, and does it want a Turnstile check? (No secrets.) */
 export async function GET() {
@@ -43,13 +58,22 @@ export async function GET() {
   return json({ available: !!(supabaseUrl() && anonKey() && serviceKey()), captcha: !!process.env.TURNSTILE_SECRET_KEY && !!siteKey, turnstileSiteKey: siteKey });
 }
 
-/** Supabase's password complaints, in plain words (never its raw text). */
-function passwordMessage(err: { error_code?: string; weak_password?: { reasons?: string[] } | null }): string {
-  const reasons = err.weak_password?.reasons ?? [];
-  if (reasons.includes("pwned")) return "That password has shown up in a data leak. Choose a different one.";
-  if (reasons.includes("length")) return `Use a longer password (at least ${PASSWORD_MIN} characters).`;
-  if (reasons.includes("characters")) return "Use a mix of upper and lower case letters, numbers and symbols in your password.";
-  return "Choose a stronger password.";
+// TODO: use readJsonLimited from src/lib/server/readBody.ts once it is merged (package 03); this is a minimal copy.
+async function readJsonLimited(req: Request, max: number): Promise<{ ok: true; value: unknown } | { ok: false; status: number }> {
+  const declared = Number(req.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > max) return { ok: false, status: 413 };
+  let text: string;
+  try {
+    text = await req.text();
+  } catch {
+    return { ok: false, status: 400 };
+  }
+  if (new TextEncoder().encode(text).length > max) return { ok: false, status: 413 };
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false, status: 400 };
+  }
 }
 
 async function turnstileOk(token: string, ip: string): Promise<boolean> {
@@ -68,8 +92,10 @@ async function turnstileOk(token: string, ip: string): Promise<boolean> {
 interface InviteRow {
   code: string;
   email: string | null;
+  created_by: string | null;
   created_user_id: string | null;
   signup_claimed_at: string | null;
+  invite_emailed_at: string | null;
 }
 
 export async function POST(req: Request) {
@@ -78,18 +104,24 @@ export async function POST(req: Request) {
   if (!url || !anonKey() || !service) return json({ error: "Instant sign-up isn't set up on this server.", code: "unavailable" }, 501);
   const admin = { apikey: service, Authorization: `Bearer ${service}` };
 
-  let body: { code?: unknown; email?: unknown; password?: unknown; name?: unknown; acceptedTerms?: unknown; termsVersion?: unknown; captchaToken?: unknown; turnstileToken?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Invalid request.", code: "bad_request" }, 400);
-  }
+  const read = await readJsonLimited(req, MAX_BODY_BYTES);
+  if (!read.ok) return json({ error: read.status === 413 ? "That request is too large." : "Invalid request.", code: "bad_request" }, read.status);
+  const body = (read.value && typeof read.value === "object" ? read.value : {}) as {
+    code?: unknown;
+    email?: unknown;
+    name?: unknown;
+    acceptedTerms?: unknown;
+    termsVersion?: unknown;
+    captchaToken?: unknown;
+    turnstileToken?: unknown;
+  };
   const code = typeof body.code === "string" ? normalizeCode(body.code) : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
-  const problem = signupProblem({ code, email, password, name });
-  if (problem) return json({ error: problem, code: "bad_request" }, 400);
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (code.length < 8 || code.length > 64) return json({ error: "Enter the invite code you were sent.", code: "bad_request" }, 400);
+  if (!validEmail(email)) return json({ error: "Enter a valid email address.", code: "bad_request" }, 400);
+  if (name.length > 80) return json({ error: "Keep your name under 80 characters.", code: "bad_request" }, 400);
+  if (body.acceptedTerms !== true) return json({ error: "Accept the terms to create your account.", code: "terms_required" }, 400);
 
   const ip = clientIp(req);
   for (const [key, max] of [
@@ -134,11 +166,12 @@ export async function POST(req: Request) {
       cache: "no-store",
     });
 
-  // Who the invite is for, and whether it already made an account (service role: these columns aren't public).
+  // Who the invite is for, whether PinPlan emailed it, and whether it already made an account (service role: these
+  // columns aren't public).
   let invite: InviteRow | undefined;
   try {
-    const r = await fetch(`${invitePath}&select=code,email,created_user_id,signup_claimed_at`, { headers: admin, cache: "no-store" });
-    // Columns missing (migration 20261124100400 not run) or a bad key: let the page use the normal sign-up.
+    const r = await fetch(`${invitePath}&select=code,email,created_by,created_user_id,signup_claimed_at,invite_emailed_at`, { headers: admin, cache: "no-store" });
+    // Columns missing (migrations not run) or a bad key: let the page use the normal sign-up.
     if (!r.ok) {
       console.error("[team join] invite lookup failed", r.status);
       return json({ error: "Instant sign-up isn't working on this server.", code: "unavailable" }, 501);
@@ -148,9 +181,11 @@ export async function POST(req: Request) {
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
   if (!invite) return json({ error: "That invite code isn't valid any more. Ask for a new one.", code: "invalid_code" }, 400);
+  // Not emailed by PinPlan (shared by text or link): the normal sign-up, which proves the address itself.
+  if (!invite.email || !invite.invite_emailed_at || !invite.created_by) return normalSignup();
   if (invite.created_user_id)
-    return json({ error: "An account was already made with this invite. Confirm it from the email we sent, then sign in, or ask for a new invite.", code: "code_used" }, 409);
-  if (invite.email && invite.email !== email)
+    return json({ error: "An account was already made with this invite. Open the link we emailed you, or ask for a new invite.", code: "code_used" }, 409);
+  if (invite.email !== email)
     return json({ error: "This invite was sent to a different email address. Use that address, or ask for a new invite.", code: "email_mismatch" }, 403);
 
   // Claim the code so a second sign-up running at the same moment can't make a second account.
@@ -168,50 +203,61 @@ export async function POST(req: Request) {
   }
   const release = () => patchInvite("&created_user_id=is.null", { signup_claimed_at: null }).catch(() => undefined);
 
-  const meta: Record<string, unknown> = {};
-  if (name) meta.name = name;
-  if (body.acceptedTerms === true) {
-    meta.terms_accepted_at = now.toISOString();
-    meta.terms_version = typeof body.termsVersion === "string" && /^[\w.-]{1,32}$/.test(body.termsVersion) ? body.termsVersion : DEFAULT_TERMS_VERSION();
+  // The email Supabase is about to send counts against the inviting company (confirmed sender, active plan, daily
+  // invite cap, PinPlan's platform cap). Refused: the normal sign-up instead.
+  const guard = await reserveSend(invite.created_by, "invite", email);
+  if (!guard.ok) {
+    await release();
+    return normalSignup();
   }
 
+  const origin = appOrigin(req);
+  const redirect = origin ? `?redirect_to=${encodeURIComponent(joinUrl(origin, code))}` : "";
+  const meta: Record<string, unknown> = {
+    terms_accepted_at: now.toISOString(),
+    terms_version: typeof body.termsVersion === "string" && /^[\w.-]{1,32}$/.test(body.termsVersion) ? body.termsVersion : DEFAULT_TERMS_VERSION(),
+  };
+  if (name) meta.name = name;
+
+  // Supabase creates the account without a password and emails the invite link (it signs them in and brings them
+  // back to this invite).
   let userId: string;
   try {
-    const r = await fetch(`${url}/auth/v1/admin/users`, {
+    const r = await fetch(`${url}/auth/v1/invite${redirect}`, {
       method: "POST",
       headers: { ...admin, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, email_confirm: false, user_metadata: meta }),
+      body: JSON.stringify({ email, data: meta }),
       cache: "no-store",
     });
-    const res = (await r.json().catch(() => ({}))) as {
-      id?: string;
-      user?: { id?: string };
-      msg?: string;
-      message?: string;
-      error_code?: string;
-      weak_password?: { reasons?: string[] } | null;
-    };
+    const res = (await r.json().catch(() => ({}))) as { id?: string; user?: { id?: string }; msg?: string; message?: string; error_code?: string };
     if (!r.ok) {
       await release();
       const msg = res.msg ?? res.message ?? "";
-      if (res.error_code === "weak_password" || (/password/i.test(msg) && !/already/i.test(msg))) return json({ error: passwordMessage(res), code: "weak_password" }, 400);
-      if (res.error_code === "email_exists" || /already (been )?registered|already exists/i.test(msg))
-        return json({ error: "There's already an account with this email. Sign in instead.", code: "exists" }, 409);
+      if (res.error_code === "email_exists" || /already (been )?registered|already exists/i.test(msg)) {
+        // Same answer as a new account (no way to tell who has one); they get a sign-in link back to the invite.
+        const sent = await signInLink(url, admin, email, redirect);
+        await finishSend(guard, sent ? { ok: true, id: null } : { ok: false });
+        return json(CHECK_EMAIL);
+      }
+      await finishSend(guard, { ok: false });
       // A wrong or revoked service key: let the page fall back to the normal sign-up.
       if (r.status === 401 || r.status === 403) return json({ error: "Instant sign-up isn't working on this server.", code: "unavailable" }, 501);
-      console.error("[team join] create user failed", r.status, res.error_code ?? "");
+      console.error("[team join] invite user failed", r.status, res.error_code ?? "");
       return json({ error: "Couldn't create the account. Try again in a minute.", code: "upstream" }, 502);
     }
     const id = res.id ?? res.user?.id;
     if (!id) {
       await release();
+      await finishSend(guard, { ok: false });
       return json({ error: "Couldn't create the account. Try again in a minute.", code: "upstream" }, 502);
     }
     userId = id;
   } catch {
     await release();
+    await finishSend(guard, { ok: false });
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
+  await finishSend(guard, { ok: true, id: null });
 
   // Remember the account on the invite: the code makes no more.
   try {
@@ -220,20 +266,22 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[team join] couldn't record the account on the invite", e);
   }
+  return json(CHECK_EMAIL);
+}
 
-  // Ask Supabase to send its confirmation email, which brings them back to this invite.
+/** A one-time sign-in link for an address that already has an account (never creates one). Best effort. */
+async function signInLink(url: string, admin: Record<string, string>, email: string, redirect: string): Promise<boolean> {
   try {
-    const origin = appOrigin(req);
-    const redirect = origin ? `?redirect_to=${encodeURIComponent(joinUrl(origin, code))}` : "";
-    const r = await fetch(`${url}/auth/v1/resend${redirect}`, {
+    const r = await fetch(`${url}/auth/v1/otp${redirect}`, {
       method: "POST",
-      headers: { apikey: anonKey()!, Authorization: `Bearer ${anonKey()}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "signup", email }),
+      headers: { ...admin, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, create_user: false }),
       cache: "no-store",
     });
-    if (!r.ok) console.error("[team join] confirmation email failed", r.status);
-  } catch (e) {
-    console.error("[team join] confirmation email failed", e);
+    if (!r.ok) console.error("[team join] sign-in link failed", r.status);
+    return r.ok;
+  } catch {
+    console.error("[team join] sign-in link failed");
+    return false;
   }
-  return json({ ok: true, confirmEmail: true });
 }

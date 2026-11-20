@@ -10,13 +10,14 @@ type Call = { url: string; method: string; headers: Record<string, string>; body
 let calls: Call[];
 let routes: Record<string, (url: string, init: RequestInit) => Response | Promise<Response>>;
 let reserve: Record<string, unknown>;
+let company: Record<string, unknown>[];
 
 const snapshot = {
   title: "Invoice",
   number: "INV-2026-0007",
   business: { name: "Sample Electric", email: "office@sample-electric.example" },
   client: { name: "Sample Client", email: "client@example.com" },
-  payment: { payUrl: "https://pay.example.com/x?amount={amount}&ref={number}" },
+  payment: { payUrl: "https://buy.stripe.com/x?amount={amount}&ref={number}" },
 };
 const docRow = { id: "d1", kind: "invoice", number: "INV-2026-0007", status: "sent", total: 1200, amount_paid: 200, balance_due: 1000, currency: "USD", due_date: "2999-01-01", valid_until: null, client: { name: "Sample Client" }, deleted: false };
 
@@ -30,6 +31,7 @@ beforeEach(() => {
   calls = [];
   routes = {};
   reserve = { ok: true, id: 11, trial: false, team_id: "t1", sent_today: 1, cap: 300 };
+  company = [{ business_name: "Sample Electric", email: "office@sample-electric.example" }];
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SB);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
@@ -57,6 +59,7 @@ beforeEach(() => {
   routes[`${SB}/auth/v1/user`] = () => Response.json({ id: "u1" });
   routes[`${SB}/rest/v1/team_members`] = () => Response.json([{ role: "admin" }]);
   routes[RESERVE] = () => Response.json(reserve);
+  routes[`${SB}/rest/v1/company_settings`] = () => Response.json(company);
   routes[`${SB}/rest/v1/email_sends`] = () => new Response(null, { status: 204 });
   routes[RESEND] = () => Response.json({ id: "re_e1" });
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -89,7 +92,7 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(sent().text).toContain("https://evil.example/login");
   });
 
-  it("a free trial can't send links in its message (the client link and pay button stay)", async () => {
+  it("a free trial can't send links in its message, and gets no pay button (the client link stays)", async () => {
     reserve = { ...reserve, trial: true, cap: 20 };
     setDocument();
     expect((await (await load())(post(good))).status).toBe(200);
@@ -98,26 +101,60 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(t).not.toContain("secure-pay.com");
     expect(t).toContain("Details at [link removed] or [link removed] Thanks!");
     expect(t).toContain(`https://app.example.com/d?t=${TOKEN}`);
-    expect(t).toContain("https://pay.example.com/x?amount=1000.00&ref=INV-2026-0007");
-    expect(t).toContain("The payment page is on pay.example.com");
+    expect(t).not.toContain("buy.stripe.com");
+    expect(t).not.toContain("payment page");
   });
 
   it("needs the company's own business email: never replies to PinPlan", async () => {
-    setDocument({ ...snapshot, business: { name: "Sample Electric", email: "" } });
+    company = [{ business_name: "Sample Electric", email: "" }];
+    setDocument();
     const r = await (await load())(post(good));
     expect(r.status).toBe(400);
     const j = await r.json();
     expect(j.code).toBe("business_email_required");
-    expect(j.error).toBe("Add your business email in Settings → Company → Your business, then choose Update link on the document and send it again.");
+    expect(j.error).toBe("Add your business email in Settings → Company → Your business, then send it again.");
     expect(sends()).toHaveLength(0);
     expect(calls.some((c) => c.url === RESERVE)).toBe(false);
   });
 
   it("no pay button for a plain-http pay link", async () => {
-    setDocument({ ...snapshot, payment: { payUrl: "http://pay.example.com/x?amount={amount}" } });
+    setDocument({ ...snapshot, payment: { payUrl: "http://buy.stripe.com/x?amount={amount}" } });
     expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
-    expect(sent().text).not.toContain("pay.example.com");
+    expect(sent().text).not.toContain("buy.stripe.com");
     expect(sent().text).not.toContain("online:");
+  });
+
+  it("no pay button for a site that isn't a known payment site", async () => {
+    for (const bad of ["https://pay.evil.example/x?amount={amount}", "https://buy.stripe.com.evil.example/x", "https://user@buy.stripe.com/x"]) {
+      calls = [];
+      setDocument({ ...snapshot, payment: { payUrl: bad } });
+      expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
+      expect(sent().text).not.toContain("online:");
+      expect(sent().text).not.toContain("evil.example");
+    }
+    calls = [];
+    setDocument({ ...snapshot, payment: { payUrl: "https://www.paypal.com/paypalme/sample/{amount}" } });
+    expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
+    expect(sent().text).toContain("online: https://www.paypal.com/paypalme/sample/1000.00");
+  });
+
+  it("the company's name and reply-to come from its settings, not the link's snapshot", async () => {
+    setDocument({ ...snapshot, business: { name: "Sign in at evil.example", email: "attacker@evil.example" } });
+    expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
+    expect(sent().reply_to).toBe("office@sample-electric.example");
+    expect(sent().subject).toContain("Sample Electric");
+    expect(JSON.stringify(sent())).not.toContain("evil.example");
+    const read = calls.find((c) => c.url.startsWith(`${SB}/rest/v1/company_settings`))!;
+    expect(read.headers.authorization).toBe("Bearer user-token");
+  });
+
+  it("a free trial can't put links in the title or the names either", async () => {
+    reserve = { ...reserve, trial: true, cap: 20 };
+    company = [{ business_name: "Acme www.evil.example", email: "office@sample-electric.example" }];
+    setDocument({ ...snapshot, title: "Pay at evil-pay.com/now" }, { ...docRow, client: { name: "Visit http://evil.example/x" } });
+    expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
+    expect(JSON.stringify(sent())).not.toMatch(/evil\.example|evil-pay\.com/);
+    expect(sent().text).toContain("[link removed]");
   });
 
   it("refusals come back as they are and nothing is sent", async () => {
@@ -177,6 +214,24 @@ describe("POST /api/team/invite-email (limits on)", () => {
     expect((await POST(req({ code: "K7QMXR4TPA", email: "crew@example.com" }))).status).toBe(200);
     expect(calls.find((c) => c.url === RESERVE)!.body).toMatchObject({ p_user: "u1", p_kind: "invite" });
     expect(sends()).toHaveLength(1);
+  });
+
+  it("a free trial's team, inviter and invitee names can't carry links", async () => {
+    reserve = { ...reserve, trial: true, cap: 10 };
+    routes[`${SB}/rest/v1/teams`] = () => Response.json([{ name: "Log in at www.evil.example" }]);
+    routes[`${SB}/rest/v1/team_members`] = () => Response.json([{ name: "Visit evil-pay.com/x", email: "dana@sample-electric.example", role: "owner", team_id: "t1" }]);
+    const { POST } = await import("@/app/api/team/invite-email/route");
+    expect((await POST(req({ code: "K7QMXR4TPA", email: "crew@example.com", name: "http://evil.example/y" }))).status).toBe(200);
+    const mail = JSON.stringify(sends()[0].body);
+    expect(mail).not.toMatch(/evil\.example|evil-pay\.com/);
+    expect(mail).toContain("[link removed]");
+  });
+
+  it("a paying team's names are sent as written", async () => {
+    routes[`${SB}/rest/v1/teams`] = () => Response.json([{ name: "Sample Electric.com" }]);
+    const { POST } = await import("@/app/api/team/invite-email/route");
+    expect((await POST(req({ code: "K7QMXR4TPA", email: "crew@example.com" }))).status).toBe(200);
+    expect(JSON.stringify(sends()[0].body)).toContain("Sample Electric.com");
   });
 
   it("a lapsed company or a full day of invites sends nothing", async () => {

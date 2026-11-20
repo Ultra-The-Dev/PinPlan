@@ -3,7 +3,9 @@
 // this person may send it:
 //   - their own account email is confirmed (a throwaway sign-up can't send),
 //   - their company's subscription lets it work (plan_allows_work),
-//   - the company is under its daily cap (a trial gets a small allowance) and hasn't mailed this address too often.
+//   - the company is under its daily cap (a trial gets a small allowance) and hasn't mailed this address too often,
+//   - PinPlan as a whole is under its daily allowance, and free trials together under their share of it
+//     (email_settings, 20261124300600_email_signup_abuse.sql).
 // The reservation is the log row: finishSend() records Resend's id, or removes the row when the send failed.
 // Notifications to the company itself (a client answered a link) are only logged (logNotification).
 //
@@ -21,9 +23,28 @@ export type Reservation =
 
 const isProduction = () => process.env.NODE_ENV === "production";
 
-/** sha256 of the lower-cased address: lets the database count repeats without storing who. */
+/**
+ * One mailbox, however it is written: lower case, the "+tag" dropped, and for Gmail the dots dropped too (googlemail.com
+ * read as gmail.com). Must match public.email_normalize() (supabase/migrations/20261124300600_email_signup_abuse.sql).
+ */
+export function normalizeEmail(email: string): string {
+  const e = email.trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at < 0) return e;
+  let local = e.slice(0, at);
+  let domain = e.slice(at + 1);
+  const plus = local.indexOf("+");
+  if (plus > 0) local = local.slice(0, plus);
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    local = local.replace(/\./g, "");
+    domain = "gmail.com";
+  }
+  return `${local}@${domain}`;
+}
+
+/** sha256 of the normalised address: lets the database count repeats without storing who. Same as public.email_hash(). */
 export function recipientHash(email: string): string {
-  return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+  return createHash("sha256").update(normalizeEmail(email)).digest("hex");
 }
 
 /** A short hash for keys (IP addresses, link tokens) stored by the durable answer limits. */
@@ -63,6 +84,20 @@ export function refusal(reason: string, info: { trial?: boolean; cap?: number; k
           : "You've reached today's email limit for your company. Copy the client link and send it yourself, or try again tomorrow.",
         reason,
       );
+    case "platform_cap":
+      // PinPlan's own sending allowance for the day (all companies, or all free trials together) is used up.
+      return refuse(
+        429,
+        "platform_email_limit",
+        info.trial
+          ? invites
+            ? "Invites by email are paused for free trials for the rest of the day. Share the invite with Copy link or Text it instead, or start your subscription in Settings → Billing."
+            : "Email from free trials is paused for the rest of the day. Copy the client link and send it yourself, or start your subscription in Settings → Billing."
+          : invites
+            ? "PinPlan can't send more email today. Share the invite with Copy link or Text it instead."
+            : "PinPlan can't send more email today. Copy the client link and send it yourself, or try again tomorrow.",
+        reason,
+      );
     case "recipient_cap":
       return refuse(429, "recipient_limit", "That address has had several emails from your company today. Try again tomorrow, or contact them directly.", reason);
     default:
@@ -100,12 +135,15 @@ export async function reserveSend(userId: string, kind: GuardedKind, to: string)
     console.warn(`[email] send guard failed: ${r.status}`);
     return refuse(503, "email_guard_unavailable", "Couldn't check your email allowance. Try again in a minute.", "unavailable");
   }
-  const out = (await r.json().catch(() => null)) as { ok?: boolean; reason?: string; id?: number; trial?: boolean; cap?: number } | null;
+  const out = (await r.json().catch(() => null)) as { ok?: boolean; reason?: string; id?: number; trial?: boolean; cap?: number; platform_alert?: boolean } | null;
   if (!out || typeof out !== "object") return refuse(503, "email_guard_unavailable", "Couldn't check your email allowance. Try again in a minute.", "unavailable");
   if (!out.ok) {
-    if (out.reason !== "daily_cap" && out.reason !== "recipient_cap") console.warn(`[email] send refused: ${String(out.reason).replace(/[^a-z_]/g, "")}`);
+    if (out.reason === "platform_cap") console.warn(`[email] platform email cap reached (${out.trial ? "trial share" : "all senders"}): refusing sends`);
+    else if (out.reason !== "daily_cap" && out.reason !== "recipient_cap") console.warn(`[email] send refused: ${String(out.reason).replace(/[^a-z_]/g, "")}`);
     return refusal(out.reason ?? "", { trial: !!out.trial, cap: typeof out.cap === "number" ? out.cap : undefined, kind });
   }
+  // Once a day, when PinPlan as a whole passes 80 % of its daily email allowance (email_settings).
+  if (out.platform_alert === true) console.warn("[email] platform email use passed the alert level of today's cap (email_settings)");
   return { ok: true, id: typeof out.id === "number" ? out.id : null, trial: out.trial !== false, durable: true };
 }
 
