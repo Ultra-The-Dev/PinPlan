@@ -1,4 +1,4 @@
-// POST /api/billing/checkout (owner/admin): a Stripe Checkout page for the team's subscription → { url }.
+// POST /api/billing/checkout (owner/admin): a Stripe Checkout page for the team's subscription → { url }. 10 per 10 minutes per team.
 // Base price ×1 plus a seat for each person beyond those included; the rest of the free trial carries over.
 // An open checkout page with the same terms is reused (clicking twice never makes two), and the create call carries an
 // idempotency key. Optional (server settings):
@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import type Stripe from "stripe";
 import { checkoutTrialEnd, extraSeats } from "@/lib/billingLogic";
 import { PLANS, RENEWAL_NOTE } from "@/lib/plans";
-import { billingConfig, billingFailure, getStripe, jsonError, notConfigured, originMissing, originOf, patchTeam, requireTeamOffice, teamById } from "@/lib/server/billing";
+import { BILLING_LIMITS, billingConfig, billingFailure, getStripe, jsonError, limitBilling, notConfigured, originMissing, originOf, patchTeam, requireTeamOffice, teamById } from "@/lib/server/billing";
 
 /** Subscriptions that still exist in Stripe: change them in the portal instead of starting another one. */
 const LIVE = new Set(["active", "past_due", "trialing", "unpaid", "incomplete"]);
@@ -24,6 +24,8 @@ export async function POST(request: Request) {
     const who = await requireTeamOffice(request, cfg);
     if (!who.ok) return who.response;
     const { team, members, email } = who.caller;
+    const limited = await limitBilling("checkout", team.id, BILLING_LIMITS.checkout);
+    if (limited) return limited;
     if (team.plan_status === "comped") return jsonError("This account is comped — there's nothing to pay.", "comped", 400);
     if (team.stripe_subscription_id && LIVE.has(team.plan_status))
       return jsonError("Your company already has a subscription. Use “Manage billing” to change it.", "already_subscribed", 409);

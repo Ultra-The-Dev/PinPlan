@@ -3,10 +3,11 @@
 //   add:     one more seat, before inviting someone (Stripe prorates the charge).
 //   release: one fewer, after removing someone.
 //   fit:     exactly the people on the team.
+// "add" is refused while more than two seats are free (409 enough_seats). 20 calls an hour per team.
 // The seat item's quantity is changed in Stripe and the new limit written to the team straight away (the webhook
 // confirms it). Teams on the free trial or comped have no seat limit, so there's nothing to change.
-import { seatTarget, type SeatAction, type SubscriptionLike } from "@/lib/billingLogic";
-import { billingConfig, billingFailure, getStripe, jsonError, notConfigured, requireTeamOffice, setSeats } from "@/lib/server/billing";
+import { canAddSeat, seatTarget, type SeatAction, type SubscriptionLike } from "@/lib/billingLogic";
+import { BILLING_LIMITS, billingConfig, billingFailure, getStripe, jsonError, limitBilling, notConfigured, requireTeamOffice, setSeats } from "@/lib/server/billing";
 
 const ACTIONS: SeatAction[] = ["add", "release", "fit"];
 const LIVE = new Set(["active", "past_due", "trialing"]);
@@ -25,8 +26,13 @@ export async function POST(request: Request) {
     const who = await requireTeamOffice(request, cfg);
     if (!who.ok) return who.response;
     const { team, members } = who.caller;
+    const limited = await limitBilling("sync-seats", team.id, BILLING_LIMITS.syncSeats);
+    if (limited) return limited;
     if (team.plan_status === "comped") return Response.json({ seats: null, skipped: "comped" });
     if (!team.stripe_subscription_id || !LIVE.has(team.plan_status)) return Response.json({ seats: null, skipped: "no_subscription" });
+
+    if (action === "add" && !canAddSeat(members, team.seat_limit))
+      return jsonError("Your company already has free seats. Invite someone before adding more.", "enough_seats", 409);
 
     const stripe = getStripe(cfg);
     const sub = (await stripe.subscriptions.retrieve(team.stripe_subscription_id)) as unknown as SubscriptionLike;

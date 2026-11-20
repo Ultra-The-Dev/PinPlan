@@ -97,7 +97,7 @@ describe("billing routes", () => {
           return Response.json({ id: `em_${emails.length}` });
         }
         calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null, auth: headers.get("authorization") });
-        if (url === `${SB}/auth/v1/user`) return world.user ? Response.json({ id: world.user }) : new Response("no", { status: 401 });
+        if (url === `${SB}/auth/v1/user`) return world.user ? Response.json({ id: world.user, email: "boss@acme.test", email_confirmed_at: "2026-01-01T00:00:00Z" }) : new Response("no", { status: 401 });
         if (url.startsWith(`${SB}/rest/v1/team_members?user_id=`))
           return Response.json(world.role ? [{ team_id: "team-1", role: world.role, email: "boss@acme.test" }] : []);
         if (url.startsWith(`${SB}/rest/v1/team_members?team_id=`)) return Response.json(Array.from({ length: world.members }, (_, i) => ({ user_id: `u${i}` })));
@@ -310,6 +310,7 @@ describe("billing routes", () => {
     const get = () => new Request("https://app.example.com/api/billing/check", { headers: { Authorization: "Bearer user-token" } });
 
     it("reports a match, or what differs", async () => {
+      vi.stubEnv("PLATFORM_ADMIN_EMAILS", "boss@acme.test");
       const { GET } = await import("@/app/api/billing/check/route");
       const plan = (await import("@/lib/plans")).PLANS[0];
       fake.prices.retrieve.mockImplementation(async (id: string) => (id === "price_base" ? price(plan.basePrice * 100) : price(plan.seatPrice * 100)));
@@ -321,12 +322,43 @@ describe("billing routes", () => {
       expect(j.prices.base).toEqual({ unitAmount: 9900, currency: "usd", interval: "month", active: true });
     });
 
-    it("is for the office", async () => {
-      world.role = "tech";
+    it("is for platform admins only (a team owner or admin is refused)", async () => {
+      vi.stubEnv("PLATFORM_ADMIN_EMAILS", "someone-else@example.com");
       const { GET } = await import("@/app/api/billing/check/route");
       expect((await GET(get())).status).toBe(403);
+      world.role = "tech";
+      expect((await GET(get())).status).toBe(403);
+      world.user = null;
+      expect((await GET(get())).status).toBe(401);
       expect(fake.prices.retrieve).not.toHaveBeenCalled();
     });
+
+    it("is limited to 5 an hour", async () => {
+      vi.stubEnv("PLATFORM_ADMIN_EMAILS", "boss@acme.test");
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      fake.prices.retrieve.mockResolvedValue(price(100));
+      const { GET } = await import("@/app/api/billing/check/route");
+      for (let i = 0; i < 5; i++) expect((await GET(get())).status).toBe(200);
+      const r = await GET(get());
+      expect(r.status).toBe(429);
+      expect(r.headers.get("retry-after")).toBeTruthy();
+      expect(fake.prices.retrieve).toHaveBeenCalledTimes(10);
+    });
+  });
+
+  it("checkout and portal are limited to 10 per 10 minutes per team", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    world.team.stripe_customer_id = "cus_1";
+    fake.billingPortal.sessions.create.mockResolvedValue({ url: "https://billing.stripe.test/p" });
+    fake.checkout.sessions.create.mockResolvedValue({ id: "cs_1", url: "https://checkout.stripe.test/c" });
+    for (const name of ["portal", "checkout"]) {
+      const { POST } = await import(`@/app/api/billing/${name}/route`);
+      for (let i = 0; i < 10; i++) expect((await POST(req(`/api/billing/${name}`))).status).toBe(200);
+      const r = await POST(req(`/api/billing/${name}`));
+      expect(r.status).toBe(429);
+      expect((await r.json()).code).toBe("rate_limited");
+    }
+    expect(fake.billingPortal.sessions.create).toHaveBeenCalledTimes(10);
   });
 
   it("portal opens for the team's customer", async () => {
@@ -445,6 +477,39 @@ describe("billing routes", () => {
       expect(world.team.payment_failed_invoice_id).toBeNull();
     });
 
+    it("never marks a team active for a subscription without the base price, and reports it", async () => {
+      const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      fake.subscriptions.retrieve.mockResolvedValue(sub({ items: { data: [{ id: "si_x", quantity: 1, price: { id: "price_cheap" } }] } }));
+      const r = await send({ id: "evt_b1", type: "customer.subscription.updated", data: { object: sub() } });
+      expect(await r.json()).toMatchObject({ received: true, result: "missing_base_price" });
+      expect(world.team.plan_status).toBe("trialing");
+      expect(world.team.stripe_subscription_id).toBeNull();
+      expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+      expect(err.mock.calls.flat().join(" ")).toMatch(/no item with the base price/);
+      // A canceled one without it is still recorded (it takes access away, never gives it).
+      fake.subscriptions.retrieve.mockResolvedValue(sub({ status: "canceled", items: { data: [] } }));
+      const r2 = await send({ id: "evt_b2", type: "customer.subscription.deleted", data: { object: sub() } });
+      expect((await r2.json()).result).toBe("updated");
+      expect(world.team.plan_status).toBe("canceled");
+    });
+
+    it("refits the seats on any subscription update when more people are on the team than it pays for", async () => {
+      world.members = 6; // the subscription pays for 5 (3 + 2)
+      fake.subscriptions.retrieve.mockResolvedValue(sub());
+      fake.subscriptions.update.mockResolvedValue(sub({ items: { data: [{ id: "si_b", quantity: 1, price: { id: "price_base" } }, { id: "si_s", quantity: 3, price: { id: "price_seat" } }] } }));
+      const r = await send({ id: "evt_s3", type: "customer.subscription.updated", data: { object: sub() } });
+      expect((await r.json()).result).toBe("updated");
+      expect(fake.subscriptions.update).toHaveBeenCalledTimes(1);
+      expect(fake.subscriptions.update).toHaveBeenCalledWith("sub_1", { items: [{ id: "si_s", quantity: 3 }], proration_behavior: "create_prorations" });
+      expect(world.team.seat_limit).toBe(6);
+      // Not for a lapsed subscription.
+      fake.subscriptions.update.mockClear();
+      world.members = 9;
+      fake.subscriptions.retrieve.mockResolvedValue(sub({ status: "past_due" }));
+      await send({ id: "evt_s4", type: "customer.subscription.updated", data: { object: sub() } });
+      expect(fake.subscriptions.update).not.toHaveBeenCalled();
+    });
+
     it("ignores other events and leaves comped teams alone", async () => {
       let r = await send({ id: "evt_5", type: "customer.created", data: { object: {} } });
       expect((await r.json()).ignored).toBe("customer.created");
@@ -499,6 +564,29 @@ describe("billing routes", () => {
       fake.subscriptions.update.mockResolvedValue(subWith(null));
       expect(await (await POST(req("/api/billing/sync-seats", { action: "release" }))).json()).toEqual({ seats: 3 });
       expect(fake.subscriptions.update).toHaveBeenLastCalledWith("sub_1", { items: [{ id: "si_s", deleted: true }], proration_behavior: "create_prorations" });
+    });
+
+    it("refuses to add a seat while more than two are free", async () => {
+      Object.assign(world.team, { seat_limit: 8 });
+      world.members = 5;
+      const { POST } = await import("@/app/api/billing/sync-seats/route");
+      const r = await POST(req("/api/billing/sync-seats", { action: "add" }));
+      expect(r.status).toBe(409);
+      expect((await r.json()).code).toBe("enough_seats");
+      expect(fake.subscriptions.update).not.toHaveBeenCalled();
+      // Two free seats is fine (8 seats, 6 people).
+      world.members = 6;
+      fake.subscriptions.retrieve.mockResolvedValue(subWith(5));
+      fake.subscriptions.update.mockResolvedValue(subWith(6));
+      expect(await (await POST(req("/api/billing/sync-seats", { action: "add" }))).json()).toEqual({ seats: 9 });
+    });
+
+    it("is limited to 20 an hour per team", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      fake.subscriptions.retrieve.mockResolvedValue(subWith(2));
+      const { POST } = await import("@/app/api/billing/sync-seats/route");
+      for (let i = 0; i < 20; i++) expect((await POST(req("/api/billing/sync-seats", { action: "fit" }))).status).toBe(200);
+      expect((await POST(req("/api/billing/sync-seats", { action: "fit" }))).status).toBe(429);
     });
 
     it("does nothing during the trial, when comped, or when already right", async () => {

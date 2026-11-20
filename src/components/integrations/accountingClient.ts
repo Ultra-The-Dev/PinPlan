@@ -2,7 +2,7 @@
 // Browser side of the accounting integrations: the /api/integrations calls and the per-device fallbacks.
 import { DEFAULT_ACCOUNTS, normalizeAccounts, type AccountNames, type CsvFormat } from "@/lib/accountingExport";
 import { apiFetch } from "@/lib/api";
-import type { DocPayment, SalesDoc } from "@/lib/types";
+import type { SalesDoc } from "@/lib/types";
 
 export type ExportFormat = CsvFormat | "iif";
 
@@ -58,7 +58,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const listIntegrations = () => call<IntegrationsList>("/api/integrations");
 export const providerStatus = (id: string) => call<ProviderStatus>(`/api/integrations/${id}/status`);
-export const connectProvider = (id: string) => call<{ url: string }>(`/api/integrations/${id}/connect`, { method: "POST" });
+/** → the GET connect link to navigate to. The answer sets a cookie that ties the sign-in to this browser. */
+export const connectProvider = (id: string) => call<{ url: string }>(`/api/integrations/${id}/connect`, { method: "POST", credentials: "same-origin" });
 export const disconnectProvider = (id: string) => call<ProviderStatus>(`/api/integrations/${id}/disconnect`, { method: "POST" });
 export const testProvider = (id: string) => call<{ ok: boolean; message: string }>(`/api/integrations/${id}/test`, { method: "POST" });
 export const saveProviderSettings = (id: string, settings: Record<string, string>) => call<{ settings: Record<string, string> }>(`/api/integrations/${id}/settings`, { method: "POST", body: JSON.stringify({ settings }) });
@@ -69,8 +70,8 @@ export interface PushResult {
   warnings: string[];
   payments: { id: string; status: string; message?: string }[];
 }
-export const pushDocument = (id: string, doc: SalesDoc, payments: DocPayment[]) =>
-  call<PushResult>(`/api/integrations/${id}/push`, { method: "POST", body: JSON.stringify({ doc, payments: payments.filter((p) => p.documentId === doc.id) }) });
+/** The server sends its own copy of the document (and its payments): sync first so it has this device's changes. */
+export const pushDocument = (id: string, doc: Pick<SalesDoc, "id">) => call<PushResult>(`/api/integrations/${id}/push`, { method: "POST", body: JSON.stringify({ docId: doc.id }) });
 
 // ---------------------------------------------------------------- the accountant export's account names
 

@@ -1,0 +1,14 @@
+[
+  {"name": "nothing paid", "total": 100, "payments": [], "credits": [], "expect": {"paid": 0, "credited": 0, "balance": 100, "paidOn": null}},
+  {"name": "paid in two parts, out of date order", "total": 100, "payments": [{"amount": 40, "date": "2026-01-02"}, {"amount": 60, "date": "2026-01-01"}], "credits": [], "expect": {"paid": 100, "credited": 0, "balance": 0, "paidOn": "2026-01-02"}},
+  {"name": "void and deleted payments do not count", "total": 100, "payments": [{"amount": 50, "date": "2026-01-01", "voided": true}, {"amount": 30, "date": "2026-01-02", "deleted": true}, {"amount": 20, "date": "2026-01-03"}], "credits": [], "expect": {"paid": 20, "credited": 0, "balance": 80, "paidOn": null}},
+  {"name": "only issued credit notes count", "total": 200, "payments": [{"amount": 70, "date": "2026-02-01"}], "credits": [{"total": 30, "status": "sent"}, {"total": 50, "status": "draft"}, {"total": 20, "status": "void"}, {"total": 10, "status": "sent", "deleted": true}], "expect": {"paid": 70, "credited": 30, "balance": 100, "paidOn": null}},
+  {"name": "float sums round to the cent", "total": 0.3, "payments": [{"amount": 0.1, "date": "2026-03-01"}, {"amount": 0.2, "date": "2026-03-02"}], "credits": [], "expect": {"paid": 0.3, "credited": 0, "balance": 0, "paidOn": "2026-03-02"}},
+  {"name": "half cents round away from zero", "total": 1.005, "payments": [{"amount": 0.105, "date": "2026-03-01"}], "credits": [{"total": 0.125, "status": "sent"}], "expect": {"paid": 0.11, "credited": 0.13, "balance": 0.77, "paidOn": null}},
+  {"name": "overpaid", "total": 100, "payments": [{"amount": 120, "date": "2026-04-01"}], "credits": [], "expect": {"paid": 120, "credited": 0, "balance": -20, "paidOn": "2026-04-01"}},
+  {"name": "a zero invoice is never paid on a day", "total": 0, "payments": [], "credits": [], "expect": {"paid": 0, "credited": 0, "balance": 0, "paidOn": null}},
+  {"name": "a refund lowers what was paid", "total": 100, "payments": [{"amount": 100, "date": "2026-05-01"}, {"amount": -30, "date": "2026-05-02"}], "credits": [], "expect": {"paid": 70, "credited": 0, "balance": 30, "paidOn": null}},
+  {"name": "a credit note covers it all", "total": 50, "payments": [], "credits": [{"total": 50, "status": "sent"}], "expect": {"paid": 0, "credited": 50, "balance": 0, "paidOn": null}},
+  {"name": "credit then payments settle it", "total": 1059.35, "payments": [{"amount": 559.35, "date": "2026-06-03"}, {"amount": 400, "date": "2026-06-01"}], "credits": [{"total": 100, "status": "viewed"}], "expect": {"paid": 959.35, "credited": 100, "balance": 0, "paidOn": "2026-06-03"}},
+  {"name": "many small payments", "total": 33.33, "payments": [{"amount": 11.11, "date": "2026-07-01"}, {"amount": 11.11, "date": "2026-07-02"}, {"amount": 11.11, "date": "2026-07-03"}], "credits": [], "expect": {"paid": 33.33, "credited": 0, "balance": 0, "paidOn": "2026-07-03"}}
+]

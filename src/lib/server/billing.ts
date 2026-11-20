@@ -6,8 +6,11 @@ import {
   customerId,
   daysLeft,
   extraSeats,
+  grantsAccess,
+  hasBasePrice,
   isDuplicateSubscription,
   seatItem,
+  seatsToFit,
   shouldApplySubscription,
   teamPatchFromSubscription,
   type SubscriptionLike,
@@ -17,6 +20,8 @@ import { paymentFailedEmail, trialEndingEmail } from "@/lib/emailTemplates";
 import { PLANS } from "@/lib/plans";
 import { requireUser } from "./auth";
 import { emailConfigured, sendEmail } from "./email";
+import { durableRateLimit, tooManyRequests, waitText, type RateLimitRule } from "./rateLimit";
+import { reportServerError } from "./serverErrors";
 
 export interface BillingConfig {
   secretKey: string;
@@ -53,6 +58,20 @@ export function billingConfig(): { ok: true; config: BillingConfig } | { ok: fal
 }
 
 export const jsonError = (error: string, code: string, status: number) => Response.json({ error, code }, { status });
+
+/** Per-team limits on the billing routes (each call reaches Stripe). Counted in the shared store (rateLimit.ts). */
+export const BILLING_LIMITS = {
+  check: { limit: 5, windowMs: 60 * 60_000 },
+  checkout: { limit: 10, windowMs: 10 * 60_000 },
+  portal: { limit: 10, windowMs: 10 * 60_000 },
+  syncSeats: { limit: 20, windowMs: 60 * 60_000 },
+} satisfies Record<string, RateLimitRule>;
+
+/** A 429 when `who` (a team id, or an admin for the price check) is over the route's limit, else null. */
+export async function limitBilling(route: string, who: string, rule: RateLimitRule): Promise<Response | null> {
+  const r = await durableRateLimit(`billing-${route}:${who}`, rule);
+  return r.ok ? null : tooManyRequests(r, `Too many billing requests. Try again in ${waitText(r.retryAfter)}.`);
+}
 
 /** 501: billing isn't set up on this server (names the missing settings, never their values). */
 export function notConfigured(missing: string[]) {
@@ -218,7 +237,7 @@ export async function applySubscription(
   sub: SubscriptionLike,
   teamHint?: string | null,
   stripe?: Stripe,
-): Promise<"updated" | "skipped" | "no_team" | "duplicate_canceled"> {
+): Promise<"updated" | "skipped" | "no_team" | "duplicate_canceled" | "missing_base_price"> {
   const team = await teamForSubscription(cfg, sub, teamHint);
   if (!team) return "no_team";
   if (!shouldApplySubscription(team, sub)) return "skipped";
@@ -234,11 +253,26 @@ export async function applySubscription(
     }
   }
   const patch = teamPatchFromSubscription(sub, { seatPriceId: cfg.priceSeat });
+  // A subscription that doesn't pay for the base plan (made by hand in Stripe, another product, a cheaper price) never
+  // unlocks the app: the team isn't marked active and the owner of the server is told.
+  if (grantsAccess(patch.plan_status) && !hasBasePrice(sub, cfg.priceBase)) {
+    await reportServerError(new Error(`Subscription ${sub.id} has no item with the base price (STRIPE_PRICE_BASE); team ${team.id} was not marked ${patch.plan_status}.`), {
+      where: "billing applySubscription",
+      extra: { subscription: sub.id, team: team.id, status: sub.status },
+    });
+    return "missing_base_price";
+  }
   if (!patch.stripe_customer_id) delete (patch as Partial<TeamBillingPatch>).stripe_customer_id;
   // Another team already owns this customer (shouldn't happen): don't steal it, but still record the subscription.
   if (team.stripe_customer_id && patch.stripe_customer_id && team.stripe_customer_id !== patch.stripe_customer_id) patch.stripe_customer_id = team.stripe_customer_id;
   // The team may have turned comped meanwhile: the filter keeps it that way.
   await patchTeam(cfg, team.id, patch, "plan_status=neq.comped");
+  // More people than paid seats (joined during the trial, or seats lowered in Stripe): raise the seats to fit, with
+  // prorations. setSeats applies the result again without `stripe`, so this never loops.
+  if (stripe) {
+    const target = seatsToFit(patch.plan_status, await memberCount(cfg, team.id), patch.seat_limit);
+    if (target != null) await setSeats(cfg, stripe, sub, team.id, target);
+  }
   return "updated";
 }
 
