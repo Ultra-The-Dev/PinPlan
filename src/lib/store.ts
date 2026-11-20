@@ -1,11 +1,13 @@
 "use client";
 import { create } from "zustand";
 import { closetMeta, LAYERS } from "./catalog";
+import { canEditJob, READ_ONLY_MESSAGE, ReadOnlyError } from "./canEdit";
 import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
 import { rotateSheetMeasurements } from "./measurements";
 import { markerCables } from "./products";
+import { toast } from "./toast";
 import type {
   AppSettings,
   Closet,
@@ -307,6 +309,11 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   async commit(changes, record = true) {
+    // The free trial or subscription has ended: jobs are read-only here too (the cloud would refuse the change).
+    if (!canEditJob()) {
+      toast(READ_ONLY_MESSAGE, "error");
+      throw new ReadOnlyError();
+    }
     commitGen++;
     // Show the change right away (before the database write finishes), so an edit made meanwhile builds on it
     // instead of on the old row: two quick edits to one row must not overwrite each other.

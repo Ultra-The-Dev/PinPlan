@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fake = vi.hoisted(() => ({
   customers: { create: vi.fn() },
-  checkout: { sessions: { create: vi.fn() } },
+  checkout: { sessions: { create: vi.fn(), list: vi.fn(), expire: vi.fn() } },
   billingPortal: { sessions: { create: vi.fn() } },
-  subscriptions: { retrieve: vi.fn(), update: vi.fn() },
+  subscriptions: { retrieve: vi.fn(), update: vi.fn(), cancel: vi.fn() },
+  prices: { retrieve: vi.fn() },
 }));
 vi.mock("stripe", async () => {
   const actual = await vi.importActual<typeof import("stripe")>("stripe");
@@ -40,10 +41,25 @@ function req(path: string, body: unknown = {}, headers: Record<string, string> =
 describe("billing routes", () => {
   let calls: Call[];
   let world: World;
+  let emails: { to: string[]; subject: string; key: string | null }[];
 
   beforeEach(() => {
     vi.resetModules();
-    for (const f of [fake.customers.create, fake.checkout.sessions.create, fake.billingPortal.sessions.create, fake.subscriptions.retrieve, fake.subscriptions.update]) f.mockReset();
+    for (const f of [
+      fake.customers.create,
+      fake.checkout.sessions.create,
+      fake.checkout.sessions.list,
+      fake.checkout.sessions.expire,
+      fake.billingPortal.sessions.create,
+      fake.subscriptions.retrieve,
+      fake.subscriptions.update,
+      fake.subscriptions.cancel,
+      fake.prices.retrieve,
+    ])
+      f.mockReset();
+    fake.checkout.sessions.list.mockResolvedValue({ data: [] });
+    fake.checkout.sessions.expire.mockResolvedValue({});
+    emails = [];
     calls = [];
     world = {
       user: "u-owner",
@@ -75,6 +91,11 @@ describe("billing routes", () => {
         const url = String(input instanceof Request ? input.url : input);
         const method = init?.method ?? "GET";
         const headers = new Headers(init?.headers);
+        if (url === "https://api.resend.com/emails") {
+          const b = JSON.parse(String(init!.body));
+          emails.push({ to: b.to, subject: b.subject, key: headers.get("idempotency-key") });
+          return Response.json({ id: `em_${emails.length}` });
+        }
         calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null, auth: headers.get("authorization") });
         if (url === `${SB}/auth/v1/user`) return world.user ? Response.json({ id: world.user }) : new Response("no", { status: 401 });
         if (url.startsWith(`${SB}/rest/v1/team_members?user_id=`))
@@ -83,6 +104,9 @@ describe("billing routes", () => {
         if (url.startsWith(`${SB}/rest/v1/teams?`)) {
           if (method === "PATCH") {
             if (url.includes("plan_status=neq.comped") && world.team.plan_status === "comped") return Response.json([]);
+            // The "payment failed" email claim: only when this invoice isn't recorded yet.
+            const inv = /payment_failed_invoice_id\.neq\.([^,)]+)/.exec(url)?.[1];
+            if (inv && world.team.payment_failed_invoice_id === decodeURIComponent(inv)) return Response.json([]);
             Object.assign(world.team, JSON.parse(String(init!.body)));
             return Response.json([{ id: "team-1" }]);
           }
@@ -158,6 +182,109 @@ describe("billing routes", () => {
       expect(args.subscription_data.trial_end).toBeUndefined();
     });
 
+    it("passes an idempotency key, the renewal note, and no tax or terms unless switched on", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/s3" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      expect((await POST(req("/api/billing/checkout"))).status).toBe(200);
+      const [args, opts] = fake.checkout.sessions.create.mock.calls[0];
+      expect(opts.idempotencyKey).toMatch(/^pinplan-checkout-team-1-[0-9a-f]{24}-[0-9a-f]{12}-\d+$/);
+      expect(args.metadata).toEqual({ team_id: "team-1", terms_key: expect.stringMatching(/^[0-9a-f]{24}$/) });
+      expect(args.custom_text.submit.message).toMatch(/renews automatically every month until you cancel/);
+      expect(args.automatic_tax).toBeUndefined();
+      expect(args.consent_collection).toBeUndefined();
+      expect(fake.checkout.sessions.list).toHaveBeenCalledWith({ customer: "cus_old", status: "open", limit: 10 });
+    });
+
+    it("STRIPE_TAX=1 and STRIPE_TERMS_CONSENT=1 turn on tax collection and the terms checkbox", async () => {
+      vi.stubEnv("STRIPE_TAX", "1");
+      vi.stubEnv("STRIPE_TERMS_CONSENT", "1");
+      fake.customers.create.mockResolvedValue({ id: "cus_new" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/s4" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      expect((await POST(req("/api/billing/checkout"))).status).toBe(200);
+      const args = fake.checkout.sessions.create.mock.calls[0][0];
+      expect(args).toMatchObject({
+        automatic_tax: { enabled: true },
+        billing_address_collection: "required",
+        customer_update: { address: "auto", name: "auto" },
+        tax_id_collection: { enabled: true },
+        consent_collection: { terms_of_service: "required" },
+      });
+      expect(fake.checkout.sessions.list).not.toHaveBeenCalled(); // a brand-new customer has no open pages
+    });
+
+    it("reuses an open checkout page with the same terms, and closes older ones", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/first" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      await POST(req("/api/billing/checkout"));
+      const key = fake.checkout.sessions.create.mock.calls[0][0].metadata.terms_key;
+      const later = Math.floor(Date.now() / 1000) + 3600;
+      fake.checkout.sessions.list.mockResolvedValue({
+        data: [
+          { id: "cs_other_team", url: "https://checkout.stripe.test/x", expires_at: later, metadata: { team_id: "team-9", terms_key: key } },
+          { id: "cs_same", url: "https://checkout.stripe.test/first", expires_at: later, metadata: { team_id: "team-1", terms_key: key } },
+        ],
+      });
+      const r = await POST(req("/api/billing/checkout"));
+      expect(await r.json()).toEqual({ url: "https://checkout.stripe.test/first" });
+      expect(fake.checkout.sessions.create).toHaveBeenCalledTimes(1);
+      // Someone joined meanwhile: the old page (2 seats fewer) is closed and a new one made.
+      world.members = 6;
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/second" });
+      expect(await (await POST(req("/api/billing/checkout"))).json()).toEqual({ url: "https://checkout.stripe.test/second" });
+      expect(fake.checkout.sessions.expire).toHaveBeenCalledWith("cs_same");
+      expect(fake.checkout.sessions.expire).not.toHaveBeenCalledWith("cs_other_team");
+    });
+
+    it("never asks Stripe to replay a page an earlier call closed (the open pages are part of the key)", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/a" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      await POST(req("/api/billing/checkout"));
+      const key = fake.checkout.sessions.create.mock.calls[0][0].metadata.terms_key;
+      // Same terms again, but now another page of this team is open (soon to expire, so it isn't reused): it's closed
+      // and the new page must not come back as the first, already-closed one.
+      const soon = Math.floor(Date.now() / 1000) + 60;
+      fake.checkout.sessions.list.mockResolvedValue({ data: [{ id: "cs_b", url: "https://checkout.stripe.test/b", expires_at: soon, metadata: { team_id: "team-1", terms_key: key } }] });
+      await POST(req("/api/billing/checkout"));
+      const [k1, k2] = fake.checkout.sessions.create.mock.calls.map((c: unknown[]) => (c[1] as { idempotencyKey: string }).idempotencyKey);
+      expect(k1).not.toBe(k2);
+      expect(fake.checkout.sessions.expire).toHaveBeenCalledWith("cs_b");
+    });
+
+    it("sends people back to PINPLAN_APP_URL, never a forwarded host; production without it is refused", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/s5" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      await POST(req("/api/billing/checkout", {}, { "x-forwarded-host": "evil.example", "x-forwarded-proto": "http" }));
+      expect(fake.checkout.sessions.create.mock.calls[0][0].success_url).toBe("https://app.example.com/settings?billing=success#billing");
+      vi.stubEnv("PINPLAN_APP_URL", "https://pinplan.example.org/");
+      await POST(req("/api/billing/checkout"));
+      expect(fake.checkout.sessions.create.mock.calls[1][0].cancel_url).toBe("https://pinplan.example.org/settings?billing=cancel#billing");
+      vi.stubEnv("PINPLAN_APP_URL", "");
+      vi.stubEnv("NODE_ENV", "production");
+      const r = await POST(req("/api/billing/checkout"));
+      expect(r.status).toBe(501);
+      expect(await r.json()).toMatchObject({ code: "app_url_missing", missing: ["PINPLAN_APP_URL"] });
+      expect(fake.checkout.sessions.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("never shows Stripe's own error message", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      const err = Object.assign(new Error("No such price: 'price_base' (acct_secret123)"), { type: "StripeInvalidRequestError", code: "resource_missing" });
+      fake.checkout.sessions.create.mockRejectedValue(err);
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      const r = await POST(req("/api/billing/checkout"));
+      expect(r.status).toBe(502);
+      const j = await r.json();
+      expect(j).toEqual({ error: "Couldn't start checkout. Try again in a minute.", code: "stripe_error" });
+      expect(JSON.stringify(j)).not.toContain("acct_secret123");
+      expect(log).toHaveBeenCalled();
+    });
+
     it("is for the owner or an admin only", async () => {
       world.role = "tech";
       const { POST } = await import("@/app/api/billing/checkout/route");
@@ -175,6 +302,30 @@ describe("billing routes", () => {
       expect((await POST(req("/api/billing/checkout"))).status).toBe(409);
       Object.assign(world.team, { stripe_subscription_id: null, plan_status: "comped" });
       expect((await POST(req("/api/billing/checkout"))).status).toBe(400);
+    });
+  });
+
+  describe("price check", () => {
+    const price = (cents: number, p: Record<string, unknown> = {}) => ({ id: "p", active: true, unit_amount: cents, currency: "usd", recurring: { interval: "month", interval_count: 1 }, ...p });
+    const get = () => new Request("https://app.example.com/api/billing/check", { headers: { Authorization: "Bearer user-token" } });
+
+    it("reports a match, or what differs", async () => {
+      const { GET } = await import("@/app/api/billing/check/route");
+      const plan = (await import("@/lib/plans")).PLANS[0];
+      fake.prices.retrieve.mockImplementation(async (id: string) => (id === "price_base" ? price(plan.basePrice * 100) : price(plan.seatPrice * 100)));
+      expect(await (await GET(get())).json()).toMatchObject({ ok: true, mismatches: [] });
+      fake.prices.retrieve.mockImplementation(async (id: string) => (id === "price_base" ? price(9900) : price(plan.seatPrice * 100, { currency: "cad" })));
+      const j = await (await GET(get())).json();
+      expect(j.ok).toBe(false);
+      expect(j.mismatches).toHaveLength(2);
+      expect(j.prices.base).toEqual({ unitAmount: 9900, currency: "usd", interval: "month", active: true });
+    });
+
+    it("is for the office", async () => {
+      world.role = "tech";
+      const { GET } = await import("@/app/api/billing/check/route");
+      expect((await GET(get())).status).toBe(403);
+      expect(fake.prices.retrieve).not.toHaveBeenCalled();
     });
   });
 
@@ -230,6 +381,68 @@ describe("billing routes", () => {
       r = await send({ id: "evt_4", type: "invoice.payment_failed", data: { object: { parent: { subscription_details: { subscription: "sub_1" } } } } });
       expect((await r.json()).result).toBe("updated");
       expect(world.team.plan_status).toBe("past_due");
+    });
+
+    it("cancels a second live subscription instead of replacing the first", async () => {
+      Object.assign(world.team, { plan_status: "active", stripe_subscription_id: "sub_old", stripe_customer_id: "cus_1", seat_limit: 5 });
+      fake.subscriptions.retrieve.mockImplementation(async (id: string) => (id === "sub_old" ? sub({ id: "sub_old" }) : sub({ id: "sub_new" })));
+      fake.subscriptions.cancel.mockResolvedValue({ id: "sub_new", status: "canceled" });
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const r = await send({ id: "evt_d1", type: "checkout.session.completed", data: { object: { mode: "subscription", subscription: "sub_new", client_reference_id: "team-1" } } });
+      expect(await r.json()).toMatchObject({ result: "duplicate_canceled" });
+      expect(fake.subscriptions.cancel).toHaveBeenCalledWith("sub_new", {}, { idempotencyKey: "pinplan-cancel-duplicate-sub_new" });
+      expect(world.team.stripe_subscription_id).toBe("sub_old");
+      expect(log.mock.calls.flat().join(" ")).toMatch(/duplicate sub_new/);
+      // The old one really ended (a resubscribe): the new one is taken.
+      fake.subscriptions.retrieve.mockImplementation(async (id: string) => (id === "sub_old" ? sub({ id: "sub_old", status: "canceled" }) : sub({ id: "sub_new" })));
+      const r2 = await send({ id: "evt_d2", type: "customer.subscription.created", data: { object: sub({ id: "sub_new" }) } });
+      expect((await r2.json()).result).toBe("updated");
+      expect(world.team.stripe_subscription_id).toBe("sub_new");
+      expect(fake.subscriptions.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("raises the seats after checkout when more people joined during the trial", async () => {
+      world.members = 7; // the subscription has 5 seats (3 + 2)
+      fake.subscriptions.retrieve.mockResolvedValue(sub());
+      fake.subscriptions.update.mockResolvedValue(sub({ items: { data: [{ id: "si_b", quantity: 1, price: { id: "price_base" } }, { id: "si_s", quantity: 4, price: { id: "price_seat" } }] } }));
+      const r = await send({ id: "evt_s1", type: "checkout.session.completed", data: { object: { mode: "subscription", subscription: "sub_1", client_reference_id: "team-1" } } });
+      expect((await r.json()).result).toBe("updated");
+      expect(fake.subscriptions.update).toHaveBeenCalledWith("sub_1", { items: [{ id: "si_s", quantity: 4 }], proration_behavior: "create_prorations" });
+      expect(world.team.seat_limit).toBe(7);
+      // Enough seats: nothing changes.
+      fake.subscriptions.update.mockClear();
+      world.members = 5;
+      fake.subscriptions.retrieve.mockResolvedValue(sub());
+      await send({ id: "evt_s2", type: "checkout.session.completed", data: { object: { mode: "subscription", subscription: "sub_1", client_reference_id: "team-1" } } });
+      expect(fake.subscriptions.update).not.toHaveBeenCalled();
+    });
+
+    it("emails the owner once per failed invoice, and an email problem never fails the webhook", async () => {
+      vi.stubEnv("RESEND_API_KEY", "re_test");
+      vi.stubEnv("EMAIL_FROM", "PinPlan <billing@example.com>");
+      world.team.billing_email = "pay@acme.test";
+      fake.subscriptions.retrieve.mockResolvedValue(sub({ status: "past_due" }));
+      const invoice = { id: "in_1", amount_due: 6400, currency: "usd", next_payment_attempt: 1_800_000_000, subscription: "sub_1" };
+      for (let i = 0; i < 2; i++) {
+        const r = await send({ id: `evt_f${i}`, type: "invoice.payment_failed", data: { object: invoice } });
+        expect(r.status).toBe(200);
+        expect((await r.json()).email).toBe(i === 0 ? "sent" : "already_sent");
+      }
+      expect(emails).toHaveLength(1);
+      expect(emails[0]).toMatchObject({ to: ["pay@acme.test"], key: "pinplan-payment-failed-in_1" });
+      expect(emails[0].subject).toMatch(/payment didn't go through/);
+      // A new invoice fails: one more email.
+      await send({ id: "evt_f3", type: "invoice.payment_failed", data: { object: { ...invoice, id: "in_2" } } });
+      expect(emails).toHaveLength(2);
+      // Resend is down: still 200, and the claim is given back so a retry can send it.
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const realFetch = globalThis.fetch;
+      vi.stubGlobal("fetch", (async (input: string | URL | Request, init?: RequestInit) =>
+        String(input) === "https://api.resend.com/emails" ? new Response("{}", { status: 500 }) : realFetch(input, init)) as typeof fetch);
+      const r = await send({ id: "evt_f4", type: "invoice.payment_failed", data: { object: { ...invoice, id: "in_3" } } });
+      expect(r.status).toBe(200);
+      expect((await r.json()).email).toBe("failed");
+      expect(world.team.payment_failed_invoice_id).toBeNull();
     });
 
     it("ignores other events and leaves comped teams alone", async () => {

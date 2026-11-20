@@ -1,6 +1,8 @@
 -- Billing checks: run after the migrations (also works inside a transaction that is rolled back).
 -- Any failed check raises an exception.
 \set ON_ERROR_STOP on
+-- These checks are about billing as enforced at launch (20261124100200_billing_policy.sql: billing_settings.enforce).
+update public.billing_settings set enforce = true;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000b1', 'bowner@example.com'),
                                           ('00000000-0000-0000-0000-0000000000b2', 'btech@example.com'),
                                           ('00000000-0000-0000-0000-0000000000b3', 'boffice@example.com'),
@@ -112,7 +114,8 @@ select pg_temp.check((select notes from public.projects where id = 'bp1') = 'pas
 -- Canceled: read-only. Reads work; every kind of job write is refused with the known message.
 select pg_temp.as_service();
 set role service_role;
-update public.teams set plan_status = 'canceled' where owner_id = '00000000-0000-0000-0000-0000000000b1';
+-- (after the trial: a team that cancels during its trial keeps working until the trial ends)
+update public.teams set plan_status = 'canceled', trial_ends_at = now() - interval '1 minute' where owner_id = '00000000-0000-0000-0000-0000000000b1';
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000b1');
 select pg_temp.check(not (public.team_billing() ->> 'can_work')::boolean, 'canceled team cannot work');
@@ -188,3 +191,5 @@ update public.projects set notes = 'solo edit' where id = 'bsolo1';
 select pg_temp.check((select notes from public.projects where id = 'bsolo1') = 'solo edit', 'solo user works as before');
 
 reset role;
+-- Back to the default for the tests that follow.
+update public.billing_settings set enforce = false;

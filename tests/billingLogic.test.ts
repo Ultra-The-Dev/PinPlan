@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   bannerFor,
+  billingAllowsWork,
   billingSummary,
+  canWork,
   checkoutTrialEnd,
   daysLeft,
   extraSeats,
+  isDuplicateSubscription,
   isSubscriptionInactive,
   paidSeats,
+  parseSoloBilling,
   parseTeamBilling,
   planStatusFromStripe,
+  priceMismatches,
   seatTarget,
   shouldApplySubscription,
+  soloAllowsWork,
+  soloBannerFor,
   subscriptionIdFromEvent,
   teamPatchFromSubscription,
   type TeamBilling,
@@ -41,7 +48,59 @@ describe("planAllowsWork", () => {
     expect(planAllowsWork("trialing", null, NOW)).toBe(true);
     expect(planAllowsWork("incomplete", inDays(1), NOW)).toBe(true);
     expect(planAllowsWork("incomplete", null, NOW)).toBe(false);
-    for (const s of ["canceled", "unpaid"] as const) expect(planAllowsWork(s, inDays(5), NOW)).toBe(false);
+    expect(planAllowsWork("unpaid", inDays(5), NOW)).toBe(false);
+  });
+
+  it("canceled or incomplete keep working while the team's own trial runs", () => {
+    expect(planAllowsWork("canceled", inDays(5), NOW)).toBe(true);
+    expect(planAllowsWork("canceled", inDays(-1), NOW)).toBe(false);
+    expect(planAllowsWork("canceled", null, NOW)).toBe(false);
+    expect(planAllowsWork("incomplete", inDays(-1), NOW)).toBe(false);
+  });
+
+  it("enforce=false: an unpaid trial never locks, a lapsed subscription still does", () => {
+    for (const s of ["trialing", "incomplete", "none"] as const) expect(planAllowsWork(s, inDays(-3), NOW, false)).toBe(true);
+    expect(planAllowsWork(null, null, NOW, false)).toBe(true);
+    expect(planAllowsWork("canceled", inDays(-3), NOW, false)).toBe(false);
+    expect(planAllowsWork("unpaid", null, NOW, false)).toBe(false);
+    // Enforced is the default.
+    expect(planAllowsWork("trialing", inDays(-3), NOW)).toBe(false);
+  });
+});
+
+describe("solo (no company team)", () => {
+  it("reads solo_billing()", () => {
+    expect(parseSoloBilling(null)).toBeNull();
+    expect(parseSoloBilling({ trial_ends_at: inDays(3), can_work: true, enforce: true })).toEqual({ trialEndsAt: inDays(3), enforce: true });
+    expect(parseSoloBilling({ trial_ends_at: null })).toEqual({ trialEndsAt: null, enforce: true });
+    expect(parseSoloBilling({ trial_ends_at: inDays(-3), enforce: false })).toEqual({ trialEndsAt: inDays(-3), enforce: false });
+  });
+
+  it("personal trial: works until it ends; no deadline (pre-launch) or not enforced never locks", () => {
+    expect(soloAllowsWork({ trialEndsAt: inDays(2), enforce: true }, NOW)).toBe(true);
+    expect(soloAllowsWork({ trialEndsAt: inDays(-1), enforce: true }, NOW)).toBe(false);
+    expect(soloAllowsWork({ trialEndsAt: null, enforce: true }, NOW)).toBe(true);
+    expect(soloAllowsWork({ trialEndsAt: inDays(-1), enforce: false }, NOW)).toBe(true);
+    expect(soloAllowsWork(null, NOW)).toBe(true);
+  });
+
+  it("canWork: never locks before loading or signed out; the team decides when on one; else the personal trial", () => {
+    const lapsed = { trialEndsAt: inDays(-1), enforce: true };
+    expect(canWork({ ready: false, userId: "u", onTeam: false, billing: null, solo: lapsed }, NOW)).toBe(true);
+    expect(canWork({ ready: true, userId: null, onTeam: false, billing: null, solo: lapsed }, NOW)).toBe(true);
+    expect(canWork({ ready: true, userId: "u", onTeam: false, billing: null, solo: undefined }, NOW)).toBe(true); // not loaded yet
+    expect(canWork({ ready: true, userId: "u", onTeam: false, billing: null, solo: lapsed }, NOW)).toBe(false);
+    expect(canWork({ ready: true, userId: "u", onTeam: true, billing: billing(), solo: lapsed }, NOW)).toBe(true);
+    expect(canWork({ ready: true, userId: "u", onTeam: true, billing: billing({ status: "unpaid" }), solo: null }, NOW)).toBe(false);
+    expect(canWork({ ready: true, userId: "u", onTeam: true, billing: null, solo: null }, NOW)).toBe(true); // no billing in the database
+  });
+
+  it("banner for the personal trial", () => {
+    expect(soloBannerFor({ trialEndsAt: inDays(10), enforce: true }, NOW)).toBeNull();
+    expect(soloBannerFor({ trialEndsAt: null, enforce: true }, NOW)).toBeNull();
+    expect(soloBannerFor({ trialEndsAt: inDays(-1), enforce: false }, NOW)).toBeNull();
+    expect(soloBannerFor({ trialEndsAt: inDays(2.5), enforce: true }, NOW)).toEqual({ tone: "amber", text: "Your free trial ends in 3 days. Start a company team to keep working.", action: "team" });
+    expect(soloBannerFor({ trialEndsAt: inDays(-1), enforce: true }, NOW)).toMatchObject({ tone: "red", action: "team", text: expect.stringMatching(/^Your free trial has ended, so jobs are read-only/) });
   });
 });
 
@@ -52,6 +111,18 @@ describe("parseTeamBilling", () => {
     expect(b).toMatchObject({ status: "active", seatLimit: 4, members: 3, canWork: true, hasSubscription: true, currentPeriodEnd: "2026-12-19T00:00:00Z" });
     expect(parseTeamBilling({ status: "weird", seat_limit: null, members: "2" }, NOW)).toMatchObject({ status: "none", seatLimit: null, members: 2, canWork: false });
   });
+
+  it("reads cancel_at and enforce (missing enforce: an older database, always enforced)", () => {
+    expect(parseTeamBilling({ status: "active", cancel_at: "2026-12-01T00:00:00Z", enforce: false }, NOW)).toMatchObject({ cancelAt: "2026-12-01T00:00:00Z", enforce: false });
+    expect(parseTeamBilling({ status: "active" }, NOW)).toMatchObject({ cancelAt: null, enforce: true });
+    expect(parseTeamBilling({ status: "trialing", trial_ends_at: inDays(-1), enforce: false }, NOW)!.canWork).toBe(true);
+  });
+
+  it("billingAllowsWork follows enforce", () => {
+    expect(billingAllowsWork(billing({ trialEndsAt: inDays(-1) }), NOW)).toBe(false);
+    expect(billingAllowsWork(billing({ trialEndsAt: inDays(-1), enforce: false }), NOW)).toBe(true);
+    expect(billingAllowsWork(billing({ status: "canceled", trialEndsAt: inDays(2) }), NOW)).toBe(true);
+  });
 });
 
 describe("status wording", () => {
@@ -60,8 +131,23 @@ describe("status wording", () => {
     expect(billingSummary(billing({ trialEndsAt: inDays(-1) }), NOW).label).toBe("Trial ended");
     expect(billingSummary(billing({ status: "active", currentPeriodEnd: "2026-12-19T00:00:00Z" }), NOW).detail).toBe("Renews Dec 19, 2026.");
     expect(billingSummary(billing({ status: "past_due" }), NOW).label).toBe("Past due");
-    expect(billingSummary(billing({ status: "canceled" }), NOW).tone).toBe("red");
+    expect(billingSummary(billing({ status: "canceled", trialEndsAt: inDays(-1) }), NOW).tone).toBe("red");
     expect(billingSummary(billing({ status: "comped" }), NOW).detail).toMatch(/Founder account/);
+  });
+
+  it("says when a canceled or ending subscription turns read-only", () => {
+    expect(billingSummary(billing({ status: "active", cancelAt: "2026-12-01T00:00:00Z", currentPeriodEnd: "2026-12-01T00:00:00Z" }), NOW)).toEqual({
+      label: "Ending",
+      detail: "Ends Dec 1, 2026: jobs turn read-only after that.",
+      tone: "amber",
+    });
+    expect(billingSummary(billing({ status: "canceled", trialEndsAt: "2026-11-25T00:00:00Z" }), NOW)).toMatchObject({ label: "Canceled", detail: "Ends Nov 25, 2026: jobs turn read-only after that." });
+    // A past cancel_at is ignored.
+    expect(billingSummary(billing({ status: "active", cancelAt: inDays(-1) }), NOW).label).toBe("Active");
+  });
+
+  it("an expired trial while billing isn't enforced says nothing is locked", () => {
+    expect(billingSummary(billing({ trialEndsAt: inDays(-1), enforce: false }), NOW)).toMatchObject({ label: "Trial ended", tone: "slate" });
   });
 
   it("counts trial days up", () => {
@@ -85,6 +171,22 @@ describe("bannerFor", () => {
     expect(bannerFor(b, "tech", NOW)).toMatchObject({ action: null, text: expect.stringMatching(/Ask your office/) });
     // Already subscribed during the trial: nothing to do.
     expect(bannerFor({ ...b, hasSubscription: true }, "owner", NOW)).toBeNull();
+    // Billing not enforced yet: the trial ending changes nothing.
+    expect(bannerFor({ ...b, enforce: false }, "owner", NOW)).toBeNull();
+    expect(bannerFor(billing({ trialEndsAt: inDays(-1), enforce: false }), "owner", NOW)).toBeNull();
+  });
+
+  it("canceled during the trial, or a cancellation within a week", () => {
+    expect(bannerFor(billing({ status: "canceled", trialEndsAt: "2026-11-25T00:00:00Z", hasSubscription: true }), "owner", NOW)).toEqual({
+      tone: "amber",
+      text: "Your subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that. Start a subscription to keep working.",
+      action: "subscribe",
+    });
+    expect(bannerFor(billing({ status: "active", hasSubscription: true, cancelAt: "2026-11-23T00:00:00Z" }), "admin", NOW)).toMatchObject({
+      action: "portal",
+      text: "Your subscription ends Nov 23, 2026: jobs turn read-only after that. Renew it in billing to keep working.",
+    });
+    expect(bannerFor(billing({ status: "active", hasSubscription: true, cancelAt: inDays(20) }), "admin", NOW)).toBeNull();
   });
 
   it("past due points the office at the portal", () => {
@@ -93,7 +195,7 @@ describe("bannerFor", () => {
 
   it("read-only after the trial or a lapse", () => {
     expect(bannerFor(billing({ trialEndsAt: inDays(-1) }), "owner", NOW)).toMatchObject({ tone: "red", action: "subscribe", text: expect.stringMatching(/^Your free trial has ended, so jobs are read-only/) });
-    expect(bannerFor(billing({ status: "canceled", hasSubscription: true }), "owner", NOW)).toMatchObject({ action: "subscribe" });
+    expect(bannerFor(billing({ status: "canceled", hasSubscription: true, trialEndsAt: inDays(-1) }), "owner", NOW)).toMatchObject({ tone: "red", action: "subscribe" });
     expect(bannerFor(billing({ status: "unpaid", hasSubscription: true }), "admin", NOW)).toMatchObject({ action: "portal" });
     expect(bannerFor(billing({ status: "unpaid", hasSubscription: true }), "tech", NOW)).toMatchObject({ tone: "red", action: null });
   });
@@ -149,7 +251,11 @@ describe("Stripe → team", () => {
       stripe_customer_id: "cus_1",
       current_period_end: new Date(1_800_000_000_000).toISOString(),
       seat_limit: PLANS[0].includedSeats + 2,
+      cancel_at: null,
     });
+    expect(teamPatchFromSubscription({ ...sub, cancel_at: 1_790_000_000 }, { seatPriceId: SEAT }).cancel_at).toBe(new Date(1_790_000_000_000).toISOString());
+    // Older API versions: only "cancel at period end".
+    expect(teamPatchFromSubscription({ ...sub, cancel_at_period_end: true }, { seatPriceId: SEAT }).cancel_at).toBe(new Date(1_800_000_000_000).toISOString());
     const noSeats = { ...sub, items: { data: [sub.items.data[0]] }, current_period_end: 1_700_000_000 };
     expect(teamPatchFromSubscription(noSeats, { seatPriceId: SEAT })).toMatchObject({ seat_limit: PLANS[0].includedSeats, current_period_end: new Date(1_700_000_000_000).toISOString() });
     const trial = { ...sub, status: "trialing", trial_end: 1_790_000_000, customer: { id: "cus_2" } };
@@ -162,6 +268,30 @@ describe("Stripe → team", () => {
     expect(shouldApplySubscription({ plan_status: "active", stripe_subscription_id: "sub_1" }, { ...sub, status: "canceled" })).toBe(true);
     expect(shouldApplySubscription({ plan_status: "active", stripe_subscription_id: "sub_2" }, { ...sub, status: "canceled" })).toBe(false);
     expect(shouldApplySubscription({ plan_status: "canceled", stripe_subscription_id: "sub_0" }, sub)).toBe(true);
+  });
+
+  it("spots a second live subscription for a team", () => {
+    const team = { stripe_subscription_id: "sub_old" };
+    const fresh = { ...sub, id: "sub_new", status: "active" };
+    expect(isDuplicateSubscription(team, fresh, { id: "sub_old", status: "active" })).toBe(true);
+    expect(isDuplicateSubscription(team, fresh, { id: "sub_old", status: "trialing" })).toBe(true);
+    expect(isDuplicateSubscription(team, fresh, { id: "sub_old", status: "canceled" })).toBe(false); // a resubscribe
+    expect(isDuplicateSubscription(team, fresh, null)).toBe(false);
+    expect(isDuplicateSubscription(team, { ...fresh, status: "canceled" }, { id: "sub_old", status: "active" })).toBe(false);
+    expect(isDuplicateSubscription({ stripe_subscription_id: "sub_new" }, fresh, { id: "sub_new", status: "active" })).toBe(false);
+    expect(isDuplicateSubscription({ stripe_subscription_id: null }, fresh, null)).toBe(false);
+  });
+
+  it("compares Stripe's prices with the app's", () => {
+    const plan = PLANS[0];
+    const ok = (cents: number) => ({ active: true, unit_amount: cents, currency: "usd", recurring: { interval: "month", interval_count: 1 } });
+    expect(priceMismatches({ base: ok(plan.basePrice * 100), seat: ok(plan.seatPrice * 100) }, plan)).toEqual([]);
+    const bad = priceMismatches({ base: { ...ok(plan.basePrice * 100 + 100), currency: "eur" }, seat: { ...ok(plan.seatPrice * 100), recurring: { interval: "year" }, active: false } }, plan);
+    expect(bad).toHaveLength(4);
+    expect(bad[0]).toMatch(/base price is .* in Stripe but/);
+    expect(bad.join(" ")).toMatch(/EUR, not USD/);
+    expect(bad.join(" ")).toMatch(/seat price is archived/);
+    expect(bad.join(" ")).toMatch(/seat price doesn't renew monthly/);
   });
 
   it("finds the subscription in each event", () => {
