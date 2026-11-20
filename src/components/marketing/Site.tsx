@@ -1,16 +1,16 @@
 "use client";
-// Shared chrome for the public pages (/welcome, /pricing) and the auth pages (/signup, /login, /reset).
+// Shared chrome for the public pages (/welcome, /pricing, the legal pages) and the auth pages (/signup, /login, /reset).
 // The public pages use the brand in docs/brand.md, scoped under `.mk`; the auth pages keep the app's look (Brand).
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { startDemo } from "@/lib/onboarding";
 import { useSyncStatus } from "@/lib/sync";
 import { useArrivalParams } from "@/lib/useArrivalUrl";
 import SiteFooter from "@/components/SiteFooter";
-import { MK_ROOT } from "./fonts";
+import { MAIN_ID, MK_ROOT } from "./fonts";
 import { Wordmark } from "./Wordmark";
 import "./marketing.css";
 
@@ -32,12 +32,52 @@ const NAV = [
   { href: "/welcome#faq", label: "Questions" },
 ];
 
-/** Top bar for the marketing pages. Signed-in visitors get a way back into the app instead of the sign-up buttons. */
+/**
+ * Top bar for the marketing and legal pages. Signed-in visitors get a way back into the app instead of the sign-up
+ * buttons. Below `lg` the section links fold into a menu button.
+ */
 export function SiteHeader() {
   const s = useSyncStatus();
+  const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      menuButton.current?.focus();
+    };
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const onWide = () => {
+      if (wide.matches) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [open]);
   return (
     <header className="sticky top-0 z-30 border-b border-mk-rule bg-mk-paper/90 backdrop-blur-md">
+      <a
+        href={`#${MAIN_ID}`}
+        className="absolute top-2 left-2 z-40 -translate-y-24 rounded-md bg-mk-graphite px-4 py-2 text-[15px] font-semibold text-white focus:translate-y-0"
+      >
+        Skip to content
+      </a>
       <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
+        <button
+          ref={menuButton}
+          type="button"
+          className="-ml-2 rounded-md p-2 hover:bg-mk-sheet lg:hidden"
+          aria-expanded={open}
+          aria-controls="site-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+        </button>
         <Wordmark />
         <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label="Site">
           {NAV.map((n) => (
@@ -53,7 +93,10 @@ export function SiteHeader() {
             </Link>
           ) : (
             <>
-              <Link href="/login" className="rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 sm:px-3">
+              <Link
+                href="/login"
+                className="hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
+              >
                 Sign in
               </Link>
               <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm max-[359px]:px-2.5">
@@ -63,6 +106,18 @@ export function SiteHeader() {
           )}
         </div>
       </div>
+      {/* Always in the page (hidden when closed) so the button's aria-controls points at a real element. */}
+      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label="Site menu">
+        <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
+          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: "Sign in" }])].map((n) => (
+            <li key={n.href}>
+              <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
+                {n.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
   );
 }
@@ -72,7 +127,9 @@ export function SitePage({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${MK_ROOT} flex-1 overflow-x-hidden overflow-y-auto scroll-smooth motion-reduce:scroll-auto`} id="site-scroll">
       <SiteHeader />
-      <main>{children}</main>
+      <main id={MAIN_ID} tabIndex={-1} className="outline-none">
+        {children}
+      </main>
       <SiteFooter />
     </div>
   );

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-legal.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
-    "test:db": "scripts/test-supabase.sh"
+    "test:db": "scripts/test-supabase.sh",
+    "check:legal": "LEGAL_CHECK=strict node scripts/check-legal.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

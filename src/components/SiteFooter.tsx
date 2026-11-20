@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MK_ROOT } from "@/components/marketing/fonts";
 import { Wordmark } from "@/components/marketing/Wordmark";
+import { COMPANY, isPlaceholder } from "@/lib/legal";
 import { PRODUCT_NAME } from "@/lib/plans";
 import "@/components/marketing/marketing.css";
 
@@ -28,6 +29,10 @@ export const FOOTER_COLUMNS: { title: string; links: { href: string; label: stri
     links: [
       { href: "/terms", label: "Terms of Service" },
       { href: "/privacy", label: "Privacy Policy" },
+      { href: "/legal/subprocessors", label: "Subprocessors" },
+      { href: "/legal/dpa", label: "Data Processing Addendum" },
+      { href: "/support#security", label: "Security" },
+      { href: "/accessibility", label: "Accessibility" },
     ],
   },
 ];
@@ -59,8 +64,9 @@ export default function SiteFooter({ className = "" }: { className?: string }) {
           ))}
         </div>
         <div className="border-t border-white/10">
-          {/* No year from new Date(): this renders at build time (static, prerendered pages). */}
-          <p className="mx-auto max-w-[1240px] px-4 py-5 text-[13px] text-mk-on-dark sm:px-6">© {PRODUCT_NAME}</p>
+          {/* No year from new Date(): this renders at build time (static, prerendered pages). The company name falls back to the
+              product name until COMPANY.legalName is filled in (a production build can't ship with it unfilled). */}
+          <p className="mx-auto max-w-[1240px] px-4 py-5 text-[13px] text-mk-on-dark sm:px-6">© {isPlaceholder(COMPANY.legalName) ? PRODUCT_NAME : COMPANY.legalName}</p>
         </div>
       </div>
     </footer>

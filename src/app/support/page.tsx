@@ -2,19 +2,23 @@
  * ============================================================================================================
  *  DRAFT — HAVE A QUALIFIED LAWYER REVIEW THE ACCOUNT-DELETION AND DATA-EXPORT WORDING BEFORE LAUNCH.
  *  Apple requires a working support URL and in-app account deletion; this page is that support URL.
- *  Keep the steps below in sync with the app's actual menus. Fill in every [placeholder] in src/lib/legal.ts.
+ *  Keep the steps below in sync with the app's actual menus. Fill in every placeholder in src/lib/legal.ts (never
+ *  type one here). The AI question appears only while AI_ENABLED (src/lib/features.ts) is on.
  * ============================================================================================================
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import StatusCheck from "@/components/legal/StatusCheck";
-import { COMPANY } from "@/lib/legal";
+import { publicMetadata } from "@/components/marketing/seo";
+import { AI_ENABLED } from "@/lib/features";
+import { COMPANY, RETENTION } from "@/lib/legal";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
+  path: "/support",
   title: "Support · PinPlan",
   description: "Contact PinPlan support, export your data, delete your account and check service status.",
-};
+});
 
 const S = {
   contact: { id: "contact", title: "Contact us" },
@@ -26,7 +30,7 @@ const S = {
 } satisfies Record<string, TocItem>;
 const toc = Object.values(S);
 
-const FAQ: { q: string; a: React.ReactNode }[] = [
+const FAQ: { q: string; a: React.ReactNode; onlyWhen?: "ai" }[] = [
   {
     q: "Does PinPlan work without signal?",
     a: "Yes. Jobs, plans and photos are saved on your device first, so you can keep pinning devices and taking photos with no connection. When you’re back online, changes sync to your team automatically. The cloud badge in the header shows anything still waiting to upload.",
@@ -43,10 +47,11 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   {
     q: "Is my data used to train AI?",
     a: "No. AI features (plan reading, device suggestions, photo captions, daily-log drafts) only run when you use them. The images and text involved are processed by Anthropic under their commercial terms, which do not allow training on this data. AI suggestions never count in a takeoff or estimate until someone accepts them.",
+    onlyWhen: "ai",
   },
   {
     q: "How do I add my office staff and technicians?",
-    a: "Open Settings → Team and invite them. Technicians can work on plans, photos and checklists but don’t see prices, estimates or Billdu. Each person gets their own login.",
+    a: "Open Settings → Team and invite them. Technicians can work on plans, photos, checklists and tasks; their logins hide prices, quotes and invoices in the app. Each person gets their own login.",
   },
   {
     q: "How do I change or cancel my subscription?",
@@ -81,58 +86,58 @@ export default function SupportPage() {
     <LegalDoc
       title="Support"
       toc={toc}
-      intro={<p>We’re a small team that builds PinPlan for installers. Real people answer every message.</p>}
+      intro={<p>We’re a small team that builds PinPlan for electrical, low-voltage and specialty contractors. Real people answer every message.</p>}
     >
       <Section item={S.contact}>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="card p-5">
-            <p className="font-semibold text-slate-900">Email support</p>
+          <div className="mk-sheet p-5">
+            <p className="font-semibold text-mk-graphite">Email support</p>
             <p className="mt-1">
               <Ph>{COMPANY.supportEmail}</Ph>
             </p>
-            <p className="mt-2 text-sm text-slate-500">
-              We reply within one business day (US hours, <Ph>[time zone]</Ph>). Include your company name and, for a problem, what you were doing and a
+            <p className="mt-2 text-sm text-mk-pencil">
+              We reply within one business day (US hours, <Ph>{COMPANY.supportTimeZone}</Ph>). Include your company name and, for a problem, what you were doing and a
               screenshot or the copied error details.
             </p>
           </div>
-          <div className="card p-5">
-            <p className="font-semibold text-slate-900">Privacy and data requests</p>
+          <div className="mk-sheet p-5">
+            <p className="font-semibold text-mk-graphite">Privacy and data requests</p>
             <p className="mt-1">
               <Ph>{COMPANY.privacyEmail}</Ph>
             </p>
-            <p className="mt-2 text-sm text-slate-500">For access, export or deletion requests. Please send them from your account email so we can verify them.</p>
+            <p className="mt-2 text-sm text-mk-pencil">For access, export or deletion requests. Please send them from your account email so we can verify them.</p>
           </div>
         </div>
         <p>Please never send passwords, API keys or payment card numbers by email. We will never ask for them.</p>
       </Section>
 
       <Section item={S.status}>
-        <div className="card mt-4 p-5">
+        <div className="mk-sheet mt-4 p-5">
           <StatusCheck />
-          <p className="mt-3 text-sm text-slate-500">
+          <p className="mt-3 text-sm text-mk-pencil">
             Live check of our servers and database: <a href="/api/health">/api/health</a>
           </p>
         </div>
       </Section>
 
       <Section item={S.faq}>
-        <div className="mt-4 divide-y divide-slate-200 rounded-xl bg-white shadow-soft">
-          {FAQ.map((f) => (
+        <div className="mt-4 divide-y divide-mk-rule mk-sheet">
+          {FAQ.filter((f) => f.onlyWhen !== "ai" || AI_ENABLED).map((f) => (
             <details key={f.q} className="group px-5 py-4 [&_p]:mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-slate-900 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-mk-graphite [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <span className="text-slate-400 transition group-open:rotate-45" aria-hidden>
                   +
                 </span>
               </summary>
-              <p className="text-slate-600">{f.a}</p>
+              <p className="text-mk-pencil">{f.a}</p>
             </details>
           ))}
         </div>
       </Section>
 
       <Section item={S.export}>
-        <p>Your jobs belong to you. You can take them out at any time, on any plan, including after you cancel (for 30 days).</p>
+        <p>Your jobs belong to you. You can take them out at any time, including after your subscription ends (the account stays readable).</p>
         <ul>
           <li>
             <strong>A whole job, with plans, markup, photos and estimate:</strong> open the job → <strong>Job</strong> tab → <strong>Backup</strong> →{" "}
@@ -147,7 +152,7 @@ export default function SupportPage() {
           </li>
           <li>
             <strong>Everything at once:</strong> email <Ph>{COMPANY.supportEmail}</Ph> from the team owner’s address and we’ll send a full export of your
-            account’s data within 7 days.
+            account’s data within {RETENTION.deletionRequestDays} days.
           </li>
         </ul>
       </Section>
@@ -171,13 +176,13 @@ export default function SupportPage() {
           </li>
           <li>If you are a team member, your jobs stay with your team; only your login and personal details are removed.</li>
           <li>
-            Data is deleted from our live systems within 30 days and from backups as they expire, as described in the{" "}
+            Your data is removed from our live database and file storage straight away, and from backups as they expire, as described in the{" "}
             <Link href="/privacy#retention">Privacy Policy</Link>. Copies saved on your own devices remain until you delete the app or its data.
           </li>
         </ul>
         <p>
           Can’t sign in? Email <Ph>{COMPANY.privacyEmail}</Ph> from your account email with the subject “Delete my account” and we’ll do it for you after
-          confirming it’s you.
+          confirming it’s you, within {RETENTION.deletionRequestDays} days of your email.
         </p>
       </Section>
 

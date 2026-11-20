@@ -7,3 +7,7 @@ export const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "
 
 /** Class names for a marketing root: the font variable and the token scope. */
 export const MK_ROOT = `mk ${archivo.variable}`;
+
+/** Id of the public pages' <main>, the target of the "Skip to content" link. (Here, not in the client Site.tsx, so server
+ *  components can import it as a plain string.) */
+export const MAIN_ID = "main";

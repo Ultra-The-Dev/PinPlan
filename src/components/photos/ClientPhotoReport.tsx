@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { readSnapshotSections } from "@/lib/photoReport";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
+import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
 
 interface Snap {
   title: string;
@@ -59,8 +60,7 @@ export default function ClientPhotoReport() {
   const brand = s.business.brandColor || "#0a1b54";
   const accent = s.business.accentColor || "#13e57c";
   return (
-    <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: "Manrope, var(--font-sans), system-ui, sans-serif" }}>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+    <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: CLIENT_FONT_FAMILY }}>
       <header className="border-b border-[#e3e7f1] bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-5 sm:px-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
