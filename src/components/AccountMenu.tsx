@@ -1,12 +1,14 @@
 "use client";
-// The avatar in the header: who you are and your role, plus Settings, Team, Plan & billing and Sign out.
+// The avatar in the header: who you are and your role, plus Settings, Team, Plan & billing, the language and Sign out.
 import { CreditCard, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { ROLE_INFO } from "@/lib/teamLogic";
+import LanguageSwitcher from "./LanguageSwitcher";
 import RoleBadge from "./RoleBadge";
 
 /** One or two letters for the avatar: the person's name on the team, else their email. */
@@ -21,6 +23,7 @@ export function initials(name: string | null | undefined, email: string | null |
 export default function AccountMenu() {
   const { signedIn, configured, email, userId } = useSyncStatus();
   const { role, team, members } = useTeam();
+  const t = useT();
   const me = members.find((m) => m.userId === userId);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -45,8 +48,8 @@ export default function AccountMenu() {
         className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white ring-2 ring-white transition hover:bg-slate-800 focus-visible:ring-brand-300"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Account menu"
-        title="Account"
+        aria-label={t("Account menu")}
+        title={t("Account")}
         onClick={() => setOpen((o) => !o)}
       >
         {letters || <Settings className="h-4 w-4" />}
@@ -60,20 +63,23 @@ export default function AccountMenu() {
               {(team || role) && (
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
                   {role && <RoleBadge role={role} />}
-                  <span className="truncate">{team?.name || (role ? ROLE_INFO[role].name : "")}</span>
+                  <span className="truncate">{team?.name || (role ? t(ROLE_INFO[role].name) : "")}</span>
                 </div>
               )}
             </div>
           )}
           <Link role="menuitem" href="/settings" className={item} onClick={() => setOpen(false)}>
-            <Settings /> Settings
+            <Settings /> {t("Settings")}
           </Link>
           <Link role="menuitem" href="/settings#team" className={item} onClick={() => setOpen(false)}>
-            <Users /> Team
+            <Users /> {t("Team")}
           </Link>
           <Link role="menuitem" href="/settings#billing" className={item} onClick={() => setOpen(false)}>
-            <CreditCard /> Plan &amp; billing
+            <CreditCard /> {t("Plan & billing")}
           </Link>
+          <div className="border-t border-slate-100 px-3 py-2">
+            <LanguageSwitcher />
+          </div>
           {configured && signedIn && (
             <button
               role="menuitem"
@@ -84,7 +90,7 @@ export default function AccountMenu() {
                 void getSupabase()?.auth.signOut();
               }}
             >
-              <LogOut /> Sign out
+              <LogOut /> {t("Sign out")}
             </button>
           )}
         </div>

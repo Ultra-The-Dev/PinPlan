@@ -1,3 +1,5 @@
+"use client";
+import { useT } from "@/lib/i18n";
 import { ROLE_INFO, type TeamRole } from "@/lib/teamLogic";
 
 export const ROLE_STYLE: Record<TeamRole, string> = {
@@ -8,5 +10,7 @@ export const ROLE_STYLE: Record<TeamRole, string> = {
 
 /** Small coloured role label: Owner / Admin / Tech. */
 export default function RoleBadge({ role, long, className = "" }: { role: TeamRole; long?: boolean; className?: string }) {
-  return <span className={`chip shrink-0 ring-1 ${ROLE_STYLE[role]} ${className}`}>{long ? ROLE_INFO[role].name : ROLE_INFO[role].short}</span>;
+  const t = useT();
+  // Dynamic keys: the role names are translated in src/lib/i18n/ru/lib-strings.ts.
+  return <span className={`chip shrink-0 ring-1 ${ROLE_STYLE[role]} ${className}`}>{t(long ? ROLE_INFO[role].name : ROLE_INFO[role].short)}</span>;
 }

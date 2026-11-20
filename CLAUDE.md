@@ -46,4 +46,8 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   order is `docs/launch-checklist.md`, running it is `docs/production-checklist.md`. AI stays off.
 - Public repo: no secrets, no real customer data, no model identifiers in code (`ANTHROPIC_MODEL` is configuration).
 - Tests: `tests/sampleJob.test.ts` encodes the sample job hand counts from PLAN.md.
+- **Translation** (`docs/i18n.md`, `src/lib/i18n/`): English text is the key — `const t = useT(); t("New job")`,
+  `t.tn("{n} device", "{n} devices", n)`, `<T>…</T>` in server components, `msg()` for text in data. Russian lives in
+  `src/lib/i18n/ru/<area>.ts`; `npm run check:i18n`. Client-facing documents (quotes, invoices, PDFs, client links,
+  client emails) stay in English.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

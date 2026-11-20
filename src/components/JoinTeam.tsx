@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
+import { useT } from "@/lib/i18n";
 import { recordTermsAccepted } from "@/lib/onboarding";
 import { authErrorMessage, termsMetadata, TERMS_VERSION } from "@/lib/onboardingLogic";
 import { getAuthor, setAuthor } from "@/lib/photos";
@@ -14,6 +15,7 @@ import { useSyncStatus } from "@/lib/sync";
 import { acceptInvite, inviteInfo, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
 import { formatCode, joinReply, joinRequestBody, joinUrl, normalizeCode, PASSWORD_MIN, ROLE_INFO, signupProblem, type TeamRole } from "@/lib/teamLogic";
 import { Logo } from "./AppHeader";
+import LanguageSwitcher from "./LanguageSwitcher";
 import RoleBadge from "./RoleBadge";
 
 /** Every error on this page, in plain words (Supabase's own messages included). */
@@ -23,6 +25,7 @@ const BAD_CODE = "That code isn’t valid any more. It may have been used alread
 type Step = { kind: "code" } | { kind: "invite"; info: InviteInfo } | { kind: "checkEmail"; info: InviteInfo; email: string } | { kind: "joined"; team: string; role: TeamRole };
 
 export default function JoinTeam() {
+  const t = useT();
   const params = useSearchParams();
   const fromUrl = params.get("code") ?? "";
   const [code, setCode] = useState(() => formatCode(fromUrl));
@@ -72,7 +75,8 @@ export default function JoinTeam() {
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur">
         <Logo />
         <span className="text-sm font-semibold sm:hidden">{PRODUCT_NAME}</span>
-        <span className="ml-auto text-xs text-slate-500">Join your team</span>
+        <span className="ml-auto hidden text-xs text-slate-500 min-[420px]:inline">{t("Join your team")}</span>
+        <LanguageSwitcher className="ml-auto min-[420px]:ml-3" showIcon={false} />
       </header>
       <main className="flex-1 overflow-auto">
         <div className="mx-auto w-full max-w-md px-4 py-8 sm:py-12">

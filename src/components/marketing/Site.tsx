@@ -5,6 +5,8 @@ import { CheckCircle2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { msg, useT } from "@/lib/i18n";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { startDemo } from "@/lib/onboarding";
 import { useSyncStatus } from "@/lib/sync";
@@ -15,10 +17,10 @@ import { Wordmark } from "./Wordmark";
 import "./marketing.css";
 
 const NAV = [
-  { href: "/welcome#how", label: "How it works" },
-  { href: "/welcome#trades", label: "Trades" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/welcome#faq", label: "Questions" },
+  { href: "/welcome#how", label: msg("How it works") },
+  { href: "/welcome#trades", label: msg("Trades") },
+  { href: "/pricing", label: msg("Pricing") },
+  { href: "/welcome#faq", label: msg("Questions") },
 ];
 
 /**
@@ -27,6 +29,7 @@ const NAV = [
  */
 export function SiteHeader() {
   const s = useSyncStatus();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -53,7 +56,7 @@ export function SiteHeader() {
         href={`#${MAIN_ID}`}
         className="absolute top-2 left-2 z-40 -translate-y-24 rounded-md bg-mk-graphite px-4 py-2 text-[15px] font-semibold text-white focus:translate-y-0"
       >
-        Skip to content
+        {t("Skip to content")}
       </a>
       <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
         <button
@@ -62,23 +65,24 @@ export function SiteHeader() {
           className="-ml-2 rounded-md p-2 hover:bg-mk-sheet lg:hidden"
           aria-expanded={open}
           aria-controls="site-menu"
-          aria-label={open ? "Close menu" : "Open menu"}
+          aria-label={open ? t("Close menu") : t("Open menu")}
           onClick={() => setOpen((o) => !o)}
         >
           {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
         <Wordmark />
-        <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label="Site">
+        <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label={t("Site")}>
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className="rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
-              {n.label}
+              {t(n.label)}
             </Link>
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <LanguageSwitcher className="mr-2 hidden lg:inline-flex" showIcon={false} />
           {s.authReady && s.signedIn ? (
             <Link href="/" className="mk-btn mk-btn-ink mk-btn-sm">
-              Open the app
+              {t("Open the app")}
             </Link>
           ) : (
             <>
@@ -86,25 +90,28 @@ export function SiteHeader() {
                 href="/login"
                 className="hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
               >
-                Sign in
+                {t("Sign in")}
               </Link>
               <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm max-[359px]:px-2.5">
-                Start free trial
+                {t("Start free trial")}
               </Link>
             </>
           )}
         </div>
       </div>
       {/* Always in the page (hidden when closed) so the button's aria-controls points at a real element. */}
-      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label="Site menu">
+      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label={t("Site menu")}>
         <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
-          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: "Sign in" }])].map((n) => (
+          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: msg("Sign in") }])].map((n) => (
             <li key={n.href}>
               <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
-                {n.label}
+                {t(n.label)}
               </Link>
             </li>
           ))}
+          <li className="px-2 py-3">
+            <LanguageSwitcher />
+          </li>
         </ul>
       </nav>
     </header>

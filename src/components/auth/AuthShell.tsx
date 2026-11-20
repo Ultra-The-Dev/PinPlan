@@ -2,12 +2,16 @@
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 import { passwordStrength } from "@/lib/onboardingLogic";
 import { PASSWORD_MIN } from "@/lib/teamLogic";
+import LanguageSwitcher from "../LanguageSwitcher";
 import { Wordmark } from "../marketing/Wordmark";
 
-/** A centred card under a slim header with the wordmark, on blueprint paper, for /signup, /login, /reset. */
+/** A centred card under a slim header with the wordmark, on blueprint paper, for /signup, /login, /reset. The footer
+ *  carries the language switcher (field crews often sign in on a phone set to Russian). */
 export function AuthShell({ children, aside, wide }: { children: React.ReactNode; aside?: React.ReactNode; wide?: boolean }) {
+  const t = useT();
   return (
     <div className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50">
       <header className="mx-auto flex h-16 max-w-6xl items-center px-4 sm:px-6">
@@ -17,11 +21,12 @@ export function AuthShell({ children, aside, wide }: { children: React.ReactNode
         <div className="ml-auto text-sm text-slate-500">{aside}</div>
       </header>
       <main className={`mx-auto w-full px-4 pt-6 pb-16 sm:pt-12 ${wide ? "max-w-lg" : "max-w-md"}`}>{children}</main>
-      <footer className="flex flex-wrap justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-500">
-        <Link href="/terms" className="hover:text-slate-700">Terms</Link>
-        <Link href="/privacy" className="hover:text-slate-700">Privacy</Link>
-        <Link href="/support" className="hover:text-slate-700">Support</Link>
-        <Link href="/pricing" className="hover:text-slate-700">Pricing</Link>
+      <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-500">
+        <Link href="/terms" className="hover:text-slate-700">{t("Terms")}</Link>
+        <Link href="/privacy" className="hover:text-slate-700">{t("Privacy")}</Link>
+        <Link href="/support" className="hover:text-slate-700">{t("Support")}</Link>
+        <Link href="/pricing" className="hover:text-slate-700">{t("Pricing")}</Link>
+        <LanguageSwitcher />
       </footer>
     </div>
   );
@@ -58,6 +63,7 @@ export function FormNotice({ children }: { children: React.ReactNode }) {
 
 /** Password input with a show/hide toggle and (for new passwords) a strength meter. */
 export function PasswordField(props: { id: string; label: string; value: string; onChange: (v: string) => void; isNew?: boolean; autoFocus?: boolean }) {
+  const t = useT();
   const [show, setShow] = useState(false);
   const s = passwordStrength(props.value);
   const bar = ["bg-slate-200", "bg-red-500", "bg-amber-500", "bg-lime-500", "bg-emerald-600"][s.score];
@@ -85,7 +91,7 @@ export function PasswordField(props: { id: string; label: string; value: string;
           type="button"
           className="absolute top-1/2 right-1.5 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           onClick={() => setShow(!show)}
-          aria-label={show ? "Hide password" : "Show password"}
+          aria-label={show ? t("Hide password") : t("Show password")}
           aria-pressed={show}
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -99,8 +105,9 @@ export function PasswordField(props: { id: string; label: string; value: string;
             ))}
           </div>
           <p className={`mt-1.5 text-xs ${text}`}>
-            {s.label && <span className="font-medium">{s.label}. </span>}
-            <span className={s.label ? "text-slate-500" : ""}>{s.hint}</span>
+            {/* Dynamic keys from src/lib/onboardingLogic.ts (lib-strings area). */}
+            {s.label && <span className="font-medium">{t(s.label)}. </span>}
+            <span className={s.label ? "text-slate-500" : ""}>{t(s.hint)}</span>
           </p>
         </div>
       )}
