@@ -21,6 +21,8 @@ export interface LandingInput {
   hasTeam?: boolean | null;
   /** The data on this device belongs to an account (localOwner.ts: recorded, or inferred from its sync keys). */
   hasOwner?: boolean;
+  /** That account's sign-in is still stored here, just not refreshed (offline with an expired token): not signed out. */
+  heldSignIn?: boolean;
 }
 
 /** "welcome": first-time visitor → landing page. "setup": signed in but not in a company yet → "Set up your company".
@@ -31,7 +33,8 @@ export function landingDecision(i: LandingInput): "welcome" | "setup" | "login" 
   if (!i.configured) return "stay";
   // Signed out (or someone else picked up the device): an account's jobs stay behind its sign-in. Demo mode is only for
   // data that never had an owner.
-  if (i.authReady && !i.signedIn && i.hasOwner) return "login";
+  // A sign-in only waiting for the network (heldSignIn) isn't a sign-out: field work goes on offline.
+  if (i.authReady && !i.signedIn && i.hasOwner && !i.heldSignIn) return "login";
   // Every account belongs to a company: someone signed in without one sets it up (or joins one) first.
   if (i.authReady && i.signedIn && i.hasTeam === false) return "setup";
   if (i.authReady && i.signedIn && i.hasTeam === null && !i.localJobs) return "wait";

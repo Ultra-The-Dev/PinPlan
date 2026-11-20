@@ -91,6 +91,27 @@ export function recordedOwner(): LocalOwner | null {
   return readLocalOwner() ?? inferLocalOwner("");
 }
 
+/**
+ * `userId`'s sign-in is still stored in this browser (Supabase's `sb-…-auth-token`, with its refresh token) although
+ * the client reports nobody signed in. That happens offline once the access token has expired: the refresh can't reach
+ * the server, so getSession() answers null but keeps the session, and it signs back in by itself when the network
+ * returns. Signing out removes it (as does a refresh the server refuses). Whoever holds the device holds that refresh
+ * token anyway, so sending them to /login would only lock a field worker out of their jobs offline.
+ */
+export function heldSignIn(userId: string | null | undefined): boolean {
+  if (!userId) return false;
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (!/^sb-.+-auth-token$/.test(k)) continue;
+      const v = JSON.parse(localStorage.getItem(k) ?? "null") as { refresh_token?: unknown; user?: { id?: unknown } | null } | null;
+      if (typeof v?.refresh_token === "string" && v.refresh_token && v.user?.id === userId) return true;
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return false;
+}
+
 /** Decide for a sign-in and remember the owner when the jobs here are (now) theirs. */
 export async function checkLocalOwner(userId: string, email: string | null): Promise<OwnerDecision> {
   // Read before awaiting: loading the new account's team rewrites the team cache.

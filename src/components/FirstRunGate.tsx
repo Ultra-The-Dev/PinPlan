@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { pullCompanySettings } from "@/lib/companySettings";
 import { db } from "@/lib/db";
-import { recordedOwner } from "@/lib/localOwner";
+import { heldSignIn, recordedOwner } from "@/lib/localOwner";
 import { COMPANY_READY_EVENT, isDemo } from "@/lib/onboarding";
 import { landingDecision } from "@/lib/onboardingLogic";
 import { useSyncStatus } from "@/lib/sync";
@@ -19,11 +19,11 @@ export default function FirstRunGate({ children }: { children: React.ReactNode }
   const t = useTeam();
   const [localJobs, setLocalJobs] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
-  const [hasOwner, setHasOwner] = useState(false);
+  const [owner, setOwner] = useState<string | null>(null);
   useEffect(() => {
     const done = (n: number) => {
       setDemo(isDemo());
-      setHasOwner(!!recordedOwner());
+      setOwner(recordedOwner()?.userId ?? null);
       setLocalJobs(n);
     };
     db()
@@ -36,7 +36,10 @@ export default function FirstRunGate({ children }: { children: React.ReactNode }
   const known = t.ready && t.userId === s.userId;
   const hasTeam = !s.signedIn || !known ? null : t.team || t.error || t.needsMigration ? true : false;
   // Not known until the local check has run (localJobs set): wait rather than show an owned device's jobs.
-  const decision = landingDecision({ configured: s.configured, authReady: s.authReady, signedIn: s.signedIn, localJobs, demo, hasTeam, hasOwner });
+  // Offline with an expired token the client reports nobody signed in, but the sign-in is still stored: not a sign-out.
+  // (Read only once the sign-in state is known, so only in the browser.)
+  const held = s.authReady && !s.signedIn && !!owner && heldSignIn(owner);
+  const decision = landingDecision({ configured: s.configured, authReady: s.authReady, signedIn: s.signedIn, localJobs, demo, hasTeam, hasOwner: !!owner, heldSignIn: held });
   useEffect(() => {
     if (decision === "login") router.replace("/login");
     if (decision === "welcome") router.replace("/welcome");

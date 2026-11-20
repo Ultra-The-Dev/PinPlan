@@ -12,6 +12,9 @@ describe("landingDecision with an owner on this device", () => {
     expect(landingDecision({ ...base, hasOwner: true, demo: true })).toBe("login");
     expect(landingDecision({ ...base, hasOwner: true, localJobs: 0 })).toBe("login");
   });
+  it("offline with an expired token (the sign-in is still stored), the jobs stay", () => {
+    expect(landingDecision({ ...base, hasOwner: true, heldSignIn: true })).toBe("stay");
+  });
   it("data that never had an owner stays (solo / demo)", () => {
     expect(landingDecision({ ...base, hasOwner: false })).toBe("stay");
     expect(landingDecision({ ...base, localJobs: 0, demo: true })).toBe("stay");
