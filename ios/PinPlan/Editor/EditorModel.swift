@@ -180,7 +180,7 @@ final class EditorModel {
             say(Self.readOnlyToast)
         } else {
             toldReadOnly = true
-            readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
+            readOnlyNotice = app.cloud.editBlockedMessage ?? String(localized: "Jobs are read-only right now — you can still view and export everything.")
         }
         return true
     }
@@ -234,7 +234,7 @@ final class EditorModel {
         if activeSheetId == nil || !sheets.contains(where: { $0.id == activeSheetId }) { activeSheetId = sheets.first?.id }
     }
 
-    static let readOnlyToast = "Read-only — you can view and export, not change"
+    static let readOnlyToast = String(localized: "Read-only — you can view and export, not change")
 
     func say(_ text: String) {
         if justRefused && text != Self.readOnlyToast { return }
@@ -293,15 +293,15 @@ final class EditorModel {
         case .measure:
             draft = draft.count >= 4 ? [x, y] : draft + [x, y]
             if draft.count == 4 {
-                if let ft = Geometry.polylineFt(draft, sheet: sheet) { say("Distance \(Geometry.formatFeetInches(ft)) (\(ft.clean) ft)") }
-                else { say("Set the sheet scale to measure") }
+                if let ft = Geometry.polylineFt(draft, sheet: sheet) { say(String(localized: "Distance \(Geometry.formatFeetInches(ft)) (\(ft.clean) ft)")) }
+                else { say(String(localized: "Set the sheet scale to measure")) }
             }
         }
     }
 
     /// Finish button / double tap for LED and wire runs.
     func finishDraft() {
-        guard draft.count >= 4 else { say("Tap at least two points"); return }
+        guard draft.count >= 4 else { say(String(localized: "Tap at least two points")); return }
         switch tool {
         case .led(let typeId): pending = .led(draft, typeId: typeId); draft = []
         case .wire: finishWire(closetId: nil)
@@ -325,7 +325,7 @@ final class EditorModel {
         }
         draft = []
         draftMarkerId = nil
-        say("Wire run added")
+        say(String(localized: "Wire run added"))
     }
 
     // MARK: multi-select
@@ -407,7 +407,7 @@ final class EditorModel {
     func calibrate(from dimension: String) {
         calibrationHint = dimension
         use(.calibrate)
-        say("Draw a line over the \(dimension) dimension")
+        say(String(localized: "Draw a line over the \(dimension) dimension"))
     }
 
     func deleteSelection() {
@@ -427,7 +427,7 @@ final class EditorModel {
         let cat = app.catalog
         let sid = sheetOnly ? activeSheet?.id : nil
         edit { n = $0.autoHomeRuns(catalog: cat, pricing: pricing, sheetId: sid) }
-        say(n > 0 ? "Drew \(n) home runs" : (bundle.liveClosets.isEmpty ? "Place an equipment closet first" : "No wired devices here"))
+        say(n > 0 ? String(localized: "Drew \(n) home runs") : (bundle.liveClosets.isEmpty ? String(localized: "Place an equipment closet first") : String(localized: "No wired devices here")))
     }
 
     func nextZone(on sheetId: String) -> String {

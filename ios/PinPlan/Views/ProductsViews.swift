@@ -12,7 +12,7 @@ struct ProductLibraryView: View {
     @State private var importing = false
 
     var body: some View {
-        if app.cloud.can(.prices) { library } else { OfficeOnlyView(what: "Brands and models") }
+        if app.cloud.can(.prices) { library } else { OfficeOnlyView(what: String(localized: "Brands and models")) }
     }
 
     private var library: some View {
@@ -131,7 +131,7 @@ struct ProductEditor: View {
                 LabeledContent(isCable ? "Price per ft" : isLF ? "Price per LF" : "Price each") { DoubleField(value: $product.unitPrice) }
                 LabeledContent(isCable ? "Pulling labor per ft" : isLF ? "Labor per LF" : "Labor each") { DoubleField(value: $product.laborPrice) }
             } footer: { Text("Your price before markup. Labor is added per unit when labor is included in the device price") }
-            Section(sentence: "Notes") {
+            Section(sentence: String(localized: "Notes")) {
                 TextField("Specs, finish, where to buy…", text: Binding(get: { product.notes ?? "" }, set: { product.notes = $0.isEmpty ? nil : $0 }), axis: .vertical)
                     .lineLimit(2...5)
             }
@@ -141,7 +141,7 @@ struct ProductEditor: View {
                 } footer: { Text("Jobs that already use it keep it; it just stops appearing in pickers") }
             }
         }
-        .navigationTitle(isNew ? "New product" : product.title)
+        .navigationTitle(isNew ? String(localized: "New product") : product.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -181,14 +181,14 @@ struct ProductImportView: View {
                 Text("Columns: Type, Brand, Model, SKU, Price, Labor, Notes, in any order. Type is a device (“Indoor camera”, “camera”) or a cable (“Cat6”, “HDMI”); cable prices are per foot")
             }
             if !text.isEmpty {
-                Section(sentence: "Will add \(result.products.count)") {
+                Section(sentence: String(localized: "Will add \(result.products.count)")) {
                     ForEach(result.products.prefix(30)) { p in
-                        LabeledContent(p.title, value: "\(app.type(p.deviceTypeId)?.name ?? Cables.cableType(fromKey: p.deviceTypeId).map { "\($0) cable" } ?? "") · \(Money.format(p.unitPrice, currency: app.pricing.currency))")
+                        LabeledContent(p.title, value: "\(app.type(p.deviceTypeId)?.name ?? Cables.cableType(fromKey: p.deviceTypeId).map { String(localized: "\($0) cable") } ?? "") · \(Money.format(p.unitPrice, currency: app.pricing.currency))")
                     }
                     if result.products.count > 30 { Text("…and \(result.products.count - 30) more").foregroundStyle(.secondary) }
                 }
                 if !result.skipped.isEmpty {
-                    Section(sentence: "Skipped \(result.skipped.count)") {
+                    Section(sentence: String(localized: "Skipped \(result.skipped.count)")) {
                         ForEach(result.skipped, id: \.self) { Text($0).font(.footnote).foregroundStyle(.orange) }
                     }
                 }
@@ -294,7 +294,7 @@ struct JobProductsView: View {
         let t = model.takeoff.total
         return t.wireFt.keys.sorted().compactMap { w in
             guard let ft = t.wireFt[w], ft > 0, w != "Unspecified" else { return nil }
-            return (w, "\(ft.clean) ft · \(t.wireRuns[w] ?? 0) run\((t.wireRuns[w] ?? 0) == 1 ? "" : "s")")
+            return (w, String(localized: "\(ft.clean) ft · \(t.wireRuns[w] ?? 0) runs"))
         }
     }
 
@@ -303,10 +303,10 @@ struct JobProductsView: View {
         return app.liveCatalog.compactMap { d in
             if d.kind == .led {
                 let ft = (t.ledFt[d.id] ?? 0) + (t.ledTentativeFt[d.id] ?? 0)
-                return ft > 0 ? (d, "\(ft.clean) LF on this job") : nil
+                return ft > 0 ? (d, String(localized: "\(ft.clean) LF on this job")) : nil
             }
             let n = t.counts[d.id] ?? 0
-            return n > 0 ? (d, "\(n) on this job") : nil
+            return n > 0 ? (d, String(localized: "\(n) on this job")) : nil
         }
     }
 }
@@ -329,7 +329,7 @@ struct MarkerProductPicker: View {
                     let pricing = model.pricing
                     model.edit { $0.updateMarker(marker.id, pricing: pricing) { $0.productId = v.isEmpty ? nil : v } }
                 })) {
-                    Text(jobChoice.map { "\($0.title) (job's choice)" } ?? "Job's choice (none)").tag("")
+                    Text(jobChoice.map { String(localized: "\($0.title) (job's choice)") } ?? String(localized: "Job's choice (none)")).tag("")
                     ForEach(options) { Text($0.title).tag($0.id) }
                 }
                 .labelsHidden()

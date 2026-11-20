@@ -37,13 +37,13 @@ struct ClientProposalView: View {
                     if showForm { form } else {
                         Button {
                             showForm = true
-                        } label: { Label((rows ?? []).contains { $0.status != "revoked" } ? "Send an updated quote" : "Get client link", systemImage: "signature") }
+                        } label: { Label((rows ?? []).contains { $0.status != "revoked" } ? String(localized: "Send an updated quote") : String(localized: "Get client link"), systemImage: "signature") }
                     }
                 } footer: {
                     if !showForm { Text("The client sees your business details, the scope, the plans, this quote and your terms. Optional items show as add-ons they can tick.") }
                 }
                 if let n = rows?.filter({ $0.status == "revoked" }).count, n > 0 {
-                    Section { Text("\(n) earlier link\(n == 1 ? "" : "s") withdrawn").font(.caption).foregroundStyle(.secondary) }
+                    Section { Text("\(n) earlier links withdrawn").font(.caption).foregroundStyle(.secondary) }
                 }
             }
             if let problem { Section { Text(problem).foregroundStyle(.red).font(.callout) } }
@@ -63,16 +63,16 @@ struct ClientProposalView: View {
         HStack {
             Button("Cancel") { showForm = false }.buttonStyle(.bordered)
             Spacer()
-            Button { Task { await publish() } } label: { Text(busy ?? "Get client link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
+            Button { Task { await publish() } } label: { Text(busy ?? String(localized: "Get client link")) }.buttonStyle(.borderedProminent).disabled(busy != nil)
         }
     }
 
     private func statusText(_ r: CloudSync.ProposalRow) -> String {
         switch r.status {
-        case "sent": return "Sent — not opened yet"
-        case "viewed": return "Opened by the client"
-        case "accepted": return "Approved"
-        case "declined": return "Declined"
+        case "sent": return String(localized: "Sent — not opened yet")
+        case "viewed": return String(localized: "Opened by the client")
+        case "accepted": return String(localized: "Approved")
+        case "declined": return String(localized: "Declined")
         default: return r.status.capitalized
         }
     }
@@ -80,20 +80,20 @@ struct ClientProposalView: View {
     @ViewBuilder private func row(_ r: CloudSync.ProposalRow) -> some View {
         let cur = r.snapshot.currency
         if r.status == "accepted" {
-            Label("\(r.client_name ?? "The client") approved · \(Money.format(r.accepted_total ?? 0, currency: cur))", systemImage: "checkmark.seal.fill").foregroundStyle(Color.approved)
+            Label("\(r.client_name ?? String(localized: "The client")) approved · \(Money.format(r.accepted_total ?? 0, currency: cur))", systemImage: "checkmark.seal.fill").foregroundStyle(Color.approved)
             let chosen = r.snapshot.lines.filter { (r.chosen_options ?? []).contains($0.key) }
-            if !chosen.isEmpty { Text("Options: " + chosen.map(\.description).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
+            if !chosen.isEmpty { Text("Options: \(chosen.map(\.description).joined(separator: ", "))").font(.caption).foregroundStyle(.secondary) }
             if let sig = r.signature, let data = Data(base64Encoded: String(sig.split(separator: ",").last ?? "")), let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 60).background(.white)
             }
             if let d = r.snapshot.depositPct { Text("Next: send the \(d.clean)% deposit invoice from Money.").font(.caption).foregroundStyle(.secondary) }
         }
-        if r.status == "declined" { Text("\(r.client_name ?? "The client") declined\(r.client_note.map { ": “\($0)”" } ?? ".")") }
+        if r.status == "declined" { Text("\(r.client_name ?? String(localized: "The client")) declined\(r.client_note.map { ": “\($0)”" } ?? ".")") }
         if let url = link(r.id) {
-            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here is your quote — you can review it and approve it online:")) {
+            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here is your quote — you can review it and approve it online:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
-            Button { UIPasteboard.general.url = url; model.say("Link copied") } label: { Label("Copy link", systemImage: "doc.on.doc") }
+            Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
             Link(destination: url) { Label("Open", systemImage: "safari") }
         }
         if r.status == "sent" || r.status == "viewed" {
@@ -120,12 +120,12 @@ struct ClientProposalView: View {
             b.project.status = .approved
             b.project.updatedAt = isoNow()
         }
-        model.say("\(a.client_name ?? "The client") approved the quote — job approved")
+        model.say(a.client_name.map { String(localized: "\($0) approved the quote — job approved") } ?? String(localized: "The client approved the quote — job approved"))
     }
 
     private func publish() async {
         problem = nil
-        busy = "Preparing…"
+        busy = String(localized: "Preparing…")
         defer { busy = nil }
         let b = model.bundle, catalog = app.catalog, store = app.store
         let pricing = model.pricing
@@ -133,7 +133,7 @@ struct ClientProposalView: View {
         let takeoff = TakeoffCalculator.compute(b)
         var images: [String: Data] = [:]
         if plans {
-            busy = "Drawing plans…"
+            busy = String(localized: "Drawing plans…")
             images = await Task.detached(priority: .userInitiated) { Self.render(b, catalog: catalog, store: store) }.value
         }
         let token = Proposals.newToken()
@@ -147,7 +147,7 @@ struct ClientProposalView: View {
                                    taxPct: pricing.taxPct, title: title, message: message, validDays: validDays, detail: detail, depositPct: dep, images: urls, origin: origin)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say("Client link ready — copied") }
+            if let url = link(token) { UIPasteboard.general.url = url; model.say(String(localized: "Client link ready — copied")) }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }

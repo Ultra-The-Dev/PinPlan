@@ -1,0 +1,60 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - permission text (Info.plist)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan uses the camera to scan paper plan sets into a job and to take job-site photos that are saved with the job."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan использует камеру, чтобы сканировать бумажные планы в объект и делать фото на объекте, которые сохраняются вместе с ним."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - permission text (Info.plist)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan lets you pick plan photos and job-site photos from your library to add them to a job. Only the photos you choose are used."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan позволяет выбрать фото планов и фото с объекта из медиатеки, чтобы добавить их в объект. Используются только выбранные вами фото."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "comment" : "Privacy - permission text (Info.plist)",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan saves where a job-site photo was taken with the photo and shows your jobs on the map. You can turn this off with Stamp location on a job's Photos tab."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PinPlan сохраняет вместе с фото место, где оно сделано, и показывает ваши объекты на карте. Это можно отключить переключателем «Добавлять местоположение» на вкладке «Фото» объекта."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

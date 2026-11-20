@@ -37,7 +37,7 @@ struct QuotesInvoicesView: View {
                         Text(SalesDocs.money(totals.balanceDue, currency: currency)).bold().foregroundStyle(totals.balanceDue > 0 ? Color.primary : Color.secondary)
                     } label: { Text("Balance due").bold() }
                 }
-                Section(sentence: "Documents") {
+                Section(sentence: String(localized: "Documents")) {
                     ForEach(docs) { d in DocRow(doc: d, status: SalesDocs.displayStatus(d, day: day)) }
                 }
                 Section {
@@ -54,7 +54,7 @@ struct QuotesInvoicesView: View {
         if let s = BillingLogic.webURL(origin: app.settings.serverURL, path: "project?id=\(model.bundle.project.id)&tab=billing"), let url = URL(string: s) {
             Button { openURL(url) } label: { Label("Open on the web", systemImage: "safari") }
         } else {
-            ServerSetupPrompt(feature: "Opening quotes and invoices on the web")
+            ServerSetupPrompt(feature: String(localized: "Opening quotes and invoices on the web"))
         }
     }
 }
@@ -67,7 +67,7 @@ private struct DocRow: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(SalesDocs.name(doc)).font(.body.weight(.semibold)).monospacedDigit()
-                (Text(doc.kind.label + " · ").foregroundColor(.secondary) + Text(status.label).foregroundColor(tone) + Text(dateText).foregroundColor(.secondary))
+                (Text(tr(doc.kind.label) + " · ").foregroundColor(.secondary) + Text(tr(status.label, context: "Document status")).foregroundColor(tone) + Text(dateText).foregroundColor(.secondary))
                     .font(.caption)
                 if let t = SalesDocs.invoiceTypeText(doc) {
                     Text(t).font(.caption).foregroundStyle(.secondary)

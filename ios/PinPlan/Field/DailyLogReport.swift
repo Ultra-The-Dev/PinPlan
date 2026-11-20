@@ -37,7 +37,7 @@ struct DailyLogExportSheet: View {
                         DatePicker("From", selection: dayBinding($from), displayedComponents: .date)
                         DatePicker("To", selection: dayBinding($to), displayedComponents: .date)
                     } footer: {
-                        Text("\(picked.count) log\(picked.count == 1 ? "" : "s") · with your branding, each day’s photos and mark-up.")
+                        Text("\(picked.count) logs · with your branding, each day’s photos and mark-up.")
                     }
                 } else if let l = single {
                     Section {
@@ -80,7 +80,7 @@ struct DailyLogExportSheet: View {
             var items: [DailyLogPDFBuilder.PhotoItem] = []
             for p in DailyLogReport.photos(for: l, in: model.bundle.photos) {
                 done += 1
-                busy = "Preparing photo \(done) of \(total)…"
+                busy = String(localized: "Preparing photo \(done) of \(total)…")
                 guard let img = app.store.image(p.imageId) else { continue }
                 let shapes = p.annotations
                 let out = await Task.detached(priority: .userInitiated) { PhotoMarkup.render(img, shapes: shapes, maxSide: 1400) }.value
@@ -96,7 +96,7 @@ struct DailyLogExportSheet: View {
             }
             entries.append(entry)
         }
-        busy = "Building the PDF…"
+        busy = String(localized: "Building the PDF…")
         let logo = await PhotoReportBuilder.logo(app.brandedSettings)
         var range = ""
         if let d = DailyLogReport.days(logs) {

@@ -45,7 +45,7 @@ struct PlanReviewView: View {
                         HStack {
                             Button("Cancel") { showForm = false }.buttonStyle(.bordered)
                             Spacer()
-                            Button { Task { await publish() } } label: { Text(busy ?? "Get client link") }.buttonStyle(.borderedProminent).disabled(busy != nil)
+                            Button { Task { await publish() } } label: { Text(busy ?? String(localized: "Get client link")) }.buttonStyle(.borderedProminent).disabled(busy != nil)
                         }
                     } else {
                         Button { showForm = true } label: { Label(live.isEmpty ? "Send plan for review" : "Send an updated plan", systemImage: "eye") }
@@ -63,30 +63,30 @@ struct PlanReviewView: View {
 
     private func statusText(_ r: CloudSync.ProposalRow) -> String {
         switch r.status {
-        case "sent": return "Sent — not opened yet"
-        case "viewed": return "Opened by the client"
-        case "accepted": return "Layout approved"
-        case "declined": return "Changes requested"
+        case "sent": return String(localized: "Sent — not opened yet")
+        case "viewed": return String(localized: "Opened by the client")
+        case "accepted": return String(localized: "Layout approved")
+        case "declined": return String(localized: "Changes requested")
         default: return r.status.capitalized
         }
     }
 
     @ViewBuilder private func row(_ r: CloudSync.ProposalRow) -> some View {
         if r.status == "accepted" {
-            Label("\(r.client_name ?? "The client") approved the layout. Next: price it and send the quote from Money.", systemImage: "checkmark.seal.fill")
+            Label("\(r.client_name ?? String(localized: "The client")) approved the layout. Next: price it and send the quote from Money.", systemImage: "checkmark.seal.fill")
                 .foregroundStyle(Color.approved)
             if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if r.status == "declined" {
-            Label("\(r.client_name ?? "The client") asked for changes. Update the plan, then send an updated plan.", systemImage: "exclamationmark.bubble.fill")
+            Label("\(r.client_name ?? String(localized: "The client")) asked for changes. Update the plan, then send an updated plan.", systemImage: "exclamationmark.bubble.fill")
                 .foregroundStyle(.orange)
             if let note = r.client_note, !note.isEmpty { clientNote(note) }
         }
         if let url = link(r.id) {
-            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text("Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
+            ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
-            Button { UIPasteboard.general.url = url; model.say("Link copied") } label: { Label("Copy link", systemImage: "doc.on.doc") }
+            Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
             Link(destination: url) { Label("Open", systemImage: "safari") }
         }
         if r.status == "sent" || r.status == "viewed" {
@@ -110,7 +110,7 @@ struct PlanReviewView: View {
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(Color.red))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(pin.note.isEmpty ? "(no note)" : pin.note)
+                    Text(pin.note.isEmpty ? String(localized: "(no note)") : pin.note)
                         .font(.callout)
                         .foregroundStyle(pin.note.isEmpty ? Color.secondary : Color.primary)
                     Text("\(pin.floor) · \(Int((pin.x * 100).rounded()))% across, \(Int((pin.y * 100).rounded()))% down")
@@ -141,12 +141,12 @@ struct PlanReviewView: View {
 
     private func publish() async {
         problem = nil
-        busy = "Preparing…"
+        busy = String(localized: "Preparing…")
         defer { busy = nil }
         let b = model.bundle, catalog = app.catalog, store = app.store
         let takeoff = TakeoffCalculator.compute(b)
         let est = b.estimate(catalog: catalog, products: app.products, pricing: model.pricing)
-        busy = "Drawing plans…"
+        busy = String(localized: "Drawing plans…")
         let images = await Task.detached(priority: .userInitiated) { ClientProposalView.render(b, catalog: catalog, store: store) }.value
         let legend = Legend.build(takeoff: takeoff, catalog: catalog, icon: { Self.symbolPNG($0) }, trades: app.trades)
         let token = Proposals.newToken()
@@ -160,7 +160,7 @@ struct PlanReviewView: View {
                                    review: true, legend: legend)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say("Client link ready — copied") }
+            if let url = link(token) { UIPasteboard.general.url = url; model.say(String(localized: "Client link ready — copied")) }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }

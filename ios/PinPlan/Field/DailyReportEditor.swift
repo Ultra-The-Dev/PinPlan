@@ -94,11 +94,11 @@ struct DailyReportEditor: View {
                     weatherSection
                     crewSection
                     workSection
-                    listSection("Materials delivered", items: $report.deliveries, placeholder: "e.g. 4 boxes Cat6 from ADI", add: "Add delivery")
-                    listSection("Equipment", items: $report.equipment, placeholder: "e.g. Scissor lift", add: "Add equipment")
+                    listSection(String(localized: "Materials delivered"), items: $report.deliveries, placeholder: String(localized: "e.g. 4 boxes Cat6 from ADI"), add: String(localized: "Add delivery"))
+                    listSection(String(localized: "Equipment"), items: $report.equipment, placeholder: String(localized: "e.g. Scissor lift"), add: String(localized: "Add equipment"))
                     delaysSection
                     safetySection
-                    listSection("Visitors & inspections", items: $report.visitors, placeholder: "e.g. City inspector — rough-in passed", add: "Add visitor")
+                    listSection(String(localized: "Visitors & inspections"), items: $report.visitors, placeholder: String(localized: "e.g. City inspector — rough-in passed"), add: String(localized: "Add visitor"))
                     photosSection
                     Section("Notes") {
                         TextField("Anything else: issues, what’s next…", text: $log.body, axis: .vertical).lineLimit(3...12)
@@ -160,7 +160,7 @@ struct DailyReportEditor: View {
             TextField("Title (e.g. Rough-in, 2nd floor)", text: Binding(get: { log.title ?? "" }, set: { log.title = $0 }))
         } footer: {
             let missing = DailyReportLogic.completeness(reportForChecks)
-            if !missing.isEmpty { Text("Not filled in yet: \(missing.map(\.label).joined(separator: ", "))") }
+            if !missing.isEmpty { Text("Not filled in yet: \(missing.map { tr($0.label) }.joined(separator: ", "))") }
         }
     }
 
@@ -177,7 +177,7 @@ struct DailyReportEditor: View {
     private var weatherSection: some View {
         Section {
             let line = DailyReportLogic.weatherLine(report.weather)
-            let placeholder: String = weatherState == .loading ? "Getting weather…" : "No weather yet"
+            let placeholder: String = weatherState == .loading ? String(localized: "Getting weather…") : String(localized: "No weather yet")
             HStack {
                 if line.isEmpty {
                     Text(placeholder).foregroundStyle(.secondary)
@@ -197,12 +197,12 @@ struct DailyReportEditor: View {
                 ForEach(conditionChoices, id: \.self) { c in Label(c, systemImage: DailyReportLogic.weatherSymbol(c)).tag(c) }
             }
             HStack {
-                DecimalField(title: "High °F", value: report.weather?.tempHighF, onChange: { v in setWeather { $0.tempHighF = v } })
-                DecimalField(title: "Low °F", value: report.weather?.tempLowF, onChange: { v in setWeather { $0.tempLowF = v } })
+                DecimalField(title: String(localized: "High °F"), value: report.weather?.tempHighF, onChange: { v in setWeather { $0.tempHighF = v } })
+                DecimalField(title: String(localized: "Low °F"), value: report.weather?.tempLowF, onChange: { v in setWeather { $0.tempLowF = v } })
             }
             HStack {
-                DecimalField(title: "Precip (in)", value: report.weather?.precipIn, onChange: { v in setWeather { $0.precipIn = v } })
-                DecimalField(title: "Wind (mph)", value: report.weather?.windMph, onChange: { v in setWeather { $0.windMph = v } })
+                DecimalField(title: String(localized: "Precip (in)"), value: report.weather?.precipIn, onChange: { v in setWeather { $0.precipIn = v } })
+                DecimalField(title: String(localized: "Wind (mph)"), value: report.weather?.windMph, onChange: { v in setWeather { $0.windMph = v } })
             }
             if hasLocation && weatherState != .later {
                 Button { Task { await fillWeather(replace: true) } } label: { Label("Auto-fill", systemImage: "arrow.clockwise") }
@@ -251,7 +251,7 @@ struct DailyReportEditor: View {
                 } label: { Label("Add from team / recent crew", systemImage: "person.2") }
             }
             if let prev = DailyReportLogic.previousLog(model.bundle.jobLogs, before: log.date, excluding: log.id) {
-                let title: String = prev.date == DailyReportLogic.addDays(log.date, -1) ? "Copy from yesterday" : "Copy from \(dayTitle(prev.date))"
+                let title: String = prev.date == DailyReportLogic.addDays(log.date, -1) ? String(localized: "Copy from yesterday") : String(localized: "Copy from \(dayTitle(prev.date))")
                 Button { copy(from: prev) } label: { Label(title, systemImage: "doc.on.doc") }
             }
         } header: {
@@ -265,8 +265,7 @@ struct DailyReportEditor: View {
         let t = DailyReportLogic.totals(report)
         let dupes = DailyReportLogic.mergeCrew(report.crew ?? []).duplicates
         VStack(alignment: .leading, spacing: 4) {
-            let who: String = t.crew == 1 ? "person" : "people"
-            if t.crew > 0 { Text("\(t.crew) \(who) · \(DailyReportLogic.number(t.manHours)) man-hours") }
+            if t.crew > 0 { Text("\(t.crew) people · \(DailyReportLogic.number(t.manHours)) man-hours") }
             if !dupes.isEmpty {
                 Text("\(dupes.joined(separator: ", ")) listed more than once — the hours are added together when you save.").foregroundStyle(Color.orange)
             }
@@ -321,10 +320,10 @@ struct DailyReportEditor: View {
     private var safetySection: some View {
         Section("Safety") {
             HStack(spacing: 10) {
-                safetyButton("No incidents", incident: false)
-                safetyButton("Incident", incident: true)
+                safetyButton(String(localized: "No incidents"), incident: false)
+                safetyButton(String(localized: "Incident"), incident: true)
             }
-            let hint: String = report.safety?.incident == true ? "What happened, who, first aid / follow-up…" : "Toolbox talk, hazards, PPE (optional)"
+            let hint: String = report.safety?.incident == true ? String(localized: "What happened, who, first aid / follow-up…") : String(localized: "Toolbox talk, hazards, PPE (optional)")
             TextField(hint,
                       text: Binding(get: { report.safety?.notes ?? "" }, set: { v in
                           report.safety = DailyReport.Safety(incident: report.safety?.incident ?? false, notes: v)
@@ -466,7 +465,7 @@ struct DailyReportEditor: View {
     private func copy(from prev: JobLog) {
         let c = DailyReportLogic.copyFromPrevious(prev)
         if (c.crew ?? []).isEmpty && (c.equipment ?? []).isEmpty && (c.delays ?? []).isEmpty {
-            notice = "Nothing to copy from \(dayTitle(prev.date))."
+            notice = String(localized: "Nothing to copy from \(dayTitle(prev.date)).")
             return
         }
         let crew = (report.crew ?? []).filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -546,7 +545,7 @@ private struct CrewRowView: View {
             TextField("Name", text: $row.name).textContentType(.name)
             Stepper(value: Binding(get: { row.hours }, set: { row.hours = DailyReportLogic.clampHours($0) }), in: 0...24, step: 0.5) {
                 HStack(spacing: 6) {
-                    DecimalField(title: "Hours", value: row.hours, parse: { DailyReportLogic.parseHours($0) }, onChange: { v in row.hours = v ?? 0 })
+                    DecimalField(title: String(localized: "Hours"), value: row.hours, parse: { DailyReportLogic.parseHours($0) }, onChange: { v in row.hours = v ?? 0 })
                         .frame(width: 56)
                         .multilineTextAlignment(.trailing)
                     Text("h").foregroundStyle(.secondary)
@@ -618,7 +617,7 @@ struct WeeklyHoursView: View {
                 } else {
                     Section {
                         ForEach(w.rows, id: \.name) { r in WeeklyRow(name: r.name, hours: r.hours, total: r.total, days: w.days, bold: false) }
-                        WeeklyRow(name: "Total", hours: w.dayTotals, total: w.total, days: w.days, bold: true)
+                        WeeklyRow(name: String(localized: "Total"), hours: w.dayTotals, total: w.total, days: w.days, bold: true)
                     }
                 }
             }
@@ -687,10 +686,10 @@ struct DailyReportBadges: View {
                 if let w = r.weather, !DailyReportLogic.weatherLine(w).isEmpty {
                     badge(weatherText(w), symbol: DailyReportLogic.weatherSymbol(w.summary), tint: Color.blue)
                 }
-                if t.manHours > 0 { badge("\(DailyReportLogic.number(t.manHours)) man-hours", symbol: "person.2", tint: Color.indigo) }
-                if t.delayHours > 0 { badge("\(DailyReportLogic.hoursText(t.delayHours)) delay", symbol: "hourglass", tint: Color.orange) }
-                if r.safety?.incident == true { badge("Incident", symbol: "exclamationmark.shield", tint: Color.red) }
-                if r.signature != nil { badge("Signed", symbol: "checkmark.seal", tint: Color.green) }
+                if t.manHours > 0 { badge(String(localized: "\(DailyReportLogic.number(t.manHours)) man-hours"), symbol: "person.2", tint: Color.indigo) }
+                if t.delayHours > 0 { badge(String(localized: "\(DailyReportLogic.hoursText(t.delayHours)) delay"), symbol: "hourglass", tint: Color.orange) }
+                if r.safety?.incident == true { badge(String(localized: "Incident"), symbol: "exclamationmark.shield", tint: Color.red) }
+                if r.signature != nil { badge(String(localized: "Signed"), symbol: "checkmark.seal", tint: Color.green) }
             }
         }
     }

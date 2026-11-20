@@ -34,7 +34,7 @@ enum TaskOverlays {
         if let drop = st.drop {
             let p = tap.sheetPoint
             guard (0...1).contains(p.x), (0...1).contains(p.y) else {
-                ctx.model.say("Tap on the sheet to place the task")
+                ctx.model.say(String(localized: "Tap on the sheet to place the task"))
                 return true
             }
             place(drop, x: p.x, y: p.y, ctx: ctx)
@@ -203,7 +203,7 @@ struct TaskPinsLayer: View {
                             .frame(width: 36, height: 44)
                             .position(x: p.tip.x, y: p.tip.y - 22)
                             .accessibilityElement()
-                            .accessibilityLabel("Task \(t.number), \(t.title), \(TaskLogic.info(t.status).label)")
+                            .accessibilityLabel("Task \(t.number), \(t.title), \(tr(TaskLogic.info(t.status).label, context: "Task status"))")
                             .accessibilityAddTraits(.isButton)
                             .accessibilityAction {
                                 TaskOverlayState.shared.selectedId = t.id
@@ -276,12 +276,12 @@ struct TaskPlanControls: View {
                 addButton
             }
             VStack(spacing: 0) {
-                control(icon: st.showPins ? "mappin.circle" : "mappin.slash.circle", label: st.showPins ? "Hide task pins" : "Show task pins",
+                control(icon: st.showPins ? "mappin.circle" : "mappin.slash.circle", label: st.showPins ? String(localized: "Hide task pins") : String(localized: "Show task pins"),
                         tint: hiding ? Color.red : Color.primary) { st.showPins.toggle() }
                 Divider().frame(width: 44)
                 filterMenu
                 Divider().frame(width: 44)
-                control(icon: "list.bullet.rectangle", label: "Tasks on this sheet", tint: Color.primary) { showList = true }
+                control(icon: "list.bullet.rectangle", label: String(localized: "Tasks on this sheet"), tint: Color.primary) { showList = true }
                     .overlay(alignment: .topTrailing) {
                         if open > 0 {
                             Text("\(open)").font(.caption2.weight(.bold)).foregroundStyle(Color.white)
@@ -336,9 +336,9 @@ struct TaskPlanControls: View {
     private func dropHint(_ d: TaskOverlayState.Drop) -> some View {
         let text: String
         switch d {
-        case .new: text = "Tap the plan to drop a task"
-        case .duplicate(let t): text = "Tap where the copy of #\(t.number) goes"
-        case .move: text = "Tap the new spot"
+        case .new: text = String(localized: "Tap the plan to drop a task")
+        case .duplicate(let t): text = String(localized: "Tap where the copy of #\(t.number) goes")
+        case .move: text = String(localized: "Tap the new spot")
         }
         return Button { TaskOverlayState.shared.drop = nil } label: {
             HStack(spacing: 8) {
@@ -526,7 +526,7 @@ struct TaskRowView: View {
                     }
                 }
                 HStack(spacing: 8) {
-                    Text(TaskLogic.info(task.status).short).foregroundStyle(TaskColors.status(task.status)).fontWeight(.medium)
+                    Text(tr(TaskLogic.info(task.status).short, context: "Task status")).foregroundStyle(TaskColors.status(task.status)).fontWeight(.medium)
                     if let s = sheetName { Text(s) }
                     if let r = task.room, !r.isEmpty { Text(r) }
                     if let a = task.assignee, !a.isEmpty { Label(a, systemImage: "person").labelStyle(.titleAndIcon) }

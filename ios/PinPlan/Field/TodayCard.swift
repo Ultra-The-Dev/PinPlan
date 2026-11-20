@@ -41,18 +41,18 @@ struct TodayCard: View {
             if expanded {
                 HStack(spacing: 8) {
                     PhotoAddMenu(model: model) {
-                        actionLabel("Take photo", icon: "camera.fill", prominent: true)
+                        actionLabel(String(localized: "Take photo"), icon: "camera.fill", prominent: true)
                     }
                     Button {
                         log = todaysLog ?? JobLog(projectId: b.project.id, date: today, author: me)
                     } label: {
-                        actionLabel(todaysLog == nil ? "Write today's log" : "Today's log", icon: "square.and.pencil", prominent: false)
+                        actionLabel(todaysLog == nil ? String(localized: "Write today's log") : String(localized: "Today's log"), icon: "square.and.pencil", prominent: false)
                     }
                     .buttonStyle(.plain)
                 }
 
                 if !tasks.isEmpty {
-                    group("My tasks") {
+                    group(String(localized: "My tasks")) {
                         ForEach(tasks.prefix(4)) { t in
                             Button { task = TaskRef(id: t.task.id) } label: {
                                 HStack(spacing: 8) {
@@ -67,12 +67,12 @@ struct TodayCard: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        if tasks.count > 4 { moreButton("All \(tasks.count) tasks") { open(.tasks) } }
+                        if tasks.count > 4 { moreButton(String(localized: "All \(tasks.count) tasks")) { open(.tasks) } }
                     }
                 }
 
                 if !phases.isEmpty {
-                    group("This week") {
+                    group(String(localized: "This week")) {
                         ForEach(phases.prefix(3)) { p in
                             let s = ScheduleField.status(p, today: today)
                             HStack(spacing: 8) {
@@ -85,12 +85,12 @@ struct TodayCard: View {
                             .frame(minHeight: 28)
                             .accessibilityElement(children: .combine)
                         }
-                        moreButton("Schedule") { open(.schedule) }
+                        moreButton(String(localized: "Schedule")) { open(.schedule) }
                     }
                 }
 
                 if !lists.isEmpty {
-                    group("Open checklists") {
+                    group(String(localized: "Open checklists")) {
                         ForEach(lists.prefix(3)) { c in
                             let p = FieldDocs.progress(c, photos: b.photos)
                             Button { open(.checklists) } label: {
@@ -120,9 +120,9 @@ struct TodayCard: View {
 
     private func summary(tasks: Int, phases: Int, lists: Int) -> String {
         var parts: [String] = []
-        if tasks > 0 { parts.append("\(tasks) task\(tasks == 1 ? "" : "s") due") }
-        if phases > 0 { parts.append("\(phases) phase\(phases == 1 ? "" : "s")") }
-        if lists > 0 { parts.append("\(lists) checklist\(lists == 1 ? "" : "s")") }
+        if tasks > 0 { parts.append(String(localized: "\(tasks) tasks due")) }
+        if phases > 0 { parts.append(String(localized: "\(phases) phases")) }
+        if lists > 0 { parts.append(String(localized: "\(lists) checklists")) }
         return parts.joined(separator: " · ")
     }
 
@@ -161,13 +161,13 @@ struct MoreOnWebRow: View {
         // schedule.ts canEditSchedule, SettingsForm "templates" is office only): they get the schedule, where a crew
         // member updates progress.
         let pages: [(String, String, String)] = office ? [
-            ("Change orders", "doc.badge.plus", "project?id=\(job)&tab=changes"),
-            ("Quotes and invoices", "doc.text", "project?id=\(job)&tab=billing"),
-            ("Send RFIs", "questionmark.bubble", "project?id=\(job)&tab=field&section=rfis"),
-            ("Plan the schedule", "calendar", "project?id=\(job)&tab=field&section=schedule"),
-            ("Job templates", "square.on.square", "settings#templates"),
+            (String(localized: "Change orders"), "doc.badge.plus", "project?id=\(job)&tab=changes"),
+            (String(localized: "Quotes and invoices"), "doc.text", "project?id=\(job)&tab=billing"),
+            (String(localized: "Send RFIs"), "questionmark.bubble", "project?id=\(job)&tab=field&section=rfis"),
+            (String(localized: "Plan the schedule"), "calendar", "project?id=\(job)&tab=field&section=schedule"),
+            (String(localized: "Job templates"), "square.on.square", "settings#templates"),
         ] : [
-            ("Update schedule progress", "calendar", "project?id=\(job)&tab=field&section=schedule"),
+            (String(localized: "Update schedule progress"), "calendar", "project?id=\(job)&tab=field&section=schedule"),
         ]
         let links = pages.compactMap { p in serverPageURL(app.settings, p.2).map { (p.0, p.1, $0) } }
         if !links.isEmpty {

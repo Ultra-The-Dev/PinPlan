@@ -89,11 +89,11 @@ extension EditorModel {
 
     func installLabel(_ ref: InstallRef) -> String {
         switch ref {
-        case .marker(let id): return bundle.markers.first { $0.id == id }?.label ?? "Device"
+        case .marker(let id): return bundle.markers.first { $0.id == id }?.label ?? String(localized: "Device")
         case .run(let id):
-            guard let r = bundle.runs.first(where: { $0.id == id }) else { return "Run" }
+            guard let r = bundle.runs.first(where: { $0.id == id }) else { return String(localized: "Run") }
             if let m = bundle.liveMarkers.first(where: { $0.id == r.markerId }) { return "\(m.label) cable" }
-            return r.switchLabel ?? r.zone.map { "Zone \($0)" } ?? r.wireType ?? "Run"
+            return r.switchLabel ?? r.zone.map { String(localized: "Zone \($0)") } ?? r.wireType ?? String(localized: "Run")
         }
     }
 
@@ -107,10 +107,10 @@ extension EditorModel {
         case .run(let id):
             if let r = bundle.runs.first(where: { $0.id == id }) { tentative = r.tentative == true; deleted = r.deleted == true }
         }
-        if deleted { return "That device is gone" }
-        if tentative { return "Optional (?) devices aren't tracked — confirm it first" }
+        if deleted { return String(localized: "That device is gone") }
+        if tentative { return String(localized: "Optional (?) devices aren't tracked — confirm it first") }
         if !InstallProgress.canSet(app.cloud.role, to, from: installStatus(ref)) {
-            return to == .verified ? "Only the office can verify" : "Verified — only the office can change it"
+            return to == .verified ? String(localized: "Only the office can verify") : String(localized: "Verified — only the office can change it")
         }
         return nil
     }
@@ -147,13 +147,13 @@ extension EditorModel {
 
     /// Office: clear the device's progress and history.
     func resetInstall(_ ref: InstallRef) {
-        guard InstallProgress.canReset(app.cloud.role) else { say("Only the office can reset progress"); return }
+        guard InstallProgress.canReset(app.cloud.role) else { say(String(localized: "Only the office can reset progress")); return }
         writeInstall(ref, nil)
     }
 
     /// Office: mark these devices verified, one undo step.
     func verifyAll(_ ids: [String]) -> Int {
-        guard InstallProgress.canSet(app.cloud.role, .verified) else { say("Only the office can verify"); return 0 }
+        guard InstallProgress.canSet(app.cloud.role, .verified) else { say(String(localized: "Only the office can verify")); return 0 }
         let by = FieldAuthor.name(app)
         let now = isoNow()
         let pr = pricing

@@ -33,7 +33,7 @@ struct PhotoReportSheet: View {
                     TextField("Notes for the client (optional)", text: $notes, axis: .vertical).lineLimit(3...8)
                     Picker("Photos per page", selection: $perPage) { ForEach([1, 2, 4], id: \.self) { Text("\($0)").tag($0) } }.pickerStyle(.segmented)
                 } footer: {
-                    Text("\(photos.count) photo\(photos.count == 1 ? "" : "s") · \(PhotoReportBuilder.range(ordered)) · with your branding, captions and mark-up.")
+                    Text("\(photos.count) photos · \(PhotoReportBuilder.range(ordered)) · with your branding, captions and mark-up.")
                 }
                 Section {
                     Picker("Group photos", selection: $groupBy) { ForEach(PhotoReportLayout.GroupBy.allCases, id: \.self) { Text($0.name).tag($0) } }.pickerStyle(.segmented)
@@ -101,7 +101,7 @@ struct PhotoReportSheet: View {
     private func rendered(maxSide: CGFloat) async -> [(Photo, UIImage)] {
         var out: [(Photo, UIImage)] = []
         for (i, p) in ordered.enumerated() {
-            busy = "Preparing photo \(i + 1) of \(ordered.count)…"
+            busy = String(localized: "Preparing photo \(i + 1) of \(ordered.count)…")
             guard let img = app.store.image(p.imageId) else { continue }
             let shapes = p.annotations
             out.append((p, await Task.detached(priority: .userInitiated) { PhotoMarkup.render(img, shapes: shapes, maxSide: maxSide) }.value))
@@ -113,7 +113,7 @@ struct PhotoReportSheet: View {
         error = nil
         defer { busy = nil }
         let imgs = await rendered(maxSide: perPage == 1 ? 2000 : 1400)
-        busy = "Building the PDF…"
+        busy = String(localized: "Building the PDF…")
         let logo = await PhotoReportBuilder.logo(app.brandedSettings)
         var byId: [String: PhotoReportBuilder.Item] = [:]
         for (p, img) in imgs {
@@ -134,7 +134,7 @@ struct PhotoReportSheet: View {
             var indexOf: [String: Int] = [:]
             let imgs = await rendered(maxSide: 1600)
             for (i, (p, img)) in imgs.enumerated() {
-                busy = "Uploading photo \(i + 1) of \(imgs.count)…"
+                busy = String(localized: "Uploading photo \(i + 1) of \(imgs.count)…")
                 guard let data = img.jpegData(compressionQuality: 0.85) else { continue }
                 let url = try await app.cloud.uploadPublic(path: "reports/\(token)/\(p.id).jpg", data: data, contentType: "image/jpeg")
                 var entry: [String: Any] = ["url": url, "width": img.size.width, "height": img.size.height, "caption": p.caption ?? "", "meta": meta(p), "tags": p.tags ?? [], "label": label(p) ?? ""]
@@ -143,7 +143,7 @@ struct PhotoReportSheet: View {
                 indexOf[p.id] = list.count
                 list.append(entry)
             }
-            busy = "Publishing…"
+            busy = String(localized: "Publishing…")
             let b = app.business
             var origin = app.settings.serverURL.trimmingCharacters(in: .whitespaces)
             if !origin.hasPrefix("http") { origin = "https://" + origin }
@@ -162,7 +162,7 @@ struct PhotoReportSheet: View {
             let url = URL(string: "\(origin)/r?t=\(token)")
             link = url
             if let url { UIPasteboard.general.url = url }
-            model.say("Report link copied")
+            model.say(String(localized: "Report link copied"))
         } catch {
             self.error = error.localizedDescription
         }

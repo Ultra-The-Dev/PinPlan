@@ -23,13 +23,13 @@ struct ScanSheet: View {
                     Button { run(titleOnly: false) } label: { Label(busy ? "Scanning…" : "Scan this sheet", systemImage: "sparkles") }.disabled(busy)
                     Button { run(titleOnly: true) } label: { Label("Detect sheet name", systemImage: "textformat") }.disabled(busy)
                     if APIClient(settings: app.settings) == nil {
-                        ServerSetupPrompt(feature: "AI scan")
+                        ServerSetupPrompt(feature: String(localized: "AI scan"))
                     }
                     if let error { Text(error).foregroundStyle(.red) }
                 }
                 if let r = result {
                     if let name = r.floorName, !name.isEmpty {
-                        Section(sentence: "Sheet name") {
+                        Section(sentence: String(localized: "Sheet name")) {
                             HStack {
                                 Text(name)
                                 Spacer()
@@ -60,12 +60,12 @@ struct ScanSheet: View {
                     }
                     let callouts = r.ledCallouts ?? []
                     if !callouts.isEmpty {
-                        Section(sentence: "LED callouts (\(callouts.count))") {
+                        Section(sentence: String(localized: "LED callouts (\(callouts.count))")) {
                             ForEach(Array(callouts.enumerated()), id: \.offset) { i, c in
                                 let key = "led-\(i)"
                                 HStack {
                                     Image(systemName: accepted.contains(key) ? "checkmark.circle.fill" : "circle").foregroundStyle(accepted.contains(key) ? Color.brand : .secondary)
-                                    Text(["Zone \(c.zone ?? "?")", c.lf.map { "\($0.clean) LF" }, c.switchLabel].compactMap { $0 }.joined(separator: " · "))
+                                    Text([String(localized: "Zone \(c.zone ?? "?")"), c.lf.map { "\($0.clean) LF" }, c.switchLabel].compactMap { $0 }.joined(separator: " · "))
                                     Spacer()
                                     Text("\(Int(c.confidence * 100))%").font(.caption).foregroundStyle(.secondary)
                                 }
@@ -88,7 +88,7 @@ struct ScanSheet: View {
     private func toggle(_ id: String) { if accepted.contains(id) { accepted.remove(id) } else { accepted.insert(id) } }
 
     private func run(titleOnly: Bool) {
-        guard let client = APIClient(settings: app.settings) else { error = "Set your PinPlan server address in Settings."; return }
+        guard let client = APIClient(settings: app.settings) else { error = String(localized: "Set your PinPlan server address in Settings."); return }
         guard let image = app.store.image(sheet.imageId) else { return }
         busy = true
         error = nil
@@ -118,7 +118,7 @@ struct ScanSheet: View {
                 n += 1
             }
         }
-        model.say("Accepted \(n) suggestion\(n == 1 ? "" : "s")")
+        model.say(String(localized: "Accepted \(n) suggestions"))
         dismiss()
     }
 }

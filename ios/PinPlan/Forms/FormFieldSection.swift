@@ -86,7 +86,7 @@ struct YesNoControl: View {
     var compact = false
     let onChange: (String?) -> Void
     private let keys: [String] = ["yes", "no", "na"]
-    private let names: [String] = ["Yes", "No", "N/A"]
+    private let names: [String] = [String(localized: "Yes"), String(localized: "No"), String(localized: "N/A")]
 
     var body: some View {
         let font: Font = compact ? Font.subheadline.weight(.semibold) : Font.body.weight(.semibold)

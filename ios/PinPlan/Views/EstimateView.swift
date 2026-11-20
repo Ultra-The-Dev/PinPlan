@@ -19,7 +19,7 @@ struct EstimateView: View {
     /// device so the card doesn't flicker on every visit.
     @AppStorage("pinplan.billdu.status") private var billduState = ""
     private var billduOn: Bool { billduState == "configured" }
-    private var sendTitle: String { existingDoc.map { "Update \($0.type) \($0.serial ?? "#\($0.id)") in Billdu" } ?? "Send to Billdu" }
+    private var sendTitle: String { existingDoc.map { String(localized: "Update \($0.type) \($0.serial ?? "#\($0.id)") in Billdu") } ?? String(localized: "Send to Billdu") }
 
 
     private var pricing: PricingSettings { model.pricing }
@@ -44,10 +44,10 @@ struct EstimateView: View {
                         StatusChip(status: model.bundle.project.status)
                     }
                     HStack(spacing: 18) {
-                        miniStat("Subtotal", Money.format(e.subtotal, currency: cur))
-                        miniStat("Tax", Money.format(e.tax, currency: cur))
-                        miniStat("Lines", "\(e.lines.filter(\.included).count)")
-                        if e.optionalTotal > 0 { miniStat("Optional", Money.format(e.optionalTotal, currency: cur)) }
+                        miniStat(String(localized: "Subtotal"), Money.format(e.subtotal, currency: cur))
+                        miniStat(String(localized: "Tax"), Money.format(e.tax, currency: cur))
+                        miniStat(String(localized: "Lines"), "\(e.lines.filter(\.included).count)")
+                        if e.optionalTotal > 0 { miniStat(String(localized: "Optional"), Money.format(e.optionalTotal, currency: cur)) }
                     }
                     // One row when it fits (iPad); on a phone, Send gets its own full-width row.
                     Group {
@@ -66,7 +66,7 @@ struct EstimateView: View {
             }
             if !unpriced.isEmpty {
                 Section {
-                    Label("\(unpriced.count) line\(unpriced.count == 1 ? " has" : "s have") no price yet. Set prices in the Price list and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
+                    Label("\(unpriced.count) lines have no price yet. Set prices in the Price list and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout).foregroundStyle(.orange)
                 }
             }
@@ -77,7 +77,7 @@ struct EstimateView: View {
                     } label: { Label("Products for this job", systemImage: "tag") }
                 }
             }
-            Section(sentence: "Adjust pricing (this job)") {
+            Section(sentence: String(localized: "Adjust pricing (this job)")) {
                 LabeledContent("Markup %") { numberField(pricing.markupPct) { v in setPricing { $0.markupPct = v } } }
                 LabeledContent("Tax %") { numberField(pricing.taxPct) { v in setPricing { $0.taxPct = v } } }
                 Picker("Labor", selection: Binding(get: { pricing.laborMode }, set: { v in setPricing { $0.laborMode = v } })) {
@@ -91,7 +91,7 @@ struct EstimateView: View {
             ForEach(LineGroup.allCases, id: \.self) { g in
                 let lines = e.lines.filter { $0.group == g }
                 if !lines.isEmpty {
-                    Section(sentence: g.title) {
+                    Section(sentence: tr(g.title)) {
                         ForEach(lines) { l in
                             Button { editing = l } label: { LineRow(line: l, currency: cur) }
                                 .buttonStyle(.plain)
@@ -124,7 +124,7 @@ struct EstimateView: View {
                 }
                 let removed = model.bundle.estimateLines.filter { $0.removed == true && $0.deleted != true }
                 if !removed.isEmpty {
-                    Button("Restore \(removed.count) removed line\(removed.count == 1 ? "" : "s")") {
+                    Button("Restore \(removed.count) removed lines") {
                         model.editSilently { b in for l in removed { if l.key.hasPrefix("custom:") { b.upsertEstimateLine(key: l.key) { $0.removed = false } } else { b.resetEstimateLine(key: l.key) } } }
                     }
                 }
@@ -132,7 +132,7 @@ struct EstimateView: View {
             Section {
                 NavigationLink { ClientProposalView(model: model) } label: { Label("Get client link", systemImage: "signature") }
             } footer: { Text("The client reviews the plans and price, picks options and signs online.") }
-            Section(sentence: "Summary") {
+            Section(sentence: String(localized: "Summary")) {
                 LabeledContent("Subtotal", value: Money.format(e.subtotal, currency: cur))
                 LabeledContent("Tax (\(pricing.taxPct.pctText)%)", value: Money.format(e.tax, currency: cur))
                 LabeledContent { Text(Money.format(e.total, currency: cur)).font(.title3.bold()) } label: { Text("Total").bold() }
@@ -187,14 +187,14 @@ struct EstimateView: View {
                 if let d = Double(deposit), d > 0, d < 100 {
                     Text("One line: \(d.clean)% of \(Money.format(e.subtotal, currency: cur)) = \(Money.format(Money.deposit(subtotal: e.subtotal, pct: d), currency: cur)) before tax").font(.caption).foregroundStyle(.secondary)
                 }
-                Button { trySend(e) } label: { Label(sending ? "Sending…" : sendTitle, systemImage: "paperplane.fill") }
+                Button { trySend(e) } label: { Label(sending ? String(localized: "Sending…") : sendTitle, systemImage: "paperplane.fill") }
                     .disabled(sending || e.subtotal <= 0)
                 if existingDoc != nil {
                     Button("Create a new document instead") { send(e, existing: nil) }.font(.callout).disabled(sending || e.subtotal <= 0)
                 }
                 if let m = message { Text(m.text).foregroundStyle(m.ok ? .green : .red).font(.callout) }
                 ForEach(model.bundle.project.billduDocs, id: \.id) { d in
-                    LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
+                    LabeledContent("\(tr(d.type.capitalized)) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
             } header: { Text("Billdu").textCase(nil) } footer: {
                 Text("Sent through your PinPlan server; Billdu keys never live on this device")
@@ -274,7 +274,7 @@ struct EstimateView: View {
     private func trySend(_ e: Estimate) { send(e, existing: existingDoc?.id) }
 
     private func send(_ e: Estimate, existing: Int?) {
-        guard let client = APIClient(settings: app.settings) else { message = (false, "Set your PinPlan server address in Settings."); return }
+        guard let client = APIClient(settings: app.settings) else { message = (false, String(localized: "Set your PinPlan server address in Settings.")); return }
         let dep = Double(deposit).flatMap { $0 > 0 && $0 < 100 ? $0 : nil }
         sending = true
         message = nil
@@ -290,9 +290,10 @@ struct EstimateView: View {
                     b.project.billduClientId = r.clientId
                     if let existing, let i = b.project.billduDocs.firstIndex(where: { $0.id == existing }) { b.project.billduDocs[i] = ref } else { b.project.billduDocs.append(ref) }
                 }
-                message = (true, "\(updated ? "Updated" : "Created") Billdu \(t) \(ref.serial ?? "#\(ref.id)")")
+                let serial = ref.serial ?? "#\(ref.id)"
+                message = (true, updated ? String(localized: "Updated Billdu \(t) \(serial)") : String(localized: "Created Billdu \(t) \(serial)"))
             } catch {
-                message = (false, "\(error.localizedDescription) — you can still share the PDF or CSV.")
+                message = (false, String(localized: "\(error.localizedDescription) — you can still share the PDF or CSV."))
             }
             sending = false
         }
@@ -309,12 +310,12 @@ struct EstimateView: View {
     }
 
     private func pdfButton(_ e: Estimate) -> some View {
-        Button { pdf(e) } label: { iconLabel("Client PDF", "doc.richtext") }
+        Button { pdf(e) } label: { iconLabel(String(localized: "Client PDF"), "doc.richtext") }
             .buttonStyle(.bordered)
     }
 
     private func sendButton(_ e: Estimate) -> some View {
-        Button { trySend(e) } label: { iconLabel(sending ? "Sending…" : (existingDoc != nil ? "Update in Billdu" : "Send to Billdu"), "paperplane.fill") }
+        Button { trySend(e) } label: { iconLabel(sending ? String(localized: "Sending…") : (existingDoc != nil ? String(localized: "Update in Billdu") : String(localized: "Send to Billdu")), "paperplane.fill") }
             .buttonStyle(.borderedProminent)
             .disabled(sending || e.subtotal <= 0)
     }
@@ -349,9 +350,9 @@ private struct LineRow: View {
 
     private var caption: String {
         var s = "\(line.qty.clean) \(line.unit) × \(Money.format(line.unitPrice, currency: currency))"
-        if line.unitPrice == 0 { s += " · no price yet" }
-        if line.optional { s += " · optional" }
-        if line.overridden && !line.key.hasPrefix("custom:") { s += " · changed here" }
+        if line.unitPrice == 0 { s += String(localized: " · no price yet") }
+        if line.optional { s += String(localized: " · optional") }
+        if line.overridden && !line.key.hasPrefix("custom:") { s += String(localized: " · changed here") }
         return s
     }
 }

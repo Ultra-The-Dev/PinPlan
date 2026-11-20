@@ -46,7 +46,7 @@ struct PortScheduleView: View {
                         }
                     }
                 } header: {
-                    Text("\(c) · \(list.count) cable\(list.count == 1 ? "" : "s")")
+                    Text("\(c) · \(list.count) cables")
                 } footer: {
                     if list.first?.closetId == nil { Text("Assign these devices a home-run closet to number their ports.") }
                 }

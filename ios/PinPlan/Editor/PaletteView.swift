@@ -39,7 +39,7 @@ struct PaletteView: View {
                 }
             }
             if query.isEmpty || vocab.run.localizedCaseInsensitiveContains(query) {
-                Section(sentence: vocab.run == "Wire run" ? "Wiring" : vocab.runs) {
+                Section(sentence: vocab.run == "Wire run" ? String(localized: "Wiring") : vocab.runs) {
                     toolRow(.wire, title: vocab.run, subtitle: vocab.runHint, count: 0) {
                         Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(.blue).frame(width: 28, height: 28)
                     }
@@ -55,7 +55,7 @@ struct PaletteView: View {
     private var sections: [CategoryInfo] {
         var list = Trades.categories(for: app.trades)
         if let orphan = Trades.closetKinds(for: app.trades).first(where: { k in !list.contains { $0.id == k.category } }) {
-            list.append(CategoryInfo(id: orphan.category, name: "Equipment", color: orphan.color))
+            list.append(CategoryInfo(id: orphan.category, name: String(localized: "Equipment"), color: orphan.color))
         }
         return list
     }
@@ -70,9 +70,9 @@ struct PaletteView: View {
         if t.kind == .led {
             let runs = model.bundle.liveRuns.filter { $0.sheetId == sheetId && $0.deviceTypeId == t.id }.count
             if t.id == "led-stair" {
-                toolRow(.stair, title: t.name, subtitle: "steps × LF per step", count: runs) { DeviceSymbol(type: t, size: 28) }
+                toolRow(.stair, title: t.name, subtitle: String(localized: "steps × LF per step"), count: runs) { DeviceSymbol(type: t, size: 28) }
             } else {
-                toolRow(.led(t.id), title: t.name.replacingOccurrences(of: "LED strip — ", with: "LED · "), subtitle: "draw run · LF", count: runs) {
+                toolRow(.led(t.id), title: t.name.replacingOccurrences(of: "LED strip — ", with: "LED · "), subtitle: String(localized: "draw run · LF"), count: runs) {
                     Capsule().fill(Color(hex: t.color)).frame(width: 26, height: 5).frame(width: 28, height: 28)
                 }
             }

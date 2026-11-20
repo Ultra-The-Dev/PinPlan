@@ -55,7 +55,7 @@ struct TaskQuickCreateSheet: View {
 
     private var navTitle: String {
         let sheet = model.sheets.first { $0.id == draft.sheetId }
-        return sheet.map { "New task · \($0.name)" } ?? "New task"
+        return sheet.map { String(localized: "New task · \($0.name)") } ?? String(localized: "New task")
     }
 
     private var titleField: some View {
@@ -78,15 +78,15 @@ struct TaskQuickCreateSheet: View {
     }
 
     private var statusRow: some View {
-        TaskChipRow(title: "Status") {
+        TaskChipRow(title: String(localized: "Status")) {
             ForEach(TaskLogic.statuses.filter { $0.id != .verified || TaskLogic.canSetStatus(model.taskRole, from: .open, to: .verified) }, id: \.id) { s in
-                TaskChipButton(title: s.short, color: Color(hex: s.color), on: status == s.id) { status = s.id }
+                TaskChipButton(title: tr(s.short, context: "Task status"), color: Color(hex: s.color), on: status == s.id) { status = s.id }
             }
         }
     }
 
     private var priorityRow: some View {
-        TaskChipRow(title: "Priority") {
+        TaskChipRow(title: String(localized: "Priority")) {
             ForEach(TaskLogic.priorities, id: \.id) { p in
                 TaskChipButton(title: p.label, color: Color(hex: p.color), on: pr == p.id) { priority = .some(pr == p.id ? nil : p.id) }
             }
@@ -95,15 +95,15 @@ struct TaskQuickCreateSheet: View {
 
     private var peopleRow: some View {
         let me = model.taskAuthor
-        return TaskChipRow(title: "Assignee") {
+        return TaskChipRow(title: String(localized: "Assignee")) {
             ForEach(model.taskPeople, id: \.self) { p in
-                TaskChipButton(title: p == me ? "Me" : p, on: who == p) { assignee = .some(who == p ? nil : p) }
+                TaskChipButton(title: p == me ? String(localized: "Me") : p, on: who == p) { assignee = .some(who == p ? nil : p) }
             }
         }
     }
 
     private var categoryRow: some View {
-        TaskChipRow(title: "Category") {
+        TaskChipRow(title: String(localized: "Category")) {
             ForEach(model.taskCategories, id: \.self) { c in
                 TaskChipButton(title: c, on: cat == c) { category = .some(cat == c ? nil : c) }
             }

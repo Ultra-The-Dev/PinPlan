@@ -10,7 +10,7 @@ import PinPlanCore
 // are told to ask their office.
 
 /// Shown instead of the web link outside the United States storefront: no link, no call to action.
-let accountManagedOutsideText = "Your PinPlan account is managed outside this app."
+let accountManagedOutsideText = String(localized: "Your PinPlan account is managed outside this app.")
 
 /// Whether this device's App Store storefront allows the web account link (United States only).
 func webAccountLinkAllowed() async -> Bool {
@@ -124,7 +124,7 @@ struct TeamPlanSection: View {
             let line = BillingLogic.statusLine(b)
             let office = cloud.can(.manageTeam)
             Section {
-                LabeledContent("Plan") {
+                LabeledContent(String(localized: "Plan (billing)", defaultValue: "Plan")) {
                     Text(line.label).foregroundStyle(billingToneColor(line.tone))
                 }
                 LabeledContent("Seats") {
@@ -134,7 +134,7 @@ struct TeamPlanSection: View {
                     Button { openURL(url) } label: { Label(BillingLogic.manageLinkTitle, systemImage: "safari") }
                 }
             } header: {
-                Text("Plan").textCase(nil)
+                Text(String(localized: "Plan (billing)", defaultValue: "Plan")).textCase(nil)
             } footer: {
                 Text(footer(line: line, billing: b, office: office))
             }
@@ -145,8 +145,8 @@ struct TeamPlanSection: View {
     private func footer(line: BillingStatusLine, billing: TeamBilling, office: Bool) -> String {
         var parts: [String] = []
         if !line.detail.isEmpty { parts.append(line.detail) }
-        if BillingLogic.seatsFull(billing) { parts.append("Every seat is in use, so a new person can't join until a seat is free.") }
-        parts.append(office ? (linkAllowed ? "The account is managed on the PinPlan website." : accountManagedOutsideText) : "The owner or office manages the account.")
+        if BillingLogic.seatsFull(billing) { parts.append(String(localized: "Every seat is in use, so a new person can't join until a seat is free.")) }
+        parts.append(office ? (linkAllowed ? String(localized: "The account is managed on the PinPlan website.") : accountManagedOutsideText) : String(localized: "The owner or office manages the account."))
         return parts.joined(separator: " ")
     }
 }
@@ -225,7 +225,7 @@ struct DeleteAccountView: View {
                 problem = message
                 teamInTheWay = true
             case .unavailable:
-                problem = "Account deletion isn't switched on for this PinPlan server yet. Visit \(api.supportURL) and we'll delete your account for you."
+                problem = String(localized: "Account deletion isn't switched on for this PinPlan server yet. Visit \(api.supportURL) and we'll delete your account for you.")
             case .failed(let message):
                 problem = message
             }
@@ -238,9 +238,9 @@ struct DeleteAccountView: View {
 private struct DeleteExplanationSection: View {
     var body: some View {
         Section {
-            DeleteBullet(icon: "person.crop.circle.badge.xmark", text: "Your PinPlan sign-in (email and password) and your name on the team.")
-            DeleteBullet(icon: "folder", text: "Jobs you own, with their plans, devices, estimates, photos, documents, checklists and logs, and links you shared with clients.")
-            DeleteBullet(icon: "ipad.and.iphone", text: "Everything PinPlan keeps on this device, including changes that haven't synced yet.")
+            DeleteBullet(icon: "person.crop.circle.badge.xmark", text: String(localized: "Your PinPlan sign-in (email and password) and your name on the team."))
+            DeleteBullet(icon: "folder", text: String(localized: "Jobs you own, with their plans, devices, estimates, photos, documents, checklists and logs, and links you shared with clients."))
+            DeleteBullet(icon: "ipad.and.iphone", text: String(localized: "Everything PinPlan keeps on this device, including changes that haven't synced yet."))
         } header: {
             Text("What's deleted").textCase(nil)
         } footer: {
@@ -358,9 +358,9 @@ struct AboutSection: View {
 
     var body: some View {
         Section {
-            AboutLink(title: "Terms of service", icon: "doc.text", url: serverPageURL(app.settings, "terms"))
-            AboutLink(title: "Privacy policy", icon: "hand.raised", url: serverPageURL(app.settings, "privacy"))
-            AboutLink(title: "Support", icon: "questionmark.circle", url: serverPageURL(app.settings, "support"))
+            AboutLink(title: String(localized: "Terms of service"), icon: "doc.text", url: serverPageURL(app.settings, "terms"))
+            AboutLink(title: String(localized: "Privacy policy"), icon: "hand.raised", url: serverPageURL(app.settings, "privacy"))
+            AboutLink(title: String(localized: "Support"), icon: "questionmark.circle", url: serverPageURL(app.settings, "support"))
             LabeledContent("Version", value: version)
         } header: {
             Text("About").textCase(nil)
@@ -472,7 +472,7 @@ extension CloudSync {
             try await configure(from: api)
             return nil
         } catch {
-            return "Couldn't connect to PinPlan. Check your internet connection and try again."
+            return String(localized: "Couldn't connect to PinPlan. Check your internet connection and try again.")
         }
     }
 
@@ -498,7 +498,7 @@ extension CloudSync {
     /// with the account). True when it signed straight in and the company is set up; false when the email has to be
     /// confirmed first (the company is then made on the first sign-in). Joining from an invite makes no company.
     func createAccount(email: String, password: String, name: String, company: String, acceptedAt: Date) async throws -> Bool {
-        guard let config else { throw SupabaseClient.Failure(message: "Still connecting to PinPlan. Try again in a moment.") }
+        guard let config else { throw SupabaseClient.Failure(message: String(localized: "Still connecting to PinPlan. Try again in a moment.")) }
         let e = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let meta = SignupLogic.metadata(name: name, company: company, acceptedAt: acceptedAt)
         let signedInNow = try await SupabaseClient(config: config).signUp(email: e, password: password, metadata: meta)
@@ -524,10 +524,10 @@ extension CloudSync {
         do {
             try await createTeam(name: p.company, myName: p.name)
             clearPendingCompany()
-            teamNotice = "\(p.company) is set up. Invite your office and technicians from Settings › Team."
+            teamNotice = String(localized: "\(p.company) is set up. Invite your office and technicians from Settings › Team.")
         } catch let e as SupabaseClient.Failure where e.status != 0 {
             clearPendingCompany()
-            teamNotice = "Couldn't set up \(p.company): \(e.message) Create it from Settings › Team."
+            teamNotice = String(localized: "Couldn't set up \(p.company): \(e.message) Create it from Settings › Team.")
         } catch {
             // Offline: try again after the next sign-in or launch.
         }
@@ -552,14 +552,14 @@ extension SupabaseClient {
         guard (200..<300).contains(status) else {
             var msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
             switch (j?["error_code"] as? String) ?? "" {
-            case "user_already_exists", "email_exists": msg = "This email already has an account. Tap Sign in instead."
-            case "weak_password": msg = "Choose a longer password: at least \(SignupLogic.passwordMin) characters."
-            case "email_address_invalid": msg = "Enter a valid email address."
-            case "over_email_send_rate_limit": msg = "Too many emails sent. Wait an hour, or sign in if the account already exists."
-            case "signup_disabled": msg = "New accounts can't be created right now. Try again later."
+            case "user_already_exists", "email_exists": msg = String(localized: "This email already has an account. Tap Sign in instead.")
+            case "weak_password": msg = String(localized: "Choose a longer password: at least \(SignupLogic.passwordMin) characters.")
+            case "email_address_invalid": msg = String(localized: "Enter a valid email address.")
+            case "over_email_send_rate_limit": msg = String(localized: "Too many emails sent. Wait an hour, or sign in if the account already exists.")
+            case "signup_disabled": msg = String(localized: "New accounts can't be created right now. Try again later.")
             default: break
             }
-            throw Failure(message: msg ?? "Couldn't create the account (\(status)). Try again.", status: status, code: j?["code"] as? String)
+            throw Failure(message: msg ?? String(localized: "Couldn't create the account (\(status)). Try again."), status: status, code: j?["code"] as? String)
         }
         return j?["access_token"] is String
     }

@@ -69,13 +69,13 @@ struct SupabaseClient {
             let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             var msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
             switch (j?["error_code"] as? String) ?? "" {
-            case "invalid_credentials": msg = "Wrong email or password. Use the same ones as on the web app."
-            case "email_not_confirmed": msg = "This email isn't confirmed yet. Open the confirmation email (check spam), then sign in."
-            case "user_already_exists": msg = "This email already has an account — tap Sign in instead."
-            case "over_email_send_rate_limit": msg = "Too many emails sent — wait an hour, or sign in if the account already exists."
+            case "invalid_credentials": msg = String(localized: "Wrong email or password. Use the same ones as on the web app.")
+            case "email_not_confirmed": msg = String(localized: "This email isn't confirmed yet. Open the confirmation email (check spam), then sign in.")
+            case "user_already_exists": msg = String(localized: "This email already has an account — tap Sign in instead.")
+            case "over_email_send_rate_limit": msg = String(localized: "Too many emails sent — wait an hour, or sign in if the account already exists.")
             default: break
             }
-            throw Failure(message: msg ?? "Cloud server returned \(status)", status: status, code: j?["code"] as? String)
+            throw Failure(message: msg ?? String(localized: "Cloud server returned \(status)"), status: status, code: j?["code"] as? String)
         }
         return data
     }
@@ -88,7 +88,7 @@ struct SupabaseClient {
               let user = j["user"] as? [String: Any], let uid = user["id"] as? String else {
             // Sign-up without a session: either a new account waiting for its confirmation email, or an email that
             // already has an account (Supabase sends nothing then, and doesn't say which).
-            throw Failure(message: "If you already have an account with this email, tap Sign in instead (no email is sent). If it's new, open the confirmation email (check spam), then sign in.")
+            throw Failure(message: String(localized: "If you already have an account with this email, tap Sign in instead (no email is sent). If it's new, open the confirmation email (check spam), then sign in."))
         }
         let expires = (j["expires_in"] as? Double) ?? 3600
         return Session(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(expires - 60), userId: uid, email: user["email"] as? String ?? "")
@@ -260,8 +260,10 @@ final class CloudSync {
         /// The account they were last synced with, when known.
         var previousEmail: String?
         var message: String {
-            let whose = previousEmail.map { "another account (\($0))" } ?? "another account"
-            return "This device has \(jobs) job\(jobs == 1 ? "" : "s") from \(whose). To sync this account, remove them from this device first (they stay in the other account's cloud), or sign out."
+            if let previousEmail {
+                return String(localized: "This device has \(jobs) jobs from another account (\(previousEmail)). To sync this account, remove them from this device first (they stay in the other account's cloud), or sign out.")
+            }
+            return String(localized: "This device has \(jobs) jobs from another account. To sync this account, remove them from this device first (they stay in the other account's cloud), or sign out.")
         }
     }
     /// Cloud tables the database doesn't have yet (the latest migration hasn't been run): their rows wait.
@@ -336,13 +338,13 @@ final class CloudSync {
         let (data, _) = try await URLSession.shared.data(for: req)
         guard let j = try JSONSerialization.jsonObject(with: data) as? [String: Any], let url = j["supabaseUrl"] as? String, let key = j["supabaseAnonKey"] as? String,
               !url.isEmpty, !key.isEmpty else {
-            throw SupabaseClient.Failure(message: "Cloud sync isn't switched on for that PinPlan server yet.")
+            throw SupabaseClient.Failure(message: String(localized: "Cloud sync isn't switched on for that PinPlan server yet."))
         }
         setConfig(url: url, anonKey: key)
     }
 
     func signIn(email: String, password: String, create: Bool) async throws {
-        guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect a cloud project first.")) }
         if create {
             guard try await createAccount(email: email, password: password) else {
                 throw SupabaseClient.Failure(message: SignUpOutcome.confirmEmail(email).message)
@@ -359,9 +361,10 @@ final class CloudSync {
         case confirmEmail(String)
         var message: String {
             switch self {
-            case .signedIn: return "Account created."
+            case .signedIn: return String(localized: "Account created.")
             case .confirmEmail(let e):
-                return "Check \(e.isEmpty ? "your inbox" : e) for the confirmation email (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in."
+                if e.isEmpty { return String(localized: "Check your inbox for the confirmation email (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in.") }
+                return String(localized: "Check \(e) for the confirmation email (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in.")
             }
         }
     }
@@ -370,7 +373,7 @@ final class CloudSync {
     /// confirmed first. Any invite code remembered with `rememberPendingInvite` is used after the next sign-in.
     @discardableResult
     func createAccount(email: String, password: String) async throws -> Bool {
-        guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect a cloud project first.")) }
         guard let s = try await client.signUp(email: email, password: password) else { return false }
         await begin(s)
         return true
@@ -418,7 +421,7 @@ final class CloudSync {
     /// A valid access token. Renews the sign-in a few minutes before it runs out; stays signed in when offline
     /// (renewal is retried later) and only signs out if the server rejects the saved sign-in.
     private func token() async throws -> String {
-        guard let client, let s = session else { throw SupabaseClient.Failure(message: "Not signed in") }
+        guard let client, let s = session else { throw SupabaseClient.Failure(message: String(localized: "Not signed in")) }
         if s.expiresAt > Date().addingTimeInterval(120) { return s.accessToken }
         // One renewal at a time: two at once would spend the same one-time renewal token and get rejected.
         if let t = refreshing { return try await t.value.accessToken }
@@ -431,11 +434,11 @@ final class CloudSync {
             return fresh.accessToken
         } catch let e as SupabaseClient.Failure where e.status == 400 || e.status == 401 {
             signOut()
-            throw SupabaseClient.Failure(message: "Your sign-in ended — please sign in again.")
+            throw SupabaseClient.Failure(message: String(localized: "Your sign-in ended — please sign in again."))
         } catch {
             // Offline or the server didn't answer: keep the sign-in and try again on the next sync.
             if s.expiresAt > Date() { return s.accessToken }
-            throw SupabaseClient.Failure(message: "Can't reach the cloud right now — will retry.")
+            throw SupabaseClient.Failure(message: String(localized: "Can't reach the cloud right now — will retry."))
         }
     }
 
@@ -574,13 +577,13 @@ final class CloudSync {
             pendingChanges = blocked ? countPending(app) : 0
             lastSync = Date()
             func text(_ e: Error) -> String { (e as? LocalizedError)?.errorDescription ?? e.localizedDescription }
-            lastError = refused.map { "Some changes weren't accepted by the cloud (they'll be tried again): " + text($0) }
-                ?? pullError.map { "Some changes couldn't be received (they'll be tried again): " + text($0) }
-                ?? (missingTables.isEmpty ? nil : "The cloud isn't up to date yet, so some job data doesn't sync (" + missingTables.joined(separator: ", ") + "). Everything else is synced.")
+            lastError = refused.map { String(localized: "Some changes weren't accepted by the cloud (they'll be tried again): \(text($0))") }
+                ?? pullError.map { String(localized: "Some changes couldn't be received (they'll be tried again): \(text($0))") }
+                ?? (missingTables.isEmpty ? nil : String(localized: "The cloud isn't up to date yet, so some job data doesn't sync (\(missingTables.joined(separator: ", "))). Everything else is synced."))
             if blocked {
                 lastSummary = BillingLogic.readOnlyStatus(pending: pendingChanges, device: UIDevice.current.model)
             } else {
-                lastSummary = pushed + pulled == 0 ? "Up to date" : "Sent \(pushed), received \(pulled) change\(pushed + pulled == 1 ? "" : "s")"
+                lastSummary = pushed + pulled == 0 ? String(localized: "Up to date") : String(localized: "Sent \(pushed), received \(pulled) changes")
             }
         } catch {
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -606,7 +609,7 @@ final class CloudSync {
     }
 
     func proposals(projectId: String) async throws -> [ProposalRow] {
-        guard let client else { throw SupabaseClient.Failure(message: "Cloud sync isn't connected.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Cloud sync isn't connected.")) }
         let data = try await client.select("proposals", query: "select=*&project_id=eq.\(projectId)&order=created_at.desc", token: try await token())
         // One row this version can't read (e.g. a newer web app's snapshot) mustn't hide the job's other links.
         return try JSONDecoder().decode([Lossy<ProposalRow>].self, from: data).compactMap(\.value)
@@ -626,18 +629,18 @@ final class CloudSync {
     /// Upload the plan images, then save the proposal. The job's earlier open links are withdrawn.
     func publishProposal(token link: String, projectId: String, images: [String: Data], build: ([String: String]) -> ProposalSnapshot,
                          withdraw: [String], progress: (String) -> Void) async throws {
-        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: String(localized: "Sign in to cloud sync first.")) }
         let tok = try await token()
         // The job must be on the server first (proposals belong to a synced job).
         await syncAndWait()
         var urls: [String: String] = [:]
         for (i, (sheetId, data)) in images.sorted(by: { $0.key < $1.key }).enumerated() {
-            progress("Uploading plan \(i + 1) of \(images.count)…")
+            progress(String(localized: "Uploading plan \(i + 1) of \(images.count)…"))
             let path = "\(uid)/\(link)/\(sheetId).jpg"
             try await client.upload(bucket: "proposals", path: path, data: data, token: tok)
             urls[sheetId] = client.publicURL(bucket: "proposals", path: path)
         }
-        progress("Publishing…")
+        progress(String(localized: "Publishing…"))
         let snap = build(urls)
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(snap))
         _ = try await client.insert("proposals", row: ["id": link, "project_id": projectId, "snapshot": json, "valid_until": snap.validUntil.map { $0 as Any } ?? NSNull()], token: tok)
@@ -647,7 +650,7 @@ final class CloudSync {
 
     /// Upload a file anyone with the link can open (under this account's folder) and return its address.
     func uploadPublic(path: String, data: Data, contentType: String) async throws -> String {
-        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        guard let client, let uid = session?.userId else { throw SupabaseClient.Failure(message: String(localized: "Sign in to cloud sync first.")) }
         let full = "\(uid)/\(path)"
         try await client.upload(bucket: "proposals", path: full, data: data, token: try await token(), contentType: contentType)
         return client.publicURL(bucket: "proposals", path: full)
@@ -655,14 +658,14 @@ final class CloudSync {
 
     /// Save a photo report the client can open at /r?t=<token> (photos already uploaded with `uploadPublic`).
     func publishPhotoReport(token link: String, projectId: String, snapshot: [String: Any]) async throws {
-        guard let client else { throw SupabaseClient.Failure(message: "Sign in to cloud sync first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Sign in to cloud sync first.")) }
         await syncAndWait()   // the report belongs to a synced job
         do {
             _ = try await client.insert("photo_reports", row: ["id": link, "project_id": projectId, "snapshot": snapshot], token: try await token())
         } catch {
             let m = error.localizedDescription
             if m.contains("does not exist") || m.contains("schema cache") {
-                throw SupabaseClient.Failure(message: "Photo reports aren't switched on for this PinPlan server yet. Try again once it's updated.")
+                throw SupabaseClient.Failure(message: String(localized: "Photo reports aren't switched on for this PinPlan server yet. Try again once it's updated."))
             }
             throw error
         }
@@ -752,7 +755,7 @@ final class CloudSync {
                     // Forgetting the pull watermarks makes the next pull fetch the job (and its sheets, devices…) again.
                     ledger.hashes.removeValue(forKey: SyncLedger.key(.projects, id))
                     ledger.watermarks = [:]
-                    teamNotice = "Only the office can delete a job, so it's back on this device."
+                    teamNotice = String(localized: "Only the office can delete a job, so it's back on this device.")
                 } else if refused == nil {
                     refused = e
                 }
@@ -776,13 +779,13 @@ final class CloudSync {
     /// What a table holds, in words for the sync status.
     private static func plainName(_ t: SyncTable, remote: String) -> String {
         switch t {
-        case .salesDocs: return "quotes & invoices"
-        case .salesPayments: return "payments"
-        case .rfis: return "RFIs"
-        case .scheduleItems: return "schedule"
-        case .measurements: return "saved measurements"
-        case .sheetLinks: return "plan links"
-        case .planMarkups: return "markups"
+        case .salesDocs: return String(localized: "quotes & invoices")
+        case .salesPayments: return String(localized: "payments")
+        case .rfis: return String(localized: "RFIs")
+        case .scheduleItems: return String(localized: "schedule")
+        case .measurements: return String(localized: "saved measurements")
+        case .sheetLinks: return String(localized: "plan links")
+        case .planMarkups: return String(localized: "markups")
         default: return remote.replacingOccurrences(of: "_", with: " ")
         }
     }
@@ -1143,7 +1146,7 @@ extension CloudSync {
 
     /// Run a team call with a friendly message on failure (missing migration, signed out…).
     private func teamCall<T>(_ work: (SupabaseClient, String) async throws -> T) async throws -> T {
-        guard let client else { throw SupabaseClient.Failure(message: "Connect cloud sync first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect cloud sync first.")) }
         do {
             let tok = try await token()
             return try await work(client, tok)
@@ -1189,7 +1192,7 @@ extension CloudSync {
 
     /// Make an invite code for someone (returns the code, upper case without dashes).
     func createInvite(role: TeamRole, name: String) async throws -> String {
-        guard let id = team?.team?.id else { throw SupabaseClient.Failure(message: "Start your team first.") }
+        guard let id = team?.team?.id else { throw SupabaseClient.Failure(message: String(localized: "Start your team first.")) }
         let n = name.trimmingCharacters(in: .whitespaces)
         let r = role == .admin ? "admin" : "tech"
         // A clash is astronomically unlikely, but retry rather than fail.
@@ -1204,7 +1207,7 @@ extension CloudSync {
                 continue
             }
         }
-        throw SupabaseClient.Failure(message: "Couldn't make an invite code. Try again.")
+        throw SupabaseClient.Failure(message: String(localized: "Couldn't make an invite code. Try again."))
     }
 
     func revokeInvite(_ code: String) async throws {
@@ -1236,7 +1239,7 @@ extension CloudSync {
 
     /// What a code is for (works before signing in). Nil when the code isn't valid (wrong, used, expired or revoked).
     func inviteInfo(_ code: String) async throws -> InviteInfo? {
-        guard let client else { throw SupabaseClient.Failure(message: "Connect cloud sync first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect cloud sync first.")) }
         var tok: String?
         if signedIn { tok = try? await token() }
         do {
@@ -1288,11 +1291,11 @@ extension CloudSync {
         do {
             let r = try await acceptInvite(p.code, name: p.name)
             clearPendingInvite()
-            teamNotice = "You joined \(r.team.isEmpty ? "the team" : r.team) as \(r.role.name)."
+            teamNotice = r.team.isEmpty ? String(localized: "You joined the team as \(tr(r.role.name)).") : String(localized: "You joined \(r.team) as \(tr(r.role.name)).")
         } catch let e as SupabaseClient.Failure where e.status != 0 {
             // A dead code won't start working later; a network error might.
             clearPendingInvite()
-            teamNotice = "Couldn't join with the saved invite code: \(e.message)"
+            teamNotice = String(localized: "Couldn't join with the saved invite code: \(e.message)")
         } catch {
             // Offline: try again after the next sign-in.
         }
@@ -1308,9 +1311,9 @@ extension CloudSync {
 
     /// Email a password-reset link. `serverURL` is the PinPlan web server; its /reset page sets the new password.
     func sendPasswordReset(email: String, serverURL: String) async throws {
-        guard let client else { throw SupabaseClient.Failure(message: "Connect a cloud project first.") }
+        guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect a cloud project first.")) }
         let e = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard e.contains("@") else { throw SupabaseClient.Failure(message: "Enter your email address first.") }
+        guard e.contains("@") else { throw SupabaseClient.Failure(message: String(localized: "Enter your email address first.")) }
         try await client.recover(email: e, redirectTo: BillingLogic.webURL(origin: serverURL, path: "reset"))
     }
 
@@ -1318,7 +1321,7 @@ extension CloudSync {
     /// Unless the sign-in is fresh (the last 5 minutes), the server wants the account's email typed again
     /// (`confirmEmail`) and answers 403 `reauth_required` without it: `.needsEmail`, so the screen asks for it.
     func deleteAccount(api: APIClient, confirmEmail: String? = nil) async throws -> AccountDeletionResult {
-        guard signedIn else { throw SupabaseClient.Failure(message: "Sign in first.") }
+        guard signedIn else { throw SupabaseClient.Failure(message: String(localized: "Sign in first.")) }
         let tok = try await token()
         var req = URLRequest(url: api.baseURL.appendingPathComponent("api/account"))
         req.httpMethod = "DELETE"

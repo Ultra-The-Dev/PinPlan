@@ -23,8 +23,8 @@ struct PendingInputSheet: View {
                     Section {
                         LabeledContent("Zone #") { TextField("Zone", text: $a).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
                         LabeledContent("Switch") { TextField("S21", text: $b).multilineTextAlignment(.trailing) }
-                        LabeledContent("LF") { TextField(measured.map { $0.clean } ?? "from the plan callout", text: $c).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
-                    } footer: { Text(measured.map { "Measured \($0.clean) LF from the scale. Type the plan's LF to override." } ?? "No scale on this sheet — type the LF from the plan callout.") }
+                        LabeledContent("LF") { TextField(measured.map { $0.clean } ?? String(localized: "from the plan callout"), text: $c).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
+                    } footer: { Text(measured.map { String(localized: "Measured \($0.clean) LF from the scale. Type the plan's LF to override.") } ?? String(localized: "No scale on this sheet — type the LF from the plan callout.")) }
                 case .stair:
                     Section {
                         LabeledContent("Steps") { TextField("14", text: $a).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
@@ -54,9 +54,9 @@ struct PendingInputSheet: View {
 
     private var title: String {
         switch pending {
-        case .calibrate: return "Set scale"
-        case .led: return "LED run"
-        case .stair: return "Stair-step LED"
+        case .calibrate: return String(localized: "Set scale")
+        case .led: return String(localized: "LED run")
+        case .stair: return String(localized: "Stair-step LED")
         }
     }
 
@@ -65,20 +65,20 @@ struct PendingInputSheet: View {
         let pricing = model.pricing
         switch pending {
         case .calibrate(let pts):
-            guard let ft = Geometry.parseFeet(a), ft > 0 else { error = "Enter a length like 12'6\" or 12.5"; return }
+            guard let ft = Geometry.parseFeet(a), ft > 0 else { error = String(localized: "Enter a length like 12'6\" or 12.5"); return }
             let px = Geometry.polylinePx(pts, width: sheet.width, height: sheet.height)
             model.edit { $0.setScale(sheetId: sheet.id, pxPerFt: px / ft, label: "line \(a)", pricing: pricing) }
             model.use(.select)
-            model.say("Scale set")
+            model.say(String(localized: "Scale set"))
         case .led(let pts, let typeId):
             let typed = c.isEmpty ? nil : Geometry.parseFeet(c)
-            if !c.isEmpty && typed == nil { error = "LF must be a number"; return }
+            if !c.isEmpty && typed == nil { error = String(localized: "LF must be a number"); return }
             model.edit { $0.addRun(Run(projectId: $0.project.id, sheetId: sheet.id, kind: .led, deviceTypeId: typeId, points: pts, typedFt: typed, zone: a, switchLabel: b)) }
-            model.say("LED zone \(a) added")
+            model.say(String(localized: "LED zone \(a) added"))
         case .stair(let pts):
-            guard let steps = Int(a), steps > 0, let per = Geometry.parseFeet(b) else { error = "Enter the steps and LF per step"; return }
+            guard let steps = Int(a), steps > 0, let per = Geometry.parseFeet(b) else { error = String(localized: "Enter the steps and LF per step"); return }
             model.edit { $0.addRun(Run(projectId: $0.project.id, sheetId: sheet.id, kind: .stair, deviceTypeId: "led-stair", points: pts, zone: c, switchLabel: d, steps: steps, lfPerStep: per)) }
-            model.say("Stair LED: \(steps) × \(per.clean) = \((Double(steps) * per).clean) LF")
+            model.say(String(localized: "Stair LED: \(steps) × \(per.clean) = \((Double(steps) * per).clean) LF"))
         }
         dismiss()
     }
@@ -112,10 +112,10 @@ struct ScaleSheet: View {
                 if sheet.pxPerInch != nil {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
-                            guard let inPerFt = Geometry.parseScale(text), let ppi = sheet.pxPerInch else { error = "Enter a scale like 1/4\" = 1'-0\" or 1:48"; return }
+                            guard let inPerFt = Geometry.parseScale(text), let ppi = sheet.pxPerInch else { error = String(localized: "Enter a scale like 1/4\" = 1'-0\" or 1:48"); return }
                             let pricing = model.pricing
                             model.edit { $0.setScale(sheetId: sheet.id, pxPerFt: inPerFt * ppi, label: text, pricing: pricing) }
-                            model.say("Scale set")
+                            model.say(String(localized: "Scale set"))
                             dismiss()
                         }
                     }

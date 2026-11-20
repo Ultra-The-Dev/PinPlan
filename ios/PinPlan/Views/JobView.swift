@@ -11,10 +11,10 @@ struct JobView: View {
         let p = model.bundle.project
         SentenceForm {
             JobHealthSection(model: model, go: go)
-            Section(sentence: "Job") {
-                LabeledContent("Address") { CommitField(title: "Address", value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
+            Section(sentence: String(localized: "Job")) {
+                LabeledContent("Address") { CommitField(title: String(localized: "Address"), value: p.address) { v in model.editSilently { $0.project.address = v } }.multilineTextAlignment(.trailing) }
                 Picker("Status", selection: Binding(get: { p.status }, set: { v in model.editSilently { $0.project.status = v } })) {
-                    ForEach(ProjectStatus.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                    ForEach(ProjectStatus.allCases, id: \.self) { Text(tr($0.rawValue.capitalized, context: "Job status")).tag($0) }
                 }
             }
             Section {
@@ -30,13 +30,13 @@ struct JobView: View {
                     ForEach(ProjectStatus.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
             }
-            Section(sentence: "Client") {
-                LabeledContent("Name") { CommitField(title: "Name", value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
-                LabeledContent("Email") { CommitField(title: "Email", value: p.clientEmail ?? "", keyboard: .emailAddress) { v in model.editSilently { $0.project.clientEmail = v } }.multilineTextAlignment(.trailing) }
-                LabeledContent("Phone") { CommitField(title: "Phone", value: p.clientPhone ?? "", keyboard: .phonePad) { v in model.editSilently { $0.project.clientPhone = v } }.multilineTextAlignment(.trailing) }
+            Section(sentence: String(localized: "Client")) {
+                LabeledContent("Name") { CommitField(title: String(localized: "Name"), value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
+                LabeledContent("Email") { CommitField(title: String(localized: "Email"), value: p.clientEmail ?? "", keyboard: .emailAddress) { v in model.editSilently { $0.project.clientEmail = v } }.multilineTextAlignment(.trailing) }
+                LabeledContent("Phone") { CommitField(title: String(localized: "Phone"), value: p.clientPhone ?? "", keyboard: .phonePad) { v in model.editSilently { $0.project.clientPhone = v } }.multilineTextAlignment(.trailing) }
             }
-            Section(sentence: "Notes") {
-                CommitField(title: "Notes", value: p.notes ?? "", prompt: "Gate code, site contact…") { v in model.editSilently { $0.project.notes = v } }
+            Section(sentence: String(localized: "Notes")) {
+                CommitField(title: String(localized: "Notes"), value: p.notes ?? "", prompt: String(localized: "Gate code, site contact…")) { v in model.editSilently { $0.project.notes = v } }
             }
             // Simple by default: labels, location, brands and models, backup and connected apps sit behind More.
             Section {
@@ -49,9 +49,9 @@ struct JobView: View {
 
     private func moreSummary(_ p: Project) -> String {
         var parts: [String] = []
-        if let l = p.labels, !l.isEmpty { parts.append(l.count == 1 ? "1 label" : "\(l.count) labels") }
-        if p.lat != nil { parts.append("Located") }
-        return parts.isEmpty ? "Labels, location, backup" : parts.joined(separator: " · ")
+        if let l = p.labels, !l.isEmpty { parts.append(String(localized: "\(l.count) labels")) }
+        if p.lat != nil { parts.append(String(localized: "Located")) }
+        return parts.isEmpty ? String(localized: "Labels, location, backup") : parts.joined(separator: " · ")
     }
 }
 
@@ -85,9 +85,9 @@ struct JobMoreView: View {
                 Text("One file with every plan, device, wire run, photo and price edit. It opens in this app or the PinPlan web app.")
             }
             if !p.billduDocs.isEmpty && app.cloud.can(.prices) {
-                Section(sentence: "Billdu") {
+                Section(sentence: String(localized: "Billdu")) {
                     ForEach(p.billduDocs, id: \.id) { d in
-                        LabeledContent("\(d.type.capitalized) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
+                        LabeledContent("\(tr(d.type.capitalized)) \(d.serial ?? "#\(d.id)")", value: Money.format(d.amount, currency: model.pricing.currency))
                     }
                 }
             }
@@ -102,9 +102,9 @@ extension ProjectStatus {
     /// The status in the app's words (docs/ux-audit.md glossary): Quoting, Approved, Installed.
     var title: String {
         switch self {
-        case .estimate: return "Quoting"
-        case .approved: return "Approved"
-        case .installed: return "Installed"
+        case .estimate: return String(localized: "Quoting")
+        case .approved: return String(localized: "Approved")
+        case .installed: return String(localized: "Installed")
         }
     }
 }
@@ -165,7 +165,7 @@ struct JobLocationSection: View {
                     let loc = await LocationOnce.shared.current()
                     LocationOnce.enabled = was
                     locating = false
-                    if let loc { set(loc.coordinate.latitude, loc.coordinate.longitude) } else { model.say("Couldn't get your location — check Location permission in Settings") }
+                    if let loc { set(loc.coordinate.latitude, loc.coordinate.longitude) } else { model.say(String(localized: "Couldn't get your location — check Location permission in Settings")) }
                 }
             } label: { Label(locating ? "Locating…" : "Use my current location", systemImage: "location") }
             .disabled(locating)
@@ -213,10 +213,10 @@ struct JobHealthSection: View {
                 Text(tasksText(s)).foregroundStyle(s.overdueTasks > 0 ? Color.red : Color.secondary)
             }
             LabeledContent("Photos", value: photosText(s, today: today))
-            LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? "None yet")
+            LabeledContent("Last daily log", value: s.lastLogDate.map { ago($0, today: today) } ?? String(localized: "None yet"))
             if showPrices {
                 LabeledContent("Pricing") {
-                    Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? " · \(unpriced) unpriced" : ""))
+                    Text(Money.format(e.total, currency: model.pricing.currency) + (unpriced > 0 ? String(localized: " · \(unpriced) unpriced") : ""))
                         .foregroundStyle(unpriced > 0 ? Color.red : Color.secondary)
                 }
             }
@@ -261,20 +261,20 @@ struct JobHealthSection: View {
     private func devicesText(_ s: JobSummary) -> String {
         var parts: [String] = ["\(s.devices)"]
         if s.tentative > 0 { parts.append("\(s.tentative) optional") }
-        if s.ledRuns > 0 { parts.append("\(s.ledRuns) LED run\(s.ledRuns == 1 ? "" : "s")") }
+        if s.ledRuns > 0 { parts.append(String(localized: "\(s.ledRuns) LED runs")) }
         return parts.joined(separator: " · ")
     }
 
     private func tasksText(_ s: JobSummary) -> String {
-        if s.overdueTasks > 0 { return "\(s.openTasks) · \(s.overdueTasks) overdue" }
-        if s.dueToday > 0 { return "\(s.openTasks) · \(s.dueToday) due today" }
-        return s.openTasks > 0 ? "\(s.openTasks)" : "All clear"
+        if s.overdueTasks > 0 { return String(localized: "\(s.openTasks) · \(s.overdueTasks) overdue") }
+        if s.dueToday > 0 { return String(localized: "\(s.openTasks) · \(s.dueToday) due today") }
+        return s.openTasks > 0 ? "\(s.openTasks)" : String(localized: "All clear")
     }
 
     private func photosText(_ s: JobSummary, today: String) -> String {
-        if s.photos == 0 { return "None yet" }
+        if s.photos == 0 { return String(localized: "None yet") }
         guard let last = s.lastPhotoAt else { return "\(s.photos)" }
-        return "\(s.photos) · last \(ago(FieldDocs.localDay(last), today: today))"
+        return String(localized: "\(s.photos) · last \(ago(FieldDocs.localDay(last), today: today))")
     }
 
     /// "today", "yesterday", "3 days ago" or a short date, for a YYYY-MM-DD day.
@@ -285,9 +285,9 @@ struct JobHealthSection: View {
         // An unreadable day would otherwise count as 0 days away and read "today".
         guard let date = f.date(from: day) else { return day }
         let d: Int = FieldDocs.daysUntil(today, today: day)
-        if d == 0 { return "today" }
-        if d == 1 { return "yesterday" }
-        if d > 1 && d < 14 { return "\(d) days ago" }
+        if d == 0 { return String(localized: "today") }
+        if d == 1 { return String(localized: "yesterday") }
+        if d > 1 && d < 14 { return String(localized: "\(d) days ago") }
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 }

@@ -46,7 +46,7 @@ struct RfiListView: View {
         let rows = filter.apply(all, today: today)
         List {
             Section {
-                Picker("Show", selection: $filter) { ForEach(RfiListFilter.allCases) { Text($0.rawValue).tag($0) } }
+                Picker("Show", selection: $filter) { ForEach(RfiListFilter.allCases) { Text(tr($0.rawValue, context: "RFI filter")).tag($0) } }
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
@@ -96,7 +96,7 @@ struct RfiRow: View {
                         .font(.caption).foregroundStyle(late ? Color.red : Color.secondary)
                 }
             }
-            Text(rfi.subject.isEmpty ? "Untitled question" : rfi.subject).font(.headline).lineLimit(2)
+            Text(rfi.subject.isEmpty ? String(localized: "Untitled question") : rfi.subject).font(.headline).lineLimit(2)
             if !rfi.question.isEmpty { Text(rfi.question).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
         }
         .padding(.vertical, 2)
@@ -114,7 +114,7 @@ struct RfiStatusChip: View {
         case .closed: .secondary
         case .void: .secondary
         }
-        Text(FieldParity.RFI.statusLabel(status.rawValue))
+        Text(tr(FieldParity.RFI.statusLabel(status.rawValue), context: "RFI status"))
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(color.opacity(0.14), in: Capsule())
@@ -127,7 +127,7 @@ struct RfiBallChip: View {
     let text: String
     let them: Bool
     var body: some View {
-        Label(text, systemImage: them ? "hourglass" : "arrow.left.arrow.right")
+        Label(tr(text), systemImage: them ? "hourglass" : "arrow.left.arrow.right")
             .labelStyle(.titleAndIcon)
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6).padding(.vertical, 2)
@@ -155,13 +155,13 @@ struct RfiDetailView: View {
                             RfiStatusChip(status: r.status)
                             if let ball = FieldParity.RFI.ballLabel(status: r.status.rawValue, ballInCourt: r.ballInCourt) { RfiBallChip(text: ball, them: r.ballInCourt == "them") }
                         }
-                        Text(r.subject.isEmpty ? "Untitled question" : r.subject).font(.title3.weight(.semibold))
+                        Text(r.subject.isEmpty ? String(localized: "Untitled question") : r.subject).font(.title3.weight(.semibold))
                         Text(byline(r)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                Section(sentence: "Question") { Text(r.question.isEmpty ? "—" : r.question).textSelection(.enabled) }
-                if let s = r.suggestion, !s.isEmpty { Section(sentence: "Our suggestion") { Text(s).textSelection(.enabled) } }
-                Section(sentence: "Answer") {
+                Section(sentence: String(localized: "Question")) { Text(r.question.isEmpty ? "—" : r.question).textSelection(.enabled) }
+                if let s = r.suggestion, !s.isEmpty { Section(sentence: String(localized: "Our suggestion")) { Text(s).textSelection(.enabled) } }
+                Section(sentence: String(localized: "Answer")) {
                     if let a = r.answer, !a.isEmpty {
                         Text(a).textSelection(.enabled)
                         if let by = r.answeredBy { Text("From \(by)\(r.answeredAt.map { " · \(TaskDates.short(FieldDocs.localDay($0)))" } ?? "")").font(.caption).foregroundStyle(.secondary) }
@@ -170,13 +170,13 @@ struct RfiDetailView: View {
                     }
                 }
                 if let sid = r.sheetId, let sheet = model.bundle.liveSheets.first(where: { $0.id == sid }) {
-                    Section(sentence: "On the plan") {
+                    Section(sentence: String(localized: "On the plan")) {
                         PlanSpotPreview(sheet: sheet, x: r.x, y: r.y).frame(height: 200)
                         Text(sheet.name).font(.subheadline)
                     }
                 }
                 if !photos.isEmpty {
-                    Section(sentence: "Photos") {
+                    Section(sentence: String(localized: "Photos")) {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(photos) { p in
@@ -190,7 +190,7 @@ struct RfiDetailView: View {
                 // office sends it.
                 if r.status == .draft && FieldParity.RFI.can(app.cloud.role, "send") {
                     Section {
-                        WebOnlyLink(title: "Send it from the web", path: "project?id=\(model.bundle.project.id)&tab=field&section=rfis")
+                        WebOnlyLink(title: String(localized: "Send it from the web"), path: "project?id=\(model.bundle.project.id)&tab=field&section=rfis")
                     } footer: {
                         Text("The office checks the wording and who it goes to, then sends it.")
                     }
@@ -213,10 +213,10 @@ struct RfiDetailView: View {
 
     private func byline(_ r: Rfi) -> String {
         var parts: [String] = []
-        if let by = r.createdBy, !by.isEmpty { parts.append("Raised by \(by)") }
+        if let by = r.createdBy, !by.isEmpty { parts.append(String(localized: "Raised by \(by)")) }
         if let s = r.sentAt { parts.append("sent \(TaskDates.short(FieldDocs.localDay(s)))") }
-        if let d = r.due, !d.isEmpty { parts.append("answer needed by \(TaskDates.short(d))") }
-        return parts.isEmpty ? "Draft" : parts.joined(separator: " · ")
+        if let d = r.due, !d.isEmpty { parts.append(String(localized: "answer needed by \(TaskDates.short(d))")) }
+        return parts.isEmpty ? String(localized: "Draft") : parts.joined(separator: " · ")
     }
 }
 
@@ -234,7 +234,7 @@ struct RfiEditor: View {
     var body: some View {
         NavigationStack {
             SentenceForm {
-                Section(sentence: "Question") {
+                Section(sentence: String(localized: "Question")) {
                     TextField("Subject (e.g. Fire panel location)", text: $rfi.subject)
                     TextField("What do you need to know?", text: $rfi.question, axis: .vertical).lineLimit(3...8)
                 }
@@ -242,11 +242,11 @@ struct RfiEditor: View {
                     TextField("What would you do? (optional)", text: Binding(get: { rfi.suggestion ?? "" }, set: { rfi.suggestion = $0.isEmpty ? nil : $0 }), axis: .vertical)
                         .lineLimit(2...6)
                 } header: {
-                    SentenceHeader(title: "Our suggestion")
+                    SentenceHeader(title: String(localized: "Our suggestion"))
                 } footer: {
                     Text("A suggested answer gets a quicker reply.")
                 }
-                Section(sentence: "Photos") {
+                Section(sentence: String(localized: "Photos")) {
                     let photos = (rfi.photoIds ?? []).compactMap(model.photo)
                     if !photos.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -265,7 +265,7 @@ struct RfiEditor: View {
                         Label("Add photo", systemImage: "camera")
                     }
                 }
-                Section(sentence: "Spot on the plan") {
+                Section(sentence: String(localized: "Spot on the plan")) {
                     if let sid = rfi.sheetId, let sheet = model.bundle.liveSheets.first(where: { $0.id == sid }) {
                         PlanSpotPreview(sheet: sheet, x: rfi.x, y: rfi.y).frame(height: 160)
                         Button("Change spot") { picking = true }
@@ -277,7 +277,7 @@ struct RfiEditor: View {
                     }
                 }
             }
-            .navigationTitle(isNew ? "New RFI" : rfi.label)
+            .navigationTitle(isNew ? String(localized: "New RFI") : rfi.label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -306,7 +306,7 @@ struct RfiEditor: View {
             r.ballInCourt = "us"
         }
         model.saveRfi(r)
-        model.say(isNew ? "\(r.label) saved as a draft — the office sends it" : "\(r.label) saved")
+        model.say(isNew ? String(localized: "\(r.label) saved as a draft — the office sends it") : String(localized: "\(r.label) saved"))
         dismiss()
     }
 }
@@ -332,7 +332,7 @@ struct PlanSpotPreview: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .task(id: sheet.imageId) { image = await PlanSpot.preview(sheet, store: app.store) }
-        .accessibilityLabel(x == nil ? sheet.name : "Spot on \(sheet.name)")
+        .accessibilityLabel(x == nil ? sheet.name : String(localized: "Spot on \(sheet.name)"))
     }
 }
 

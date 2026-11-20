@@ -16,11 +16,11 @@ struct OfficeDrawingsSection: View {
         if !b.livePlanMarkups.isEmpty || !b.liveMeasurements.isEmpty || !b.liveSheetLinks.isEmpty {
             let prefs = OfficeOverlayPrefs.shared
             Section {
-                row("Markups", count: markups, on: Binding(get: { prefs.markups }, set: { prefs.markups = $0 }))
-                row("Measurements", count: measurements, on: Binding(get: { prefs.measurements }, set: { prefs.measurements = $0 }))
-                row("Plan links", count: links, on: Binding(get: { prefs.links }, set: { prefs.links = $0 }))
+                row(String(localized: "Markups"), count: markups, on: Binding(get: { prefs.markups }, set: { prefs.markups = $0 }))
+                row(String(localized: "Measurements"), count: measurements, on: Binding(get: { prefs.measurements }, set: { prefs.measurements = $0 }))
+                row(String(localized: "Plan links"), count: links, on: Binding(get: { prefs.links }, set: { prefs.links = $0 }))
             } header: {
-                SentenceHeader(title: "From the office")
+                SentenceHeader(title: String(localized: "From the office"))
             } footer: {
                 Text("Made on the web. Shown here to read; they never change the device count.")
             }

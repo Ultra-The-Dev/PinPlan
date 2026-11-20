@@ -21,11 +21,11 @@ struct PlanInsightsView: View {
     private var details: [PlanDetail] { model.planDetails[sheet.id] ?? [] }
 
     var body: some View {
-        PanelContainer(title: "Read \(sheet.name)", inSheet: inSheet, onClose: onClose) {
+        PanelContainer(title: String(localized: "Read \(sheet.name)"), inSheet: inSheet, onClose: onClose) {
             SentenceList {
                 if Features.ai {
                     Section {
-                        Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                        Picker("Mode", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text(tr($0.rawValue)).tag($0) } }
                             .pickerStyle(.segmented)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
@@ -55,7 +55,7 @@ struct PlanInsightsView: View {
         ForEach([PlanDetailKind.room, .dimension, .callout, .note, .scale], id: \.self) { kind in
             let items = details.filter { $0.kind == kind && (query.isEmpty || $0.text.localizedCaseInsensitiveContains(query)) }
             if !items.isEmpty {
-                Section(sentence: "\(kind.title) (\(items.count))") {
+                Section(sentence: "\(tr(kind.title)) (\(items.count))") {
                     ForEach(items) { d in detailRow(d) }
                 }
             }
@@ -98,7 +98,7 @@ struct PlanInsightsView: View {
         let printed = details.first { $0.kind == .scale }?.text
         if let printed {
             if sheet.pxPerFt != nil {
-                Label("Printed scale \(printed) · sheet scale \(sheet.scaleLabel ?? "set")", systemImage: "checkmark.seal.fill").foregroundStyle(.green).font(.callout)
+                Label("Printed scale \(printed) · sheet scale \(sheet.scaleLabel ?? String(localized: "set"))", systemImage: "checkmark.seal.fill").foregroundStyle(.green).font(.callout)
             } else {
                 Label("Printed scale \(printed) — this sheet has no scale yet. Swipe a dimension → Set scale, or set it from the Tools menu.", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange).font(.callout)
@@ -113,31 +113,31 @@ struct PlanInsightsView: View {
     @ViewBuilder
     private var aiSections: some View {
         if APIClient(settings: app.settings) == nil {
-            Section { ServerSetupPrompt(feature: "The AI reader") }
+            Section { ServerSetupPrompt(feature: String(localized: "The AI reader")) }
         }
         if let e = model.planExplanations[sheet.id] {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(e.sheetTitle.isEmpty ? sheet.name : e.sheetTitle).font(.headline)
-                    Text([e.sheetType, e.scale.map { "Scale \($0)" }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                    Text([e.sheetType, e.scale.map { String(localized: "Scale \($0)") }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                     Text(e.summary).font(.callout).padding(.top, 4)
                 }
                 .padding(.vertical, 4)
             } header: { Text("Summary").textCase(nil) }
             if !e.verify.isEmpty {
-                Section(sentence: "Check on site") {
+                Section(sentence: String(localized: "Check on site")) {
                     ForEach(e.verify, id: \.self) { v in Label(v, systemImage: "checklist").font(.callout) }
                 }
             }
             if !e.rooms.isEmpty {
-                Section(sentence: "Rooms (\(e.rooms.count))") {
+                Section(sentence: String(localized: "Rooms (\(e.rooms.count))")) {
                     ForEach(e.rooms, id: \.self) { r in
                         Button { go(r.x, r.y) } label: { LabeledContent(r.name, value: r.size ?? "") }.foregroundStyle(.primary)
                     }
                 }
             }
             if !e.notes.isEmpty {
-                Section(sentence: "Notes for your trade (\(e.notes.count))") {
+                Section(sentence: String(localized: "Notes for your trade (\(e.notes.count))")) {
                     ForEach(e.notes, id: \.self) { n in
                         Button { go(n.x, n.y) } label: {
                             HStack(alignment: .top) {
@@ -149,7 +149,7 @@ struct PlanInsightsView: View {
                 }
             }
             if !e.dimensions.isEmpty {
-                Section(sentence: "Dimensions (\(e.dimensions.count))") {
+                Section(sentence: String(localized: "Dimensions (\(e.dimensions.count))")) {
                     ForEach(e.dimensions, id: \.self) { d in
                         Button { go(d.x, d.y) } label: {
                             LabeledContent(d.describes ?? d.text, value: d.describes == nil ? (d.feet.map { "\($0.clean) ft" } ?? "") : d.text)
@@ -162,13 +162,13 @@ struct PlanInsightsView: View {
         }
         Section {
             Button { explain() } label: {
-                Label(aiBusy ? "Reading the sheet…" : (model.planExplanations[sheet.id] == nil ? "Explain this sheet" : "Read again"), systemImage: "sparkles")
+                Label(aiBusy ? String(localized: "Reading the sheet…") : (model.planExplanations[sheet.id] == nil ? String(localized: "Explain this sheet") : String(localized: "Read again")), systemImage: "sparkles")
             }
             .disabled(aiBusy)
             if let aiError { Text(aiError).foregroundStyle(.red).font(.callout) }
         } footer: { Text("Claude reads the sheet image and explains it for low-voltage work. Always confirm critical dimensions on the drawings.") }
 
-        Section(sentence: "Ask about this plan") {
+        Section(sentence: String(localized: "Ask about this plan")) {
             ForEach(model.planQA[sheet.id] ?? []) { qa in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(qa.question).font(.callout.weight(.semibold))
@@ -219,7 +219,7 @@ struct PlanInsightsView: View {
     }
 
     private func explain() {
-        guard let client = APIClient(settings: app.settings) else { aiError = "Set your PinPlan server in Settings."; return }
+        guard let client = APIClient(settings: app.settings) else { aiError = String(localized: "Set your PinPlan server in Settings."); return }
         guard let image = app.store.image(sheet.imageId) else { return }
         aiBusy = true
         aiError = nil
@@ -240,7 +240,7 @@ struct PlanInsightsView: View {
         list.append(item)
         model.planQA[s.id] = list
         guard let client = APIClient(settings: app.settings), let image = app.store.image(s.imageId) else {
-            update(item.id, sheetId: s.id) { $0.error = "Set your PinPlan server in Settings." }
+            update(item.id, sheetId: s.id) { $0.error = String(localized: "Set your PinPlan server in Settings.") }
             return
         }
         Task {

@@ -113,9 +113,9 @@ private struct TaskDetailForm: View {
         let sheet = model.sheets.first { $0.id == task.sheetId }?.name
         let place: String
         switch TaskLogic.placement(task) {
-        case .pin: place = sheet ?? "Sheet"
-        case .sheet: place = "\(sheet ?? "Sheet") (no spot)"
-        case .general: place = "General task"
+        case .pin: place = sheet ?? String(localized: "Sheet")
+        case .sheet: place = String(localized: "\(sheet ?? String(localized: "Sheet")) (no spot)")
+        case .general: place = String(localized: "General task")
         }
         return [place, task.createdBy.map { "by \($0)" }].compactMap { $0 }.joined(separator: " · ")
     }
@@ -168,8 +168,8 @@ private struct TaskDetailForm: View {
 
     private var datesSection: some View {
         Section {
-            dateRow("Due", value: task.due) { v in set { $0.due = v } }
-            dateRow("Start", value: task.startDate) { v in set { $0.startDate = v } }
+            dateRow(String(localized: "Due"), value: task.due) { v in set { $0.due = v } }
+            dateRow(String(localized: "Start"), value: task.startDate) { v in set { $0.startDate = v } }
             TextField("Room", text: $room).onSubmit { commitText() }
             TextField("Tags (comma separated)", text: $tags).textInputAutocapitalization(.never).onSubmit { commitText() }
         }
@@ -305,7 +305,7 @@ private struct TaskDetailForm: View {
             Button {
                 commitText()
                 onPlace(task)
-            } label: { Label(placeLabel ?? (TaskLogic.placement(task) == .pin ? "Move pin" : "Place on plan"), systemImage: "mappin.and.ellipse") }
+            } label: { Label(placeLabel ?? (TaskLogic.placement(task) == .pin ? String(localized: "Move pin") : String(localized: "Place on plan")), systemImage: "mappin.and.ellipse") }
             Button {
                 commitText()
                 onDuplicate(task)

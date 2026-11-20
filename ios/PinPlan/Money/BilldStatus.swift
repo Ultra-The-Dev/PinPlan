@@ -13,7 +13,7 @@ enum BilldStatus: Equatable {
     /// No PinPlan server set in this app.
     case noServer
 
-    static let connectText = "Connect Billdu on the web: Settings → Connected apps"
+    static let connectText = String(localized: "Connect Billdu on the web: Settings → Connected apps")
 }
 
 extension APIClient {

@@ -85,12 +85,12 @@ struct FieldView: View {
         if hSize == .compact {
             Menu {
                 Picker("Section", selection: $section) {
-                    ForEach(parts) { p in Label(p.rawValue, systemImage: p.icon).tag(p) }
+                    ForEach(parts) { p in Label(tr(p.rawValue), systemImage: p.icon).tag(p) }
                 }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: section.icon).foregroundStyle(Color.brand)
-                    Text(section.rawValue).font(.headline).foregroundStyle(Color.primary)
+                    Text(tr(section.rawValue)).font(.headline).foregroundStyle(Color.primary)
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
                 }
@@ -102,7 +102,7 @@ struct FieldView: View {
             .accessibilityLabel("Field section")
             .accessibilityValue(section.rawValue)
         } else {
-            Picker("Section", selection: $section) { ForEach(parts) { Text($0.rawValue).tag($0) } }
+            Picker("Section", selection: $section) { ForEach(parts) { Text(tr($0.rawValue)).tag($0) } }
                 .pickerStyle(.segmented)
         }
     }
@@ -533,7 +533,7 @@ struct DocumentsView: View {
                         Image(systemName: icon(d.mime)).font(.title2).foregroundStyle(Color.accentColor).frame(width: 32)
                         VStack(alignment: .leading) {
                             Text(d.name).lineLimit(2)
-                            Text("\(ByteCountFormatter.string(fromByteCount: Int64(d.size), countStyle: .file)) · \(shortDate(d.createdAt))\(app.store.hasFile(d.fileId) ? "" : " · downloading…")")
+                            Text(app.store.hasFile(d.fileId) ? "\(ByteCountFormatter.string(fromByteCount: Int64(d.size), countStyle: .file)) · \(shortDate(d.createdAt))" : "\(ByteCountFormatter.string(fromByteCount: Int64(d.size), countStyle: .file)) · \(shortDate(d.createdAt)) · downloading…")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -553,7 +553,7 @@ struct DocumentsView: View {
                 let access = url.startAccessingSecurityScopedResource()
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
                 guard let data = try? Data(contentsOf: url) else { continue }
-                if data.count > 25 * 1024 * 1024 { error = "\(url.lastPathComponent) is over 25 MB."; continue }
+                if data.count > 25 * 1024 * 1024 { error = String(localized: "\(url.lastPathComponent) is over 25 MB."); continue }
                 let fileId = newId()
                 app.store.saveFile(data, id: fileId)
                 let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
@@ -569,13 +569,13 @@ struct DocumentsView: View {
     }
 
     private func open(_ d: JobDocument) {
-        guard let data = app.store.fileData(d.fileId) else { error = "This file hasn't downloaded yet — it arrives with the next sync."; return }
+        guard let data = app.store.fileData(d.fileId) else { error = String(localized: "This file hasn't downloaded yet — it arrives with the next sync."); return }
         error = nil
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("docs-\(d.id)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let safe = d.name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-").trimmingCharacters(in: .whitespaces)
         let url = dir.appendingPathComponent(safe.isEmpty || safe.hasPrefix(".") ? "document" + safe : safe)
-        do { try data.write(to: url, options: .atomic) } catch { self.error = "Couldn't open \(d.name)."; return }
+        do { try data.write(to: url, options: .atomic) } catch { self.error = String(localized: "Couldn't open \(d.name)."); return }
         preview = url
     }
 
@@ -667,7 +667,7 @@ struct TimelineView: View {
                     Button("Everyone") { person = "" }
                     ForEach(people, id: \.self) { n in Button(n) { person = n } }
                 } label: {
-                    Label(person.isEmpty ? "Everyone" : person, systemImage: "person").font(.subheadline)
+                    Label(person.isEmpty ? String(localized: "Everyone") : person, systemImage: "person").font(.subheadline)
                 }
             }
         }
@@ -678,7 +678,7 @@ struct TimelineView: View {
                     Button {
                         if on { kinds.remove(f) } else { kinds.insert(f) }
                     } label: {
-                        Text(f.title).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
+                        Text(tr(f.title)).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                             .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
                             .foregroundStyle(on ? Color.white : Color.primary)
                     }
@@ -735,7 +735,7 @@ func dueText(_ day: String) -> String {
 struct TaskEditor: View {
     let item: ChecklistItem
     let names: [String]
-    var title: String = "Assign"
+    var title: String = String(localized: "Assign")
     let onSave: (String?, String?) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var who = ""

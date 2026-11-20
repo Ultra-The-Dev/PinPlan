@@ -15,10 +15,10 @@ struct LayersPanel: View {
         let runs = model.bundle.liveRuns.filter { $0.sheetId == sheet.id }
         let closets = model.bundle.liveClosets.filter { $0.sheetId == sheet.id }
         let counts = model.filter.counts(markers: markers, runs: runs, closets: closets) { types[$0]?.category }
-        PanelContainer(title: "Layers", inSheet: true, onClose: onClose) {
+        PanelContainer(title: String(localized: "Layers"), inSheet: true, onClose: onClose) {
             SentenceList {
                 LayersSummarySection(model: model, counts: counts)
-                Section(sentence: "Trades") {
+                Section(sentence: String(localized: "Trades")) {
                     ForEach(Trades.layers(for: app.trades)) { info in
                         Toggle(isOn: layerBinding(info.id)) {
                             HStack {
@@ -29,15 +29,15 @@ struct LayersPanel: View {
                         }
                     }
                 }
-                Section(sentence: "On the plan") {
+                Section(sentence: String(localized: "On the plan")) {
                     Toggle(isOn: binding(\.showClosets)) {
                         HStack { Text("Closets and panels"); Spacer(); Text("\(counts.closets)").monospacedDigit().foregroundStyle(.secondary) }
                     }
                     Toggle("Labels", isOn: binding(\.showLabels))
                 }
-                Section(sentence: "Optional devices") {
+                Section(sentence: String(localized: "Optional devices")) {
                     Picker("Optional", selection: binding(\.tentative)) {
-                        ForEach(TentativeFilter.allCases, id: \.self) { t in Text(t.title).tag(t) }
+                        ForEach(TentativeFilter.allCases, id: \.self) { t in Text(tr(t.title, context: "Layer filter")).tag(t) }
                     }
                     .pickerStyle(.segmented)
                     .accessibilityLabel("Show optional devices")
@@ -98,12 +98,12 @@ private struct RoomsSection: View {
 
     var body: some View {
         if !rooms.isEmpty {
-            Section(sentence: "Rooms") {
+            Section(sentence: String(localized: "Rooms")) {
                 Button {
                     model.filter.rooms = []
                     model.saveFilter()
                 } label: {
-                    row("Every room", count: nil, on: model.filter.rooms.isEmpty)
+                    row(String(localized: "Every room"), count: nil, on: model.filter.rooms.isEmpty)
                 }
                 ForEach(rooms, id: \.self) { r in
                     Button {
@@ -138,7 +138,7 @@ private struct TypesSection: View {
     var body: some View {
         let present = counts.byType.keys.compactMap { types[$0] }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         if !present.isEmpty {
-            Section(sentence: "Device types on this sheet") {
+            Section(sentence: String(localized: "Device types on this sheet")) {
                 ForEach(present) { t in
                     Toggle(isOn: Binding(get: { !model.filter.hiddenTypes.contains(t.id) }, set: { on in
                         model.filter.setType(t.id, visible: on)

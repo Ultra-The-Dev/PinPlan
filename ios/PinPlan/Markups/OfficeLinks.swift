@@ -30,15 +30,15 @@ enum OfficeLinks {
         let t = l.target
         switch t.kind {
         case "sheet":
-            guard let s = model.bundle.liveSheets.first(where: { $0.id == t.sheetId }) else { return ("Plan deleted", true) }
+            guard let s = model.bundle.liveSheets.first(where: { $0.id == t.sheetId }) else { return (String(localized: "Plan deleted"), true) }
             return (s.name, false)
         case "document":
-            guard let d = model.bundle.liveDocuments.first(where: { $0.id == t.documentId }) else { return ("File deleted", true) }
+            guard let d = model.bundle.liveDocuments.first(where: { $0.id == t.documentId }) else { return (String(localized: "File deleted"), true) }
             return (d.name, false)
         case "photo":
-            return model.photo(t.photoId ?? "") == nil ? ("Photo deleted", true) : ("Photo", false)
+            return model.photo(t.photoId ?? "") == nil ? (String(localized: "Photo deleted"), true) : (String(localized: "Photo"), false)
         case "url":
-            return (URL(string: t.url ?? "")?.host ?? "Web page", webURL(t.url) == nil)
+            return (URL(string: t.url ?? "")?.host ?? String(localized: "Web page"), webURL(t.url) == nil)
         default:
             return ("", true)
         }
@@ -83,7 +83,7 @@ enum OfficeLinks {
         switch t.kind {
         case "sheet":
             guard let id = t.sheetId, let s = model.bundle.liveSheets.first(where: { $0.id == id }) else {
-                model.say("That plan was deleted")
+                model.say(String(localized: "That plan was deleted"))
                 return
             }
             Haptics.select()
@@ -100,19 +100,19 @@ enum OfficeLinks {
                 controller.center(on: PlanPoint(x: x, y: y), zoom: max(controller.viewport.zoom, controller.limits.lowerBound * 3))
             }
         case "document":
-            guard let d = model.bundle.liveDocuments.first(where: { $0.id == t.documentId }) else { model.say("That file was deleted"); return }
-            guard let data = model.app.store.fileData(d.fileId) else { model.say("This file hasn't downloaded yet — it arrives with the next sync"); return }
+            guard let d = model.bundle.liveDocuments.first(where: { $0.id == t.documentId }) else { model.say(String(localized: "That file was deleted")); return }
+            guard let data = model.app.store.fileData(d.fileId) else { model.say(String(localized: "This file hasn't downloaded yet — it arrives with the next sync")); return }
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent("docs-\(d.id)", isDirectory: true)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let safe = d.name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-").trimmingCharacters(in: .whitespaces)
             let url = dir.appendingPathComponent(safe.isEmpty || safe.hasPrefix(".") ? "document" + safe : safe)
-            do { try data.write(to: url, options: .atomic) } catch { model.say("Couldn't open \(d.name)"); return }
+            do { try data.write(to: url, options: .atomic) } catch { model.say(String(localized: "Couldn't open \(d.name)")); return }
             OfficeLinkState.shared.document = url
         case "photo":
-            guard let id = t.photoId, model.photo(id) != nil else { model.say("That photo was deleted"); return }
+            guard let id = t.photoId, model.photo(id) != nil else { model.say(String(localized: "That photo was deleted")); return }
             OfficeLinkState.shared.photo = PhotoViewerItem(ids: [id], start: id)
         case "url":
-            guard let u = webURL(t.url) else { model.say("That link can't be opened"); return }
+            guard let u = webURL(t.url) else { model.say(String(localized: "That link can't be opened")); return }
             UIApplication.shared.open(u)
         default:
             break

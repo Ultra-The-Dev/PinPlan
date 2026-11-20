@@ -16,12 +16,12 @@ struct PhotoAnnotator: View {
     @State private var textAt: [Double]?
     @State private var text = ""
 
-    private static let colorNames = ["#ef4444": "Red", "#f59e0b": "Amber", "#22c55e": "Green", "#3b82f6": "Blue", "#ffffff": "White", "#111827": "Black"]
+    private static let colorNames = ["#ef4444": String(localized: "Red"), "#f59e0b": String(localized: "Amber"), "#22c55e": String(localized: "Green"), "#3b82f6": String(localized: "Blue"), "#ffffff": String(localized: "White"), "#111827": String(localized: "Black")]
 
     private struct Tool: Identifiable { let kind: PhotoShape.Kind; let name: String; let icon: String; var id: String { kind.rawValue } }
     private static let tools: [Tool] = [
-        Tool(kind: .arrow, name: "Arrow", icon: "arrow.up.right"), Tool(kind: .pen, name: "Draw", icon: "scribble"), Tool(kind: .rect, name: "Box", icon: "rectangle"),
-        Tool(kind: .circle, name: "Circle", icon: "circle"), Tool(kind: .text, name: "Text", icon: "textformat"),
+        Tool(kind: .arrow, name: String(localized: "Arrow"), icon: "arrow.up.right"), Tool(kind: .pen, name: String(localized: "Draw"), icon: "scribble"), Tool(kind: .rect, name: String(localized: "Box"), icon: "rectangle"),
+        Tool(kind: .circle, name: String(localized: "Circle"), icon: "circle"), Tool(kind: .text, name: String(localized: "Text"), icon: "textformat"),
     ]
 
     var body: some View {
@@ -102,7 +102,7 @@ struct PhotoAnnotator: View {
                     Menu {
                         ForEach(Array(PhotoMarkup.widths.enumerated()), id: \.offset) { i, w in
                             Button { width = w } label: {
-                                if width == w { Label(["Thin", "Medium", "Thick"][i], systemImage: "checkmark") } else { Text(["Thin", "Medium", "Thick"][i]) }
+                                if width == w { Label([String(localized: "Thin"), String(localized: "Medium"), String(localized: "Thick")][i], systemImage: "checkmark") } else { Text([String(localized: "Thin"), String(localized: "Medium"), String(localized: "Thick")][i]) }
                             }
                         }
                     } label: { Image(systemName: "lineweight") }

@@ -52,14 +52,14 @@ struct ProgressDashboardView: View {
             if !ready.isEmpty {
                 Button {
                     let n = model.verifyAll(ready.map(\.id))
-                    model.say("Verified \(n) device\(n == 1 ? "" : "s")")
-                } label: { Label("Verify \(ready.count) tested device\(ready.count == 1 ? "" : "s")", systemImage: "checkmark.seal") }
+                    model.say(String(localized: "Verified \(n) devices"))
+                } label: { Label("Verify \(ready.count) tested devices", systemImage: "checkmark.seal") }
             }
             ForEach([InstallStatus.roughed, .installed, .tested, .verified, .issue], id: \.self) { s in
                 Toggle(isOn: Binding(get: { photoRequired.contains(s) }, set: { on in
                     photoRequired = on ? photoRequired + [s] : photoRequired.filter { $0 != s }
                     InstallSettings.photoRequired = photoRequired
-                })) { Text("Photo required for \(InstallProgress.label(s).lowercased())") }
+                })) { Text("Photo required for \(tr(InstallProgress.label(s), context: "Install").lowercased())") }
             }
         } header: {
             Text("Office")
