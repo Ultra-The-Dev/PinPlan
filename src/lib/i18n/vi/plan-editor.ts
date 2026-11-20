@@ -782,6 +782,9 @@ const dict: Dictionary = {
   "{status} (photo)": "{status} (ảnh)",
   "Photo needed to mark {label} {status}": "Cần ảnh để đánh dấu {label} là {status}",
   "Take photo": "Chụp ảnh",
+  // Find similar (match.worker.ts)
+  "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
+    "Chỗ đó chỉ có đường thẳng, như tường. Hãy chạm đúng vào ký hiệu hoặc vẽ khung sát quanh nó.",
 };
 
 export default dict;

@@ -864,6 +864,9 @@ const dict: Dictionary = {
   "{status} (photo)": "{status} (zdjęcie)",
   "Photo needed to mark {label} {status}": "Potrzebne zdjęcie, aby oznaczyć {label}: {status}",
   "Take photo": "Zrób zdjęcie",
+  // Find similar (match.worker.ts)
+  "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
+    "Tam są tylko proste linie, jak ściana. Dotknij dokładnie symbolu albo obrysuj go ciasną ramką.",
 };
 
 export default dict;

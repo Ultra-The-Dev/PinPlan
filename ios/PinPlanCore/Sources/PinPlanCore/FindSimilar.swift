@@ -225,6 +225,108 @@ public enum FindSimilar {
         return (max(0, s2 / n - m * m)).squareRoot()
     }
 
+    /// The ink level of a grey crop: halfway between its darkest pixel and white, at most 200 (the tap trim uses it too).
+    public static func inkLevel(_ data: [Float]) -> Float {
+        min(200, ((data.min() ?? 255) + 255) / 2)
+    }
+
+    /// Thresholds of `onlyStraightLines`, the same as the web's `LINES_ONLY` (src/lib/findSimilar/match.ts):
+    /// a straight run is long at 70% of the template across (`span`; width for horizontal runs, height for vertical,
+    /// the shorter side for 45° diagonals), or 35% when it runs off the template's edge (`edgeSpan`: a wall carrying on
+    /// past the box); it bridges gaps up to 2 px; a pixel counts only where the line is at most 25% of the shorter side
+    /// (≥ 4 px) thick, so filled shapes aren't a stack of lines; 90% of the ink on long runs is "only lines" (`share`);
+    /// paper enclosed by the lines of 4 px or more (`minHole`) means a drawn symbol (a window's frame, a box, a circle).
+    public enum LinesOnly {
+        public static let span = 0.7, edgeSpan = 0.35, gap = 2, thick = 0.25, minThick = 4, share = 0.9, minHole = 4
+    }
+
+    /// True when a picked template (grey, row-major, w × h; `ink` from `inkLevel`) is only straight lines, like a wall,
+    /// a corner of walls, a T-junction, a crossing, a wire or a grid line, and no real symbol: matching it would find
+    /// every wall junction on the sheet. The rule: (1) at least 90% of the ink lies on long straight horizontal,
+    /// vertical or 45° runs, and (2) the lines enclose no paper (every blank region of 4 px or more reaches the edge).
+    /// A door swing, a circle with a letter, a receptacle fail (1); a window symbol and any boxed symbol fail (2).
+    public static func onlyStraightLines(_ data: [Float], w: Int, h: Int, ink: Float) -> Bool {
+        let n = w * h
+        guard w >= 1, h >= 1, data.count >= n else { return false }
+        var isInk = [Bool](repeating: false, count: n)
+        var inkCount = 0
+        for i in 0..<n where data[i] < ink { isInk[i] = true; inkCount += 1 }
+        guard inkCount > 0 else { return false }
+        let maxThick = max(LinesOnly.minThick, Int((LinesOnly.thick * Double(min(w, h))).rounded()))
+        var onLine = [Bool](repeating: false, count: n)
+        var thick = [Int](repeating: 0, count: n)
+        func inside(_ x: Int, _ y: Int) -> Bool { x >= 0 && y >= 0 && x < w && y < h }
+        // Every straight line of pixels across the template in direction (dx, dy), from the pixels whose previous
+        // step would leave the template.
+        func walk(_ dx: Int, _ dy: Int, _ visit: ([Int]) -> Void) {
+            for y in 0..<h {
+                for x in 0..<w where !inside(x - dx, y - dy) {
+                    var line: [Int] = []
+                    var cx = x, cy = y
+                    while inside(cx, cy) { line.append(cy * w + cx); cx += dx; cy += dy }
+                    visit(line)
+                }
+            }
+        }
+        // Directions (dx, dy) with the one across them (px, py) for the line thickness.
+        for (dx, dy, px, py) in [(1, 0, 0, 1), (0, 1, 1, 0), (1, 1, 1, -1), (1, -1, 1, 1)] {
+            let span = Double(dx != 0 && dy != 0 ? min(w, h) : (dx != 0 ? w : h))
+            let minLen = LinesOnly.span * span, edgeLen = LinesOnly.edgeSpan * span
+            walk(px, py) { line in
+                var i = 0
+                while i < line.count {
+                    guard isInk[line[i]] else { i += 1; continue }
+                    var j = i
+                    while j < line.count, isInk[line[j]] { j += 1 }
+                    for k in i..<j { thick[line[k]] = j - i }
+                    i = j
+                }
+            }
+            walk(dx, dy) { line in
+                var first = -1, last = -1
+                func close() {
+                    guard first >= 0 else { return }
+                    let len = Double(last - first + 1)
+                    let touches = first <= 1 || last >= line.count - 2
+                    if len >= minLen || (touches && len >= edgeLen) {
+                        for k in first...last where isInk[line[k]] && thick[line[k]] <= maxThick { onLine[line[k]] = true }
+                    }
+                    first = -1
+                }
+                for i in 0..<line.count where isInk[line[i]] {
+                    if first >= 0, i - last - 1 > LinesOnly.gap { close() }
+                    if first < 0 { first = i }
+                    last = i
+                }
+                close()
+            }
+        }
+        let lineCount = onLine.reduce(0) { $0 + ($1 ? 1 : 0) }
+        if Double(lineCount) < LinesOnly.share * Double(inkCount) { return false }
+
+        // Paper regions (4-connected): one that doesn't reach the edge and is big enough is enclosed by the lines.
+        var seen = [Bool](repeating: false, count: n)
+        var stack: [Int] = []
+        for start in 0..<n where !isInk[start] && !seen[start] {
+            var size = 0
+            var open = false
+            seen[start] = true
+            stack.append(start)
+            while let p = stack.popLast() {
+                size += 1
+                let x = p % w, y = p / w
+                if x == 0 || y == 0 || x == w - 1 || y == h - 1 { open = true }
+                for q in [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]
+                where q >= 0 && !isInk[q] && !seen[q] {
+                    seen[q] = true
+                    stack.append(q)
+                }
+            }
+            if !open && size >= LinesOnly.minHole { return false }
+        }
+        return true
+    }
+
     /// A peak (top-left of the match, work px) → a candidate centred in sheet px.
     public static func peakToCandidate(_ p: Peak, tplW: Int, tplH: Int, scale: Double, orientation: Orientation) -> Candidate {
         Candidate(cx: (Double(p.x) + Double(tplW) / 2) / scale, cy: (Double(p.y) + Double(tplH) / 2) / scale,
@@ -454,6 +556,8 @@ public enum FindSimilar {
         case tooSmall
         /// Nothing drawn there.
         case blank
+        /// Only straight lines (a wall, a corner, a wire), no symbol: it would match every wall junction.
+        case onlyLines
         /// A newer search replaced this one.
         case cancelled
     }
@@ -475,14 +579,14 @@ public enum FindSimilar {
         guard tb.w > 0, tb.h > 0 else { throw SearchError.tooSmall }
         var tpl = img.crop(tb)
         if trim {
-            let darkest = tpl.min() ?? 255
-            if let ink = inkBounds(tpl, w: tb.w, h: tb.h, ink: min(200, (darkest + 255) / 2), margin: 2), Double(min(ink.w, ink.h)) >= minTemplatePx {
+            if let ink = inkBounds(tpl, w: tb.w, h: tb.h, ink: inkLevel(tpl), margin: 2), Double(min(ink.w, ink.h)) >= minTemplatePx {
                 tb = PixelBox(x: tb.x + ink.x, y: tb.y + ink.y, w: ink.w, h: ink.h)
                 tpl = img.crop(tb)
             }
         }
         if Double(min(tb.w, tb.h)) < minTemplatePx - 1 { throw SearchError.tooSmall }
         if grayStd(tpl) < 6 { throw SearchError.blank }
+        if onlyStraightLines(tpl, w: tb.w, h: tb.h, ink: inkLevel(tpl)) { throw SearchError.onlyLines }
 
         let orients = distinctOrientations(tpl, w: tb.w, h: tb.h)
         // Coarse to fine when the symbol is big enough to survive halving.

@@ -2,7 +2,8 @@
 // same file the photo-straightening tool uses, src/lib/perspective.ts), shrinks the sheet so the picked symbol is
 // ~32 px, and runs normalised cross-correlation for every distinct 90° turn and mirror of the symbol. Peaks above the
 // lowest slider threshold come back with their scores; the slider then filters on the main thread without a new search.
-import { chooseScale, distinctOrientations, grayStd, inkBounds, MIN_TEMPLATE_PX, nonMaxSuppress, orientGray, orientedSize, peakToCandidate, scorePeaks, type Box, type Candidate } from "./match";
+import { msg } from "../i18n/msg";
+import { chooseScale, distinctOrientations, grayStd, inkBounds, inkLevel, MIN_TEMPLATE_PX, nonMaxSuppress, onlyStraightLines, orientGray, orientedSize, peakToCandidate, scorePeaks, type Box, type Candidate } from "./match";
 
 export type MatchIn = {
   type: "match";
@@ -22,6 +23,9 @@ export type MatchOut =
   | { type: "progress"; id: number; stage: "load" | "image" | "match"; done: number; total: number }
   | { type: "result"; id: number; candidates: Candidate[]; template: Box; ms: number }
   | { type: "error"; id: number; message: string };
+
+/** Shown translated by the card (FindSimilarPanel passes notes through t()). */
+const ONLY_LINES = msg("That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.");
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- OpenCV.js has no types */
 type CV = any;
@@ -122,9 +126,7 @@ async function run(msg: MatchIn) {
   let tb: Box = { x: x0, y: y0, w: Math.min(img.w - x0, Math.round(msg.box.w * scale)), h: Math.min(img.h - y0, Math.round(msg.box.h * scale)) };
   let tpl = crop(img, tb);
   if (msg.trim) {
-    let min = 255;
-    for (const v of tpl) if (v < min) min = v;
-    const ink = inkBounds(tpl, tb.w, tb.h, Math.min(200, (min + 255) / 2), 2);
+    const ink = inkBounds(tpl, tb.w, tb.h, inkLevel(tpl), 2);
     if (ink && Math.min(ink.w, ink.h) >= MIN_TEMPLATE_PX) {
       tb = { x: tb.x + ink.x, y: tb.y + ink.y, w: ink.w, h: ink.h };
       tpl = crop(img, tb);
@@ -132,6 +134,8 @@ async function run(msg: MatchIn) {
   }
   if (Math.min(tb.w, tb.h) < MIN_TEMPLATE_PX - 1) throw new Error("That box is too small. Zoom in and drag a box around one symbol.");
   if (grayStd(tpl) < 6) throw new Error("There’s nothing drawn there. Tap right on a symbol, or drag a box around one.");
+  // A wall, a corner of walls, a wire: matching it would find every wall junction on the sheet.
+  if (onlyStraightLines(tpl, tb.w, tb.h, inkLevel(tpl))) throw new Error(ONLY_LINES);
 
   const orients = distinctOrientations(tpl, tb.w, tb.h);
   const cands: Candidate[] = [];

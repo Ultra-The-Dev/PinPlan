@@ -251,6 +251,142 @@ export function grayStd(data: ArrayLike<number>): number {
   return Math.sqrt(Math.max(0, s2 / n - m * m));
 }
 
+/** The ink level of a grey crop: halfway between its darkest pixel and white, at most 200 (the tap trim uses it too). */
+export function inkLevel(data: ArrayLike<number>): number {
+  let min = 255;
+  for (let i = 0; i < data.length; i++) if (data[i] < min) min = data[i];
+  return Math.min(200, (min + 255) / 2);
+}
+
+/**
+ * Thresholds of `onlyStraightLines` (the iPad/iPhone app's `FindSimilar.onlyStraightLines` uses the same numbers).
+ * - span: a straight run is "long" when it covers 70% of the template across (width for horizontal runs, height for
+ *   vertical ones, the shorter side for 45° diagonals);
+ * - edgeSpan: or 35% when it runs off the template's edge (a wall that carries on past the box: a corner or T picked
+ *   at its middle has arms about half the box long);
+ * - gap: a run bridges gaps of up to 2 px (dashes, anti-aliasing);
+ * - thick: a pixel counts for a run only where the line is at most this thick (25% of the shorter side, ≥ 4 px), so a
+ *   filled shape (a solid dot, a filled square) is not mistaken for a stack of lines;
+ * - share: 90% of the ink on long runs means "only lines";
+ * - minHole: paper enclosed by the lines (not reaching the template's edge) of at least 4 px means a drawn symbol
+ *   (a window's frame lines, a box, a circle), never a wall: walls, corners, T-junctions, crossings, wires and grid
+ *   lines leave all of their paper open to the edges.
+ */
+export const LINES_ONLY = { span: 0.7, edgeSpan: 0.35, gap: 2, thick: 0.25, minThick: 4, share: 0.9, minHole: 4 } as const;
+
+/**
+ * True when a picked template (grey, row-major, w × h; `ink` from `inkLevel`) is only straight lines, like a wall, a
+ * corner of walls, a T-junction, a crossing, a wire or a grid line, and no real symbol: matching it would find every
+ * wall junction on the sheet. The rule (thresholds in `LINES_ONLY`):
+ *   1. at least 90% of the ink lies on long straight horizontal, vertical or 45° runs, and
+ *   2. the lines enclose no paper (every blank region of 4 px or more reaches the template's edge).
+ * A door swing (its arc), a circle with a letter, a receptacle (its circle) fail 1; a window symbol (frame lines
+ * closed by its jambs) and any boxed symbol fail 2, so they are still searched.
+ */
+export function onlyStraightLines(data: ArrayLike<number>, w: number, h: number, ink: number): boolean {
+  const n = w * h;
+  if (w < 1 || h < 1 || data.length < n) return false;
+  const isInk = new Uint8Array(n);
+  let inkCount = 0;
+  for (let i = 0; i < n; i++) {
+    if (data[i] < ink) {
+      isInk[i] = 1;
+      inkCount++;
+    }
+  }
+  if (!inkCount) return false;
+  const maxThick = Math.max(LINES_ONLY.minThick, Math.round(LINES_ONLY.thick * Math.min(w, h)));
+  const onLine = new Uint8Array(n);
+  const thick = new Int32Array(n);
+  // Directions (dx, dy) with the one across them (px, py) for the line thickness.
+  const dirs = [
+    [1, 0, 0, 1],
+    [0, 1, 1, 0],
+    [1, 1, 1, -1],
+    [1, -1, 1, 1],
+  ];
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h;
+  // Every straight line of pixels across the template in direction (dx, dy): its start points are the pixels whose
+  // previous step would leave the template.
+  const walk = (dx: number, dy: number, visit: (line: number[]) => void) => {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (inside(x - dx, y - dy)) continue;
+        const line: number[] = [];
+        for (let cx = x, cy = y; inside(cx, cy); cx += dx, cy += dy) line.push(cy * w + cx);
+        visit(line);
+      }
+    }
+  };
+  for (const [dx, dy, px, py] of dirs) {
+    const span = dx && dy ? Math.min(w, h) : dx ? w : h;
+    const minLen = LINES_ONLY.span * span;
+    const edgeLen = LINES_ONLY.edgeSpan * span;
+    // Thickness across the direction: the length of the unbroken ink run through each pixel along (px, py).
+    walk(px, py, (line) => {
+      for (let i = 0; i < line.length; ) {
+        if (!isInk[line[i]]) {
+          i++;
+          continue;
+        }
+        let j = i;
+        while (j < line.length && isInk[line[j]]) j++;
+        for (let k = i; k < j; k++) thick[line[k]] = j - i;
+        i = j;
+      }
+    });
+    walk(dx, dy, (line) => {
+      let first = -1;
+      let last = -1;
+      const close = () => {
+        if (first < 0) return;
+        const len = last - first + 1;
+        const touches = first <= 1 || last >= line.length - 2;
+        if (len >= minLen || (touches && len >= edgeLen)) {
+          for (let k = first; k <= last; k++) if (isInk[line[k]] && thick[line[k]] <= maxThick) onLine[line[k]] = 1;
+        }
+        first = -1;
+      };
+      for (let i = 0; i < line.length; i++) {
+        if (!isInk[line[i]]) continue;
+        if (first >= 0 && i - last - 1 > LINES_ONLY.gap) close();
+        if (first < 0) first = i;
+        last = i;
+      }
+      close();
+    });
+  }
+  let lineCount = 0;
+  for (let i = 0; i < n; i++) lineCount += onLine[i];
+  if (lineCount < LINES_ONLY.share * inkCount) return false;
+
+  // Paper regions (4-connected): any that doesn't reach the edge and is big enough is enclosed by the lines.
+  const seen = new Uint8Array(n);
+  const stack: number[] = [];
+  for (let start = 0; start < n; start++) {
+    if (isInk[start] || seen[start]) continue;
+    let size = 0;
+    let open = false;
+    seen[start] = 1;
+    stack.push(start);
+    while (stack.length) {
+      const p = stack.pop()!;
+      size++;
+      const x = p % w;
+      const y = (p - x) / w;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) open = true;
+      for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) {
+        if (q >= 0 && !isInk[q] && !seen[q]) {
+          seen[q] = 1;
+          stack.push(q);
+        }
+      }
+    }
+    if (!open && size >= LINES_ONLY.minHole) return false;
+  }
+  return true;
+}
+
 /** A peak of one orientation's score map (top-left of the match, work px) → a candidate centred in sheet px. */
 export function peakToCandidate(p: { x: number; y: number; score: number }, tpl: { w: number; h: number }, scale: number, orientation: Orientation): Candidate {
   return {

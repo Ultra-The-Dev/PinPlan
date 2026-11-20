@@ -38,6 +38,16 @@ until you open it again or press Clear; they are kept in memory only, never save
 - Shrinks the sheet so the picked symbol's shorter side is ~32 px (`chooseScale`: never enlarged, sheet ≤ 3200 px on
   its long side, template ≥ 10 px), greys it, area-averages (keeps thin lines) and blurs 3×3. The template is cut from
   that same image. A tap picks a 4 ft square (1.5% of the sheet without a scale, `tapBox`) trimmed to its ink.
+- **Only straight lines → no search.** A pick that is a wall, a corner of walls, a T-junction, a crossing, a wire or a
+  grid line would match every wall junction on the sheet, so it says "That’s only straight lines, like a wall. Tap
+  right on a symbol, or draw the box tightly around one." instead (`onlyStraightLines`, thresholds `LINES_ONLY`; the
+  iOS `FindSimilar.onlyStraightLines` is the same rule and numbers, `SearchError.onlyLines`). The rule: ≥ 90% of the
+  ink (darker than `inkLevel`) lies on long straight horizontal, vertical or 45° runs — at least 70% of the template
+  across, or 35% when the run leaves the template's edge, bridging gaps ≤ 2 px, counting pixels only where the line
+  is ≤ 25% of the shorter side (≥ 4 px) thick — **and** the lines enclose no paper (no blank region of ≥ 4 px that
+  doesn't reach the edge). A door swing, a circle with a letter or a receptacle fail the first test (curves); a
+  window symbol (frame lines closed by jambs) and any boxed symbol fail the second, so they are still searched.
+  A window drawn only as two wall lines with no glass line, tapped where its jambs are tiny, may be refused: box it.
 - Normalised cross-correlation (`TM_CCOEFF_NORMED`) for each distinct orientation of the template
   (`distinctOrientations`: symmetric symbols are searched once per distinct look, a door swing all 8 ways).
 - Local peaks above the lowest slider threshold (`scorePeaks`), then greedy non-maximum suppression across all

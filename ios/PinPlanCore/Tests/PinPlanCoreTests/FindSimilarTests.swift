@@ -350,4 +350,150 @@ final class FindSimilarTests: XCTestCase {
         XCTAssertEqual(FS.tagNearPx(sheetWidth: 4800, sheetHeight: 3105, pxPerFt: nil), 96)
         XCTAssertEqual(FS.nearPx(template: .init(x: 0, y: 0, w: 40, h: 50)), 30)
     }
+
+    // MARK: only straight lines (a wall, not a symbol): the same synthetic templates as tests/findSimilar.test.ts
+
+    /// White paper, black ink, strokes 2 px thick, then blurred 3 × 3 like the matcher's image.
+    final class Canvas {
+        let w: Int, h: Int
+        var px: [Float]
+        init(_ w: Int, _ h: Int) { self.w = w; self.h = h; px = [Float](repeating: 255, count: w * h) }
+        func dot(_ x: Double, _ y: Double) {
+            let x0 = Int((x + 0.5).rounded(.down)), y0 = Int((y + 0.5).rounded(.down))
+            for j in 0..<2 { for i in 0..<2 where x0 + i >= 0 && y0 + j >= 0 && x0 + i < w && y0 + j < h { px[(y0 + j) * w + x0 + i] = 0 } }
+        }
+        func line(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) {
+            let steps = Int((max(abs(x1 - x0), abs(y1 - y0)) * 2).rounded(.up)) + 1
+            for i in 0...steps { dot(x0 + (x1 - x0) * Double(i) / Double(steps), y0 + (y1 - y0) * Double(i) / Double(steps)) }
+        }
+        /// An arc around (cx, cy) from angle a0 to a1 (degrees, 0 = right, 90 = down).
+        func arc(_ cx: Double, _ cy: Double, _ r: Double, _ a0: Double, _ a1: Double) {
+            let steps = Int((abs(a1 - a0) * r * 0.05).rounded(.up)) + 1
+            for i in 0...steps {
+                let a = (a0 + (a1 - a0) * Double(i) / Double(steps)) * Double.pi / 180
+                dot(cx + r * cos(a), cy + r * sin(a))
+            }
+        }
+        func blurred() -> (data: [Float], w: Int, h: Int) {
+            var out = [Float](repeating: 0, count: w * h)
+            for y in 0..<h {
+                for x in 0..<w {
+                    var s: Float = 0
+                    for j in -1...1 { for i in -1...1 { s += px[min(h - 1, max(0, y + j)) * w + min(w - 1, max(0, x + i))] } }
+                    out[y * w + x] = (s / 9).rounded()
+                }
+            }
+            return (out, w, h)
+        }
+    }
+
+    /// The templates by name (40 × 40 unless said). Same list in tests/findSimilar.test.ts.
+    static let shapes: [String: () -> (data: [Float], w: Int, h: Int)] = [
+        "wall segment (64 × 40)": {
+            let c = Canvas(64, 40)
+            c.line(0, 15, 63, 15); c.line(0, 23, 63, 23)
+            return c.blurred()
+        },
+        "wall corner, boxed": {
+            let c = Canvas(40, 40)
+            c.line(8, 8, 39, 8); c.line(8, 8, 8, 39); c.line(15, 15, 39, 15); c.line(15, 15, 15, 39)
+            return c.blurred()
+        },
+        "wall corner, tapped at the corner": {
+            let c = Canvas(40, 40)
+            c.line(16, 16, 39, 16); c.line(16, 16, 16, 39); c.line(23, 23, 39, 23); c.line(23, 23, 23, 39)
+            return c.blurred()
+        },
+        "T-junction": {
+            let c = Canvas(40, 40)
+            c.line(0, 8, 39, 8); c.line(0, 15, 16, 15); c.line(23, 15, 39, 15); c.line(16, 15, 16, 39); c.line(23, 15, 23, 39)
+            return c.blurred()
+        },
+        "crossing walls": {
+            let c = Canvas(40, 40)
+            for (a, b) in [(0.0, 16.0), (23.0, 39.0)] {
+                c.line(a, 16, b, 16); c.line(a, 23, b, 23); c.line(16, a, 16, b); c.line(23, a, 23, b)
+            }
+            return c.blurred()
+        },
+        "single line (wire, grid line)": {
+            let c = Canvas(40, 40)
+            c.line(0, 20, 39, 20)
+            return c.blurred()
+        },
+        "diagonal wire": {
+            let c = Canvas(40, 40)
+            c.line(0, 0, 38, 38)
+            return c.blurred()
+        },
+        "door swing with wall stubs": {
+            let c = Canvas(40, 40)
+            c.line(0, 32, 4, 32); c.line(0, 37, 4, 37); c.line(34, 32, 39, 32); c.line(34, 37, 39, 37)
+            c.line(4, 32, 4, 37); c.line(34, 32, 34, 37)
+            c.line(4, 32, 4, 2)          // the door leaf, open 90°
+            c.arc(4, 32, 30, -90, 0)     // its swing
+            return c.blurred()
+        },
+        "circle with a letter": {
+            let c = Canvas(40, 40)
+            c.arc(19, 19, 15, 0, 360)
+            c.line(14, 12, 14, 26); c.line(14, 12, 24, 12); c.line(14, 19, 22, 19); c.line(14, 26, 24, 26)   // E
+            return c.blurred()
+        },
+        "duplex receptacle": {
+            let c = Canvas(40, 40)
+            c.arc(19, 19, 9, 0, 360)
+            c.line(15, 6, 15, 32); c.line(23, 6, 23, 32)
+            c.line(19, 28, 19, 39)       // to the wall
+            return c.blurred()
+        },
+        "window, tapped in its wall": {
+            let c = Canvas(40, 40)
+            c.line(0, 14, 39, 14); c.line(0, 24, 39, 24)
+            c.line(6, 19, 33, 19)        // the glass
+            c.line(6, 14, 6, 24); c.line(33, 14, 33, 24)   // jambs
+            return c.blurred()
+        },
+        "window, boxed tightly (96 × 32)": {
+            let c = Canvas(96, 32)
+            c.line(2, 3, 93, 3); c.line(2, 15, 93, 15); c.line(2, 27, 93, 27); c.line(2, 3, 2, 27); c.line(93, 3, 93, 27)
+            return c.blurred()
+        },
+    ]
+
+    func testRefusesOnlyStraightLines() {
+        for name in ["wall segment (64 × 40)", "wall corner, boxed", "wall corner, tapped at the corner", "T-junction",
+                     "crossing walls", "single line (wire, grid line)", "diagonal wire"] {
+            let t = Self.shapes[name]!()
+            XCTAssertTrue(FS.onlyStraightLines(t.data, w: t.w, h: t.h, ink: FS.inkLevel(t.data)), name)
+        }
+    }
+
+    func testSearchesSymbolsMadeOfLinesAndCurves() {
+        for name in ["door swing with wall stubs", "circle with a letter", "duplex receptacle", "window, tapped in its wall",
+                     "window, boxed tightly (96 × 32)"] {
+            let t = Self.shapes[name]!()
+            XCTAssertFalse(FS.onlyStraightLines(t.data, w: t.w, h: t.h, ink: FS.inkLevel(t.data)), name)
+        }
+    }
+
+    func testBlankAndFilledAreNotLines() {
+        XCTAssertFalse(FS.onlyStraightLines([Float](repeating: 255, count: 100), w: 10, h: 10, ink: 200))
+        var block = [Float](repeating: 255, count: 40 * 40)
+        for y in 10..<30 { for x in 10..<30 { block[y * 40 + x] = 0 } }
+        XCTAssertFalse(FS.onlyStraightLines(block, w: 40, h: 40, ink: 128))
+        XCTAssertEqual(FS.inkLevel([0, 255]), 127.5)
+        XCTAssertEqual(FS.inkLevel([180, 255]), 200)
+    }
+
+    func testSearchRefusesAWallCorner() {
+        // A plan with a wall corner: boxing the corner says "only lines" instead of matching every junction.
+        let c = Canvas(200, 200)
+        c.line(40, 40, 199, 40); c.line(40, 40, 40, 199); c.line(47, 47, 199, 47); c.line(47, 47, 47, 199)
+        let b = c.blurred()
+        let img = FS.GrayImage(w: b.w, h: b.h, px: b.data)
+        XCTAssertThrowsError(try FS.search(in: img, scale: 1, box: .init(x: 30, y: 30, w: 40, h: 40), trim: false)) {
+            XCTAssertEqual($0 as? FS.SearchError, .onlyLines)
+        }
+    }
 }

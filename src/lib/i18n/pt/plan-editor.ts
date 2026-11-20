@@ -827,6 +827,9 @@ const planEditor: Dictionary = {
   "{status} (photo)": "{status} (foto)",
   "Photo needed to mark {label} {status}": "Precisa de foto para marcar {label} como {status}",
   "Take photo": "Tirar foto",
+  // Find similar (match.worker.ts)
+  "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
+    "Aí só há linhas retas, como uma parede. Toque bem em cima de um símbolo ou desenhe um retângulo justo ao redor dele.",
 };
 
 export default planEditor;

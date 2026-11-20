@@ -750,6 +750,9 @@ const planEditor: Dictionary = {
   "{status} (photo)": "{status}（照片）",
   "Photo needed to mark {label} {status}": "需要拍照才能将 {label} 标记为{status}",
   "Take photo": "拍照",
+  // Find similar (match.worker.ts)
+  "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
+    "那里只有直线，像墙一样。请点准一个符号，或紧贴着它框选。",
 };
 
 export default planEditor;

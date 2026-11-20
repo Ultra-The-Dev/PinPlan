@@ -5,6 +5,7 @@
 import { Check, ChevronLeft, ChevronRight, FileText, Loader2, ScanSearch, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { PlanViewport } from "@/lib/planViewport";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
 import { useMedia } from "@/lib/useMedia";
@@ -17,6 +18,7 @@ const MODES: { id: FindMode; label: string }[] = [
 ];
 
 export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
+  const t = useT();
   const st = useFindSimilar();
   const phone = useMedia(PHONE_QUERY);
   const catalog = useEditor((s) => s.catalog);
@@ -146,7 +148,8 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
 
       {st.note && !st.busy && (
         <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[13px] text-amber-900" role="status" data-testid="find-note">
-          {st.note}
+          {/* Notes are English keys; the ones with a translation (worker messages marked with msg()) show translated. */}
+          {t(st.note)}
         </p>
       )}
       {st.needPdf && !st.busy && (

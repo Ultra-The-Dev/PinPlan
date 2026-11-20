@@ -6,9 +6,11 @@ import {
   distinctOrientations,
   grayStd,
   inkBounds,
+  inkLevel,
   MAX_WORK_SIDE,
   MIN_TEMPLATE_PX,
   nonMaxSuppress,
+  onlyStraightLines,
   ORIENTATIONS,
   orientGray,
   orientedSize,
@@ -248,5 +250,172 @@ describe("Read tags", () => {
     // Three in a column is not a schedule; four spread far apart isn't either.
     expect(scheduleTags([0, 1, 2].map((i) => ({ tag: `D${i}`, x: 0.5, y: 0.1 + i * 0.01 }))).size).toBe(0);
     expect(scheduleTags([0, 1, 2, 3].map((i) => ({ tag: `D${i}`, x: 0.5, y: 0.1 + i * 0.2 }))).size).toBe(0);
+  });
+});
+
+// Synthetic templates for the "only straight lines" check: white paper, black ink, strokes 2 px thick, then blurred
+// 3 × 3 like the matcher's image. ios/PinPlanCore/Tests/PinPlanCoreTests/FindSimilarTests.swift draws the same ones.
+function canvas(w: number, h: number) {
+  const px = new Array<number>(w * h).fill(255);
+  const dot = (x: number, y: number) => {
+    const x0 = Math.floor(x + 0.5);
+    const y0 = Math.floor(y + 0.5);
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) if (x0 + i >= 0 && y0 + j >= 0 && x0 + i < w && y0 + j < h) px[(y0 + j) * w + x0 + i] = 0;
+  };
+  const line = (x0: number, y0: number, x1: number, y1: number) => {
+    const steps = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2) + 1;
+    for (let i = 0; i <= steps; i++) dot(x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps);
+  };
+  /** An arc around (cx, cy) from angle a0 to a1 (degrees, 0 = right, 90 = down). */
+  const arc = (cx: number, cy: number, r: number, a0: number, a1: number) => {
+    const steps = Math.ceil(Math.abs(a1 - a0) * r * 0.05) + 1;
+    for (let i = 0; i <= steps; i++) {
+      const a = ((a0 + ((a1 - a0) * i) / steps) * Math.PI) / 180;
+      dot(cx + r * Math.cos(a), cy + r * Math.sin(a));
+    }
+  };
+  const blurred = () => {
+    const out = new Array<number>(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) s += px[Math.min(h - 1, Math.max(0, y + j)) * w + Math.min(w - 1, Math.max(0, x + i))];
+        out[y * w + x] = Math.round(s / 9);
+      }
+    }
+    return out;
+  };
+  return { line, arc, blurred, w, h };
+}
+
+/** The templates by name (40 × 40 unless said). Same list in FindSimilarTests.swift. */
+const SHAPES: Record<string, () => { data: number[]; w: number; h: number }> = {
+  "wall segment (64 × 40)": () => {
+    const c = canvas(64, 40);
+    c.line(0, 15, 63, 15);
+    c.line(0, 23, 63, 23);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "wall corner, boxed": () => {
+    const c = canvas(40, 40);
+    c.line(8, 8, 39, 8);
+    c.line(8, 8, 8, 39);
+    c.line(15, 15, 39, 15);
+    c.line(15, 15, 15, 39);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "wall corner, tapped at the corner": () => {
+    const c = canvas(40, 40);
+    c.line(16, 16, 39, 16);
+    c.line(16, 16, 16, 39);
+    c.line(23, 23, 39, 23);
+    c.line(23, 23, 23, 39);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "T-junction": () => {
+    const c = canvas(40, 40);
+    c.line(0, 8, 39, 8);
+    c.line(0, 15, 16, 15);
+    c.line(23, 15, 39, 15);
+    c.line(16, 15, 16, 39);
+    c.line(23, 15, 23, 39);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "crossing walls": () => {
+    const c = canvas(40, 40);
+    for (const [a, b] of [
+      [0, 16],
+      [23, 39],
+    ]) {
+      c.line(a, 16, b, 16);
+      c.line(a, 23, b, 23);
+      c.line(16, a, 16, b);
+      c.line(23, a, 23, b);
+    }
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "single line (wire, grid line)": () => {
+    const c = canvas(40, 40);
+    c.line(0, 20, 39, 20);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "diagonal wire": () => {
+    const c = canvas(40, 40);
+    c.line(0, 0, 38, 38);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "door swing with wall stubs": () => {
+    const c = canvas(40, 40);
+    c.line(0, 32, 4, 32);
+    c.line(0, 37, 4, 37);
+    c.line(34, 32, 39, 32);
+    c.line(34, 37, 39, 37);
+    c.line(4, 32, 4, 37);
+    c.line(34, 32, 34, 37);
+    c.line(4, 32, 4, 2); // the door leaf, open 90°
+    c.arc(4, 32, 30, -90, 0); // its swing
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "circle with a letter": () => {
+    const c = canvas(40, 40);
+    c.arc(19, 19, 15, 0, 360);
+    c.line(14, 12, 14, 26); // E
+    c.line(14, 12, 24, 12);
+    c.line(14, 19, 22, 19);
+    c.line(14, 26, 24, 26);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "duplex receptacle": () => {
+    const c = canvas(40, 40);
+    c.arc(19, 19, 9, 0, 360);
+    c.line(15, 6, 15, 32);
+    c.line(23, 6, 23, 32);
+    c.line(19, 28, 19, 39); // to the wall
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "window, tapped in its wall": () => {
+    const c = canvas(40, 40);
+    c.line(0, 14, 39, 14);
+    c.line(0, 24, 39, 24);
+    c.line(6, 19, 33, 19); // the glass
+    c.line(6, 14, 6, 24); // jambs
+    c.line(33, 14, 33, 24);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+  "window, boxed tightly (96 × 32)": () => {
+    const c = canvas(96, 32);
+    c.line(2, 3, 93, 3);
+    c.line(2, 15, 93, 15);
+    c.line(2, 27, 93, 27);
+    c.line(2, 3, 2, 27);
+    c.line(93, 3, 93, 27);
+    return { data: c.blurred(), w: c.w, h: c.h };
+  },
+};
+
+describe("only straight lines (a wall, not a symbol)", () => {
+  const refused = ["wall segment (64 × 40)", "wall corner, boxed", "wall corner, tapped at the corner", "T-junction", "crossing walls", "single line (wire, grid line)", "diagonal wire"];
+  const searched = ["door swing with wall stubs", "circle with a letter", "duplex receptacle", "window, tapped in its wall", "window, boxed tightly (96 × 32)"];
+
+  it.each(refused)("refuses %s", (name) => {
+    const t = SHAPES[name]();
+    expect(onlyStraightLines(t.data, t.w, t.h, inkLevel(t.data))).toBe(true);
+  });
+
+  it.each(searched)("searches %s", (name) => {
+    const t = SHAPES[name]();
+    expect(onlyStraightLines(t.data, t.w, t.h, inkLevel(t.data))).toBe(false);
+  });
+
+  it("blank paper and a filled block are not lines", () => {
+    expect(onlyStraightLines(new Array(100).fill(255), 10, 10, 200)).toBe(false);
+    const block = new Array(40 * 40).fill(255);
+    for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) block[y * 40 + x] = 0;
+    expect(onlyStraightLines(block, 40, 40, 128)).toBe(false);
+  });
+
+  it("ink level: halfway to white from the darkest pixel, at most 200", () => {
+    expect(inkLevel([0, 255])).toBe(127.5);
+    expect(inkLevel([180, 255])).toBe(200);
   });
 });

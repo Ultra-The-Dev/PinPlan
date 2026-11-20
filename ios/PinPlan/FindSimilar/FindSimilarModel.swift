@@ -196,6 +196,7 @@ final class FindSimilarUI {
                 case .cancelled?: return
                 case .tooSmall?: fail(String(localized: "That box is too small. Zoom in and draw a box around one symbol."))
                 case .blank?: fail(String(localized: "There’s nothing drawn there. Tap right on a symbol, or draw a box around one."))
+                case .onlyLines?: fail(String(localized: "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one."))
                 case nil: fail(String(localized: "Couldn’t read this plan’s picture."))
                 }
             }
@@ -314,8 +315,13 @@ extension FindSimilarUI {
             case "match", "review":
                 ui.setMode(.match)
                 // The swing of the demo's first door (DemoProject.drawPlanContent: centre 1100, 760 of 3200 × 2071).
+                // Demo sheets are drawn scaled by width (DemoProject.drawPlan), so map design units through the sheet's own
+                // pixel size: a sheet whose aspect differs from the design's would otherwise put the box on a wall corner.
                 let d = DemoProject.designSize
-                let a = PlanPoint(x: 1088 / d.width, y: 748 / d.height), b = PlanPoint(x: 1204 / d.width, y: 864 / d.height)
+                let dw = Double(d.width), dh = Double(d.height)
+                let w: Double = sheet.width > 0 ? sheet.width : dw, h: Double = sheet.height > 0 ? sheet.height : dh
+                let k = w / dw
+                let a = PlanPoint(x: 1088 * k / w, y: 748 * k / h), b = PlanPoint(x: 1204 * k / w, y: 864 * k / h)
                 ui.boxPick(model: model, sheet: sheet, DragBox(a: a, b: b))
             case "tags":
                 ui.setMode(.tags)
