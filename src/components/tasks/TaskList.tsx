@@ -93,6 +93,17 @@ export default function TaskList() {
     q.set("tf", encodeTaskFilter(mineOpenFilter(myNames)));
     router.replace(`/project?${q.toString()}`, { scroll: false });
   }, [role, params, project, myNames, router]);
+  // My names can grow after the first render (the team loads, the device name is read): a "Mine" filter made with the
+  // earlier names follows, so tasks assigned under the new name show and the chip stays on.
+  const prevNames = useRef(myNames);
+  useEffect(() => {
+    const before = prevNames.current;
+    prevNames.current = myNames;
+    if (before === myNames || !isMineFilter(filter, before) || isMineFilter(filter, myNames)) return;
+    const q = new URLSearchParams(params.toString());
+    q.set("tf", encodeTaskFilter({ ...filter, assignee: [...myNames] }));
+    router.replace(`/project?${q.toString()}`, { scroll: false });
+  }, [myNames, filter, params, router]);
 
   if (!project) return null;
 

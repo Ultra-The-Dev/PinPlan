@@ -206,13 +206,27 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
   }
 
   /** Every "No" answer becomes a task on the job (skipping ones already made, also as older punch-list items). */
+  const makingTasks = useRef(false);
   async function makeTasks() {
+    if (makingTasks.current) return;
+    makingTasks.current = true;
+    try {
+      await makeTasksNow();
+    } catch (e) {
+      toast(`Couldn't add the tasks: ${(e as Error).message}`, "error");
+    } finally {
+      makingTasks.current = false;
+    }
+  }
+  async function makeTasksNow() {
     const f = formRef.current;
     const st = useTasks.getState();
     if (st.projectId !== f.projectId) await st.load(f.projectId);
     const note = formTaskNote(f.name);
     const legacy = new Set(checklists.filter((c) => !c.deleted && c.projectId === f.projectId).flatMap((c) => c.items.filter((i) => i.note === note).map((i) => i.text.trim().toLowerCase())));
-    const drafts = formTaskDrafts(planTasks, f, failedItems(f)).filter((d) => !legacy.has(d.title.toLowerCase()));
+    // The store's tasks, read now: a second tap right after the first must see the tasks it just made.
+    const current = useTasks.getState().projectId === f.projectId ? useTasks.getState().tasks : planTasks;
+    const drafts = formTaskDrafts(current, f, failedItems(f)).filter((d) => !legacy.has(d.title.toLowerCase()));
     if (!drafts.length) return toast("Those answers already have tasks");
     const at = nowIso();
     for (const d of drafts) await useTasks.getState().save(newTask({ id: newId(), projectId: f.projectId, number: useTasks.getState().nextNumber(), ...d }, me, at, newId));
