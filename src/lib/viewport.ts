@@ -52,18 +52,37 @@ export function visibleSheetRect(t: ViewTransform, size: ViewSize): { x: number;
 
 export type FitMode = "sheet" | "width";
 
-/** Fit the whole sheet (or its width, top aligned) in the view, with a margin in screen px. */
-export function fitTransform(size: ViewSize, sheet: SheetDims, mode: FitMode = "sheet", margin = 16): ViewTransform {
-  const aw = Math.max(1, size.w - margin * 2);
-  const ah = Math.max(1, size.h - margin * 2);
+/**
+ * Room the plan's own chrome takes on each side (screen px), so a fit keeps the drawing clear of it. A missing side
+ * means none; each side's gap is the larger of its inset and the fit margin.
+ */
+export interface FitInsets {
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}
+
+/**
+ * Fit the whole sheet (or its width, top aligned) in the view, with a margin in screen px, centred in the part of the
+ * view the insets leave free. Zoom limits and view memory use the plain fit (no insets), so insets only move and size
+ * the fitted view, not the zoom range.
+ */
+export function fitTransform(size: ViewSize, sheet: SheetDims, mode: FitMode = "sheet", margin = 16, insets?: FitInsets): ViewTransform {
+  const top = Math.max(margin, insets?.top ?? 0);
+  const right = Math.max(margin, insets?.right ?? 0);
+  const bottom = Math.max(margin, insets?.bottom ?? 0);
+  const left = Math.max(margin, insets?.left ?? 0);
+  const aw = Math.max(1, size.w - left - right);
+  const ah = Math.max(1, size.h - top - bottom);
   if (mode === "width") {
     const scale = aw / sheet.width;
     const h = sheet.height * scale;
     // A sheet that fits vertically anyway is centred; a tall one starts at the top.
-    return { scale, x: (size.w - sheet.width * scale) / 2, y: h <= ah ? (size.h - h) / 2 : margin };
+    return { scale, x: left + (aw - sheet.width * scale) / 2, y: h <= ah ? top + (ah - h) / 2 : top };
   }
   const scale = Math.min(aw / sheet.width, ah / sheet.height);
-  return { scale, x: (size.w - sheet.width * scale) / 2, y: (size.h - sheet.height * scale) / 2 };
+  return { scale, x: left + (aw - sheet.width * scale) / 2, y: top + (ah - sheet.height * scale) / 2 };
 }
 
 export interface ZoomLimits {

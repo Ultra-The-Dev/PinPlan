@@ -3,6 +3,7 @@
 // second, so it lives here — outside React — and is pushed straight to the Konva stage; React components that show it
 // (zoom %, minimap, overlays) subscribe and re-render at most once per frame. Geometry is in viewport.ts (pure).
 import type Konva from "konva";
+import { PLAN_CHROME } from "./planOverlays";
 import {
   centerOn,
   clampTransform,
@@ -19,6 +20,7 @@ import {
   toMemory,
   zoomAbout,
   zoomLimits,
+  type FitInsets,
   type FitMode,
   type Point,
   type SheetDims,
@@ -42,6 +44,22 @@ export interface ViewportSnapshot {
   moving: boolean;
 }
 
+/** Widest left-rail item the default fit keeps clear (Measure, Progress, Back to sheet, Link). */
+export const LEFT_RAIL_FIT_WIDTH = 120;
+
+/**
+ * Default room for the plan's chrome when fitting a sheet (PLAN_CHROME numbers; the plan-view width decides phone or
+ * wide): the top bar (sheet pill, tools, View / Edit) and, on wider plans, the left rail under the sheet pill, so a
+ * fitted drawing starts clear of them. Phones only keep the top bar clear: a left inset costs too much of a narrow view.
+ */
+export function planFitInsets(size: ViewSize): FitInsets {
+  if (size.w <= PLAN_CHROME.phoneMax) return { top: PLAN_CHROME.railTop.phone - PLAN_CHROME.gutter.phone };
+  return {
+    top: PLAN_CHROME.railTop.wide - PLAN_CHROME.railGap,
+    left: PLAN_CHROME.gutter.wide + LEFT_RAIL_FIT_WIDTH + PLAN_CHROME.railGap,
+  };
+}
+
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 export class PlanViewport {
@@ -56,6 +74,7 @@ export class PlanViewport {
   private interacting = 0;
   private settleTimer: ReturnType<typeof setTimeout> | null = null;
   private lastScale = 0;
+  private fitInsets: FitInsets | ((size: ViewSize) => FitInsets) = planFitInsets;
   /** Set once a real size and sheet are known and a first view is placed. */
   ready = false;
 
@@ -134,7 +153,21 @@ export class PlanViewport {
       return;
     }
     this.ready = true;
-    this.set(memory ? fromMemory(memory, this.size, this.sheet) : fitTransform(this.size, this.sheet), { clamp: false });
+    this.set(memory ? fromMemory(memory, this.size, this.sheet) : this.fitted(), { clamp: false });
+  }
+
+  /**
+   * Room the chrome takes on each side when fitting (a fixed value, or computed from the view size); null restores the
+   * default (planFitInsets). Applies to fits made after the call.
+   */
+  setFitInsets(insets: FitInsets | ((size: ViewSize) => FitInsets) | null) {
+    this.fitInsets = insets ?? planFitInsets;
+  }
+
+  /** The fitted view for the current size and sheet, clear of the chrome. */
+  fitted(mode: FitMode = "sheet"): ViewTransform {
+    const insets = typeof this.fitInsets === "function" ? this.fitInsets(this.size) : this.fitInsets;
+    return fitTransform(this.size, this.sheet, mode, undefined, insets);
   }
 
   memory(): ViewMemory | null {
@@ -252,7 +285,7 @@ export class PlanViewport {
   }
 
   fit(mode: FitMode = "sheet", animate = true) {
-    const t = fitTransform(this.size, this.sheet, mode);
+    const t = this.fitted(mode);
     if (animate) this.animateTo(t);
     else this.set(t, { clamp: false });
   }
