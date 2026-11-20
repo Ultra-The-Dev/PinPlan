@@ -422,6 +422,18 @@ describe("prices: office only, never select *", () => {
     expect(await db().projects.get("p-remote")).toMatchObject({ clientName: "Other device", pricing: { markupPct: 25 }, billduClientId: 4 });
   });
 
+  it("while the company owner can't be told, the catalog waits for the next sync instead of being skipped", async () => {
+    // my_billing_owner gives nothing and the team isn't loaded for this user yet.
+    useTeam.setState({ userId: null, team: null });
+    // A later row (another owner's) would carry the watermark well past the company's row.
+    fake.tables.set("device_types", new Map([["boss|dt1", remoteCamera("boss")], ["admin|dt2", remoteCamera("admin", { id: "dt2", synced_at: "2026-11-19T12:00:00.000Z" })]]));
+    await __syncForTests("u1");
+    expect(await db().deviceTypes.get("dt1")).toBeUndefined();
+    fake.rpc.set("my_billing_owner", "boss");
+    await __syncForTests("u1");
+    expect(await db().deviceTypes.get("dt1")).toMatchObject({ name: "Camera", ownerId: "boss" });
+  });
+
   it("a pulled catalog row (prices stored blank) keeps this device's prices", async () => {
     fake.rpc.set("my_billing_owner", "u1");
     await db().deviceTypes.put({ ...camera, unitPrice: 199 } as never);

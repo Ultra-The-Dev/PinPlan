@@ -336,6 +336,8 @@ async function restoreFromServer(sb: Client, table: SyncTable, id: string, chang
   if (error) throw new Error(`${spec.remote}: ${error.message}`);
   // Catalog rows are per owner: only the company's (the billing owner's) row counts.
   const owner = await billingOwner(sb);
+  // Whose catalog this is can't be told right now: leave the local row as it is (it is looked at again later).
+  if (!owner && (table === "deviceTypes" || table === "products")) return;
   const raw = ((data ?? []) as unknown as Record<string, unknown>[]).find((r) => isCompanyCatalogRow(table, r, owner));
   const tbl = db().table(table);
   const have = (await tbl.get(id)) as Record<string, unknown> | undefined;
@@ -535,6 +537,9 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
   for (const table of PUSH_ORDER) {
     const spec = TABLES[table];
     if (schemaGaps.tables.has(spec.remote)) continue;
+    // Whose catalog to keep can't be told yet (team not loaded, offline): pull it next time rather than skip its rows
+    // and move the watermark past them for good.
+    if (!owner && (table === "deviceTypes" || table === "products")) continue;
     let cur = { since: pullStart(getWatermark(userId, table)), skip: 0 };
     for (;;) {
       const { data, error } = await selectPage(sb, table, cur);

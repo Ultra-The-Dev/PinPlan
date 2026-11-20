@@ -181,6 +181,23 @@ update public.job_templates set payload = public.template_payload_without_pricin
 -- A blank value (0, null, []) on the old columns means "not sent": it never replaces a price, so an old build that
 -- read the blank columns and saves the row again can't wipe the prices. The older copy never replaces a newer one.
 -- Technicians' price edits are dropped (as projects_tech_guard did before).
+-- True when an INSERT names an existing job or template the writer may not update. Row security checks the INSERT
+-- (owner_id = me) before Postgres looks for a conflicting row, so `insert ... values ('<someone else's job id>', ...)
+-- on conflict do nothing` passes it and does nothing, while the BEFORE INSERT triggers below have already run: they must
+-- not file prices for that id. (Catalog and product prices are keyed by owner_id, which row security pins to the writer.)
+create or replace function public.price_sink_foreign_row(op text, tbl text, row_id text) returns boolean
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if op <> 'INSERT' then return false; end if;  -- an UPDATE only reaches rows the update policy let through
+  if tbl = 'projects' then
+    return exists (select 1 from public.projects p where p.id = row_id
+                   and not coalesce(p.owner_id = auth.uid() or public.is_project_member(p.id), false));
+  end if;
+  return exists (select 1 from public.job_templates t where t.id = row_id and not coalesce(
+    (t.team_id is not null and t.team_id = public.my_team_id() and public.my_team_role() in ('owner', 'admin'))
+    or (t.team_id is null and t.created_by = auth.uid()), false));
+end $$;
+
 create or replace function public.device_types_price_sink() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -222,7 +239,9 @@ declare
   has_docs boolean := coalesce(new.billdu_docs, '[]'::jsonb) <> '[]'::jsonb;
   has_client boolean := new.billdu_client_id is not null;
 begin
-  if (has_pricing or has_docs or has_client) and not public.is_tech() then
+  -- An upsert runs the INSERT triggers before it finds the row already there: never file prices for someone else's
+  -- job (an ON CONFLICT DO NOTHING would keep them without the update policy ever being checked).
+  if (has_pricing or has_docs or has_client) and not public.is_tech() and not public.price_sink_foreign_row(tg_op, 'projects', new.id) then
     insert into public.project_finance as f (project_id, pricing, billdu_docs, billdu_client_id, updated_at)
     values (new.id, case when has_pricing then new.pricing end, case when has_docs then new.billdu_docs else '[]'::jsonb end,
             new.billdu_client_id, new.updated_at)
@@ -266,6 +285,11 @@ begin
   if not (new.payload ? 'estimateLines' or coalesce(new.payload -> 'project', 'null'::jsonb) ? 'pricing') then return new; end if;
   -- Stored payloads never hold pricing, so an unchanged one (e.g. a stale write turned back) has nothing to move.
   if tg_op = 'UPDATE' and new.payload is not distinct from old.payload then return new; end if;
+  -- Someone else's template hit by an upsert (see projects_price_sink): strip, file nothing.
+  if public.price_sink_foreign_row(tg_op, 'job_templates', new.id) then
+    new.payload := public.template_payload_without_pricing(new.payload);
+    return new;
+  end if;
   insert into public.job_template_pricing as p (template_id, owner_id, pricing, updated_at)
   values (new.id, public.job_template_owner(new.team_id, new.created_by), public.template_pricing_of(new.payload), new.updated_at)
   on conflict (template_id) do update
@@ -321,5 +345,6 @@ end $$;
 revoke all on function public.stale_write_guard() from public, anon;
 revoke all on function public.device_types_price_sink(), public.products_price_sink(), public.projects_price_sink(),
   public.job_templates_strip_pricing(), public.job_template_pricing_owner() from public, anon;
+revoke all on function public.price_sink_foreign_row(text, text, text) from public, anon, authenticated;
 
 notify pgrst, 'reload schema';

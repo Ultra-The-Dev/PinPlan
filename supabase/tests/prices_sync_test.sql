@@ -116,6 +116,29 @@ select pg_temp.check((select unit_price from public.device_types where id = 'pr-
 select pg_temp.as_user('00000000-0000-0000-0000-0000000007a4');
 select pg_temp.check(pg_temp.n($$select * from public.device_type_prices$$) = 0 and pg_temp.n($$select * from public.product_prices$$) = 0
                      and pg_temp.n($$select * from public.project_finance$$) = 0 and pg_temp.n($$select * from public.job_template_pricing$$) = 0, 'outsider reads no prices');
+-- An outsider's upsert naming the company's job or template with ON CONFLICT DO NOTHING passes the INSERT policy (its
+-- owner is the outsider) and then does nothing: the price triggers it ran first must not file its prices.
+insert into public.projects (id, owner_id, client_name, address, status, pricing, billdu_client_id, updated_at)
+  values ('pr-p1', '00000000-0000-0000-0000-0000000007a4', 'x', 'x', 'estimate', '{"markupPct": -99}', 1, now() + interval '4 minutes')
+  on conflict do nothing;
+insert into public.job_templates (id, name, payload, updated_at)
+  values ('pr-t1', 'evil', '{"estimateLines": [{"key": "custom:evil"}], "project": {"pricing": {"markupPct": -99}}}', now() + interval '4 minutes')
+  on conflict do nothing;
+select pg_temp.check(pg_temp.fails($$insert into public.projects (id, owner_id, client_name, address, status, pricing, updated_at)
+  values ('pr-p1', '00000000-0000-0000-0000-0000000007a4', 'x', 'x', 'estimate', '{"markupPct": -98}', now() + interval '4 minutes')
+  on conflict (id) do update set pricing = excluded.pricing, updated_at = excluded.updated_at$$), 'outsider''s upsert on the company''s job fails');
+reset role;
+select pg_temp.check((select pricing ->> 'markupPct' from public.project_finance where project_id = 'pr-p1') = '30'
+                     and (select billdu_client_id from public.project_finance where project_id = 'pr-p1') = 777, 'outsider''s do-nothing upsert files no job pricing');
+select pg_temp.check((select pricing -> 'estimateLines' -> 0 ->> 'unitPrice' from public.job_template_pricing where template_id = 'pr-t1') = '99'
+                     and (select pricing -> 'pricing' ->> 'markupPct' from public.job_template_pricing where template_id = 'pr-t1') = '15', 'outsider''s do-nothing upsert files no template pricing');
+set role authenticated;
+-- The owner's own do-nothing upsert still files (they may write project_finance directly anyway).
+select pg_temp.as_user('00000000-0000-0000-0000-0000000007a1');
+insert into public.projects (id, owner_id, client_name, address, status, pricing, updated_at)
+  values ('pr-p1', '00000000-0000-0000-0000-0000000007a1', 'Client', '1 Price St', 'estimate', '{"markupPct": 30}', now() - interval '30 minutes')
+  on conflict do nothing;
+select pg_temp.check((select pricing ->> 'markupPct' from public.project_finance where project_id = 'pr-p1') = '30', 'owner''s do-nothing upsert is harmless');
 
 -- ---------- the owner's app: upserts like PostgREST (no RETURNING), legacy and new tables ----------
 select pg_temp.as_user('00000000-0000-0000-0000-0000000007a1');
