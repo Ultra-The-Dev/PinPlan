@@ -31,6 +31,33 @@ final class SalesDocsStatusTests: XCTestCase {
         XCTAssertEqual(SalesDocs.displayStatus(q, day: day).label, "Approved")
     }
 
+    /// Payments the server recorded from Stripe (docs/payments.md), as the web's isOnlinePayment().
+    func testPaidOnline() {
+        var d = inv(); d.status = .partiallyPaid
+        let card = SalesPayment(id: "stripe_pi_123", projectId: "p", documentId: "i", amount: 60, date: day, method: "card")
+        let check = SalesPayment(id: "abc", projectId: "p", documentId: "i", amount: 40, date: day, method: "check")
+        XCTAssertTrue(card.isOnline)
+        XCTAssertFalse(check.isOnline)
+        XCTAssertNil(SalesDocs.paidOnline(d, payments: [check]))
+        XCTAssertEqual(SalesDocs.paidOnline(d, payments: [card, check]), OnlinePaid(amount: 60, bank: false))
+        XCTAssertEqual(SalesDocs.onlinePaidText(d, payments: [card])?.key, "%@ paid online")
+        XCTAssertEqual(SalesDocs.onlinePaidText(d, payments: [card])?.amount, "$60.00")
+        // A Stripe refund comes back as a negative payment.
+        let refund = SalesPayment(id: "stripe_re_re_1", projectId: "p", documentId: "i", amount: -60, date: day, method: "card")
+        XCTAssertNil(SalesDocs.paidOnline(d, payments: [card, refund]))
+        // Voided, deleted or another invoice's payments don't count.
+        var voided = card; voided.voided = true
+        var other = card; other.documentId = "x"
+        XCTAssertNil(SalesDocs.paidOnline(d, payments: [voided, other]))
+        // Paid in full by bank.
+        d.status = .paid
+        let ach = SalesPayment(id: "stripe_pi_456", projectId: "p", documentId: "i", amount: 100, date: day, method: "ach")
+        XCTAssertEqual(SalesDocs.onlinePaidText(d, payments: [ach])?.key, "Paid online by bank")
+        XCTAssertEqual(SalesDocs.onlinePaidText(d, payments: [card])?.key, "Paid online by card")
+        // Quotes never.
+        XCTAssertNil(SalesDocs.paidOnline(SalesDoc(id: "i", projectId: "p", kind: .quote, status: .accepted, total: 60), payments: [card]))
+    }
+
     func testQuotesNumberAsQ() {
         XCTAssertEqual(SalesDocs.defaultNumberFormat(.quote), "Q-{0000}")
         XCTAssertEqual(SalesDocs.formatNumber(SalesDocs.defaultNumberFormat(.quote), seq: 7, day: day), "Q-0007")

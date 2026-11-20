@@ -38,12 +38,17 @@ struct QuotesInvoicesView: View {
                     } label: { Text("Balance due").bold() }
                 }
                 Section(sentence: String(localized: "Documents")) {
-                    ForEach(docs) { d in DocRow(doc: d, status: SalesDocs.displayStatus(d, day: day)) }
+                    let payments = model.bundle.liveSalesPayments
+                    ForEach(docs) { d in DocRow(doc: d, status: SalesDocs.displayStatus(d, day: day), online: SalesDocs.onlinePaidText(d, payments: payments)) }
                 }
                 Section {
                     webButton
                 } footer: {
-                    Text("Quotes and invoices are made, finalized, sent and paid on the web — including deposits, the remaining balance and custom amounts. This list is read-only.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Quotes and invoices are made, finalized, sent and paid on the web — including deposits, the remaining balance and custom amounts. This list is read-only.")
+                        // Online payments (docs/payments.md) are connected on the web only.
+                        Text("Clients can pay invoices by card from their link once the office connects Stripe on the web: Settings → Quotes & invoices → Online payments.")
+                    }
                 }
             }
         }
@@ -62,6 +67,8 @@ struct QuotesInvoicesView: View {
 private struct DocRow: View {
     let doc: SalesDoc
     let status: SalesDocDisplayStatus
+    /// Paid online through Stripe (from the client's invoice link).
+    var online: (key: String, amount: String?)? = nil
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -71,6 +78,10 @@ private struct DocRow: View {
                     .font(.caption)
                 if let t = SalesDocs.invoiceTypeText(doc) {
                     Text(t).font(.caption).foregroundStyle(.secondary)
+                }
+                if let o = online {
+                    Label(o.amount.map { String(format: tr(o.key), $0) } ?? tr(o.key), systemImage: "creditcard")
+                        .font(.caption).foregroundStyle(.green)
                 }
             }
             Spacer()

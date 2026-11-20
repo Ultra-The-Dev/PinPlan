@@ -373,6 +373,42 @@ public enum SalesDocs {
     }
 }
 
+// MARK: - Online invoice payments (docs/payments.md)
+
+extension SalesPayment {
+    /// Recorded by the server from Stripe when a client paid on the invoice link: id `stripe_<payment intent>`, refunds
+    /// made in Stripe `stripe_re_<refund>`. Same rule as isOnlinePayment() in src/lib/onlinePay.ts.
+    public var isOnline: Bool { id.hasPrefix("stripe_") }
+}
+
+/// What an invoice's client paid online through Stripe (refunds taken off).
+public struct OnlinePaid: Equatable, Sendable {
+    public var amount: Double
+    /// Paid by US bank account (ACH) rather than card.
+    public var bank: Bool
+}
+
+extension SalesDocs {
+    /// Money paid online on an invoice (voided and deleted payments left out, Stripe refunds taken off), or nil when
+    /// nothing was. `bank` follows the largest online payment.
+    public static func paidOnline(_ doc: SalesDoc, payments: [SalesPayment]) -> OnlinePaid? {
+        guard doc.kind == .invoice else { return nil }
+        let mine = payments.filter { $0.documentId == doc.id && $0.isOnline && $0.deleted != true && $0.voided != true }
+        let total = (mine.reduce(0) { $0 + $1.amount } * 100).rounded() / 100
+        guard total > 0 else { return nil }
+        let largest = mine.filter { $0.amount > 0 }.max { $0.amount < $1.amount }
+        return OnlinePaid(amount: total, bank: largest?.method == "ach")
+    }
+
+    /// The list's line about it: "Paid online by card" / "Paid online by bank" when that settled the invoice, else
+    /// "%@ paid online" (the amount). English keys; the app translates them.
+    public static func onlinePaidText(_ doc: SalesDoc, payments: [SalesPayment]) -> (key: String, amount: String?)? {
+        guard let o = paidOnline(doc, payments: payments) else { return nil }
+        if doc.status == .paid { return (o.bank ? "Paid online by bank" : "Paid online by card", nil) }
+        return ("%@ paid online", money(o.amount, currency: doc.currency))
+    }
+}
+
 extension ProjectBundle {
     /// The job's quotes, invoices and credit notes (not deleted), newest first.
     public var liveSalesDocs: [SalesDoc] { SalesDocs.list(salesDocs) }
