@@ -31,17 +31,20 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       PINPLAN_SERVER_URL: ${{ vars.PINPLAN_SERVER_URL }}
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Xcode 26
         run: |
-          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          # App Store Connect rejects uploads built with a beta or RC Xcode, so pick the newest release one.
+          XCODE=$(ls -d /Applications/Xcode_26*.app | grep -viE 'beta|_rc|release_candidate' | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "::error::No release Xcode 26 on this runner."; exit 1; fi
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
       - name: Check signing setup
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           missing=0
           for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
@@ -61,6 +64,9 @@ jobs:
         working-directory: ios/PinPlanCore
         run: swift test
       - name: App Store Connect key
+        env:
+          # Only this step sees the private key; later steps use the file (removed at the end).
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           KEY="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           printf '%s' "$ASC_KEY_P8" > "$KEY"
