@@ -131,9 +131,12 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
    iOS apps use). Remove `localhost`, every `*.vercel.app` and `*.workers.dev` address and any preview address: a
    sign-in or reset link may only ever send someone back to your own domain. Test sign-in on a separate staging
    Supabase project, never by adding a preview address here.
-8. **R: Authentication → Emails → SMTP Settings → custom SMTP through Resend** (after step 5.1): host
+8. **R: Authentication → Emails → SMTP Settings → custom SMTP through Resend** (after step 5.1). Shortcut: with the
+   `RESEND_API_KEY` secret, the `EMAIL_FROM` variable and a short-lived `SUPABASE_ACCESS_TOKEN` secret in the
+   `production` environment, run **Actions → Set up sign-in emails (Resend)**: it does this step, step 9 (templates)
+   and turns on Confirm email. By hand: host
    `smtp.resend.com`, port `465`, username `resend`, password = a Resend API key, sender `noreply@mail.<your-domain>`,
-   sender name `PinPlan`. Then Authentication → Rate Limits: raise the email limit to 30–100 an hour, and keep the
+   sender name `Northpin`. Then Authentication → Rate Limits: raise the email limit to 30–100 an hour, and keep the
    other limits at or below the defaults: sign-ups and sign-ins per IP (about 30 per 5 minutes), token verifications
    (about 30 per 5 minutes) and token refreshes (about 150 per 5 minutes). Don't raise them to fix a test: the app's
    own limits (`20261124100400_rate_limits.sql`) sit behind these, not instead of them.

@@ -1,0 +1,106 @@
+name: Set up sign-in emails (Resend)
+
+# Points Supabase Auth's emails at Resend SMTP, installs the branded templates from supabase/templates, and turns on
+# email confirmation for new sign-ups. Manual only. Needs (production environment): secrets SUPABASE_ACCESS_TOKEN
+# (short-lived personal token) and RESEND_API_KEY; variables NEXT_PUBLIC_SUPABASE_URL and EMAIL_FROM
+# ("Northpin <noreply@mail.example>"). See docs/launch-checklist.md.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_email:
+        description: "Require new accounts to confirm their email"
+        type: boolean
+        default: true
+      emails_per_hour:
+        description: "Auth emails per hour (whole project)"
+        default: "100"
+      confirm:
+        description: 'Type "apply" to change the production auth settings'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-email
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+          CONFIRM: ${{ inputs.confirm }}
+          CONFIRM_EMAIL: ${{ inputs.confirm_email }}
+          PER_HOUR: ${{ inputs.emails_per_hour }}
+        run: |
+          set -euo pipefail
+          [ "$CONFIRM" = "apply" ] || { echo "::error::Type apply to confirm."; exit 1; }
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::SUPABASE_ACCESS_TOKEN isn't set."; exit 1; }
+          [ -n "$RESEND_API_KEY" ] || { echo "::error::RESEND_API_KEY isn't set."; exit 1; }
+          case "$PER_HOUR" in ''|*[!0-9]*) echo "::error::emails_per_hour must be a number."; exit 1;; esac
+          # "Northpin <noreply@mail.example>" -> name + address
+          ADDR=$(printf '%s' "$EMAIL_FROM" | sed -E 's/.*<([^>]+)>.*/\1/')
+          NAME=$(printf '%s' "$EMAIL_FROM" | sed -E 's/[[:space:]]*<[^>]*>.*//; s/^"//; s/"$//')
+          printf '%s' "$ADDR" | grep -Eq '^[^@ ]+@[^@ ]+\.[^@ ]+$' || { echo "::error::EMAIL_FROM must look like: Northpin <noreply@mail.example>"; exit 1; }
+          [ -n "$NAME" ] && [ "$NAME" != "$EMAIL_FROM" ] || NAME="Northpin"
+          DOMAIN=${ADDR#*@}
+          REF=$(printf '%s' "$SUPABASE_URL" | sed -E 's#^https?://([a-z0-9]+)\.supabase\.co.*#\1#')
+          [ -n "$REF" ] && [ "$REF" != "$SUPABASE_URL" ] || { echo "::error::Can't read the project ref from NEXT_PUBLIC_SUPABASE_URL."; exit 1; }
+
+          # The sending domain must be verified in Resend first.
+          STATUS=$(curl -sS -m 30 https://api.resend.com/domains -H "Authorization: Bearer $RESEND_API_KEY" \
+            | jq -r --arg d "$DOMAIN" '[.data[]? | select(.name == $d) | .status][0] // "missing"')
+          echo "Resend domain $DOMAIN: $STATUS"
+          if [ "$STATUS" != "verified" ]; then
+            if [ "$STATUS" = "missing" ]; then
+              echo "::warning::Couldn't see $DOMAIN in Resend (a sending-only key can't list domains). Continuing; the test email below will tell."
+            else
+              echo "::error::$DOMAIN isn't verified in Resend yet ($STATUS)."; exit 1
+            fi
+          fi
+
+          t() { cat "supabase/templates/$1.html"; }
+          BODY=$(jq -n \
+            --arg host smtp.resend.com --arg port 465 --arg user resend --arg pass "$RESEND_API_KEY" \
+            --arg admin "$ADDR" --arg name "$NAME" \
+            --argjson auto "$( [ "$CONFIRM_EMAIL" = "true" ] && echo false || echo true )" \
+            --argjson perhour "$PER_HOUR" \
+            --arg c "$(t confirm-signup)" --arg r "$(t reset-password)" --arg m "$(t magic-link)" \
+            --arg e "$(t change-email)" --arg i "$(t invite)" --arg a "$(t reauthentication)" \
+            '{
+              external_email_enabled: true,
+              mailer_autoconfirm: $auto,
+              mailer_secure_email_change_enabled: true,
+              smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
+              smtp_admin_email: $admin, smtp_sender_name: $name, smtp_max_frequency: 60,
+              rate_limit_email_sent: $perhour,
+              mailer_subjects_confirmation: "Confirm your Northpin email",
+              mailer_subjects_recovery: "Reset your Northpin password",
+              mailer_subjects_magic_link: "Your Northpin sign-in link",
+              mailer_subjects_email_change: "Confirm your new Northpin email",
+              mailer_subjects_invite: "You’re invited to Northpin",
+              mailer_subjects_reauthentication: "{{ .Token }} is your Northpin confirmation code",
+              mailer_templates_confirmation_content: $c,
+              mailer_templates_recovery_content: $r,
+              mailer_templates_magic_link_content: $m,
+              mailer_templates_email_change_content: $e,
+              mailer_templates_invite_content: $i,
+              mailer_templates_reauthentication_content: $a
+            }')
+          CODE=$(printf '%s' "$BODY" | curl -sS -m 60 -o resp.json -w '%{http_code}' -X PATCH \
+            "https://api.supabase.com/v1/projects/$REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data-binary @-)
+          echo "Supabase auth config: HTTP $CODE"
+          if [ "$CODE" != "200" ]; then head -c 1500 resp.json; echo; echo "::error::Supabase refused the settings."; exit 1; fi
+          jq '{mailer_autoconfirm, smtp_host, smtp_port, smtp_user, smtp_admin_email, smtp_sender_name, rate_limit_email_sent,
+               mailer_subjects_confirmation, smtp_pass_set: (.smtp_pass != null and .smtp_pass != "")}' resp.json
+          rm -f resp.json
