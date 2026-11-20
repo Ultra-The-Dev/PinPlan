@@ -1,4 +1,5 @@
-// End-to-end check of install progress (Progress view, walk mode, undo, device sheet, Crew tab, as-built PDF, takeoff
+// End-to-end check of install progress (Progress view, walk mode, undo, device sheet, Field → More → Install progress
+// (old ?tab=crew; now ?tab=field&section=progress), as-built PDF, takeoff
 // unchanged) against a local build:
 //
 //   npm run build && npx next start -p 3248 &
@@ -137,12 +138,12 @@ async function takeoffText(page) {
   await page.screenshot({ path: `${OUT}/4-phone.png` });
   await page.setViewportSize({ width: 1280, height: 860 });
 
-  await page.goto(`${BASE}/project?id=p-pp&tab=crew`);
+  await page.goto(`${BASE}/project?id=p-pp&tab=field&section=progress`);
   await page.waitForSelector("[data-testid=progress-panel]", { timeout: 20000 });
   await sleep(800);
   const pct = await page.getByTestId("progress-pct").innerText();
-  check("crew tab shows progress", pct.trim() === "20%", pct);
-  await page.getByTestId("progress-panel").screenshot({ path: `${OUT}/5-crew.png` });
+  check("Field install progress shows progress", pct.trim() === "20%", pct);
+  await page.getByTestId("progress-panel").screenshot({ path: `${OUT}/5-field-progress.png` });
   const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), page.getByTestId("asbuilt-pdf").click()]);
   const pdfPath = path.join(OUT, "as-built.pdf");
   await dl.saveAs(pdfPath);

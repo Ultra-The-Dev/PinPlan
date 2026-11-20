@@ -24,8 +24,9 @@ View / Edit). The tool column opens there:
 - **Colour and size**: six colours plus purple **Private** (only you see it; it never prints), S / M / L.
   With a markup selected, picking a colour or size changes that markup.
 - **Layers**: draw on "Redlines" (default), "As-built", "Notes" or a layer you add. Each layer has an eye; hidden
-  layers are remembered per user on this device. The big eye hides or shows all markups and turns red whenever
-  anything is hidden. "Move here" moves the selected markup to another layer.
+  layers are remembered per user on this device. All markups are shown or hidden from Layers ("Show on plan" →
+  Markups); the Markups button gets a red dot whenever anything is hidden. "Move here" moves the selected markup to
+  another layer.
 - **List** shows this sheet's markups with author, time, layer and a Private badge; tap one to select it.
 - **Long-press** (or right-click) a markup for its details: who drew it and when, Edit text, Duplicate, Delete.
 - **Delete / Backspace** removes the selected markup; **⌘/Ctrl+Z** and **⇧⌘Z** undo / redo this session's markup

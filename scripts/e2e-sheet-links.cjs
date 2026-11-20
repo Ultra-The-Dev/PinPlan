@@ -185,9 +185,10 @@ async function run(label, opts, projectId) {
   check(`${label}: document link opens the file`, !!win && win.url().startsWith("blob:"), win?.url());
 
   // Documents list shows where it's linked.
-  await page.goto(`${BASE}/project?id=${projectId}&tab=field`);
+  await page.goto(`${BASE}/project?id=${projectId}&tab=field&section=files`);
   await sleep(1200);
-  const docsTab = page.getByRole("button", { name: /^Documents/ });
+  // Field → Files (was "Documents"); the section is in the address, the button is a fallback.
+  const docsTab = page.getByRole("button", { name: /^Files/ });
   if (await docsTab.count()) await docsTab.first().click();
   await sleep(600);
   const chip = page.getByText("Linked on E-101");

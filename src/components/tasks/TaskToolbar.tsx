@@ -1,13 +1,13 @@
 "use client";
 // Tasks on the plan (HTML side of the tasks overlay, in the plan's right-hand rail): one Tasks button (open count)
-// opens a panel with "+ Task" (also Shift+T: the next tap on the plan drops a task there), show / hide pins (the
-// button turns red while pins are hidden), filters and the sheet's task list. Also hosts the drop hint, the
-// quick-create sheet and the task detail for the plan.
-import { Eye, EyeOff, ListTodo, MapPinPlus, SlidersHorizontal, X } from "lucide-react";
+// opens a panel with "+ Task" (also Shift+T: the next tap on the plan drops a task there), filters and the sheet's
+// task list. Showing / hiding the pins is in Layers ("Show on plan"); the button turns red while pins are hidden.
+// Also hosts the drop hint, the quick-create sheet and the task detail for the plan.
+import { ListTodo, MapPinPlus, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { localDay } from "@/lib/fieldDocs";
 import { newId, nowIso } from "@/lib/db";
-import { claimPlanInput } from "@/lib/planOverlays";
+import { claimPlanInput, planKeyBlocked } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
 import { duplicateTask, filterIsEmpty, isClosed, isOverdue, nearestRoom, STATUSES, taskMatches, taskPlacement } from "@/lib/tasks";
 import { toast } from "@/lib/toast";
@@ -15,7 +15,7 @@ import type { PlanTask, Sheet } from "@/lib/types";
 import TaskDetail from "./TaskDetail";
 import TaskQuickCreate from "./TaskQuickCreate";
 import { Chip, DueText, Portal, TaskBadge, useTaskOptions } from "./TaskUi";
-import { useProjectTasks, useTasks } from "./taskStore";
+import { isTaskDropKey, useProjectTasks, useTasks } from "./taskStore";
 
 export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
   const projectId = sheet.projectId;
@@ -31,15 +31,14 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
   const hidden = !showPins || (active && !greyOthers && pinned.some((t) => !taskMatches(t, filter, today)));
   const openOnSheet = sheetTasks.filter((t) => !isClosed(t.status)).length;
 
-  // Shift+T: drop a task; Escape: stop dropping.
+  // Shift+T: drop a task; Escape: stop dropping. The plan's shared key rules apply (isTaskDropKey / planKeyBlocked).
+  // The plan editor's own key handler has no Shift+T, so this one stays here.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el?.closest?.("input,textarea,select,[contenteditable=true]")) return;
-      if (e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "t") {
+      if (isTaskDropKey(e)) {
         e.preventDefault();
         startDrop();
-      } else if (e.key === "Escape" && useTasks.getState().drop) {
+      } else if (e.key === "Escape" && useTasks.getState().drop && !planKeyBlocked(e)) {
         useTasks.getState().arm(null);
       }
     };
@@ -97,15 +96,6 @@ export default function TaskToolbar({ sheet }: { sheet: Sheet }) {
             <span className="mr-auto min-w-0 truncate pl-1 text-sm font-semibold">
               {sheetTasks.length} task{sheetTasks.length === 1 ? "" : "s"}
             </span>
-            <button
-              className={`btn btn-sm btn-icon btn-ghost ${hidden ? "text-red-600" : ""}`}
-              onClick={() => set({ showPins: !showPins })}
-              title={!showPins ? "Show task pins" : hidden ? "Some task pins are hidden by filters" : "Hide task pins"}
-              aria-label={showPins ? "Hide task pins" : "Show task pins"}
-              aria-pressed={!showPins}
-            >
-              {showPins ? <Eye /> : <EyeOff />}
-            </button>
             <button className={`btn btn-sm btn-icon btn-ghost relative ${filtersOpen ? "bg-slate-100" : ""}`} onClick={() => setFiltersOpen((f) => !f)} title="Filter task pins" aria-label="Filter task pins" aria-expanded={filtersOpen}>
               <SlidersHorizontal />
               {active && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-brand-600 ring-2 ring-white" />}
