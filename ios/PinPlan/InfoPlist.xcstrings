@@ -11,10 +11,46 @@
             "value" : "Northpin uses the camera to scan paper plan sets into a job and to take job-site photos that are saved with the job."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin usa la cámara para escanear juegos de planos en papel y agregarlos a una obra, y para tomar fotos en la obra que se guardan con ella."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin używa aparatu, aby skanować papierowe plany do zlecenia i robić zdjęcia na budowie, które są zapisywane w zleceniu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Northpin usa a câmera para escanear jogos de plantas em papel para uma obra e para tirar fotos na obra, que são salvas com a obra."
+          }
+        },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Northpin использует камеру, чтобы сканировать бумажные планы в объект и делать фото на объекте, которые сохраняются вместе с ним."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin використовує камеру, щоб сканувати паперові плани в об'єкт і робити фото на об'єкті, які зберігаються разом із ним."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin dùng camera để quét bộ bản vẽ giấy vào công trình và chụp ảnh tại công trình, ảnh được lưu cùng công trình."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin 使用相机将纸质图纸扫描到工程中，并拍摄与工程一起保存的现场照片。"
           }
         }
       }
@@ -29,10 +65,46 @@
             "value" : "Northpin lets you pick plan photos and job-site photos from your library to add them to a job. Only the photos you choose are used."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin te permite elegir fotos de planos y de la obra en tu fototeca para agregarlas a una obra. Solo se usan las fotos que eliges."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin pozwala wybrać zdjęcia planów i zdjęcia z budowy z biblioteki, aby dodać je do zlecenia. Używane są tylko wybrane przez Ciebie zdjęcia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Northpin permite escolher fotos de plantas e fotos da obra na sua biblioteca para adicioná-las a uma obra. Só as fotos que você escolher são usadas."
+          }
+        },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Northpin позволяет выбрать фото планов и фото с объекта из медиатеки, чтобы добавить их в объект. Используются только выбранные вами фото."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin дає змогу вибрати фото планів і фото з об'єкта з медіатеки, щоб додати їх в об'єкт. Використовуються лише вибрані вами фото."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin cho phép bạn chọn ảnh bản vẽ và ảnh công trình từ thư viện để thêm vào công trình. Chỉ những ảnh bạn chọn mới được dùng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin 允许你从照片图库中选择图纸照片和现场照片添加到工程中。只会使用你选择的照片。"
           }
         }
       }
@@ -47,10 +119,46 @@
             "value" : "Northpin saves where a job-site photo was taken with the photo and shows your jobs on the map. You can turn this off with Stamp location on a job's Photos tab."
           }
         },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin guarda junto con cada foto de obra el lugar donde se tomó y muestra tus obras en el mapa. Puedes desactivarlo con Agregar ubicación en la pestaña Fotos de una obra."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin zapisuje ze zdjęciem z budowy miejsce, w którym zostało zrobione, i pokazuje Twoje zlecenia na mapie. Możesz to wyłączyć przełącznikiem Zapisuj lokalizację na karcie Zdjęcia zlecenia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Northpin salva com a foto da obra o local onde ela foi tirada e mostra suas obras no mapa. Você pode desativar isso com Gravar localização na aba Fotos de uma obra."
+          }
+        },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Northpin сохраняет вместе с фото место, где оно сделано, и показывает ваши объекты на карте. Это можно отключить переключателем «Добавлять местоположение» на вкладке «Фото» объекта."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin зберігає разом із фото місце, де його зроблено, і показує ваші об'єкти на карті. Це можна вимкнути перемикачем «Додавати розташування» на вкладці «Фото» об'єкта."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin lưu vị trí chụp ảnh công trình cùng với ảnh và hiện các công trình của bạn trên bản đồ. Bạn có thể tắt bằng Gắn vị trí trong tab Ảnh của công trình."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Northpin 会把现场照片的拍摄地点与照片一起保存，并在地图上显示你的工程。你可以在工程的“照片”标签页通过“添加位置水印”关闭此功能。"
           }
         }
       }
