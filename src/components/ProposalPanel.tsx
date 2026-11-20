@@ -105,9 +105,23 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
 
   // ...and the approval becomes the job's approved quote (locked, with the signature), once.
   const approvedQuote: SalesDoc | null = accepted && docs ? quoteForProposal(docs, accepted.id) : null;
+  // Jobs approved before approvals became quotes: when the office has since made its own approved quote (or billed from
+  // one), that quote stands, so no second one is added next to it.
+  const handledByHand =
+    !!accepted &&
+    !!docs &&
+    !approvedQuote &&
+    docs.some(
+      (d) =>
+        !d.deleted &&
+        d.status !== "void" &&
+        !d.options?.approval &&
+        d.createdAt >= (accepted.responded_at ?? "") &&
+        ((d.kind === "quote" && d.status === "accepted") || (d.kind === "invoice" && d.source === "quote" && !docs.some((q) => q.id === d.convertedFrom && !!q.options?.approval))),
+    );
   const making = useRef(new Set<string>());
   useEffect(() => {
-    if (!accepted || !project || !docs || approvedQuote || making.current.has(accepted.id)) return;
+    if (!accepted || !project || !docs || approvedQuote || handledByHand || making.current.has(accepted.id)) return;
     making.current.add(accepted.id);
     void (async () => {
       const id = proposalQuoteId(accepted.id);
@@ -115,7 +129,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
       const base = newDocument({ id, kind: "quote", project, settings: ds, now: nowIso(), day: today() });
       await saveDoc(quoteFromProposal(base, accepted));
     })().catch((e) => toast(`Couldn't save the approved quote: ${(e as Error).message}`, "error"));
-  }, [accepted, project, docs, approvedQuote, ds]);
+  }, [accepted, project, docs, approvedQuote, handledByHand, ds]);
 
   if (!project) return null;
 
@@ -260,6 +274,10 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
                       Approved quote {docName(q, ds)}
                     </Link>
                   </div>
+                ) : handledByHand ? (
+                  <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=billing`} className="text-xs font-medium text-brand-600 hover:underline">
+                    Quotes & invoices
+                  </Link>
                 ) : (
                   <p className="text-xs text-slate-500">Saving the approved quote…</p>
                 )}

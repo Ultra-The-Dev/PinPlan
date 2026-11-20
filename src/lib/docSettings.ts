@@ -45,8 +45,23 @@ export async function saveDocSettings(next: DocumentSettings): Promise<{ cloud: 
   }
 }
 
+/** Dated as old as can be, so seeded defaults never win over settings someone saved on another device. */
+const SEED_AT = "1970-01-01T00:00:00.000Z";
+
+/** Save the defaults as the company copy (nothing on this device changes), so the server numbers quotes Q-{0000}. */
+async function seedDefaults(sb: NonNullable<Awaited<ReturnType<typeof signedIn>>>): Promise<void> {
+  try {
+    const owner = await sb.rpc("my_billing_owner");
+    if (owner.error || !owner.data) return;
+    await sb.from("document_settings").upsert({ owner_id: owner.data, config: { ...normalizeDocSettings(null), updatedAt: SEED_AT }, updated_at: SEED_AT }, { onConflict: "owner_id", ignoreDuplicates: true });
+  } catch {
+    /* offline, or not allowed (technicians): the next sync tries again */
+  }
+}
+
 /** Bring this device's copy up to date with the company's (called by sync). Pushes this device's copy when the company
- *  has none yet (the first person to set up invoicing), or the defaults, so the server numbers quotes with the same
+ *  has none yet (the first person to set up invoicing), or seeded defaults (dated 1970, so a copy someone saved on
+ *  another device still wins and is pushed over them), so the server numbers quotes with the same
  *  format the app shows (its built-in fallback is the old EST-{0000}). A company copy still on the old untouched quote
  *  default ("Estimate", EST-{0000}) is saved back as "Quote", Q-{0000} (owner / admin only; others just read it). */
 export async function pullDocSettings(): Promise<void> {
@@ -55,13 +70,20 @@ export async function pullDocSettings(): Promise<void> {
   const { data, error } = await sb.from("document_settings").select("config, updated_at").maybeSingle();
   if (error) return; // offline, a migration behind, or a technician
   const local = (await db().settings.get("app"))?.documents;
+  const saved = !!local?.updatedAt && local.updatedAt !== SEED_AT;
   if (!data) {
-    await saveDocSettings(local?.updatedAt ? local : normalizeDocSettings(local ?? null));
+    if (saved) await saveDocSettings(local!);
+    else await seedDefaults(sb);
     return;
   }
   const raw = data.config as Partial<DocumentSettings>;
   const remote = normalizeDocSettings(raw);
   const remoteAt = remote.updatedAt ?? data.updated_at;
+  // The company copy is only the seeded defaults and this device has settings someone saved: those win.
+  if (remote.updatedAt === SEED_AT && saved) {
+    await saveDocSettings(local!);
+    return;
+  }
   if (hasLegacyQuoteDefault(raw)) {
     await saveDocSettings(remote);
     return;

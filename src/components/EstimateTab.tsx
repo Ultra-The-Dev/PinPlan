@@ -523,7 +523,7 @@ export default function EstimateTab() {
             <section className="card p-5 text-sm">
               <div className="section-title mb-3">Billed</div>
               <div className="mb-1.5 flex justify-between">
-                <span className="text-slate-500">{billing.quote ? "Approved quote" : "Invoiced"}</span>
+                <span className="text-slate-500">{billing.quote ? (billing.contract !== billing.quote.total ? "Approved quote + changes" : "Approved quote") : "Invoiced"}</span>
                 <span className="font-medium tabular-nums">{billing.quote ? formatMoney(billing.contract ?? 0, cur) : formatMoney(billing.billed, cur)}</span>
               </div>
               {billing.contract ? (
