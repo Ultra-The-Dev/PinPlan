@@ -1,4 +1,5 @@
 // Pure mappers between local (camelCase, Dexie) rows and Supabase (snake_case, Postgres) rows.
+import { INACTIVE_MESSAGE } from "./billingLogic";
 import type { SyncTable } from "./db";
 
 export interface TableSpec {
@@ -517,8 +518,52 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
     if (out.title == null) out.title = "";
     if (out.number == null) out.number = 0;
   }
+  // Every other NOT NULL column (an explicit null fails the insert even when the column has a default): one bad or
+  // older row must not be refused for a missing optional-looking field. tests/syncMap.test.ts checks the migrations.
+  if ("created_at" in out && out.created_at == null) out.created_at = out.updated_at ?? EPOCH;
+  if (out.updated_at == null) out.updated_at = out.created_at ?? EPOCH;
+  const day = String(out.created_at ?? EPOCH).slice(0, 10);
+  for (const [k, v] of Object.entries(NOT_NULL_DEFAULTS[table] ?? {})) if (k in out && out[k] == null) out[k] = typeof v === "function" ? v(out, day) : structuredClone(v);
   return out;
 }
+
+const EPOCH = "1970-01-01T00:00:00.000Z";
+type Fallback = unknown | ((row: Record<string, unknown>, day: string) => unknown);
+/** What to send for a NOT NULL column the local row doesn't have (by remote column). Values match the column defaults. */
+const NOT_NULL_DEFAULTS: Partial<Record<SyncTable, Record<string, Fallback>>> = {
+  projects: { client_name: "", address: "", status: "estimate" },
+  sheets: { name: "", page_number: 1, sort_order: 0, image_id: "", width: 0, height: 0 },
+  deviceTypes: { name: "", category: "infrastructure", symbol: "", abbrev: "", shape: "circle", color: "#000000", unit: "each", unit_price: 0, labor_price: 0, default_wire: "", default_mount: "ceiling", kind: "device", sort_order: 0 },
+  products: { device_type_id: "", brand: "", model: "", unit_price: 0, labor_price: 0 },
+  markers: { sheet_id: "", device_type_id: "", x: 0, y: 0, label: "", room: "", mount: "ceiling", wire_type: "", notes: "" },
+  runs: { sheet_id: "", kind: "wire" },
+  closets: { sheet_id: "", kind: "equipment", x: 0, y: 0, name: "" },
+  estimateLines: { key: "" },
+  photos: { image_id: "", width: 0, height: 0, taken_at: (r: Record<string, unknown>) => r.created_at },
+  photoComments: { photo_id: "", text: "" },
+  checklists: { name: "", items: [] },
+  jobLogs: { log_date: (_r: Record<string, unknown>, day: string) => day, body: "" },
+  documents: { name: "", mime: "application/octet-stream", size: 0, file_id: "" },
+  salesDocs: { kind: "quote" },
+  salesPayments: { document_id: "", paid_on: (_r: Record<string, unknown>, day: string) => day, method: "other" },
+  jobTemplates: { name: "" },
+  scheduleItems: {
+    name: "",
+    start_date: (r: Record<string, unknown>, day: string) => r.end_date ?? day,
+    end_date: (r: Record<string, unknown>) => r.start_date,
+    crew: [],
+    depends_on: [],
+    sheet_ids: [],
+  },
+  forms: {
+    template_id: "",
+    name: "",
+    template: (r: Record<string, unknown>) => ({ id: r.template_id, name: r.name, category: "other", fields: [], version: 1 }),
+  },
+  measurements: { sheet_id: "", kind: "length" },
+  sheetLinks: { sheet_id: "", x: 0, y: 0, w: 0, h: 0, target: (r: Record<string, unknown>) => ({ kind: "sheet", sheetId: r.sheet_id }) },
+  planMarkups: { sheet_id: "", kind: "pen" },
+};
 
 /** A sales document the server numbered after this device's copy was written (same or older `updatedAt` locally,
  *  e.g. a device clock that runs ahead): keep the local row but take the number. Null when nothing to merge. */
@@ -616,3 +661,34 @@ export function nextPullPage(cur: { since: string; skip: number }, rows: { synce
   if (tail === rows.length && last === cur.since) return { since: last, skip: cur.skip + tail, done: false };
   return { since: last, skip: tail, done: false };
 }
+
+// ---------------- refused changes ----------------
+
+/** Tables a technician's device never pushes: the database refuses them (prices, catalog, office documents), so their
+ *  edits are dropped instead of blocking every sync. */
+export const TECH_SKIPPED_TABLES: ReadonlySet<SyncTable> = new Set<SyncTable>(["deviceTypes", "products", "estimateLines", "salesDocs", "salesPayments", "jobTemplates", "changeOrders", "sheetLinks"]);
+
+/**
+ * The database refused a push because of the rows themselves (a permission, a constraint, a bad value): send them one
+ * at a time and set the refused ones aside. Not for network trouble, an expired sign-in, rate limits, a server error,
+ * a migration that hasn't been run (see schemaGap) or a lapsed subscription (the team is read-only; edits stay queued).
+ */
+export function isRowRefusal(error: { code?: string | null; message?: string | null } | null | undefined, status?: number | null): boolean {
+  if (!error) return false;
+  const msg = error.message ?? "";
+  const code = error.code ?? "";
+  if (msg.includes(INACTIVE_MESSAGE)) return false;
+  if (schemaGap(error)) return false;
+  if (/failed to fetch|network|load failed|timed? ?out|aborted/i.test(msg)) return false;
+  // Expired or bad sign-in (PostgREST JWT errors): signing in again fixes it, the rows are fine.
+  if (/^PGRST30\d$/.test(code) || /jwt/i.test(msg)) return false;
+  if (code === "42501" || /^2[23][0-9A-Z]{3}$/.test(code)) return true;
+  if (typeof status === "number") return status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429;
+  return false;
+}
+
+/** The key a refused change is stored under. */
+export const refusedKey = (table: string, rowId: string) => `${table}:${rowId}`;
+
+/** The "<remote table>.<column>" tag for a column the cloud database is missing. */
+export const gapTag = (remote: string, column: string) => `${remote}.${column}`;

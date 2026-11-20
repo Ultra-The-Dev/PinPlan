@@ -45,6 +45,8 @@ export interface TeamState {
 }
 
 const CACHE_KEY = "pinplan.team";
+/** When the team (and billing) was last read from the cloud, so background sync doesn't re-read it every tick. */
+let loadedAt: { userId: string; at: number } | null = null;
 const empty: TeamState = { ready: false, userId: null, team: null, role: null, members: [], billing: null, needsMigration: false, error: null };
 
 function readCache(): Partial<TeamState> | null {
@@ -102,6 +104,7 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
     useTeam.setState(s, true);
     writeCache(s);
     noteTeamForSync(userId, null);
+    loadedAt = { userId, at: Date.now() };
     return s;
   }
   const [t, m, b] = await Promise.all([
@@ -127,7 +130,17 @@ export async function loadTeam(userId: string | null): Promise<TeamState> {
   useTeam.setState(s, true);
   writeCache(s);
   noteTeamForSync(userId, s.team?.id ?? null);
+  loadedAt = { userId, at: Date.now() };
   return s;
+}
+
+export const TEAM_MAX_AGE_MS = 5 * 60_000;
+
+/** Load the team unless it was read from the cloud for this user in the last `maxAgeMs` (sync uses this every tick). */
+export async function loadTeamIfStale(userId: string, maxAgeMs = TEAM_MAX_AGE_MS): Promise<TeamState> {
+  const s = useTeam.getState();
+  if (loadedAt?.userId === userId && s.userId === userId && Date.now() - loadedAt.at < maxAgeMs) return s;
+  return loadTeam(userId);
 }
 
 /** Joining a team brings jobs that changed before this device's sync watermarks: pull everything again once. */
