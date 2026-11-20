@@ -3,6 +3,7 @@
 // Error responses carry a fixed, plain message and a `code`. What Billdu or the database actually said (status
 // codes, response bodies, table names) goes to the server log, and into the response only in development or on a
 // single-company server (whoever reads it there also runs the server).
+import { authMode } from "../server/auth";
 import { CredsError, effectiveCreds, NOT_CONNECTED, type BillduCaller } from "../server/billduCreds";
 import { BillduClient, BillduError } from "./client";
 
@@ -10,9 +11,12 @@ export function jsonError(message: string, status = 500, extra: Record<string, u
   return Response.json({ error: message, ...extra }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-/** Show error details to this caller? Only in development and to single-company servers. */
+/**
+ * Show error details to this caller? Only in development and on single-company servers (no accounts). An access-code
+ * caller on a server with accounts is not the person running the server, so they get the plain message only.
+ */
 export function showDetails(caller?: BillduCaller | null): boolean {
-  return process.env.NODE_ENV === "development" || caller?.mode === "single_company";
+  return process.env.NODE_ENV === "development" || (caller?.mode === "single_company" && authMode() !== "supabase");
 }
 
 /** The response for a failure while loading, saving or removing credentials. */

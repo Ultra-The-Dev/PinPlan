@@ -252,6 +252,23 @@ describe("Billdu routes with accounts", () => {
   });
 });
 
+describe("Billdu error details", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const accessCodeCaller = { mode: "single_company", userId: null, via: "access_code" } as const;
+
+  it("shows details on a single-company server, never to an access-code caller on a server with accounts", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "code");
+    const { showDetails } = await import("@/lib/billdu/route-helpers");
+    expect(showDetails(accessCodeCaller)).toBe(true);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.example.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
+    expect(showDetails(accessCodeCaller)).toBe(false);
+  });
+});
+
 describe("secret encryption with key ids and rotation", () => {
   afterEach(() => vi.unstubAllEnvs());
 

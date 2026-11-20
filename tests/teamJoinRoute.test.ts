@@ -102,7 +102,7 @@ describe("POST /api/team/join", () => {
     expect(JSON.stringify(calls.filter((c) => c.headers.apikey === "anon-key").map((c) => c.headers))).not.toContain("service-key");
   });
 
-  it("creates a confirmed account when the invite was sent to that email, and refuses any other address", async () => {
+  it("only lets the invite's email sign up, and still asks that address to confirm", async () => {
     invite!.email = "sam@acme.com";
     const { POST } = await import("@/app/api/team/join/route");
     const other = await POST(req({ ...good, email: "eve@evil.example" }));
@@ -111,9 +111,10 @@ describe("POST /api/team/join", () => {
     expect(created()).toHaveLength(0);
     const r = await POST(req(good));
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ ok: true });
-    expect(created()[0].body).toMatchObject({ email_confirm: true });
-    expect(calls.some((c) => c.url.includes("/auth/v1/resend"))).toBe(false);
+    expect(await r.json()).toEqual({ ok: true, confirmEmail: true });
+    // Never pre-confirmed: the office picks the invite's email and can see the code, so a match proves nothing.
+    expect(created()[0].body).toMatchObject({ email: "sam@acme.com", email_confirm: false });
+    expect(calls.some((c) => c.url.includes("/auth/v1/resend"))).toBe(true);
   });
 
   it("makes only one account per code", async () => {

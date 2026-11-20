@@ -72,4 +72,25 @@ alter table public.team_invites add column if not exists created_user_id uuid re
 -- Held while /api/team/join is creating that account, so two sign-ups with one code can't race.
 alter table public.team_invites add column if not exists signup_claimed_at timestamptz;
 
+-- created_user_id and signup_claimed_at belong to /api/team/join (service role). Team owners and admins may write
+-- their invites (team_invites_admin), but not these two: otherwise clearing created_user_id would turn one code into
+-- many accounts. Invoker rights on purpose (as teams_billing_guard): writes straight from the apps run as
+-- `authenticated`; the service role, the SQL editor and security-definer functions pass.
+create or replace function public.team_invites_signup_guard() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if coalesce(auth.role(), '') = 'service_role' or current_user not in ('authenticated', 'anon') then return new; end if;
+  if tg_op = 'INSERT' then
+    new.created_user_id := null;
+    new.signup_claimed_at := null;
+  else
+    new.created_user_id := old.created_user_id;
+    new.signup_claimed_at := old.signup_claimed_at;
+  end if;
+  return new;
+end $$;
+drop trigger if exists team_invites_signup_guard on public.team_invites;
+create trigger team_invites_signup_guard before insert or update on public.team_invites
+  for each row execute function public.team_invites_signup_guard();
+
 notify pgrst, 'reload schema';

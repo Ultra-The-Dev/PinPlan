@@ -5,9 +5,10 @@
 // Abuse rules (a live invite code must not become a free account factory):
 // - One account per code: the account created is remembered on the invite (team_invites.created_user_id), and the
 //   code creates no more. A short claim (signup_claimed_at) stops two sign-ups racing with one code.
-// - When the invite was sent to an email address (team_invites.email), only that address can sign up with it, and
-//   the account is created already confirmed (the code reached that inbox). Otherwise the account is created
-//   unconfirmed and Supabase emails a confirmation link (answer: { ok: true, confirmEmail: true }).
+// - When the invite was sent to an email address (team_invites.email), only that address can sign up with it.
+// - The account is always created unconfirmed and Supabase emails a confirmation link (answer:
+//   { ok: true, confirmEmail: true }). Never pre-confirmed, even for an invite with an email: the team's owner and
+//   admins choose that address and can see the code, so a matching email doesn't prove the person owns the inbox.
 // - Shared rate limits per IP and per code (src/lib/server/rateLimit.ts durableRateLimit), and a Cloudflare
 //   Turnstile check when TURNSTILE_SECRET_KEY is set.
 // Terms: when the page sends acceptedTerms: true, the time and terms version are kept in the user's metadata.
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
   }
   if (!invite) return json({ error: "That invite code isn't valid any more. Ask for a new one.", code: "invalid_code" }, 400);
   if (invite.created_user_id)
-    return json({ error: "An account was already made with this invite. Sign in with it, or ask for a new invite.", code: "code_used" }, 409);
+    return json({ error: "An account was already made with this invite. Confirm it from the email we sent, then sign in, or ask for a new invite.", code: "code_used" }, 409);
   if (invite.email && invite.email !== email)
     return json({ error: "This invite was sent to a different email address. Use that address, or ask for a new invite.", code: "email_mismatch" }, 403);
 
@@ -165,7 +166,6 @@ export async function POST(req: Request) {
   }
   const release = () => patchInvite("&created_user_id=is.null", { signup_claimed_at: null }).catch(() => undefined);
 
-  const confirmed = !!invite.email;
   const meta: Record<string, unknown> = {};
   if (name) meta.name = name;
   if (body.acceptedTerms === true) {
@@ -178,7 +178,7 @@ export async function POST(req: Request) {
     const r = await fetch(`${url}/auth/v1/admin/users`, {
       method: "POST",
       headers: { ...admin, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, email_confirm: confirmed, user_metadata: meta }),
+      body: JSON.stringify({ email, password, email_confirm: false, user_metadata: meta }),
       cache: "no-store",
     });
     const res = (await r.json().catch(() => ({}))) as {
@@ -219,21 +219,18 @@ export async function POST(req: Request) {
     console.error("[team join] couldn't record the account on the invite", e);
   }
 
-  if (!confirmed) {
-    // Unconfirmed: ask Supabase to send its confirmation email, which brings them back to this invite.
-    try {
-      const redirect = encodeURIComponent(joinUrl(appOrigin(req), code));
-      const r = await fetch(`${url}/auth/v1/resend?redirect_to=${redirect}`, {
-        method: "POST",
-        headers: { apikey: anonKey()!, Authorization: `Bearer ${anonKey()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "signup", email }),
-        cache: "no-store",
-      });
-      if (!r.ok) console.error("[team join] confirmation email failed", r.status);
-    } catch (e) {
-      console.error("[team join] confirmation email failed", e);
-    }
-    return json({ ok: true, confirmEmail: true });
+  // Ask Supabase to send its confirmation email, which brings them back to this invite.
+  try {
+    const redirect = encodeURIComponent(joinUrl(appOrigin(req), code));
+    const r = await fetch(`${url}/auth/v1/resend?redirect_to=${redirect}`, {
+      method: "POST",
+      headers: { apikey: anonKey()!, Authorization: `Bearer ${anonKey()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "signup", email }),
+      cache: "no-store",
+    });
+    if (!r.ok) console.error("[team join] confirmation email failed", r.status);
+  } catch (e) {
+    console.error("[team join] confirmation email failed", e);
   }
-  return json({ ok: true });
+  return json({ ok: true, confirmEmail: true });
 }
