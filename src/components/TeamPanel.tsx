@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { releaseSeat } from "@/lib/billing";
 import { getAuthor } from "@/lib/photos";
+import { PRODUCT_NAME } from "@/lib/plans";
 import { useSyncStatus } from "@/lib/sync";
 import {
   createInvite,
@@ -102,7 +103,7 @@ function TeamBody({ businessName }: { businessName?: string }) {
   if (!sync.signedIn)
     return (
       <div className="space-y-4">
-        <p className="text-sm text-slate-600">Sign in first to start a team for your company, or to join the team that invited you.</p>
+        <p className="text-sm text-slate-600">Sign in first to set up your company, or to join the company that invited you.</p>
         <RoleGuide />
         <div className="flex flex-wrap gap-2">
           <a href="#account" className="btn btn-primary">
@@ -151,7 +152,7 @@ function StartTeam({ businessName, email }: { businessName?: string; email: stri
           setBusy(true);
           try {
             await createTeam(company.trim(), me.trim());
-            toast("Team started — now invite your crew");
+            toast("Company set up — now invite your crew");
           } catch (err) {
             toast(errText(err), "error");
           } finally {
@@ -161,9 +162,9 @@ function StartTeam({ businessName, email }: { businessName?: string; email: stri
       >
         <div>
           <h3 className="flex items-center gap-2 font-semibold">
-            <Users className="h-4 w-4 text-slate-400" /> Start your team
+            <Users className="h-4 w-4 text-slate-400" /> Set up your company
           </h3>
-          <p className="mt-0.5 text-sm text-slate-500">You’ll be the owner. Everyone you invite works on your jobs and uses your catalog.</p>
+          <p className="mt-0.5 text-sm text-slate-500">You’ll be the owner. Everyone you invite works on your jobs and uses your price list.</p>
         </div>
         <div>
           <label className="label" htmlFor="team-company">Company name</label>
@@ -175,7 +176,7 @@ function StartTeam({ businessName, email }: { businessName?: string; email: stri
           <p className="mt-1 text-xs text-slate-500">Shown to your team and on the photos you take.</p>
         </div>
         <button className="btn btn-brand w-full sm:w-auto" disabled={busy || !company.trim()}>
-          <Users /> {busy ? "Starting…" : "Start team"}
+          <Users /> {busy ? "Setting up…" : "Set up company"}
         </button>
       </form>
       <div className="space-y-3">
@@ -385,8 +386,8 @@ function MemberRow(props: { m: TeamMember; isMe: boolean; editable: boolean; bus
             disabled={props.busy}
             onChange={(e) => props.onRole(e.target.value as "admin" | "tech")}
           >
-            <option value="tech">Tech</option>
-            <option value="admin">Admin</option>
+            <option value="tech">Technician</option>
+            <option value="admin">Office</option>
           </select>
           <button className="btn btn-sm btn-icon btn-ghost text-slate-500 hover:text-red-600" onClick={props.onRemove} aria-label={`Remove ${memberLabel(m)}`} title="Remove from team">
             <UserMinus />
@@ -405,7 +406,7 @@ const STATE_STYLE: Record<InviteState, string> = {
   expired: "bg-amber-50 text-amber-800",
   revoked: "bg-slate-100 text-slate-400 line-through",
 };
-const STATE_LABEL: Record<InviteState, string> = { open: "Open", used: "Joined", expired: "Expired", revoked: "Revoked" };
+const STATE_LABEL: Record<InviteState, string> = { open: "Waiting", used: "Joined", expired: "Expired", revoked: "Cancelled" };
 
 function Invites({ team, from, members }: { team: string; from: string; members: TeamMember[] }) {
   const [invites, setInvites] = useState<TeamInvite[] | null>(null);
@@ -477,7 +478,7 @@ function Invites({ team, from, members }: { team: string; from: string; members:
       {error && <Notice tone="red">{error}</Notice>}
       {invites && !open.length && !composing && !shown && (
         <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500 ring-1 ring-slate-200">
-          No open invites. Each invite is a one-time code for one person, good for 14 days.
+          No invites waiting. Each invite is a one-time code for one person, good for 14 days.
         </p>
       )}
       {open.length > 0 && (
@@ -513,10 +514,10 @@ function Invites({ team, from, members }: { team: string; from: string; members:
       )}
       {revoking && (
         <Dialog
-          title="Revoke this invite?"
+          title="Cancel this invite?"
           description={`Code ${formatCode(revoking.code)} stops working right away. Anyone who already joined stays on the team.`}
           fields={[]}
-          submitLabel="Revoke"
+          submitLabel="Cancel invite"
           onCancel={() => setRevoking(null)}
           onSubmit={async () => {
             const code = revoking.code;
@@ -524,7 +525,7 @@ function Invites({ team, from, members }: { team: string; from: string; members:
             try {
               await revokeInvite(code);
               if (shown?.code === code) setShown(null);
-              toast("Invite revoked");
+              toast("Invite cancelled");
             } catch (e) {
               toast(errText(e), "error");
             }
@@ -541,7 +542,7 @@ function InviteRow({ i, detail, onShare, onRevoke, active }: { i: TeamInvite & {
     <li className={`flex items-center gap-3 px-3 py-2.5 ${active ? "bg-brand-50/40" : ""}`}>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate text-sm font-medium">{i.name || "Anyone with the code"}</span>
+          <span className="truncate text-sm font-medium">{i.name || "No name"}</span>
           <RoleBadge role={i.role} />
           <span className={`chip ${STATE_STYLE[i.state]}`}>{STATE_LABEL[i.state]}</span>
         </div>
@@ -555,7 +556,7 @@ function InviteRow({ i, detail, onShare, onRevoke, active }: { i: TeamInvite & {
         </button>
       )}
       {onRevoke && (
-        <button className="btn btn-sm btn-icon btn-ghost text-slate-500 hover:text-red-600" onClick={onRevoke} aria-label={`Revoke invite ${formatCode(i.code)}`} title="Revoke">
+        <button className="btn btn-sm btn-icon btn-ghost text-slate-500 hover:text-red-600" onClick={onRevoke} aria-label={`Cancel invite ${formatCode(i.code)}`} title="Cancel invite">
           <X />
         </button>
       )}
@@ -573,6 +574,10 @@ function InviteForm({ onCreated, onCancel }: { onCreated: (i: TeamInvite) => voi
       className="animate-in space-y-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (!name.trim()) {
+          setError("Enter their name. It’s the name you’ll pick when you give them tasks.");
+          return;
+        }
         setBusy(true);
         setError(null);
         try {
@@ -596,8 +601,9 @@ function InviteForm({ onCreated, onCancel }: { onCreated: (i: TeamInvite) => voi
       }}
     >
       <div>
-        <label className="label" htmlFor="invite-name">Their name (optional)</label>
-        <input id="invite-name" className="input" maxLength={80} placeholder="e.g. Sam Rivera" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+        <label className="label" htmlFor="invite-name">Their name</label>
+        <input id="invite-name" className="input" required maxLength={80} placeholder="e.g. Sam Rivera" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+        <p className="mt-1 text-xs text-slate-500">They join under this name, and it’s the name you pick when you give them tasks. Use the name your crew knows them by.</p>
       </div>
       <fieldset>
         <legend className="label">Role</legend>
@@ -621,7 +627,7 @@ function InviteForm({ onCreated, onCancel }: { onCreated: (i: TeamInvite) => voi
         <button type="button" className="btn" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn btn-brand" disabled={busy}>
+        <button className="btn btn-brand" disabled={busy || !name.trim()}>
           <Ticket /> {busy ? "Making code…" : "Create invite"}
         </button>
       </div>
@@ -635,7 +641,7 @@ function InviteShare({ invite, team, from, onClose }: { invite: TeamInvite; team
   const link = joinUrl(origin, invite.code);
   const message = inviteMessage({ team, from, role: invite.role, code: invite.code, link });
   const copy = async (text: string, what: string) => toast((await copyText(text)) ? `${what} copied` : "Couldn’t copy — select it and copy by hand", "info");
-  const roleName = invite.role === "admin" ? "Office / admin" : "Technician";
+  const roleName = invite.role === "admin" ? "Office" : "Technician";
   return (
     <div className="animate-in rounded-xl bg-brand-50/60 p-4 ring-1 ring-brand-200" aria-label="Invite code">
       <div className="flex items-start gap-2">
@@ -668,7 +674,7 @@ function InviteShare({ invite, team, from, onClose }: { invite: TeamInvite; team
         {canShare && (
           <button
             className="btn btn-brand col-span-2 sm:col-span-1"
-            onClick={() => void navigator.share({ title: `Join ${team || "our team"} on PinPlan`, text: message }).catch(() => undefined)}
+            onClick={() => void navigator.share({ title: `Join ${team || "our team"} on ${PRODUCT_NAME}`, text: message }).catch(() => undefined)}
           >
             <Share2 /> Share
           </button>

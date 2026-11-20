@@ -19,6 +19,7 @@ for t in rls_test teams_test billing_test documents_test daily_reports_test sche
   fi
 for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test rate_limits_test; do
 for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test billing_policy_test; do
+for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test company_settings_test; do
   psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "supabase/tests/$t.sql" 2>&1 | grep -E "^(NOTICE|psql|ERROR)|PASSED" | sed 's/^psql:[^ ]* //'
 done
 exit $status

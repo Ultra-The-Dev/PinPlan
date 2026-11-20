@@ -98,7 +98,8 @@ export function smsHref(body: string, to = ""): string {
   return `sms:${encodeURIComponent(to)}?&body=${encodeURIComponent(body)}`;
 }
 
-export const PASSWORD_MIN = 8;
+/** Shortest password for a new login (also the Supabase Auth "minimum password length" setting; see SETUP.md). */
+export const PASSWORD_MIN = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Checks a new worker's sign-up form. Returns a message for the first problem, or null when it's fine. */

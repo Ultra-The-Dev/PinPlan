@@ -312,3 +312,17 @@ public struct TeamSnapshot: Codable, Equatable, Sendable {
     /// Everyone's name, for task assignees.
     public var memberNames: [String] { TeamLogic.sortMembers(members).map(\.label) }
 }
+
+// MARK: - sign-up rules (shared with src/lib/teamLogic.ts)
+
+extension TeamLogic {
+    /// Shortest password for a new login (also the Supabase Auth minimum password length setting).
+    public static let passwordMin = 10
+
+    /// The problem with a new password, or nil when it can be used.
+    public static func passwordProblem(_ password: String) -> String? {
+        if password.count < passwordMin { return "Use a password of at least \(passwordMin) characters." }
+        if password.utf8.count > 72 { return "Use a password of 72 characters or fewer." }
+        return nil
+    }
+}

@@ -1,12 +1,13 @@
 "use client";
 // /login: email + password, or a one-time sign-in link. Back to the jobs list afterwards (or /start for a company
-// that was waiting for its confirmation email).
+// that was waiting for its confirmation email, whichever device the sign-up was made on).
 import { CheckCircle2, Loader2, LogIn, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { markOnboardingStarted, pendingCompany } from "@/lib/onboarding";
-import { authErrorMessage } from "@/lib/onboardingLogic";
+import { useCaptcha } from "@/lib/captcha";
+import { accountMetadata, markOnboardingStarted, pendingCompany } from "@/lib/onboarding";
+import { authErrorMessage, companyFromMetadata } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
@@ -24,6 +25,7 @@ export default function LoginForm() {
   const [error, setError] = useState<React.ReactNode>(null);
   const [linkSent, setLinkSent] = useState(false);
   const confirmed = params.get("confirmed") === "1";
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("login");
 
   // Signed in (here, or by opening a confirmation / sign-in link): go to the app.
   // (Sync may finish a waiting company before this runs, so note it when the page opens.)
@@ -35,10 +37,18 @@ export default function LoginForm() {
   useEffect(() => {
     if (!sync.authReady || !sync.signedIn || left.current) return;
     left.current = true;
-    if (hadPending.current || pendingCompany()) {
-      markOnboardingStarted();
-      router.replace("/start");
-    } else router.replace("/");
+    void (async () => {
+      // A company waiting for this account: noted on this device, or on the account (signed up on another device).
+      // (Accounts from before sign-ups noted the terms also carry a company name but never wait for one: only newer
+      // sign-ups count, so existing owners aren't sent to /start on every sign-in.)
+      const meta = await accountMetadata().catch(() => null);
+      const fromAccount = typeof meta?.terms_version === "string" && !!companyFromMetadata(meta);
+      const waiting = hadPending.current || !!pendingCompany() || fromAccount;
+      if (waiting) {
+        markOnboardingStarted();
+        router.replace("/start");
+      } else router.replace("/");
+    })();
   }, [sync.authReady, sync.signedIn, router]);
 
   // A link that failed (expired or already used) comes back with the reason in the URL hash.
@@ -61,7 +71,7 @@ export default function LoginForm() {
     setBusy("password");
     setError(null);
     try {
-      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken: await takeCaptcha() } });
       if (error) setError(authErrorMessage(error.message));
     } catch (e) {
       setError(authErrorMessage(errText(e)));
@@ -80,7 +90,10 @@ export default function LoginForm() {
     setError(null);
     try {
       // Only for existing accounts: new companies sign up on /signup.
-      const { error } = await sb.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/login` } });
+      const { error } = await sb.auth.signInWithOtp({
+        email: email.trim(),
+        options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/login`, captchaToken: await takeCaptcha() },
+      });
       if (error && !/signups? not allowed|not found/i.test(error.message)) setError(authErrorMessage(error.message));
       // Don't reveal whether the address has an account.
       else setLinkSent(true);
@@ -110,8 +123,8 @@ export default function LoginForm() {
             title="Check your email"
             sub={
               <>
-                If <span className="font-medium break-all text-slate-700">{email.trim()}</span> has a {PRODUCT_NAME} account, a sign-in link is on its way. Open it on this
-                device. It can take a few minutes — check spam too.
+                If <span className="font-medium break-all text-slate-700">{email.trim()}</span> has a {PRODUCT_NAME} account, a sign-in link is on its way. Open it on the
+                device you want to use. It can take a few minutes — check spam too.
               </>
             }
           />
@@ -169,7 +182,8 @@ export default function LoginForm() {
               </Link>
             </div>
           </div>
-          <FormError>{error}</FormError>
+          <div ref={captchaMount} className="flex justify-center empty:hidden" />
+          <FormError>{error ?? captchaError}</FormError>
           <button type="submit" className="btn btn-brand h-11 w-full text-[15px]" disabled={!!busy || !email || !password}>
             {busy === "password" ? <Loader2 className="animate-spin" /> : <LogIn />} Sign in
           </button>

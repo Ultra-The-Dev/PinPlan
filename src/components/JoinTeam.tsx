@@ -4,7 +4,11 @@ import { ArrowRight, CheckCircle2, CircleAlert, FolderOpen, Loader2, LogIn, Mail
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useCaptcha } from "@/lib/captcha";
+import { recordTermsAccepted } from "@/lib/onboarding";
+import { authErrorMessage, termsMetadata, TERMS_VERSION } from "@/lib/onboardingLogic";
 import { getAuthor } from "@/lib/photos";
+import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { acceptInvite, inviteInfo, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
@@ -12,7 +16,8 @@ import { formatCode, joinUrl, normalizeCode, PASSWORD_MIN, ROLE_INFO, signupProb
 import { Logo } from "./AppHeader";
 import RoleBadge from "./RoleBadge";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** Every error on this page, in plain words (Supabase's own messages included). */
+const errText = (e: unknown) => authErrorMessage(e instanceof Error ? e.message : String(e));
 const BAD_CODE = "That code isn’t valid any more. It may have been used already, revoked, or it’s older than 14 days. Ask whoever invited you for a new one.";
 
 type Step = { kind: "code" } | { kind: "invite"; info: InviteInfo } | { kind: "checkEmail"; info: InviteInfo; email: string } | { kind: "joined"; team: string; role: TeamRole };
@@ -66,7 +71,7 @@ export default function JoinTeam() {
     <div className="flex min-h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur">
         <Logo />
-        <span className="text-sm font-semibold sm:hidden">PinPlan</span>
+        <span className="text-sm font-semibold sm:hidden">{PRODUCT_NAME}</span>
         <span className="ml-auto text-xs text-slate-500">Join your team</span>
       </header>
       <main className="flex-1 overflow-auto">
@@ -74,7 +79,7 @@ export default function JoinTeam() {
           {!supabaseConfigured ? (
             <Card>
               <Problem title="Teams aren’t available on this server">
-                This copy of PinPlan isn’t connected to the cloud, so there’s no team to join here. Ask your office for the PinPlan link they use.
+                This copy of {PRODUCT_NAME} isn’t connected to the cloud, so there’s no team to join here. Ask your office for the {PRODUCT_NAME} link they use.
               </Problem>
             </Card>
           ) : step.kind === "joined" ? (
@@ -108,7 +113,7 @@ export default function JoinTeam() {
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                     <Ticket className="h-6 w-6" />
                   </div>
-                  <h1 className="text-xl font-semibold">Join your company on PinPlan</h1>
+                  <h1 className="text-xl font-semibold">Join your company on {PRODUCT_NAME}</h1>
                   <p className="mt-1 text-sm text-slate-500">Enter the invite code you got by text or email.</p>
                 </div>
                 <div>
@@ -198,12 +203,16 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
     const a = getAuthor(null);
     return a === "Me" ? "" : a;
   });
+  // The office typed this person's name on the invite; it's the name tasks are assigned to, so it's kept unless they change it.
+  const [editName, setEditName] = useState(!info.name);
   const [mode, setMode] = useState<"new" | "existing">("new");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("join");
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
@@ -220,12 +229,19 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
 
   const finish = async () => {
     const r = await join(code, name);
+    // Agreeing to the terms is noted on the account on every path (a no-op repeat for a brand-new login).
+    void recordTermsAccepted();
     props.onJoined(r.team, r.role);
   };
 
+  const needTerms = () => {
+    if (!accepted) throw new Error("Please accept the Terms and Privacy Policy.");
+  };
+
   const signIn = async () => {
+    needTerms();
     const sb = getSupabase()!;
-    const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken: await takeCaptcha() } });
     if (error) throw new Error(/invalid login/i.test(error.message) ? "That email and password don’t match an account. Check them, or create a new login." : error.message);
     await finish();
   };
@@ -233,6 +249,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
   const createAccount = async () => {
     const problem = signupProblem({ email, password, name });
     if (problem) throw new Error(problem);
+    needTerms();
     const sb = getSupabase()!;
     // Best: the server makes the account already confirmed (no email round trip). Falls back when it can't.
     let fallback = true;
@@ -240,20 +257,20 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
       const r = await fetch("/api/team/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, email: email.trim(), password, name: name.trim() }),
+        body: JSON.stringify({ code, email: email.trim(), password, name: name.trim(), captchaToken: await takeCaptcha(), termsVersion: TERMS_VERSION }),
       });
       const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
       if (r.ok) fallback = false;
       else if (j.code === "exists") {
         setMode("existing");
-        setNotice("You already have a PinPlan account with this email. Sign in with its password to join.");
+        setNotice(`You already have a ${PRODUCT_NAME} account with this email. Sign in with its password to join.`);
         return;
       } else if (r.status !== 501 && r.status !== 404 && r.status < 500) throw new Error(j.error || "Couldn’t create your login.");
     } catch (e) {
       if (!(e instanceof TypeError)) throw e; // network trouble: try the normal sign-up
     }
     if (!fallback) {
-      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken: await takeCaptcha() } });
       if (error) throw new Error(error.message);
       await finish();
       return;
@@ -261,7 +278,11 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
     const { data, error } = await sb.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: name.trim() ? { name: name.trim() } : undefined, emailRedirectTo: joinUrl(window.location.origin, code) },
+      options: {
+        data: { ...(name.trim() ? { name: name.trim() } : {}), ...termsMetadata() },
+        emailRedirectTo: joinUrl(window.location.origin, code),
+        captchaToken: await takeCaptcha(),
+      },
     });
     if (error) throw new Error(/already registered/i.test(error.message) ? "You already have an account with this email. Choose “I have an account” and sign in." : error.message);
     if (data.session) {
@@ -272,6 +293,23 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
     rememberPendingInvite(code, name.trim());
     props.onCheckEmail(email.trim());
   };
+
+  const termsBox = (
+    <label className="flex items-start gap-2.5 text-sm text-slate-600">
+      <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+      <span>
+        I agree to the{" "}
+        <Link href="/terms" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" target="_blank" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </span>
+    </label>
+  );
 
   if (sync.signedIn && myTeam) {
     const same = myTeam.name === info.team;
@@ -302,12 +340,19 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
     );
   }
 
-  const nameField = (
+  const nameField = editName ? (
     <div>
       <label className="label" htmlFor="join-name">Your name</label>
       <input id="join-name" className="input h-11" autoComplete="name" maxLength={80} placeholder="First and last name" value={name} onChange={(e) => setName(e.target.value)} />
-      <p className="mt-1 text-xs text-slate-500">Your team sees this, and it’s on the photos you take.</p>
+      <p className="mt-1 text-xs text-slate-500">Your team sees this when they give you tasks, and it’s on the photos you take.</p>
     </div>
+  ) : (
+    <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-200">
+      You’ll join as <span className="font-medium text-slate-900">{name}</span>.{" "}
+      <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => setEditName(true)}>
+        Change
+      </button>
+    </p>
   );
 
   return (
@@ -322,7 +367,10 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
           className="mt-6 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void run("join", finish);
+            void run("join", async () => {
+              needTerms();
+              await finish();
+            });
           }}
         >
           {nameField}
@@ -332,6 +380,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
               Not you?
             </button>
           </p>
+          {termsBox}
           {error && <ErrorNote>{error}</ErrorNote>}
           <button className="btn btn-brand h-11 w-full" disabled={!!busy}>
             {busy ? <Loader2 className="animate-spin" /> : <UserPlus />} Join {info.team || "team"}
@@ -348,7 +397,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
           <div className="seg grid w-full grid-cols-2" role="tablist" aria-label="Account">
             {(
               [
-                ["new", "New to PinPlan"],
+                ["new", `New to ${PRODUCT_NAME}`],
                 ["existing", "I have an account"],
               ] as const
             ).map(([m, label]) => (
@@ -386,10 +435,25 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {mode === "new" && <p className="mt-1 text-xs text-slate-500">You’ll use this email and password on the iPad and iPhone app too.</p>}
+            {mode === "new" ? (
+              <p className="mt-1 text-xs text-slate-500">You’ll use this email and password on the iPad and iPhone app too.</p>
+            ) : (
+              <div className="mt-2 text-right">
+                <Link
+                  href={`/reset${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-900"
+                  // After the reset they sign in and join automatically on this device.
+                  onClick={() => rememberPendingInvite(code, name.trim())}
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
           </div>
+          {termsBox}
+          <div ref={captchaMount} className="flex justify-center empty:hidden" />
           {notice && <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">{notice}</p>}
-          {error && <ErrorNote>{error}</ErrorNote>}
+          {(error ?? captchaError) && <ErrorNote>{error ?? captchaError}</ErrorNote>}
           <button className="btn btn-brand h-11 w-full" disabled={!!busy || !email || !password}>
             {busy ? <Loader2 className="animate-spin" /> : mode === "new" ? <UserPlus /> : <LogIn />}
             {mode === "new" ? (busy ? "Creating your login…" : "Create login & join") : busy ? "Signing in…" : "Sign in & join"}
@@ -410,6 +474,7 @@ function CheckEmail({ info, email, code, onJoined }: { info: InviteInfo; email: 
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("join");
 
   // Confirmed in another tab on this device: the remembered invite is finished on sign-in.
   if (sync.signedIn && team && role) {
@@ -437,7 +502,7 @@ function CheckEmail({ info, email, code, onJoined }: { info: InviteInfo; email: 
           We sent a confirmation link to <span className="font-medium break-all">{email}</span>. Open it, then sign in here — you’ll join{" "}
           <span className="font-medium">{info.team}</span> automatically.
         </p>
-        <p className="mt-2 text-xs text-slate-500">Nothing after a few minutes? Check spam. Already had a PinPlan account with this email? Just sign in below with its password.</p>
+        <p className="mt-2 text-xs text-slate-500">Nothing after a few minutes? Check spam. Already had a {PRODUCT_NAME} account with this email? Just sign in below with its password.</p>
       </div>
       <form
         className="mt-5 space-y-3"
@@ -446,9 +511,10 @@ function CheckEmail({ info, email, code, onJoined }: { info: InviteInfo; email: 
           setBusy(true);
           setError(null);
           try {
-            const { error } = await getSupabase()!.auth.signInWithPassword({ email, password });
+            const { error } = await getSupabase()!.auth.signInWithPassword({ email, password, options: { captchaToken: await takeCaptcha() } });
             if (error) throw new Error(/not confirmed/i.test(error.message) ? "Your email isn’t confirmed yet. Open the link in the email first." : error.message);
             const r = await join(code, "");
+            void recordTermsAccepted();
             onJoined(r.team, r.role);
           } catch (err) {
             setError(errText(err));
@@ -461,7 +527,8 @@ function CheckEmail({ info, email, code, onJoined }: { info: InviteInfo; email: 
           <label className="label" htmlFor="confirm-password">Password</label>
           <input id="confirm-password" className="input h-11" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
-        {error && <ErrorNote>{error}</ErrorNote>}
+        <div ref={captchaMount} className="flex justify-center empty:hidden" />
+        {(error ?? captchaError) && <ErrorNote>{error ?? captchaError}</ErrorNote>}
         <button className="btn btn-brand h-11 w-full" disabled={busy || !password}>
           {busy ? <Loader2 className="animate-spin" /> : <LogIn />} I’ve confirmed — sign in
         </button>
@@ -498,7 +565,7 @@ function Joined({ team, role }: { team: string; role: TeamRole }) {
             <Smartphone className="h-4 w-4" />
           </span>
           <span className="text-slate-600">
-            <span className="font-medium text-slate-900">On iPad or iPhone</span>, install PinPlan and sign in with {email ? <span className="font-medium break-all">{email}</span> : "the same email"} and
+            <span className="font-medium text-slate-900">On iPad or iPhone</span>, install {PRODUCT_NAME} and sign in with {email ? <span className="font-medium break-all">{email}</span> : "the same email"} and
             the same password.
           </span>
         </li>
