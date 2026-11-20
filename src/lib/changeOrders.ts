@@ -2,6 +2,7 @@
 // link with a signature. Pure (no browser, database or network) except `approvedChangeOrderLines`, which reads the
 // local database lazily. See docs/change-orders.md for the data model and the rules.
 import { nanoid } from "nanoid";
+import type { BillableChange } from "./documents";
 import { money } from "./estimate";
 import { productIdFor, productTitle } from "./products";
 import type {
@@ -322,6 +323,15 @@ export function contractSummary(estimateTotal: number, cos: ChangeOrder[]): Cont
   return { original, approved, pending: money(pending), revised: money(original + approved) };
 }
 
+/**
+ * The contract the changes add to: the approved quote's total when there is one ("Approved quote" → "Approved
+ * changes" → "New contract total"); otherwise the job's live pricing, which is not approved yet (basis "pricing").
+ */
+export function contractFromQuote(approvedQuoteTotal: number | null | undefined, pricingTotal: number, cos: ChangeOrder[]): ContractSummary & { basis: "quote" | "pricing" } {
+  const quote = approvedQuoteTotal != null && Number.isFinite(approvedQuoteTotal);
+  return { ...contractSummary(quote ? approvedQuoteTotal! : pricingTotal, cos), basis: quote ? "quote" : "pricing" };
+}
+
 // ---------------- client view ----------------
 
 /** Everything the client link may show, and nothing else (no costs, markup %, internal ids, plan links or notes). */
@@ -462,9 +472,25 @@ export function approvedLinesFor(cos: ChangeOrder[]): ApprovedCoLines[] {
 }
 
 /**
- * Hook for invoicing (not wired yet): a job's approved change orders as billable lines. Change orders never create
- * invoices themselves; an invoicing feature can call this to add "CO-002 — Extra cameras" lines to a progress or
- * final invoice. Reads this device's database (call in the browser only).
+ * Approved change orders as invoice sections (documents.ts BillableChange), leaving out the ones already billed
+ * (billedChangeOrderIds). Used by "Include approved change orders" on the invoice dialog and "Bill this change".
+ */
+export function billableChanges(cos: ChangeOrder[], billed: Set<string> = new Set()): BillableChange[] {
+  return approvedLinesFor(cos)
+    .filter((c) => !billed.has(c.changeOrderId))
+    .map((c) => ({
+      id: c.changeOrderId,
+      code: c.code,
+      title: c.title,
+      lines: c.lines.filter((l) => l.qty !== 0 || l.total !== 0).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, taxable: l.taxable })),
+      taxPct: c.taxPct,
+      total: c.totals.total,
+    }));
+}
+
+/**
+ * A job's approved change orders as billable lines (they are billed from the invoice dialog or "Bill this change";
+ * change orders never create invoices themselves). Reads this device's database (call in the browser only).
  */
 export async function approvedChangeOrderLines(projectId: string): Promise<ApprovedCoLines[]> {
   const { db } = await import("./db");

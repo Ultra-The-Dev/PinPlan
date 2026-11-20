@@ -1,11 +1,12 @@
 // Estimate → quote document: the job's priced estimate (takeoff × catalog, with the office's overrides) frozen into
 // editable document lines, grouped by category, floor or room. Pure; the iPad app mirrors it (docs/documents.md).
 import { CATEGORIES } from "./catalog";
-import { lineId, documentTotals, withTotals } from "./documents";
+import { defaultTaxes, lineId, documentTotals, withTotals } from "./documents";
 import { lineProductId, money, type ComputedLine, type Estimate } from "./estimate";
 import { runLengthFt } from "./geometry";
 import { cableTypeFromKey, productIdFor, runCables } from "./products";
-import type { Closet, DeviceType, DocGrouping, DocLine, DocumentSettings, Marker, Product, Project, Run, SalesDoc, Sheet } from "./types";
+import { GROUP_LABELS, type ProposalLine, type ProposalSnapshot } from "./proposal";
+import type { Closet, DeviceType, DocGrouping, DocLine, DocTaxRate, DocumentSettings, Marker, Product, Project, Run, SalesDoc, Sheet } from "./types";
 
 export interface QuoteBuildOptions {
   grouping: DocGrouping;
@@ -233,11 +234,123 @@ function describe(units: Unit[], grouping: DocGrouping): string | null {
   return [...floors.entries()].map(([f, n]) => (n ? `${f}: ${n}` : f)).join(" · ");
 }
 
-/** A quote document built from the job's estimate (a frozen copy; editing it never changes the estimate). */
-export function quoteFromEstimate(base: SalesDoc, est: Estimate, job: JobData, opts: QuoteBuildOptions, settings: DocumentSettings): SalesDoc {
-  const lines = quoteLinesFromEstimate(est, job, opts, settings);
-  const doc = withTotals({ ...base, lines, source: "estimate", options: { ...(base.options ?? {}), detail: opts.detail } });
+/**
+ * Taxes for a quote made from the job's pricing. The company's default taxes when it has any (labor taxed per its
+ * setting); otherwise the job's pricing tax % on everything, labor included, exactly as the estimate taxes it, so the
+ * quote comes to the same total as the pricing.
+ */
+export function quoteTaxSetup(settings: DocumentSettings, pricingTaxPct: number | null | undefined): { taxes: DocTaxRate[]; laborTaxable: boolean } {
+  const defaults = defaultTaxes(settings);
+  if (defaults.length) return { taxes: defaults, laborTaxable: settings.laborTaxable };
+  const rate = Number(pricingTaxPct) || 0;
+  return rate > 0 ? { taxes: [{ id: "sales-tax", name: "Sales tax", rate }], laborTaxable: true } : { taxes: [], laborTaxable: settings.laborTaxable };
+}
+
+/**
+ * A quote document built from the job's estimate (a frozen copy; editing it never changes the estimate). With
+ * `pricingTaxPct` and a base without taxes, the quote is taxed like the estimate (see quoteTaxSetup).
+ */
+export function quoteFromEstimate(base: SalesDoc, est: Estimate, job: JobData, opts: QuoteBuildOptions, settings: DocumentSettings, pricingTaxPct?: number | null): SalesDoc {
+  const seed = pricingTaxPct != null && !base.taxes.length ? quoteTaxSetup(settings, pricingTaxPct) : null;
+  const lines = quoteLinesFromEstimate(est, job, opts, seed ? { ...settings, laborTaxable: seed.laborTaxable } : settings);
+  const doc = withTotals({ ...base, lines, taxes: seed ? seed.taxes : base.taxes, source: "estimate", options: { ...(base.options ?? {}), detail: opts.detail } });
   return doc;
+}
+
+/** Money difference between a quote and the pricing total it was built from (with tax), for the new-quote warning. */
+export function quoteVsPricing(doc: Pick<SalesDoc, "lines" | "taxes" | "discount" | "fees">, est: Pick<Estimate, "total">): number {
+  return money(documentTotals(doc).total - est.total);
+}
+
+// ---------------------------------------------------------------- the client approved a proposal
+
+/** What quoteFromProposal needs from a proposal row (proposalCloud's ProposalRow). */
+export interface ApprovedProposal {
+  id: string;
+  snapshot: ProposalSnapshot;
+  client_name: string | null;
+  signature: string | null;
+  chosen_options: string[] | null;
+  accepted_total: number | null;
+  client_note: string | null;
+  responded_at: string | null;
+}
+
+/**
+ * The approved quote for a proposal the client approved: the proposal's frozen lines and prices, one section per
+ * group, the options the client ticked counted and the others listed as optional; its tax % on every line and its
+ * deposit %. Status "accepted" (Approved) and locked, with the signer, signature and answer time kept in
+ * options.approval. Its total equals what the client approved (proposalTotals).
+ */
+export function quoteFromProposal(base: SalesDoc, row: ApprovedProposal): SalesDoc {
+  const snap = row.snapshot;
+  const chosen = new Set(row.chosen_options ?? []);
+  const order: ProposalLine["group"][] = ["devices", "lighting", "wire", "infrastructure", "labor", "custom"];
+  const groups = new Map<ProposalLine["group"], DocLine[]>();
+  for (const l of snap.lines) {
+    if (!(l.unitPrice || l.total)) continue;
+    const counted = !l.optional || chosen.has(l.key);
+    // qty × price when it gives the frozen total; otherwise one line at the frozen total, so the sums match exactly.
+    const exact = money(l.qty * l.unitPrice) === money(l.total);
+    const line: DocLine = {
+      id: lineId(),
+      kind: "item",
+      description: l.description,
+      qty: exact ? l.qty : 1,
+      unit: exact ? l.unit : "lot",
+      unitPrice: exact ? money(l.unitPrice) : money(l.total),
+      details: exact ? null : `${l.qty} ${l.unit}`,
+      taxable: true,
+      optional: !counted,
+      key: l.key,
+    };
+    groups.set(l.group, [...(groups.get(l.group) ?? []), line]);
+  }
+  const lines: DocLine[] = [];
+  for (const g of [...order, ...[...groups.keys()].filter((k) => !order.includes(k))]) {
+    const ls = groups.get(g);
+    if (!ls?.length) continue;
+    lines.push({ id: lineId(), kind: "section", description: GROUP_LABELS[g] ?? "Other", qty: 0, unitPrice: 0, taxable: false }, ...ls);
+  }
+  const rate = Number(snap.taxPct) || 0;
+  return withTotals({
+    ...base,
+    title: snap.title || base.title,
+    status: "accepted",
+    issueDate: (row.responded_at ?? snap.createdAt).slice(0, 10),
+    validUntil: snap.validUntil ?? base.validUntil,
+    lines,
+    discount: null,
+    fees: [],
+    taxes: rate > 0 ? [{ id: "sales-tax", name: "Sales tax", rate }] : [],
+    deposit: snap.depositPct ? { type: "pct", value: snap.depositPct } : null,
+    terms: snap.terms || base.terms,
+    source: "estimate",
+    sentAt: snap.createdAt,
+    respondedAt: row.responded_at,
+    signerName: row.client_name,
+    signature: row.signature,
+    clientNote: row.client_note,
+    options: {
+      ...(base.options ?? {}),
+      detail: snap.detail,
+      approval: {
+        source: "proposal",
+        proposalId: row.id,
+        signerName: row.client_name,
+        respondedAt: row.responded_at,
+        signature: row.signature,
+        chosenOptions: [...chosen],
+        clientNote: row.client_note,
+        total: row.accepted_total,
+      },
+    },
+  });
+}
+
+/** The approved quote already made for a proposal, if any. */
+export function quoteForProposal<T extends Pick<SalesDoc, "kind" | "deleted" | "options">>(docs: T[], proposalId: string): T | null {
+  return docs.find((d) => d.kind === "quote" && !d.deleted && d.options?.approval?.proposalId === proposalId) ?? null;
 }
 
 /** Difference between the document and the estimate it came from (cents from splitting lines over floors). */

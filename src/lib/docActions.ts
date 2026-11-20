@@ -106,18 +106,26 @@ export function setLocalNextNumber(kind: DocKind, s: DocumentSettings, next: num
 }
 
 /**
- * Issue a draft: it becomes "sent" with today's issue date (unless one was set). With cloud sync the number comes from
- * the server on the next sync (straight away when online); offline it shows "number pending" until then. Without
+ * Finalize a draft: it gets a number and its prices lock (stored status "sent", shown as "Ready to send" until it is
+ * shared, emailed or marked sent: see wasSent). Issue date today unless one was set. With cloud sync the number comes
+ * from the server on the next sync (straight away when online); offline it shows "number pending" until then. Without
  * cloud sync the device numbers it.
  */
 export async function issueDoc(doc: SalesDoc, s: DocumentSettings): Promise<SalesDoc> {
   if (doc.status !== "draft") return doc;
   const day = doc.issueDate || today();
-  const next: SalesDoc = { ...doc, status: "sent", issueDate: day, sentAt: doc.sentAt ?? nowIso() };
+  const next: SalesDoc = { ...doc, status: "sent", issueDate: day };
   if (!supabaseConfigured && !next.number) next.number = takeLocalNumber(doc.kind, s, day);
   const saved = await saveDoc(next);
   if (supabaseConfigured) await syncAndReload();
   return (await db().salesDocs.get(saved.id)) ?? saved;
+}
+
+/** Finalize first when it's a draft, then record that the client has it (handed over, emailed or a link shared). */
+export async function markSent(doc: SalesDoc, s: DocumentSettings): Promise<SalesDoc> {
+  const cur = doc.status === "draft" ? await issueDoc(doc, s) : doc;
+  if (cur.sentAt) return cur;
+  return saveDoc({ ...cur, sentAt: nowIso() });
 }
 
 /** Push now and pull what the server changed (numbers, client answers). Resolves even when offline. */
@@ -161,7 +169,7 @@ export async function revokeLink(token: string) {
 }
 
 /**
- * Publish (or republish) the client link: issue the document if it's a draft, make sure the cloud has it, freeze what the
+ * Publish (or republish) the client link: finalize the document if it's a draft, make sure the cloud has it, freeze what the
  * client sees and save it under a new token. The previous link is withdrawn only after the new one is saved.
  */
 export async function publishLink(doc: SalesDoc, input: { settings: DocumentSettings; business: BusinessSettings; origin: string }): Promise<{ doc: SalesDoc; url: string }> {
@@ -179,7 +187,8 @@ export async function publishLink(doc: SalesDoc, input: { settings: DocumentSett
   const { error } = await sb.from("document_links").insert({ id: token, document_id: cur.id, project_id: cur.projectId, snapshot });
   if (error) throw new Error(error.message);
   const old = cur.shareToken;
-  const saved = await put("salesDocs", { ...cur, shareToken: token, shareHash: snapshotHash(snapshot) });
+  // The link is being copied or emailed to the client: from here on it counts as sent.
+  const saved = await put("salesDocs", { ...cur, shareToken: token, shareHash: snapshotHash(snapshot), sentAt: cur.sentAt ?? nowIso() });
   if (old && old !== token) await revokeLink(old).catch(() => undefined);
   changed();
   void syncAndReload();

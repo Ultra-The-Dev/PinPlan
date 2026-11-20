@@ -534,9 +534,11 @@ export interface AppSettings {
 
 /** "quote" covers estimates, quotes and proposals: one behaviour, the title is a setting ("Estimate", "Quote"…). */
 export type DocKind = "quote" | "invoice" | "credit_note";
-/** Stored status. "overdue" and "expired" are never stored: they are worked out from the dates (displayStatus). */
+/** Stored status. "sent" means finalized (numbered, prices locked); "accepted" is shown as Approved. "ready",
+ *  "overdue" and "expired" are never stored: they are worked out from sentAt and the dates (displayStatus). */
 export type DocStatus = "draft" | "sent" | "viewed" | "accepted" | "declined" | "partially_paid" | "paid" | "void";
-export type DocDisplayStatus = DocStatus | "overdue" | "expired";
+/** "ready": finalized but not shared, emailed or marked sent yet ("Ready to send"). */
+export type DocDisplayStatus = DocStatus | "ready" | "overdue" | "expired";
 export type InvoiceType = "standard" | "deposit" | "progress" | "final";
 export type DocSource = "manual" | "estimate" | "quote" | "invoice" | "duplicate";
 export type DocGrouping = "category" | "floor" | "room" | "flat";
@@ -617,6 +619,26 @@ export interface DocOptions {
   plansUrl?: string | null;
   /** Quotes: the client must sign to accept. */
   requireSignature?: boolean;
+  /** Invoices: the approved change orders billed on it (each is billed once) and what they added, after tax. */
+  changeOrderIds?: string[];
+  changeOrderAmount?: number;
+  /** Quotes the client approved on a proposal link (kept here: the answer columns are written by the server only). */
+  approval?: DocApproval | null;
+}
+
+/** The client's answer on a proposal link, carried by the approved quote made from it. */
+export interface DocApproval {
+  source: "proposal";
+  proposalId: string;
+  signerName: string | null;
+  respondedAt: string | null;
+  /** Signature image (data URL), when the client signed. */
+  signature?: string | null;
+  /** Optional items the client ticked (estimate line keys). */
+  chosenOptions?: string[];
+  clientNote?: string | null;
+  /** What the client approved, with tax. */
+  total?: number | null;
 }
 
 /** A quote, invoice or credit note. Belongs to a job; money fields are denormalised (documentTotals) for lists. */
@@ -711,6 +733,8 @@ export interface DocKindSettings {
 }
 
 export interface DocumentSettings {
+  /** 2 once saved with the "Quote" / Q-{0000} defaults (older copies on the untouched "Estimate" default move over). */
+  version?: number;
   kinds: Record<DocKind, DocKindSettings>;
   /** Payment terms in days for new invoices (0 = due on receipt). */
   paymentTermsDays: number;

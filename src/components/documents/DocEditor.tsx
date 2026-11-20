@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { DOCS_EVENT, deleteDraft, issueDoc, linkIsStale, publishLink, recordPayment, saveDoc, voidDoc, voidPayment } from "@/lib/docActions";
-import { buildDocSnapshot, clientDirectory, displayStatus, docName, documentTotals, documentUrl, dueDateFor, formatDocDate, formatDocMoney, lineId, PAYMENT_METHODS, PAYMENT_TERMS, payUrl, termsLabel, today } from "@/lib/documents";
+import { DOCS_EVENT, deleteDraft, issueDoc, linkIsStale, markSent, publishLink, recordPayment, saveDoc, voidDoc, voidPayment } from "@/lib/docActions";
+import { buildDocSnapshot, clientDirectory, displayStatus, docName, documentTotals, documentUrl, dueDateFor, formatDocDate, formatDocMoney, invoicesFromQuote, lineId, PAYMENT_METHODS, PAYMENT_TERMS, payUrl, termsLabel, today, wasSent, type InvoiceMode } from "@/lib/documents";
 import { downloadBlob, slug } from "@/lib/download";
 import { emailEnabled } from "@/lib/emailClient";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -41,7 +41,8 @@ import { KindChip, Menu, Modal, parseAmount, StatusChip } from "./ui";
 
 export interface EditorActions {
   duplicate(doc: SalesDoc): void;
-  convert(doc: SalesDoc): void;
+  /** Open the invoice dialog for a quote (optionally on a mode: "Bill the deposit"). */
+  convert(doc: SalesDoc, mode?: InvoiceMode["mode"]): void;
   credit(doc: SalesDoc): void;
   open(id: string): void;
 }
@@ -129,8 +130,13 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
   const status = displayStatus(draft);
   const isInvoice = draft.kind === "invoice";
   const isQuote = draft.kind === "quote";
-  // Void documents, and quotes the client signed, are read-only (duplicate one to change it).
-  const signed = isQuote && draft.status === "accepted" && !!draft.respondedAt;
+  // Void documents, and quotes the client approved (on its link or on a proposal), are read-only (duplicate to change).
+  const approval = draft.options?.approval ?? null;
+  const signerName = draft.signerName ?? approval?.signerName ?? null;
+  const signature = draft.signature ?? approval?.signature ?? null;
+  const respondedAt = draft.respondedAt ?? approval?.respondedAt ?? null;
+  const clientNote = draft.clientNote ?? approval?.clientNote ?? null;
+  const signed = isQuote && draft.status === "accepted" && !!respondedAt;
   const locked = draft.status === "void" || signed;
   const kindLabel = settings.kinds[draft.kind].label;
   const name = docName(draft, settings);
@@ -161,7 +167,15 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
       const d = await issueDoc(await current(), settings);
       setDraft(d);
       setDirty(false);
-      toast(d.number ? `${kindLabel} ${d.number} issued` : `${kindLabel} issued — its number comes on the next sync`, "success");
+      toast(d.number ? `${kindLabel} ${d.number} finalized — ready to send` : `${kindLabel} finalized — its number comes on the next sync`, "success");
+    });
+
+  const sentByHand = () =>
+    run("sent", async () => {
+      const d = await markSent(await current(), settings);
+      setDraft(d);
+      setDirty(false);
+      toast("Marked as sent", "success");
     });
 
   const ensureLink = async (): Promise<{ url: string; doc: SalesDoc }> => {
@@ -193,7 +207,8 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
     });
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) throw new Error(j.error || `Couldn't send the email (${res.status}).`);
-    if (!d.client.email && r.to) await saveDoc({ ...d, client: { ...d.client, email: r.to } });
+    const sent = await saveDoc({ ...d, sentAt: d.sentAt ?? new Date().toISOString(), client: d.client.email || !r.to ? d.client : { ...d.client, email: r.to } });
+    setDraft(sent);
     setDialog(null);
     toast(`Emailed to ${r.to}`, "success");
   };
@@ -205,7 +220,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
         snap,
         live: { status: draft.status, number: draft.number, amountPaid: draft.amountPaid, balanceDue: draft.balanceDue, paidAt: draft.paidAt },
         payLink: pay,
-        signature: draft.signature ? { name: draft.signerName ?? null, image: draft.signature, at: draft.respondedAt ?? null } : null,
+        signature: signature ? { name: signerName, image: signature, at: respondedAt } : null,
       });
       downloadBlob(blob, `${slug(draft.number || `${kindLabel}-${project.address || project.clientName}`)}.pdf`);
     });
@@ -213,15 +228,20 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
   const markAnswer = (accepted: boolean) => run("answer", async () => {
     const d = await flush({ ...(await current()), status: accepted ? "accepted" : "declined", issueDate: draft.issueDate || today() });
     setDraft(d);
-    toast(accepted ? "Marked accepted" : "Marked declined", "success");
+    toast(accepted ? "Marked approved" : "Marked declined", "success");
   });
 
   const unsent = draft.status === "draft";
+  const handedOver = wasSent(draft);
   const primary = unsent
-    ? { label: supabaseConfigured ? `Issue ${kindLabel.toLowerCase()}` : `Issue & number`, icon: <Check />, onClick: issue }
+    ? { label: "Finalize", hint: "Gives it a number and locks prices", icon: <Check />, onClick: issue }
     : supabaseConfigured
-      ? { label: link && !stale ? "Copy client link" : stale ? "Update client link" : "Get client link", icon: <LinkIcon />, onClick: copyLink }
-      : null;
+      ? { label: link && !stale ? "Copy client link" : stale ? "Update client link" : "Get client link", hint: "A link the client can open, approve and pay from", icon: <LinkIcon />, onClick: copyLink }
+      : !handedOver
+        ? { label: "Mark as sent", hint: "You gave the client the PDF yourself", icon: <Send />, onClick: sentByHand }
+        : null;
+  const depositAmount = isQuote ? totals.deposit : null;
+  const billedYet = isQuote && invoicesFromQuote(draft.id, allDocs).length > 0;
 
   return (
     <div className="mx-auto max-w-[1500px] px-3 py-4 sm:px-6">
@@ -258,9 +278,14 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
         <button className="btn btn-sm" onClick={downloadPdf} disabled={!!busy}>
           <Download /> {busy === "pdf" ? "PDF…" : "PDF"}
         </button>
+        {isInvoice && !unsent && !locked && draft.balanceDue > 0 && (
+          <button className="btn btn-sm" onClick={() => setDialog("payment")} disabled={!!busy}>
+            <HandCoins /> Record payment
+          </button>
+        )}
         {primary && draft.status !== "void" && (
-          <button className="btn btn-sm btn-brand" onClick={primary.onClick} disabled={!!busy || (!online && supabaseConfigured && !unsent)}>
-            {primary.icon} {busy === "issue" || busy === "link" ? "Working…" : primary.label}
+          <button className="btn btn-sm btn-brand" title={primary.hint} onClick={primary.onClick} disabled={!!busy || (!online && supabaseConfigured && !unsent)}>
+            {primary.icon} {busy === "issue" || busy === "link" || busy === "sent" ? "Working…" : primary.label}
           </button>
         )}
         <Menu
@@ -268,12 +293,13 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
           icon={<Ellipsis />}
           className="btn btn-sm"
           items={[
-            supabaseConfigured && !unsent && !locked && { label: "Email to client", icon: <Mail />, onClick: () => (canEmail ? setDialog({ email: "document" }) : toast("Email isn't set up on this server — copy the link instead.", "info")) },
+            supabaseConfigured && canEmail && !unsent && !locked && { label: "Email to client", icon: <Mail />, onClick: () => setDialog({ email: "document" }) },
             !!link && { label: "Open client page", icon: <ExternalLink />, onClick: () => window.open(link, "_blank", "noopener") },
             !!link && !unsent && { label: "Copy client link", icon: <Copy />, onClick: copyLink },
+            !unsent && !handedOver && draft.status !== "void" && { label: "Mark as sent", icon: <Send />, hint: "You gave the client the PDF yourself", onClick: sentByHand },
             isInvoice && !unsent && !locked && { label: "Record payment", icon: <HandCoins />, onClick: () => setDialog("payment") },
-            isInvoice && !unsent && !locked && draft.balanceDue > 0 && canEmail && { label: "Send payment reminder", icon: <Mail />, onClick: () => setDialog({ email: "reminder" }) },
-            isQuote && !locked && draft.status !== "accepted" && { label: "Mark accepted", icon: <CircleCheck />, onClick: () => markAnswer(true) },
+            isInvoice && !unsent && !locked && handedOver && draft.balanceDue > 0 && canEmail && { label: "Send payment reminder", icon: <Mail />, onClick: () => setDialog({ email: "reminder" }) },
+            isQuote && !locked && draft.status !== "accepted" && { label: "Mark approved", icon: <CircleCheck />, onClick: () => markAnswer(true) },
             isQuote && !locked && draft.status !== "declined" && draft.status !== "accepted" && { label: "Mark declined", icon: <CircleX />, onClick: () => markAnswer(false) },
             isQuote && draft.status !== "void" && { label: "Create invoice…", icon: <FilePlus2 />, onClick: () => actions.convert(draft) },
             isInvoice && !unsent && !locked && { label: "Credit note…", icon: <FileMinus />, onClick: () => actions.credit(draft) },
@@ -314,17 +340,24 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
         <div className="mb-4 flex flex-wrap items-center gap-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200">
           <div className="min-w-0 flex-1">
             <div className="font-semibold">
-              Accepted{draft.signerName ? ` by ${draft.signerName}` : ""}
-              {draft.respondedAt ? ` on ${new Date(draft.respondedAt).toLocaleDateString()}` : " (marked by the office)"}
+              Approved{signerName ? ` by ${signerName}` : ""}
+              {respondedAt ? ` on ${new Date(respondedAt).toLocaleDateString()}` : " (marked by the office)"}
+              {approval?.source === "proposal" ? " on the client link" : ""}
             </div>
-            {draft.clientNote && <div className="mt-0.5">“{draft.clientNote}”</div>}
-            {signed && <div className="mt-0.5 text-xs text-emerald-800/80">The signed copy can’t be edited. Duplicate it to make changes.</div>}
+            {clientNote && <div className="mt-0.5">“{clientNote}”</div>}
+            {signed && <div className="mt-0.5 text-xs text-emerald-800/80">The approved copy can’t be edited. Duplicate it to make changes.</div>}
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {draft.signature && <img src={draft.signature} alt={`Signature of ${draft.signerName ?? "the client"}`} className="h-12 rounded bg-white ring-1 ring-emerald-200" />}
-          <button className="btn btn-sm btn-brand" onClick={() => actions.convert(draft)}>
-            <FilePlus2 /> Create invoice
-          </button>
+          {signature && <img src={signature} alt={`Signature of ${signerName ?? "the client"}`} className="h-12 rounded bg-white ring-1 ring-emerald-200" />}
+          {!billedYet && depositAmount ? (
+            <button className="btn btn-sm btn-brand" onClick={() => actions.convert(draft, "deposit")}>
+              <HandCoins /> Bill the deposit ({money(depositAmount)})
+            </button>
+          ) : (
+            <button className="btn btn-sm btn-brand" onClick={() => actions.convert(draft, billedYet ? "final" : undefined)}>
+              <FilePlus2 /> {billedYet ? "Bill the rest" : "Create invoice"}
+            </button>
+          )}
         </div>
       )}
       {isQuote && draft.status === "declined" && (
@@ -508,7 +541,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                   </div>
                 ))}
               </div>
-              {draft.kind !== "credit_note" && <AdjustRow label={isQuote ? "Deposit on acceptance" : "Deposit requested"} value={draft.deposit} currency={draft.currency} readOnly={locked} onChange={(deposit) => edit({ deposit })} />}
+              {draft.kind !== "credit_note" && <AdjustRow label={isQuote ? "Deposit on approval" : "Deposit requested"} value={draft.deposit} currency={draft.currency} readOnly={locked} onChange={(deposit) => edit({ deposit })} />}
             </div>
             <dl className="space-y-1.5 self-start rounded-xl bg-slate-50 p-4 text-sm">
               <Total label="Subtotal" value={money(totals.subtotal)} />
@@ -627,7 +660,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
               {isQuote && (
                 <label className="flex items-end gap-2 pb-2.5 text-sm">
                   <input type="checkbox" className="accent-brand-600" disabled={locked} checked={draft.options?.requireSignature ?? settings.signatureOnQuotes} onChange={(e) => edit({ options: { ...draft.options, requireSignature: e.target.checked } })} />
-                  Client signs to accept
+                  Client signs to approve
                 </label>
               )}
             </div>

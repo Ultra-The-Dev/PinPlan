@@ -187,7 +187,7 @@ export interface ChangeOrderLogProps {
   business: BusinessSettings;
   currency: string;
   cos: ChangeOrder[];
-  summary: ContractSummary;
+  summary: ContractSummary & { basis?: "quote" | "pricing" };
 }
 
 export function ChangeOrderLogDoc({ project, business, currency, cos, summary }: ChangeOrderLogProps) {
@@ -219,7 +219,7 @@ export function ChangeOrderLogDoc({ project, business, currency, cos, summary }:
         ))}
         <View style={s.totals} wrap={false}>
           <View style={s.totalRow}>
-            <Text style={s.muted}>Original contract</Text>
+            <Text style={s.muted}>{summary.basis === "pricing" ? "Job pricing (not approved yet)" : "Approved quote"}</Text>
             <Text>{fm(summary.original)}</Text>
           </View>
           <View style={s.totalRow}>
@@ -227,11 +227,11 @@ export function ChangeOrderLogDoc({ project, business, currency, cos, summary }:
             <Text>{fm(summary.approved)}</Text>
           </View>
           <View style={[s.totalRow, s.grand]}>
-            <Text>Revised contract</Text>
+            <Text>{summary.basis === "pricing" ? "Total if approved" : "New contract total"}</Text>
             <Text>{fm(summary.revised)}</Text>
           </View>
           <View style={s.totalRow}>
-            <Text style={s.muted}>Pending (not included)</Text>
+            <Text style={s.muted}>Waiting on client (not included)</Text>
             <Text style={s.muted}>{fm(summary.pending)}</Text>
           </View>
         </View>

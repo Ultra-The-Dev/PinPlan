@@ -228,7 +228,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
           </View>
           {snap.kind === "quote" && snap.totals.deposit != null ? (
             <View style={s.totalRow}>
-              <Text style={s.strong}>Deposit due on acceptance</Text>
+              <Text style={s.strong}>Deposit due on approval</Text>
               <Text style={s.strong}>{money(snap.totals.deposit)}</Text>
             </View>
           ) : null}
@@ -288,7 +288,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
         {snap.kind === "quote" && snap.requireSignature ? (
           signature?.image ? (
             <View style={{ marginTop: 24 }} wrap={false}>
-              <Text style={s.label}>Accepted</Text>
+              <Text style={s.label}>Approved</Text>
               {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
               <Image src={signature.image} style={{ height: 46, width: 160, objectFit: "contain" }} />
               <Text style={s.muted}>
@@ -298,7 +298,7 @@ export function DocPdfDocument({ snap, live, payLink, signature }: DocPdfProps) 
             </View>
           ) : (
             <View style={s.sign} wrap={false}>
-              <Text style={s.signLine}>Accepted by (signature)</Text>
+              <Text style={s.signLine}>Approved by (signature)</Text>
               <Text style={[s.signLine, { width: 140 }]}>Date</Text>
             </View>
           )

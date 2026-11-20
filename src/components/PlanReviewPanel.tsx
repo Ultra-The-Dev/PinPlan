@@ -211,7 +211,7 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
             {r.status === "accepted" && (
               <>
                 <p className="text-sm">
-                  <strong>{r.client_name}</strong> approved the layout {when(r.responded_at)}. Next: price it and send the proposal from the Estimate tab.
+                  <strong>{r.client_name}</strong> approved the layout {when(r.responded_at)}. Next: price it and send the quote from the Pricing tab.
                 </p>
                 {r.client_note && <ClientNote note={r.client_note} floors={r.snapshot.floors} />}
               </>
@@ -277,7 +277,7 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
               Cancel
             </button>
             <button className="btn btn-brand flex-1" onClick={() => void publish()} disabled={!!busy}>
-              {busy ?? "Publish & copy link"}
+              {busy ?? "Send & copy link"}
             </button>
           </div>
         </div>
@@ -287,9 +287,9 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
             <button className={`btn ${live.length ? "" : "btn-brand"}`} onClick={() => setForm(true)} disabled={!sheets.length || !markers.length}>
               <Eye /> {live.length ? "Send an updated plan" : "Send plan for review"}
             </button>
-          ) : supabaseConfigured && !authReady ? null : (
+          ) : !supabaseConfigured || !authReady ? null : (
             <Link href="/settings#account" className="btn">
-              {supabaseConfigured ? "Sign in to send a link" : "Set up cloud sync to send a link"}
+              Sign in to send a link
             </Link>
           )}
           <button className="btn" onClick={onPdf} disabled={!!pdfBusy || !sheets.length}>

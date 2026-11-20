@@ -11,6 +11,7 @@ import {
   Download,
   FilePen,
   Hammer,
+  HandCoins,
   Mail,
   MapPin,
   Package,
@@ -22,8 +23,13 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { saveDoc, useJobDocs } from "@/lib/docActions";
+import { useDocSettings } from "@/lib/docSettings";
+import { billedChangeOrderIds, docName, invoiceFromChanges, normalizeDocSettings, today } from "@/lib/documents";
 import {
+  billableChanges,
   canDo,
   canEdit,
   changeOrderTotals,
@@ -268,6 +274,28 @@ export default function ChangeOrderEditor(props: {
   const [busy, setBusy] = useState<string | null>(null);
   const cur = pricing.currency;
   const editable = canEdit(draft);
+
+  // Billing an approved change: on its own invoice ("Bill this change"), or on an invoice from the quote. Each once.
+  const router = useRouter();
+  const { docs: jobDocs } = useJobDocs(project.id);
+  const liveDocSettings = useDocSettings();
+  const docSettings = liveDocSettings ?? normalizeDocSettings(settings.documents, settings.pricing.currency);
+  const billedOn = (jobDocs ?? []).find((d) => d.kind === "invoice" && !d.deleted && d.status !== "void" && d.options?.changeOrderIds?.includes(draft.id)) ?? null;
+  const openDoc = (id: string) => router.push(`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(id)}`);
+  async function billThis() {
+    const changes = billableChanges([draft], billedChangeOrderIds(jobDocs ?? []));
+    if (!changes.length) return;
+    setBusy("bill");
+    try {
+      const inv = invoiceFromChanges(changes, { id: newId(), now: nowIso(), day: today(), settings: docSettings, project });
+      const saved = await saveDoc(inv);
+      openDoc(saved.id);
+    } catch (e) {
+      toast(`Couldn't make the invoice: ${(e as Error).message}`, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
   const code = coCode(draft.number);
 
   // Take changes made elsewhere (sync, the client's answer) unless this draft has unsaved edits.
@@ -473,6 +501,25 @@ export default function ChangeOrderEditor(props: {
               {draft.respondedAt ? ` · ${new Date(draft.respondedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
             </h2>
             {draft.clientComment && <p className="text-sm whitespace-pre-line text-slate-600">“{draft.clientComment}”</p>}
+            {draft.status === "approved" && (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                {billedOn ? (
+                  <>
+                    <span className="text-slate-600">Billed on</span>
+                    <button className="font-medium text-brand-600 hover:underline" onClick={() => openDoc(billedOn.id)}>
+                      {docName(billedOn, docSettings)}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-sm btn-brand" onClick={() => void billThis()} disabled={busy === "bill" || jobDocs === null}>
+                      <HandCoins /> Bill this change
+                    </button>
+                    <span className="text-xs text-slate-500">Or include it on the next invoice from the quote.</span>
+                  </>
+                )}
+              </div>
+            )}
             {sigUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={sigUrl} alt="Signature" className="h-16 w-auto rounded bg-white p-1 ring-1 ring-slate-200" />

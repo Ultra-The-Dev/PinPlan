@@ -44,6 +44,7 @@ export const STATUS_TONE: Record<string, StatusTone> = {
   installed: "ok",
   // Quotes / invoices / credit notes
   draft: "neutral",
+  ready: "warn",
   sent: "info",
   viewed: "info",
   accepted: "ok",
