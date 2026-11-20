@@ -12,7 +12,7 @@ export const SHARE_IMAGE = { url: "/opengraph-image", width: 1200, height: 630, 
 
 /** Pages people should find from a search engine, most important first. Everything else is the app or a private link. */
 export const PUBLIC_PAGES: { path: string; priority: number; changeFrequency: "weekly" | "monthly" | "yearly" }[] = [
-  { path: "/welcome", priority: 1, changeFrequency: "weekly" },
+  { path: "/", priority: 1, changeFrequency: "weekly" },
   { path: "/pricing", priority: 0.9, changeFrequency: "monthly" },
   { path: "/signup", priority: 0.7, changeFrequency: "monthly" },
   { path: "/support", priority: 0.5, changeFrequency: "monthly" },
@@ -33,6 +33,7 @@ export const DISALLOWED_PATHS: string[] = [
   "/admin",
   "/catalog",
   "/invoices",
+  "/jobs",
   "/join",
   "/login",
   "/map",
@@ -67,7 +68,7 @@ export function pricingJsonLd(origin = siteUrl()) {
     "@type": "SoftwareApplication",
     name: PRODUCT_NAME,
     description: TAGLINE,
-    url: `${origin}/welcome`,
+    url: `${origin}/`,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web, iPadOS, iOS",
     offers: PLANS.map((p) => ({
@@ -95,7 +96,7 @@ export function jsonLdHtml(data: unknown): string {
 
 export function robotsRules(origin = siteUrl()): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: ["/", ...PUBLIC_PAGES.map((p) => p.path)], disallow: DISALLOWED_PATHS },
+    rules: { userAgent: "*", allow: [...new Set(["/", ...PUBLIC_PAGES.map((p) => p.path)])], disallow: DISALLOWED_PATHS },
     sitemap: `${origin}/sitemap.xml`,
   };
 }

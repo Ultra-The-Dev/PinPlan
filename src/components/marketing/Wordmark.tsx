@@ -31,7 +31,7 @@ const CAP_EM = 0.698;
 const LSB_EM = 0.068;
 const BASELINE_EM = 0.875;
 
-export function Wordmark({ href = "/welcome", onDark = false }: { href?: string; onDark?: boolean }) {
+export function Wordmark({ href = "/", onDark = false }: { href?: string; onDark?: boolean }) {
   const tile = 30;
   const unit = tile / 64;
   const fontSize = (LOCKUP.cap * unit) / CAP_EM; // caps 30/64 of the tile, as in the logo files

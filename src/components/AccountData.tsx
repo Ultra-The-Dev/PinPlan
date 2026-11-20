@@ -105,7 +105,7 @@ function DeleteAccountDialog({ onClose, onExport, exporting }: { onClose: () => 
       // The login is gone: forget it and everything on this device, then leave.
       await sb.auth.signOut({ scope: "local" }).catch(() => undefined);
       await clearLocalData();
-      window.location.replace("/welcome?deleted=1");
+      window.location.replace("/?deleted=1");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);

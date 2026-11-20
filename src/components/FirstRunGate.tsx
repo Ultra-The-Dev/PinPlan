@@ -42,7 +42,7 @@ export default function FirstRunGate({ children }: { children: React.ReactNode }
   const decision = landingDecision({ configured: s.configured, authReady: s.authReady, signedIn: s.signedIn, localJobs, demo, hasTeam, hasOwner: !!owner, heldSignIn: held });
   useEffect(() => {
     if (decision === "login") router.replace("/login");
-    if (decision === "welcome") router.replace("/welcome");
+    if (decision === "welcome") router.replace("/");
     if (decision === "setup") router.replace("/start");
   }, [decision, router]);
   // A company from the sign-up was just made (maybe on another device's confirmation link): on to the checklist.

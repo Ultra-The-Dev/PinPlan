@@ -3,7 +3,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const PAGES = ["/welcome", "/pricing", "/login", "/signup"];
+const PAGES = ["/", "/pricing", "/login", "/signup"];
 
 for (const path of PAGES) {
   test(`a11y: ${path}`, async ({ page }, info) => {

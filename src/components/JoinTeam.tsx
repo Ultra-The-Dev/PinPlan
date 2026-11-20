@@ -152,7 +152,7 @@ export default function JoinTeam() {
           )}
           <p className="mt-6 text-center text-xs text-slate-400">
             {t("Already set up?")}{" "}
-            <Link href="/" className="font-medium text-slate-600 hover:underline">
+            <Link href="/jobs" className="font-medium text-slate-600 hover:underline">
               {t("Go to your jobs")}
             </Link>
           </p>
@@ -357,7 +357,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
               })}
             </ErrorNote>
           )}
-          <Link href="/" className="btn btn-brand h-11 w-full">
+          <Link href="/jobs" className="btn btn-brand h-11 w-full">
             <FolderOpen /> {t("Open jobs")}
           </Link>
           {!same && (
@@ -623,7 +623,7 @@ function Joined({ team, role }: { team: string; role: TeamRole }) {
           </li>
         )}
       </ol>
-      <button className="btn btn-brand mt-6 h-11 w-full" onClick={() => router.push("/")}>
+      <button className="btn btn-brand mt-6 h-11 w-full" onClick={() => router.push("/jobs")}>
         {t("Open jobs")} <ArrowRight />
       </button>
       <Link href="/settings#team" className="btn btn-ghost mt-2 h-10 w-full text-slate-500">

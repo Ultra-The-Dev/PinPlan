@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
-import AppHeader from "@/components/AppHeader";
-import FirstRunGate from "@/components/FirstRunGate";
-import { OnboardingCard } from "@/components/Onboarding";
-import ProjectsList from "@/components/ProjectsList";
+import Landing from "@/components/marketing/Landing";
 import { publicMetadata } from "@/components/marketing/seo";
 import { PRODUCT_NAME } from "@/lib/plans";
 
-// "/" is the jobs list (a local-first app shell). For search engines and shared links it stands for the home page,
-// so its canonical URL is /welcome.
-export const metadata: Metadata = publicMetadata({
-  path: "/welcome",
-  title: `${PRODUCT_NAME}: pin the plan, send the quote, get it signed`,
-  description: `${PRODUCT_NAME} is takeoff, quoting, invoicing and job management for electrical, low-voltage and specialty contractors.`,
-});
+// "/" is always the marketing home page, signed in or not. The app lives at /jobs.
+const title = `${PRODUCT_NAME}: pin the plan, send the quote, get it signed`;
+const description = `${PRODUCT_NAME} is takeoff, quoting and job management for electrical, low-voltage, fire alarm, HVAC, plumbing and solar contractors. Pin devices on the floor plans, get the count per floor, send a quote your client approves on their phone, then invoice and run the job. iPad, iPhone and web, even offline.`;
+
+export const metadata: Metadata = publicMetadata({ path: "/", title, description });
 
 export default function Home() {
-  return (
-    <FirstRunGate>
-      <AppHeader />
-      <main className="flex-1 overflow-auto">
-        <OnboardingCard />
-        <ProjectsList />
-      </main>
-    </FirstRunGate>
-  );
+  return <Landing />;
 }

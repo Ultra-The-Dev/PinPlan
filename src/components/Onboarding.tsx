@@ -66,7 +66,7 @@ function TechStart() {
         <GetTheApp email={email} />
       </div>
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Link href="/" className="btn btn-brand h-11 px-5">
+        <Link href="/jobs" className="btn btn-brand h-11 px-5">
           <FolderOpen /> {t("Open jobs")}
         </Link>
         <Link href="/tasks" className="btn h-11 px-5">
@@ -146,12 +146,12 @@ export function OnboardingChecklist() {
           className="btn btn-ghost text-slate-500"
           onClick={() => {
             dismissOnboarding();
-            router.push("/");
+            router.push("/jobs");
           }}
         >
           {t("Hide this checklist")}
         </button>
-        <Link href="/" className="btn btn-primary h-11 px-5">
+        <Link href="/jobs" className="btn btn-primary h-11 px-5">
           {t("Go to jobs")} <ArrowRight />
         </Link>
       </div>

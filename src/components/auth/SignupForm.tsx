@@ -149,7 +149,7 @@ export default function SignupForm() {
         <AuthCard>
           <AuthTitle title={t("You’re already signed in")} sub={rich(t("Signed in as {email}."), { email: <span className="font-medium text-slate-700">{sync.email}</span> })} />
           <div className="space-y-2">
-            <Link href="/" className="btn btn-brand h-11 w-full">
+            <Link href="/jobs" className="btn btn-brand h-11 w-full">
               {t("Open {product}", { product: PRODUCT_NAME })} <ArrowRight />
             </Link>
             <button className="btn h-auto min-h-11 w-full py-2 text-center whitespace-normal" onClick={() => void getSupabase()?.auth.signOut()}>

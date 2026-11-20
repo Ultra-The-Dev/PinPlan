@@ -14,8 +14,8 @@ export const FOOTER_COLUMNS: { title: string; links: { href: string; label: stri
   {
     title: msg("Product"),
     links: [
-      { href: "/welcome#how", label: msg("How it works") },
-      { href: "/welcome#trades", label: msg("Trades") },
+      { href: "/#how", label: msg("How it works") },
+      { href: "/#trades", label: msg("Trades") },
       { href: "/pricing", label: msg("Pricing") },
       { href: "/signup", label: msg("Start free trial") },
     ],

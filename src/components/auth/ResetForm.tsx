@@ -87,7 +87,7 @@ export default function ResetForm() {
       <AuthShell>
         <AuthCard>
           <AuthTitle icon={<CheckCircle2 />} title={t("Password updated")} sub={t("Use your new password to sign in on the iPad, iPhone and web.")} />
-          <Link href="/" className="btn btn-brand h-11 w-full">
+          <Link href="/jobs" className="btn btn-brand h-11 w-full">
             {t("Continue to {product}", { product: PRODUCT_NAME })} <ArrowRight />
           </Link>
         </AuthCard>

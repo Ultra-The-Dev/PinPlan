@@ -20,7 +20,7 @@ export default function OfflinePage() {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {/* A plain link on purpose: a full page load the service worker answers from its saved copy. */}
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a className="btn btn-primary" href="/">
+          <a className="btn btn-primary" href="/jobs">
             Go to my jobs
           </a>
           <RetryButton />

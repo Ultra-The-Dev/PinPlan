@@ -52,7 +52,7 @@ export default function LoginForm() {
       if (waiting) {
         markOnboardingStarted();
         router.replace("/start");
-      } else router.replace("/");
+      } else router.replace("/jobs");
     })();
   }, [sync.authReady, sync.signedIn, router]);
 

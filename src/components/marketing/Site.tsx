@@ -17,10 +17,10 @@ import { Wordmark } from "./Wordmark";
 import "./marketing.css";
 
 const NAV = [
-  { href: "/welcome#how", label: msg("How it works") },
-  { href: "/welcome#trades", label: msg("Trades") },
+  { href: "/#how", label: msg("How it works") },
+  { href: "/#trades", label: msg("Trades") },
   { href: "/pricing", label: msg("Pricing") },
-  { href: "/welcome#faq", label: msg("Questions") },
+  { href: "/#faq", label: msg("Questions") },
 ];
 
 /**
@@ -84,7 +84,7 @@ export function SiteHeader() {
             <LanguageSwitcher showIcon={false} />
           </span>
           {s.authReady && s.signedIn ? (
-            <Link href="/" className="mk-btn mk-btn-ink mk-btn-sm">
+            <Link href="/jobs" className="mk-btn mk-btn-ink mk-btn-sm">
               {t("Open the app")}
             </Link>
           ) : (
@@ -160,7 +160,7 @@ export function TryDemoLink({ className = "" }: { className?: string }) {
       className={className}
       onClick={() => {
         startDemo();
-        router.push("/");
+        router.push("/jobs");
       }}
     >
       {t("Try it without an account")}

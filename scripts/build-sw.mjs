@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Pages that must always work offline, even if the app folder scan misses them. */
-export const REQUIRED_ROUTES = ["/", "/project", "/offline", "/privacy", "/terms", "/support"];
+export const REQUIRED_ROUTES = ["/", "/jobs", "/project", "/offline", "/privacy", "/terms", "/support"];
 /** Pages not worth caching on every device (platform admin only). */
 const SKIP_ROUTES = new Set(["/admin"]);
 /** Small files from public/ the app shell uses. Vendored libraries (public/vendor, ~10 MB of OpenCV) are cached on first use instead. */

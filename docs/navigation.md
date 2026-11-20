@@ -1,5 +1,9 @@
 # Web navigation
 
+The marketing site and the app are separate: `/` is always the public home page (signed in or not; `/welcome` is its
+old address), and the app starts at **`/jobs`** (the jobs list). In-app links, sign-in, emails and the installed
+app's start page go to `/jobs`; the public header shows **Open the app** when signed in.
+
 The simplified navigation from `docs/ux-audit.md` (items 2 and 6).
 
 ## Header

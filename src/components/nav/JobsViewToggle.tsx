@@ -10,7 +10,7 @@ export default function JobsViewToggle({ photos = true }: { photos?: boolean }) 
   const path = usePathname();
   const t = useT();
   const views = [
-    { href: "/", label: t("List"), icon: List },
+    { href: "/jobs", label: t("List"), icon: List },
     { href: "/map", label: t("Map"), icon: Map },
   ];
   return (

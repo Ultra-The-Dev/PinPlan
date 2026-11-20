@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: PRODUCT_NAME,
     short_name: PRODUCT_NAME,
     description: "Pin devices on your plans, get the count, send the quote and run the job.",
-    start_url: "/",
+    start_url: "/jobs",
     scope: "/",
     display: "standalone",
     orientation: "any",

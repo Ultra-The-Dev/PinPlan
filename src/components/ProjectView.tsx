@@ -77,7 +77,7 @@ export default function ProjectView() {
         <>
           <AppHeader />
           <div className="p-6">
-            Job not found. <Link className="underline" href="/">Back to jobs</Link>
+            Job not found. <Link className="underline" href="/jobs">Back to jobs</Link>
           </div>
         </>
       );
@@ -95,7 +95,7 @@ export default function ProjectView() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4">
-        <Link href="/" className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
+        <Link href="/jobs" className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
           <ChevronLeft className="h-4 w-4" />
           {t("Jobs")}
         </Link>

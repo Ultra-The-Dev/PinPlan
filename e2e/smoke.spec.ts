@@ -30,7 +30,7 @@ test("money path: job → plans → devices → takeoff → pricing → quote �
   page.on("dialog", (d) => void d.accept());
 
   // 1. New job.
-  await page.goto("/");
+  await page.goto("/jobs");
   await page.getByRole("button", { name: "New job" }).first().click();
   await page.getByLabel("Job address").fill("100 Example Ave");
   await page.getByLabel("Client name").fill("E2E Test Client");

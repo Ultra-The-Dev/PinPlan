@@ -46,12 +46,12 @@ describe("robots.txt", () => {
 
   it("keeps every public page crawlable", () => {
     for (const p of PUBLIC_PAGES) expect(blocked(p.path, disallow), p.path).toBe(false);
-    // "/" stays crawlable so search engines read its canonical link to /welcome.
+    // "/" is the home page; /jobs is the app.
     for (const p of ["/", "/privacy", "/pricing", "/.well-known/security.txt"]) expect(blocked(p, disallow), p).toBe(false);
   });
 
   it("keeps crawlers out of the app, the API and client share links", () => {
-    for (const p of ["/api/billdu/sync", "/project?id=1&tab=plan", "/settings", "/catalog", "/admin", "/invoices", "/schedule", "/tasks", "/map", "/photos"])
+    for (const p of ["/api/billdu/sync", "/project?id=1&tab=plan", "/settings", "/catalog", "/admin", "/invoices", "/jobs", "/schedule", "/tasks", "/map", "/photos"])
       expect(blocked(p, disallow), p).toBe(true);
     for (const p of ["/p?t=abc", "/q?t=abc", "/r?t=abc", "/co?t=abc", "/d?t=abc", "/p", "/co"]) expect(blocked(p, disallow), p).toBe(true);
     expect(DISALLOWED_PATHS).not.toContain("/p");
@@ -62,7 +62,7 @@ describe("sitemap.xml", () => {
   it("lists the public pages, including the legal pages, and nothing blocked by robots", () => {
     const entries = sitemapEntries("https://example.com");
     const urls = entries.map((e) => e.url);
-    for (const p of ["/welcome", "/pricing", "/terms", "/privacy", "/support", "/accessibility", "/legal/dpa", "/legal/subprocessors"])
+    for (const p of ["/", "/pricing", "/terms", "/privacy", "/support", "/accessibility", "/legal/dpa", "/legal/subprocessors"])
       expect(urls).toContain(`https://example.com${p}`);
     for (const u of urls) expect(blocked(new URL(u).pathname, DISALLOWED_PATHS), u).toBe(false);
     expect(sitemap().length).toBe(PUBLIC_PAGES.length);
@@ -81,9 +81,9 @@ describe("page metadata", () => {
     expect(m.openGraph).toMatchObject({ url: "/pricing", title: "T" });
   });
 
-  it("each public page we own sets its canonical path, and / points at /welcome", () => {
+  it("each public page we own sets its canonical path, and the old /welcome points at /", () => {
     for (const p of PUBLIC_PAGES) expect(read(`src/app${p.path}/page.tsx`), p.path).toMatch(new RegExp(`publicMetadata\\(\\{\\s*path: "${p.path}"`));
-    expect(read("src/app/page.tsx")).toMatch(/publicMetadata\(\{\s*path: "\/welcome"/);
+    expect(read("src/app/welcome/page.tsx")).toMatch(/publicMetadata\(\{\s*path: "\/"/);
   });
 
   it("has a share image", () => {

@@ -23,7 +23,7 @@ export default function RoleGate({ action, what, children }: { action: TeamActio
             ? t("You’re on {team} as a {role}. Ask an owner or admin if something here needs changing.", { team: team.name, role: role ? t(ROLE_INFO[role].name).toLowerCase() : t("member") })
             : t("You’re on the team as a {role}. Ask an owner or admin if something here needs changing.", { role: role ? t(ROLE_INFO[role].name).toLowerCase() : t("member") })}
         </p>
-        <Link href="/" className="btn btn-brand mt-5">
+        <Link href="/jobs" className="btn btn-brand mt-5">
           {t("Back to jobs")}
         </Link>
       </div>

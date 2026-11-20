@@ -14,7 +14,7 @@ import SyncBadge from "./SyncBadge";
 export function Logo({ compact }: { compact?: boolean }) {
   const t = useT();
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={t("{product} home", { product: PRODUCT_NAME })}>
+    <Link href="/jobs" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={t("{product} home", { product: PRODUCT_NAME })}>
       <LogoMark size={32} />
       {!compact && <span className="hidden text-[15px] lg:inline">{PRODUCT_NAME}</span>}
     </Link>
@@ -26,7 +26,7 @@ export function Logo({ compact }: { compact?: boolean }) {
  * photos are views of Jobs, the crew board sits under Tasks, Products is part of the Price list.
  */
 export const MAIN_NAV: { href: string; label: string; icon: typeof FolderOpen; match: string[]; office?: boolean }[] = [
-  { href: "/", label: msg("Jobs"), icon: FolderOpen, match: ["/", "/map", "/photos", "/project"] },
+  { href: "/jobs", label: msg("Jobs"), icon: FolderOpen, match: ["/jobs", "/map", "/photos", "/project"] },
   { href: "/tasks", label: msg("Tasks"), icon: ClipboardList, match: ["/tasks", "/schedule"] },
   { href: "/invoices", label: msg("Money"), icon: ReceiptText, match: ["/invoices"], office: true },
   { href: "/catalog", label: msg("Price list"), icon: Tags, match: ["/catalog", "/products"], office: true },
