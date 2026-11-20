@@ -495,6 +495,12 @@ const dict: Dictionary = {
   "Sign in with the same email and the same password. Your jobs sync automatically.":
     "Inicia sesión con el mismo correo y la misma contraseña. Tus obras se sincronizan automáticamente.",
   "QR code for the App Store page": "Código QR de la página del App Store",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Doors: "Puertas",
+  Windows: "Ventanas",
+  "Door contacts": "Contactos de puerta",
+  "Window contacts": "Contactos de ventana",
+  "Glass-break": "Rotura de cristal",
 };
 
 export default dict;

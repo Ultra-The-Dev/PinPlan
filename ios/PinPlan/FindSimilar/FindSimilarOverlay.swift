@@ -30,6 +30,11 @@ enum FindSimilarOverlays {
         let ui = FindSimilarUI.shared
         let ctx = tap.context
         guard ui.open, ctx.mode == .edit else { return false }
+        // Add sensors: a tap on a door or window leaves it out (or takes it back); other taps do nothing.
+        if ui.sensors != nil {
+            if let o = opening(at: tap.location, ctx: ctx) { ui.toggleExcluded(o.id) }
+            return true
+        }
         if let g = ghost(at: tap.location, ctx: ctx) {
             ui.toggle(g.id)
             return true
@@ -39,6 +44,18 @@ enum FindSimilarOverlays {
         guard (0...1).contains(p.x), (0...1).contains(p.y) else { return true }
         ui.tapPick(model: ctx.model, sheet: ctx.sheet, at: p)
         return true
+    }
+
+    /// Add sensors: the nearest door or window within a finger's reach of a view point.
+    @MainActor static func opening(at location: CGPoint, ctx: PlanOverlayContext) -> AlarmSensors.Opening? {
+        let reach = max(ghostRadius + 8, 24)
+        var best: (AlarmSensors.Opening, CGFloat)?
+        for o in FindSimilarUI.shared.openings(ctx.model, sheet: ctx.sheet) {
+            let p = ctx.point(o.x, o.y)
+            let d = hypot(p.x - location.x, p.y - location.y)
+            if d <= reach && (best == nil || d < best!.1) { best = (o, d) }
+        }
+        return best?.0
     }
 
     /// The nearest ghost within a finger's reach of a view point.
@@ -55,6 +72,21 @@ enum FindSimilarOverlays {
 }
 
 extension EditorModel {
+    /// Several devices of any types as one undo step (Add sensors). A blank room takes the room printed on the plan
+    /// where the device lands. Returns how many were added (0 when the job is read-only).
+    func addMarkers(_ items: [(type: DeviceType, x: Double, y: Double, room: String)], sheetId: String) -> Int {
+        let details = planDetails[sheetId] ?? []
+        var n = 0
+        let ok = edit { b in
+            for it in items {
+                let room = it.room.isEmpty ? (PlanReader.room(atX: it.x, y: it.y, details: details) ?? "") : it.room
+                _ = b.addMarker(type: it.type, sheetId: sheetId, x: it.x, y: it.y, room: room)
+                n += 1
+            }
+        }
+        return ok ? n : 0
+    }
+
     /// Several devices of one type as one undo step (Find similar's Accept all). Each takes the room printed on the
     /// plan where it lands. Returns how many were added (0 when the job is read-only).
     func addMarkers(type: DeviceType, sheetId: String, at points: [PlanPoint]) -> Int {
@@ -77,7 +109,9 @@ struct FindSimilarLayer: View {
 
     var body: some View {
         let ui = FindSimilarUI.shared
-        if ui.open {
+        if ui.open, let draft = ui.sensors {
+            sensorsLayer(ui, draft)
+        } else if ui.open {
             let type = ui.typeId.flatMap { ctx.model.app.type($0) }
             let color = Color(hex: type?.color ?? "#475569")
             let letters = type?.symbol ?? "?"
@@ -127,6 +161,43 @@ struct FindSimilarLayer: View {
         }
     }
 
+    /// Add sensors: a ring around each door and window (grey and crossed out when left out) and a dashed pin with the
+    /// sensor's letters where each will go.
+    private func sensorsLayer(_ ui: FindSimilarUI, _ draft: FindSimilarUI.SensorsDraft) -> some View {
+        let rings: [(c: CGPoint, out: Bool)] = ui.openings(ctx.model, sheet: ctx.sheet).filter { ctx.isOnScreen($0.x, $0.y) }
+            .map { (ctx.point($0.x, $0.y), draft.excluded.contains($0.id)) }
+        let pins: [(c: CGPoint, letters: String, color: Color)] = ui.sensorPlan(ctx.model, sheet: ctx.sheet).placements
+            .filter { ctx.isOnScreen($0.x, $0.y) }
+            .map { p in
+                let t = ctx.model.app.type(p.deviceTypeId)
+                return (ctx.point(p.x, p.y), t?.symbol ?? "?", Color(hex: t?.color ?? "#475569"))
+            }
+        let r = FindSimilarOverlays.ghostRadius
+        return Canvas { g, _ in
+            for (c, out) in rings {
+                let ring = Path(ellipseIn: CGRect(x: c.x - r - 5, y: c.y - r - 5, width: 2 * r + 10, height: 2 * r + 10))
+                if out {
+                    g.fill(ring, with: .color(Color.gray.opacity(0.25)))
+                    g.stroke(ring, with: .color(.gray), lineWidth: 2)
+                    var x = Path()
+                    x.move(to: CGPoint(x: c.x - r, y: c.y + r))
+                    x.addLine(to: CGPoint(x: c.x + r, y: c.y - r))
+                    g.stroke(x, with: .color(.gray), lineWidth: 2.5)
+                } else {
+                    g.stroke(ring, with: .color(.brand), style: StrokeStyle(lineWidth: 2, dash: [3, 3]))
+                }
+            }
+            for (c, letters, color) in pins {
+                let circle = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
+                g.fill(circle, with: .color(Color.white.opacity(0.85)))
+                g.stroke(circle, with: .color(color), style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+                g.draw(Text(verbatim: letters).font(.system(size: letters.count > 2 ? 8.5 : 11.5, weight: .bold)).foregroundColor(color), at: c)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
     private func rect(_ a: PlanPoint, _ b: PlanPoint) -> CGRect {
         let p = ctx.point(a.x, a.y), q = ctx.point(b.x, b.y)
         return CGRect(x: min(p.x, q.x), y: min(p.y, q.y), width: abs(p.x - q.x), height: abs(p.y - q.y))
@@ -139,7 +210,7 @@ struct FindSimilarBoxSurface: View {
 
     var body: some View {
         let ui = FindSimilarUI.shared
-        if ui.open, ui.boxMode, ui.picking, ui.mode == .match, ui.busy == nil {
+        if ui.open, ui.sensors == nil, ui.boxMode, ui.picking, ui.mode == .match, ui.busy == nil {
             let controller = ctx.controller
             let model = ctx.model
             let sheet = ctx.sheet
@@ -178,28 +249,11 @@ struct FindSimilarCard: View {
         if ui.open {
             VStack(alignment: .leading, spacing: 10) {
                 header
-                typeRow
-                Picker("How to find", selection: Binding(get: { ui.mode }, set: { ui.setMode($0) })) {
-                    Text("Match a symbol").tag(FindSimilarUI.Mode.match)
-                    Text("Read tags").tag(FindSimilarUI.Mode.tags)
+                if let draft = ui.sensors {
+                    AlarmSensorsSection(model: model, sheet: sheet, draft: draft)
+                } else {
+                    findBody(ui)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("find-mode")
-                if ui.mode == .tags && ui.found.isEmpty && ui.busy == nil { tagsForm }
-                if let busy = ui.busy { busyRow(busy, ui.progress) }
-                if ui.busy == nil && ui.mode == .match && ui.picking { pickHint }
-                if let note = ui.note, ui.busy == nil {
-                    Text(note).font(.footnote).foregroundStyle(Color.primary)
-                        .padding(.horizontal, 10).padding(.vertical, 7)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .accessibilityIdentifier("find-note")
-                }
-                let shown = ui.shown(model, sheet: sheet)
-                if ui.busy == nil && ui.sheetId == sheet.id && !ui.found.isEmpty {
-                    if let i = ui.review, i < shown.count { reviewBar(shown, i) } else { results(shown) }
-                }
-                summary
             }
             .padding(12)
             .frame(width: cardWidth, alignment: .leading)
@@ -209,6 +263,37 @@ struct FindSimilarCard: View {
             .onChange(of: sheet.id) { _, id in ui.sheetChanged(to: id) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("find-similar")
+        }
+    }
+
+    @ViewBuilder private func findBody(_ ui: FindSimilarUI) -> some View {
+        typeRow
+        Picker("How to find", selection: Binding(get: { ui.mode }, set: { ui.setMode($0) })) {
+            Text("Match a symbol").tag(FindSimilarUI.Mode.match)
+            Text("Read tags").tag(FindSimilarUI.Mode.tags)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("find-mode")
+        if ui.mode == .tags && ui.found.isEmpty && ui.busy == nil { tagsForm }
+        if let busy = ui.busy { busyRow(busy, ui.progress) }
+        if ui.busy == nil && ui.mode == .match && ui.picking { pickHint }
+        if let note = ui.note, ui.busy == nil {
+            Text(note).font(.footnote).foregroundStyle(Color.primary)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityIdentifier("find-note")
+        }
+        let shown = ui.shown(model, sheet: sheet)
+        if ui.busy == nil && ui.sheetId == sheet.id && !ui.found.isEmpty {
+            if let i = ui.review, i < shown.count { reviewBar(shown, i) } else { results(shown) }
+        }
+        summary
+        if !ui.openings(model, sheet: sheet).isEmpty {
+            Button { ui.openSensors(model: model) } label: { Label("Add alarm sensors", systemImage: "checkmark.shield") }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("find-add-sensors")
         }
     }
 

@@ -850,6 +850,28 @@ const planEditor: Dictionary = {
   "{status} (photo)": "{status} (фото)",
   "Photo needed to mark {label} {status}": "Нужно фото, чтобы отметить {label}: {status}",
   "Take photo": "Сделать фото",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Проёмы",
+  "Add alarm sensors": "Добавить датчики охраны",
+  "Add alarm sensors to the doors and windows on this plan": "Поставить датчики охраны на двери и окна этого плана",
+  Sensors: "Датчики",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "На этом этаже пока нет дверей и окон. Сначала посчитайте их: «Найти похожие», считать как «Door», затем как «Window».",
+  "Sensors to place": "Какие датчики поставить",
+  "Door contact on each door": "Геркон на каждую дверь",
+  "Window contact on each window": "Геркон на каждое окно",
+  "Glass-break detector per room with windows": "Датчик разбития стекла на каждое помещение с окнами",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "Помещение берётся из поля «Помещение» у окна; окна без него группируются по расстоянию.",
+  "Not in your price list": "Нет в вашем прайс-листе",
+  "Nothing to add": "Нечего добавить",
+  "Tap a door or window on the plan to leave it out.": "Нажмите на дверь или окно на плане, чтобы исключить его.",
+  "Place sensors": "Поставить датчики",
+  "{n} door contact": { one: "{n} геркон на дверь", few: "{n} геркона на двери", many: "{n} герконов на двери" },
+  "{n} window contact": { one: "{n} геркон на окно", few: "{n} геркона на окна", many: "{n} герконов на окна" },
+  "{n} glass-break": { one: "{n} датчик разбития стекла", few: "{n} датчика разбития стекла", many: "{n} датчиков разбития стекла" },
+  "{n} opening left out. Tap it again to take it back.": { one: "Исключён {n} проём. Нажмите ещё раз, чтобы вернуть.", few: "Исключено {n} проёма. Нажмите ещё раз, чтобы вернуть.", many: "Исключено {n} проёмов. Нажмите ещё раз, чтобы вернуть." },
+  "{n} already has its sensor.": { one: "{n} уже с датчиком.", few: "{n} уже с датчиками.", many: "{n} уже с датчиками." },
+  "Place {n} sensor": { one: "Поставить {n} датчик", few: "Поставить {n} датчика", many: "Поставить {n} датчиков" },
+  "Added {n} sensor. Undo takes it back.": { one: "Добавлен {n} датчик. «Отменить» уберёт его.", few: "Добавлено {n} датчика. «Отменить» уберёт их все.", many: "Добавлено {n} датчиков. «Отменить» уберёт их все." },
 };
 
 export default planEditor;

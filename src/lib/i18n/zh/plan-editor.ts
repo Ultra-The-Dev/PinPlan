@@ -750,6 +750,28 @@ const planEditor: Dictionary = {
   "{status} (photo)": "{status}（照片）",
   "Photo needed to mark {label} {status}": "需要拍照才能将 {label} 标记为{status}",
   "Take photo": "拍照",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "门窗洞口",
+  "Add alarm sensors": "添加报警传感器",
+  "Add alarm sensors to the doors and windows on this plan": "为这张图纸上的门窗添加报警传感器",
+  Sensors: "传感器",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "本楼层还没有门窗。请先统计：查找相似，先计为 Door，再计为 Window。",
+  "Sensors to place": "要放置的传感器",
+  "Door contact on each door": "每扇门装一个门磁",
+  "Window contact on each window": "每扇窗装一个窗磁",
+  "Glass-break detector per room with windows": "每个有窗的房间装一个玻璃破碎探测器",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "房间取自每扇窗的房间；没有房间的窗按距离分组。",
+  "Not in your price list": "不在你的价目表中",
+  "Nothing to add": "没有可添加的",
+  "Tap a door or window on the plan to leave it out.": "点一下图纸上的门或窗即可排除它。",
+  "Place sensors": "放置传感器",
+  "{n} door contact": { other: "{n} 个门磁" },
+  "{n} window contact": { other: "{n} 个窗磁" },
+  "{n} glass-break": { other: "{n} 个玻璃破碎探测器" },
+  "{n} opening left out. Tap it again to take it back.": { other: "已排除 {n} 个门窗。再点一下即可恢复。" },
+  "{n} already has its sensor.": { other: "{n} 处已有传感器。" },
+  "Place {n} sensor": { other: "放置 {n} 个传感器" },
+  "Added {n} sensor. Undo takes it back.": { other: "已添加 {n} 个传感器。撤销会将它们全部移除。" },
 };
 
 export default planEditor;

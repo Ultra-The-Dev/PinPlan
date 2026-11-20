@@ -864,6 +864,28 @@ const dict: Dictionary = {
   "{status} (photo)": "{status} (zdjęcie)",
   "Photo needed to mark {label} {status}": "Potrzebne zdjęcie, aby oznaczyć {label}: {status}",
   "Take photo": "Zrób zdjęcie",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Otwory",
+  "Add alarm sensors": "Dodaj czujniki alarmu",
+  "Add alarm sensors to the doors and windows on this plan": "Dodaj czujniki alarmu do drzwi i okien na tym planie",
+  Sensors: "Czujniki",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "Na tym piętrze nie ma jeszcze drzwi ani okien. Najpierw je policz: Znajdź podobne, licz jako Door, a potem jako Window.",
+  "Sensors to place": "Czujniki do rozmieszczenia",
+  "Door contact on each door": "Kontaktron na każdych drzwiach",
+  "Window contact on each window": "Kontaktron na każdym oknie",
+  "Glass-break detector per room with windows": "Czujka zbicia szyby w każdym pomieszczeniu z oknami",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "Pomieszczenie pochodzi z pola okna; okna bez pomieszczenia są grupowane według odległości.",
+  "Not in your price list": "Brak w Twoim cenniku",
+  "Nothing to add": "Nic do dodania",
+  "Tap a door or window on the plan to leave it out.": "Dotknij drzwi lub okna na planie, aby je pominąć.",
+  "Place sensors": "Rozmieść czujniki",
+  "{n} door contact": { one: "{n} kontaktron drzwiowy", few: "{n} kontaktrony drzwiowe", many: "{n} kontaktronów drzwiowych", other: "{n} kontaktronu drzwiowego" },
+  "{n} window contact": { one: "{n} kontaktron okienny", few: "{n} kontaktrony okienne", many: "{n} kontaktronów okiennych", other: "{n} kontaktronu okiennego" },
+  "{n} glass-break": { one: "{n} czujka zbicia szyby", few: "{n} czujki zbicia szyby", many: "{n} czujek zbicia szyby", other: "{n} czujki zbicia szyby" },
+  "{n} opening left out. Tap it again to take it back.": { one: "Pominięto {n} otwór. Dotknij ponownie, aby go przywrócić.", few: "Pominięto {n} otwory. Dotknij ponownie, aby je przywrócić.", many: "Pominięto {n} otworów. Dotknij ponownie, aby je przywrócić.", other: "Pominięto {n} otworu. Dotknij ponownie, aby go przywrócić." },
+  "{n} already has its sensor.": { one: "{n} ma już czujnik.", few: "{n} mają już czujniki.", many: "{n} ma już czujniki.", other: "{n} ma już czujniki." },
+  "Place {n} sensor": { one: "Rozmieść {n} czujnik", few: "Rozmieść {n} czujniki", many: "Rozmieść {n} czujników", other: "Rozmieść {n} czujnika" },
+  "Added {n} sensor. Undo takes it back.": { one: "Dodano {n} czujnik. Cofnij go usunie.", few: "Dodano {n} czujniki. Cofnij usunie je wszystkie.", many: "Dodano {n} czujników. Cofnij usunie je wszystkie.", other: "Dodano {n} czujnika. Cofnij usunie je wszystkie." },
 };
 
 export default dict;

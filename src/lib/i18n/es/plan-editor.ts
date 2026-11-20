@@ -827,6 +827,28 @@ const dict: Dictionary = {
   "{status} (photo)": "{status} (foto)",
   "Photo needed to mark {label} {status}": "Se necesita una foto para marcar {label} como {status}",
   "Take photo": "Tomar foto",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Aberturas",
+  "Add alarm sensors": "Agregar sensores de alarma",
+  "Add alarm sensors to the doors and windows on this plan": "Agregar sensores de alarma a las puertas y ventanas de este plano",
+  Sensors: "Sensores",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "Todavía no hay puertas ni ventanas en este piso. Cuéntalas primero: Buscar similares, contando como Door y luego como Window.",
+  "Sensors to place": "Sensores a colocar",
+  "Door contact on each door": "Contacto de puerta en cada puerta",
+  "Window contact on each window": "Contacto de ventana en cada ventana",
+  "Glass-break detector per room with windows": "Un detector de rotura de cristal por habitación con ventanas",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "La habitación es la de cada ventana; las ventanas sin habitación se agrupan por cercanía.",
+  "Not in your price list": "No está en tu lista de precios",
+  "Nothing to add": "Nada que agregar",
+  "Tap a door or window on the plan to leave it out.": "Toca una puerta o ventana en el plano para dejarla fuera.",
+  "Place sensors": "Colocar sensores",
+  "{n} door contact": { one: "{n} contacto de puerta", other: "{n} contactos de puerta" },
+  "{n} window contact": { one: "{n} contacto de ventana", other: "{n} contactos de ventana" },
+  "{n} glass-break": { one: "{n} detector de rotura de cristal", other: "{n} detectores de rotura de cristal" },
+  "{n} opening left out. Tap it again to take it back.": { one: "{n} abertura fuera. Tócala otra vez para volver a incluirla.", other: "{n} aberturas fuera. Tócalas otra vez para volver a incluirlas." },
+  "{n} already has its sensor.": { one: "{n} ya tiene su sensor.", other: "{n} ya tienen su sensor." },
+  "Place {n} sensor": { one: "Colocar {n} sensor", other: "Colocar {n} sensores" },
+  "Added {n} sensor. Undo takes it back.": { one: "Se agregó {n} sensor. Deshacer lo quita.", other: "Se agregaron {n} sensores. Deshacer los quita todos." },
 };
 
 export default dict;

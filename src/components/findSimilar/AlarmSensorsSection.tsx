@@ -5,16 +5,16 @@
 // plan shows where each sensor will go (FindSimilarLayer.tsx). Placing is one undo step (useEditor.addMarkers).
 import { Check, ShieldCheck, X } from "lucide-react";
 import { useMemo } from "react";
-import { SENSOR_TYPE_IDS, missingSensorTypes, sheetOpenings, type SensorKind } from "@/lib/alarmSensors";
-import { useT } from "@/lib/i18n";
+import { missingSensorTypes, sheetOpenings, type SensorKind } from "@/lib/alarmSensors";
+import { msg, useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
 import { closeSensors, placeSensors, sensorPlan, toggleSensorKind, useFindSimilar } from "./findSimilarStore";
 
 const OPTIONS: { kind: SensorKind; label: string }[] = [
-  { kind: "door", label: "Door contact on each door" },
-  { kind: "window", label: "Window contact on each window" },
-  { kind: "glass", label: "Glass-break detector per room with windows" },
+  { kind: "door", label: msg("Door contact on each door") },
+  { kind: "window", label: msg("Window contact on each window") },
+  { kind: "glass", label: msg("Glass-break detector per room with windows") },
 ];
 
 export default function AlarmSensorsSection({ sheet }: { sheet: Sheet }) {
@@ -59,14 +59,13 @@ export default function AlarmSensorsSection({ sheet }: { sheet: Sheet }) {
             <legend className="sr-only">{t("Sensors to place")}</legend>
             {OPTIONS.map((o) => {
               const off = missing.includes(o.kind);
-              const type = catalog.find((d) => d.id === SENSOR_TYPE_IDS[o.kind]);
               return (
                 <label key={o.kind} className={`flex items-start gap-2 rounded-lg px-1.5 py-1 ${off ? "opacity-50" : "cursor-pointer hover:bg-slate-50"}`}>
                   <input type="checkbox" className="mt-0.5 accent-brand-600" checked={!off && sensors.kinds.includes(o.kind)} disabled={off} onChange={() => toggleSensorKind(o.kind)} data-testid={`alarm-kind-${o.kind}`} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-slate-800">{t(o.label)}</span>
                     {o.kind === "glass" && <span className="block text-[11px] text-slate-500">{t("Rooms come from each window’s room; windows without one are grouped by distance.")}</span>}
-                    {off && <span className="block text-[11px] text-slate-500">{t("Not in your price list: {name}", { name: type?.name ?? SENSOR_TYPE_IDS[o.kind] })}</span>}
+                    {off && <span className="block text-[11px] text-slate-500">{t("Not in your price list")}</span>}
                   </span>
                   <span className="font-semibold text-slate-900 tabular-nums">{off ? "—" : all.counts[o.kind]}</span>
                 </label>
