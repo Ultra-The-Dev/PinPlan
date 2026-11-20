@@ -157,7 +157,8 @@ up their company, or set the team's `plan_status` to `comped` in the SQL editor.
    | `NEXT_PUBLIC_WEATHER_URL`, `OPEN_METEO_API_KEY` | A5 |
 
    Optional: `EMAIL_REPLY_TO`, `STRIPE_TAX`, `NEXT_PUBLIC_APP_STORE_URL`, the Turnstile, accounting app and Billdu
-   settings (A6).
+   settings (A6). Before launch: `LEGAL_CHECK=strict` (A4.6). Every variable is listed in
+   [All settings](#all-settings) below.
 
    **Leave unset** on the hosted service: `PINPLAN_ACCESS_CODE`, `PINPLAN_ALLOW_ACCESS_CODE`, `PINPLAN_ALLOW_OPEN`,
    `PINPLAN_DATA_DIR`, `CSP_REPORT_ONLY` and the AI settings.
@@ -166,8 +167,9 @@ up their company, or set the team's `plan_status` to `comped` in the SQL editor.
 4. **Settings → Domains**: add `<your-domain>`.
 5. **Deployments → ⋯ → Redeploy** after any change: settings only take effect after a redeploy, and `NEXT_PUBLIC_`
    values are built into the app.
-6. The production build **stops** while `src/lib/legal.ts` or `public/.well-known/security.txt` still has a
-   `[placeholder]` (run `npm run check:legal` locally to list them).
+6. **Legal check.** Every build runs `scripts/check-legal.mjs` and warns while `src/lib/legal.ts` or
+   `public/.well-known/security.txt` still has a `[placeholder]` (run `npm run check:legal` locally to list them).
+   Once it lists nothing, set `LEGAL_CHECK=strict` on Production: from then on a build **fails** if one comes back.
 
 ## A5. Map tiles and weather
 - **Map tiles** (jobs map): OpenStreetMap's public tiles aren't allowed for a commercial app. Make an account with
@@ -253,6 +255,47 @@ For your own crew on your own server, without public sign-up or billing. Skip St
    `npm run build` and `npm start`. Redeploy after changing a setting.
 7. **iPad and iPhone**: **Settings → PinPlan server** → your address (and the access code when you use one) →
    **Check connection**. With Supabase: **Settings → Cloud sync** → sign in with the same email and password.
+
+## All settings
+
+Every environment variable the code reads. **Public** values (`NEXT_PUBLIC_*`) are built into the browser code:
+set them before the build and redeploy after a change. **Server** values never reach the browser; a secret never gets
+a `NEXT_PUBLIC_` name. Descriptions and examples are in [.env.example](.env.example).
+
+| Variable | Where | Hosted service | What it does |
+| --- | --- | --- | --- |
+| `PINPLAN_APP_URL` | Server | Required | The `https://` app address for email links, Stripe return addresses, accounting-app redirects and the cron. Without it, checkout, the billing portal, the cron and email answer 501. |
+| `NEXT_PUBLIC_SITE_URL` | Public | Required | Canonical links, sitemap, robots.txt, link previews. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Required | Accounts, sync and storage (A1). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server | Required | Account deletion, Stripe webhook, invites, email checks, `/admin`, encrypted secrets. |
+| `PINPLAN_ENCRYPTION_KEY` | Server | Required | Encrypts stored Billdu, QuickBooks Online and Xero credentials. |
+| `PINPLAN_ENCRYPTION_KEY_PREVIOUS` | Server | Only while rotating | The old key during a rotation (production-checklist.md). |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Server | Required | Billing (A3). |
+| `STRIPE_PRICE_BASE`, `STRIPE_PRICE_SEAT` | Server | Required | The two price ids (A3.1). |
+| `STRIPE_TERMS_CONSENT` | Server | Required (`1`) | Terms tick box at checkout (A3.4). |
+| `STRIPE_TAX` | Server | Optional | `1` = Stripe Tax on checkout. |
+| `CRON_SECRET` | Server | Required | Bearer token Vercel Cron sends to `/api/cron/billing-reminders`. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Server | Required | Email (A2). |
+| `EMAIL_REPLY_TO` | Server | Optional | Reply address for PinPlan's own emails (client emails reply to the company's business email). |
+| `PLATFORM_ADMIN_EMAILS` | Server | Required | Who may open `/admin`. |
+| `LEGAL_CHECK` | Build | `strict` at launch | Build fails on legal placeholders (A4.6). |
+| `NEXT_PUBLIC_MAP_TILE_URL`, `NEXT_PUBLIC_MAP_TILE_KEY`, `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` | Public | Required for a commercial launch, or leave the map background off | Jobs map tiles (A5). |
+| `NEXT_PUBLIC_WEATHER_URL` | Public | Required for a commercial launch | Weather source: `/api/weather` or a self-hosted Open-Meteo (A5). |
+| `OPEN_METEO_API_KEY` | Server | With `/api/weather` | Open-Meteo commercial key, added by `/api/weather`. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Public | Optional | Bot check on web sign-up, sign-in, reset and join (A6). |
+| `TURNSTILE_SECRET_KEY` | Server | Optional | `/api/team/join` checks the bot-check token (A6). |
+| `PINPLAN_TERMS_VERSION` | Server | Optional | Terms version saved on invite joins when the page doesn't say (default `2026-11`). |
+| `NEXT_PUBLIC_APP_STORE_URL` | Public | Optional | The App Store listing, once live. |
+| `NEXT_PUBLIC_APP_VERSION` | Public | Optional | Version on error reports (default: the Vercel commit). |
+| `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`, `QBO_ENVIRONMENT` | Server | Optional | QuickBooks Online (A6). |
+| `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, `XERO_SCOPES` | Server | Optional | Xero (A6). |
+| `PINPLAN_FOUNDER_TEAM_ID`, `BILLDU_API_KEY`, `BILLDU_API_SECRET` | Server | Optional | Server-wide Billdu keys, only for your own company (A6). |
+| `BILLDU_HOST` | Server | Leave unset | A different Billdu API host (a mock for testing). |
+| `CSP_REPORT_ONLY` | Server | Leave unset | `1` = report-only CSP, to debug. |
+| `PINPLAN_ACCESS_CODE`, `PINPLAN_ALLOW_ACCESS_CODE`, `PINPLAN_ALLOW_OPEN`, `PINPLAN_DATA_DIR` | Server | Leave unset | Self-host only (Part B). |
+| `NEXT_PUBLIC_AI_ENABLED`, `AI_ENABLED`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Public / Server | Leave unset | AI features: off. |
+| `VERCEL_ENV`, `VERCEL_REGION`, `VERCEL_PROJECT_PRODUCTION_URL`, `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` | Set by Vercel | Don't add | Need "Automatically expose System Environment Variables" (A4.3). |
+| `PLAYWRIGHT_BASE_URL`, `E2E_PORT`, `CI`, `BASE`, `PINPLAN_TEST_DB`, `PG*` | Tests | Never | `npm run e2e`, `scripts/e2e-*.cjs`, `scripts/test-supabase.sh`. |
 
 ## If something's wrong
 - **`/api/health` answers 503**: see A9.1.

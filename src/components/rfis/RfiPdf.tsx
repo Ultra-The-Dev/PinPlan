@@ -52,7 +52,7 @@ const IMG_H = 180;
 
 function styles(brand: string) {
   return StyleSheet.create({
-    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
+    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#0F2340" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },
     head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },
@@ -210,7 +210,7 @@ export function RfiLogDocument({ d, rows }: { d: RfiPdfData; rows: RfiPdfEntry[]
           <View key={i} style={{ borderBottomWidth: 1, borderBottomColor: "#e2e8f0", paddingVertical: 5, backgroundColor: i % 2 ? "#f8fafc" : "#ffffff" }} wrap={false}>
             <View style={{ flexDirection: "row" }}>
               {COLS.map((c) => (
-                <Text key={c.key} style={{ width: c.w, fontSize: 8.5, paddingRight: 4, fontFamily: c.key === "code" ? "Helvetica-Bold" : "Helvetica", color: c.key === "due" && r.overdue ? "#b91c1c" : "#111827" }}>
+                <Text key={c.key} style={{ width: c.w, fontSize: 8.5, paddingRight: 4, fontFamily: c.key === "code" ? "Helvetica-Bold" : "Helvetica", color: c.key === "due" && r.overdue ? "#b91c1c" : "#0F2340" }}>
                   {String(r[c.key] ?? "") || "—"}
                 </Text>
               ))}

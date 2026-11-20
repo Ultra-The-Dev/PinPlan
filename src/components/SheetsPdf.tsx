@@ -15,7 +15,7 @@ export interface SheetPage {
 }
 
 const s = StyleSheet.create({
-  page: { padding: 18, fontSize: 8, fontFamily: "Helvetica", color: "#0f172a", flexDirection: "row" },
+  page: { padding: 18, fontSize: 8, fontFamily: "Helvetica", color: "#0F2340", flexDirection: "row" },
   planWrap: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 0.5, borderColor: "#cbd5e1" },
   side: { width: 170, marginLeft: 10 },
   h1: { fontSize: 14, fontFamily: "Helvetica-Bold" },
@@ -27,8 +27,8 @@ const s = StyleSheet.create({
   countBox: { borderWidth: 1, borderColor: "#1d4ed8", padding: 6, borderRadius: 3 },
   countRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 1 },
   countVal: { fontFamily: "Helvetica-Bold", color: "#1d4ed8" },
-  tablePage: { padding: 24, fontSize: 8, fontFamily: "Helvetica", color: "#0f172a" },
-  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0f172a", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
+  tablePage: { padding: 24, fontSize: 8, fontFamily: "Helvetica", color: "#0F2340" },
+  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0F2340", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
   tr: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingVertical: 3 },
   cell: { flex: 1, paddingRight: 4 },
 });

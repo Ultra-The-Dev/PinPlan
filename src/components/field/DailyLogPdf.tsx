@@ -52,7 +52,7 @@ const IMG_H = 190;
 export function DailyLogDocument({ d }: { d: DailyLogPdfData }) {
   const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
-    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
+    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#0F2340" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },
     head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },
@@ -123,7 +123,7 @@ export function DailyLogDocument({ d }: { d: DailyLogPdfData }) {
                 <Text style={{ width: 60, textAlign: "right" }}>{r.crew || ""}</Text>
                 <Text style={{ width: 80, textAlign: "right" }}>{r.manHours ? num(r.manHours) : ""}</Text>
                 <Text style={{ width: 80, textAlign: "right" }}>{r.delayHours ? num(r.delayHours) : ""}</Text>
-                <Text style={{ width: 70, textAlign: "right", color: r.incident ? "#b91c1c" : "#111827" }}>{r.incident ? "Yes" : ""}</Text>
+                <Text style={{ width: 70, textAlign: "right", color: r.incident ? "#b91c1c" : "#0F2340" }}>{r.incident ? "Yes" : ""}</Text>
               </View>
             ))}
             <View style={[s.tr, { borderBottomWidth: 0 }]}>

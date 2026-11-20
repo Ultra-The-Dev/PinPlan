@@ -38,7 +38,7 @@ const MUTED = "#64748b";
 export function PhotoReportDocument({ d }: { d: PhotoReportData }) {
   const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
-    page: { paddingTop: 0, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9, fontFamily: "Helvetica", color: "#111827" },
+    page: { paddingTop: 0, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9, fontFamily: "Helvetica", color: "#0F2340" },
     bar: { height: 6, backgroundColor: brand, marginHorizontal: -36, marginBottom: 22 },
     head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },

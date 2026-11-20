@@ -40,7 +40,7 @@ export function FormDocument({ d }: { d: FormPdfData }) {
   const f = d.form;
   const calcs = computeCalcs(f.template, f.values);
   const s = StyleSheet.create({
-    page: { paddingTop: 28, paddingBottom: 46, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
+    page: { paddingTop: 28, paddingBottom: 46, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#0F2340" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },
     head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },

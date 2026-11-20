@@ -3,13 +3,14 @@
 import { memberInitials } from "@/lib/teamLogic";
 import { dayNum } from "@/lib/schedule";
 
-export const DEFAULT_BAR = "#c2410c";
+/** Bars without a colour of their own: action blue (Blueprint Ink, docs/brand.md). */
+export const DEFAULT_BAR = "#0B6FE0";
 
 /** Phase colours offered in the editor. */
-export const SWATCHES = ["#2563eb", "#d97706", "#7c3aed", "#0d9488", "#16a34a", "#e11d48", "#c2410c", "#57524c"];
+export const SWATCHES = ["#0B6FE0", "#d97706", "#7c3aed", "#0B7F72", "#16a34a", "#e11d48", "#0F2340", "#526580"];
 
 /** A stable colour per job (crew board chips). */
-const JOB_COLORS = ["#2563eb", "#7c3aed", "#0d9488", "#d97706", "#db2777", "#16a34a", "#0891b2", "#9333ea", "#65a30d", "#c2410c"];
+const JOB_COLORS = ["#0B6FE0", "#7c3aed", "#0B7F72", "#d97706", "#db2777", "#16a34a", "#0891b2", "#9333ea", "#65a30d", "#0F2340"];
 export function jobColor(id: string): string {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;

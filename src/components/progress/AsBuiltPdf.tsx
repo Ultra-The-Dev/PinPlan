@@ -29,7 +29,7 @@ export interface AsBuiltProps {
 }
 
 const s = StyleSheet.create({
-  cover: { padding: 36, fontSize: 10, fontFamily: "Helvetica", color: "#0f172a" },
+  cover: { padding: 36, fontSize: 10, fontFamily: "Helvetica", color: "#0F2340" },
   kicker: { fontSize: 9, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 },
   h1: { fontSize: 24, fontFamily: "Helvetica-Bold", marginTop: 4 },
   h2: { fontSize: 10, fontFamily: "Helvetica-Bold", marginTop: 18, marginBottom: 6, textTransform: "uppercase", color: "#475569" },
@@ -41,11 +41,11 @@ const s = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, marginRight: 4 },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 6 },
   legendItem: { flexDirection: "row", alignItems: "center" },
-  sheetPage: { padding: 18, fontSize: 8, fontFamily: "Helvetica", color: "#0f172a", flexDirection: "row" },
+  sheetPage: { padding: 18, fontSize: 8, fontFamily: "Helvetica", color: "#0F2340", flexDirection: "row" },
   planWrap: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 0.5, borderColor: "#cbd5e1" },
   side: { width: 170, marginLeft: 10 },
-  tablePage: { padding: 24, fontSize: 8, fontFamily: "Helvetica", color: "#0f172a" },
-  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0f172a", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
+  tablePage: { padding: 24, fontSize: 8, fontFamily: "Helvetica", color: "#0F2340" },
+  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0F2340", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
   tr: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingVertical: 3 },
 });
 
