@@ -21,17 +21,18 @@ enum ProjectTab: String, CaseIterable, Identifiable {
     enum Page { case managePlans, wiring, photos }
 
     /// Where a tab id leads. Takes this enum's ids plus the older and web ids (JobSummary's next steps use the web
-    /// ids: plan, sheets, photos, field, takeoff, estimate, crew, info).
+    /// ids: plan, sheets, photos, field, takeoff, estimate, crew, info). The mapping is PinPlanCore's ProjectTabRoute
+    /// (unit tested); this only converts its section and page.
     static func resolve(_ id: String) -> (tab: ProjectTab, page: Page?)? {
-        if let t = ProjectTab(rawValue: id) { return (t, nil) }
-        switch id {
-        case "info", "job": return (.overview, nil)
-        case "sheets": return (.plan, .managePlans)
-        case "crew", "wiring": return (.takeoff, .wiring)
-        case "estimate", "billing", "pricing": return (.money, nil)
-        case "photos": return (.field, .photos)
-        default: return nil
+        guard let r = ProjectTabRoute.resolve(id), let tab = ProjectTab(rawValue: r.section.rawValue) else { return nil }
+        let page: Page?
+        switch r.page {
+        case .managePlans?: page = .managePlans
+        case .wiring?: page = .wiring
+        case .photos?: page = .photos
+        case nil: page = nil
         }
+        return (tab, page)
     }
 }
 
@@ -198,18 +199,10 @@ struct JobFieldView: View {
     let model: EditorModel
     @Binding var photos: Bool
 
+    /// One section control: given the binding, FieldView lists Photos among its own sections.
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("Field", selection: $photos) {
-                Text("Checklists & logs").tag(false)
-                Text("Photos").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal).padding(.top, 8)
-            .frame(maxWidth: 520)
-            if photos { PhotosView(model: model) } else { FieldView(model: model) }
-        }
-        .background(Color.paper)
+        FieldView(model: model, photos: $photos)
+            .background(Color.paper)
     }
 }
 
