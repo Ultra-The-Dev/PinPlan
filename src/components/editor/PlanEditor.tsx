@@ -41,6 +41,7 @@ import { resetPlanUi } from "./overlays/planInputs";
 import { AI_ENABLED } from "@/lib/features";
 import { openSensors, useFindSimilar } from "../findSimilar/findSimilarStore";
 import { sheetOpenings } from "@/lib/alarmSensors";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -676,7 +677,7 @@ export default function PlanEditor() {
             <div className="pointer-events-auto flex flex-col items-start gap-2">
               {minimap && <Minimap viewport={vp} imageId={sheet.imageId} onClose={() => viewer.setMinimap(false)} max={phone ? 120 : 168} />}
               {editing && !wide && !paletteOpen && (
-                <button className="btn btn-brand h-11 px-4 text-sm shadow-pop" onClick={() => setPaletteOpen(true)} data-plan-ui>
+                <button className="btn btn-brand h-11 px-4 text-sm shadow-pop" onClick={() => setPaletteOpen(true)} data-plan-ui {...tourAnchor("plan-devices-button")}>
                   <Plus />
                   {t("Devices")}
                 </button>

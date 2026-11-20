@@ -67,7 +67,7 @@ export default function JobHealth() {
         <h2 className="font-semibold">{t("Job health")}</h2>
       </div>
       <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${prices ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
-        <Stat icon={MapPin} label={t("Devices")} value={String(s.devices)} sub={[s.tentative ? t("{n} tentative", { n: s.tentative }) : "", s.ledRuns ? t.tn("{n} LED run", "{n} LED runs", s.ledRuns) : ""].filter(Boolean).join(" · ") || t.tn("{n} plan", "{n} plans", s.sheets)} />
+        <Stat icon={MapPin} label={t("Devices")} value={String(s.devices)} sub={[s.tentative ? t("{n} optional", { n: s.tentative }) : "", s.ledRuns ? t.tn("{n} LED run", "{n} LED runs", s.ledRuns) : ""].filter(Boolean).join(" · ") || t.tn("{n} plan", "{n} plans", s.sheets)} />
         <Stat
           icon={ClipboardCheck}
           label={t("Checklists")}

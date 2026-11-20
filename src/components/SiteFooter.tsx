@@ -25,6 +25,7 @@ export const FOOTER_COLUMNS: { title: string; links: { href: string; label: stri
     links: [
       { href: "/login", label: msg("Sign in") },
       { href: "/join", label: msg("Join your team") },
+      { href: "/help", label: msg("Help & tutorials") },
       { href: "/support", label: msg("Support") },
     ],
   },

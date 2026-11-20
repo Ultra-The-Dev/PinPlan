@@ -96,7 +96,7 @@ export default function PlanToolbar(p: PlanToolbarProps) {
         </>
       )}
       {p.findSimilar && !p.compact && (
-        <B wide={p.wideLabels} on={p.findSimilar.open} title="Find similar: tap a door, window or any symbol to find the others like it" label="Find similar" onClick={p.findSimilar.onClick} testId="find-similar-button">
+        <B wide={p.wideLabels} on={p.findSimilar.open} title={t("Find similar: tap a door, window or any symbol to find the others like it")} label={t("Find similar")} onClick={p.findSimilar.onClick} testId="find-similar-button">
           <ScanSearch />
         </B>
       )}
@@ -140,7 +140,7 @@ export default function PlanToolbar(p: PlanToolbarProps) {
               {p.findSimilar && (
                 <MenuItem
                   icon={<ScanSearch />}
-                  label="Find similar (doors, windows…)"
+                  label={t("Find similar (doors, windows…)")}
                   on={p.findSimilar.open}
                   onClick={() => {
                     setMore(false);

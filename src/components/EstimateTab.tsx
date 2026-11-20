@@ -22,6 +22,7 @@ import JobProducts from "./JobProducts";
 import ProposalPanel from "./ProposalPanel";
 import AddChargeMenu from "./AddChargeMenu";
 import { fmtPct, roundPct } from "@/lib/percent";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 type DocType = "estimate" | "order" | "invoice";
 // Billdu's own document types; "estimate" is what Billdu calls a quote (the id stays, the words follow the glossary).
@@ -294,7 +295,7 @@ export default function EstimateTab() {
             </div>
           ) : null}
         </div>
-        <button className="btn btn-brand" onClick={() => setSendTick((n) => n + 1)} disabled={!estimate.lines.length}>
+        <button className="btn btn-brand" onClick={() => setSendTick((n) => n + 1)} disabled={!estimate.lines.length} {...tourAnchor("pricing-send")}>
           <Send /> {t("Send to client")}
         </button>
         <Menu

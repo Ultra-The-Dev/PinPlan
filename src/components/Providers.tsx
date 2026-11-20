@@ -1,9 +1,10 @@
 "use client";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { db, ensureSeeded } from "@/lib/db";
 import { markHydrated } from "@/lib/i18n";
 import { startLocaleSync } from "@/lib/i18n/account";
 import { startSync } from "@/lib/sync";
+import TourHost from "./tour/TourHost";
 import Toaster from "./ui/Toaster";
 import UpdatePrompt from "./UpdatePrompt";
 
@@ -52,6 +53,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       {children}
       <Toaster />
       <UpdatePrompt />
+      {/* Guided tours and one-time tips (docs/help-and-tours.md); reads the address, so behind Suspense. */}
+      <Suspense fallback={null}>
+        <TourHost />
+      </Suspense>
     </>
   );
 }

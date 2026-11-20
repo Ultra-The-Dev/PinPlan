@@ -7,11 +7,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Pages that must always work offline, even if the app folder scan misses them. */
-export const REQUIRED_ROUTES = ["/", "/jobs", "/project", "/offline", "/privacy", "/terms", "/support"];
+export const REQUIRED_ROUTES = ["/", "/jobs", "/project", "/offline", "/privacy", "/terms", "/support", "/help"];
+/** Dynamic routes whose prerendered pages are precached too (from .next/prerender-manifest.json): the Help guides. */
+export const PRERENDERED_PREFIXES = ["/help/"];
 /** Pages not worth caching on every device (platform admin only). */
 const SKIP_ROUTES = new Set(["/admin"]);
 /** Small files from public/ the app shell uses. Vendored libraries (public/vendor, ~10 MB of OpenCV) are cached on first use instead. */
-const PUBLIC_FILES = ["/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png"];
+const PUBLIC_FILES = ["/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/samples/sample-plan.pdf"];
 
 function walk(dir) {
   if (!existsSync(dir)) return [];
@@ -52,6 +54,28 @@ export function collectStatic(staticDir) {
     .sort();
 }
 
+/** Prerendered pages of dynamic routes under `prefixes` (e.g. /help/[guide] → /help/first-quote), from Next's manifest. */
+export function collectPrerendered(nextDir, prefixes = PRERENDERED_PREFIXES) {
+  const file = path.join(nextDir, "prerender-manifest.json");
+  if (!existsSync(file)) return [];
+  try {
+    const routes = Object.keys(JSON.parse(readFileSync(file, "utf8")).routes ?? {});
+    return routes.filter((r) => prefixes.some((p) => r.startsWith(p)) && !r.includes("[")).sort();
+  } catch {
+    return [];
+  }
+}
+
+/** The Help center's screenshots (public/help/, made by scripts/help-screens.mjs). */
+export function collectHelpImages(publicDir) {
+  const dir = path.join(publicDir, "help");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /\.(webp|png|jpe?g|svg)$/i.test(f))
+    .map((f) => "/help/" + f)
+    .sort();
+}
+
 /** The versioned PDF.js worker(s) in public/ (scripts/copy-pdf-worker.mjs puts pdf.worker.<version>.min.mjs there). */
 export function collectPdfWorker(publicDir) {
   if (!existsSync(publicDir)) return [];
@@ -75,11 +99,11 @@ export function buildServiceWorker(root) {
   const buildIdFile = path.join(nextDir, "BUILD_ID");
   if (!existsSync(buildIdFile)) throw new Error("No .next/BUILD_ID: run `next build` first");
   const build = readFileSync(buildIdFile, "utf8").trim();
-  const routes = collectRoutes(path.join(root, "src", "app"));
+  const routes = [...collectRoutes(path.join(root, "src", "app")), ...collectPrerendered(nextDir)];
   const files = collectStatic(path.join(nextDir, "static"));
   const publicDir = path.join(root, "public");
   const shell = PUBLIC_FILES.filter((u) => u === "/manifest.webmanifest" || existsSync(path.join(publicDir, u.slice(1))));
-  const precache = [...routes, ...shell, ...collectPdfWorker(publicDir), ...files];
+  const precache = [...routes, ...shell, ...collectPdfWorker(publicDir), ...collectHelpImages(publicDir), ...files];
   const template = readFileSync(path.join(root, "scripts", "sw.template.js"), "utf8");
   return { build, routes, files, precache, source: renderSw(template, { build, precache }) };
 }

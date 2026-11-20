@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { describe, expect, it, vi } from "vitest";
-import { buildServiceWorker, collectPdfWorker, collectRoutes, collectStatic, renderSw, REQUIRED_ROUTES } from "../scripts/build-sw.mjs";
+import { buildServiceWorker, collectHelpImages, collectPdfWorker, collectPrerendered, collectRoutes, collectStatic, renderSw, REQUIRED_ROUTES } from "../scripts/build-sw.mjs";
 import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunkError";
 import { contentSecurityPolicy } from "@/lib/securityHeaders";
 import { mapTiles, OSM_TILE_URL, weatherOrigin, weatherUrl } from "@/lib/endpoints";
@@ -68,6 +68,22 @@ describe("service worker build", () => {
     expect(new Set(sw.precache).size).toBe(sw.precache.length);
     // The generated file is valid JavaScript.
     expect(() => new vm.Script(sw.source)).not.toThrow();
+  });
+
+  it("precaches the Help center: /help, every prerendered guide and its screenshots", () => {
+    const dir = fixture();
+    touch(path.join(dir, ".next/prerender-manifest.json"), JSON.stringify({ routes: { "/help": {}, "/help/crew": {}, "/help/first-quote": {}, "/pricing": {}, "/p/abc": {} } }));
+    touch(path.join(dir, "public/help/plan-edit.webp"));
+    touch(path.join(dir, "public/help/notes.txt"));
+    expect(collectPrerendered(path.join(dir, ".next"))).toEqual(["/help/crew", "/help/first-quote"]);
+    expect(collectHelpImages(path.join(dir, "public"))).toEqual(["/help/plan-edit.webp"]);
+    const sw = buildServiceWorker(dir);
+    expect(sw.precache).toEqual(expect.arrayContaining(["/help", "/help/crew", "/help/first-quote", "/help/plan-edit.webp"]));
+    expect(sw.precache).not.toContain("/p/abc");
+    // No manifest (or a broken one): nothing extra, no crash.
+    expect(collectPrerendered(path.join(fixture(), ".next"))).toEqual([]);
+    touch(path.join(dir, ".next/prerender-manifest.json"), "{");
+    expect(collectPrerendered(path.join(dir, ".next"))).toEqual([]);
   });
 
   it("refuses a template without placeholders", () => {

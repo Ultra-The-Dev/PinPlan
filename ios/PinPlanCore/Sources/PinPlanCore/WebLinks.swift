@@ -34,6 +34,19 @@ public enum WebLinks {
     /// Field › Schedule.
     public static func schedule(job id: String) -> String { job(id, tab: .field, [("section", "schedule")]) }
 
+    /// The Help center: short guides and tours (`/help`, public, works offline on the web; docs/help-and-tours.md).
+    public static let help = "help"
+    /// One guide: `help/<id>` (ids are `GUIDES` in src/lib/help/guides.ts, e.g. "crew", "offline-sync").
+    public static func helpGuide(_ id: String) -> String { help + "/" + encode(id) }
+    /// Help on the public site, for a copy of the app that isn't connected to a server.
+    public static let publicHelpURL = "https://northpin.app/help"
+    /// Where "Help & tutorials" goes: Help on the app's own server, else the public site's.
+    public static func helpURL(origin: String, guide: String? = nil) -> String {
+        if let s = BillingLogic.webURL(origin: origin, path: guide.map { helpGuide($0) } ?? help) { return s }
+        guard let guide else { return publicHelpURL }
+        return publicHelpURL + "/" + encode(guide)
+    }
+
     private static let allowed: CharacterSet = {
         var s = CharacterSet.alphanumerics
         s.insert(charactersIn: "-._~")

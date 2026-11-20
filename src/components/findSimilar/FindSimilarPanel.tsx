@@ -5,7 +5,7 @@
 import { Check, ChevronLeft, ChevronRight, FileText, Loader2, ScanSearch, ShieldCheck, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { openingKind, sheetOpenings } from "@/lib/alarmSensors";
-import { useT } from "@/lib/i18n";
+import { msg, useT } from "@/lib/i18n";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
@@ -15,8 +15,8 @@ import AlarmSensorsSection from "./AlarmSensorsSection";
 import { acceptFinds, openSensors, rememberedType, runTags, shownFinds, toggleFind, useFindSimilar, type FindMode } from "./findSimilarStore";
 
 const MODES: { id: FindMode; label: string }[] = [
-  { id: "match", label: "Match a symbol" },
-  { id: "tags", label: "Read tags" },
+  { id: "match", label: msg("Match a symbol") },
+  { id: "tags", label: msg("Read tags") },
 ];
 
 export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
@@ -73,8 +73,8 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex items-center gap-2">
         <ScanSearch className="h-4 w-4 shrink-0 text-brand-600" />
-        <h2 className="flex-1 font-semibold text-slate-900">Find similar</h2>
-        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => st.setOpen(false)} aria-label="Close Find similar" title="Close (suggestions stay until you clear them)">
+        <h2 className="flex-1 font-semibold text-slate-900">{t("Find similar")}</h2>
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => st.setOpen(false)} aria-label={t("Close Find similar")} title={t("Close (suggestions stay until you clear them)")}>
           <X />
         </button>
       </div>
@@ -85,7 +85,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
       <>
       <div className="flex items-center gap-2">
         <label htmlFor={typeSel} className="shrink-0 text-xs font-medium text-slate-500">
-          Count as
+          {t("Count as")}
         </label>
         <select
           id={typeSel}
@@ -105,7 +105,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
         </select>
       </div>
 
-      <div className="seg flex" role="radiogroup" aria-label="How to find">
+      <div className="seg flex" role="radiogroup" aria-label={t("How to find")}>
         {MODES.map((m) => (
           <button
             key={m.id}
@@ -118,7 +118,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
               st.clear();
             }}
           >
-            {m.label}
+            {t(m.label)}
           </button>
         ))}
       </div>
@@ -133,12 +133,12 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
         >
           <div className="min-w-0 flex-1">
             <label htmlFor={pre} className="text-xs font-medium text-slate-500">
-              Tags start with
+              {t("Tags start with")}
             </label>
             <input id={pre} className="input h-9 w-full text-sm" value={st.prefixes} onChange={(e) => st.set({ prefixes: e.target.value })} placeholder="D, DR" autoComplete="off" data-testid="find-prefixes" />
           </div>
           <button type="submit" className="btn btn-sm btn-brand h-9" data-testid="find-read-tags">
-            Read tags
+            {t("Read tags")}
           </button>
         </form>
       )}
@@ -151,7 +151,9 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
 
       {!st.busy && st.mode === "match" && st.picking && (
         <p className="text-slate-600" data-testid="find-hint">
-          Tap one {type ? type.name.toLowerCase() : "symbol"} on the plan, or drag a box around it{phone ? " (two fingers move the plan)" : ""}. Matches turned or mirrored count too.
+          {phone
+            ? t("Tap one {name} on the plan, or drag a box around it (two fingers move the plan). Matches turned or mirrored count too.", { name: type ? type.name.toLowerCase() : t("symbol") })
+            : t("Tap one {name} on the plan, or drag a box around it. Matches turned or mirrored count too.", { name: type ? type.name.toLowerCase() : t("symbol") })}
         </p>
       )}
 
@@ -165,7 +167,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
         <>
           <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => e.target.files?.[0] && void runTags(sheet, e.target.files[0])} />
           <button className="btn btn-sm self-start" onClick={() => fileRef.current?.click()}>
-            <FileText /> Choose the PDF
+            <FileText /> {t("Choose the PDF")}
           </button>
         </>
       )}
@@ -173,34 +175,34 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
       {!st.busy && st.sheetId === sheet.id && st.found.length > 0 && !reviewing && (
         <div className="flex flex-col gap-2" data-testid="find-results">
           <p className="font-semibold text-slate-900" role="status">
-            Found {shown.length}
-            {kept !== shown.length && <span className="font-normal text-slate-500"> · {shown.length - kept} rejected</span>}
+            {t("Found {n}", { n: shown.length })}
+            {kept !== shown.length && <span className="font-normal text-slate-500"> · {t("{n} rejected", { n: shown.length - kept })}</span>}
             <span className="block text-xs font-normal text-slate-500">
               {shown.length
-                ? "Suggestions don’t count until you accept them. Tap one on the plan to reject it."
+                ? t("Suggestions don’t count until you accept them. Tap one on the plan to reject it.")
                 : st.source === "match"
-                  ? "Nothing new at this sensitivity: move the slider, or every match already has a device of this type on it."
-                  : `Every tag already has a ${type?.name.toLowerCase() ?? "device"} next to it.`}
+                  ? t("Nothing new at this sensitivity: move the slider, or every match already has a device of this type on it.")
+                  : t("Every tag already has a {name} next to it.", { name: type?.name.toLowerCase() ?? t("device") })}
             </span>
           </p>
           {st.source === "match" && (
             <div className="flex items-center gap-2">
               <label htmlFor={sens} className="shrink-0 text-xs font-medium text-slate-500">
-                Fewer
+                {t("Fewer matches")}
               </label>
-              <input id={sens} type="range" min={0} max={100} step={1} value={st.sensitivity} onChange={(e) => st.set({ sensitivity: Number(e.target.value) })} className="min-w-0 flex-1 accent-brand-600" aria-label="Sensitivity" data-testid="find-sensitivity" />
-              <span className="shrink-0 text-xs font-medium text-slate-500">More</span>
+              <input id={sens} type="range" min={0} max={100} step={1} value={st.sensitivity} onChange={(e) => st.set({ sensitivity: Number(e.target.value) })} className="min-w-0 flex-1 accent-brand-600" aria-label={t("Sensitivity")} data-testid="find-sensitivity" />
+              <span className="shrink-0 text-xs font-medium text-slate-500">{t("More matches")}</span>
             </div>
           )}
           <div className="flex flex-wrap gap-1.5">
             <button className="btn btn-sm btn-brand" disabled={!kept} onClick={() => void acceptFinds(sheet)} data-testid="find-accept-all">
-              <Check /> Accept all{kept ? ` ${kept}` : ""}
+              <Check /> {kept ? t("Accept all {n}", { n: kept }) : t("Accept all")}
             </button>
             <button className="btn btn-sm" disabled={!shown.length} onClick={() => goTo(0)} data-testid="find-review">
-              Review one by one
+              {t("Review one by one")}
             </button>
-            <button className="btn btn-sm btn-ghost" onClick={() => st.clear()} title="Remove these suggestions and pick again" data-testid="find-clear">
-              Clear
+            <button className="btn btn-sm btn-ghost" onClick={() => st.clear()} title={t("Remove these suggestions and pick again")} data-testid="find-clear">
+              {t("Clear")}
             </button>
           </div>
         </div>
@@ -209,12 +211,12 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
       {reviewing && st.review != null && (
         <div className="flex flex-col gap-2" data-testid="find-review-bar">
           <p className="font-semibold text-slate-900" role="status">
-            {st.review + 1} of {shown.length}
+            {t("{n} of {total}", { n: st.review + 1, total: shown.length })}
             {shown[st.review].tag ? ` · ${shown[st.review].tag}` : ""}
-            {shown[st.review].rejected && <span className="font-normal text-slate-500"> · rejected</span>}
+            {shown[st.review].rejected && <span className="font-normal text-slate-500"> · {t("rejected")}</span>}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            <button className="btn btn-sm btn-icon" onClick={() => goTo(st.review! - 1)} disabled={st.review === 0} aria-label="Previous">
+            <button className="btn btn-sm btn-icon" onClick={() => goTo(st.review! - 1)} disabled={st.review === 0} aria-label={t("Previous")}>
               <ChevronLeft />
             </button>
             <button
@@ -224,7 +226,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
                 goTo(st.review! + 1);
               }}
             >
-              <Check /> Keep
+              <Check /> {t("Keep")}
             </button>
             <button
               className="btn btn-sm"
@@ -233,13 +235,13 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
                 goTo(st.review! + 1);
               }}
             >
-              <X /> Reject
+              <X /> {t("Reject")}
             </button>
-            <button className="btn btn-sm btn-icon" onClick={() => goTo(st.review! + 1)} aria-label="Next">
+            <button className="btn btn-sm btn-icon" onClick={() => goTo(st.review! + 1)} aria-label={t("Next")}>
               <ChevronRight />
             </button>
             <button className="btn btn-sm btn-ghost" onClick={() => st.set({ review: null })}>
-              Done
+              {t("Done")}
             </button>
           </div>
         </div>
@@ -247,7 +249,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
 
       {summary.length > 0 && (
         <p className="border-t border-slate-100 pt-2 text-xs text-slate-600" data-testid="find-summary">
-          <span className="font-medium text-slate-500">On this floor: </span>
+          <span className="font-medium text-slate-500">{t("On this floor:")} </span>
           {summary.map((s, i) => (
             <span key={s.id}>
               {i > 0 && " · "}

@@ -2,6 +2,7 @@
 // A key may appear in more than one area only with the same translation (tests/i18n.test.ts checks).
 import type { Dictionary } from "../types";
 import field from "./field";
+import help from "./help";
 import jobViews from "./job-views";
 import libStrings from "./lib-strings";
 import moneyOffice from "./money-office";
@@ -18,6 +19,7 @@ export const UK_AREAS: Record<string, Dictionary> = {
   "money-office": moneyOffice,
   "job-views": jobViews,
   "lib-strings": libStrings,
+  help,
 };
 
 const uk: Dictionary = Object.assign({}, ...Object.values(UK_AREAS));

@@ -58,4 +58,7 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   `t.tn("{n} device", "{n} devices", n)`, `<T>…</T>` in server components, `msg()` for text in data. Russian lives in
   `src/lib/i18n/ru/<area>.ts`; `npm run check:i18n`. Client-facing documents (quotes, invoices, PDFs, client links,
   client emails) stay in English.
+- **Help, tours, tips** (`docs/help-and-tours.md`): guides in `src/lib/help/guides.ts` (`/help`, screenshots from
+  `scripts/help-screens.mjs`); tours point at `data-tour` anchors registered in `src/lib/tour/anchors.ts` (a missing
+  anchor never blocks); text in `src/lib/i18n/<lang>/help.ts`. Never on client pages.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

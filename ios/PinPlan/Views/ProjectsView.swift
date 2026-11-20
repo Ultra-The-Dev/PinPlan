@@ -20,6 +20,12 @@ struct ProjectsView: View {
     @State private var path: [String] = []
     @State private var message: String?
     @State private var toDelete: ProjectBundle?
+    /// Help & tutorials in a Safari view (HelpViews.swift).
+    @State private var helpPage: InAppPage?
+
+    private func openHelp() {
+        if let url = app.settings.helpURL() { helpPage = InAppPage(url: url) }
+    }
 
     /// Screenshot / automation flags. Debug builds only: a release build ignores launch arguments.
     private static func launchFlag(_ name: String) -> Bool {
@@ -58,6 +64,8 @@ struct ProjectsView: View {
             ScrollView {
                 // Trial ending, needs attention or read-only (company teams only; nothing otherwise).
                 BillingBannerView(outer: EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
+                // Once per install: where Help & tutorials lives.
+                HelpTipBanner(onOpen: openHelp).padding(.horizontal, 16).padding(.top, 8)
                 if app.projects.isEmpty {
                     EmptyProjects(office: office, onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
@@ -133,6 +141,8 @@ struct ProjectsView: View {
                     Menu {
                         if office { Button { showRestore = true } label: { Label("Restore backup…", systemImage: "square.and.arrow.down") } }
                         Button(action: openDemo) { Label("Create demo job", systemImage: "wand.and.stars") }
+                        Divider()
+                        Button(action: openHelp) { Label("Help & tutorials", systemImage: "questionmark.circle") }
                     } label: { Label("More", systemImage: "ellipsis.circle") }
                     if office {
                         Button { showNew = true } label: { Label("New job", systemImage: "plus") }.buttonStyle(.borderedProminent)
@@ -152,6 +162,7 @@ struct ProjectsView: View {
             .sheet(isPresented: $showTasks) { TasksView { id in path = [id] } }
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .sheet(isPresented: $showTeam) { TeamSheet() }
+            .sheet(item: $helpPage) { p in SafariView(url: p.url).ignoresSafeArea() }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 // Nothing is written until the user confirms what the backup brings in (PinPlanApp: RestoreConfirmSheet).
                 do { try app.prepareRestore(from: result.get()) } catch { message = tr(error.localizedDescription) }
