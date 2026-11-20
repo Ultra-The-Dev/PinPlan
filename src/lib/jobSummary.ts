@@ -153,15 +153,15 @@ export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposal
 
   if (project.status === "estimate") {
     const p = s.proposal;
-    if (p?.status === "accepted") return step("markApproved", "Client accepted — mark the job approved", "estimate");
-    if (p?.status === "declined") return step("reviseProposal", "Proposal declined — revise and resend", "estimate");
-    if (p) return step("awaitClient", p.status === "viewed" ? "Client viewed the proposal — follow up" : "Waiting on the client’s answer", "estimate");
+    if (p?.status === "accepted") return step("markApproved", "Client approved the quote — mark the job approved", "estimate");
+    if (p?.status === "declined") return step("reviseProposal", "Quote declined — revise and resend", "estimate");
+    if (p) return step("awaitClient", p.status === "viewed" ? "Client viewed the quote — follow up" : "Waiting on the client’s answer", "estimate");
     // Not priced yet and the client hasn't seen the layout: a plan review needs no prices.
     if (proposalsKnown && unpriced && !s.review && !billed) return step("sendReview", "Send plan for review", "takeoff");
     if (unpriced)
-      return step("priceEstimate", s.estimate!.unpriced ? `Price the estimate (${plural(s.estimate!.unpriced, "line")} without a price)` : "Price the estimate", "estimate");
-    if (billed) return step("awaitClient", "Estimate sent — mark the job approved when the client signs", "estimate");
-    return step("sendProposal", "Send the proposal", "estimate");
+      return step("priceEstimate", s.estimate!.unpriced ? `Finish pricing (${plural(s.estimate!.unpriced, "line")} without a price)` : "Finish pricing", "estimate");
+    if (billed) return step("awaitClient", "Quote sent — mark the job approved when the client signs", "estimate");
+    return step("sendProposal", "Send the quote to the client", "estimate");
   }
 
   if (project.status === "approved") {

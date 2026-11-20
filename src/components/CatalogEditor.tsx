@@ -124,7 +124,7 @@ export default function CatalogEditor() {
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Device catalog</h1>
+          <h1 className="page-title">Price list</h1>
           <p className="mt-1 text-sm text-slate-500">Symbols and prices used on the plan, the takeoff and the estimate. Prices are per unit — each, or per linear foot for LED.</p>
         </div>
         <div className="relative w-56">

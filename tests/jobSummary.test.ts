@@ -88,12 +88,12 @@ describe("next step", () => {
 
   it("estimate jobs: price, review, proposal, waiting", () => {
     const unpriced = { total: 0, unpriced: 3 };
-    expect(jobSummary(base({ estimate: unpriced })).next).toMatchObject({ kind: "priceEstimate", text: "Price the estimate (3 lines without a price)" });
+    expect(jobSummary(base({ estimate: unpriced })).next).toMatchObject({ kind: "priceEstimate", text: "Finish pricing (3 lines without a price)" });
     expect(jobSummary(base({ estimate: unpriced, proposals: [] })).next).toMatchObject({ kind: "sendReview", text: "Send plan for review", tab: "takeoff" });
     expect(jobSummary(base({ estimate: unpriced, proposals: [{ kind: "review", status: "sent", createdAt: ts }] })).next.kind).toBe("priceEstimate");
     expect(jobSummary(base({ estimate: { total: 1200, unpriced: 0 } })).next).toMatchObject({ kind: "sendProposal", tab: "estimate" });
     expect(jobSummary(base({ estimate: { total: 1200, unpriced: 0 }, proposals: [] })).next.kind).toBe("sendProposal");
-    expect(jobSummary(base({ estimate: { total: 1200, unpriced: 0 }, proposals: [{ kind: "proposal", status: "viewed", createdAt: ts }] })).next).toMatchObject({ kind: "awaitClient", text: "Client viewed the proposal — follow up" });
+    expect(jobSummary(base({ estimate: { total: 1200, unpriced: 0 }, proposals: [{ kind: "proposal", status: "viewed", createdAt: ts }] })).next).toMatchObject({ kind: "awaitClient", text: "Client viewed the quote — follow up" });
     expect(jobSummary(base({ proposals: [{ kind: "proposal", status: "accepted", createdAt: ts }] })).next.kind).toBe("markApproved");
     const billed = project({ billduDocs: [{ id: 1, type: "estimate", amount: 1200, createdAt: ts }] });
     expect(jobSummary(base({ project: billed, estimate: { total: 1200, unpriced: 0 } })).next.kind).toBe("awaitClient");

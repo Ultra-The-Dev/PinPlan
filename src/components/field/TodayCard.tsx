@@ -161,7 +161,7 @@ export default function TodayCard({ projectId, onOpen }: { projectId?: string | 
             <ListTodo className="h-3.5 w-3.5" /> My tasks due {due.length + legacyDue.length ? `· ${due.length + legacyDue.length}` : ""}
           </h3>
           {nothingDue ? (
-            <p className="text-sm text-slate-500">Nothing overdue or due today{names.length ? ` for ${me}` : ""}.</p>
+            <p className="text-sm text-slate-500">Nothing overdue or due today{names.length && me !== "Me" ? ` for ${me}` : ""}.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {due.map((t) => (

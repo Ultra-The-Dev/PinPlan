@@ -3,7 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import RoleGate from "@/components/RoleGate";
 import InvoicesPage from "@/components/documents/InvoicesPage";
 
-export const metadata: Metadata = { title: "Invoices" };
+export const metadata: Metadata = { title: "Money" };
 
 export default function Invoices() {
   return (

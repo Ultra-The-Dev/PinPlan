@@ -116,7 +116,7 @@ function TakeoffCounts() {
         <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="mr-auto">
             <h2 className="page-title">Takeoff</h2>
-            <p className="mt-1 text-sm text-slate-500">Counted only from placed markers and runs. <span className="chip bg-amber-50 text-amber-700">n?</span> = tentative, listed separately.</p>
+            <p className="mt-1 text-sm text-slate-500">Counts come from the devices and wire you&apos;ve drawn. <span className="chip bg-amber-50 text-amber-700">n?</span> = optional, listed separately.</p>
           </div>
           <button className="btn" onClick={() => downloadText(takeoffCsv(takeoff, catalog), `${slug(project.address)}-takeoff.csv`)}>
             <Download /> CSV
@@ -143,7 +143,7 @@ function TakeoffCounts() {
           <SummaryCard icon={Speaker} label="Speakers" value={takeoff.total.counts["speaker"] ?? 0} sub={takeoff.total.tentative["speaker"] ? `${takeoff.total.tentative["speaker"]} tentative` : undefined} color="text-violet-600 bg-violet-50" />
           <SummaryCard icon={Tv} label="TVs" value={takeoff.total.counts["tv"] ?? 0} color="text-cyan-600 bg-cyan-50" />
           <SummaryCard icon={Lightbulb} label="LED" value={`${takeoff.total.ledTotalFt}`} unit="LF" sub={`${takeoff.total.ledZones} zones`} color="text-amber-600 bg-amber-50" />
-          <SummaryCard icon={Cable} label="Cable" value={`${Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0))}`} unit="ft" sub={`${Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0)} home runs`} color="text-slate-600 bg-slate-100" />
+          <SummaryCard icon={Cable} label="Cable" value={`${Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0))}`} unit="ft" sub={`${Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0)} wire runs`} color="text-slate-600 bg-slate-100" />
         </div>
         ) : primaryTrade(trades).id === "electrical" ? (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -152,7 +152,7 @@ function TakeoffCounts() {
           <SummaryCard icon={Lightbulb} label="Fixtures" value={catCount("lighting")} sub={takeoff.total.ledTotalFt ? `+ ${takeoff.total.ledTotalFt} LF linear` : undefined} color="text-amber-600 bg-amber-50" />
           <SummaryCard icon={Flame} label="Life safety" value={catCount("fire")} color="text-rose-600 bg-rose-50" />
           <SummaryCard icon={Zap} label="Circuits" value={circuitCount} sub={((n) => `${n} panel${n === 1 ? "" : "s"}`)(closets.filter((c) => c.kind === "panel" || c.kind === "subpanel").length)} color="text-slate-700 bg-slate-100" />
-          <SummaryCard icon={Cable} label="Wire" value={`${wireFt}`} unit="ft" sub={`${wireRunCount} home runs`} color="text-slate-600 bg-slate-100" />
+          <SummaryCard icon={Cable} label="Wire" value={`${wireFt}`} unit="ft" sub={`${wireRunCount} wire runs`} color="text-slate-600 bg-slate-100" />
         </div>
         ) : (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

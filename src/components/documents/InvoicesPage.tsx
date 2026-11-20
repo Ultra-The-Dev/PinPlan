@@ -143,7 +143,7 @@ export default function InvoicesPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Invoices</h1>
+          <h1 className="page-title">Money</h1>
           <p className="mt-1 text-sm text-slate-500">Every quote, invoice and credit note across your jobs.</p>
         </div>
         <button className="btn" onClick={() => downloadText(documentsCsv(rows, byProject, day), `pinplan-documents-${day}.csv`)}>
