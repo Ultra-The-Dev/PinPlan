@@ -32,6 +32,7 @@ updates:
       - dependency-name: pdfjs-dist
         update-types: ["version-update:semver-major"]
 
+  # Workflow actions, including the SHA-pinned third-party ones (the version comment after the SHA is kept updated).
   - package-ecosystem: github-actions
     directory: /
     schedule:

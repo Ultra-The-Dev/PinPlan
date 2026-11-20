@@ -128,23 +128,42 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
    Leave `enforce` false for now (step 12.1).
 7. **R: Authentication → URL Configuration.** Site URL = `https://<your-domain>`. Redirect URLs =
    `https://<your-domain>/**` (this covers `/login?confirmed=1`, `/reset`, `/join` and `/settings`, which the web and
-   iOS apps use). Remove `localhost`. Add preview addresses only if you test sign-in on previews.
+   iOS apps use). Remove `localhost`, every `*.vercel.app` and `*.workers.dev` address and any preview address: a
+   sign-in or reset link may only ever send someone back to your own domain. Test sign-in on a separate staging
+   Supabase project, never by adding a preview address here.
 8. **R: Authentication → Emails → SMTP Settings → custom SMTP through Resend** (after step 5.1): host
    `smtp.resend.com`, port `465`, username `resend`, password = a Resend API key, sender `noreply@mail.<your-domain>`,
-   sender name `PinPlan`. Then Authentication → Rate Limits: raise the email limit to 30–100 an hour.
+   sender name `PinPlan`. Then Authentication → Rate Limits: raise the email limit to 30–100 an hour, and keep the
+   other limits at or below the defaults: sign-ups and sign-ins per IP (about 30 per 5 minutes), token verifications
+   (about 30 per 5 minutes) and token refreshes (about 150 per 5 minutes). Don't raise them to fix a test: the app's
+   own limits (`20261124100400_rate_limits.sql`) sit behind these, not instead of them.
 9. **R: Authentication → Emails → Templates:** paste the six files from `supabase/templates/`: `confirm-signup`,
    `invite`, `magic-link`, `reset-password`, `change-email` and `reauthentication` (subjects are in SETUP.md).
 10. **R: Authentication hardening.**
     - Sign In / Providers → Email: **Confirm email ON**. The email limits rely on it: with it off, every address counts as
       confirmed.
     - Minimum password length **10** (the web and iOS apps ask for 10).
-    - Leaked-password protection on, anonymous sign-ins off.
-    - Multi-factor sign-in on your own dashboard account.
-11. **R: Storage.** Keep the `plans` bucket private with a file size limit of at least 25 MB. Set usage alerts.
+    - Leaked-password protection on, anonymous sign-ins off, and sign-ups only by email (no phone or other providers
+      you haven't set up).
+    - **Email:** Secure email change **on** (both the old and the new address must confirm). Secure password change
+      (asks for a recent sign-in) **on**. Email OTP / link expiry **3600 seconds** or less.
+    - **Sessions** (Authentication → Sessions, Pro): Detect and revoke compromised refresh tokens **on**, refresh token
+      reuse interval **10 seconds**, inactivity timeout **30 days** or less (a field tablet that hasn't been opened in
+      a month signs in again), and time-box sessions at **90 days** or less. Leave "single session per user" off:
+      technicians use a phone and a tablet. JWT expiry (Project Settings → JWT Keys) stays **3600 seconds** or less,
+      so a removed team member's access ends within the hour.
+    - **MFA** (Authentication → Multi-Factor): TOTP (authenticator app) **enabled**, so owners and admins can add it,
+      and multi-factor sign-in on your own Supabase dashboard account and every Supabase organization member.
+11. **R: Storage.** Keep the `plans` bucket private with a file size limit of at least 25 MB (and no more than
+    100 MB). Every other bucket: private unless a migration made it public on purpose (`proposals` is public for
+    client links and must not be listable signed out, step 4.4), with a file size limit (10 MB for photos and
+    logos) and allowed MIME types set to images and PDF. Storage → Settings: a global upload limit of 100 MB. Set
+    usage alerts.
 12. **R: Advisors → Security and Performance.** Fix every error and warning.
 13. **R: Restore drill** into a scratch project, following [backups.md](backups.md).
-14. **O: Cloudflare Turnstile in Supabase** (Authentication → Attack Protection → CAPTCHA, provider Turnstile). Only
-    after the iOS app sends captcha tokens, which it doesn't yet: turning it on earlier breaks sign-in and sign-up in the
+14. **O, then R once the iOS app sends captcha tokens: Cloudflare Turnstile in Supabase** (Authentication → Attack
+    Protection → CAPTCHA, provider Turnstile, the same widget's secret key). Only after an App Store build that sends
+    captcha tokens is released and most users have updated: turning it on earlier breaks sign-in and sign-up in the
     iPad and iPhone app. The web side is step 7.1.
 
 ## 5. Resend (free plan at launch: 3,000 emails a month, 100 a day; Pro about $20 a month when you outgrow it)
@@ -154,7 +173,10 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
    to `p=quarantine` after 2–4 weeks of clean reports.
 2. **R: API key** with **Sending access** limited to that domain. Use it for `RESEND_API_KEY` and as the Supabase SMTP
    password (or make a second key for SMTP so you can rotate them separately). Set usage alerts.
-3. **R: Check the sending limits suit you.** Per company per day: trial 20 client emails, 10 invites, 5 emails to one
+3. **R: Plan.** The free plan sends 100 emails a day across the whole service, including Supabase's sign-up,
+   reset and invite emails (step 4.8). Once a day's real total gets near 70, move to Pro before launch traffic, or
+   sign-ups stop getting their confirmation email. Turn on Resend's usage alerts and two-factor sign-in.
+4. **R: Check the sending limits suit you.** Per company per day: trial 20 client emails, 10 invites, 5 emails to one
    address; paid 300 / 50 / 25. They are `email_daily_cap` and `email_recipient_cap` in
    `20261124100500_email_guard.sql`; ask the developer for a migration to change them.
 
@@ -171,7 +193,9 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 4. **R: Settings → Billing → Customer portal:** allow updating the card, viewing invoices and cancelling at the end of
    the period. Turn **off** changing quantities and switching plans (seats are changed in PinPlan). Under
    Subscriptions and emails: Smart Retries on, and after all retries fail → cancel the subscription or mark it unpaid;
-   turn on the failed-payment, expiring-card and renewal emails.
+   turn on the failed-payment, expiring-card and renewal emails. Customer information: let customers change only the
+   billing address and tax ID, not the email (billing emails follow the company's `billing_email`). Default
+   redirect link: `https://<your-domain>/settings`.
 5. **R: Settings → Public details:** set the Terms of Service URL (`https://<your-domain>/terms`) and Privacy Policy URL
    (`https://<your-domain>/privacy`). Then set `STRIPE_TERMS_CONSENT=1` (step 7.1). Without the Terms URL, checkout
    with that setting fails.
@@ -184,6 +208,22 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 **Cloudflare Workers (recommended, $5 a month):** follow [cloudflare.md](cloudflare.md). It uses the same settings as
 the table below: `NEXT_PUBLIC_` values go in the Worker's build variables, everything else as Worker secrets, and the
 cron is already in `wrangler.jsonc`. Steps 7.2 and 7.3 apply as written; skip 7.4 (Vercel project settings).
+Also, for Cloudflare:
+
+- **R: GitHub environments** (repo Settings → Environments). `production`: deployment branches **Selected branches**
+  → the deploy branch only; put `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and every server secret the deploy
+  workflow copies in as **Environment secrets**, then delete the repository-level copies. `appstore`: deployment
+  branches and tags → `main` and tags `ios-v*`; the four Apple secrets as Environment secrets (step 10.4).
+  Optionally add yourself as a required reviewer on both.
+- **R: Deploy branch.** The deploy workflow still also runs on `claude/quirky-clarke-gjz5h1`. Once `main` is the
+  deploy branch, remove that branch from `.github/workflows/cloudflare-deploy.yml` (the line marked TODO) and from the
+  `production` environment's branch list.
+- **R: Cloudflare domains.** The Worker → Settings → Domains & Routes: your custom domain added; the `workers.dev`
+  route and Preview URLs **off** (`wrangler.jsonc` sets both, check the dashboard agrees). Then
+  `https://pinplan.<your-subdomain>.workers.dev` must answer **404** (or not resolve). Workers Builds, if you use
+  it: no builds for non-production branches (a staging Worker with its own Supabase project instead).
+- **R: Cloudflare API token** scoped to this account and **Workers Scripts: Edit** only (the "Edit Cloudflare
+  Workers" template), with an expiry date in your calendar; two-factor sign-in on the Cloudflare account.
 
 **Or Vercel (Pro $20 per member a month):** the steps below.
 
@@ -259,7 +299,9 @@ cron is already in `wrangler.jsonc`. Steps 7.2 and 7.3 apply as written; skip 7.
 1. **R: Multi-factor sign-in** on GitHub, Vercel, Supabase, Stripe, Resend, Cloudflare, the map and weather
    providers and Apple. Every key lives in a password manager.
 2. **R: GitHub → Settings.** Secret scanning, push protection and Dependabot alerts on. Branch protection on `main`:
-   require the web, database and Swift core checks, and block force-pushes.
+   require the web, database and Swift core checks, and block force-pushes. Actions → General: workflow permissions
+   **Read repository contents**, and "Allow GitHub Actions to create and approve pull requests" off. Fork pull request
+   workflows: require approval for all outside collaborators.
 
 ## 10. Apple (Developer Program $99 a year)
 
@@ -268,12 +310,16 @@ cron is already in `wrangler.jsonc`. Steps 7.2 and 7.3 apply as written; skip 7.
 2. **R: App Store Connect → Apps → New app** with that bundle id.
 3. **R: App Store Connect → Users and Access → Integrations → App Store Connect API:** a key with the App Manager role.
    Download the `.p8` file (only possible once).
-4. **R: GitHub → repo Settings → Secrets and variables → Actions.** Secrets `APPLE_TEAM_ID`, `ASC_KEY_ID`,
-   `ASC_ISSUER_ID`, `ASC_KEY_P8` (the whole `.p8` text). Variable `PINPLAN_SERVER_URL` = `https://<your-domain>`
+4. **R: GitHub → repo Settings → Environments → `appstore`** (the TestFlight workflow runs in it). Environment secrets
+   `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the whole `.p8` text); deployment branches and tags
+   limited to `main` and `ios-v*` tags. Variable `PINPLAN_SERVER_URL` = `https://<your-domain>`
    (built into the app; the TestFlight workflow stops without it). Check that `https://<your-domain>/api/config`
    returns the Supabase address and public key.
 5. **R: Release:** Actions → iOS TestFlight → Run workflow (or push a tag like `ios-v1.0.1`). **O:** a TestFlight round
    on a real iPad and iPhone before you submit.
+   **Order matters for migration `20261124300100_…`:** release the iOS build that goes with it (approved and live on
+   the App Store, not only in TestFlight) **before** running that migration on production. It tightens database
+   rules that older iOS builds still rely on, so running it first can break sync for people on an older build.
 6. **R: Listing.** Fill the `<…>` placeholders in [app-store.md](app-store.md) (no Billdu or AI claims). Enter the App
    Privacy answers exactly as written there. Age rating 4+, Support URL `https://<your-domain>/support`, Privacy
    Policy URL `https://<your-domain>/privacy`, screenshots for 6.9" iPhone and 13" iPad. Once live, set
@@ -285,6 +331,10 @@ cron is already in `wrangler.jsonc`. Steps 7.2 and 7.3 apply as written; skip 7.
 
 1. **R: End-to-end on the production domain.**
    - `https://<your-domain>/api/health` returns 200 with `"database": "ok"`.
+   - `https://pinplan.<your-subdomain>.workers.dev/` answers **404** (or doesn't resolve): production is only on your
+     domain.
+   - `https://<your-domain>/sw.js` comes with `Cache-Control: no-cache`, and `https://<your-domain>/icon.svg` with
+     `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'` and `X-Content-Type-Options: nosniff`.
    - Make one real purchase with your own card, add a user, cancel, refund, and check the company turns read-only.
    - Sign up on a laptop and confirm the email on a phone. Sign in with an emailed link. Reset a password.
    - Invite a technician by email and have them join on the web and on the iOS app.

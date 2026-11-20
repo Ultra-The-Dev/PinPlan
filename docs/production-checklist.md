@@ -8,8 +8,8 @@ in [app-store.md](app-store.md).
 This page covers running the service once it's live: checks for each release, monitoring, key rotation, incidents and
 customer data requests.
 
-> **Secrets:** API keys, service-role keys and webhook secrets go only into the Vercel / Supabase / Stripe / Resend
-> dashboards and a password manager. Never paste them into chat, issues, pull requests, email or Slack, and never
+> **Secrets:** API keys, service-role keys and webhook secrets go only into the Cloudflare / Vercel / Supabase /
+> Stripe / Resend dashboards, GitHub **Environment secrets** (`production`, `appstore`) and a password manager. Never paste them into chat, issues, pull requests, email or Slack, and never
 > commit them (the repo is public). If one leaks, rotate it (see [Rotating keys](#rotating-keys)).
 
 ## Each release
@@ -34,6 +34,12 @@ customer data requests.
       invoice by email, download a job backup, delete a test account.
 - [ ] Open the browser console on the main pages: no Content-Security-Policy errors.
 - [ ] iOS: run the TestFlight workflow and test the build before submitting (see [app-store.md](app-store.md)).
+- [ ] A migration that tightens what the database accepts from the apps (for example `20261124300100_…`): release the
+      matching iOS build on the App Store first, then run the migration.
+- [ ] Deploy settings unchanged: the Cloudflare token and server secrets are Environment secrets of the GitHub
+      `production` environment (not repository secrets), `https://pinplan.<your-subdomain>.workers.dev` answers 404,
+      and `https://<your-domain>/icon.svg` still has `Content-Security-Policy: default-src 'none'; style-src
+      'unsafe-inline'` (static files get their headers from `public/_headers`).
 
 ## Monitoring
 
@@ -56,7 +62,8 @@ customer data requests.
 ## Rotating keys
 
 Rotate on a schedule (for example yearly), whenever someone with access leaves, and immediately if a key may have
-leaked. Redeploy in Vercel after every change.
+leaked. Redeploy after every change. On Cloudflare, update the value in the GitHub `production` environment's
+Environment secrets (the deploy copies it into the Worker), not in the Worker directly.
 
 | Key | How |
 | --- | --- |
@@ -67,6 +74,7 @@ leaked. Redeploy in Vercel after every change.
 | `CRON_SECRET` | New random value in Vercel; Vercel Cron picks it up on the next deploy. |
 | `PINPLAN_ENCRYPTION_KEY` | Move the old value to `PINPLAN_ENCRYPTION_KEY_PREVIOUS`, set a new `PINPLAN_ENCRYPTION_KEY`, redeploy. Stored Billdu, QuickBooks Online and Xero credentials can still be read with the old key and are written with the new one when next saved. Remove `PINPLAN_ENCRYPTION_KEY_PREVIOUS` once every company has used or re-saved its connections. Changing the key without this step disconnects every company. |
 | `TURNSTILE_SECRET_KEY` | Rotate the widget's secret in Cloudflare, update Vercel (and Supabase CAPTCHA, if on). |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → roll (or create a new "Edit Cloudflare Workers" token and delete the old). Update the Environment secret in GitHub → Settings → Environments → `production`. |
 | `QBO_CLIENT_SECRET`, `XERO_CLIENT_SECRET` | Regenerate in the Intuit / Xero developer portal, update Vercel. |
 | Map tile and Open-Meteo keys | New key at the provider, update Vercel (`NEXT_PUBLIC_MAP_TILE_KEY` needs a redeploy to rebuild). |
 | A company's Billdu key/secret | The customer rotates it in Billdu and enters it again in Settings → Connected apps. |
