@@ -38,7 +38,7 @@ function base64ToBlob(b64: string, mime: string): Blob {
 
 export async function exportProjectBackup(projectId: string) {
   const bundle = await loadProject(projectId);
-  if (!bundle) throw new Error("Project not found");
+  if (!bundle) throw new Error(t("Project not found"));
   const { project, products } = await projectWithImages(bundle);
   const catalog = await db().deviceTypes.toArray();
   const payload = { format: FORMAT, version: 1, exportedAt: nowIso(), ...backupOwner(), catalog, products, projects: [project] };

@@ -12,6 +12,8 @@ import { passwordStrength } from "@/lib/onboardingLogic";
 import { setToastAction, toast, useToasts } from "@/lib/toast";
 import { READ_ONLY_MESSAGE } from "@/lib/canEdit";
 import { tradePack } from "@/lib/trades";
+import { FORM_CATEGORIES, validateForm, validateTemplate } from "@/lib/forms/forms";
+import { brokenReason } from "@/lib/sheetIndex";
 
 const NOW = new Date("2026-11-19T12:00:00Z");
 const inDays = (d: number) => new Date(NOW.getTime() + d * 86_400_000).toISOString();
@@ -65,6 +67,23 @@ describe("src/lib text in Russian", () => {
   it("errors thrown to the screen", () => {
     const rfi = newRfi("r1", "p1", 1, null, "2026-11-19T00:00:00Z");
     expect(() => transition(rfi, "answer", "Sam", "2026-11-19T00:00:00Z")).toThrow("Нельзя ответить на запрос со статусом «черновик»");
+  });
+
+  it("form checks and broken sheet links", () => {
+    const template = {
+      id: "f",
+      name: "Test",
+      category: "test" as const,
+      version: 1,
+      fields: [
+        { id: "a", type: "number" as const, label: "Volts", required: true, min: 5 },
+        { id: "s", type: "signature" as const, label: "Sign", required: true },
+      ],
+    };
+    expect(validateForm({ template, values: { a: 2 }, signatures: [] }).map((i) => i.message)).toEqual(["Не меньше 5", "Нужна подпись"]);
+    expect(validateTemplate({ ...template, name: "" })).toEqual(["Дайте форме название"]);
+    expect(FORM_CATEGORIES.find((c) => c.id === "test")?.name).toBe("Test record");
+    expect(brokenReason({ target: { kind: "url", url: "nope" } } as never, { sheets: [], documents: [], photos: [] })).toBe("Неверный веб-адрес у ссылки.");
   });
 
   it("the read-only toast keeps its button when translated", () => {
