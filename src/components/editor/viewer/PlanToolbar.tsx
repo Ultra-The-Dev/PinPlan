@@ -5,6 +5,7 @@
 import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, Sparkles, Tag, Undo2, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "@/lib/i18n";
 
 export interface PlanToolbarProps {
   editing: boolean;
@@ -34,6 +35,7 @@ export interface PlanToolbarProps {
 }
 
 export default function PlanToolbar(p: PlanToolbarProps) {
+  const t = useT();
   const [more, setMore] = useState(false);
   // Esc closes the More sheet (it is a modal, so the plan's own keys are off while it is open).
   useEffect(() => {
@@ -48,73 +50,73 @@ export default function PlanToolbar(p: PlanToolbarProps) {
   }, [more]);
   const sep = <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-200" />;
   return (
-    <div className="flex h-11 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md pointer-coarse:h-[52px]" role="toolbar" aria-label="Plan tools" data-plan-ui>
+    <div className="flex h-11 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md pointer-coarse:h-[52px]" role="toolbar" aria-label={t("Plan tools")} data-plan-ui>
       {p.editing && (
         <>
-          <B wide={p.wideLabels} on={p.tool === "select"} title="Select / move (V or Esc)" label="Select" onClick={p.onSelectTool}>
+          <B wide={p.wideLabels} on={p.tool === "select"} title={t("Select / move (V or Esc)")} label={t("Select")} onClick={p.onSelectTool}>
             <Hand />
           </B>
-          <B wide={p.wideLabels} title="Undo (⌘Z)" label="Undo" onClick={p.onUndo} disabled={!p.canUndo}>
+          <B wide={p.wideLabels} title={t("Undo (⌘Z)")} label={t("Undo")} onClick={p.onUndo} disabled={!p.canUndo}>
             <Undo2 />
           </B>
-          <B wide={p.wideLabels} title="Redo (⇧⌘Z)" label="Redo" onClick={p.onRedo} disabled={!p.canRedo}>
+          <B wide={p.wideLabels} title={t("Redo (⇧⌘Z)")} label={t("Redo")} onClick={p.onRedo} disabled={!p.canRedo}>
             <Redo2 />
           </B>
           {p.onScale && (
             <>
               {sep}
-              <B wide={p.wideLabels} on={p.tool === "calibrate"} warn={!p.scaleSet} title="Set the sheet scale" label={p.scaleSet ? "Scale" : "Set scale"} onClick={p.onScale}>
+              <B wide={p.wideLabels} on={p.tool === "calibrate"} warn={!p.scaleSet} title={t("Set the sheet scale")} label={p.scaleSet ? t("Scale") : t("Set scale")} onClick={p.onScale}>
                 <Ruler />
               </B>
             </>
           )}
         </>
       )}
-      <B wide={p.wideLabels} on={p.layersOpen} title="Layers & filters" label="Layers" onClick={p.onLayers} badge={p.layersBadge} testId="layers-button">
+      <B wide={p.wideLabels} on={p.layersOpen} title={t("Layers & filters")} label={t("Layers")} onClick={p.onLayers} badge={p.layersBadge} testId="layers-button">
         <Layers />
       </B>
-      <B wide={p.wideLabels} on={p.labels} title="Show device labels (L)" label="Labels" onClick={p.onLabels}>
+      <B wide={p.wideLabels} on={p.labels} title={t("Show device labels (L)")} label={t("Labels")} onClick={p.onLabels}>
         <Tag />
       </B>
       {!p.compact && (
         <>
           {p.editing && (
-            <B wide={p.wideLabels} title="Draw home runs from every device on this sheet to its closet" label="Home runs" onClick={p.onHomeRuns}>
+            <B wide={p.wideLabels} title={t("Draw home runs from every device on this sheet to its closet")} label={t("Home runs")} onClick={p.onHomeRuns}>
               <Cable />
             </B>
           )}
           {sep}
-          <B wide={p.wideLabels} on={p.countsOpen} title="Floor counts" label="Counts" onClick={p.onCounts}>
+          <B wide={p.wideLabels} on={p.countsOpen} title={t("Floor counts")} label={t("Counts")} onClick={p.onCounts}>
             <ListChecks />
           </B>
         </>
       )}
       {p.ai && (
-        <B wide={p.wideLabels} on={p.ai.open} title="AI scan assist" label="AI scan" onClick={p.ai.onClick}>
+        <B wide={p.wideLabels} on={p.ai.open} title={t("AI scan assist")} label={t("AI scan")} onClick={p.ai.onClick}>
           <Sparkles />
         </B>
       )}
-      <B wide={p.wideLabels} on={p.fullscreen} title={p.fullscreen ? "Exit full screen" : "Full screen"} onClick={p.onFullscreen} testId="fullscreen-button">
+      <B wide={p.wideLabels} on={p.fullscreen} title={p.fullscreen ? t("Exit full screen") : t("Full screen")} onClick={p.onFullscreen} testId="fullscreen-button">
         {p.fullscreen ? <Minimize2 /> : <Maximize2 />}
       </B>
       {p.compact && (
-        <B wide={false} on={more || p.countsOpen} title="More" onClick={() => setMore(true)} testId="plan-more">
+        <B wide={false} on={more || p.countsOpen} title={t("More")} onClick={() => setMore(true)} testId="plan-more">
           <MoreHorizontal />
         </B>
       )}
       {more &&
         createPortal(
           <div className="fixed inset-0 z-[65] flex items-end bg-slate-900/20" onClick={() => setMore(false)} data-plan-ui>
-            <div role="dialog" aria-modal="true" aria-label="More plan tools" className="animate-in w-full rounded-t-2xl bg-white p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-pop" onClick={(e) => e.stopPropagation()} data-testid="plan-more-sheet">
+            <div role="dialog" aria-modal="true" aria-label={t("More plan tools")} className="animate-in w-full rounded-t-2xl bg-white p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-pop" onClick={(e) => e.stopPropagation()} data-testid="plan-more-sheet">
               <div className="flex items-center px-2 pt-1 pb-2">
-                <h2 className="flex-1 text-sm font-semibold text-slate-900">More</h2>
-                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setMore(false)} aria-label="Close">
+                <h2 className="flex-1 text-sm font-semibold text-slate-900">{t("More")}</h2>
+                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setMore(false)} aria-label={t("Close")}>
                   <X />
                 </button>
               </div>
               <MenuItem
                 icon={<ListChecks />}
-                label="Floor counts"
+                label={t("Floor counts")}
                 on={p.countsOpen}
                 onClick={() => {
                   setMore(false);
@@ -124,7 +126,7 @@ export default function PlanToolbar(p: PlanToolbarProps) {
               {p.editing && (
                 <MenuItem
                   icon={<Cable />}
-                  label="Draw home runs to the closet"
+                  label={t("Draw home runs to the closet")}
                   onClick={() => {
                     setMore(false);
                     p.onHomeRuns();

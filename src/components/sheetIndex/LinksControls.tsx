@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { claimPlanInput, planKeyBlocked, type PlanOverlayContext } from "@/lib/planOverlays";
 import { linkAt, rectFromCorners, sheetDisplayName, type Rect } from "@/lib/sheetIndex";
 import { useJobLinks, useSheetLinks } from "@/lib/sheetLinks";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -25,6 +26,7 @@ const TAP_BOX = { w: 120, h: 48 };
 const DRAG_MIN = 8;
 
 export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
+  const t = useT();
   const { sheet, editing } = ctx;
   const links = useJobLinks();
   const role = useRole();
@@ -67,7 +69,7 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
             data-testid="link-back"
           >
             <ArrowLeft className="h-4 w-4 shrink-0" />
-            <span className="truncate">Back to {sheetDisplayName(backSheet)}</span>
+            <span className="truncate">{t("Back to {sheet}", { sheet: sheetDisplayName(backSheet) })}</span>
           </button>
         </RailSlot>
       )}
@@ -81,8 +83,8 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
               claimPlanInput("links");
               st.setDrawing(true);
             }}
-            title="Link tool: draw a box over a callout and choose where it goes"
-            aria-label="Link tool: draw a box over a callout and choose where it goes"
+            title={t("Link tool: draw a box over a callout and choose where it goes")}
+            aria-label={t("Link tool: draw a box over a callout and choose where it goes")}
             data-plan-ui
             data-testid="link-tool"
           >
@@ -96,27 +98,27 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
       {st.pending && (
         <LinkTargetPicker
           sourceSheetId={st.pending.sheetId}
-          title="Link to…"
+          title={t("Link to…")}
           onCancel={() => st.setPending(null)}
           onPick={async (target, label) => {
             const p = st.pending!;
             st.setPending(null);
             const l = await st.add(p.sheetId, p.rect, target, label);
-            if (l) toast(`Linked to ${label}`);
+            if (l) toast(t("Linked to {label}", { label }));
           }}
         />
       )}
       {editingLink && (
         <LinkTargetPicker
           sourceSheetId={editingLink.sheetId}
-          title={`Link to ${targetLabel(editingLink.target, { sheets, documents, photos })}`}
+          title={t("Link to {label}", { label: targetLabel(editingLink.target, { sheets, documents, photos }) })}
           initial={editingLink.target}
           onCancel={() => st.setEditing(null)}
-          onDelete={() => void st.remove([editingLink.id]).then(() => toast("Link deleted"))}
+          onDelete={() => void st.remove([editingLink.id]).then(() => toast(t("Link deleted")))}
           onPick={async (target, label) => {
             st.setEditing(null);
             await st.update(editingLink.id, { target, label });
-            toast(`Linked to ${label}`);
+            toast(t("Linked to {label}", { label }));
           }}
         />
       )}
@@ -134,6 +136,7 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
 
 /** The link tool: drag a box over a callout (or tap for a standard box); tap an existing link to change or delete it. */
 function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
+  const t = useT();
   const { viewport: vp, sheet } = ctx;
   const st = useSheetLinks();
   const ref = useRef<HTMLDivElement>(null);
@@ -200,7 +203,7 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
       const b = { x: Math.max(s.x, p.x, a.x + 24), y: Math.max(s.y, p.y, a.y + 18) };
       rect = rectFromCorners(vp.screenToRel(a), vp.screenToRel(b));
     }
-    if (rect.w <= 0 || rect.h <= 0) return toast("Draw the box on the sheet", "info");
+    if (rect.w <= 0 || rect.h <= 0) return toast(t("Draw the box on the sheet"), "info");
     st.setPending({ rect, sheetId: sheet.id });
   };
 
@@ -226,14 +229,14 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
       </div>
       <StatusSlot order={30}>
       <div
-        className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur"
+        className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] text-white shadow-pop backdrop-blur"
         data-plan-ui
         data-testid="link-tool-bar"
       >
         <Link2 className="h-4 w-4 shrink-0 text-red-300" />
-        <span className="min-w-0 truncate py-1">Drag a box over a callout · tap a link to change it</span>
+        <span className="min-w-0 py-1 leading-snug">{t("Drag a box over a callout · tap a link to change it")}</span>
         <button className="ml-1 flex h-8 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25" onClick={() => st.setDrawing(false)} data-testid="link-tool-done">
-          <Check className="h-3.5 w-3.5" /> Done
+          <Check className="h-3.5 w-3.5" /> {t("Done")}
         </button>
       </div>
       </StatusSlot>
@@ -243,6 +246,7 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
 
 /** Web links open in a new tab after a check (a plan link shouldn't take anyone off the job by surprise). */
 function ConfirmUrl({ url, onClose }: { url: string; onClose: () => void }) {
+  const t = useT();
   let host = url;
   try {
     host = new URL(url).hostname;
@@ -251,22 +255,22 @@ function ConfirmUrl({ url, onClose }: { url: string; onClose: () => void }) {
   }
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())} data-plan-ui>
-      <div role="dialog" aria-modal="true" aria-label="Open web page" className="card animate-in w-full max-w-sm space-y-4 p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={t("Open web page")} className="card animate-in w-full max-w-sm space-y-4 p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">Open {host}?</h2>
+            <h2 className="text-base font-semibold">{t("Open {host}?", { host })}</h2>
             <p className="mt-1 text-sm break-all text-slate-500">{url}</p>
           </div>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </button>
           <a className="btn btn-brand" href={url} target="_blank" rel="noopener noreferrer" onClick={() => setTimeout(onClose, 0)}>
-            Open in new tab
+            {t("Open in new tab")}
           </a>
         </div>
       </div>

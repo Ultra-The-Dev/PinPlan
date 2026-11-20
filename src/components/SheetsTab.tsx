@@ -8,6 +8,7 @@ import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n";
 import { useSheetImage } from "@/lib/useImage";
 import type { Sheet } from "@/lib/types";
 import PhotoStraighten from "./PhotoStraighten";
@@ -17,6 +18,7 @@ import { rotateSheetMarkups } from "./markups/useMarkups";
 import { RevisionBadge, UploadRevisedSetButton, UploadRevisionButton } from "./revisions/SheetRevisionControls";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
+  const t = useT();
   const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,11 +56,11 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
     try {
       for (const file of Array.from(files)) {
         if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-          setBusy(`Rendering ${file.name}`);
+          setBusy(t("Rendering {name}", { name: file.name }));
           setProgress(0);
-          const pages = await renderPdf(file, (d, t) => {
-            setBusy(`Rendering ${file.name} — page ${d} of ${t}`);
-            setProgress(d / t);
+          const pages = await renderPdf(file, (d, total) => {
+            setBusy(t("Rendering {name} — page {n} of {total}", { name: file.name, n: d, total }));
+            setProgress(d / total);
           });
           for (const p of pages) {
             const sheetId = await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
@@ -66,12 +68,12 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             added++;
           }
         } else {
-          setBusy(`Loading ${file.name}`);
+          setBusy(t("Loading {name}", { name: file.name }));
           photos.push({ file, img: await loadPhoto(file) });
         }
       }
       await load(project!.id);
-      if (added) toast(`Added ${added} sheet${added === 1 ? "" : "s"}`);
+      if (added) toast(t.tn("Added {n} sheet", "Added {n} sheets", added));
       if (photos.length) setPhotoQueue((q) => [...q, ...photos]);
       if (office && hasProposals(imported)) setReview(imported);
     } catch (e) {
@@ -87,14 +89,14 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
   async function finishPhoto(canvas: HTMLCanvasElement | null) {
     const [cur, ...rest] = photoQueue;
     if (canvas && cur) {
-      setBusy("Saving photo");
+      setBusy(t("Saving photo"));
       const blob = await canvasToBlob(canvas, "image/jpeg", 0.9);
       const order = nextOrder();
       await addSheet(blob, canvas.width, canvas.height, cur.file.name.replace(/\.[^.]+$/, "") || `Sheet ${order + 1}`, 1, null, order);
       URL.revokeObjectURL(cur.img.src);
       await load(project!.id);
       setBusy(null);
-      toast("Photo added as a sheet");
+      toast(t("Photo added as a sheet"));
     }
     setPhotoQueue(rest);
   }
@@ -108,10 +110,10 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
   }
 
   async function rotate(sheet: Sheet) {
-    setBusy(`Rotating ${sheet.name}`);
+    setBusy(t("Rotating {name}", { name: sheet.name }));
     try {
       const rec = await db().images.get(sheet.imageId);
-      if (!rec) throw new Error("Image not available on this device yet");
+      if (!rec) throw new Error(t("Image not available on this device yet"));
       const bmp = await createImageBitmap(rec.blob);
       const c = document.createElement("canvas");
       c.width = bmp.height;
@@ -136,9 +138,9 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
 
   async function del(sheet: Sheet) {
     const n = markers.filter((m) => m.sheetId === sheet.id).length;
-    if (!confirm(`Delete sheet “${sheet.name}”${n ? ` and its ${n} devices` : ""}?`)) return;
+    if (!confirm(n ? t.tn("Delete sheet “{name}” and its {n} device?", "Delete sheet “{name}” and its {n} devices?", n, { name: sheet.name }) : t("Delete sheet “{name}”?", { name: sheet.name }))) return;
     await updateSheet(sheet.id, { deleted: true });
-    toast("Sheet deleted — undo from the Plan toolbar");
+    toast(t("Sheet deleted — undo from the Plan toolbar"));
   }
 
   return (
@@ -146,14 +148,14 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <div className="mb-5 flex flex-wrap items-end gap-3">
           <div className="mr-auto">
-            <h2 className="page-title">Manage sheets</h2>
-            <p className="mt-1 text-sm text-slate-500">One sheet per floor. PDFs split into pages; phone photos get straightened. Floor names are read from the title block.</p>
+            <h2 className="page-title">{t("Manage sheets")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("One sheet per floor. PDFs split into pages; phone photos get straightened. Floor names are read from the title block.")}</p>
           </div>
           <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,.heic,.heif" className="hidden" onChange={(e) => onFiles(e.target.files)} />
           <SheetIndexButton disabled={!!busy || !sheets.length} />
           <UploadRevisedSetButton disabled={!!busy} />
           <button className="btn btn-brand" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-            <FileUp /> Upload PDF or photos
+            <FileUp /> {t("Upload PDF or photos")}
           </button>
         </div>
 
@@ -180,7 +182,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
             <>
               <span className="text-sm font-medium text-slate-700">{busy}…</span>
               {progress != null && (
-                <span className="h-1.5 w-64 overflow-hidden rounded-full bg-slate-200">
+                <span className="h-1.5 w-64 max-w-full overflow-hidden rounded-full bg-slate-200">
                   <span className="block h-full rounded-full bg-brand-600 transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
                 </span>
               )}
@@ -190,8 +192,8 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                 <FileUp className="h-5 w-5" />
               </span>
-              <span className="text-sm font-medium text-slate-800">Drop the plan set here, or tap to choose</span>
-              <span className="text-xs text-slate-500">PDF (multi-page), JPG, PNG or HEIC from an iPhone scan</span>
+              <span className="text-sm font-medium text-slate-800">{t("Drop the plan set here, or tap to choose")}</span>
+              <span className="text-xs text-slate-500">{t("PDF (multi-page), JPG, PNG or HEIC from an iPhone scan")}</span>
             </>
           )}
         </button>
@@ -239,22 +241,23 @@ function SheetCard(props: {
   onDelete: () => void;
   onOpen: () => void;
 }) {
+  const t = useT();
   const { sheet } = props;
   const img = useSheetImage(sheet.imageId);
   const [name, setName] = useState(sheet.name);
   return (
     <li className="card group overflow-hidden">
-      <button className="relative block aspect-[4/3] w-full overflow-hidden border-b border-slate-100 bg-slate-50" onClick={props.onOpen} aria-label={`Open ${sheet.name}`}>
+      <button className="relative block aspect-[4/3] w-full overflow-hidden border-b border-slate-100 bg-slate-50" onClick={props.onOpen} aria-label={t("Open {name}", { name: sheet.name })}>
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={img.url} alt={sheet.name} className="h-full w-full object-contain p-2 transition group-hover:scale-[1.02]" />
         ) : (
-          <span className="text-xs text-slate-400">{sheet.imageUrl ? "Downloading…" : "Loading…"}</span>
+          <span className="text-xs text-slate-400">{sheet.imageUrl ? t("Downloading…") : t("Loading…")}</span>
         )}
-        <span className="chip absolute top-3 left-3 bg-white/90 text-slate-600 ring-1 ring-slate-200 backdrop-blur">Floor {props.index + 1}</span>
+        <span className="chip absolute top-3 left-3 bg-white/90 text-slate-600 ring-1 ring-slate-200 backdrop-blur">{t("Floor {n}", { n: props.index + 1 })}</span>
         <span className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 transition group-hover:bg-slate-900/10 group-hover:opacity-100">
           <span className="btn btn-sm shadow-pop">
-            <MapPin /> Open plan
+            <MapPin /> {t("Open plan")}
           </span>
         </span>
       </button>
@@ -265,31 +268,31 @@ function SheetCard(props: {
           onChange={(e) => setName(e.target.value)}
           onBlur={() => name.trim() && name !== sheet.name && props.onRename(name.trim())}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          aria-label="Sheet name"
+          aria-label={t("Sheet name")}
         />
         <SheetMetaChips sheet={sheet} />
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="chip bg-slate-100 text-slate-600">{props.count} devices</span>
-          {props.runCount > 0 && <span className="chip bg-amber-50 text-amber-700">{props.runCount} LED runs</span>}
+          <span className="chip bg-slate-100 text-slate-600">{t.tn("{n} device", "{n} devices", props.count)}</span>
+          {props.runCount > 0 && <span className="chip bg-amber-50 text-amber-700">{t.tn("{n} LED run", "{n} LED runs", props.runCount)}</span>}
           <span className={`chip ${sheet.pxPerFt ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
             <Ruler className="h-3 w-3" />
-            {sheet.pxPerFt ? (sheet.scaleLabel?.startsWith("line") ? "calibrated" : sheet.scaleLabel || "scale set") : "no scale"}
+            {sheet.pxPerFt ? (sheet.scaleLabel?.startsWith("line") ? t("calibrated") : sheet.scaleLabel || t("scale set")) : t("no scale")}
           </span>
           <RevisionBadge sheet={sheet} />
         </div>
         <div className="flex items-center gap-1">
-          <button className="btn btn-sm btn-icon" disabled={props.first} onClick={() => props.onMove(-1)} title="Move up" aria-label="Move up">
+          <button className="btn btn-sm btn-icon" disabled={props.first} onClick={() => props.onMove(-1)} title={t("Move up")} aria-label={t("Move up")}>
             <ArrowUp />
           </button>
-          <button className="btn btn-sm btn-icon" disabled={props.last} onClick={() => props.onMove(1)} title="Move down" aria-label="Move down">
+          <button className="btn btn-sm btn-icon" disabled={props.last} onClick={() => props.onMove(1)} title={t("Move down")} aria-label={t("Move down")}>
             <ArrowDown />
           </button>
-          <button className="btn btn-sm" disabled={props.busy} onClick={props.onRotate} title="Rotate 90° (markup rotates with it)">
-            <RotateCw /> Rotate
+          <button className="btn btn-sm" disabled={props.busy} onClick={props.onRotate} title={t("Rotate 90° (markup rotates with it)")}>
+            <RotateCw /> {t("Rotate")}
           </button>
           <UploadRevisionButton sheet={sheet} />
           <div className="flex-1" />
-          <button className="btn btn-sm btn-icon btn-ghost text-red-600 hover:bg-red-50" onClick={props.onDelete} title="Delete sheet" aria-label="Delete sheet">
+          <button className="btn btn-sm btn-icon btn-ghost text-red-600 hover:bg-red-50" onClick={props.onDelete} title={t("Delete sheet")} aria-label={t("Delete sheet")}>
             <Trash />
           </button>
         </div>
@@ -303,6 +306,7 @@ function SheetCard(props: {
  * `?tab=plan&manage=1` (old `?tab=sheets` links land here too); full screen on phones, a wide side panel from md up.
  */
 export function ManageSheetsDrawer({ onClose, onOpenSheet }: { onClose: () => void; onOpenSheet: () => void }) {
+  const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector('[role="dialog"][aria-modal="true"]') && onClose();
     document.addEventListener("keydown", onKey);
@@ -310,12 +314,12 @@ export function ManageSheetsDrawer({ onClose, onOpenSheet }: { onClose: () => vo
   }, [onClose]);
   return (
     <div className="absolute inset-0 z-40 flex justify-end bg-slate-900/30 backdrop-blur-[2px]" onClick={onClose}>
-      <div role="dialog" aria-label="Manage sheets" className="animate-in flex h-full w-full flex-col bg-slate-50 shadow-pop md:max-w-4xl" onClick={(e) => e.stopPropagation()} data-testid="manage-sheets">
+      <div role="dialog" aria-label={t("Manage sheets")} className="animate-in flex h-full w-full flex-col bg-slate-50 shadow-pop md:max-w-4xl" onClick={(e) => e.stopPropagation()} data-testid="manage-sheets">
         <div className="flex h-12 shrink-0 items-center border-b border-slate-200 bg-white px-2">
           <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>
-            ‹ Back to plan
+            {t("‹ Back to plan")}
           </button>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost ml-auto" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost ml-auto" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>

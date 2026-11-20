@@ -4,6 +4,7 @@
 // (upload, rename, reorder, scale) without leaving the plan.
 import { Clock, FileText, Search, Settings2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { useSheetThumb } from "@/lib/tiles/tileClient";
 import type { Sheet } from "@/lib/types";
 
@@ -19,6 +20,7 @@ export default function SheetBrowser(props: {
   /** Office: open the Sheets drawer. */
   onManage?: () => void;
 }) {
+  const t = useT();
   const { sheets, activeId } = props;
   const [q, setQ] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -43,33 +45,33 @@ export default function SheetBrowser(props: {
       <aside
         className={`animate-in absolute z-40 flex flex-col bg-white shadow-pop ${props.full ? "inset-0" : "inset-y-0 left-0 w-[min(400px,92vw)] border-r border-slate-200"}`}
         data-plan-ui
-        aria-label="Sheets"
+        aria-label={t("Sheets")}
         data-testid="sheet-browser"
       >
         <div className="flex items-center gap-2 border-b border-slate-100 px-3 pt-3 pb-2.5">
           <h2 className="flex-1 text-base font-semibold text-slate-900">
-            Sheets <span className="font-normal text-slate-400 tabular-nums">{sheets.length}</span>
+            {t("Sheets")} <span className="font-normal text-slate-400 tabular-nums">{sheets.length}</span>
           </h2>
           {props.onManage && (
             <button className="btn btn-sm btn-ghost h-9" onClick={props.onManage} data-testid="manage-sheets">
-              <Settings2 /> Manage sheets
+              <Settings2 /> {t("Manage sheets")}
             </button>
           )}
-          <button className="btn btn-sm btn-icon btn-ghost h-9 w-9" onClick={props.onClose} aria-label="Close sheets">
+          <button className="btn btn-sm btn-icon btn-ghost h-9 w-9" onClick={props.onClose} aria-label={t("Close sheets")}>
             <X />
           </button>
         </div>
         <div className="px-3 pt-2.5">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input ref={searchRef} className="input h-10 pl-8" placeholder="Find a sheet by name or number" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a sheet" />
+            <input ref={searchRef} className="input h-10 pl-8" placeholder={t("Find a sheet by name or number")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Find a sheet")} />
           </div>
         </div>
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4">
           {!query && recent.length > 0 && (
             <section className="mb-4">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                <Clock className="h-3.5 w-3.5" /> Recently viewed
+                <Clock className="h-3.5 w-3.5" /> {t("Recently viewed")}
               </h3>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {recent.map((id) => {
@@ -87,7 +89,7 @@ export default function SheetBrowser(props: {
                   className={`group block w-full overflow-hidden rounded-xl text-left ring-1 transition ${s.id === activeId ? "ring-2 ring-brand-500" : "ring-slate-200 hover:ring-slate-300"}`}
                   onClick={() => props.onPick(s.id)}
                   aria-current={s.id === activeId ? "page" : undefined}
-                  aria-label={`Sheet ${i + 1}: ${s.name}`}
+                  aria-label={t("Sheet {n}: {name}", { n: i + 1, name: s.name })}
                 >
                   <Thumb sheet={s} className="aspect-[4/3]" />
                   <span className="flex items-start gap-2 border-t border-slate-100 bg-white p-2">
@@ -95,8 +97,13 @@ export default function SheetBrowser(props: {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] leading-tight font-semibold text-slate-900">{s.name}</span>
                       <span className="block truncate text-[11px] text-slate-500">
-                        {props.counts[s.id] ? `${props.counts[s.id]} devices` : "No devices yet"}
-                        {s.pxPerFt ? "" : ", no scale"}
+                        {props.counts[s.id]
+                          ? s.pxPerFt
+                            ? t.tn("{n} device", "{n} devices", props.counts[s.id])
+                            : t.tn("{n} device, no scale", "{n} devices, no scale", props.counts[s.id])
+                          : s.pxPerFt
+                            ? t("No devices yet")
+                            : t("No devices yet, no scale")}
                       </span>
                     </span>
                   </span>
@@ -106,7 +113,7 @@ export default function SheetBrowser(props: {
           </ul>
           {!list.length && (
             <p className="py-10 text-center text-sm text-slate-500">
-              No sheet matches “{q.trim()}”.
+              {t("No sheet matches “{q}”.", { q: q.trim() })}
             </p>
           )}
         </div>
@@ -130,8 +137,9 @@ function Thumb({ sheet, className = "" }: { sheet: Sheet; className?: string }) 
 }
 
 function RecentCard({ sheet, index, onPick }: { sheet: Sheet; index: number; onPick: () => void }) {
+  const t = useT();
   return (
-    <button className="w-28 shrink-0 overflow-hidden rounded-lg text-left ring-1 ring-slate-200 hover:ring-slate-300" onClick={onPick} aria-label={`Recent: sheet ${index + 1}, ${sheet.name}`}>
+    <button className="w-28 shrink-0 overflow-hidden rounded-lg text-left ring-1 ring-slate-200 hover:ring-slate-300" onClick={onPick} aria-label={t("Recent: sheet {n}, {name}", { n: index + 1, name: sheet.name })}>
       <Thumb sheet={sheet} className="aspect-[4/3]" />
       <span className="block truncate border-t border-slate-100 px-1.5 py-1 text-[11px] font-medium text-slate-700">
         <span className="tabular-nums text-slate-400">{index + 1}</span> {sheet.name}

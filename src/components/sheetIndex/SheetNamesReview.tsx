@@ -5,6 +5,7 @@
 import { AlertTriangle, Link2, RotateCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DISCIPLINE_NAMES, disciplineFromNumber, proposeSheetMeta, sheetNumberKey, type TextItem } from "@/lib/sheetIndex";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
 import { createCalloutLinks, saveSheetMeta } from "./applyIndex";
@@ -35,6 +36,7 @@ export function hasProposals(pages: ReviewPage[]): boolean {
 }
 
 export default function SheetNamesReview({ pages, onClose, note }: { pages: ReviewPage[]; onClose: () => void; note?: string }) {
+  const t = useT();
   const sheets = useEditor((s) => s.sheets);
   const [rows, setRows] = useState<Row[]>(() =>
     pages.map((p) => {
@@ -82,10 +84,10 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
         })),
       );
       const made = links ? await createCalloutLinks(pages.map((p) => ({ sheetId: p.sheetId, items: p.items }))) : 0;
-      toast([n ? `Named ${n} sheet${n === 1 ? "" : "s"}` : "Names unchanged", made ? `${made} link${made === 1 ? "" : "s"} added` : ""].filter(Boolean).join(" · "));
+      toast([n ? t.tn("Named {n} sheet", "Named {n} sheets", n) : t("Names unchanged"), made ? t.tn("{n} link added", "{n} links added", made) : ""].filter(Boolean).join(" · "));
       onClose();
     } catch (e) {
-      toast(`Couldn't save: ${(e as Error).message}`, "error");
+      toast(t("Couldn't save: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(false);
     }
@@ -96,17 +98,17 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Review sheet names"
+        aria-label={t("Review sheet names")}
         className="card animate-in flex max-h-[92dvh] w-full flex-col rounded-b-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:max-w-3xl sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 border-b border-slate-100 p-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">Review sheet names</h2>
-            <p className="mt-0.5 text-sm text-slate-500">Read from each page&apos;s title block. Fix anything that looks off, then save.</p>
+            <h2 className="text-base font-semibold">{t("Review sheet names")}</h2>
+            <p className="mt-0.5 text-sm text-slate-500">{t("Read from each page's title block. Fix anything that looks off, then save.")}</p>
             {note && <p className="mt-1 text-xs text-slate-500">{note}</p>}
           </div>
-          <button className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+          <button className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
@@ -114,16 +116,16 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
           <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 ring-1 ring-amber-200">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              Some sheet numbers are used twice ({[...dups].join(", ")}). Callouts to them won&apos;t be linked automatically until each number is unique.
+              {t("Some sheet numbers are used twice ({numbers}). Callouts to them won't be linked automatically until each number is unique.", { numbers: [...dups].join(", ") })}
             </span>
           </div>
         )}
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-4">
           <div className="hidden grid-cols-[3.5rem_7rem_1fr_9rem_2rem] gap-2 px-2 pb-1 text-xs font-medium text-slate-500 sm:grid">
-            <span>Page</span>
-            <span>Number</span>
-            <span>Title</span>
-            <span>Discipline</span>
+            <span>{t("Page")}</span>
+            <span>{t("Number")}</span>
+            <span>{t("Title")}</span>
+            <span>{t("Discipline")}</span>
             <span />
           </div>
           <ul className="divide-y divide-slate-100">
@@ -133,7 +135,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
               return (
                 <li key={r.sheetId} className="grid grid-cols-[3rem_1fr_2rem] items-center gap-2 px-2 py-2 sm:grid-cols-[3.5rem_7rem_1fr_9rem_2rem]" data-testid="review-row">
                   <span className="row-span-2 text-xs text-slate-500 sm:row-span-1">
-                    <span className="block font-medium text-slate-700 tabular-nums">p. {r.pageNumber}</span>
+                    <span className="block font-medium text-slate-700 tabular-nums">{t("p. {n}", { n: r.pageNumber })}</span>
                     <span className="block truncate" title={nameOf(r.sheetId)}>
                       {nameOf(r.sheetId)}
                     </span>
@@ -143,7 +145,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
                       className={`input h-9 w-24 shrink-0 font-mono text-[13px] font-semibold sm:w-full ${dup ? "border-amber-400 ring-2 ring-amber-100" : ""}`}
                       value={r.number}
                       placeholder="E-101"
-                      aria-label={`Sheet number, page ${r.pageNumber}`}
+                      aria-label={t("Sheet number, page {n}", { n: r.pageNumber })}
                       onChange={(e) => {
                         const number = e.target.value.toUpperCase();
                         // Keep the discipline in step with the number unless it was picked by hand.
@@ -151,21 +153,23 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
                         set(i, { number, ...(auto && number.trim() ? { discipline: disciplineFromNumber(number) } : {}) });
                       }}
                     />
-                    <input className="input h-9 min-w-0 flex-1" value={r.title} placeholder="Title" aria-label={`Sheet title, page ${r.pageNumber}`} onChange={(e) => set(i, { title: e.target.value })} />
+                    <input className="input h-9 min-w-0 flex-1" value={r.title} placeholder={t("Title")} aria-label={t("Sheet title, page {n}", { n: r.pageNumber })} onChange={(e) => set(i, { title: e.target.value })} />
                   </div>
                   <button
                     className="btn btn-sm btn-icon btn-ghost row-span-2 text-slate-400 sm:order-last sm:row-span-1"
                     disabled={!changed}
                     onClick={() => set(i, { ...r.proposed })}
-                    title="Back to what the PDF says"
-                    aria-label={`Undo edits, page ${r.pageNumber}`}
+                    title={t("Back to what the PDF says")}
+                    aria-label={t("Undo edits, page {n}", { n: r.pageNumber })}
                   >
                     <RotateCcw />
                   </button>
-                  <select className="input h-9 sm:col-auto" value={r.discipline} onChange={(e) => set(i, { discipline: e.target.value })} aria-label={`Discipline, page ${r.pageNumber}`}>
+                  <select className="input h-9 sm:col-auto" value={r.discipline} onChange={(e) => set(i, { discipline: e.target.value })} aria-label={t("Discipline, page {n}", { n: r.pageNumber })}>
                     <option value="">—</option>
                     {[...new Set([...DISCIPLINE_NAMES, ...(r.discipline ? [r.discipline] : [])])].map((d) => (
-                      <option key={d}>{d}</option>
+                      <option key={d} value={d}>
+                        {t(d)}
+                      </option>
                     ))}
                   </select>
                 </li>
@@ -176,16 +180,16 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 p-3 sm:px-4">
           <label className="mr-auto flex min-h-9 items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" className="h-4 w-4 accent-red-500" checked={links} onChange={(e) => setLinks(e.target.checked)} disabled={!anyNumber} />
-            <Link2 className="h-4 w-4 text-red-500" /> Link callouts to these sheets
+            <Link2 className="h-4 w-4 text-red-500" /> {t("Link callouts to these sheets")}
           </label>
-          <button className="btn btn-sm btn-ghost" onClick={() => setRows((rs) => rs.map((r) => ({ ...r, number: "", title: "", discipline: "" })))} title="Keep page numbers and floor names only">
-            Use page numbers
+          <button className="btn btn-sm btn-ghost" onClick={() => setRows((rs) => rs.map((r) => ({ ...r, number: "", title: "", discipline: "" })))} title={t("Keep page numbers and floor names only")}>
+            {t("Use page numbers")}
           </button>
           <button className="btn" onClick={onClose}>
-            Skip
+            {t("Skip")}
           </button>
           <button className="btn btn-brand" onClick={apply} disabled={busy} data-testid="review-save">
-            {busy ? "Saving…" : "Save names"}
+            {busy ? t("Saving…") : t("Save names")}
           </button>
         </div>
       </div>

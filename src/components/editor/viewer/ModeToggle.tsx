@@ -1,9 +1,11 @@
 "use client";
 import { Eye, PencilLine } from "lucide-react";
+import { useT } from "@/lib/i18n";
 import type { ViewerMode } from "@/lib/viewerStore";
 
 /** View only ↔ Edit. Edit is orange (and the plan gets an orange frame) so it's never on by accident. */
 export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMode; onChange: (m: ViewerMode) => void; compact?: boolean }) {
+  const t = useT();
   const btn = (m: ViewerMode, label: string, Icon: typeof Eye) => {
     const on = mode === m;
     return (
@@ -13,7 +15,7 @@ export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMo
         }`}
         onClick={() => onChange(m)}
         aria-pressed={on}
-        title={m === "edit" ? "Edit mode: place, move and draw (E)" : "View only: look around without changing anything (E)"}
+        title={m === "edit" ? t("Edit mode: place, move and draw (E)") : t("View only: look around without changing anything (E)")}
         data-testid={`mode-${m}`}
       >
         <Icon className="h-4 w-4" />
@@ -22,9 +24,9 @@ export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMo
     );
   };
   return (
-    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label="Mode" data-plan-ui>
-      {btn("view", "View", Eye)}
-      {btn("edit", "Edit", PencilLine)}
+    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label={t("Mode")} data-plan-ui>
+      {btn("view", t("View"), Eye)}
+      {btn("edit", t("Edit"), PencilLine)}
     </div>
   );
 }

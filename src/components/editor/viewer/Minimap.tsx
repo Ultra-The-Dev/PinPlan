@@ -2,12 +2,14 @@
 // Minimap: the sheet's thumbnail with the visible area outlined. Tap or drag on it to move the view there.
 import { X } from "lucide-react";
 import { useRef } from "react";
+import { useT } from "@/lib/i18n";
 import { useViewTransform } from "@/lib/planOverlays";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useSheetThumb } from "@/lib/tiles/tileClient";
 import { visibleSheetRect } from "@/lib/viewport";
 
 export default function Minimap({ viewport, imageId, onClose, max = 168 }: { viewport: PlanViewport; imageId: string; onClose: () => void; max?: number }) {
+  const t = useT();
   const snap = useViewTransform(viewport);
   const thumb = useSheetThumb(imageId);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -45,9 +47,9 @@ export default function Minimap({ viewport, imageId, onClose, max = 168 }: { vie
         onPointerUp={() => viewport.endInteraction()}
         onPointerCancel={() => viewport.endInteraction()}
         role="slider"
-        aria-label="Minimap: drag to move around the sheet"
+        aria-label={t("Minimap: drag to move around the sheet")}
         aria-valuenow={Math.round(((x0 + x1) / 2 / W) * 100)}
-        aria-valuetext={`${Math.round(((x0 + x1) / 2 / W) * 100)}% across, ${Math.round(((y0 + y1) / 2 / H) * 100)}% down`}
+        aria-valuetext={t("{x}% across, {y}% down", { x: Math.round(((x0 + x1) / 2 / W) * 100), y: Math.round(((y0 + y1) / 2 / H) * 100) })}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {thumb && <img src={thumb} alt="" className="pointer-events-none absolute inset-0 h-full w-full" draggable={false} />}
@@ -61,7 +63,7 @@ export default function Minimap({ viewport, imageId, onClose, max = 168 }: { vie
       <button
         className="absolute -top-2 -right-2 hidden h-6 w-6 items-center justify-center rounded-full bg-white text-slate-500 shadow-soft ring-1 ring-slate-200 group-hover:flex hover:text-slate-900"
         onClick={onClose}
-        aria-label="Hide minimap"
+        aria-label={t("Hide minimap")}
       >
         <X className="h-3.5 w-3.5" />
       </button>

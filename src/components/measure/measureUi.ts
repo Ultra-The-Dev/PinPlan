@@ -3,13 +3,14 @@
 // selection and the summary panel. The rows themselves live in useMeasurements (src/lib/measurements.ts).
 import { create } from "zustand";
 import { DRAFT_DASH, SELECT_HALO, SELECT_HALO_OPACITY, SELECT_INK } from "@/lib/canvasColors";
+import { msg } from "@/lib/i18n/msg";
 import { claimPlanInput } from "@/lib/planOverlays";
 import type { TeamRole } from "@/lib/teamLogic";
 import type { Measurement, MeasurementKind } from "@/lib/types";
 
 export const MEASURE_COLORS = ["#e11d48", "#f59e0b", "#16a34a", "#0284c7", "#7c3aed", "#334155"];
 /** Spoken names for the colour swatches (screen readers). */
-export const COLOR_NAMES: Record<string, string> = { "#e11d48": "Red", "#f59e0b": "Amber", "#16a34a": "Green", "#0284c7": "Blue", "#7c3aed": "Violet", "#334155": "Slate" };
+export const COLOR_NAMES: Record<string, string> = { "#e11d48": msg("Red"), "#f59e0b": msg("Amber"), "#16a34a": msg("Green"), "#0284c7": msg("Blue"), "#7c3aed": msg("Violet"), "#334155": msg("Slate") };
 
 /** The plan's shared selection / draft look (src/lib/canvasColors.ts) as the measure layer uses it. */
 export const MEASURE_LOOK = { halo: SELECT_HALO, haloOpacity: SELECT_HALO_OPACITY, ink: SELECT_INK, draftDash: DRAFT_DASH };

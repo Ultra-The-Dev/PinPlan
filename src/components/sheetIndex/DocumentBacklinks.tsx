@@ -2,10 +2,12 @@
 // "Linked on E-101" chips under a job document: the plan sheets with a link to it. Tapping one opens that sheet.
 import { MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import { useJobLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 
 export default function DocumentBacklinks({ documentId }: { documentId: string }) {
+  const t = useT();
   const links = useJobLinks();
   const sheets = useEditor((s) => s.sheets);
   const projectId = useEditor((s) => s.project?.id);
@@ -24,9 +26,9 @@ export default function DocumentBacklinks({ documentId }: { documentId: string }
             useEditor.getState().setActiveSheet(s.id);
             router.replace(`/project?id=${projectId}&tab=plan`);
           }}
-          title={`Open ${s.number || s.name} on the plan`}
+          title={t("Open {sheet} on the plan", { sheet: s.number || s.name })}
         >
-          <MapPin className="h-3 w-3" /> Linked on {s.number || s.name}
+          <MapPin className="h-3 w-3" /> {t("Linked on {sheet}", { sheet: s.number || s.name })}
         </button>
       ))}
     </div>

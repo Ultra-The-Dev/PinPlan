@@ -1,6 +1,7 @@
 "use client";
 // Plan input for saved measurements: taps add vertices, double-tap / Done finishes, a tap near the first vertex closes
 // an area, Esc cancels. With the toolbar closed, a tap on a measurement selects it.
+import { t, tn } from "@/lib/i18n";
 import { getAuthor } from "@/lib/photos";
 import { hitMeasurement, KIND_NAMES, MIN_POINTS, snapAngle } from "@/lib/measure";
 import { useMeasurements } from "@/lib/measurements";
@@ -25,7 +26,7 @@ export async function finishDraft(): Promise<boolean> {
   ui.setDraft([], null);
   if (!sheet || !draft.length) return false;
   if (draft.length / 2 < MIN_POINTS[kind]) {
-    toast(`${KIND_NAMES[kind]} needs at least ${MIN_POINTS[kind]} points — discarded`, "info");
+    toast(tn("{kind} needs at least {n} point — discarded", "{kind} needs at least {n} points — discarded", MIN_POINTS[kind], { kind: t(KIND_NAMES[kind]) }), "info");
     return false;
   }
   const m = await useMeasurements.getState().add({
@@ -38,7 +39,7 @@ export async function finishDraft(): Promise<boolean> {
     author: getAuthor(useSyncStatus.getState().email),
   });
   if (!m) {
-    toast(`${KIND_NAMES[kind]} needs at least ${MIN_POINTS[kind]} distinct points — discarded`, "info");
+    toast(tn("{kind} needs at least {n} distinct point — discarded", "{kind} needs at least {n} distinct points — discarded", MIN_POINTS[kind], { kind: t(KIND_NAMES[kind]) }), "info");
     return false;
   }
   useMeasureUi.getState().select(m.id);
@@ -92,7 +93,7 @@ export function onMeasureTap(e: PlanTapEvent, ctx: PlanOverlayContext): boolean 
 
   // Drawing.
   if (!sheet.pxPerFt) {
-    toast("Calibrate this sheet first", "info");
+    toast(t("Calibrate this sheet first"), "info");
     return true;
   }
   if (e.rel.x < 0 || e.rel.y < 0 || e.rel.x > 1 || e.rel.y > 1) return true;

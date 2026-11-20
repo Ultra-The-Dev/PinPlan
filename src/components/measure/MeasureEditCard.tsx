@@ -5,6 +5,7 @@
 import { Pentagon, Ruler, Spline, Trash, TriangleAlert, X } from "lucide-react";
 import { useId, useState } from "react";
 import { formatFeetInches, formatSqFt, formatValue, KIND_NAMES, measurementValue } from "@/lib/measure";
+import { useT } from "@/lib/i18n";
 import { useMeasurements } from "@/lib/measurements";
 import type { Measurement, Sheet } from "@/lib/types";
 import { COLOR_NAMES, MEASURE_COLORS, useMeasureUi } from "./measureUi";
@@ -49,6 +50,7 @@ function Field({ label, value, onSave, numeric, placeholder, suffix, list, testI
 }
 
 export default function MeasureEditCard({ m, sheet, recent, locked, sheetMode }: { m: Measurement; sheet: Sheet; recent: string[]; locked: string | null; sheetMode?: boolean }) {
+  const t = useT();
   const ro = locked != null;
   const select = useMeasureUi((s) => s.select);
   const setLastDeleted = useMeasureUi((s) => s.setLastDeleted);
@@ -76,12 +78,12 @@ export default function MeasureEditCard({ m, sheet, recent, locked, sheetMode }:
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="section-title">{KIND_NAMES[m.kind]}</div>
+          <div className="section-title">{t(KIND_NAMES[m.kind])}</div>
           <div className="truncate text-lg leading-tight font-semibold tabular-nums" data-testid="measure-edit-value">
             {formatValue(v)}
           </div>
         </div>
-        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label="Close">
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label={t("Close")}>
           <X />
         </button>
       </div>
@@ -89,44 +91,44 @@ export default function MeasureEditCard({ m, sheet, recent, locked, sheetMode }:
         <p className="mb-3 text-xs text-slate-500">
           {area ? (
             <>
-              {formatSqFt(v.raw)} drawn · perimeter {formatFeetInches(v.perimeterFt)}
-              {(m.wastePct ?? 0) > 0 && <> · +{m.wastePct}% waste</>}
+              {t("{area} drawn · perimeter {perimeter}", { area: formatSqFt(v.raw), perimeter: formatFeetInches(v.perimeterFt) })}
+              {(m.wastePct ?? 0) > 0 && <> · {t("+{pct}% waste", { pct: m.wastePct ?? 0 })}</>}
             </>
           ) : (
             <>
-              {formatFeetInches(v.raw)} drawn
-              {(m.extraFt ?? 0) > 0 && <> + {formatFeetInches(m.extraFt)} extra</>}
-              {(m.wastePct ?? 0) > 0 && <> + {m.wastePct}% waste</>}
+              {t("{len} drawn", { len: formatFeetInches(v.raw) })}
+              {(m.extraFt ?? 0) > 0 && <> + {t("{len} extra", { len: formatFeetInches(m.extraFt) })}</>}
+              {(m.wastePct ?? 0) > 0 && <> + {t("{pct}% waste", { pct: m.wastePct ?? 0 })}</>}
               {allowances && <> = {formatFeetInches(v.value)}</>}
             </>
           )}
         </p>
       ) : (
-        <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">This sheet has no scale yet — set it to see the length.</p>
+        <p className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t("This sheet has no scale yet — set it to see the length.")}</p>
       )}
       {v?.warning && (
         <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-          <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" /> The outline crosses itself, so the area is approximate. Redraw it corner by corner around the edge.
+          <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" /> {t("The outline crosses itself, so the area is approximate. Redraw it corner by corner around the edge.")}
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2">
-          <Field label="Group" value={m.label ?? ""} placeholder="e.g. Cat6 tray" list={listId} onSave={(s) => void update(m.id, { label: s.trim() || null })} testId="measure-edit-label" readOnly={ro} />
+          <Field label={t("Group")} value={m.label ?? ""} placeholder={t("e.g. Cat6 tray")} list={listId} onSave={(s) => void update(m.id, { label: s.trim() || null })} testId="measure-edit-label" readOnly={ro} />
           <datalist id={listId}>
             {recent.map((l) => (
               <option key={l} value={l} />
             ))}
           </datalist>
         </div>
-        {!area && <Field label="Extra (drops)" numeric suffix="ft" value={m.extraFt ? String(m.extraFt) : ""} placeholder="0" onSave={(s) => void update(m.id, { extraFt: parseNum(s) })} testId="measure-edit-extra" readOnly={ro} />}
-        <Field label="Waste" numeric suffix="%" value={m.wastePct ? String(m.wastePct) : ""} placeholder="0" onSave={(s) => void update(m.id, { wastePct: parseNum(s) })} testId="measure-edit-waste" readOnly={ro} />
+        {!area && <Field label={t("Extra (drops)")} numeric suffix={t("ft")} value={m.extraFt ? String(m.extraFt) : ""} placeholder="0" onSave={(s) => void update(m.id, { extraFt: parseNum(s) })} testId="measure-edit-extra" readOnly={ro} />}
+        <Field label={t("Waste")} numeric suffix="%" value={m.wastePct ? String(m.wastePct) : ""} placeholder="0" onSave={(s) => void update(m.id, { wastePct: parseNum(s) })} testId="measure-edit-waste" readOnly={ro} />
         <div className="col-span-2">
-          <Field label="Notes" value={m.notes ?? ""} placeholder="Optional" onSave={(s) => void update(m.id, { notes: s.trim() || null })} readOnly={ro} />
+          <Field label={t("Notes")} value={m.notes ?? ""} placeholder={t("Optional")} onSave={(s) => void update(m.id, { notes: s.trim() || null })} readOnly={ro} />
         </div>
       </div>
       <div className="mt-3 flex items-center gap-1.5">
         {MEASURE_COLORS.map((c) => (
-          <button key={c} className={`flex h-8 w-8 items-center justify-center rounded-full ${color === c ? "ring-2 ring-slate-900/70" : ""}`} onClick={() => void update(m.id, { color: c })} disabled={ro} aria-label={`Colour: ${COLOR_NAMES[c] ?? c}`} aria-pressed={color === c}>
+          <button key={c} className={`flex h-8 w-8 items-center justify-center rounded-full ${color === c ? "ring-2 ring-slate-900/70" : ""}`} onClick={() => void update(m.id, { color: c })} disabled={ro} aria-label={t("Colour: {name}", { name: COLOR_NAMES[c] ? t(COLOR_NAMES[c]) : c })} aria-pressed={color === c}>
             <span className="h-5 w-5 rounded-full" style={{ background: c }} />
           </button>
         ))}
@@ -142,7 +144,7 @@ export default function MeasureEditCard({ m, sheet, recent, locked, sheetMode }:
           }}
           data-testid="measure-delete"
         >
-          <Trash /> {confirm ? "Delete?" : "Delete"}
+          <Trash /> {confirm ? t("Delete?") : t("Delete")}
         </button>
         )}
       </div>
@@ -151,7 +153,7 @@ export default function MeasureEditCard({ m, sheet, recent, locked, sheetMode }:
           {locked}
         </p>
       )}
-      {m.author && <p className="mt-2 text-[11px] text-slate-400">Drawn by {m.author}</p>}
+      {m.author && <p className="mt-2 text-[11px] text-slate-400">{t("Drawn by {name}", { name: m.author })}</p>}
     </div>
   );
 }

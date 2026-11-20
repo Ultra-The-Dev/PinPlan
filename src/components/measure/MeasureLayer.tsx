@@ -4,6 +4,7 @@
 // (name="cs", rescaled by the viewport on every zoom). Nothing here listens: taps go through the overlay's onTap.
 import { useLayoutEffect, useMemo } from "react";
 import { Circle, Group, Label, Line, Tag, Text } from "react-konva";
+import { useT } from "@/lib/i18n";
 import { areaSqFt, formatFeetInches, formatSqFt, formatValue, labelAnchor, lengthFt, measurementValue, toPx } from "@/lib/measure";
 import { useMeasurements } from "@/lib/measurements";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
@@ -63,6 +64,7 @@ function Shape({ m, sheet, selected }: { m: Measurement; sheet: Sheet; selected:
 }
 
 function Draft({ sheet }: { sheet: Sheet }) {
+  const t = useT();
   const { draft, draftSheetId, hover, kind, color, label } = useMeasureUi();
   if (draftSheetId !== sheet.id || !draft.length) return null;
   const pts = toPx(draft, sheet);
@@ -72,7 +74,7 @@ function Draft({ sheet }: { sheet: Sheet }) {
   const rel = live.flatMap((p) => [p.x / sheet.width, p.y / sheet.height]);
   const area = kind === "area";
   const value = area ? (live.length >= 3 ? areaSqFt(rel, sheet) : null) : lengthFt(rel, sheet);
-  const text = `${label.trim() ? `${label.trim()} · ` : ""}${value == null ? (sheet.pxPerFt ? "…" : "no scale") : area ? formatSqFt(value) : formatFeetInches(value)}`;
+  const text = `${label.trim() ? `${label.trim()} · ` : ""}${value == null ? (sheet.pxPerFt ? "…" : t("no scale")) : area ? formatSqFt(value) : formatFeetInches(value)}`;
   const tagAt = hv ?? last;
   return (
     <>

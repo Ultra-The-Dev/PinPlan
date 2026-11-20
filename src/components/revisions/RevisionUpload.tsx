@@ -13,6 +13,7 @@ import AlignRevision from "./AlignRevision";
 import { uploadRevision } from "./revisionActions";
 import SheetCompare from "./SheetCompare";
 import { Screen } from "./ui";
+import { msg, useT } from "@/lib/i18n";
 
 interface Page {
   pageNumber: number;
@@ -39,15 +40,16 @@ interface Done {
 }
 
 const SCALE_TEXT: Record<ScaleOutcome, string> = {
-  kept: "Scale kept",
-  recomputed: "Scale recomputed from the paper size",
-  printed: "Scale read from the new page",
-  cleared: "Scale reset — calibrate again (or align)",
-  none: "No scale yet",
+  kept: msg("Scale kept"),
+  recomputed: msg("Scale recomputed from the paper size"),
+  printed: msg("Scale read from the new page"),
+  cleared: msg("Scale reset — calibrate again (or align)"),
+  none: msg("No scale yet"),
 };
 
 /** Upload a re-issued drawing (or a whole re-issued set) as new revisions of existing sheets. Office only. */
 export default function RevisionUpload({ targetSheetId, onClose }: { targetSheetId?: string; onClose: () => void }) {
+  const t = useT();
   const { project, sheets, load } = useEditor();
   const role = useRole();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -73,8 +75,8 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
   if (!project) return null;
   if (role === "tech")
     return (
-      <Screen label="Upload revision" title="Upload new revision" onClose={onClose}>
-        <p className="p-6 text-sm text-slate-600">Only the office can upload new revisions. You always see the current drawing on the plan.</p>
+      <Screen label={t("Upload revision")} title={t("Upload new revision")} onClose={onClose}>
+        <p className="p-6 text-sm text-slate-600">{t("Only the office can upload new revisions. You always see the current drawing on the plan.")}</p>
       </Screen>
     );
 
@@ -84,15 +86,15 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
     try {
       let raw: Omit<Page, "target" | "confidence" | "sheetNumber" | "label" | "url">[] = [];
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        setBusy(`Rendering ${file.name}`);
+        setBusy(t("Rendering {name}", { name: file.name }));
         setProgress(0);
-        const rendered = await renderPdf(file, (d, t) => {
-          setBusy(`Rendering ${file.name} — page ${d} of ${t}`);
-          setProgress(d / t);
+        const rendered = await renderPdf(file, (d, total) => {
+          setBusy(t("Rendering {name} — page {n} of {total}", { name: file.name, n: d, total }));
+          setProgress(d / total);
         });
         raw = rendered.map((p) => ({ pageNumber: p.pageNumber, blob: p.blob, width: p.width, height: p.height, pxPerInch: p.pxPerInch, text: p.text }));
       } else {
-        setBusy(`Loading ${file.name}`);
+        setBusy(t("Loading {name}", { name: file.name }));
         const img = await loadPhoto(file);
         const c = document.createElement("canvas");
         c.width = img.naturalWidth;
@@ -108,12 +110,12 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
       }
       const matches = matchPagesToSheets(raw, sheets);
       const next: Page[] = raw.map((p, i) => {
-        let t = matches[i].sheetId ?? "new";
+        let tgt = matches[i].sheetId ?? "new";
         // Opened from a sheet: a single page replaces that sheet.
-        if (target && raw.length === 1) t = target.id;
+        if (target && raw.length === 1) tgt = target.id;
         const url = URL.createObjectURL(p.blob);
         urls.current.push(url);
-        return { ...p, url, target: t, confidence: target && raw.length === 1 ? 1 : matches[i].confidence, sheetNumber: matches[i].sheetNumber, label: t === "new" ? "" : labelFor(t) };
+        return { ...p, url, target: tgt, confidence: target && raw.length === 1 ? 1 : matches[i].confidence, sheetNumber: matches[i].sheetNumber, label: tgt === "new" ? "" : labelFor(tgt) };
       });
       if (target && raw.length > 1 && !next.some((p) => p.target === target.id)) {
         const free = next.find((p) => p.target === "new");
@@ -136,7 +138,7 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
 
   async function confirm() {
     if (!project) return;
-    setBusy("Saving");
+    setBusy(t("Saving"));
     setError(null);
     const results: Done[] = [];
     try {
@@ -162,7 +164,8 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
       await load(project.id);
       setDone(results);
       const revs = results.filter((r) => !r.isNew).length;
-      toast(`${revs} revision${revs === 1 ? "" : "s"} uploaded${results.length > revs ? `, ${results.length - revs} new sheet${results.length - revs === 1 ? "" : "s"}` : ""} — devices kept`);
+      const extra = results.length - revs;
+      toast(`${[t.tn("{n} revision uploaded", "{n} revisions uploaded", revs), ...(extra > 0 ? [t.tn("{n} new sheet", "{n} new sheets", extra)] : [])].join(", ")} — ${t("devices kept")}`);
       // One sheet that changed size: go straight to aligning it.
       const one = results.filter((r) => !r.isNew);
       if (one.length === 1 && one[0].resized) setAlign(one[0].sheetId);
@@ -183,18 +186,18 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
 
   return (
     <Screen
-      label="Upload revision"
-      title={target ? `New revision of ${target.name}` : "Upload revised drawings"}
-      subtitle="Devices, runs, photos and tasks stay on their sheets. Old drawings are kept in the history."
+      label={t("Upload revision")}
+      title={target ? t("New revision of {name}", { name: target.name }) : t("Upload revised drawings")}
+      subtitle={t("Devices, runs, photos and tasks stay on their sheets. Old drawings are kept in the history.")}
       onClose={onClose}
       actions={
         done ? (
           <button className="btn btn-brand" onClick={onClose}>
-            <Check /> Done
+            <Check /> {t("Done")}
           </button>
         ) : pages.length ? (
           <button className="btn btn-brand" onClick={confirm} disabled={!!busy || !chosen.length || dupes.size > 0} data-testid="revision-confirm">
-            <Check /> {busy ?? `Upload ${chosen.length}`}
+            <Check /> {busy ?? t("Upload {n}", { n: chosen.length })}
           </button>
         ) : null
       }
@@ -210,24 +213,24 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
                 <li key={r.sheetId} className="card flex flex-wrap items-center gap-2 p-3">
                   <div className="mr-auto min-w-0">
                     <p className="truncate font-medium">
-                      {r.name} <span className="chip bg-ink text-white">{r.label || (r.isNew ? "New sheet" : "")}</span>
+                      {r.name} <span className="chip bg-ink text-white">{r.label || (r.isNew ? t("New sheet") : "")}</span>
                     </p>
                     {!r.isNew && r.scale && (
                       <p className={`mt-1 text-xs ${r.scale === "cleared" ? "text-amber-700" : "text-slate-500"}`}>
                         {r.scale === "cleared" && <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />}
-                        {SCALE_TEXT[r.scale]}
-                        {r.resized ? " · page size changed — align to move the devices" : ""}
+                        {t(SCALE_TEXT[r.scale])}
+                        {r.resized ? ` · ${t("page size changed — align to move the devices")}` : ""}
                       </p>
                     )}
-                    {r.isNew && <p className="mt-1 text-xs text-slate-500">Added as a new sheet</p>}
+                    {r.isNew && <p className="mt-1 text-xs text-slate-500">{t("Added as a new sheet")}</p>}
                   </div>
                   {!r.isNew && (
                     <>
                       <button className="btn btn-sm" onClick={() => setCompare(r.sheetId)}>
-                        <Layers /> Compare
+                        <Layers /> {t("Compare")}
                       </button>
                       <button className={`btn btn-sm ${r.resized ? "btn-brand" : ""}`} onClick={() => setAlign(r.sheetId)}>
-                        <Move /> Align
+                        <Move /> {t("Align")}
                       </button>
                     </>
                   )}
@@ -249,7 +252,7 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
                 <>
                   <span className="text-sm font-medium text-slate-700">{busy}…</span>
                   {progress != null && (
-                    <span className="h-1.5 w-64 overflow-hidden rounded-full bg-slate-200">
+                    <span className="h-1.5 w-64 max-w-full overflow-hidden rounded-full bg-slate-200">
                       <span className="block h-full rounded-full bg-brand-600 transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
                     </span>
                   )}
@@ -259,8 +262,8 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                     <FileUp className="h-5 w-5" />
                   </span>
-                  <span className="text-sm font-medium text-slate-800">Choose the re-issued PDF or a photo of the new sheet</span>
-                  <span className="text-xs text-slate-500">Multi-page sets are matched to your sheets by sheet number and floor name</span>
+                  <span className="text-sm font-medium text-slate-800">{t("Choose the re-issued PDF or a photo of the new sheet")}</span>
+                  <span className="text-xs text-slate-500">{t("Multi-page sets are matched to your sheets by sheet number and floor name")}</span>
                 </>
               )}
             </button>
@@ -268,17 +271,17 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="mr-auto text-slate-600">
-                  {pages.length} page{pages.length === 1 ? "" : "s"} · check where each one goes
+                  {t.tn("{n} page · check where it goes", "{n} pages · check where each one goes", pages.length)}
                 </span>
                 <button
                   className="btn btn-sm"
                   onClick={() => setPages((ps) => ps.map((p) => (p.target === "skip" ? p : { ...p, label: `Issued ${today()}` })))}
-                  title="Label every page with today's date"
+                  title={t("Label every page with today's date")}
                 >
-                  <CalendarDays /> Date label
+                  <CalendarDays /> {t("Date label")}
                 </button>
                 <button className="btn btn-sm btn-ghost" onClick={() => setPages([])}>
-                  Choose another file
+                  {t("Choose another file")}
                 </button>
               </div>
               <ul className="space-y-2" data-testid="revision-pages">
@@ -288,39 +291,39 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
                   return (
                     <li key={p.pageNumber} className={`card flex gap-3 p-2.5 ${p.target === "skip" ? "opacity-60" : ""}`}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt={`Page ${p.pageNumber}`} className="h-20 w-28 shrink-0 rounded-md bg-white object-contain ring-1 ring-slate-200 sm:h-24 sm:w-36" />
+                      <img src={p.url} alt={t("Page {n}", { n: p.pageNumber })} className="h-20 w-28 shrink-0 rounded-md bg-white object-contain ring-1 ring-slate-200 sm:h-24 sm:w-36" />
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                          <span className="font-semibold text-slate-700">Page {p.pageNumber}</span>
+                          <span className="font-semibold text-slate-700">{t("Page {n}", { n: p.pageNumber })}</span>
                           {p.sheetNumber && <span className="chip bg-slate-100 text-slate-600">{p.sheetNumber}</span>}
-                          {p.target !== "new" && p.target !== "skip" && p.confidence < 0.5 && <span className="chip bg-amber-50 text-amber-700">check match</span>}
-                          {sizeChanged && <span className="chip bg-amber-50 text-amber-700">size changed</span>}
-                          {dupes.has(p.target) && <span className="chip bg-red-50 text-red-700">two pages → one sheet</span>}
+                          {p.target !== "new" && p.target !== "skip" && p.confidence < 0.5 && <span className="chip bg-amber-50 text-amber-700">{t("check match")}</span>}
+                          {sizeChanged && <span className="chip bg-amber-50 text-amber-700">{t("size changed")}</span>}
+                          {dupes.has(p.target) && <span className="chip bg-red-50 text-red-700">{t("two pages → one sheet")}</span>}
                         </div>
                         <div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
                           <select
                             className="input"
                             value={p.target}
-                            aria-label={`Sheet for page ${p.pageNumber}`}
+                            aria-label={t("Sheet for page {n}", { n: p.pageNumber })}
                             onChange={(e) => {
-                              const t = e.target.value;
-                              setPage(i, { target: t, confidence: 1, label: t === "new" || t === "skip" ? p.label : p.label || labelFor(t) });
+                              const v = e.target.value;
+                              setPage(i, { target: v, confidence: 1, label: v === "new" || v === "skip" ? p.label : p.label || labelFor(v) });
                             }}
                           >
                             {sheets.map((sh) => (
                               <option key={sh.id} value={sh.id}>
-                                Replace {sh.name}
+                                {t("Replace {name}", { name: sh.name })}
                                 {sh.revisionLabel ? ` (${sh.revisionLabel})` : ""}
                               </option>
                             ))}
-                            <option value="new">＋ New sheet</option>
-                            <option value="skip">Skip this page</option>
+                            <option value="new">{t("＋ New sheet")}</option>
+                            <option value="skip">{t("Skip this page")}</option>
                           </select>
                           <input
                             className="input"
                             value={p.label}
-                            placeholder={p.target === "new" ? "Label (optional)" : labelFor(p.target)}
-                            aria-label={`Revision label for page ${p.pageNumber}`}
+                            placeholder={p.target === "new" ? t("Label (optional)") : labelFor(p.target)}
+                            aria-label={t("Revision label for page {n}", { n: p.pageNumber })}
                             onChange={(e) => setPage(i, { label: e.target.value })}
                             disabled={p.target === "skip"}
                           />
@@ -331,7 +334,7 @@ export default function RevisionUpload({ targetSheetId, onClose }: { targetSheet
                 })}
               </ul>
               <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Plus className="h-3.5 w-3.5" /> New sheets are added after your current ones. You can align a revision afterwards if the drawing moved.
+                <Plus className="h-3.5 w-3.5" /> {t("New sheets are added after your current ones. You can align a revision afterwards if the drawing moved.")}
               </p>
             </>
           )}

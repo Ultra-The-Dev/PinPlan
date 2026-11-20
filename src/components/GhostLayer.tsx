@@ -1,5 +1,6 @@
 "use client";
 import { Circle, Group, Rect, Text } from "react-konva";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { useSuggestions } from "@/lib/suggestions";
 import type { Suggestion } from "@/lib/types";
@@ -54,9 +55,10 @@ function Ghost({
   symbol: string;
   onDragEnd: (x: number, y: number) => void;
 }) {
+  const t = useT();
   const r = 14 * k;
   const pct = `${Math.round(g.confidence * 100)}%`;
-  const caption = g.kind === "led" ? `${g.lf != null ? `${g.lf} LF` : "? LF"}${g.switchLabel ? ` ${g.switchLabel}` : ""} · ${pct}` : pct;
+  const caption = g.kind === "led" ? `${g.lf != null ? t("{n} LF", { n: g.lf }) : t("? LF")}${g.switchLabel ? ` ${g.switchLabel}` : ""} · ${pct}` : pct;
   const toggle = (e: { cancelBubble: boolean }) => {
     e.cancelBubble = true;
     useSuggestions.getState().toggleSelect(g.id);
