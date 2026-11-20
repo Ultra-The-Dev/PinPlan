@@ -230,8 +230,14 @@ sender's own account must be confirmed, and the company's daily email limits app
 ## Pay online
 
 `payment.payUrl` is the company's own link (Stripe Payment Link, Square, PayPal…) with `{amount}` (balance, 2 decimals),
-`{number}` and `{currency}` filled in (`payUrl()`); only http(s) links are used. PinPlan doesn't take payments itself;
-record them with "Record payment".
+`{number}` and `{currency}` filled in (`payUrl()`); only http(s) links are used.
+
+**Online payments** ([payments.md](payments.md)): when the company has connected its own Stripe account, the client
+link shows "Pay $X by card" for the balance (Stripe Checkout, a direct charge on the company's account). The server
+records the payment from Stripe's webhook as an ordinary `sales_document_payments` row (`stripe_<payment intent>`,
+method `card` or `ach`), once and never above the balance (any excess is refunded), so the money trigger works out the
+invoice exactly as for "Record payment". `get_document()` returns `payOnline {available, ach, payable, processing,
+paidOnline}`. Otherwise record payments with "Record payment".
 
 ## Job money at a glance
 

@@ -19,6 +19,7 @@ import BillingPanel from "./BillingPanel";
 import ChecklistTemplatesSettings from "./ChecklistTemplatesSettings";
 import FormTemplatesSettings from "./forms/FormTemplatesSettings";
 import DocSettingsPanel from "./documents/DocSettingsPanel";
+import OnlinePaymentsPanel from "./documents/OnlinePaymentsPanel";
 import TeamPanel from "./TeamPanel";
 import TemplatesSettings from "./templates/TemplatesSettings";
 import TradeSettings from "./TradeSettings";
@@ -38,7 +39,7 @@ function Group({ id, title, children }: { id?: string; title: string; children: 
 
 /**
  * Settings, in sections: Company · Team · Plan & billing · Quotes & invoices · Connected apps · Templates · More.
- * Older anchors (#trades, #business, #pricing, #wire, #invoicing, #billdu, #checklists, #forms, #account, …) still
+ * Older anchors (#trades, #business, #pricing, #wire, #invoicing, #payments, #billdu, #checklists, #forms, #account, …) still
  * land on their card.
  */
 export default function SettingsForm({ connectedApps }: { connectedApps?: React.ReactNode } = {}) {
@@ -313,6 +314,8 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
               </div>
               <DocSettingsPanel />
             </section>
+            {/* Hidden until the server has online payments set up (docs/payments.md). */}
+            <OnlinePaymentsPanel />
           </Group>
         )}
 

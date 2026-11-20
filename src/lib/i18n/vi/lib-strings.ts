@@ -508,6 +508,12 @@ const libStrings: Dictionary = {
   "Northpin can't send more email today. Share the invite with Copy link or Text it instead.": "Hôm nay Northpin không gửi thêm email được nữa. Hãy chia sẻ lời mời bằng “Sao chép liên kết” hoặc “Nhắn tin”.",
   "Sign up with your email and a password instead.": "Hãy đăng ký bằng email và mật khẩu.",
   "That request is too large.": "Yêu cầu quá lớn.",
+  // Online payments (docs/payments.md)
+  "Online payments are set up by the owner or an admin. Ask your office.": "Thanh toán trực tuyến do chủ sở hữu hoặc quản trị viên thiết lập. Hãy hỏi văn phòng.",
+  "Sign in to set up online payments.": "Đăng nhập để thiết lập thanh toán trực tuyến.",
+  "Couldn't reach Stripe. Try again in a minute.": "Không kết nối được với Stripe. Hãy thử lại sau một phút.",
+  "Couldn't check online payments. Try again in a minute.": "Không kiểm tra được thanh toán trực tuyến. Hãy thử lại sau một phút.",
+  "Connect Stripe first.": "Hãy kết nối Stripe trước.",
 };
 
 export default libStrings;

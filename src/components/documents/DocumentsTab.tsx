@@ -34,6 +34,7 @@ import {
 } from "@/lib/documents";
 import { projectEstimate } from "@/lib/estimate";
 import { useT } from "@/lib/i18n";
+import { isOnlinePayment } from "@/lib/onlinePay";
 import { useEditor } from "@/lib/store";
 import { computeTakeoff } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
@@ -336,7 +337,7 @@ export default function DocumentsTab() {
                     <span className="w-24 shrink-0 tabular-nums text-slate-500">{formatDocDate(p.date, ds.locale)}</span>
                     <span className="min-w-0 flex-1 truncate">
                       {t(PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method)}
-                      {p.reference ? ` · ${p.reference}` : ""}
+                      {isOnlinePayment(p) ? ` · ${p.amount < 0 ? t("Refunded in Stripe") : t("Paid online")}` : p.reference ? ` · ${p.reference}` : ""}
                       {inv ? <span className="text-slate-500"> · {docName(inv, ds)}</span> : null}
                     </span>
                     <span className="shrink-0 font-medium tabular-nums">{formatDocMoney(p.amount, inv?.currency ?? ds.currency, ds.locale)}</span>

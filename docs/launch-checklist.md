@@ -202,6 +202,18 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 6. **R or O: Sales tax.** Ask an accountant where you must collect. If anywhere: turn on Stripe Tax, add the
    registrations, then set `STRIPE_TAX=1`.
 7. **O:** each company can have a `billing_email` on its team row; otherwise billing emails go to the owner's email.
+8. **O: Online invoice payments** (companies' clients pay invoices by card into the company's own Stripe account;
+   off until you do this). Full steps: [payments.md](payments.md).
+   1. **Connect → Get started** on this same Stripe account; in Connect → Settings allow **Standard** accounts, set
+      the branding, and turn on cards (and ACH Direct Debit if companies may offer US bank account).
+   2. **Developers → Webhooks → Add endpoint** `https://northpin.app/api/payments/webhook` (your domain), **Listen to:
+      Events on Connected accounts**, events `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+      `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `account.updated`,
+      `account.application.deauthorized`. Copy its signing secret into `STRIPE_CONNECT_WEBHOOK_SECRET` (step 7.1;
+      on Cloudflare a repository secret of that name) and turn on failure alerts for it.
+   3. **O:** a platform fee: `PINPLAN_PAYMENTS_FEE_BPS` (basis points, 100 = 1 %; empty = no fee). Say so in your
+      Terms and pricing page before you set it.
+   4. Test it in test mode first (payments.md, "Owner setup" step 5).
 
 ## 7. Hosting
 
@@ -242,6 +254,8 @@ Also, for Cloudflare:
    | `STRIPE_PRICE_BASE`, `STRIPE_PRICE_SEAT` | the two live price ids (step 6.2) | R |
    | `STRIPE_TERMS_CONSENT` | `1` (after step 6.5) | R |
    | `STRIPE_TAX` | `1` only if you collect sales tax (step 6.6) | O |
+   | `STRIPE_CONNECT_WEBHOOK_SECRET` | the Connect endpoint's signing secret (step 6.8); turns online invoice payments on | O |
+   | `PINPLAN_PAYMENTS_FEE_BPS` | platform fee on online invoice payments in basis points (step 6.8); empty = none | O |
    | `CRON_SECRET` | `openssl rand -hex 32`. Needed for trial reminders and payment-failed emails | R |
    | `RESEND_API_KEY` | step 5.2 | R |
    | `EMAIL_FROM` | `PinPlan <noreply@mail.<your-domain>>` | R |

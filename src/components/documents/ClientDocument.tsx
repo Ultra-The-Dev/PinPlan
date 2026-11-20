@@ -1,11 +1,13 @@
 "use client";
 // What the client sees at /d?t=…: the company's quote / invoice / credit note, PDF download, accept (sign) or decline a
-// quote, and how to pay an invoice. No account needed: the link token is the key.
-import { Check, Download, X } from "lucide-react";
+// quote, and how to pay an invoice — online by card when the company connected Stripe (docs/payments.md). No account
+// needed: the link token is the key. Client-facing: English only.
+import { Check, CreditCard, Download, Landmark, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { fetchPublicDoc, respondToDoc, type PublicDoc } from "@/lib/docActions";
-import { formatDocDate, formatDocMoney, payUrl } from "@/lib/documents";
+import { confirmOnlinePayment, fetchPublicDoc, respondToDoc, startOnlinePayment, type PublicDoc } from "@/lib/docActions";
+import { documentUrl, formatDocDate, formatDocMoney, payUrl } from "@/lib/documents";
+import { clientPayView } from "@/lib/onlinePay";
 import { downloadBlob, slug } from "@/lib/download";
 import { supabaseConfigured } from "@/lib/supabase";
 import SignaturePad from "../SignaturePad";
@@ -20,8 +22,23 @@ function notifyResponse(token: string) {
   }
 }
 
+/** Back from Stripe: apply the payment now (the webhook may be a moment behind), then re-read until it shows. */
+async function loadAfterPayment(token: string, session: string | null): Promise<PublicDoc | null> {
+  if (session) await confirmOnlinePayment(token, session);
+  let doc = await fetchPublicDoc(token);
+  for (let i = 0; i < 5 && doc?.payOnline && doc.payOnline.paidOnline <= 0 && doc.payOnline.processing <= 0 && doc.status !== "paid"; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    doc = await fetchPublicDoc(token);
+  }
+  return doc;
+}
+
 export default function ClientDocument() {
-  const token = useSearchParams().get("t") ?? "";
+  const params = useSearchParams();
+  const token = params.get("t") ?? "";
+  // Stripe sends the client back with ?paid=1&cs=<checkout session>.
+  const returned = params.get("paid") === "1";
+  const session = params.get("cs");
   const [d, setD] = useState<PublicDoc | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -34,13 +51,13 @@ export default function ClientDocument() {
 
   useEffect(() => {
     if (!token || !supabaseConfigured) return;
-    fetchPublicDoc(token)
+    (returned ? loadAfterPayment(token, session && /^cs_[A-Za-z0-9_]+$/.test(session) ? session : null) : fetchPublicDoc(token))
       .then((r) => {
         setD(r);
         if (r?.snapshot.client.name) setName(r.snapshot.client.name);
       })
       .catch((e) => setError(/does not exist|schema cache|could not find/i.test(e.message) ? "This link isn't available right now. Please contact the company that sent it." : e.message));
-  }, [token]);
+  }, [token, returned, session]);
 
   if (!token || !supabaseConfigured || d === null) return <ClientNotice title="This link isn't available" body="It may have been withdrawn or replaced by an updated version. Please contact the company that sent it." />;
   if (error && !d) return <ClientNotice title="Couldn't open the document" body={error} />;
@@ -50,6 +67,9 @@ export default function ClientDocument() {
   const money = (n: number) => formatDocMoney(n, s.currency, s.locale);
   const live = { status: d.status, number: d.number, amountPaid: d.amountPaid, balanceDue: d.balanceDue, paidAt: d.paidAt, overdue: d.overdue, expired: d.expired };
   const pay = d.kind === "invoice" && d.status !== "void" && d.balanceDue > 0 ? payUrl(s.payment.payUrl, { number: d.number, balanceDue: d.balanceDue, currency: s.currency }) : null;
+  // Paying online through Stripe Checkout (the company's own Stripe account), when the company set it up.
+  const online = clientPayView({ kind: d.kind, status: d.status, balanceDue: d.balanceDue, payOnline: d.payOnline, returned });
+  const payOnlineLabel = online.kind === "pay" ? `Pay ${money(online.amount)} ${online.ach ? "by card or bank" : "by card"}` : "";
   const answered = d.status === "accepted" || d.status === "declined";
   const canAnswer = d.kind === "quote" && !answered && !d.expired && (d.status === "sent" || d.status === "viewed");
   const needSig = s.requireSignature;
@@ -69,11 +89,30 @@ export default function ClientDocument() {
     }
   }
 
+  async function payOnline() {
+    setBusy("pay");
+    setError(null);
+    try {
+      window.location.assign(await startOnlinePayment(token));
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(null);
+    }
+  }
+
+  const payButton = (cls: string) => (
+    <button type="button" className={cls} onClick={() => void payOnline()} disabled={busy === "pay"}>
+      {online.kind === "pay" && online.ach ? <Landmark /> : <CreditCard />} {busy === "pay" ? "Opening secure payment…" : payOnlineLabel}
+    </button>
+  );
+
   async function pdf() {
     setBusy("pdf");
     try {
       const { renderDocPdf } = await import("./DocPdf");
-      downloadBlob(await renderDocPdf({ snap: s, live, payLink: pay }), `${slug(`${s.title}-${d!.number ?? ""}`)}.pdf`);
+      // The PDF links to this page when the invoice can be paid here.
+      const payLink = pay ?? (online.kind === "pay" ? documentUrl(window.location.origin, token) : null);
+      downloadBlob(await renderDocPdf({ snap: s, live, payLink }), `${slug(`${s.title}-${d!.number ?? ""}`)}.pdf`);
     } catch (e) {
       setError(`PDF failed: ${(e as Error).message}`);
     } finally {
@@ -155,6 +194,14 @@ export default function ClientDocument() {
         <strong>This invoice was voided.</strong> Nothing is due on it.
       </p>
     );
+  } else if (isInvoice && online.kind === "paid" && online.online) {
+    footTone = "ok";
+    foot = (
+      <p role="status">
+        <Check className="mr-1.5 inline h-5 w-5 align-[-4px]" />
+        <strong>Paid — thank you!</strong> Your payment was received{d.paidAt ? ` and the invoice was paid in full on ${day(d.paidAt)}` : ""}.
+      </p>
+    );
   } else if (isInvoice && d.status === "paid") {
     footTone = "ok";
     foot = (
@@ -162,6 +209,41 @@ export default function ClientDocument() {
         <Check className="mr-1.5 inline h-5 w-5 align-[-4px]" />
         <strong>Paid in full{d.paidAt ? ` on ${day(d.paidAt)}` : ""}.</strong> Thank you!
       </p>
+    );
+  } else if (isInvoice && online.kind === "processing") {
+    footTone = "ok";
+    foot = (
+      <p role="status">
+        <Check className="mr-1.5 inline h-5 w-5 align-[-4px]" />
+        <strong>Thank you — your bank payment of {money(online.amount)} is processing.</strong> Bank payments usually take a few business days to clear. Nothing more is due right now.
+      </p>
+    );
+  } else if (isInvoice && online.kind === "thanks") {
+    footTone = "ok";
+    foot = (
+      <>
+        <p role="status">
+          <Check className="mr-1.5 inline h-5 w-5 align-[-4px]" />
+          <strong>Payment received — thank you!</strong> {money(online.remaining)} is still due on this invoice.
+        </p>
+        {d.payOnline?.available ? payButton("cp-btn cp-btn-block-sm cp-noprint") : null}
+      </>
+    );
+  } else if (isInvoice && d.balanceDue > 0 && online.kind === "pay") {
+    footTone = d.overdue ? "warn" : undefined;
+    foot = (
+      <>
+        <p>
+          {d.overdue ? <strong>This invoice is past due. </strong> : null}
+          Pay securely online with Stripe{online.ach ? " by card or US bank account" : " by card"}, or see the other ways to pay at the end of the invoice.
+        </p>
+        {payButton("cp-btn cp-btn-block-sm cp-noprint")}
+        {error && (
+          <p className="cp-note mt-3" data-tone="bad" role="alert">
+            {error}
+          </p>
+        )}
+      </>
     );
   } else if (isInvoice && d.balanceDue > 0) {
     footTone = d.overdue ? "warn" : undefined;
@@ -283,7 +365,7 @@ export default function ClientDocument() {
             )}
           </section>
         )}
-        {!canAnswer && error && (
+        {!canAnswer && error && online.kind !== "pay" && (
           <p className="cp-note mt-5" data-tone="bad" role="alert">
             {error}
           </p>
@@ -302,6 +384,14 @@ export default function ClientDocument() {
             Review and approve
           </button>
         </Dock>
+      ) : online.kind === "pay" ? (
+        <Dock watch="cp-next" target="cp-pay-end">
+          <div className="cp-dock-fig">
+            <span>Balance</span>
+            <strong>{money(online.amount)}</strong>
+          </div>
+          {payButton("cp-btn")}
+        </Dock>
       ) : pay ? (
         <Dock watch="cp-next" target="cp-pay-end">
           <div className="cp-dock-fig">
@@ -313,7 +403,7 @@ export default function ClientDocument() {
           </a>
         </Dock>
       ) : null}
-      {pay ? <span id="cp-pay-end" aria-hidden /> : null}
+      {pay || online.kind === "pay" ? <span id="cp-pay-end" aria-hidden /> : null}
     </ClientPage>
   );
 }

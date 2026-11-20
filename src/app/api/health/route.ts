@@ -3,7 +3,7 @@ import { adminEmails, requirePlatformAdmin } from "@/lib/server/admin";
 import { accessCodeAccepted, authMode, requireUser } from "@/lib/server/auth";
 import { billingConfig } from "@/lib/server/billing";
 import { emailConfigured } from "@/lib/server/email";
-import { isProduction, missingProductionConfig, REQUIRED_SCHEMA_VERSION, schemaStatus } from "@/lib/server/envCheck";
+import { featureStatus, isProduction, missingProductionConfig, REQUIRED_SCHEMA_VERSION, schemaStatus } from "@/lib/server/envCheck";
 import { loadBillduCreds } from "@/lib/server/secrets";
 
 /**
@@ -56,6 +56,8 @@ export async function GET(request: Request) {
     stripe: billing.ok,
     ...(!billing.ok ? { stripeMissing: billing.missing } : {}),
     stripeWebhook: has("STRIPE_WEBHOOK_SECRET"),
+    // Online invoice payments (Stripe Connect): optional, "off" until STRIPE_CONNECT_WEBHOOK_SECRET is set.
+    onlinePayments: featureStatus("onlinePayments").status,
     email: emailConfigured(),
     resend: has("RESEND_API_KEY"),
     appUrl: /^https?:\/\/\S+/i.test(appUrl),

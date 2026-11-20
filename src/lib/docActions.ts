@@ -6,6 +6,7 @@ import { db, getAllDocs, getProjectDocs, newId, nowIso, put, remove } from "./db
 import { buildDocSnapshot, documentUrl, formatDocNumber, snapshotHash, today, withTotals, type DocSnapshot } from "./documents";
 import { msg, t } from "./i18n";
 import { newToken } from "./proposal";
+import type { PayOnlineState } from "./onlinePay";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { SYNCED_EVENT, useSyncStatus } from "./sync";
 import { useTeam } from "./team";
@@ -276,12 +277,39 @@ export interface PublicDoc {
   paidAt: string | null;
   expired: boolean;
   overdue: boolean;
+  /** Invoices: paying online by card (docs/payments.md). Missing before 20261125002100_online_payments. */
+  payOnline?: PayOnlineState | null;
 }
 
 export async function fetchPublicDoc(token: string): Promise<PublicDoc | null> {
   const { data, error } = await cloud().rpc("get_document", { p_token: token });
   if (error) throw new Error(error.message);
   return (data as PublicDoc | null) ?? null;
+}
+
+/**
+ * Client page: a Stripe Checkout page for the invoice's balance (the server checks everything again). Returns its URL,
+ * or throws with the server's message (English: the client page is never translated).
+ */
+export async function startOnlinePayment(token: string): Promise<string> {
+  let r: Response;
+  try {
+    r = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+  } catch {
+    throw new Error("You seem to be offline. Check your connection and try again.");
+  }
+  const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
+  if (!r.ok || !j.url) throw new Error(j.error || "Online payment isn't available right now. Please try again in a few minutes.");
+  return j.url;
+}
+
+/** Client page, back from Stripe: ask the server to apply the payment now (the webhook does it too). Never throws. */
+export async function confirmOnlinePayment(token: string, session: string): Promise<void> {
+  try {
+    await fetch("/api/payments/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, session }) });
+  } catch {
+    /* the webhook records it anyway */
+  }
 }
 
 export async function respondToDoc(token: string, r: { accept: boolean; name: string; signature: string | null; note: string }): Promise<PublicDoc> {

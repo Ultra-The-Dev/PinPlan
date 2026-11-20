@@ -528,6 +528,12 @@ const libStrings: Dictionary = {
   "Northpin can't send more email today. Share the invite with Copy link or Text it instead.": "Сегодня Northpin больше не может отправлять письма. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS».",
   "Sign up with your email and a password instead.": "Зарегистрируйтесь с email и паролем.",
   "That request is too large.": "Слишком большой запрос.",
+  // Online payments (docs/payments.md)
+  "Online payments are set up by the owner or an admin. Ask your office.": "Онлайн-оплату настраивает владелец или администратор. Обратитесь в офис.",
+  "Sign in to set up online payments.": "Войдите, чтобы настроить онлайн-оплату.",
+  "Couldn't reach Stripe. Try again in a minute.": "Не удалось связаться со Stripe. Попробуйте через минуту.",
+  "Couldn't check online payments. Try again in a minute.": "Не удалось проверить онлайн-оплату. Попробуйте через минуту.",
+  "Connect Stripe first.": "Сначала подключите Stripe.",
 };
 
 export default libStrings;

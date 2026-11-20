@@ -52,7 +52,8 @@ customer data requests.
       user, per device and overall so a flood can't fill it). Columns are documented in
       `supabase/migrations/20261121020000_ops.sql`.
 - [ ] Vercel → Logs / Observability for server errors; Supabase → Logs for database and sign-in errors;
-      Stripe → Developers → Webhooks for failed deliveries (turn on failure alerts); Resend → Emails for bounces.
+      Stripe → Developers → Webhooks for failed deliveries on both endpoints (billing and the Connect one for online
+      invoice payments; turn on failure alerts); Resend → Emails for bounces.
 - [ ] Rate limits for the server routes are kept in Supabase (`20261124100400_rate_limits.sql`); without that
       migration they fall back to per-server counting. Email has its own daily limits per company
       (`20261124100500_email_guard.sql`).
@@ -70,6 +71,7 @@ Environment secrets (the deploy copies it into the Worker), not in the Worker di
 | Supabase service-role / anon (JWT) keys | Supabase → Project Settings → API (new API keys or JWT secret rotation). Update Vercel. Rotating the JWT secret signs everyone out. |
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys → roll key (the old key can live briefly). Update Vercel. |
 | `STRIPE_WEBHOOK_SECRET` | Roll the endpoint's signing secret in Stripe, update Vercel. |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | Roll the Connect endpoint's signing secret (`/api/payments/webhook`) in Stripe, update the server. |
 | `RESEND_API_KEY` / Supabase SMTP password | New key in Resend, update Vercel and Supabase SMTP settings, then delete the old key. |
 | `CRON_SECRET` | New random value in Vercel; Vercel Cron picks it up on the next deploy. |
 | `PINPLAN_ENCRYPTION_KEY` | Move the old value to `PINPLAN_ENCRYPTION_KEY_PREVIOUS`, set a new `PINPLAN_ENCRYPTION_KEY`, redeploy. Stored Billdu, QuickBooks Online and Xero credentials can still be read with the old key and are written with the new one when next saved. Remove `PINPLAN_ENCRYPTION_KEY_PREVIOUS` once every company has used or re-saved its connections. Changing the key without this step disconnects every company. |

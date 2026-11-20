@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { DOCS_EVENT, deleteDraft, issueDoc, linkIsStale, markSent, publishLink, recordPayment, saveDoc, voidDoc, voidPayment } from "@/lib/docActions";
 import { buildDocSnapshot, clientDirectory, displayStatus, docName, documentTotals, documentUrl, dueDateFor, formatDocDate, formatDocMoney, invoicesFromQuote, lineId, PAYMENT_METHODS, PAYMENT_TERMS, payUrl, termsLabel, today, wasSent, type InvoiceMode } from "@/lib/documents";
+import { isOnlinePayment } from "@/lib/onlinePay";
 import { safeSignature } from "@/lib/signatureImage";
 import { downloadBlob, slug } from "@/lib/download";
 import { emailEnabled } from "@/lib/emailClient";
@@ -618,12 +619,24 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                     <span className="min-w-0 flex-1">
                       {p.amount < 0 ? `${t("Refund")} · ` : ""}
                       {t(PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method)}
-                      {p.reference ? ` #${p.reference}` : ""}
-                      {p.note ? <span className="text-slate-500"> — {p.note}</span> : null}
+                      {isOnlinePayment(p) ? (
+                        <span className="chip ml-2 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" title={p.reference ?? undefined}>
+                          {p.amount < 0 ? t("Refunded in Stripe") : t("Paid online")}
+                        </span>
+                      ) : (
+                        <>
+                          {p.reference ? ` #${p.reference}` : ""}
+                          {p.note ? <span className="text-slate-500"> — {p.note}</span> : null}
+                        </>
+                      )}
                     </span>
                     <span className="font-medium tabular-nums">{money(p.amount)}</span>
                     {!locked && (
-                      <button className="btn btn-sm btn-ghost text-slate-500" onClick={() => void run("pay", () => voidPayment(p, !p.voided))} title={p.voided ? t("Count it again") : t("Void this payment")}>
+                      <button className="btn btn-sm btn-ghost text-slate-500" onClick={() => {
+                          // Voiding here never moves money: an online payment is refunded in Stripe (it then shows here by itself).
+                          if (isOnlinePayment(p) && !p.voided && !confirm(t("This payment was made online through Stripe. Voiding it here doesn't refund the client: refund it in your Stripe dashboard and the refund shows here by itself. Void it anyway?"))) return;
+                          void run("pay", () => voidPayment(p, !p.voided));
+                        }} title={p.voided ? t("Count it again") : t("Void this payment")}>
                         {p.voided ? <Undo2 /> : <Ban />} {p.voided ? t("Restore") : t("Void payment")}
                       </button>
                     )}
