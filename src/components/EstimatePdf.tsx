@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/estimate";
 import { localDay } from "@/lib/fieldDocs";
 import type { BusinessSettings, Project } from "@/lib/types";
 
-const INK = "#161616";
+const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const BRAND = DOC_DEFAULT_BRAND;
 
 /** The brand colour the PDF uses: Settings → Your business, when it is a valid hex colour. */

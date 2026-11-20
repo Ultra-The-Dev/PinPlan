@@ -44,7 +44,7 @@ const IMG = 150;
 export function TaskReportDocument({ d }: { d: TaskPdfData }) {
   const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
-    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
+    page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#0F2340" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },
     head: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
     title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: brand, marginBottom: 4 },
@@ -116,7 +116,7 @@ export function TaskReportDocument({ d }: { d: TaskPdfData }) {
                         Checklist {t.checklist.done}/{t.checklist.total}
                       </Text>
                       {t.checklist.items.map((c, k) => (
-                        <Text key={k} style={{ fontSize: 8.5, color: c.done ? MUTED : "#111827", marginTop: 1 }}>
+                        <Text key={k} style={{ fontSize: 8.5, color: c.done ? MUTED : "#0F2340", marginTop: 1 }}>
                           {c.done ? "[x]" : "[  ]"} {c.text}
                         </Text>
                       ))}

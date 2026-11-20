@@ -7,7 +7,7 @@ import { changeOrderTotals, coCode, reasonLabel, sellLines, type ContractSummary
 import { formatMoney } from "@/lib/estimate";
 import type { BusinessSettings, ChangeOrder, Project } from "@/lib/types";
 
-const INK = "#161616";
+const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 

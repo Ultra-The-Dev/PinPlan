@@ -196,29 +196,29 @@ export default function Gantt(props: {
             <svg className="pointer-events-none absolute inset-0" width={width} height={height} aria-hidden>
               <defs>
                 <marker id="pp-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-                  <path d="M0 0 L8 4 L0 8 z" fill="#77706a" />
+                  <path d="M0 0 L8 4 L0 8 z" fill="#5F718B" />
                 </marker>
                 <marker id="pp-arrow-hot" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-                  <path d="M0 0 L8 4 L0 8 z" fill="#dc2626" />
+                  <path d="M0 0 L8 4 L0 8 z" fill="#C73A2C" />
                 </marker>
               </defs>
-              {days.map((d, i) => (isWeekend(d) ? <rect key={d} x={i * w} y={0} width={w} height={height} fill="#efece7" opacity={0.7} /> : null))}
-              {days.map((d, i) => (weekday(d) === 1 ? <line key={`l${d}`} x1={i * w} x2={i * w} y1={0} y2={height} stroke="#e2ded7" /> : null))}
+              {days.map((d, i) => (isWeekend(d) ? <rect key={d} x={i * w} y={0} width={w} height={height} fill="#E6EDF5" opacity={0.7} /> : null))}
+              {days.map((d, i) => (weekday(d) === 1 ? <line key={`l${d}`} x1={i * w} x2={i * w} y1={0} y2={height} stroke="#D5DFEB" /> : null))}
               {shown.map((i, n) => (
-                <line key={`r${i.id}`} x1={0} x2={width} y1={(n + 1) * ROW_H - 0.5} y2={(n + 1) * ROW_H - 0.5} stroke="#f7f5f2" />
+                <line key={`r${i.id}`} x1={0} x2={width} y1={(n + 1) * ROW_H - 0.5} y2={(n + 1) * ROW_H - 0.5} stroke="#F2F6FA" />
               ))}
               {arrows.map((a) => (
                 <path
                   key={a.key}
                   d={a.d}
                   fill="none"
-                  stroke={a.hot ? "#dc2626" : "#a19a90"}
+                  stroke={a.hot ? "#C73A2C" : "#5F718B"}
                   strokeWidth={a.hot ? 1.6 : 1.2}
                   markerEnd={`url(#${a.hot ? "pp-arrow-hot" : "pp-arrow"})`}
                   data-testid="dep-arrow"
                 />
               ))}
-              {todayX >= 0 && todayX <= width && <line x1={todayX + w / 2} x2={todayX + w / 2} y1={0} y2={height} stroke="#c2410c" strokeWidth={1.5} strokeDasharray="3 3" />}
+              {todayX >= 0 && todayX <= width && <line x1={todayX + w / 2} x2={todayX + w / 2} y1={0} y2={height} stroke="#0F2340" strokeWidth={1.5} strokeDasharray="3 3" />}
             </svg>
 
             {shown.map((i, n) => {
@@ -250,7 +250,7 @@ export default function Gantt(props: {
                   <span className="absolute inset-y-0 left-0 rounded-l-md" style={{ width: `${p}%`, background: color, borderTopRightRadius: p >= 100 ? 6 : 0, borderBottomRightRadius: p >= 100 ? 6 : 0 }} />
                   <span className="absolute inset-0 rounded-md" style={{ boxShadow: `inset 0 0 0 1px ${color}` }} />
                   {labelInside && (
-                    <span className="relative truncate px-2 text-xs font-medium" style={{ color: p > 45 ? "#fff" : "#1c1a18", textShadow: p > 45 ? "0 1px 1px rgb(0 0 0 / .25)" : undefined }}>
+                    <span className="relative truncate px-2 text-xs font-medium" style={{ color: p > 45 ? "#fff" : "#0F2340", textShadow: p > 45 ? "0 1px 1px rgb(0 0 0 / .25)" : undefined }}>
                       {i.name}
                     </span>
                   )}

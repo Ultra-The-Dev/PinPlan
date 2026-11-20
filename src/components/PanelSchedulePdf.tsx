@@ -4,13 +4,13 @@ import { Document, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer
 import { breakerLabel, circuitLabel, type PanelScheduleT } from "@/lib/panelSchedule";
 
 const s = StyleSheet.create({
-  page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#0f172a" },
+  page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#0F2340" },
   h1: { fontSize: 16, fontFamily: "Helvetica-Bold" },
   muted: { color: "#64748b", marginTop: 2 },
   totals: { flexDirection: "row", marginTop: 10, marginBottom: 10 },
   box: { borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 3, paddingVertical: 4, paddingHorizontal: 8, marginRight: 8 },
   boxVal: { fontFamily: "Helvetica-Bold", fontSize: 11 },
-  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0f172a", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
+  th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#0F2340", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
   tr: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", paddingVertical: 4 },
   cNo: { width: 44, fontFamily: "Helvetica-Bold" },
   cBrk: { width: 50 },

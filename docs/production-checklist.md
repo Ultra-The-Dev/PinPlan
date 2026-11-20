@@ -19,6 +19,13 @@ customer data requests.
 - [ ] New migrations: run them on the local test database first, then `supabase db push` on production **before** the
       new code goes live. If the code needs a newer migration, `REQUIRED_SCHEMA_VERSION` in
       `src/lib/server/envCheck.ts` says which, and `/api/health` answers 503 until it's run.
+- [ ] Production settings are complete: `PINPLAN_APP_URL` (`https://<your-domain>`) is **required**, together with
+      the other settings `src/lib/server/envCheck.ts` checks (Supabase, `PINPLAN_ENCRYPTION_KEY`, Stripe, Resend;
+      list in [launch-checklist.md](launch-checklist.md) §7.1). Without `PINPLAN_APP_URL`, checkout, the billing
+      portal, the cron and every email answer 501. A new setting needs a redeploy; `NEXT_PUBLIC_` ones a new build.
+- [ ] Changed a file in `supabase/templates/`? Paste it again into Supabase → Authentication → Emails → Templates. All
+      six must be set: `confirm-signup`, `invite`, `magic-link`, `reset-password`, `change-email` and
+      `reauthentication` (subjects in [SETUP.md](../SETUP.md) A2).
 - [ ] After deploying: `https://<your-domain>/api/health` returns `200` with `"database": "ok"`. Signed in, it lists
       which services are configured (yes/no only, never values); all should be `true` except ones you deliberately
       don't use (AI stays off).
@@ -89,4 +96,4 @@ leaked. Redeploy in Vercel after every change.
   account email first. Deleting an account removes the login, the person's own jobs, price list and files, and the
   company if they own it alone. An owner with other people on the team must remove them first; a member's jobs move
   to the company owner. Deleting a company cancels its Stripe subscription; the Stripe customer and its invoices
-  stay in Stripe for your accounting records. Backups roll off within the point-in-time recovery window.
+  stay in Stripe for your accounting records. Backups roll off within the backup retention window (`RETENTION.backupDays` in `src/lib/legal.ts`).

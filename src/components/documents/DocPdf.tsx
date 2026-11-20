@@ -6,7 +6,7 @@ import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/r
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 import type { DocLive } from "./DocView";
 
-const INK = "#161616";
+const INK = "#0F2340"; // Blueprint Ink navy (docs/brand.md)
 const MUTED = "#64748b";
 const LINE = "#e2e8f0";
 const SOFT = "#f8fafc";

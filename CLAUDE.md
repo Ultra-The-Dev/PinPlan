@@ -6,7 +6,11 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
 ## Commands
 - `npm run dev` / `npm run build` / `npm start`
 - `npm test` (vitest, `tests/`), `npm run typecheck`, `npm run lint`
-- `postinstall` copies the PDF.js worker to `public/pdf.worker.min.mjs` (gitignored).
+- `npm run test:db` (local Supabase test DB, `scripts/test-supabase.sh`), `npm run check:legal`, `npm run check:migrations`,
+  `scripts/forbidden-strings.sh` (CI: no model ids outside `docs/`, plus a private denylist).
+- Generated, gitignored files: `postinstall` copies the PDF.js worker to `public/pdf.worker.min.mjs`; `postbuild`
+  (`scripts/build-sw.mjs`) writes `public/sw.js` from `scripts/sw.template.js` with the build id and precache list.
+  Edit the template, never `public/sw.js`. `prebuild` runs `scripts/check-legal.mjs` (fails only with `LEGAL_CHECK=strict`).
 
 ## Architecture / conventions
 - **Local-first.** All data lives in IndexedDB (Dexie, `src/lib/db.ts`). Every write goes through `put/putMany/remove/saveImage`,
@@ -25,5 +29,21 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   and `src/app/api/scan` (Claude vision). Secrets never go to the browser.
 - Quotes / invoices / credit notes (Dexie `salesDocs`, `salesPayments`; `src/lib/documents.ts`, `src/components/documents/`):
   data model, numbering (given by the database when issued) and RPCs in `docs/documents.md`. Office only, like the estimate.
+- **Navigation** (`docs/navigation.md`): job tabs Overview · Plan · Takeoff · Money (office) · Field. Money
+  (`src/components/money/MoneyTab.tsx`, `step=pricing|quote|changes|invoices`) holds pricing, quotes, change orders and
+  invoices; Field (`src/components/field/FieldTab.tsx`, `section=…`) holds checklists, logs, tasks, schedule, photos.
+  Old `?tab=` values map through `src/lib/tabRoutes.ts`. Words come from the glossary in `docs/ux-audit.md`.
+- **Plan overlays**: features that draw on the plan (markups, measurements, tasks, install progress, sheet links,
+  revisions) register through `registerPlanOverlay` (`src/lib/planOverlays.ts`), imported once from
+  `src/components/editor/overlays/index.ts`. `PlanCanvas` knows only overlays in general. iOS: `PlanOverlayRegistry`.
+  Selection and draft colours: `src/lib/canvasColors.ts`. Device symbols show letters and trade colours, not icons.
+- **Colours**: Blueprint Ink (`docs/brand.md`). App tokens in `globals.css`; document fallbacks in
+  `src/lib/brandDefaults.ts`; status chips in `src/lib/statusStyle.ts`. No old orange or `#161616`.
+- **Billing** (Stripe, `src/lib/server/billing.ts`, `src/lib/billingLogic.ts`): a lapsed company is read-only. Nothing
+  locks and no trial reminders go out until `billing_settings.enforce = true` (switched on in SQL at launch).
+- **Production config**: `src/lib/server/envCheck.ts` lists the required settings and `REQUIRED_SCHEMA_VERSION`;
+  `/api/health` answers 503 until both are met. Every env var is described in `.env.example`; the owner's launch
+  order is `docs/launch-checklist.md`, running it is `docs/production-checklist.md`. AI stays off.
+- Public repo: no secrets, no real customer data, no model identifiers in code (`ANTHROPIC_MODEL` is configuration).
 - Tests: `tests/sampleJob.test.ts` encodes the sample job hand counts from PLAN.md.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

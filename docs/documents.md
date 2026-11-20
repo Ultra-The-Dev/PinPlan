@@ -212,7 +212,14 @@ RPCs (security definer, `anon` + `authenticated`):
 
 Office RPCs (`authenticated`): `issue_document(p_id) → number`, `document_numbering()`, `set_document_next_number`.
 
-## Email (needs `RESEND_API_KEY` + `EMAIL_FROM`; `GET /api/email/status`)
+## Email (needs `RESEND_API_KEY`, `EMAIL_FROM` and `PINPLAN_APP_URL`; `GET /api/email/status`)
+
+Emailing a quote, invoice, reminder or receipt also needs the company's **business email** (Settings → Company): it
+is the reply-to address, read from the link snapshot (`snapshot.business.email`). Without a valid one the route
+answers 400 `business_email_required` and nothing is sent: client mail never replies to PinPlan. (The route's message
+still names the old section, "Settings → Business"; it is now Settings → Company.) A link published before the email
+was added keeps the old snapshot, so the office chooses **Update link** on the document, then sends again. The
+sender's own account must be confirmed, and the company's daily email limits apply (`src/lib/server/sendGuard.ts`).
 
 - `POST /api/documents/email {documentId, token, to, kind: "document"|"reminder"|"receipt", message?}` — office only;
   reads the link and document with the caller's token (RLS). Sends the company-branded email with the link (and the
