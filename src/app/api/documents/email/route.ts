@@ -7,11 +7,13 @@
 // to the company's own business email, which is required: client mail never replies to Northpin.
 // The company's name and email come from its settings (company_settings, read with the caller's token so RLS applies),
 // never from the link's snapshot: the snapshot is whatever the app published. A pay button only for a known payment
-// site (allowedPayUrl).
+// site (allowedPayUrl). When the company takes card payments online (docs/payments.md), invoices get a "Pay by card"
+// button that opens the client link itself (our own address), where the client pays on Stripe's page.
 import { documentUrl, payUrl, PAYMENT_METHODS, type DocSnapshot } from "@/lib/documents";
 import { allowedPayUrl, documentEmail, stripLinks } from "@/lib/emailTemplates";
 import { requireOffice } from "@/lib/server/auth";
 import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { paymentsConfig } from "@/lib/server/onlinePayments";
 import { finishSend, reserveSend } from "@/lib/server/sendGuard";
 import { anonKey, bearer, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
 
@@ -63,6 +65,7 @@ export async function POST(req: Request) {
   let doc: DocRow;
   let last: { amount: number; paid_on: string; method: string } | undefined;
   let business: { business_name?: string | null; email?: string | null } | undefined;
+  let payOnline = false;
   try {
     const [l, d, c] = await Promise.all([
       userFetch(token, `/rest/v1/document_links?id=eq.${encodeURIComponent(link)}&select=id,document_id,status,snapshot`),
@@ -80,6 +83,12 @@ export async function POST(req: Request) {
     if (dr.status === "void") return json({ error: "That document is void.", code: "void" }, 409);
     snap = lr.snapshot;
     doc = dr;
+    if (doc.kind === "invoice" && kind !== "receipt" && paymentsConfig().ok) {
+      // The company's connected Stripe account (RLS: the office sees its own row). No table yet: no button.
+      const a = await userFetch(token, `/rest/v1/payment_accounts?select=stripe_account_id,charges_enabled,enabled&limit=1`).catch(() => null);
+      const row = a?.ok ? ((await a.json()) as { stripe_account_id: string | null; charges_enabled: boolean; enabled: boolean }[])[0] : undefined;
+      payOnline = !!row?.stripe_account_id && row.charges_enabled && row.enabled && doc.balance_due > 0 && doc.status !== "draft";
+    }
     if (kind === "receipt") {
       const p = await userFetch(token, `/rest/v1/sales_document_payments?document_id=eq.${encodeURIComponent(documentId)}&voided=eq.false&deleted=eq.false&amount=gt.0&order=paid_on.desc,created_at.desc&limit=1&select=amount,paid_on,method`);
       if (p.ok) last = ((await p.json()) as { amount: number; paid_on: string; method: string }[])[0];
@@ -123,6 +132,8 @@ export async function POST(req: Request) {
       doc.kind === "invoice" && !guard.trial
         ? allowedPayUrl(payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency }))
         : null,
+    // Our own client link, so a trial may have it too.
+    payOnline,
     message: guard.trial ? stripLinks(message) : message,
     lastPayment: last ? { amount: last.amount, date: last.paid_on, method: PAYMENT_METHODS.find((m) => m.id === last.method)?.label ?? last.method } : null,
   });

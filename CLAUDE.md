@@ -41,6 +41,10 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   `src/lib/brandDefaults.ts`; status chips in `src/lib/statusStyle.ts`. No old orange or `#161616`.
 - **Billing** (Stripe, `src/lib/server/billing.ts`, `src/lib/billingLogic.ts`): a lapsed company is read-only. Nothing
   locks and no trial reminders go out until `billing_settings.enforce = true` (switched on in SQL at launch).
+- **Online invoice payments** (`docs/payments.md`, `src/lib/server/onlinePayments.ts`, `/api/payments/*`): companies
+  connect their own Stripe account (Connect, Standard-type, direct charges); clients pay on the `/d` link. The webhook
+  records an ordinary `salesPayments` row (`stripe_<intent>`) through `record_online_payment()`. Off until
+  `STRIPE_CONNECT_WEBHOOK_SECRET` is set.
 - **Production config**: `src/lib/server/envCheck.ts` lists the required settings and `REQUIRED_SCHEMA_VERSION`;
   `/api/health` answers 503 until both are met. Every env var is described in `.env.example`; the owner's launch
   order is `docs/launch-checklist.md`, running it is `docs/production-checklist.md`. AI stays off.

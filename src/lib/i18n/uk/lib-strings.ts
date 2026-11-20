@@ -534,6 +534,12 @@ const dict: Dictionary = {
   "Northpin can't send more email today. Share the invite with Copy link or Text it instead.": "Сьогодні Northpin більше не може надсилати листи. Поділіться запрошенням через «Скопіювати посилання» або «Надіслати SMS».",
   "Sign up with your email and a password instead.": "Зареєструйтеся з ел. поштою й паролем.",
   "That request is too large.": "Запит завеликий.",
+  // Online payments (docs/payments.md)
+  "Online payments are set up by the owner or an admin. Ask your office.": "Онлайн-оплату налаштовує власник або адміністратор. Зверніться до офісу.",
+  "Sign in to set up online payments.": "Увійдіть, щоб налаштувати онлайн-оплату.",
+  "Couldn't reach Stripe. Try again in a minute.": "Не вдалося зв’язатися зі Stripe. Спробуйте за хвилину.",
+  "Couldn't check online payments. Try again in a minute.": "Не вдалося перевірити онлайн-оплату. Спробуйте за хвилину.",
+  "Connect Stripe first.": "Спершу під’єднайте Stripe.",
 };
 
 export default dict;

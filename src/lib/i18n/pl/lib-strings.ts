@@ -554,6 +554,12 @@ const dict: Dictionary = {
   "Northpin can't send more email today. Share the invite with Copy link or Text it instead.": "Northpin nie może dziś wysłać więcej e-maili. Udostępnij zaproszenie przez „Kopiuj link” lub „Wyślij SMS”.",
   "Sign up with your email and a password instead.": "Zamiast tego zarejestruj się, podając e-mail i hasło.",
   "That request is too large.": "To żądanie jest zbyt duże.",
+  // Online payments (docs/payments.md)
+  "Online payments are set up by the owner or an admin. Ask your office.": "Płatności online konfiguruje właściciel lub administrator. Zapytaj w biurze.",
+  "Sign in to set up online payments.": "Zaloguj się, aby skonfigurować płatności online.",
+  "Couldn't reach Stripe. Try again in a minute.": "Nie udało się połączyć ze Stripe. Spróbuj ponownie za minutę.",
+  "Couldn't check online payments. Try again in a minute.": "Nie udało się sprawdzić płatności online. Spróbuj ponownie za minutę.",
+  "Connect Stripe first.": "Najpierw połącz Stripe.",
 };
 
 export default dict;

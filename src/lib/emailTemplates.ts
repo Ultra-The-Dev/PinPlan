@@ -591,6 +591,8 @@ export interface DocumentEmail {
   url: string;
   /** The company's own pay-online link, already filled in. */
   payUrl?: string | null;
+  /** The client can pay by card on the client link (online payments, docs/payments.md). */
+  payOnline?: boolean;
   message?: string | null;
   lastPayment?: { amount: number; date: string; method: string } | null;
 }
@@ -606,6 +608,8 @@ export function documentEmail(o: DocumentEmail): EmailContent {
   const balance = typeof o.balanceDue === "number" ? o.balanceDue : o.total;
   // Only a known payment site (allowedPayUrl), whatever the caller passed.
   const pay = o.docKind === "invoice" && o.kind !== "receipt" && balance > 0 ? allowedPayUrl(o.payUrl) : null;
+  // Paying by card on the client link itself (Stripe Checkout): our own address, so no host check is needed.
+  const payHere = !!o.payOnline && o.docKind === "invoice" && o.kind !== "receipt" && balance > 0;
   const out: Block[] = [];
   let subject: string;
   let preheader: string;
@@ -648,7 +652,7 @@ export function documentEmail(o: DocumentEmail): EmailContent {
         o.docKind === "quote"
           ? `Here is your ${title.toLowerCase()}. You can review it online, download a PDF and accept it with your signature.`
           : o.docKind === "invoice"
-            ? `Here is your invoice. You can view it online and download a PDF${pay ? ", or pay online" : ""}.`
+            ? `Here is your invoice. You can view it online and download a PDF${payHere ? ", or pay it by card" : pay ? ", or pay online" : ""}.`
             : "Here is your credit note.",
       ),
     );
@@ -668,8 +672,11 @@ export function documentEmail(o: DocumentEmail): EmailContent {
     out.push(blocks.details(rows));
   }
   if (o.message?.trim()) out.push(blocks.quote(`Message from ${company}`, o.message.trim().slice(0, 4000)));
-  out.push(blocks.button(o.docKind === "quote" && o.kind === "document" ? "Review & accept" : `View ${title.toLowerCase()}`, o.url));
-  if (pay) {
+  if (payHere) {
+    out.push(blocks.button(`Pay ${money(balance, cur)} by card`, o.url));
+    out.push(blocks.small("You'll see the invoice first, then pay on a secure Stripe page. The money goes to ", { b: company }, "."));
+  } else out.push(blocks.button(o.docKind === "quote" && o.kind === "document" ? "Review & accept" : `View ${title.toLowerCase()}`, o.url));
+  if (pay && !payHere) {
     out.push(blocks.button(`Pay ${money(balance, cur)} online`, pay));
     // Say where the money goes, so a client can tell a real pay link from a fake one.
     out.push(blocks.small("The payment page is on ", { b: new URL(pay).hostname }, `, chosen by ${company}.`));

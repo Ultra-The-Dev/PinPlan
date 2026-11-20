@@ -77738,6 +77738,190 @@
           }
         }
       }
+    },
+    "Paid online by card" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pagado en línea con tarjeta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapłacono online kartą"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pago on-line com cartão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплачено онлайн картой"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплачено онлайн карткою"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã thanh toán trực tuyến bằng thẻ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用银行卡在线支付"
+          }
+        }
+      }
+    },
+    "Paid online by bank" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pagado en línea por banco"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapłacono online z konta bankowego"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pago on-line por banco"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплачено онлайн с банковского счёта"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплачено онлайн з банківського рахунку"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã thanh toán trực tuyến qua ngân hàng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已通过银行账户在线支付"
+          }
+        }
+      }
+    },
+    "%@ paid online" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pagado en línea"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ zapłacono online"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ pago on-line"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ оплачено онлайн"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ оплачено онлайн"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã thanh toán trực tuyến %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在线支付 %@"
+          }
+        }
+      }
+    },
+    "Clients can pay invoices by card from their link once the office connects Stripe on the web: Settings → Quotes & invoices → Online payments." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los clientes pueden pagar las facturas con tarjeta desde su enlace cuando la oficina conecte Stripe en la web: Configuración → Cotizaciones y facturas → Pagos en línea."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klienci mogą płacić faktury kartą ze swojego linku, gdy biuro połączy Stripe w wersji webowej: Ustawienia → Wyceny i faktury → Płatności online."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os clientes podem pagar faturas com cartão pelo link quando o escritório conectar o Stripe na versão web: Configurações → Orçamentos e faturas → Pagamentos on-line."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Клиенты смогут оплачивать счета картой по своей ссылке, когда офис подключит Stripe в веб-версии: Настройки → Сметы и счета → Онлайн-оплата."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Клієнти зможуть оплачувати рахунки карткою за своїм посиланням, коли офіс під’єднає Stripe у веб-версії: Налаштування → Кошториси й рахунки → Онлайн-оплата."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khách hàng có thể thanh toán hóa đơn bằng thẻ từ liên kết của họ sau khi văn phòng kết nối Stripe trên web: Cài đặt → Báo giá & hóa đơn → Thanh toán trực tuyến."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "办公室在网页版连接 Stripe 后，客户即可通过链接用银行卡支付发票：设置 → 报价单和发票 → 在线支付。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

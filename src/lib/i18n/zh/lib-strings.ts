@@ -505,6 +505,12 @@ const dict: Dictionary = {
     "Northpin 今天无法再发送邮件。请用“复制链接”或“发短信”分享邀请。",
   "Sign up with your email and a password instead.": "请改用邮箱和密码注册。",
   "That request is too large.": "请求过大。",
+  // Online payments (docs/payments.md)
+  "Online payments are set up by the owner or an admin. Ask your office.": "在线支付由所有者或管理员设置。请联系办公室。",
+  "Sign in to set up online payments.": "登录后即可设置在线支付。",
+  "Couldn't reach Stripe. Try again in a minute.": "无法连接 Stripe。请一分钟后重试。",
+  "Couldn't check online payments. Try again in a minute.": "无法检查在线支付。请一分钟后重试。",
+  "Connect Stripe first.": "请先连接 Stripe。",
 };
 
 export default dict;

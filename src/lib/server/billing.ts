@@ -93,7 +93,8 @@ export function billingFailure(where: string, e: unknown, message = "Billing is 
 }
 
 let client: { key: string; stripe: Stripe } | null = null;
-export function getStripe(cfg: BillingConfig): Stripe {
+/** The Stripe client for the platform's key (billing, and online invoice payments on connected accounts). */
+export function getStripe(cfg: Pick<BillingConfig, "secretKey">): Stripe {
   if (client?.key !== cfg.secretKey) client = { key: cfg.secretKey, stripe: new Stripe(cfg.secretKey, { maxNetworkRetries: 2, appInfo: { name: "Northpin" } }) };
   return client.stripe;
 }
