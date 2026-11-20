@@ -39,7 +39,11 @@ export default function LoginForm() {
     left.current = true;
     void (async () => {
       // A company waiting for this account: noted on this device, or on the account (signed up on another device).
-      const waiting = hadPending.current || !!pendingCompany() || !!companyFromMetadata(await accountMetadata().catch(() => null));
+      // (Accounts from before sign-ups noted the terms also carry a company name but never wait for one: only newer
+      // sign-ups count, so existing owners aren't sent to /start on every sign-in.)
+      const meta = await accountMetadata().catch(() => null);
+      const fromAccount = typeof meta?.terms_version === "string" && !!companyFromMetadata(meta);
+      const waiting = hadPending.current || !!pendingCompany() || fromAccount;
       if (waiting) {
         markOnboardingStarted();
         router.replace("/start");

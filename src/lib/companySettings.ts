@@ -108,6 +108,9 @@ export function companySyncAction(i: CompanySyncInput): "push" | "pull" | "none"
   if (!i.remote) return worthSending ? "push" : "none";
   if (sameCompany(i.local, i.remote.values)) return "none";
   if (!worthSending) return "pull";
+  // First sync for this account on this device: the company's copy wins. What this device had came from before
+  // (another company, working alone, an old install), not from an edit made since the last sync.
+  if (!i.mark && i.remote.values.name) return "pull";
   const localAt = Date.parse(i.localSavedAt ?? "") || 0;
   return localAt > Date.parse(i.remote.updatedAt) ? "push" : "pull";
 }

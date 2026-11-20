@@ -114,7 +114,10 @@ export async function finishPendingCompany(email: string | null): Promise<string
     return null;
   }
   if (t.error || t.needsMigration) return null;
-  const fromAccount = local ? null : companyFromMetadata(await accountMetadata());
+  // Only sign-ups made since the company travels with the account (they also note the terms): an older account that
+  // isn't on a team any more gets "Set up your company" rather than a company made silently from an old sign-up.
+  const meta = local ? null : await accountMetadata();
+  const fromAccount = typeof meta?.terms_version === "string" ? companyFromMetadata(meta) : null;
   const p: PendingCompany | null = local ?? (fromAccount ? { ...fromAccount, email } : null);
   if (!p || useTeam.getState().team) return null;
   useCompanySetup.setState({ finishing: p.company });

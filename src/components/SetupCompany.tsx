@@ -52,16 +52,19 @@ export default function SetupCompany() {
     setBusy(true);
     setError(null);
     try {
+      let made = true;
       try {
         await createTeam(f.company.trim(), f.name.trim());
       } catch (e) {
-        // Made a moment ago (another tab or device): carry on with it.
+        // Already on a company (made or joined a moment ago in another tab or device): just show it. Its name, trades
+        // and welcome email were taken care of there, and they mustn't be overwritten from this form.
         if (!/already on a team/i.test((e as Error).message)) throw e;
+        made = false;
         await reloadTeam();
       }
       clearPendingCompany();
       if (termsNeeded !== false) await recordTermsAccepted();
-      await welcomeNewCompany({ company: f.company.trim(), name: f.name.trim(), email: sync.email ?? "", trades: f.trades });
+      if (made) await welcomeNewCompany({ company: f.company.trim(), name: f.name.trim(), email: sync.email ?? "", trades: f.trades });
       void useSyncStatus.getState().syncNow().catch(() => undefined);
       // /start now shows the checklist (the team store has the new company).
     } catch (e) {

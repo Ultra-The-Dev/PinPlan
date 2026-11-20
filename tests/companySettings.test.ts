@@ -73,6 +73,13 @@ describe("companySyncAction (newest change wins)", () => {
   it("technicians always take the company's copy", () => {
     expect(companySyncAction({ ...base, canWrite: false, localSavedAt: "2030-01-01T00:00:00.000Z", remote: { values: other, updatedAt: remoteAt } })).toBe("pull");
   });
+  it("a device that never synced with this account takes the company's copy, even when its own is newer", () => {
+    const stale = { ...acme, name: "My Old Shop", phone: "555-0000" };
+    const later = "2030-01-01T00:00:00.000Z";
+    expect(companySyncAction({ ...base, local: stale, localSavedAt: later, remote: { values: acme, updatedAt: remoteAt } })).toBe("pull");
+    // …unless the company's row is still blank.
+    expect(companySyncAction({ ...base, local: stale, localSavedAt: later, remote: { values: companyFromBusiness({}), updatedAt: remoteAt } })).toBe("push");
+  });
   it("a fresh device with a blank business takes the company's copy", () => {
     expect(companySyncAction({ ...base, local: companyFromBusiness(NEUTRAL_BUSINESS), remote: { values: acme, updatedAt: remoteAt } })).toBe("pull");
   });
