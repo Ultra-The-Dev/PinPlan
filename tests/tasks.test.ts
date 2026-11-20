@@ -293,6 +293,10 @@ describe("numbering, pins and lists", () => {
       ["e", "none"],
     ]);
     expect(openPlanTasksFor(null, list, TODAY).map((x) => x.task.id)).toEqual(["b", "a", "d", "e"]);
+    // /tasks "Everyone" includes tasks nobody has yet; the "Unassigned" chip shows only those.
+    expect(openPlanTasksFor(null, list, TODAY, { unassigned: "include" }).map((x) => x.task.id)).toEqual(["b", "a", "d", "e", "f"]);
+    expect(openPlanTasksFor(null, list, TODAY, { unassigned: "only" }).map((x) => x.task.id)).toEqual(["f"]);
+    expect(openPlanTasksFor(" ", [task({ id: "g", number: 7, assignee: "  " })], TODAY, { unassigned: "only" }).map((x) => x.task.id)).toEqual(["g"]);
   });
   it("room from the nearest device, categories from trades and tasks, pasted checklist lines", () => {
     const markers = [

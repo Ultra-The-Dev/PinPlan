@@ -24,6 +24,8 @@ export interface TourStep {
   anchor?: TourAnchorId;
   /** Used instead of `anchor` on phones (where the element lives somewhere else, e.g. in a menu). */
   phoneAnchor?: TourAnchorId;
+  /** Pointed at instead of the anchor while it's on screen (a dialog the step leads to, e.g. the pages screen). */
+  whenOpen?: TourAnchorId;
   at?: TourAt;
   /** Office only (prices, quotes, invoices): left out for technicians. */
   office?: boolean;

@@ -91,7 +91,7 @@ export default function AddFromPlanDialog(props: {
             <h2 id="co-add-from-plan-title" className="text-base font-semibold">
               {t("Add from plan")}
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">{t("Tentative (?) devices, and devices placed after the job was last priced.")}</p>
+            <p className="mt-0.5 text-sm text-slate-500">{t("Optional items, and devices placed after the job was last priced.")}</p>
           </div>
           <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={props.onClose} aria-label={t("Close")}>
             <X />
@@ -111,13 +111,13 @@ export default function AddFromPlanDialog(props: {
               setSince(e.target.value ? `${e.target.value}T23:59:59.999Z` : null);
             }}
           />
-          {sinceLoaded && !since && <span className="text-xs text-slate-500">{t("No proposal or quote sent yet — showing tentative devices")}</span>}
+          {sinceLoaded && !since && <span className="text-xs text-slate-500">{t("No quote sent yet — showing optional items")}</span>}
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {groups.length === 0 ? (
             <div className="p-8 text-center text-sm text-slate-500">
               <MapPin className="mx-auto mb-2 h-6 w-6 text-slate-300" />
-              {t("No tentative or new devices on the plan. Mark devices with “?” (tentative) or place them after the estimate, then come back.")}
+              {t("No optional items or new devices on the plan. Tick Optional item on a device, or place devices after pricing the job, then come back.")}
             </div>
           ) : (
             groups.map((g) => {
@@ -141,7 +141,7 @@ export default function AddFromPlanDialog(props: {
                             </div>
                             {i.marker.room && <div className="truncate text-xs text-slate-500">{i.marker.room}</div>}
                           </div>
-                          {i.tentative && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">{t("? tentative")}</span>}
+                          {i.tentative && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">{t("Optional")}</span>}
                           {i.isNew && <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-sky-200">{t("new")}</span>}
                           {i.onCo && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{t("on {code}", { code: i.onCo })}</span>}
                         </label>

@@ -8,6 +8,7 @@ import { pickFieldSection, type FieldSection } from "@/lib/fieldDocs";
 import { useEditor } from "@/lib/store";
 import { switchTabQuery } from "@/lib/tabRoutes";
 import { msg, useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 import ScheduleView from "../schedule/ScheduleView";
 import Checklists from "./Checklists";
 import DailyLogs from "./DailyLogs";
@@ -78,6 +79,7 @@ export default function FieldTab() {
                 className={`tab shrink-0 max-sm:h-auto max-sm:min-h-14 max-sm:flex-col max-sm:justify-center max-sm:gap-1 max-sm:px-1 max-sm:py-1.5 max-sm:text-center max-sm:text-xs max-sm:leading-tight max-sm:whitespace-normal ${nav.id === n.id ? "tab-active" : ""}`}
                 onClick={() => open(n.sections[0])}
                 aria-current={nav.id === n.id ? "page" : undefined}
+                {...(n.id === "checklists" ? tourAnchor("field-checklists") : n.id === "logs" ? tourAnchor("field-daily-log") : {})}
               >
                 <n.icon />
                 <span>{t(n.label)}</span>

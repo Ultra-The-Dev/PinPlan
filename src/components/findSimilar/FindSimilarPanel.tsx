@@ -145,7 +145,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
 
       {st.busy && (
         <p className="flex items-center gap-2 text-slate-600" role="status">
-          <Loader2 className="h-4 w-4 animate-spin" /> {st.busy}
+          <Loader2 className="h-4 w-4 animate-spin" /> {t(st.busy.text, st.busy.vars)}
         </p>
       )}
 
@@ -159,8 +159,8 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
 
       {st.note && !st.busy && (
         <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[13px] text-amber-900" role="status" data-testid="find-note">
-          {/* Notes are English keys; the ones with a translation (worker messages marked with msg()) show translated. */}
-          {t(st.note)}
+          {/* Notes are English keys with their values (worker messages too, marked with msg()). */}
+          {t(st.note.text, st.note.vars)}
         </p>
       )}
       {st.needPdf && !st.busy && (

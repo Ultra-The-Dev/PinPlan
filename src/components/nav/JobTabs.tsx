@@ -5,6 +5,7 @@ import { Camera, ClipboardCheck, Ellipsis, Info, ListChecks, ListTodo, MapPin, R
 import { useEffect, useState } from "react";
 import { msg, useT } from "@/lib/i18n";
 import type { JobTabId } from "@/lib/tabRoutes";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 export const JOB_TAB_META: Record<JobTabId, { label: string; icon: typeof Info }> = {
   overview: { label: msg("Overview"), icon: Info },
@@ -30,7 +31,7 @@ export function JobTabStrip({ tabs, active, onSelect, className = "" }: Props & 
       {tabs.map((id) => {
         const m = JOB_TAB_META[id];
         return (
-          <button key={id} type="button" className={`tab ${active === id ? "tab-active" : ""}`} onClick={() => onSelect(id)} aria-current={active === id ? "page" : undefined}>
+          <button key={id} type="button" className={`tab ${active === id ? "tab-active" : ""}`} onClick={() => onSelect(id)} aria-current={active === id ? "page" : undefined} {...tourAnchor(`job-tab-${id}`)}>
             <m.icon />
             {t(m.label)}
           </button>
@@ -67,14 +68,14 @@ export function JobTabBar({ tabs, more, active, onSelect }: Props & { more: read
         const m = JOB_TAB_META[id];
         const on = active === id;
         return (
-          <button key={id} type="button" className={barButton(on)} onClick={() => pick(id)} aria-current={on ? "page" : undefined}>
+          <button key={id} type="button" className={barButton(on)} onClick={() => pick(id)} aria-current={on ? "page" : undefined} {...tourAnchor(`job-tab-${id}`)}>
             <m.icon />
             <span className="line-clamp-2 max-w-full px-0.5 text-center leading-[1.15] break-words">{t(m.label)}</span>
           </button>
         );
       })}
       {more.length > 0 && (
-        <button type="button" className={barButton(inMore || open)} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true" aria-current={inMore ? "page" : undefined} data-testid="job-tabs-more">
+        <button type="button" className={barButton(inMore || open)} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true" aria-current={inMore ? "page" : undefined} data-testid="job-tabs-more" {...tourAnchor("job-tab-more")}>
           <Ellipsis />
           <span className="line-clamp-2 max-w-full px-0.5 text-center leading-[1.15] break-words">{t("More")}</span>
         </button>

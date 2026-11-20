@@ -114,7 +114,7 @@ function TakeoffCounts() {
     v || tent ? (
       <>
         {v ? `${v}${unit}` : "—"}
-        {tent ? <span className="ml-1 text-xs text-amber-700">({tent}{unit}?)</span> : null}
+        {tent ? <span className="ml-1 text-xs text-amber-700">({t("{n} optional", { n: `${tent}${unit}` })})</span> : null}
       </>
     ) : (
       <span className="text-slate-300">—</span>
@@ -331,7 +331,7 @@ function TakeoffCounts() {
           </p>
         )}
 
-        <h3 className="mb-2 mt-6 font-semibold">{t("Tentative items ({n})", { n: tentativeList.length })}</h3>
+        <h3 className="mb-2 mt-6 font-semibold">{t.tn("Optional item ({n})", "Optional items ({n})", tentativeList.length)}</h3>
         {tentativeList.length ? (
           <div className="card overflow-x-auto">
             <table className="tbl">
@@ -358,7 +358,7 @@ function TakeoffCounts() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">{t("None. Mark a device as tentative (?) in its editor.")}</p>
+          <p className="text-sm text-slate-500">{t("None. To make a device optional, select it on the plan and tick Optional item.")}</p>
         )}
         <OrderList />
       </div>

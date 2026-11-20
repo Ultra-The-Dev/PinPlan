@@ -48,21 +48,32 @@ describe("tour definitions", () => {
         expect(s.body.trim(), s.id).not.toBe("");
         // A short card: one or two sentences.
         expect(s.body.length, `${tour.id}:${s.id}`).toBeLessThanOrEqual(170);
-        for (const a of [s.anchor, s.phoneAnchor]) if (a) expect(isTourAnchor(a), `${tour.id}:${s.id} → ${a}`).toBe(true);
+        for (const a of [s.anchor, s.phoneAnchor, s.whenOpen]) if (a) expect(isTourAnchor(a), `${tour.id}:${s.id} → ${a}`).toBe(true);
       }
     }
   });
 
-  it("is written for the new job tabs (Tasks and Photos are their own tabs), with a fallback for older builds", () => {
+  it("is written for the new job tabs: Tasks and Photos are their own tabs, the upload step shows the pages screen", () => {
     const crew = TOURS["crew-day"].steps;
-    const tasks = crew.find((s) => s.id === "tasks")!.at!;
-    const photos = crew.find((s) => s.id === "photos")!.at!;
-    expect(tasks).toMatchObject({ page: "job", tab: "tasks", legacy: { tab: "field", params: { section: "tasks" } } });
-    expect(photos).toMatchObject({ page: "job", tab: "photos", legacy: { tab: "field", params: { section: "photos" } } });
-    const oldTabs = ["overview", "plan", "takeoff", "money", "field"];
+    const tasks = crew.find((s) => s.id === "tasks")!;
+    const photos = crew.find((s) => s.id === "photos")!;
+    expect(tasks.at).toEqual({ page: "job", tab: "tasks" });
+    expect(tasks.anchor).toBe("job-tab-tasks");
+    expect(photos.at).toEqual({ page: "job", tab: "photos" });
+    expect(photos.anchor).toBe("photos-take");
     const newTabs = ["overview", "plan", "takeoff", "tasks", "photos", "money", "field"];
-    expect(hrefFor(tasks, { jobId: "j1", knownTabs: oldTabs })).toBe("/project?id=j1&tab=field&section=tasks");
-    expect(hrefFor(tasks, { jobId: "j1", knownTabs: newTabs })).toBe("/project?id=j1&tab=tasks");
+    expect(hrefFor(tasks.at, { jobId: "j1", knownTabs: newTabs })).toBe("/project?id=j1&tab=tasks");
+    // No step still sends people to the old Field → Tasks / Photos sections.
+    for (const tour of TOUR_LIST) for (const s of tour.steps) if (s.at?.page === "job") expect(s.at.params?.section ?? "", `${tour.id}:${s.id}`).not.toMatch(/^(tasks|photos)$/);
+    const upload = TOURS["first-job"].steps.find((s) => s.id === "upload")!;
+    expect(upload.anchor).toBe("plan-sheets");
+    expect(upload.whenOpen).toBe("plan-pages");
+    expect(upload.body).toMatch(/Choose and name pages/);
+  });
+
+  it("an older build without the Tasks tab still finds the place through `legacy`", () => {
+    const at = { page: "job" as const, tab: "tasks", legacy: { tab: "field", params: { section: "tasks" } } };
+    expect(hrefFor(at, { jobId: "j1", knownTabs: ["overview", "plan", "field"] })).toBe("/project?id=j1&tab=field&section=tasks");
   });
 
   it("technicians never get money steps; a tour with fewer than two steps isn't offered", () => {

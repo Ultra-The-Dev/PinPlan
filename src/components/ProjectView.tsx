@@ -16,6 +16,7 @@ import AppHeader, { Logo } from "./AppHeader";
 import SyncBadge from "./SyncBadge";
 import { JobTabBar, JobTabStrip } from "./nav/JobTabs";
 import { useJobNav } from "./nav/useJobNav";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 // Konva needs the browser. The plan is the heavy tab; every other tab loads only when it's opened.
 const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">Loading plan…</div> });
@@ -95,20 +96,25 @@ export default function ProjectView() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4 sm:max-lg:h-auto sm:max-lg:flex-wrap sm:max-lg:gap-y-2 sm:max-lg:py-2">
-        <Link href="/jobs" className="tap flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
-          <ChevronLeft className="h-4 w-4" />
-          {t("Jobs")}
+        <Link href="/jobs" className="tap flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 max-sm:-ml-1 max-sm:w-9 max-sm:justify-center max-sm:px-0" aria-label={t("Back to jobs")}>
+          <ChevronLeft className="h-4 w-4 max-sm:h-5 max-sm:w-5" />
+          <span className="max-sm:hidden">{t("Jobs")}</span>
         </Link>
         <span className="max-lg:hidden">
           <Logo compact />
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
+          {/* Phones: the job name comes first and may take two lines; the client and the status share the small line under it. */}
           <div className="min-w-0">
-            <div className="truncate text-sm leading-tight font-semibold text-slate-900">{project.address || t("Untitled job")}</div>
-            <div className="truncate text-xs text-slate-500">{project.clientName || t("No client")}</div>
+            <div className="text-sm leading-tight font-semibold break-words text-slate-900 max-sm:line-clamp-2 sm:truncate" title={project.address || undefined} data-testid="job-name">
+              {project.address || t("Untitled job")}
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-500 max-sm:text-[11px] max-sm:leading-tight">
+              <span className="truncate">{project.clientName || t("No client")}</span>
+              {/* Phones: a plain chip (the next step on Overview changes the status); a picker from sm up. */}
+              <span className={`chip shrink-0 px-1 py-0 text-[10px] leading-4 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{t(projectStatusLabel(project.status))}</span>
+            </div>
           </div>
-          {/* Phones: a plain chip (the next step on Overview changes the status); a picker from sm up. */}
-          <span className={`chip shrink-0 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{t(projectStatusLabel(project.status))}</span>
           <select
             className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none pointer-coarse:h-9 pointer-coarse:rounded-lg pointer-coarse:px-2.5 sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
@@ -126,10 +132,10 @@ export default function ProjectView() {
         {/* Tablets in portrait: the tabs get their own row, so the job name keeps its room. */}
         <JobTabStrip tabs={tabs} active={tab} onSelect={(id) => setTab(id)} className="sm:max-lg:order-last sm:max-lg:w-full sm:max-lg:justify-center" />
         {tab === "plan" && sheets.length > 0 && (
-          <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open">
+          <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open" {...tourAnchor("plan-sheets")}>
             <FileText />
             <span className="max-md:hidden">{t("Manage sheets")}</span>
-            <span className="md:hidden">{t("Sheets")}</span>
+            <span className="max-sm:sr-only md:hidden">{t("Sheets")}</span>
           </button>
         )}
         <SyncBadge />
@@ -146,7 +152,7 @@ export default function ProjectView() {
                 </div>
                 <p className="text-lg font-semibold">{t("No plan sheets yet")}</p>
                 <p className="mt-1 text-sm text-slate-500">{t("Upload the plan set (PDF or phone photos) to start placing devices.")}</p>
-                <button className="btn btn-brand mt-5" onClick={openManageSheets}>
+                <button className="btn btn-brand mt-5" onClick={openManageSheets} {...tourAnchor("plan-upload")}>
                   {t("Upload plans")}
                 </button>
               </div>

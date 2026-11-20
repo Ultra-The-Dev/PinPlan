@@ -539,7 +539,7 @@ export default function ChangeOrderEditor(props: {
             )}
             {draft.status === "approved" && stillTentative.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <span className="flex-1">{t("Mark these devices as confirmed in the plan ({n} still tentative).", { n: stillTentative.length })}</span>
+                <span className="flex-1">{t.tn("Mark these devices as confirmed on the plan ({n} is still an optional item).", "Mark these devices as confirmed on the plan ({n} are still optional items).", stillTentative.length)}</span>
                 <button
                   className="btn btn-sm"
                   onClick={async () => {

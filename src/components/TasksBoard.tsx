@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, newId, nowIso, put } from "@/lib/db";
 import { fmtDate, t, useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 import { localDay, openTasks, TASK_BUCKETS, teamNames, type OpenTask } from "@/lib/fieldDocs";
 import { useRole, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -86,12 +87,25 @@ export default function TasksBoard() {
     };
   }, [load]);
 
+  // "__all" = Everyone (assigned or not), "__none" = tasks nobody has yet.
   const mode = who === "__auto" ? (role === "tech" ? "__me" : "__all") : who;
-  const filter: string[] | string | null = mode === "__me" ? myNames : mode === "__all" ? null : mode;
+  const filter: string[] | string | null = mode === "__me" ? myNames : mode === "__all" || mode === "__none" ? null : mode;
+  const unassigned = mode === "__none" ? "only" : mode === "__all" ? "include" : undefined;
   const jobs = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const liveTasks = useMemo(() => planTasks.filter((t) => !t.deleted && jobs.has(t.projectId)), [planTasks, jobs]);
-  const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
-  const planOpen = useMemo(() => (today ? sortOverdueFirst(openPlanTasksFor(filter, liveTasks, today)) : []), [liveTasks, today, filter]);
+  const tasks = useMemo(
+    () => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }).filter((it) => unassigned !== "only" || !it.item.assignee?.trim()) : []),
+    [projects, checklists, today, filter, unassigned],
+  );
+  const planOpen = useMemo(() => (today ? sortOverdueFirst(openPlanTasksFor(filter, liveTasks, today, { unassigned })) : []), [liveTasks, today, filter, unassigned]);
+  // Open tasks nobody has yet (the "Unassigned" chip's count).
+  const unassignedCount = useMemo(
+    () =>
+      checklists && today
+        ? openTasks({ projects, checklists }, { today }).filter((it) => !it.item.assignee?.trim()).length + openPlanTasksFor(null, liveTasks, today, { unassigned: "only" }).length
+        : 0,
+    [projects, checklists, today, liveTasks],
+  );
   const names = useMemo(() => {
     const ns = teamNames({ checklists: checklists ?? [], members }, me);
     for (const t of liveTasks) if (t.assignee?.trim() && !ns.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) ns.push(t.assignee.trim());
@@ -111,7 +125,7 @@ export default function TasksBoard() {
     tasksChanged();
   }
 
-  const whoLabel = mode === "__me" ? "__me" : mode === "__all" ? "" : mode;
+  const whoLabel = mode === "__me" || mode === "__none" ? mode : mode === "__all" ? "" : mode;
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-end gap-3">
@@ -125,6 +139,7 @@ export default function TasksBoard() {
         <select className="input h-10 w-auto" value={mode} onChange={(e) => setWho(e.target.value)} aria-label={t("Whose tasks")}>
           <option value="__me">{t("Mine · {n}", { n: mineCount })}</option>
           <option value="__all">{t("Everyone")}</option>
+          <option value="__none">{t("Unassigned · {n}", { n: unassignedCount })}</option>
           {names
             .filter((n) => !myNames.some((m) => m.toLowerCase() === n.toLowerCase()))
             .map((n) => (
@@ -133,7 +148,19 @@ export default function TasksBoard() {
               </option>
             ))}
         </select>
-        <button className="btn btn-brand h-10" onClick={() => setAdding(true)} disabled={!projects.length} title={projects.length ? undefined : t("Add a job first")}>
+        {unassignedCount > 0 && (
+          <button
+            type="button"
+            className={`chip h-10 px-3 text-sm ${mode === "__none" ? "bg-brand-600 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"}`}
+            aria-pressed={mode === "__none"}
+            onClick={() => setWho(mode === "__none" ? "__all" : "__none")}
+            title={t("Open tasks nobody is assigned to yet")}
+            data-testid="tasks-unassigned"
+          >
+            {t("Unassigned")} <span className="tabular-nums opacity-80">{unassignedCount}</span>
+          </button>
+        )}
+        <button className="btn btn-brand h-10" onClick={() => setAdding(true)} {...tourAnchor("tasks-add")} disabled={!projects.length} title={projects.length ? undefined : t("Add a job first")}>
           <Plus /> {t("Add task")}
         </button>
       </div>
@@ -143,7 +170,7 @@ export default function TasksBoard() {
       {checklists && tasks.length === 0 && planOpen.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <ClipboardList className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">{whoLabel === "__me" ? t("No open tasks for you") : whoLabel ? t("No open tasks for {name}", { name: whoLabel }) : t("No open tasks")}</div>
+          <div className="font-medium">{whoLabel === "__me" ? t("No open tasks for you") : whoLabel === "__none" ? t("No unassigned open tasks") : whoLabel ? t("No open tasks for {name}", { name: whoLabel }) : t("No open tasks")}</div>
           <p className="max-w-md text-sm text-slate-500">
             {rich(t("Tap {button} to give someone something to do on a job. Tasks also come from the plan, photo comments, checklists and forms."), { button: <strong>{t("Add task")}</strong> })}
           </p>
@@ -204,7 +231,7 @@ export default function TasksBoard() {
         );
       })}
 
-      {adding && <AddTask projects={projects} people={[me, ...names.filter((n) => n.toLowerCase() !== me.toLowerCase())]} me={me} defaultWho={mode === "__me" ? me : mode === "__all" ? "" : mode} onClose={() => setAdding(false)} />}
+      {adding && <AddTask projects={projects} people={[me, ...names.filter((n) => n.toLowerCase() !== me.toLowerCase())]} me={me} defaultWho={mode === "__me" ? me : mode === "__all" || mode === "__none" ? "" : mode} onClose={() => setAdding(false)} />}
     </div>
   );
 }
@@ -238,9 +265,13 @@ function PlanTaskRow({ t: pt, project, onComplete }: { t: OpenPlanTask; project:
             {pt.task.room ? ` · ${pt.task.room}` : ""}
           </span>
           {p && <span style={{ color: p.color }}>{t(p.label)}</span>}
-          {pt.task.assignee && (
+          {pt.task.assignee?.trim() ? (
             <span className="inline-flex items-center gap-1">
               <UserRound className="h-3 w-3" /> {pt.task.assignee}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-amber-700">
+              <UserRound className="h-3 w-3" /> {t("Unassigned")}
             </span>
           )}
           {pt.task.due && (

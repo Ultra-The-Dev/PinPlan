@@ -1,6 +1,7 @@
 "use client";
 // Plan input for Find similar (the overlay's onTap / onDragStart…): while picking, a tap searches for the symbol
 // under it and a drag draws a box around one; a tap on a ghost pin rejects it (or takes it back). Edit mode only.
+import { msg } from "@/lib/i18n/msg";
 import type { PlanOverlayContext, PlanTapEvent } from "@/lib/planOverlays";
 import { boxFromCorners, clampBox, tapBox } from "@/lib/findSimilar/match";
 import { useEditor } from "@/lib/store";
@@ -56,7 +57,7 @@ export function onFindTap(e: PlanTapEvent, ctx: PlanOverlayContext): boolean {
   if (st.mode !== "match" || !st.picking || st.busy) return false;
   if (e.rel.x < 0 || e.rel.y < 0 || e.rel.x > 1 || e.rel.y > 1) return true;
   if (!st.typeId) {
-    st.set({ note: "Choose what to count first." });
+    st.set({ note: { text: msg("Choose what to count first.") } });
     return true;
   }
   void runMatch(ctx.sheet, tapBox(e.sheetPx, ctx.sheet), true);
@@ -83,8 +84,8 @@ export function onFindDragEnd(_e: PlanTapEvent, ctx: PlanOverlayContext, cancell
   if (cancelled || !drag) return;
   const r = boxFromCorners(drag.a, drag.b);
   const box = clampBox({ x: r.x * ctx.sheet.width, y: r.y * ctx.sheet.height, w: r.w * ctx.sheet.width, h: r.h * ctx.sheet.height }, ctx.sheet);
-  if (!st.typeId) return st.set({ note: "Choose what to count first." });
-  if (Math.min(box.w, box.h) < 6) return st.set({ note: "That box is too small. Zoom in and drag a box around one symbol." });
+  if (!st.typeId) return st.set({ note: { text: msg("Choose what to count first.") } });
+  if (Math.min(box.w, box.h) < 6) return st.set({ note: { text: msg("That box is too small. Zoom in and drag a box around one symbol.") } });
   void runMatch(ctx.sheet, box, false);
 }
 

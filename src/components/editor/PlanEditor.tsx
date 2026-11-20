@@ -801,7 +801,7 @@ export default function PlanEditor() {
                         <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => setExpanded(open ? null : id)} aria-expanded={open}>
                           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ty?.color }} />
                           <span className="min-w-0 flex-1 truncate">{ty?.name ?? id}</span>
-                          {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{floor.tentative[id]}?</span> : null}
+                          {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{t("{n} optional", { n: floor.tentative[id] })}</span> : null}
                           <span className="font-semibold tabular-nums">{n}</span>
                           <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition ${open ? "" : "-rotate-90"}`} />
                         </button>

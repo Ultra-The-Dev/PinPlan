@@ -33,7 +33,7 @@ export default function OrderList() {
           <p className="mt-0.5 text-sm text-slate-500">{t("What to buy, by supplier. Cable is rounded up to full boxes; HDMI to stock lengths.")}{prices && ` ${t("Costs are your prices, before markup.")}`}</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" className="accent-brand-600" checked={withTentative} onChange={(e) => setWithTentative(e.target.checked)} /> {t("Include “?” items")}
+          <input type="checkbox" className="accent-brand-600" checked={withTentative} onChange={(e) => setWithTentative(e.target.checked)} /> {t("Include optional items")}
         </label>
         <button className="btn" disabled={!rows.length} onClick={() => downloadText(materialCsv(rows, { prices }), `${slug(project.address)}-order-list.csv`)}>
           <Download /> {t("Order list CSV")}

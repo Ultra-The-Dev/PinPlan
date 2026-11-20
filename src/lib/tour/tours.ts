@@ -1,7 +1,8 @@
 // The guided tours and the one-time tips: the words and where each step points (docs/help-and-tours.md).
 // Written for the job tabs Overview · Plan · Takeoff · Tasks · Photos · Money · Field (phones: Plan · Tasks · Photos ·
-// Money · More). A job step names its tab; `legacy` is the same place in builds that still keep Tasks and Photos
-// under Field. Text is English (the i18n key) wrapped in msg(); translations live in src/lib/i18n/<lang>/help.ts.
+// Money · More in the bottom bar). A job step names its tab; `whenOpen` is an element the step points at instead while
+// it's on screen (the pages screen after an upload). Text is English (the i18n key) wrapped in msg(); translations
+// live in src/lib/i18n/<lang>/help.ts.
 import { msg } from "../i18n/msg";
 import type { TipId, TourDef, TourId } from "./model";
 
@@ -24,8 +25,9 @@ export const TOURS: Record<TourId, TourDef> = {
         id: "upload",
         at: { page: "job", tab: "plan" },
         anchor: "plan-sheets",
+        whenOpen: "plan-pages",
         title: msg("Upload plans and name pages"),
-        body: msg("Add the PDF or phone photos of the plans. Then skip the pages you don't need and check the floor names; we fill them in from the title block."),
+        body: msg("Add the PDF or phone photos. On Choose and name pages, untick pages you don't need. Names are read from each page, scans too; tap a name to change it."),
       },
       {
         id: "edit",
@@ -114,17 +116,17 @@ export const TOURS: Record<TourId, TourDef> = {
       },
       {
         id: "tasks",
-        at: { page: "job", tab: "tasks", legacy: { tab: "field", params: { section: "tasks" } } },
+        at: { page: "job", tab: "tasks" },
         anchor: "job-tab-tasks",
         title: msg("The job's tasks"),
-        body: msg("Everything to do on this job. Open a task to see where it is on the plan, add a photo, and mark it done."),
+        body: msg("The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done."),
       },
       {
         id: "photos",
-        at: { page: "job", tab: "photos", legacy: { tab: "field", params: { section: "photos" } } },
+        at: { page: "job", tab: "photos" },
         anchor: "photos-take",
         title: msg("Take photos"),
-        body: msg("Take photo saves it to this job with the date and place. No signal? It uploads when you're back online."),
+        body: msg("Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online."),
       },
       {
         id: "checklists",

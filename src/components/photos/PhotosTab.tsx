@@ -2,7 +2,7 @@
 // Job → Photos: take or upload, grouped by day, filter by device (&device=, the device card's "N photos" on the plan) /
 // tag / person / dates / text, select many to tag, set room or device, report or delete.
 // Tiles show small previews (src/lib/thumbs.ts), newest first, a page at a time.
-import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, UserRound, X } from "lucide-react";
+import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, SlidersHorizontal, Square, Tag, Trash, UserRound, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { bulkEditPhotos, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
@@ -19,6 +19,7 @@ import DateRange from "./DateRange";
 import MorePhotos from "./MorePhotos";
 import UploadStatus from "../UploadStatus";
 import { fmtDate, useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 import { withParam } from "@/lib/tabRoutes";
 
 const GPS_KEY = "pinplan.photoLocation";
@@ -80,6 +81,8 @@ export default function PhotosTab() {
   const [sel, setSel] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState(false);
+  // Phones: search, dates, people and tags sit behind "Filter", so the photos show on the first screen.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [drag, setDrag] = useState(false);
   const [withGps, setWithGps] = useState(() => {
     try {
@@ -149,6 +152,8 @@ export default function PhotosTab() {
     if (st.project && st.project.lat == null && gps) await st.updateProject({ lat: gps.lat, lng: gps.lng });
   }
 
+  // Filters set (the phone "Filter" button shows how many).
+  const activeFilters = [tags.length > 0, !!person, !!text.trim(), !!(from || to)].filter(Boolean).length;
   const toggleTag = (tg: string) => setTags((ts) => (ts.includes(tg) ? ts.filter((x) => x !== tg) : [...ts, tg]));
   const toggleSel = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const selected = live.filter((p) => sel.includes(p.id));
@@ -182,7 +187,8 @@ export default function PhotosTab() {
           <div className="mr-auto">
             <h2 className="page-title">{t("Photos")}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {t.tn("{n} photo", "{n} photos", live.length)} · {t("each one keeps who took it, when and where. Drop photos anywhere on this page.")}
+              {t.tn("{n} photo", "{n} photos", live.length)}
+              <span className="max-sm:hidden"> · {t("each one keeps who took it, when and where. Drop photos anywhere on this page.")}</span>
             </p>
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void addFiles(e.target.files).then(() => (e.target.value = ""))} />
@@ -217,7 +223,7 @@ export default function PhotosTab() {
           >
             <UserRound /> {getAuthor(email)}
           </button>
-          <button className="btn" onClick={() => camRef.current?.click()} disabled={!!busy}>
+          <button className="btn" onClick={() => camRef.current?.click()} disabled={!!busy} {...tourAnchor("photos-take")}>
             <Camera /> {t("Take photo")}
           </button>
           <button className="btn btn-brand" onClick={() => fileRef.current?.click()} disabled={!!busy}>
@@ -237,7 +243,22 @@ export default function PhotosTab() {
         )}
 
         {live.length > 0 && (
-          <div className="card space-y-3 p-3">
+          <div className="flex items-center gap-2 sm:hidden" data-testid="photo-filter-row">
+            <button type="button" className={`btn h-11 ${filtersOpen || activeFilters ? "btn-on" : ""}`} onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="photo-filters">
+              <SlidersHorizontal /> {t("Filter")}
+              {activeFilters ? ` · ${activeFilters}` : ""}
+            </button>
+            <button className={`btn h-11 ${selecting ? "btn-on" : ""}`} aria-pressed={selecting} onClick={() => (setSelecting((s) => !s), setSel([]))}>
+              <CheckSquare /> {selecting ? t("Done") : t("Select")}
+            </button>
+            <button className="btn h-11" onClick={() => setReport(true)}>
+              <FileText /> {t("Report")}
+            </button>
+          </div>
+        )}
+
+        {live.length > 0 && (
+          <div className={`card space-y-3 p-3 ${filtersOpen ? "" : "max-sm:hidden"}`} id="photo-filters">
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-48 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -252,10 +273,10 @@ export default function PhotosTab() {
                 </select>
               )}
               <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
-              <button className={`btn btn-sm ${selecting ? "btn-on" : ""}`} aria-pressed={selecting} onClick={() => (setSelecting((s) => !s), setSel([]))}>
+              <button className={`btn btn-sm max-sm:hidden ${selecting ? "btn-on" : ""}`} aria-pressed={selecting} onClick={() => (setSelecting((s) => !s), setSel([]))}>
                 <CheckSquare /> {selecting ? t("Done") : t("Select")}
               </button>
-              <button className="btn btn-sm" onClick={() => setReport(true)}>
+              <button className="btn btn-sm max-sm:hidden" onClick={() => setReport(true)}>
                 <FileText /> {t("Photo report")}
               </button>
             </div>

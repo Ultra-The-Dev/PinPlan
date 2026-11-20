@@ -6,6 +6,20 @@ import path from "node:path";
 
 const PDF = path.resolve(__dirname, "../samples/demo-plan-set.pdf");
 const MIN = 44;
+const LONG_ADDRESS = "1450 West Riverside Industrial Parkway, Building C";
+/** A small PNG made in the page (a stand-in site photo). */
+async function pngBytes(page: Page): Promise<Buffer> {
+  const b64 = await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 64;
+    c.height = 48;
+    const g = c.getContext("2d")!;
+    g.fillStyle = "#4b7bd8";
+    g.fillRect(0, 0, 64, 48);
+    return c.toDataURL("image/png").split(",")[1];
+  });
+  return Buffer.from(b64, "base64");
+}
 
 /** Device descriptors without `defaultBrowserType` (not allowed in test.use inside a describe). */
 function device(name: string) {
@@ -60,7 +74,8 @@ async function newJob(page: Page) {
   await page.goto("/jobs");
   await fingerSized(page.getByRole("button", { name: "New job" }).first(), "New job");
   await page.getByRole("button", { name: "New job" }).first().click();
-  await page.getByLabel("Job address").fill("100 Example Ave");
+  // A long address: the phone job header gives the name priority (two lines) instead of cutting it short.
+  await page.getByLabel("Job address").fill(LONG_ADDRESS);
   await page.getByLabel("Client name").fill("E2E Mobile Client");
   await page.getByRole("button", { name: /Create & upload plans/ }).click();
   await expect(page).toHaveURL(/\/project\?id=.+&tab=plan&manage=1/);
@@ -91,6 +106,11 @@ for (const name of [...PHONES, ...TABLETS]) {
 
       await check(page, `${job}&tab=overview`, "job overview");
       await fingerSized(page.getByRole("link", { name: "Back to jobs" }), "Back to jobs");
+      // The job name is shown whole (phones: up to two lines, the client and status on the small line under it).
+      const name = page.getByTestId("job-name");
+      await expect(name).toHaveText(LONG_ADDRESS);
+      const clipped = await name.evaluate((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);
+      if (phone) expect(clipped, "job name cut off in the phone header").toBe(false);
       const tabs = page.getByRole("navigation", { name: "Job sections" }).filter({ visible: true });
       // Phones: Plan · Tasks · Photos · Money · More; tablets: every tab in the header.
       const jobTabs = phone ? ["Plan", "Tasks", "Photos", "Money", "More"] : ["Overview", "Plan", "Takeoff", "Tasks", "Photos", "Money", "Field"];
@@ -110,13 +130,53 @@ for (const name of [...PHONES, ...TABLETS]) {
 
       await check(page, `${job}&tab=tasks`, "tasks");
       await fingerSized(page.getByRole("button", { name: "Add task" }).first(), "Add task");
-      await fingerSized(page.getByRole("button", { name: /^Mine/ }).first(), "Mine filter");
-      await fingerSized(page.getByRole("button", { name: /^Open \d/ }).first(), "Open status chip");
+      const quick = page.getByTestId("task-quick-filters");
+      const mineBtn = quick.getByRole("button", { name: /^Mine/ });
+      const overdueBtn = quick.getByRole("button", { name: /^Overdue/ });
+      const filterBtn = page.getByTestId("task-filter-button");
+      await fingerSized(mineBtn, "Mine filter");
+      await fingerSized(filterBtn, "Filter");
+      if (phone) {
+        // Mine · Overdue · Filter in one row; the status counts and the sort wait in the Filter sheet.
+        const tops = await Promise.all([mineBtn, overdueBtn, filterBtn].map(async (l) => Math.round((await l.boundingBox())!.y)));
+        expect(Math.max(...tops) - Math.min(...tops), `quick filters on one row (${tops.join(", ")})`).toBeLessThanOrEqual(2);
+        await expect(page.getByRole("combobox", { name: "Sort" })).toBeHidden();
+        await expect(page.getByRole("button", { name: /^Open \d/ })).toBeHidden();
+        await filterBtn.click();
+        const sheet = page.getByTestId("task-filter-sheet");
+        await expect(sheet).toBeVisible();
+        for (const s of ["Open", "In progress", "Review", "Completed", "Verified"]) await fingerSized(sheet.getByRole("button", { name: new RegExp(`^${s} \\d`) }), `status ${s}`);
+        await expect(sheet.getByRole("combobox", { name: "Sort" })).toBeVisible();
+        await noSidewaysScroll(page, "task filter sheet");
+        await fieldsDontZoom(page, "task filter sheet");
+        await sheet.getByRole("button", { name: /^Open \d/ }).click();
+        await sheet.getByRole("button", { name: /^Show \d+ tasks?$/ }).click();
+        await expect(sheet).toBeHidden();
+        await expect(page).toHaveURL(/tf=/);
+        await expect(filterBtn).toHaveText(/Filter · 1/);
+      } else {
+        await fingerSized(page.getByRole("button", { name: /^Open \d/ }).first(), "Open status chip");
+      }
 
       await check(page, `${job}&tab=field&section=checklists`, "checklists");
       await check(page, `${job}&tab=field&section=logs`, "daily log");
       await check(page, `${job}&tab=photos`, "job photos");
       await fingerSized(page.getByRole("button", { name: "Add photos" }).first(), "Add photos");
+      // With photos, phones keep search, dates and tags behind "Filter" so the photos are on the first screen.
+      await page.locator('input[type=file][accept="image/*"][multiple]').setInputFiles({ name: "site.png", mimeType: "image/png", buffer: await pngBytes(page) });
+      await expect(page.getByRole("button", { name: /^(Open photo|Select photo)/ }).first()).toBeVisible({ timeout: 15_000 });
+      const search = page.getByRole("searchbox", { name: "Search photos" });
+      if (phone) {
+        await expect(search).toBeHidden();
+        const photoFilter = page.getByTestId("photo-filter-row").getByRole("button", { name: /^Filter/ });
+        await fingerSized(photoFilter, "photo Filter");
+        await photoFilter.click();
+        await expect(search).toBeVisible();
+        await fieldsDontZoom(page, "photo filters");
+        await noSidewaysScroll(page, "photo filters");
+      } else {
+        await expect(search).toBeVisible();
+      }
       // Old Field links open the new tabs.
       await page.goto(`${job}&tab=field&section=photos`);
       await expect(page).toHaveURL(/tab=photos/);

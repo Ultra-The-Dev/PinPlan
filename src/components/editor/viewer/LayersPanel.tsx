@@ -41,7 +41,7 @@ export default function LayersPanel(p: LayersPanelProps) {
   const status: { id: PlanStatusFilter; label: string }[] = [
     { id: "all", label: msg("All") },
     { id: "firm", label: msg("Confirmed") },
-    { id: "tentative", label: msg("Tentative (?)") },
+    { id: "tentative", label: msg("Optional items") },
   ];
   return (
     <>

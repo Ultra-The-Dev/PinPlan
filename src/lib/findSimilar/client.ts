@@ -2,6 +2,7 @@
 // Main-thread side of Find similar's matcher: one worker (match.worker.ts), one search at a time — a new search
 // replaces the one running. See docs/find-similar.md.
 import { db } from "../db";
+import { msg } from "../i18n/msg";
 import { OPENCV_URL } from "../perspective";
 import { MIN_THRESHOLD, type Box, type Candidate } from "./match";
 import type { MatchIn, MatchOut } from "./match.worker";
@@ -14,7 +15,7 @@ const waiting = new Map<number, { resolve: (r: { candidates: Candidate[]; templa
 
 function getWorker(): Worker {
   if (worker) return worker;
-  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") throw new Error("This browser can’t run Find similar. Try a current Chrome, Edge, Firefox or Safari.");
+  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") throw new Error(msg("This browser can’t run Find similar. Try a current Chrome, Edge, Firefox or Safari."));
   const w = new Worker(new URL("./match.worker.ts", import.meta.url), { type: "module" });
   w.onmessage = (e: MessageEvent<MatchOut>) => {
     const m = e.data;
@@ -27,7 +28,7 @@ function getWorker(): Worker {
   };
   w.onerror = (e) => {
     e.preventDefault?.();
-    for (const [, job] of waiting) job.reject(new Error("Find similar stopped unexpectedly. Try a smaller box."));
+    for (const [, job] of waiting) job.reject(new Error(msg("Find similar stopped unexpectedly. Try a smaller box.")));
     waiting.clear();
     w.terminate();
     worker = null;
@@ -43,7 +44,7 @@ export async function findSimilarOnSheet(
   opts: { trim: boolean; onProgress?: (p: MatchProgress) => void },
 ): Promise<{ candidates: Candidate[]; template: Box; ms: number }> {
   const rec = await db().images.get(sheet.imageId);
-  if (!rec?.blob) throw new Error("This plan’s image isn’t on this device yet. Open it once while online, then try again.");
+  if (!rec?.blob) throw new Error(msg("This plan’s image isn’t on this device yet. Open it once while online, then try again."));
   const w = getWorker();
   const id = nextId++;
   // Only the newest search matters: drop the older ones' promises.

@@ -7,6 +7,7 @@ import { Check, Loader2, ScanText, X, ZoomIn } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { findFloorName, proposeSheetName } from "@/lib/floorName";
 import { useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 import { loadPdfjs, pageTextItems, type PageTextItem } from "@/lib/importPlans";
 import { ocrFloorName, OcrCancelled, ocrUnavailableReason, stopOcr, type OcrProgress } from "@/lib/ocr";
 import { parseSheetNumber, parseSheetTitle } from "@/lib/sheetIndex";
@@ -224,7 +225,7 @@ export default function ImportPagePicker({ file, onCancel, onImport }: { file: F
 
   return (
     <Modal onClose={onCancel} labelledBy="import-pages-title" closeOnBackdrop={false} className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4">
-      <div className="card animate-in flex h-[100dvh] w-full flex-col rounded-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:h-[92dvh] sm:max-w-5xl sm:rounded-xl" data-testid="import-pages">
+      <div className="card animate-in flex h-[100dvh] w-full flex-col rounded-none pb-[env(safe-area-inset-bottom)] shadow-pop sm:h-[92dvh] sm:max-w-5xl sm:rounded-xl" data-testid="import-pages" {...tourAnchor("plan-pages")}>
         <div className="flex items-start gap-3 border-b border-slate-100 p-3 sm:p-4">
           <div className="min-w-0 flex-1">
             <h2 id="import-pages-title" className="text-base font-semibold">

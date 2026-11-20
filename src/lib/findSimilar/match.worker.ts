@@ -25,6 +25,8 @@ export type MatchOut =
   | { type: "error"; id: number; message: string };
 
 /** Shown translated by the card (FindSimilarPanel passes notes through t()). */
+const TOO_SMALL = msg("That box is too small. Zoom in and drag a box around one symbol.");
+const NOTHING_DRAWN = msg("There’s nothing drawn there. Tap right on a symbol, or drag a box around one.");
 const ONLY_LINES = msg("That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.");
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- OpenCV.js has no types */
@@ -41,12 +43,12 @@ function loadCv(url: string): Promise<{ cv: CV }> {
   if (cvPromise) return cvPromise;
   cvPromise = (async () => {
     const res = await fetch(url);
-    if (!res.ok) throw new Error("Couldn’t load the matcher (offline?).");
+    if (!res.ok) throw new Error(msg("Couldn’t load the matcher (offline?)."));
     const src = await res.text();
     // OpenCV.js is a UMD script: run it as a classic script so it sets self.cv (CSP allows eval for it).
     new Function(src).call(self);
     const cv = scope.cv;
-    if (!cv) throw new Error("The matcher didn’t start.");
+    if (!cv) throw new Error(msg("The matcher didn’t start."));
     await new Promise<void>((resolve, reject) => {
       if (cv.Mat) return resolve();
       const t0 = Date.now();
@@ -57,7 +59,7 @@ function loadCv(url: string): Promise<{ cv: CV }> {
           resolve();
         } else if (Date.now() - t0 > 60_000) {
           clearInterval(poll);
-          reject(new Error("The matcher didn’t start."));
+          reject(new Error(msg("The matcher didn’t start.")));
         }
       }, 100);
     });
@@ -116,7 +118,7 @@ async function run(msg: MatchIn) {
   post({ type: "progress", id: msg.id, stage: "load", done: 0, total: 1 });
   const { cv } = await loadCv(msg.opencvUrl);
   const scale = chooseScale(msg.box, msg.sheet);
-  if (scale == null) throw new Error("That box is too small. Zoom in and drag a box around one symbol.");
+  if (scale == null) throw new Error(TOO_SMALL);
   post({ type: "progress", id: msg.id, stage: "image", done: 0, total: 1 });
   const img = await prepare(cv, msg, scale);
 
@@ -132,8 +134,8 @@ async function run(msg: MatchIn) {
       tpl = crop(img, tb);
     }
   }
-  if (Math.min(tb.w, tb.h) < MIN_TEMPLATE_PX - 1) throw new Error("That box is too small. Zoom in and drag a box around one symbol.");
-  if (grayStd(tpl) < 6) throw new Error("There’s nothing drawn there. Tap right on a symbol, or drag a box around one.");
+  if (Math.min(tb.w, tb.h) < MIN_TEMPLATE_PX - 1) throw new Error(TOO_SMALL);
+  if (grayStd(tpl) < 6) throw new Error(NOTHING_DRAWN);
   // A wall, a corner of walls, a wire: matching it would find every wall junction on the sheet.
   if (onlyStraightLines(tpl, tb.w, tb.h, inkLevel(tpl))) throw new Error(ONLY_LINES);
 

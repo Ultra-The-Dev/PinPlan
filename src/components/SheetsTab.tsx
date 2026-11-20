@@ -11,6 +11,7 @@ import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 import { useSheetImage } from "@/lib/useImage";
 import type { Sheet } from "@/lib/types";
 import ImportPagePicker, { type PickedPage } from "./ImportPagePicker";
@@ -203,7 +204,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
           <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,.heic,.heif" className="hidden" onChange={(e) => onFiles(e.target.files)} />
           <SheetIndexButton disabled={!!busy || !sheets.length} />
           <UploadRevisedSetButton disabled={!!busy} />
-          <button className="btn btn-brand" disabled={!!busy} onClick={() => fileRef.current?.click()}>
+          <button className="btn btn-brand" disabled={!!busy} onClick={() => fileRef.current?.click()} {...tourAnchor("plan-upload")}>
             <FileUp /> {t("Upload PDF or photos")}
           </button>
         </div>

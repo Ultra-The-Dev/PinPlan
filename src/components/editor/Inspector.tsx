@@ -218,7 +218,7 @@ function BulkInspector() {
         )}
         <label className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 ${allTentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
           <input type="checkbox" className="accent-amber-600" checked={allTentative} onChange={(e) => updateMarkers(ids, () => ({ tentative: e.target.checked }))} />
-          <span className="font-medium">{t("Tentative (?)")}</span>
+          <span className="font-medium">{t("Optional item")}</span>
         </label>
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
@@ -365,8 +365,8 @@ function MarkerInspector({ id }: { id: string }) {
       <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 transition ${m.tentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
         <input type="checkbox" className="mt-0.5 accent-amber-600" checked={m.tentative} onChange={(e) => updateMarker(m.id, { tentative: e.target.checked })} />
         <span>
-          <span className="font-medium">{t("Tentative (?)")}</span>
-          <span className="block text-xs text-slate-500">{t("Listed separately; optional on the estimate")}</span>
+          <span className="font-medium">{t("Optional item")}</span>
+          <span className="block text-xs text-slate-500">{t("Shows a ? on the plan; listed separately, optional on the quote")}</span>
         </span>
       </label>
       <div className="grid grid-cols-2 gap-2">
@@ -550,7 +550,7 @@ function RunInspector({ id }: { id: string }) {
       )}
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={!!r.tentative} onChange={(e) => updateRun(r.id, { tentative: e.target.checked })} />
-        {t("Tentative (?)")}
+        {t("Optional item")}
       </label>
       <div>
         <label className="label" htmlFor={`${uid}-notes`}>{t("Notes")}</label>

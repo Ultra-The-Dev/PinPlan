@@ -328,7 +328,7 @@ function SignOut({ pending }: { pending: number }) {
             }
           }}
         >
-          Sign out of all devices
+          {t("Sign out of all devices")}
         </button>
         <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setOpen(false)}>
           {t("Cancel")}

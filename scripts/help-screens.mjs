@@ -123,13 +123,20 @@ async function main() {
     await page.getByRole("button", { name: /Close the tour/ }).click();
     const job = `${BASE}/project?id=${id}`;
 
-    // Sheets.
+    // Choose and name pages: what you see right after uploading a PDF (names read from each page). Cancelled, so the
+    // sample job keeps its one sheet.
     await page.goto(`${job}&tab=plan`);
     await viewerReady(page);
     await page.getByTestId("manage-sheets-open").click();
-    await page.waitForTimeout(1200);
+    await page.locator("input[type=file][multiple]").first().setInputFiles(path.join(root, "samples", "demo-plan-set.pdf"));
+    await page.getByTestId("import-pages").waitFor({ timeout: 60_000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="import-name"]')].length > 0 && [...document.querySelectorAll('[data-testid="import-name"]')].every((el) => el.value || el.placeholder !== "Reading…"), null, { timeout: 60_000 });
+    // Skip the last page (as if it were the specs), so the picture shows a page left out.
+    const keeps = page.getByTestId("import-keep");
+    if ((await keeps.count()) > 2) await keeps.last().evaluate((el) => el.click());
+    await page.waitForTimeout(2500);
     await shot(page, "pages", "desktop");
-    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Cancel import" }).click();
     await page.goto(`${job}&tab=plan`);
     await viewerReady(page);
 
@@ -184,6 +191,33 @@ async function main() {
     await shot(page, "sensors", "desktop");
     await page.getByRole("button", { name: /^Place \d+ sensors?$/ }).click();
     await page.waitForTimeout(500);
+
+    // A camera with a photo and a task: its card shows "1 photo" and "1 task" (they open the Photos and Tasks tabs).
+    const camId = await page.evaluate(() => {
+      const st = window.__pinplanViewer.editor.getState();
+      const cam = st.catalog.find((d) => /^Indoor camera/.test(d.name));
+      return st.markers.find((m) => !m.deleted && m.deviceTypeId === cam?.id)?.id ?? null;
+    });
+    if (camId) {
+      const planPng = await page.screenshot({ type: "png" });
+      await page.goto(`${job}&tab=photos&device=${camId}`);
+      await page.locator('input[type=file][accept="image/*"][multiple]').first().setInputFiles({ name: "camera.png", mimeType: "image/png", buffer: planPng });
+      await page.getByTestId("photo-device-filter").waitFor();
+      await page.waitForTimeout(1500);
+      await page.goto(`${job}&tab=tasks&tf=${encodeURIComponent(`dv:${camId}`)}`);
+      await page.getByRole("button", { name: "Add task" }).first().click();
+      const dlg = page.getByRole("dialog", { name: "New task" });
+      await dlg.getByLabel("Title").fill("Aim the camera at the gate");
+      await dlg.getByRole("button", { name: "Save" }).click();
+      await page.waitForTimeout(800);
+      await page.goto(`${job}&tab=plan`);
+      await viewerReady(page);
+      await page.evaluate((id) => window.__pinplanViewer.editor.getState().select({ table: "markers", id }), camId);
+      await page.getByTestId("device-links").waitFor({ timeout: 10_000 });
+      await page.waitForTimeout(800);
+      await shot(page, "device-links", "desktop");
+      await page.keyboard.press("Escape");
+    }
 
     // Takeoff.
     await page.goto(`${job}&tab=takeoff`);
@@ -257,8 +291,8 @@ async function main() {
     await phone.waitForTimeout(600);
     await shot(phone, "plan-phone", "phone");
 
-    // A task for the crew.
-    await phone.goto(`${pjob}&tab=field&section=tasks`);
+    // A task for the crew, in the job's Tasks tab (bottom bar: Plan · Tasks · Photos · Money · More).
+    await phone.goto(`${pjob}&tab=tasks`);
     for (const title of ["Mount the camera over the front door", "Run Cat6 to the office", "Label the panel"]) {
       await phone.getByRole("button", { name: "Add task" }).first().click();
       const dialog = phone.getByRole("dialog", { name: "New task" });
@@ -266,14 +300,12 @@ async function main() {
       await dialog.getByRole("button", { name: "Save" }).click();
       await phone.waitForTimeout(600);
     }
-    // The job's task list (with the new job tabs this is the Tasks tab).
     await noToasts(phone);
-    await phone.getByRole("button", { name: /^Mine/ }).first().evaluate((el) => el.scrollIntoView({ block: "start" }));
     await phone.waitForTimeout(500);
     await shot(phone, "crew-tasks", "phone");
 
     // Photos: the job's photos with one photo in it (a picture of the plan stands in for a site photo).
-    await phone.goto(`${pjob}&tab=field&section=photos`);
+    await phone.goto(`${pjob}&tab=photos`);
     await phone.waitForTimeout(1000);
     const input = phone.locator('input[type=file][accept*="image"]').first();
     if (await input.count()) {
@@ -281,7 +313,6 @@ async function main() {
       await phone.waitForTimeout(2500);
     }
     await noToasts(phone);
-    await phone.getByRole("button", { name: "Photo report" }).first().evaluate((el) => el.scrollIntoView({ block: "start" }));
     await phone.waitForTimeout(500);
     await shot(phone, "crew-photos", "phone");
 

@@ -305,7 +305,7 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
               </div>
               <label className="flex items-center gap-2 text-sm sm:col-span-2">
                 <input type="checkbox" checked={p.includeTentative} onChange={(e) => setP("includeTentative", e.target.checked)} />
-                {t("Include optional (?) items in totals by default")}
+                {t("Include optional items in totals by default")}
               </label>
             </section>
             </form>

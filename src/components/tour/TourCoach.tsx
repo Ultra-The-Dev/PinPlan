@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
 import { JOB_TABS } from "@/lib/tabRoutes";
 import { useRole } from "@/lib/team";
@@ -15,6 +16,7 @@ import { anchorSelector } from "@/lib/tour/anchors";
 import { atLocation, hrefFor, placeCard, PHONE_MAX, rectVisible, spotlightRect, stepAnchor, visibleSteps, type Rect } from "@/lib/tour/model";
 import { useTour } from "@/lib/tour/store";
 import { TOURS } from "@/lib/tour/tours";
+import { useTopModalSlot } from "../ui/Modal";
 import "./tour.css";
 
 /** How long to wait for a step's element (lazy tabs, a plan loading) before showing the card in the middle. */
@@ -51,6 +53,9 @@ export default function TourCoach() {
   const total = steps.length;
   const n = active?.step ?? 0;
 
+  // While a dialog is open (the pages screen after an upload) the page behind it is inert and below it: the card goes
+  // inside the dialog, like the toasts.
+  const slot = useTopModalSlot();
   const [vp, setVp] = useState({ w: 1024, h: 768 });
   const phone = vp.w < PHONE_MAX;
   const [rect, setRect] = useState<Rect | null>(null);
@@ -89,6 +94,7 @@ export default function TourCoach() {
 
   // Follow the element: it may appear late (lazy tabs), move (scrolling, panels opening) or go away.
   const anchorId = step ? stepAnchor(step, phone) : undefined;
+  const openId = step?.whenOpen;
   useEffect(() => {
     if (!anchorId) {
       const id = setTimeout(() => {
@@ -98,12 +104,16 @@ export default function TourCoach() {
       return () => clearTimeout(id);
     }
     const selector = anchorSelector(anchorId);
+    // A dialog the step leads to (the pages screen after an upload) wins while it's open.
+    const openSelector = openId ? anchorSelector(openId) : null;
     const started = Date.now();
     let last: Rect | null = null;
     const tick = () => {
-      const el = findAnchor(selector);
-      if (el && scrolled.current !== `${stepKey}:${anchorId}`) {
-        scrolled.current = `${stepKey}:${anchorId}`;
+      const open = openSelector ? findAnchor(openSelector) : null;
+      const el = open ?? findAnchor(selector);
+      const key = `${stepKey}:${open ? openId : anchorId}`;
+      if (el && scrolled.current !== key) {
+        scrolled.current = key;
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduce ? "auto" : "smooth" });
       }
@@ -126,7 +136,7 @@ export default function TourCoach() {
       setRect(null);
       setWaited(false);
     };
-  }, [anchorId, stepKey]);
+  }, [anchorId, openId, stepKey]);
 
   // The card's own size, for placing it.
   useLayoutEffect(() => {
@@ -135,7 +145,8 @@ export default function TourCoach() {
     const ro = new ResizeObserver(() => setCard({ w: el.offsetWidth, h: el.offsetHeight }));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [stepKey]);
+    // The card is a new element when it moves into (or out of) a dialog: observe that one.
+  }, [stepKey, slot]);
 
   // Focus the card's title on each step, so screen readers read it and the keys below work.
   useEffect(() => {
@@ -162,6 +173,8 @@ export default function TourCoach() {
   };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
+      // Inside a dialog, Esc closes the tour only (not the dialog too).
+      e.preventDefault();
       e.stopPropagation();
       close();
     } else if (e.key === "ArrowRight" && !(e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement)) next();
@@ -176,7 +189,7 @@ export default function TourCoach() {
         : {};
   const sheet = place.mode === "sheet";
 
-  return (
+  const ui = (
     <div className="tour-root" data-tour-active={tour.id}>
       {/* The dim layer: a box around the element with a huge shadow. Taps go through to the page. */}
       {spot ? (
@@ -258,4 +271,5 @@ export default function TourCoach() {
       </p>
     </div>
   );
+  return slot ? createPortal(ui, slot) : ui;
 }

@@ -442,12 +442,19 @@ export interface OpenPlanTask {
 /**
  * Open plan tasks (not completed / verified) for My Tasks, bucketed like checklist tasks (TASK_BUCKETS in fieldDocs).
  * `person` keeps that person's tasks (case-insensitive; a list = any of those names, e.g. myNames()); null keeps
- * everyone's assigned tasks. Sorted by due date then number.
+ * everyone's assigned tasks, and with `unassigned: "include"` the unassigned ones too (/tasks "Everyone");
+ * `unassigned: "only"` keeps just the tasks nobody has (the "Unassigned" chip). Sorted by due date then number.
  */
-export function openPlanTasksFor(person: string | string[] | null | undefined, tasks: PlanTask[], today: string): OpenPlanTask[] {
+export function openPlanTasksFor(person: string | string[] | null | undefined, tasks: PlanTask[], today: string, opts: { unassigned?: "include" | "only" } = {}): OpenPlanTask[] {
   const who = new Set((Array.isArray(person) ? person : [person]).map(lc).filter(Boolean));
+  const keep = (t: PlanTask) => {
+    const has = !!t.assignee?.trim();
+    if (opts.unassigned === "only") return !has;
+    if (who.size) return who.has(lc(t.assignee));
+    return has || opts.unassigned === "include";
+  };
   return tasks
-    .filter((t) => !t.deleted && !isClosed(t.status) && (who.size ? who.has(lc(t.assignee)) : !!t.assignee?.trim()))
+    .filter((t) => !t.deleted && !isClosed(t.status) && keep(t))
     .map((task) => ({ task, bucket: taskBucket(task.due, today) }))
     .sort((a, b) => (a.task.due ?? "9999").localeCompare(b.task.due ?? "9999") || a.task.number - b.task.number || a.task.createdAt.localeCompare(b.task.createdAt));
 }

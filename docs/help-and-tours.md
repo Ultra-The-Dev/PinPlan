@@ -43,7 +43,11 @@ can delete it). The crew and office tours use the open job, else the newest job,
 - Each step names **where** it happens (`at`: jobs list, Tasks, Settings, or a job tab with params) and **what** it
   points at (`anchor`, optionally `phoneAnchor`). Opening a step goes there once (`hrefFor` / `atLocation`); if the
   person wanders off, the card stays and Next carries on. A job step can name a `legacy` place for builds that don't
-  have the tab yet (Tasks and Photos under Field).
+  have the tab yet (none of the built-in tours need it any more: Tasks and Photos are tabs).
+- `whenOpen`: an anchor pointed at instead while it's on screen. The upload step points at **Manage sheets**
+  (`plan-sheets`) and, once a PDF is uploaded, at the **Choose and name pages** screen (`plan-pages`). While a dialog
+  is open the card is drawn inside it (`useTopModalSlot`, like the toasts), so it stays visible and clickable over
+  the modal; Esc then closes the tour, not the dialog.
 - The anchor is found with `[data-tour="id"]` (then the registry's `fallback` selector), the first one that's
   visible; it's followed every 200 ms and on scroll/resize, and scrolled into view once. **A missing anchor never
   blocks**: after 1.5 s the card shows in the middle of the screen (a bottom sheet on phones).
@@ -100,9 +104,11 @@ node scripts/help-screens.mjs                       # starts next start on a fre
 HELP_BASE_URL=http://localhost:3301 node scripts/help-screens.mjs   # or an app that's already running
 ```
 
-The script uses the sample job (local-only, demo mode, tips and the tour offer turned off), places a few devices,
-counts doors and windows with **Read tags**, adds sensors, prices, finalizes a quote and an invoice, and takes the
-crew screens on an iPhone-sized page. It encodes WebP in the browser (no image library); the folder is about 0.5 MB
+The script uses the sample job (local-only, demo mode, tips and the tour offer turned off), uploads
+`samples/demo-plan-set.pdf` to show **Choose and name pages** (then cancels), places a few devices, counts doors and
+windows with **Read tags**, adds sensors, gives a camera a photo and a task for the device card's chips
+(`device-links`), prices, finalizes a quote and an invoice, and takes the Tasks, Photos, daily-log and plan screens
+(with the bottom tab bar) on an iPhone-sized page. It encodes WebP in the browser (no image library); the folder is about 0.5 MB
 (`tests/tour.test.ts` keeps it under 3 MB). Screenshots are **English UI**: other languages show the same pictures
 (guide H-10 says so). Re-run it after a UI change the pictures show (the pages screen after upload, the job tabs).
 

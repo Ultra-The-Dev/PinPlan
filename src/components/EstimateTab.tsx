@@ -362,7 +362,7 @@ export default function EstimateTab() {
             </label>
             <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" className="accent-brand-600" checked={pricing.includeTentative} onChange={(e) => setPricing({ includeTentative: e.target.checked })} />
-              {t("Include “?” items by default")}
+              {t("Include optional items by default")}
             </label>
             <span className="ml-auto self-center text-xs text-slate-400">{t("Applies to this job only")}</span>
             <p className="basis-full text-xs text-slate-500">

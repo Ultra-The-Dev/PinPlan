@@ -43,6 +43,10 @@ you to the picture"):
 - **Tasks** (`tasks/TasksTab.tsx` → `TaskList`): the task board that was Field → Tasks, unchanged, plus a device
   filter chip. **Add task** opens a simple form; where it is (a sheet, and optionally a device picked from a list)
   is a field of that form. Picking a device puts the task at the device.
+- **Phones**: the job header gives the job name up to two lines (client and status on the small line under it, the
+  back link is the chevron alone). Tasks shows Mine · Overdue · Filter in one row; the status counts and the sort
+  are in the Filter sheet. Photos keeps search, dates, people and tags behind Filter so the photos are on the first
+  screen. `/tasks` Everyone includes unassigned tasks, and an **Unassigned** chip shows only those.
 - **Photos** (`photos/PhotosTab.tsx`): the gallery that was Field → Photos. `&device=` narrows it to one device
   (a chip clears it) and photos added while it's set are linked to that device; `&photo=` opens one.
 

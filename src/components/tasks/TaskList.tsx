@@ -34,12 +34,15 @@ import { cropPlanAroundPin } from "@/lib/tasks/planCrop";
 import { toast } from "@/lib/toast";
 import type { PlanTask, TaskPriority, TaskStatus } from "@/lib/types";
 import Dialog from "../Dialog";
+import Modal from "../ui/Modal";
+import { useMedia } from "@/lib/useMedia";
 import TaskDetail from "./TaskDetail";
 import TaskQuickCreate from "./TaskQuickCreate";
 import type { TaskPdfData, TaskPdfEntry } from "./TaskReportPdf";
 import { Chip, DueText, PriorityPill, TaskBadge, useTaskOptions } from "./TaskUi";
 import { useProjectTasks, useTasks, type QuickDraft } from "./taskStore";
 import { useT } from "@/lib/i18n";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 const toDataUrl = (b: Blob) =>
   new Promise<string>((r, j) => {
@@ -87,7 +90,10 @@ export default function TaskList() {
   const mine = isMineFilter(filter, myNames);
   const mineCount = useMemo(() => filterTasks(tasks, mineOpenFilter(myNames), today).length, [tasks, myNames, today]);
   // Filters other than the quick chips (Mine, Overdue): shown as a count on the "Filter" button.
+  const phone = useMedia("(max-width: 639px)");
   const moreFilters = [filter.priority?.length, !mine && filter.assignee?.length, filter.category?.length, filter.sheetId != null, filter.due && filter.due !== "overdue", filter.text?.trim(), filter.tags?.length].filter(Boolean).length;
+  // Phones keep the status chips in the Filter sheet: count them on the button too.
+  const shownFilters = moreFilters + (phone && !mine && filter.status?.length ? 1 : 0);
 
   // Technicians open on their own open tasks (once, when the address has no filter yet).
   const techDefault = useRef(false);
@@ -233,18 +239,82 @@ export default function TaskList() {
   }
 
   const allPicked = shown.length > 0 && shown.every((tk) => selected.has(tk.id));
+  const statusChips = (small: boolean) =>
+    STATUSES.map((s) => (
+      <Chip small={small} key={s.id} on={!!filter.status?.includes(s.id)} color={s.color} onClick={() => setFilter({ ...filter, status: toggle(filter.status, s.id) })}>
+        {t(s.short)} <span className="tabular-nums opacity-80">{counts[s.id]}</span>
+      </Chip>
+    ));
+  const sortSelect = (size: string) => (
+    <select className={`input ${size}`} value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label={t("Sort")}>
+      <option value="due">{t("Sort: due date")}</option>
+      <option value="number">{t("Sort: number")}</option>
+      <option value="priority">{t("Sort: priority")}</option>
+      <option value="status">{t("Sort: status")}</option>
+    </select>
+  );
+  const filterFields = (
+    <>
+      <form
+        className="relative"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFilter({ ...filter, text });
+        }}
+      >
+        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input className="input pl-9" placeholder={t("Search tasks or #number")} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (filter.text ?? "") && setFilter({ ...filter, text })} aria-label={t("Search tasks")} />
+      </form>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PRIORITIES.map((p) => (
+          <Chip small key={p.id} on={!!filter.priority?.includes(p.id)} color={p.color} onClick={() => setFilter({ ...filter, priority: toggle(filter.priority, p.id) })}>
+            {p.label}
+          </Chip>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <select className="input h-9 max-sm:h-11" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label={t("Assigned to")}>
+          <option value="">{t("Anyone")}</option>
+          <option value="__none">{t("Unassigned")}</option>
+          {people.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select className="input h-9 max-sm:h-11" value={filter.category?.[0] ?? ""} onChange={(e) => setFilter({ ...filter, category: e.target.value ? [e.target.value] : [] })} aria-label={t("Category")}>
+          <option value="">{t("Any category")}</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select className="input h-9 max-sm:h-11" value={filter.sheetId ?? "__all"} onChange={(e) => setFilter({ ...filter, sheetId: e.target.value === "__all" ? null : e.target.value })} aria-label={t("Sheet")}>
+          <option value="__all">{t("All sheets")}</option>
+          <option value="">{t("General (no sheet)")}</option>
+          {sheets.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <select className="input h-9 max-sm:h-11" value={filter.due ?? ""} onChange={(e) => setFilter({ ...filter, due: (e.target.value || null) as TaskFilter["due"] })} aria-label={t("Due")}>
+          <option value="">{t("Any due date")}</option>
+          <option value="overdue">{t("Overdue")}</option>
+          <option value="today">{t("Due today")}</option>
+          <option value="week">{t("Due this week")}</option>
+          <option value="none">{t("No due date")}</option>
+        </select>
+      </div>
+    </>
+  );
 
   return (
     <div className="space-y-4">
-      {/* Summary + actions. Phones: Add task first, the status counts in one row that scrolls sideways. */}
+      {/* Summary + actions. Phones: PDF and Add task; the status counts and sort move into the Filter sheet. */}
       <div className="flex flex-wrap items-center gap-2 max-sm:justify-end">
-        <div className="scroll-thin mr-auto flex flex-wrap gap-1.5 max-sm:order-last max-sm:w-full max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:py-1.5">
-          {STATUSES.map((s) => (
-            <Chip small key={s.id} on={!!filter.status?.includes(s.id)} color={s.color} onClick={() => setFilter({ ...filter, status: toggle(filter.status, s.id) })}>
-              {t(s.short)} <span className="tabular-nums opacity-80">{counts[s.id]}</span>
-            </Chip>
-          ))}
-        </div>
+        <div className="mr-auto flex flex-wrap gap-1.5 max-sm:hidden">{statusChips(true)}</div>
         <div className="relative">
           <button className="btn" onClick={() => setPdfOpen((o) => !o)} disabled={!!pdfBusy || !shown.length} aria-expanded={pdfOpen}>
             <FileDown /> {pdfBusy ?? "PDF"}
@@ -263,14 +333,15 @@ export default function TaskList() {
         </div>
         <button
           className="btn btn-brand"
+          {...tourAnchor("tasks-add")}
           onClick={() => setQuick(device ? { sheetId: device.sheetId, x: device.x, y: device.y, room: device.room || null, markerId: device.id } : { sheetId: filter.sheetId || null, x: null, y: null })}
         >
           <Plus /> {t("Add task")}
         </button>
       </div>
 
-      {/* Quick filters; the rest behind "Filter" */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Quick filters in one row; the rest behind "Filter" (phones: a sheet with the status counts and the sort too). */}
+      <div className="flex flex-wrap items-center gap-1.5" data-testid="task-quick-filters">
         {filter.markerId && (
           <button type="button" className="chip h-10 gap-1.5 bg-brand-600 px-3 text-white" onClick={() => setFilter({ ...filter, markerId: null })} aria-label={t("Show tasks for every device")} data-testid="task-device-filter">
             {t("Device: {name}", { name: deviceName || "—" })}
@@ -283,73 +354,59 @@ export default function TaskList() {
         <Chip on={filter.due === "overdue"} color="#dc2626" onClick={() => setFilter({ ...filter, due: filter.due === "overdue" ? null : "overdue" })}>
           {t("Overdue")}
         </Chip>
-        <button className={`btn h-10 ${filtersOpen || moreFilters ? "btn-on" : ""}`} onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="task-filters">
-          <SlidersHorizontal /> {t("Filter")}{moreFilters ? ` · ${moreFilters}` : ""}
+        <button className={`btn h-10 ${filtersOpen || shownFilters ? "btn-on" : ""}`} onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="task-filters" data-testid="task-filter-button">
+          <SlidersHorizontal /> {t("Filter")}
+          {shownFilters ? ` · ${shownFilters}` : ""}
         </button>
-        <select className="input ml-auto h-10 w-auto" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label={t("Sort")}>
-          <option value="due">{t("Sort: due date")}</option>
-          <option value="number">{t("Sort: number")}</option>
-          <option value="priority">{t("Sort: priority")}</option>
-          <option value="status">{t("Sort: status")}</option>
-        </select>
+        <span className="ml-auto max-sm:hidden">{sortSelect("h-10 w-auto")}</span>
       </div>
 
-      {/* Filters */}
-      {filtersOpen && (
-      <div className="card space-y-3 p-3" id="task-filters">
-        <form
-          className="relative"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setFilter({ ...filter, text });
-          }}
-        >
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder={t("Search tasks or #number")} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (filter.text ?? "") && setFilter({ ...filter, text })} aria-label={t("Search tasks")} />
-        </form>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {PRIORITIES.map((p) => (
-            <Chip small key={p.id} on={!!filter.priority?.includes(p.id)} color={p.color} onClick={() => setFilter({ ...filter, priority: toggle(filter.priority, p.id) })}>
-              {p.label}
-            </Chip>
-          ))}
+      {/* Filters: a card under the chips; on phones a sheet from the bottom. */}
+      {filtersOpen && !phone && (
+        <div className="card space-y-3 p-3" id="task-filters">
+          {filterFields}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <select className="input h-9" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label={t("Assigned to")}>
-            <option value="">{t("Anyone")}</option>
-            <option value="__none">{t("Unassigned")}</option>
-            {people.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-          <select className="input h-9" value={filter.category?.[0] ?? ""} onChange={(e) => setFilter({ ...filter, category: e.target.value ? [e.target.value] : [] })} aria-label={t("Category")}>
-            <option value="">{t("Any category")}</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <select className="input h-9" value={filter.sheetId ?? "__all"} onChange={(e) => setFilter({ ...filter, sheetId: e.target.value === "__all" ? null : e.target.value })} aria-label={t("Sheet")}>
-            <option value="__all">{t("All sheets")}</option>
-            <option value="">{t("General (no sheet)")}</option>
-            {sheets.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select className="input h-9" value={filter.due ?? ""} onChange={(e) => setFilter({ ...filter, due: (e.target.value || null) as TaskFilter["due"] })} aria-label={t("Due")}>
-            <option value="">{t("Any due date")}</option>
-            <option value="overdue">{t("Overdue")}</option>
-            <option value="today">{t("Due today")}</option>
-            <option value="week">{t("Due this week")}</option>
-            <option value="none">{t("No due date")}</option>
-          </select>
-        </div>
-      </div>
+      )}
+      {filtersOpen && phone && (
+        <Modal onClose={() => setFiltersOpen(false)} labelledBy="task-filters-title" className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px]">
+          <div className="card animate-in flex max-h-[85dvh] w-full flex-col rounded-b-none shadow-pop" id="task-filters" data-testid="task-filter-sheet">
+            <div className="flex items-center gap-2 border-b border-slate-100 py-1 pr-1 pl-4">
+              <h2 id="task-filters-title" className="min-w-0 flex-1 text-base font-semibold">
+                {t("Filter tasks")}
+              </h2>
+              <button type="button" className="btn btn-icon btn-ghost h-11 w-11" onClick={() => setFiltersOpen(false)} aria-label={t("Close")}>
+                <X />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+              <div>
+                <div className="label">{t("Status")}</div>
+                <div className="flex flex-wrap gap-1.5">{statusChips(false)}</div>
+              </div>
+              <label className="block">
+                <span className="label">{t("Sort")}</span>
+                {sortSelect("h-11 w-full")}
+              </label>
+              {filterFields}
+            </div>
+            <div className="flex gap-2 border-t border-slate-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                className="btn h-11 flex-1"
+                disabled={filterIsEmpty(filter)}
+                onClick={() => {
+                  setText("");
+                  setFilter({});
+                }}
+              >
+                {t("Clear")}
+              </button>
+              <button type="button" className="btn btn-brand h-11 flex-[2]" onClick={() => setFiltersOpen(false)}>
+                {t.tn("Show {n} task", "Show {n} tasks", shown.length)}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
       {!filterIsEmpty(filter) && (
           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -374,7 +431,7 @@ export default function TaskList() {
           <ListTodo className="h-8 w-8 text-slate-300" />
           <div className="font-medium">{t("No tasks yet")}</div>
           <p className="max-w-md text-sm text-slate-500">
-            {t("Tap Add task for something to do on this job, or on the Plan tap the pin button (Shift+T) and tap the spot.")}
+            {t("Tap Add task for something to do on this job. Pick its sheet, and the device if it's about one.")}
           </p>
         </div>
       ) : (
