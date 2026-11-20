@@ -4,7 +4,7 @@
 import { CheckCircle2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { startDemo } from "@/lib/onboarding";
 import { useSyncStatus } from "@/lib/sync";
@@ -39,10 +39,13 @@ const NAV = [
 export function SiteHeader() {
   const s = useSyncStatus();
   const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      menuButton.current?.focus();
     };
     const wide = window.matchMedia("(min-width: 1024px)");
     const onWide = () => {
@@ -65,6 +68,7 @@ export function SiteHeader() {
       </a>
       <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
         <button
+          ref={menuButton}
           type="button"
           className="-ml-2 rounded-md p-2 hover:bg-mk-sheet lg:hidden"
           aria-expanded={open}
@@ -102,19 +106,18 @@ export function SiteHeader() {
           )}
         </div>
       </div>
-      {open && (
-        <nav id="site-menu" className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label="Site menu">
-          <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
-            {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: "Sign in" }])].map((n) => (
-              <li key={n.href}>
-                <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
-                  {n.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* Always in the page (hidden when closed) so the button's aria-controls points at a real element. */}
+      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label="Site menu">
+        <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
+          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: "Sign in" }])].map((n) => (
+            <li key={n.href}>
+              <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
+                {n.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
   );
 }
