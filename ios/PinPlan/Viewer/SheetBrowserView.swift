@@ -85,12 +85,11 @@ struct SheetBrowserView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(s.name), page \(s.pageNumber), \(count) devices\(current ? ", open now" : "")")
+        .accessibilityLabel(current ? "\(s.name), page \(s.pageNumber), \(count) devices, open now" : "\(s.name), page \(s.pageNumber), \(count) devices")
     }
 
     private func subtitle(_ s: Sheet, count: Int, current: Bool) -> String {
-        let devices = count == 1 ? "1 device" : "\(count) devices"
-        return current ? "Open now, \(devices)" : "Page \(s.pageNumber), \(devices)"
+        return current ? String(localized: "Open now, \(count) devices") : String(localized: "Page \(s.pageNumber), \(count) devices")
     }
 }
 

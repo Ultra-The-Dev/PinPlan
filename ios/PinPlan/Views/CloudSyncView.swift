@@ -51,7 +51,7 @@ struct CloudSyncView: View {
                 Section {
                     NavigationLink { TeamView() } label: {
                         LabeledContent {
-                            Text(cloud.team?.team?.name ?? "Working alone")
+                            Text(cloud.team?.team?.name ?? String(localized: "Working alone"))
                         } label: { Label("Team", systemImage: "person.2") }
                     }
                     if let n = cloud.teamNotice {
@@ -111,7 +111,7 @@ private struct AccountSwitchSection: View {
         } footer: {
             Text("Removing them only clears this device. Sign in with the other account to see them again.")
         }
-        .confirmationDialog("Remove \(prompt.jobs) job\(prompt.jobs == 1 ? "" : "s") from this device?", isPresented: $confirming, titleVisibility: .visible) {
+        .confirmationDialog("Remove \(prompt.jobs) jobs from this device?", isPresented: $confirming, titleVisibility: .visible) {
             Button("Remove from this device", role: .destructive) {
                 Task {
                     removing = true
@@ -154,7 +154,7 @@ struct AccountSection: View {
     var body: some View {
         Section {
             Picker("Account", selection: $mode) {
-                ForEach(Mode.allCases) { m in Text(m.rawValue).tag(m) }
+                ForEach(Mode.allCases) { m in Text(tr(m.rawValue)).tag(m) }
             }
             .pickerStyle(.segmented)
             .listRowBackground(Color.clear)
@@ -197,16 +197,16 @@ struct AccountSection: View {
             }
         } header: { Text("Account").textCase(nil) } footer: {
             Text(mode == .create
-                 ? (joining ? "Creates your PinPlan account. The same email and password work on the web." : "Creates your PinPlan account and your company. The same email and password work on the web.")
-                 : "Use the same account as on the web.")
+                 ? (joining ? String(localized: "Creates your PinPlan account. The same email and password work on the web.") : String(localized: "Creates your PinPlan account and your company. The same email and password work on the web."))
+                 : String(localized: "Use the same account as on the web."))
         }
         .onChange(of: mode) { _, _ in problem = nil }
     }
 
     private var buttonTitle: String {
         switch mode {
-        case .signIn: return busy ? "Signing in…" : "Sign in"
-        case .create: return busy ? "Creating account…" : "Create account"
+        case .signIn: return busy ? String(localized: "Signing in…") : String(localized: "Sign in")
+        case .create: return busy ? String(localized: "Creating account…") : String(localized: "Create account")
         }
     }
 
@@ -220,12 +220,12 @@ struct AccountSection: View {
     private func resetPassword() async {
         let e = email.trimmingCharacters(in: .whitespaces)
         problem = nil; info = nil
-        guard e.contains("@") else { problem = "Enter your email above, then tap Forgot password?"; return }
+        guard e.contains("@") else { problem = String(localized: "Enter your email above, then tap Forgot password?"); return }
         resetting = true
         defer { resetting = false }
         do {
             try await app.cloud.sendPasswordReset(email: e, serverURL: app.settings.serverURL)
-            info = "Check your email (\(e)); follow the link to set a new password, then sign in here."
+            info = String(localized: "Check your email (\(e)); follow the link to set a new password, then sign in here.")
         } catch {
             problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -250,7 +250,7 @@ struct AccountSection: View {
                 if try await app.cloud.createAccount(email: e, password: password, name: name, company: joining ? "" : company, acceptedAt: Date()) {
                     password = ""
                 } else {
-                    info = "Check \(e) for the confirmation email (and your spam folder), tap the link, then sign in here. If this email already has an account, just sign in."
+                    info = String(localized: "Check \(e) for the confirmation email (and your spam folder), tap the link, then sign in here. If this email already has an account, just sign in.")
                     mode = .signIn
                     password = ""
                 }

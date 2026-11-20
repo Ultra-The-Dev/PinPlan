@@ -6,7 +6,7 @@ import PinPlanCore
 enum ProjectTab: String, CaseIterable, Identifiable {
     case overview, plan, takeoff, money, field
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { tr(rawValue.capitalized) }
     var icon: String {
         switch self {
         case .overview: return "house"
@@ -114,7 +114,7 @@ struct ProjectView: View {
     }
 
     private func title(_ model: EditorModel) -> String {
-        model.bundle.project.address.isEmpty ? "Untitled job" : model.bundle.project.address
+        model.bundle.project.address.isEmpty ? String(localized: "Untitled job") : model.bundle.project.address
     }
 
     /// The job's sections for this user: technicians don't get Money (prices stay with the office).
@@ -148,7 +148,7 @@ struct ProjectView: View {
             }
         case .takeoff: TakeoffView(model: model, showWiring: $showWiring)
         case .money:
-            if app.cloud.can(.prices) { MoneyView(model: model) } else { OfficeOnlyView(what: "Quotes, invoices") }
+            if app.cloud.can(.prices) { MoneyView(model: model) } else { OfficeOnlyView(what: String(localized: "Quotes, invoices")) }
         case .field: JobFieldView(model: model, photos: $showPhotos)
         }
     }

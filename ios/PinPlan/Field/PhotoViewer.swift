@@ -83,7 +83,7 @@ struct PhotoViewer: View {
                 if let p = model.photo(id) {
                     Group {
                         if compare, id == current, let b = p.beforeId.flatMap(model.photo) {
-                            HStack(spacing: 4) { labeled(b, "Before"); labeled(p, "After") }
+                            HStack(spacing: 4) { labeled(b, String(localized: "Before")); labeled(p, String(localized: "After")) }
                         } else {
                             ZoomablePhoto(photo: p)
                         }
@@ -179,7 +179,7 @@ struct PhotoDetails: View {
                         .disabled(aiBusy)
                     }
                 }
-                CommitField(title: "Caption", value: p.caption ?? "", prompt: "What does this show?") { v in
+                CommitField(title: String(localized: "Caption"), value: p.caption ?? "", prompt: String(localized: "What does this show?")) { v in
                     model.updateRows([p.id], in: \.photos) { $0.caption = v.isEmpty ? nil : v }
                 }
                 .textFieldStyle(.roundedBorder)
@@ -203,16 +203,16 @@ struct PhotoDetails: View {
                                 model.updateRows([p.id], in: \.photos) { $0.markerId = m.id; $0.sheetId = m.sheetId; if !m.room.isEmpty { $0.room = m.room } }
                             }
                         }
-                    } label: { Text(model.deviceName(p.markerId) ?? "Link to a device").lineLimit(1) }
+                    } label: { Text(model.deviceName(p.markerId) ?? String(localized: "Link to a device")).lineLimit(1) }
                 }
                 GridRow {
                     Text("Room").foregroundStyle(.secondary)
-                    CommitField(title: "Room", value: p.room ?? "", prompt: "e.g. Kitchen") { v in model.updateRows([p.id], in: \.photos) { $0.room = v.isEmpty ? nil : v } }
+                    CommitField(title: String(localized: "Room"), value: p.room ?? "", prompt: String(localized: "e.g. Kitchen")) { v in model.updateRows([p.id], in: \.photos) { $0.room = v.isEmpty ? nil : v } }
                 }
                 GridRow {
                     Text("Before").foregroundStyle(.secondary)
                     HStack {
-                        Button(p.beforeId.flatMap(model.photo).map { "Linked (\(shortDate($0.takenAt)))" } ?? "This is an after photo of…") { pickingBefore = true }
+                        Button(p.beforeId.flatMap(model.photo).map { String(localized: "Linked (\(shortDate($0.takenAt)))") } ?? String(localized: "This is an after photo of…")) { pickingBefore = true }
                         if p.beforeId != nil { Button { model.updateRows([p.id], in: \.photos) { $0.beforeId = nil } } label: { Image(systemName: "xmark.circle.fill") }.foregroundStyle(.secondary) }
                     }
                 }
@@ -264,10 +264,10 @@ struct PhotoDetails: View {
         }
         .sheet(item: $tasking) { c in
             // Comment → task on the job's punch list (started from the template if the job has none), linked to this photo.
-            TaskEditor(item: FieldDocs.taskItem(from: c), names: FieldAuthor.teamNames(app), title: "Make task") { who, due in
+            TaskEditor(item: FieldDocs.taskItem(from: c), names: FieldAuthor.teamNames(app), title: String(localized: "Make task")) { who, due in
                 let r = FieldDocs.addTask(fromComment: c, checklists: model.bundle.checklists, assignee: who, due: due)
                 model.saveRow(r.checklist, in: \.checklists)
-                model.say(r.created ? "Punch list started with this task" : "Added to the punch list")
+                model.say(r.created ? String(localized: "Punch list started with this task") : String(localized: "Added to the punch list"))
             }
             .presentationDetents([.medium, .large])
         }

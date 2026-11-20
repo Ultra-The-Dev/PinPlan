@@ -88,7 +88,7 @@ struct FormFillView: View {
     private func toolbar(_ form: JobForm) -> some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button { Task { await pdf(form) } } label: { Label(busy ?? "Share PDF", systemImage: "doc.richtext") }
+                Button { Task { await pdf(form) } } label: { Label(busy ?? String(localized: "Share PDF"), systemImage: "doc.richtext") }
                     .disabled(busy != nil)
                 let failed = Forms.failedItems(form)
                 if !failed.isEmpty {
@@ -165,9 +165,9 @@ struct FormFillView: View {
 
     private func makePunch(_ form: JobForm) {
         let r = Forms.punchItems(from: form, checklists: model.bundle.checklists)
-        guard !r.added.isEmpty else { model.say("Those items are already on the punch list"); return }
+        guard !r.added.isEmpty else { model.say(String(localized: "Those items are already on the punch list")); return }
         model.saveRow(r.checklist, in: \.checklists)
-        model.say("\(r.added.count) punch item\(r.added.count == 1 ? "" : "s") added")
+        model.say(String(localized: "\(r.added.count) punch items added"))
     }
 
     private func pdf(_ form: JobForm) async {
@@ -176,7 +176,7 @@ struct FormFillView: View {
         for f in form.template.fields where f.kind == .photo {
             var items: [FormPDFBuilder.PhotoItem] = []
             for pid in form.values[f.id]?.strings ?? [] {
-                busy = "Preparing photos…"
+                busy = String(localized: "Preparing photos…")
                 guard let p = model.photo(pid), let img = app.store.image(p.imageId) else {
                     items.append(FormPDFBuilder.PhotoItem(image: nil, caption: nil))
                     continue
@@ -189,7 +189,7 @@ struct FormFillView: View {
         }
         var sigs: [String: UIImage] = [:]
         for s in form.signatures ?? [] { if let img = app.store.image(s.imageId) { sigs[s.imageId] = img } }
-        busy = "Building the PDF…"
+        busy = String(localized: "Building the PDF…")
         let logo = await PhotoReportBuilder.logo(app.brandedSettings)
         let place: String? = form.sheetId.flatMap { sid in model.bundle.liveSheets.first { $0.id == sid }?.name }
         let data = FormPDFBuilder.pdf(form: form, project: model.bundle.project, business: app.business, logo: logo, photos: photos, signatures: sigs, place: place)

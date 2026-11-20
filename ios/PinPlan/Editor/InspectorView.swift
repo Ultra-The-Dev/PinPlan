@@ -54,10 +54,10 @@ private struct MarkerForm: View {
             .tint(.orange)
         }
         Section {
-            LabeledContent("Label") { CommitField(title: "Label", value: marker.label) { v in update { $0.label = v } }.multilineTextAlignment(.trailing) }
-            LabeledContent("Room") { CommitField(title: "Room", value: marker.room, prompt: "e.g. Kitchen") { v in update { $0.room = v } }.multilineTextAlignment(.trailing) }
+            LabeledContent("Label") { CommitField(title: String(localized: "Label"), value: marker.label) { v in update { $0.label = v } }.multilineTextAlignment(.trailing) }
+            LabeledContent("Room") { CommitField(title: String(localized: "Room"), value: marker.room, prompt: String(localized: "e.g. Kitchen")) { v in update { $0.room = v } }.multilineTextAlignment(.trailing) }
             Picker("Mount", selection: Binding(get: { marker.mount }, set: { v in update { $0.mount = v } })) {
-                ForEach(Mount.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                ForEach(Mount.allCases, id: \.self) { Text(tr($0.rawValue.capitalized, context: "Catalog")).tag($0) }
             }
         }
         Section {
@@ -79,7 +79,7 @@ private struct MarkerForm: View {
         } header: { Text("Cables").textCase(nil) } footer: {
             Text(marker.cables.isEmpty ? "No cable to this device" : "\(Cables.summary(marker.cables)) share one home run; each is counted on the takeoff")
         }
-        Section(sentence: "Home run") {
+        Section(sentence: String(localized: "Home run")) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Closet").font(.caption).foregroundStyle(.secondary)
                 Picker("Closet", selection: Binding(get: { marker.closetId ?? "" }, set: { v in update { $0.closetId = v.isEmpty ? nil : v } })) {
@@ -90,17 +90,17 @@ private struct MarkerForm: View {
             }
             if marker.closetId != nil {
                 let run = model.bundle.liveRuns.first { $0.kind == .wire && $0.markerId == marker.id }
-                LabeledContent("Cable", value: run.flatMap(Geometry.runLengthFt).map { "\($0.clean) ft" } ?? "not drawn")
+                LabeledContent("Cable", value: run.flatMap(Geometry.runLengthFt).map { "\($0.clean) ft" } ?? String(localized: "not drawn"))
                 Button(run == nil ? "Draw home run" : "Redraw home run") {
                     let cat = app.catalog
                     model.edit { $0.autoHomeRuns(catalog: cat, pricing: model.pricing, markerId: marker.id) }
                 }
             }
         }
-        Section(sentence: "Notes") {
-            CommitField(title: "Notes", value: marker.notes, prompt: "Notes for the crew") { v in update { $0.notes = v } }
+        Section(sentence: String(localized: "Notes")) {
+            CommitField(title: String(localized: "Notes"), value: marker.notes, prompt: String(localized: "Notes for the crew")) { v in update { $0.notes = v } }
         }
-        Section(sentence: "Photo") {
+        Section(sentence: String(localized: "Photo")) {
             if let id = marker.photoId, let img = app.store.image(id) {
                 Image(uiImage: img).resizable().scaledToFit().frame(maxHeight: 180).clipShape(RoundedRectangle(cornerRadius: 10))
             }
@@ -154,24 +154,24 @@ private struct RunForm: View {
     var body: some View {
         let len = Geometry.runLengthFt(run)
         Section {
-            LabeledContent(run.kind == .wire ? "Wire run" : run.kind == .stair ? "Stair LED" : "LED run", value: len.map { "\($0.clean) \(run.kind == .wire ? "ft" : "LF")" } ?? "no length")
+            LabeledContent(run.kind == .wire ? "Wire run" : run.kind == .stair ? "Stair LED" : "LED run", value: len.map { "\($0.clean) \(run.kind == .wire ? "ft" : "LF")" } ?? String(localized: "no length"))
             if run.kind != .wire {
                 Picker("LED type", selection: Binding(get: { run.deviceTypeId ?? "" }, set: { v in update { $0.deviceTypeId = v } })) {
                     ForEach(app.liveCatalog.filter { $0.kind == .led }) { Text($0.name).tag($0.id) }
                 }
-                LabeledContent("Zone #") { CommitField(title: "Zone", value: run.zone ?? "", keyboard: .numberPad) { v in update { $0.zone = v } }.multilineTextAlignment(.trailing) }
-                LabeledContent("Switch") { CommitField(title: "Switch", value: run.switchLabel ?? "", prompt: "S21") { v in update { $0.switchLabel = v } }.multilineTextAlignment(.trailing) }
+                LabeledContent("Zone #") { CommitField(title: String(localized: "Zone"), value: run.zone ?? "", keyboard: .numberPad) { v in update { $0.zone = v } }.multilineTextAlignment(.trailing) }
+                LabeledContent("Switch") { CommitField(title: String(localized: "Switch"), value: run.switchLabel ?? "", prompt: "S21") { v in update { $0.switchLabel = v } }.multilineTextAlignment(.trailing) }
             }
             if run.kind == .stair {
-                LabeledContent("Steps") { CommitField(title: "Steps", value: run.steps.map(String.init) ?? "", keyboard: .numberPad) { v in update { $0.steps = Int(v) } }.multilineTextAlignment(.trailing) }
-                LabeledContent("LF per step") { CommitField(title: "LF per step", value: run.lfPerStep.map { $0.clean } ?? "", keyboard: .decimalPad) { v in update { $0.lfPerStep = Geometry.parseFeet(v) } }.multilineTextAlignment(.trailing) }
+                LabeledContent("Steps") { CommitField(title: String(localized: "Steps"), value: run.steps.map(String.init) ?? "", keyboard: .numberPad) { v in update { $0.steps = Int(v) } }.multilineTextAlignment(.trailing) }
+                LabeledContent("LF per step") { CommitField(title: String(localized: "LF per step"), value: run.lfPerStep.map { $0.clean } ?? "", keyboard: .decimalPad) { v in update { $0.lfPerStep = Geometry.parseFeet(v) } }.multilineTextAlignment(.trailing) }
             } else {
                 LabeledContent(run.kind == .wire ? "Length override (ft)" : "Typed LF") {
-                    CommitField(title: "Length", value: run.typedFt.map { $0.clean } ?? "", prompt: run.measuredFt.map { "measured \($0.clean)" } ?? "type LF", keyboard: .decimalPad) { v in
+                    CommitField(title: String(localized: "Length"), value: run.typedFt.map { $0.clean } ?? "", prompt: run.measuredFt.map { "measured \($0.clean)" } ?? String(localized: "type LF"), keyboard: .decimalPad) { v in
                         update { $0.typedFt = v.isEmpty ? nil : Geometry.parseFeet(v) }
                     }.multilineTextAlignment(.trailing)
                 }
-                if let m = run.measuredFt { Text("\(run.kind == .wire ? "Estimated" : "Measured") \(m.clean) ft\(run.typedFt != nil ? " — typed value wins" : "")").font(.caption).foregroundStyle(.secondary) }
+                if let m = run.measuredFt { Text(run.typedFt != nil ? (run.kind == .wire ? "Estimated \(m.clean) ft — typed value wins" : "Measured \(m.clean) ft — typed value wins") : (run.kind == .wire ? "Estimated \(m.clean) ft" : "Measured \(m.clean) ft")).font(.caption).foregroundStyle(.secondary) }
             }
             if run.kind == .wire && run.cables.count > 1 {
                 LabeledContent("Cables", value: Cables.summary(run.cables))
@@ -203,7 +203,7 @@ private struct ClosetForm: View {
     var body: some View {
         Section {
             LabeledContent("Name") {
-                CommitField(title: "Name", value: closet.name) { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.name = v } } }.multilineTextAlignment(.trailing)
+                CommitField(title: String(localized: "Name"), value: closet.name) { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.name = v } } }.multilineTextAlignment(.trailing)
             }
             Picker("Kind", selection: Binding(get: { closet.kind }, set: { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.kind = v } } })) {
                 ForEach(kindChoices, id: \.id) { Text($0.name).tag($0.id) }

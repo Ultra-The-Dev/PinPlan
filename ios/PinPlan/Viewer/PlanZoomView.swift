@@ -198,7 +198,7 @@ struct PlanZoomView: UIViewRepresentable {
         controller.attach(sv)
         sv.isAccessibilityElement = true
         sv.accessibilityLabel = accessibilityName
-        sv.accessibilityHint = "Pinch or use the zoom buttons to zoom."
+        sv.accessibilityHint = String(localized: "Pinch or use the zoom buttons to zoom.")
         c.apply(config)
         c.loadImagery()
         return sv

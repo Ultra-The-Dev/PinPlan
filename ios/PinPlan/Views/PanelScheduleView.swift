@@ -72,8 +72,8 @@ private struct CircuitRow: View {
     private var details: String {
         var parts: [String] = []
         // "2 × Receptacle, 1 × Light" already counts them; otherwise just the number.
-        parts.append(circuit.devicesText.isEmpty ? "\(circuit.devices) device\(circuit.devices == 1 ? "" : "s")" : circuit.devicesText)
-        if !circuit.wire.isEmpty { parts.append(circuit.wire + (circuit.wireFt.map { " · \(PanelSchedule.number($0)) ft" } ?? "")) }
+        parts.append(circuit.devicesText.isEmpty ? String(localized: "\(circuit.devices) devices") : circuit.devicesText)
+        if !circuit.wire.isEmpty { parts.append(circuit.wire + (circuit.wireFt.map { String(localized: " · \(PanelSchedule.number($0)) ft") } ?? "")) }
         return parts.joined(separator: " · ")
     }
 }

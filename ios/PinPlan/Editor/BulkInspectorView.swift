@@ -27,15 +27,15 @@ struct BulkInspectorView: View {
                 }
                 Toggle("Tap devices to add or remove", isOn: Binding(get: { model.multiMode }, set: { model.multiMode = $0 }))
             }
-            Section(sentence: "Room") {
+            Section(sentence: String(localized: "Room")) {
                 HStack {
-                    TextField(Set(ms.map(\.room)).count == 1 ? (ms.first?.room.isEmpty == false ? ms.first!.room : "e.g. Kitchen") : "Mixed", text: $room)
+                    TextField(Set(ms.map(\.room)).count == 1 ? (ms.first?.room.isEmpty == false ? ms.first!.room : String(localized: "e.g. Kitchen")) : String(localized: "Mixed"), text: $room)
                     Button("Apply") { let r = room.trimmingCharacters(in: .whitespaces); model.bulkEdit(ids) { $0.room = r }; room = "" }
                         .disabled(room.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             if let oneType {
-                Section(sentence: "Product") {
+                Section(sentence: String(localized: "Product")) {
                     Menu {
                         Button("Job’s choice") { model.bulkEdit(ids) { $0.productId = nil } }
                         ForEach(app.products.filter { $0.deviceTypeId == oneType && $0.archived != true && $0.deleted != true }) { p in
@@ -58,7 +58,7 @@ struct BulkInspectorView: View {
             } header: { Text("Cables").textCase(nil) } footer: {
                 Text(sameCables ? "Applies to all \(ms.count) devices." : "Cables differ between these devices — a change replaces each device’s cables.")
             }
-            Section(sentence: "Home run") {
+            Section(sentence: String(localized: "Home run")) {
                 Menu {
                     Button("None") { model.bulkEdit(ids) { $0.closetId = nil } }
                     ForEach(model.bundle.liveClosets) { c in
@@ -67,7 +67,7 @@ struct BulkInspectorView: View {
                 } label: { Label("Set closet for all \(ms.count)", systemImage: "square.stack.3d.up") }
                 Button {
                     let n = model.homeRuns(for: ids)
-                    model.say(n > 0 ? "Drew \(n) home runs" : "Place an equipment closet first")
+                    model.say(n > 0 ? String(localized: "Drew \(n) home runs") : String(localized: "Place an equipment closet first"))
                 } label: { Label("Draw home runs", systemImage: "cable.connector") }
             }
             Section {

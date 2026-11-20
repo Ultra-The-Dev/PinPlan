@@ -39,14 +39,14 @@ struct CrewView: View {
                 }
             } footer: { Text("Where each wire goes and which type — no prices.") }
             if !tot.wireFt.isEmpty {
-                Section(sentence: "Cable") {
+                Section(sentence: String(localized: "Cable")) {
                     ForEach(tot.wireFt.keys.sorted(), id: \.self) { w in
-                        LabeledContent(w, value: "\((tot.wireFt[w] ?? 0).clean) ft · \(tot.wireRuns[w] ?? 0) run\((tot.wireRuns[w] ?? 0) == 1 ? "" : "s")")
+                        LabeledContent(w, value: String(localized: "\((tot.wireFt[w] ?? 0).clean) ft · \(tot.wireRuns[w] ?? 0) runs"))
                     }
                 }
             }
             ProgressDashboardView(model: model)
-            Section(sentence: "Home-run schedule") {
+            Section(sentence: String(localized: "Home-run schedule")) {
                 ForEach(rows) { m in
                     let run = model.bundle.liveRuns.first { $0.kind == .wire && $0.markerId == m.id }
                     Button { model.focusOn(.marker(m.id)) } label: {
@@ -60,7 +60,7 @@ struct CrewView: View {
                             }
                             Spacer()
                             VStack(alignment: .trailing) {
-                                Text(model.bundle.liveClosets.first { $0.id == m.closetId }?.name ?? "No closet").font(.caption)
+                                Text(model.bundle.liveClosets.first { $0.id == m.closetId }?.name ?? String(localized: "No closet")).font(.caption)
                                 Text(run.flatMap(Geometry.runLengthFt).map { "\($0.clean) ft" } ?? "—").font(.caption.bold()).monospacedDigit()
                             }
                         }

@@ -191,7 +191,7 @@ struct OfficeMarkupsLayer: View {
                     for n in shapes.notes { OfficeMarkupDrawing.draw(n, in: &g) }
                 }
                 .accessibilityElement()
-                .accessibilityLabel("\(list.count) markup\(list.count == 1 ? "" : "s") from the office on this plan")
+                .accessibilityLabel("\(list.count) markups from the office on this plan")
             }
         }
     }

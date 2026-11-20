@@ -76,9 +76,9 @@ private struct FormRow: View {
     }
     private var subtitle: String {
         if form.isSubmitted, let at = form.submittedAt {
-            return "Submitted \(FormDates.short(at))" + (form.submittedBy.map { " by \($0)" } ?? "")
+            return form.submittedBy.map { String(localized: "Submitted \(FormDates.short(at)) by \($0)") } ?? String(localized: "Submitted \(FormDates.short(at))")
         }
-        return "Updated \(FormDates.short(form.updatedAt))"
+        return String(localized: "Updated \(FormDates.short(form.updatedAt))")
     }
 }
 
@@ -136,7 +136,7 @@ struct FormTemplatePicker: View {
                 Image(systemName: FormIcons.symbol(t.category)).frame(width: 28).foregroundStyle(Color.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.name).foregroundStyle(.primary)
-                    Text("\(Forms.categoryName(t.category)) · \(t.fields.filter { $0.kind != .heading }.count) fields\(t.builtin == true ? "" : " · your company")")
+                    Text(t.builtin == true ? "\(Forms.categoryName(t.category)) · \(t.fields.filter { $0.kind != .heading }.count) fields" : "\(Forms.categoryName(t.category)) · \(t.fields.filter { $0.kind != .heading }.count) fields · your company")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

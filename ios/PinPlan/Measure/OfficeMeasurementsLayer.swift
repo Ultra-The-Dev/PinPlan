@@ -26,7 +26,7 @@ enum OfficeMeasurements {
     static func valueText(_ m: PinPlanCore.Measurement, sheet: Sheet) -> String {
         let v = FieldParity.Measure.value(kind: kind(m), points: m.points, extraFt: m.extraFt, wastePct: m.wastePct,
                                           scale: FieldParity.Measure.Scale(width: sheet.width, height: sheet.height, pxPerFt: sheet.pxPerFt))
-        return v.map { FieldParity.Measure.format($0) } ?? "No scale"
+        return v.map { FieldParity.Measure.format($0) } ?? String(localized: "No scale")
     }
 
     static func kind(_ m: PinPlanCore.Measurement) -> FieldParity.Measure.Kind { FieldParity.Measure.Kind(raw: m.kind.rawValue) }
@@ -46,7 +46,7 @@ enum OfficeMeasurements {
             if k == .area { path.closeSubpath() }
             let value = FieldParity.Measure.value(kind: k, points: m.points, extraFt: m.extraFt, wastePct: m.wastePct, scale: scale)
             let label = (m.label ?? "").trimmingCharacters(in: .whitespaces)
-            let amount = value.map { FieldParity.Measure.format($0) } ?? "No scale"
+            let amount = value.map { FieldParity.Measure.format($0) } ?? String(localized: "No scale")
             let anchor = FieldParity.Measure.labelPoint(kind: k, points: m.points, scale: scale).map { ctx.point($0.x, $0.y) }
             out.append(PlacedMeasurement(id: m.id, path: path, closed: k == .area, color: Color(hex: m.color ?? defaultColor),
                                          labelAt: anchor.flatMap { view.insetBy(dx: -40, dy: -20).contains($0) ? $0 : nil },

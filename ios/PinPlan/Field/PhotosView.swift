@@ -74,7 +74,7 @@ struct PhotoAddMenu<LabelView: View>: View {
                     added.append(p)
                 }
                 model.saveRows(added, in: \.photos)
-                if !added.isEmpty { model.say("\(added.count) photo\(added.count == 1 ? "" : "s") added") }
+                if !added.isEmpty { model.say(String(localized: "\(added.count) photos added")) }
                 onAdded(added)
             }
         }
@@ -170,18 +170,18 @@ struct PhotosView: View {
         .sheet(item: Binding(get: { report.map { ReportItem(photos: $0) } }, set: { report = $0?.photos })) { r in
             PhotoReportSheet(model: model, photos: r.photos)
         }
-        .alert("Room for \(selected.count) photo\(selected.count == 1 ? "" : "s")", isPresented: $askRoom) {
+        .alert("Room for \(selected.count) photos", isPresented: $askRoom) {
             TextField("e.g. Kitchen", text: $roomDraft)
             Button("Set") {
                 let r = roomDraft.trimmingCharacters(in: .whitespaces)
-                if !r.isEmpty { bulk(.room(r), done: "Room set to “\(r)”") }
+                if !r.isEmpty { bulk(.room(r), done: String(localized: "Room set to “\(r)”")) }
             }
             Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $tagging) {
             TagPicker(options: FieldDocs.tagOptions(all)) { t in
                 model.updateRows(selected, in: \.photos) { p in if !(p.tags ?? []).contains(t) { p.tags = (p.tags ?? []) + [t] } }
-                model.say("Tagged \(selected.count) “\(t)”")
+                model.say(String(localized: "Tagged \(selected.count) “\(t)”"))
             }
             .presentationDetents([.medium])
         }
@@ -226,7 +226,7 @@ struct PhotosView: View {
                         Menu {
                             Button("Everyone") { person = nil }
                             ForEach(people, id: \.self) { n in Button(n) { person = n } }
-                        } label: { Label(person ?? "Everyone", systemImage: "person.2").font(.subheadline) }
+                        } label: { Label(person ?? String(localized: "Everyone"), systemImage: "person.2").font(.subheadline) }
                     }
                 }
                 .padding(10)
@@ -273,7 +273,7 @@ struct PhotosView: View {
                 .overlay { if selecting && isSel { RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 3) } }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(p.caption ?? "Photo")
+        .accessibilityLabel(p.caption ?? String(localized: "Photo"))
     }
 
     private var selectionBar: some View {
@@ -303,21 +303,21 @@ extension PhotosView {
         let devices = model.bundle.liveMarkers.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
         return Menu {
             Menu {
-                ForEach(rooms, id: \.self) { r in Button(r) { bulk(.room(r), done: "Room set to “\(r)”") } }
+                ForEach(rooms, id: \.self) { r in Button(r) { bulk(.room(r), done: String(localized: "Room set to “\(r)”")) } }
                 Button { roomDraft = ""; askRoom = true } label: { Label("New room…", systemImage: "plus") }
-                Button(role: .destructive) { bulk(.room(nil), done: "Room cleared") } label: { Label("Clear room", systemImage: "xmark") }
+                Button(role: .destructive) { bulk(.room(nil), done: String(localized: "Room cleared")) } label: { Label("Clear room", systemImage: "xmark") }
             } label: { Label("Set room", systemImage: "door.left.hand.open") }
             if !devices.isEmpty {
                 Menu {
                     ForEach(devices, id: \.id) { m in
-                        Button(model.deviceName(m.id) ?? m.label) { bulk(.device(m), done: "Linked to \(model.deviceName(m.id) ?? m.label)") }
+                        Button(model.deviceName(m.id) ?? m.label) { bulk(.device(m), done: String(localized: "Linked to \(model.deviceName(m.id) ?? m.label)")) }
                     }
-                    Button(role: .destructive) { bulk(.device(nil), done: "Unlinked from devices") } label: { Label("No device", systemImage: "xmark") }
+                    Button(role: .destructive) { bulk(.device(nil), done: String(localized: "Unlinked from devices")) } label: { Label("No device", systemImage: "xmark") }
                 } label: { Label("Link to device", systemImage: "mappin") }
             }
             if !selTags.isEmpty {
                 Menu {
-                    ForEach(selTags, id: \.self) { t in Button(t) { bulk(.removeTag(t), done: "Removed “\(t)”") } }
+                    ForEach(selTags, id: \.self) { t in Button(t) { bulk(.removeTag(t), done: String(localized: "Removed “\(t)”")) } }
                 } label: { Label("Remove tag", systemImage: "tag.slash") }
             }
         } label: { Label("Edit", systemImage: "square.and.pencil") }
@@ -326,9 +326,9 @@ extension PhotosView {
     /// Saves only the photos that change, as one undo step.
     private func bulk(_ edit: FieldDocs.PhotoBulkEdit, done: String) {
         let changed = FieldDocs.bulkEdit(all, ids: selected, edit)
-        guard !changed.isEmpty else { model.say("Nothing to change"); return }
+        guard !changed.isEmpty else { model.say(String(localized: "Nothing to change")); return }
         model.saveRows(changed, in: \.photos)
-        model.say("\(done) · \(changed.count) photo\(changed.count == 1 ? "" : "s")")
+        model.say(String(localized: "\(done) · \(changed.count) photos"))
     }
 }
 
@@ -340,8 +340,8 @@ func dayTitle(_ day: String) -> String {
     f.locale = Locale(identifier: "en_US_POSIX")
     f.dateFormat = "yyyy-MM-dd"
     guard let d = f.date(from: day) else { return day }
-    if Calendar.current.isDateInToday(d) { return "Today" }
-    if Calendar.current.isDateInYesterday(d) { return "Yesterday" }
+    if Calendar.current.isDateInToday(d) { return String(localized: "Today") }
+    if Calendar.current.isDateInYesterday(d) { return String(localized: "Yesterday") }
     return d.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year())
 }
 

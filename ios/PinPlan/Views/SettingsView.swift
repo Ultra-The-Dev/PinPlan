@@ -22,7 +22,7 @@ struct SettingsView: View {
             Section {
                 NavigationLink { CloudSyncView() } label: {
                     LabeledContent {
-                        Text(app.cloud.signedIn ? (app.cloud.session?.email ?? "On") : "Sign in")
+                        Text(app.cloud.signedIn ? (app.cloud.session?.email ?? String(localized: "On")) : String(localized: "Sign in"))
                     } label: { Label("Account and cloud sync", systemImage: "arrow.triangle.2.circlepath.icloud") }
                 }
             } footer: {
@@ -47,7 +47,7 @@ struct SettingsView: View {
                 }
                 NavigationLink { BusinessSettingsView() } label: {
                     LabeledContent {
-                        Text(app.settings.business.name.isEmpty ? "Add your details" : app.settings.business.name)
+                        Text(app.settings.business.name.isEmpty ? String(localized: "Add your details") : app.settings.business.name)
                     } label: { Label("Your business", systemImage: "building.2") }
                 }
                 if app.cloud.can(.prices) {
@@ -92,8 +92,8 @@ struct SettingsView: View {
     }
 
     private var teamSummary: String {
-        if let t = app.cloud.team?.team, let r = app.cloud.role { return "\(t.name.isEmpty ? "Team" : t.name) · \(r.short)" }
-        return app.cloud.signedIn ? "Working alone" : "Off"
+        if let t = app.cloud.team?.team, let r = app.cloud.role { return "\(t.name.isEmpty ? String(localized: "Team") : t.name) · \(tr(r.short))" }
+        return app.cloud.signedIn ? String(localized: "Working alone") : String(localized: "Off")
     }
 }
 
@@ -112,8 +112,8 @@ struct BillduSettingsView: View {
                 if checking && status == nil {
                     HStack { Text("Checking…").foregroundStyle(.secondary); Spacer(); ProgressView() }
                 } else if let s = status {
-                    StatusRow(title: s.configured ? "Connected" : "Not connected", ok: s.configured,
-                              detail: s.configured ? s.teamName.map { "For \($0)" } : "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu.")
+                    StatusRow(title: s.configured ? String(localized: "Connected") : String(localized: "Not connected"), ok: s.configured,
+                              detail: s.configured ? s.teamName.map { String(localized: "For \($0)") } : String(localized: "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu."))
                 } else if let problem {
                     Text(problem).font(.callout).foregroundStyle(.secondary)
                 } else if !app.cloud.signedIn {
@@ -137,7 +137,7 @@ struct BillduSettingsView: View {
     }
 
     private func check() async {
-        guard let api = APIClient(settings: app.settings) else { problem = "This copy of PinPlan isn't connected yet."; return }
+        guard let api = APIClient(settings: app.settings) else { problem = String(localized: "This copy of PinPlan isn't connected yet."); return }
         guard app.cloud.signedIn || !app.settings.accessCode.isEmpty else { status = nil; problem = nil; return }
         checking = true
         defer { checking = false }
@@ -146,7 +146,7 @@ struct BillduSettingsView: View {
             problem = nil
         } catch {
             status = nil
-            problem = (error as? LocalizedError)?.errorDescription ?? "Couldn't check Billdu. Try again in a moment."
+            problem = (error as? LocalizedError)?.errorDescription ?? String(localized: "Couldn't check Billdu. Try again in a moment.")
         }
     }
 }
@@ -184,11 +184,11 @@ struct ChecklistTemplatesView: View {
                     }
                 }
             } header: {
-                SentenceHeader(title: "Your templates")
+                SentenceHeader(title: String(localized: "Your templates"))
             } footer: {
                 Text("They show first under New checklist on every job. Checklists already started from a template stay as they are.")
             }
-            Section(sentence: "Built in") {
+            Section(sentence: String(localized: "Built in")) {
                 ForEach(FieldDocs.templates) { t in
                     LabeledContent(t.name) { Text("\(t.items.count) items") }
                 }
@@ -207,8 +207,8 @@ struct ChecklistTemplatesView: View {
 
     private func summary(_ t: ChecklistTemplate) -> String {
         let photos = t.items.filter { $0.requiresPhoto == true }.count
-        let items = "\(t.items.count) item\(t.items.count == 1 ? "" : "s")"
-        return photos > 0 ? "\(items) · \(photos) need\(photos == 1 ? "s" : "") a photo" : items
+        let items = String(localized: "\(t.items.count) items")
+        return photos > 0 ? String(localized: "\(items) · \(photos) need a photo") : items
     }
 
     private func delete(_ t: ChecklistTemplate) {
@@ -247,7 +247,7 @@ struct BusinessSettingsView: View {
                 TextField("Tagline", text: Binding(get: { app.settings.business.tagline ?? "" }, set: { app.settings.business.tagline = $0 }))
                 TextField("Service area", text: Binding(get: { app.settings.business.serviceArea ?? "" }, set: { app.settings.business.serviceArea = $0 }))
             } footer: { Text("Shown at the top of every client estimate") }
-            Section(sentence: "Estimate terms") {
+            Section(sentence: String(localized: "Estimate terms")) {
                 TextField("Terms", text: $app.settings.business.estimateTerms, axis: .vertical).lineLimit(3...8)
             }
         }
@@ -294,7 +294,7 @@ struct WireSettingsView: View {
                 LabeledContent("Floor-to-floor height ft") { DoubleField(value: $app.settings.pricing.floorHeightFt) }
             } footer: { Text("Home-run length is the path to the closet, plus floor heights, slack and the extra per run") }
             if app.cloud.can(.prices) {
-                Section(sentence: "Price per foot") {
+                Section(sentence: String(localized: "Price per foot")) {
                     ForEach(Trades.wireTypes(for: app.trades), id: \.self) { w in
                         LabeledContent(w) {
                             DoubleField(value: Binding(get: { app.settings.pricing.wirePrices[w] ?? 0 }, set: { app.settings.pricing.wirePrices[w] = $0 }))
@@ -353,9 +353,9 @@ struct ServerSetupView: View {
                 .disabled(checking || app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty)
                 if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
                 if let h = health {
-                    StatusRow(title: "PinPlan found", ok: true, detail: nil)
-                    StatusRow(title: app.cloud.signedIn ? "Your sign-in is accepted" : "Access accepted", ok: h.authorized,
-                              detail: h.authorized ? nil : (app.cloud.signedIn ? "Sign out and sign in again." : "Sign in, or check the access code."))
+                    StatusRow(title: String(localized: "PinPlan found"), ok: true, detail: nil)
+                    StatusRow(title: app.cloud.signedIn ? String(localized: "Your sign-in is accepted") : String(localized: "Access accepted"), ok: h.authorized,
+                              detail: h.authorized ? nil : (app.cloud.signedIn ? String(localized: "Sign out and sign in again.") : String(localized: "Sign in, or check the access code.")))
                 }
             }
             Section {
@@ -389,11 +389,11 @@ struct ServerSetupView: View {
         app.saveSettings()
         problem = nil
         health = nil
-        guard let api = APIClient(settings: app.settings) else { problem = "Enter the server address first"; return }
+        guard let api = APIClient(settings: app.settings) else { problem = String(localized: "Enter the server address first"); return }
         checking = true
         defer { checking = false }
         do { health = try await api.health() } catch {
-            problem = (error as? APIClient.APIError)?.message ?? "Couldn't reach the server. Check the address and your connection."
+            problem = (error as? APIClient.APIError)?.message ?? String(localized: "Couldn't reach the server. Check the address and your connection.")
         }
     }
 

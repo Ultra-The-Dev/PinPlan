@@ -15,7 +15,7 @@ struct AllPhotosView: View {
     private struct Item: Identifiable { let photo: Photo; let job: String; var id: String { photo.id } }
 
     private static func title(_ p: Project) -> String {
-        p.address.isEmpty ? (p.clientName.isEmpty ? "Untitled job" : p.clientName) : p.address
+        p.address.isEmpty ? (p.clientName.isEmpty ? String(localized: "Untitled job") : p.clientName) : p.address
     }
 
     /// Jobs that have at least one photo, A–Z, for the job picker.
@@ -76,7 +76,7 @@ struct AllPhotosView: View {
                                         }
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("\(i.photo.caption ?? "Photo") — \(i.job)")
+                                .accessibilityLabel(Text(verbatim: "\(i.photo.caption ?? String(localized: "Photo")) — \(i.job)"))
                             }
                         }
                     }
@@ -185,14 +185,14 @@ struct JobsMapView: View {
                             ForEach([ProjectStatus.estimate, .approved, .installed], id: \.self) { s in
                                 let on = statuses.contains(s)
                                 Button { toggle(s) } label: {
-                                    Label(s.rawValue.capitalized, systemImage: "circle.fill").font(.caption.weight(.medium))
+                                    Label(tr(s.rawValue.capitalized, context: "Job status"), systemImage: "circle.fill").font(.caption.weight(.medium))
                                         .foregroundStyle(on ? Color.white : color(s))
                                         .padding(.horizontal, 9).padding(.vertical, 5)
                                         .background(on ? color(s) : Color(.secondarySystemFill), in: Capsule())
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(on ? .isSelected : [])
-                                .accessibilityLabel("Show \(s.rawValue) jobs")
+                                .accessibilityLabel("Show \(tr(s.rawValue.capitalized, context: "Job status")) jobs")
                             }
                             if !statuses.isEmpty {
                                 Button("All") { statuses = []; let all = allPlaced; if !all.isEmpty { withAnimation { position = Self.start(all) } } }
@@ -203,7 +203,7 @@ struct JobsMapView: View {
                     if !unplaced.isEmpty {
                         Menu("\(unplaced.count) not on the map") {
                             ForEach(unplaced, id: \.project.id) { b in
-                                Button(b.project.address.isEmpty ? "Untitled job" : b.project.address) { dismiss(); onOpen(b.project.id) }
+                                Button(b.project.address.isEmpty ? String(localized: "Untitled job") : b.project.address) { dismiss(); onOpen(b.project.id) }
                             }
                         }
                         .font(.caption)
@@ -244,7 +244,7 @@ struct TasksView: View {
         NavigationStack {
             List {
                 if tasks.isEmpty {
-                    ContentUnavailableView("No open tasks\(filter.map { " for \($0)" } ?? "")", systemImage: "checklist",
+                    ContentUnavailableView(filter.map { String(localized: "No open tasks for \($0)") } ?? String(localized: "No open tasks"), systemImage: "checklist",
                                            description: Text("On a job’s Field tab, start a Punch list (or any checklist), then swipe an item right — or long-press it — to assign it and set a due date."))
                         .listRowBackground(Color.clear)
                 }
@@ -254,7 +254,7 @@ struct TasksView: View {
                         Section {
                             ForEach(list) { t in row(t, me: me) }
                         } header: {
-                            Text("\(b.title) · \(list.count)").foregroundStyle(b == .overdue ? Color.red : b == .today ? Color.orange : Color.secondary)
+                            Text(verbatim: "\(tr(b.title, context: "Task due")) · \(list.count)").foregroundStyle(b == .overdue ? Color.red : b == .today ? Color.orange : Color.secondary)
                         }
                     }
                 }
@@ -292,7 +292,7 @@ struct TasksView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(t.item.text)
                 Button { dismiss(); onOpen(t.project.id) } label: {
-                    Text("\(t.project.address.isEmpty ? "Job" : t.project.address) · \(t.checklist.name)").font(.caption.weight(.medium))
+                    Text(verbatim: "\(t.project.address.isEmpty ? String(localized: "Job") : t.project.address) · \(t.checklist.name)").font(.caption.weight(.medium))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.accentColor)
@@ -313,7 +313,7 @@ struct TasksView: View {
     /// Tick an item done from the list (saved and synced like an edit on the job).
     private func complete(_ t: FieldDocs.OpenTask, me: String) {
         guard app.cloud.canEdit else {
-            readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
+            readOnlyNotice = app.cloud.editBlockedMessage ?? String(localized: "Jobs are read-only right now — you can still view and export everything.")
             return
         }
         guard var b = app.projects.first(where: { $0.project.id == t.project.id }),

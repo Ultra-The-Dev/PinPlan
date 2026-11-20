@@ -67,7 +67,7 @@ struct ScheduleLookaheadView: View {
         let items = ScheduleField.items(all, today: today, weeks: range.weeks, me: onlyMine ? me : nil)
         List {
             Section {
-                Picker("Show", selection: $range) { ForEach(ScheduleRange.allCases) { Text($0.rawValue).tag($0) } }
+                Picker("Show", selection: $range) { ForEach(ScheduleRange.allCases) { Text(tr($0.rawValue)).tag($0) } }
                     .pickerStyle(.segmented)
                 Toggle("Only my crew", isOn: Binding(get: { onlyMine }, set: { mineOnly = $0 }))
             }
@@ -76,7 +76,7 @@ struct ScheduleLookaheadView: View {
                                        systemImage: "calendar",
                                        description: Text(all.isEmpty
                                                          ? "The office plans the job's phases on the web; they show here."
-                                                         : onlyMine ? "You're not on the crew of any phase \(range == .week ? "this week" : "in the next two weeks"). Turn off Only my crew to see them all." : "No phases in these dates."))
+                                                         : onlyMine ? (range == .week ? "You're not on the crew of any phase this week. Turn off Only my crew to see them all." : "You're not on the crew of any phase in the next two weeks. Turn off Only my crew to see them all.") : "No phases in these dates."))
                     .listRowBackground(Color.clear)
             }
             ForEach(ScheduleField.byWeek(items, today: today), id: \.week) { group in
@@ -99,14 +99,14 @@ struct ScheduleRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Circle().fill(Color(hex: item.color ?? "#64748b")).frame(width: 10, height: 10).accessibilityHidden(true)
-                Text(item.name.isEmpty ? "Untitled phase" : item.name).font(.headline)
+                Text(item.name.isEmpty ? String(localized: "Untitled phase") : item.name).font(.headline)
                 Spacer()
-                Text(status.label).font(.caption.weight(.semibold)).foregroundStyle(ScheduleField.color(status))
+                Text(tr(status.label, context: "Schedule status")).font(.caption.weight(.semibold)).foregroundStyle(ScheduleField.color(status))
             }
             Text(ScheduleField.dates(item)).font(.subheadline).foregroundStyle(.secondary)
             ProgressView(value: progress, total: 100).tint(ScheduleField.color(status))
             if let crew = item.crew, !crew.isEmpty {
-                Text(crew.map { FieldParity.Schedule.onCrew([$0], me: me) ? "\($0) (you)" : $0 }.joined(separator: ", "))
+                Text(crew.map { FieldParity.Schedule.onCrew([$0], me: me) ? String(localized: "\($0) (you)") : $0 }.joined(separator: ", "))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let n = item.notes, !n.isEmpty { Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(3) }

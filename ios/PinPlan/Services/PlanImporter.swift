@@ -94,8 +94,8 @@ enum PlanImporter {
         case unreadablePDF, locked
         var errorDescription: String? {
             switch self {
-            case .unreadablePDF: return "That PDF couldn't be opened."
-            case .locked: return "That PDF is password-protected. Unlock it and try again."
+            case .unreadablePDF: return String(localized: "That PDF couldn't be opened.")
+            case .locked: return String(localized: "That PDF is password-protected. Unlock it and try again.")
             }
         }
     }

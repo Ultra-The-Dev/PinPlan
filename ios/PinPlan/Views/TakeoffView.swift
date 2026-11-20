@@ -30,12 +30,12 @@ struct TakeoffView: View {
                     }
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
-                    StatTile(label: "Cameras", value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: "\(tot.counts["cam-outdoor"] ?? 0) outdoor")
-                    StatTile(label: "Wi-Fi APs", value: "\(tot.counts["wap"] ?? 0)")
-                    StatTile(label: "Speakers", value: "\(tot.counts["speaker"] ?? 0)", sub: (tot.tentative["speaker"] ?? 0) > 0 ? "\(tot.tentative["speaker"]!) optional" : nil)
-                    StatTile(label: "TVs", value: "\(tot.counts["tv"] ?? 0)")
-                    StatTile(label: "LED", value: "\(tot.ledTotalFt.clean) LF", sub: "\(tot.ledZones) zones")
-                    StatTile(label: "Cable", value: "\(tot.wireFt.values.reduce(0, +).clean) ft", sub: "\(tot.wireRuns.values.reduce(0, +)) home runs")
+                    StatTile(label: String(localized: "Cameras"), value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: String(localized: "\(tot.counts["cam-outdoor"] ?? 0) outdoor"))
+                    StatTile(label: String(localized: "Wi-Fi APs"), value: "\(tot.counts["wap"] ?? 0)")
+                    StatTile(label: String(localized: "Speakers"), value: "\(tot.counts["speaker"] ?? 0)", sub: (tot.tentative["speaker"] ?? 0) > 0 ? String(localized: "\(tot.tentative["speaker"]!) optional") : nil)
+                    StatTile(label: String(localized: "TVs"), value: "\(tot.counts["tv"] ?? 0)")
+                    StatTile(label: "LED", value: "\(tot.ledTotalFt.clean) LF", sub: String(localized: "\(tot.ledZones) zones"))
+                    StatTile(label: String(localized: "Cable"), value: "\(tot.wireFt.values.reduce(0, +).clean) ft", sub: String(localized: "\(tot.wireRuns.values.reduce(0, +)) home runs"))
                 }
                 ScrollView(.horizontal) {
                     Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 8) {

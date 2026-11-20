@@ -53,7 +53,7 @@ struct PlanCanvasView: View {
             Color(.systemGray6)
             if imageOnDevice {
                 PlanZoomView(source: source, sheetId: sheet.id, controller: controller, config: zoomConfig, handlers: handlers,
-                             accessibilityName: "Plan, \(sheet.name)")
+                             accessibilityName: String(localized: "Plan, \(sheet.name)"))
             } else {
                 ProgressView("Downloading the plan…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -352,17 +352,17 @@ private struct QuickActionsBar: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            button("Edit", "slider.horizontal.3") { model.selection = .marker(marker.id) }
-            button(marker.tentative ? "Confirm" : "Optional", "questionmark.circle") {
+            button(String(localized: "Edit"), "slider.horizontal.3") { model.selection = .marker(marker.id) }
+            button(marker.tentative ? String(localized: "Confirm") : String(localized: "Optional"), "questionmark.circle") {
                 let pricing = model.pricing
                 model.edit { $0.updateMarker(marker.id, pricing: pricing) { $0.tentative.toggle() } }
             }
-            button("Duplicate", "plus.square.on.square") {
+            button(String(localized: "Duplicate"), "plus.square.on.square") {
                 guard let t = app.type(marker.deviceTypeId) else { return }
                 model.edit { $0.addMarker(type: t, sheetId: marker.sheetId, x: marker.x + 0.015, y: marker.y + 0.015, room: marker.room, tentative: marker.tentative) }
             }
-            button("More", "hand.tap") { model.use(.place(marker.deviceTypeId)) }
-            button("Delete", "trash", role: .destructive) {
+            button(String(localized: "More"), "hand.tap") { model.use(.place(marker.deviceTypeId)) }
+            button(String(localized: "Delete"), "trash", role: .destructive) {
                 model.edit { $0.deleteMarker(marker.id) }
                 if model.selection == .marker(marker.id) { model.selection = nil }
             }
@@ -406,7 +406,7 @@ private struct MarkerAccessibilityLayer: View {
                 .filter { v.isOnScreen(PlanPoint(x: $0.x, y: $0.y)) }
                 .prefix(150)
             ForEach(Array(onScreen)) { m in
-                let name = app.type(m.deviceTypeId)?.name ?? "Device"
+                let name = app.type(m.deviceTypeId)?.name ?? String(localized: "Device")
                 Color.clear
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
@@ -427,7 +427,7 @@ extension MarkerAccessibilityLayer {
         var parts = ["\(name) \(m.label)"]
         if m.tentative { parts.append("optional") }
         if !m.room.isEmpty { parts.append(m.room) }
-        if photos { parts.append("has photos") }
+        if photos { parts.append(String(localized: "has photos")) }
         if model.isSelected(m.id) { parts.append("selected") }
         return parts.joined(separator: ", ")
     }

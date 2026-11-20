@@ -106,12 +106,12 @@ private struct DeviceTypeEditor: View {
                         Text("Linear feet (draw a run)").tag(MeasureUnit.LF)
                     }
                 }
-                Section(sentence: "Price") {
+                Section(sentence: String(localized: "Price")) {
                     LabeledContent(type.unit == .LF ? "Price per LF" : "Price each") { DoubleField(value: $type.unitPrice) }
                     LabeledContent(type.unit == .LF ? "Labor per LF" : "Labor each") { DoubleField(value: $type.laborPrice) }
                 }
                 if type.kind != .led {
-                    Section(sentence: "Icon") {
+                    Section(sentence: String(localized: "Icon")) {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 8)], spacing: 8) {
                             ForEach(DeviceIcons.all.map(\.key) + ["letters"], id: \.self) { key in
                                 let on = (DeviceIcons.key(for: type) ?? "letters") == key
@@ -128,28 +128,28 @@ private struct DeviceTypeEditor: View {
                                     .background(on ? Color(hex: type.color) : Color(.secondarySystemFill), in: RoundedRectangle(cornerRadius: 9))
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel(key == "letters" ? "Letters" : DeviceIcons.all.first { $0.key == key }?.label ?? key)
+                                .accessibilityLabel(key == "letters" ? String(localized: "Letters") : DeviceIcons.all.first { $0.key == key }?.label ?? key)
                                 .accessibilityAddTraits(on ? .isSelected : [])
                             }
                         }
                         .padding(.vertical, 4)
                     }
                 }
-                Section(sentence: "Symbol") {
+                Section(sentence: String(localized: "Symbol")) {
                     TextField("Symbol (1–3 letters)", text: Binding(get: { type.symbol }, set: { type.symbol = String($0.uppercased().prefix(3)) }))
                     TextField("Label prefix", text: Binding(get: { type.abbrev }, set: { type.abbrev = String($0.uppercased().prefix(6)) }))
-                    Picker("Shape", selection: $type.shape) { ForEach(MarkerShape.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                    Picker("Shape", selection: $type.shape) { ForEach(MarkerShape.allCases, id: \.self) { Text(tr($0.rawValue.capitalized, context: "Catalog")).tag($0) } }
                     ColorPicker("Color", selection: Binding(get: { Color(hex: type.color) }, set: { type.color = $0.hexString }))
                 }
-                Section(sentence: "Defaults") {
+                Section(sentence: String(localized: "Defaults")) {
                     Picker("Wire", selection: $type.defaultWire) { ForEach(wireChoices, id: \.self) { Text($0).tag($0) } }
-                    Picker("Mount", selection: $type.defaultMount) { ForEach(Mount.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) } }
+                    Picker("Mount", selection: $type.defaultMount) { ForEach(Mount.allCases, id: \.self) { Text(tr($0.rawValue.capitalized, context: "Catalog")).tag($0) } }
                 }
                 Section {
                     Toggle("Archived (hidden from the device menu)", isOn: Binding(get: { type.archived == true }, set: { type.archived = $0 }))
                 }
             }
-            .navigationTitle(type.name.isEmpty ? "New device type" : type.name)
+            .navigationTitle(type.name.isEmpty ? String(localized: "New device type") : type.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

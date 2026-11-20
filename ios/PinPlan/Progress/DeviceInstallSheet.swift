@@ -75,7 +75,7 @@ struct DeviceInstallSheet: View {
         Section {
             HStack(spacing: 10) {
                 Circle().fill(Color(hex: InstallProgress.color(status))).frame(width: 14, height: 14)
-                Text(status == .planned ? "Not started" : workflow.label(status)).font(.headline)
+                Text(status == .planned ? String(localized: "Not started") : tr(workflow.label(status), context: "Install")).font(.headline)
                 Spacer()
                 if let at = state?.at {
                     Text([state?.by, String(at.prefix(10))].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
@@ -90,7 +90,7 @@ struct DeviceInstallSheet: View {
         return Section("Status") {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(steps, id: \.self) { s in
-                    StatusButton(title: workflow.label(s), status: s, on: s == status,
+                    StatusButton(title: tr(workflow.label(s), context: "Install"), status: s, on: s == status,
                                  needsPhoto: s != status && InstallProgress.requiresPhoto(InstallSettings.photoRequired, s),
                                  enabled: InstallProgress.canSet(role, s, from: status)) { choose(s) }
                 }
@@ -129,8 +129,8 @@ struct DeviceInstallSheet: View {
         let role = app.cloud.role
         return Section {
             HStack(spacing: 10) {
-                BigToggle(title: "Pass", on: pass == true, color: Color.green) { pass = true }
-                BigToggle(title: "Fail", on: pass == false, color: Color.red) { pass = false }
+                BigToggle(title: String(localized: "Pass"), on: pass == true, color: Color.green) { pass = true }
+                BigToggle(title: String(localized: "Fail"), on: pass == false, color: Color.red) { pass = false }
             }
             TextField(placeholder, text: $reading)
             Button("Save test result") {
@@ -155,10 +155,10 @@ struct DeviceInstallSheet: View {
 
     private var placeholder: String {
         switch workflow.id {
-        case "cable": return "Reading, e.g. 0.4 dB loss"
-        case "circuit", "electrical": return "Reading, e.g. 0.3 Ω, 120 V"
-        case "pipe", "plumbing", "hvac": return "Reading, e.g. 150 psi held"
-        default: return "Reading (optional)"
+        case "cable": return String(localized: "Reading, e.g. 0.4 dB loss")
+        case "circuit", "electrical": return String(localized: "Reading, e.g. 0.3 Ω, 120 V")
+        case "pipe", "plumbing", "hvac": return String(localized: "Reading, e.g. 150 psi held")
+        default: return String(localized: "Reading (optional)")
         }
     }
 
@@ -185,7 +185,7 @@ struct DeviceInstallSheet: View {
                     HStack(alignment: .top, spacing: 8) {
                         Circle().fill(Color(hex: InstallProgress.color(e.status))).frame(width: 9, height: 9).padding(.top, 5)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(e.status == .planned ? "Reset" : workflow.label(e.status)).font(.subheadline.weight(.semibold))
+                            Text(e.status == .planned ? String(localized: "Reset") : tr(workflow.label(e.status), context: "Install")).font(.subheadline.weight(.semibold))
                             if let n = e.note, !n.isEmpty { Text(n).font(.subheadline) }
                             Text([e.by, String(e.at.prefix(16)).replacingOccurrences(of: "T", with: " ")].compactMap { $0 }.joined(separator: " · "))
                                 .font(.caption).foregroundStyle(.secondary)

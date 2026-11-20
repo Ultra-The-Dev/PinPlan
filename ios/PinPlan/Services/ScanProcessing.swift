@@ -9,8 +9,8 @@ enum EnhanceMode: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .original: return "Original"
-        case .clean: return "Clean"
+        case .original: return String(localized: "Original")
+        case .clean: return String(localized: "Clean")
         case .blackWhite: return "B&W"
         }
     }

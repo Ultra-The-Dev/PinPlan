@@ -85,7 +85,7 @@ struct SheetsView: View {
         .onChange(of: photoItems) { _, items in
             guard !items.isEmpty else { return }
             Task {
-                busy = "Loading photos…"
+                busy = String(localized: "Loading photos…")
                 var imgs: [UIImage] = []
                 for item in items { if let data = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: data) { imgs.append(img) } }
                 photoItems = []
@@ -104,7 +104,7 @@ struct SheetsView: View {
     private var nextOrder: Int { (model.sheets.map(\.order).max() ?? -1) + 1 }
 
     private func importPDFs(_ urls: [URL]) {
-        busy = "Rendering PDF…"
+        busy = String(localized: "Rendering PDF…")
         error = nil
         let projectId = model.bundle.project.id
         let store = app.store
@@ -116,7 +116,7 @@ struct SheetsView: View {
                 for url in urls {
                     let r = try PlanImporter.sheets(fromPDF: url, store: store, projectId: projectId, startOrder: order,
                                                     fallbackName: { "Sheet \($0 + 1)" }) { done, total in
-                        Task { @MainActor in busy = "Rendering page \(done) of \(total)…" }
+                        Task { @MainActor in busy = String(localized: "Rendering page \(done) of \(total)…") }
                     }
                     newSheets += r.sheets
                     scaled += r.scaled
@@ -128,7 +128,7 @@ struct SheetsView: View {
                     model.edit { $0.sheets += added }
                     if model.activeSheetId == nil { model.activeSheetId = added.first?.id }
                     busy = nil
-                    model.say("Added \(added.count) sheet\(added.count == 1 ? "" : "s")" + (scaledCount > 0 ? " · scale read from \(scaledCount)" : ""))
+                    model.say(scaledCount > 0 ? String(localized: "Added \(added.count) sheets · scale read from \(scaledCount)") : String(localized: "Added \(added.count) sheets"))
                 }
             } catch {
                 await MainActor.run { busy = nil; self.error = error.localizedDescription }
@@ -146,7 +146,7 @@ struct SheetsView: View {
         }
         if !pdfs.isEmpty { importPDFs(pdfs) }
         if !images.isEmpty { review = ReviewBatch(images: images, source: .files) }
-        if pdfs.isEmpty && images.isEmpty { error = "Those files couldn't be read as plans (use PDF, JPG, PNG, HEIC or TIFF)." }
+        if pdfs.isEmpty && images.isEmpty { error = String(localized: "Those files couldn't be read as plans (use PDF, JPG, PNG, HEIC or TIFF).") }
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) {
@@ -199,7 +199,7 @@ struct SheetsView: View {
         }
         model.edit { $0.sheets += added }
         if model.activeSheetId == nil { model.activeSheetId = added.first?.id }
-        model.say("Added \(added.count) sheet\(added.count == 1 ? "" : "s") — set the scale on each by drawing a line over a known dimension")
+        model.say(String(localized: "Added \(added.count) sheets — set the scale on each by drawing a line over a known dimension"))
     }
 
     private func move(_ s: Sheet, by d: Int) {
@@ -217,7 +217,7 @@ struct SheetsView: View {
 
     private func rotate(_ s: Sheet) {
         guard let img = app.store.image(s.imageId) else { return }
-        busy = "Rotating…"
+        busy = String(localized: "Rotating…")
         let store = app.store
         Task.detached(priority: .userInitiated) {
             let r = PlanImporter.rotatedClockwise(img)
@@ -250,12 +250,12 @@ private struct SheetCard: View {
                         if let img = app.store.image(sheet.imageId) { Image(uiImage: img).resizable().scaledToFit() } else { Color(.secondarySystemBackground) }
                     }
                     .frame(height: 170).frame(maxWidth: .infinity).padding(8).background(Color(.secondarySystemBackground))
-                    Chip(text: "Plan \(index + 1)", tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
+                    Chip(text: String(localized: "Plan \(index + 1)"), tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
                 }
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 10) {
-                CommitField(title: "Plan name", value: sheet.name) { name in
+                CommitField(title: String(localized: "Plan name"), value: sheet.name) { name in
                     let n = name.trimmingCharacters(in: .whitespaces)
                     guard !n.isEmpty else { return }
                     model.edit { b in if let i = b.sheets.firstIndex(where: { $0.id == sheet.id }) { b.sheets[i].name = n } }
@@ -264,7 +264,7 @@ private struct SheetCard: View {
                 .textFieldStyle(.roundedBorder)
                 HStack(spacing: 6) {
                     Chip(text: "\(count) devices")
-                    Chip(text: sheet.pxPerFt != nil ? (sheet.scaleLabel ?? "Scale set") : "No scale", tint: sheet.pxPerFt != nil ? .green : .secondary)
+                    Chip(text: sheet.pxPerFt != nil ? (sheet.scaleLabel ?? String(localized: "Scale set")) : String(localized: "No scale"), tint: sheet.pxPerFt != nil ? .green : .secondary)
                 }
                 HStack {
                     Button { onMove(-1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0)
@@ -310,11 +310,11 @@ private struct ImportPanel: View {
     private var options: some View {
         // Paper sets are the most common on site, so the camera scan comes first where there is a camera.
         if scannerAvailable {
-            OptionButton(icon: "doc.viewfinder", title: "Scan paper plans", subtitle: "Camera finds the edges, straightens and cleans each page", prominent: true, action: onScan)
+            OptionButton(icon: "doc.viewfinder", title: String(localized: "Scan paper plans"), subtitle: String(localized: "Camera finds the edges, straightens and cleans each page"), prominent: true, action: onScan)
         }
-        OptionButton(icon: "doc.richtext", title: "Digital plans", subtitle: "PDF from the architect — sharpest, scale read automatically", prominent: !scannerAvailable, action: onFiles)
+        OptionButton(icon: "doc.richtext", title: String(localized: "Digital plans"), subtitle: String(localized: "PDF from the architect — sharpest, scale read automatically"), prominent: !scannerAvailable, action: onFiles)
         PhotosPicker(selection: $photos, maxSelectionCount: 30, matching: .images) {
-            OptionLabel(icon: "photo.on.rectangle.angled", title: "Photos", subtitle: "Plan photos — edges detected, shadows removed", prominent: false)
+            OptionLabel(icon: "photo.on.rectangle.angled", title: String(localized: "Photos"), subtitle: String(localized: "Plan photos — edges detected, shadows removed"), prominent: false)
         }
         .buttonStyle(.plain)
     }

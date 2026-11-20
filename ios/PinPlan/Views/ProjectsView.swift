@@ -144,7 +144,7 @@ struct ProjectsView: View {
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 do {
                     let n = try app.restore(from: result.get())
-                    message = "Restored \(n) job\(n == 1 ? "" : "s")"
+                    message = String(localized: "Restored \(n) jobs")
                 } catch { message = error.localizedDescription }
             }
             .task {
@@ -261,8 +261,8 @@ private struct ProjectCard: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(p.address.isEmpty ? "Untitled job" : p.address).font(.headline).lineLimit(1)
-                Text(p.clientName.isEmpty ? "No client" : p.clientName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(p.address.isEmpty ? String(localized: "Untitled job") : p.address).font(.headline).lineLimit(1)
+                Text(p.clientName.isEmpty ? String(localized: "No client") : p.clientName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 if let labels = p.labels, !labels.isEmpty {
                     Text(labels.joined(separator: " · ")).font(.caption.weight(.semibold)).foregroundStyle(Color.pencil).lineLimit(1)
                 }
@@ -278,9 +278,9 @@ private struct ProjectCard: View {
     }
 
     private func summary(sheets: Int, devices: Int, led: Double, photos: Int) -> String {
-        var parts = ["\(sheets) plan\(sheets == 1 ? "" : "s")", "\(devices) device\(devices == 1 ? "" : "s")"]
-        if photos > 0 { parts.append("\(photos) photo\(photos == 1 ? "" : "s")") }
-        if led > 0 { parts.append("\(led.clean) LF LED") }
+        var parts = [String(localized: "\(sheets) plans"), String(localized: "\(devices) devices")]
+        if photos > 0 { parts.append(String(localized: "\(photos) photos")) }
+        if led > 0 { parts.append(String(localized: "\(led.clean) LF LED")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -297,8 +297,8 @@ struct NewProjectSheet: View {
     var body: some View {
         NavigationStack {
             SentenceForm {
-                Section(sentence: "Job") { TextField("Job address", text: $address, prompt: Text("12 Maple Ridge Rd")) }
-                Section(sentence: "Client") {
+                Section(sentence: String(localized: "Job")) { TextField("Job address", text: $address, prompt: Text("12 Maple Ridge Rd")) }
+                Section(sentence: String(localized: "Client")) {
                     TextField("Client name", text: $client)
                     TextField("Email", text: $email).keyboardType(.emailAddress).textInputAutocapitalization(.never)
                     TextField("Phone", text: $phone).keyboardType(.phonePad)
@@ -334,11 +334,11 @@ private struct ImportTargetSheet: View {
         NavigationStack {
             SentenceList {
                 Section {
-                    Label("\(app.incomingFiles.count) file\(app.incomingFiles.count == 1 ? "" : "s"): \(app.incomingFiles.map { $0.lastPathComponent.split(separator: "-", maxSplits: 5).last.map(String.init) ?? "" }.joined(separator: ", "))",
+                    Label("\(app.incomingFiles.count) files: \(app.incomingFiles.map { $0.lastPathComponent.split(separator: "-", maxSplits: 5).last.map(String.init) ?? "" }.joined(separator: ", "))",
                           systemImage: "doc.richtext")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                Section(sentence: "New job") {
+                Section(sentence: String(localized: "New job")) {
                     TextField("Job address", text: $newAddress)
                     Button("Create and import") {
                         let b = app.createProject(address: newAddress.trimmingCharacters(in: .whitespaces), client: "", email: "", phone: "")
@@ -348,11 +348,11 @@ private struct ImportTargetSheet: View {
                     .disabled(newAddress.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if !app.projects.isEmpty {
-                    Section(sentence: "Add to a job") {
+                    Section(sentence: String(localized: "Add to a job")) {
                         ForEach(app.projects, id: \.project.id) { b in
                             Button { dismiss(); onPick(b.project.id) } label: {
                                 VStack(alignment: .leading) {
-                                    Text(b.project.address.isEmpty ? "Untitled job" : b.project.address).foregroundStyle(.primary)
+                                    Text(b.project.address.isEmpty ? String(localized: "Untitled job") : b.project.address).foregroundStyle(.primary)
                                     Text("\(b.liveSheets.count) plans · \(b.project.clientName)").font(.caption).foregroundStyle(.secondary)
                                 }
                             }

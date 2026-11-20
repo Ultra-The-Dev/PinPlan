@@ -65,6 +65,21 @@ ID the app runs for 7 days. This is for developers only; customers use the App S
   - `Services/` PDF import (PDFKit), document scanner (VisionKit), PDF export, cloud sync, PinPlan server client
 - `ExportOptions.plist` — App Store upload options for the TestFlight workflow (the team ID is added in CI).
 
+## Languages (English and Russian)
+The app follows the device language (Settings › PinPlan › Language); there is no in-app switch. English is the
+source; Russian lives in String Catalogs and follows the glossary in `docs/i18n.md` (Job = Объект, Quote = Смета…).
+- `PinPlan/Localizable.xcstrings` — every SwiftUI literal (`Text("…")`, `Button("…")`, `Label("…", …)`,
+  `navigationTitle("…")`…) and every `String(localized: "…")`. Text built in code (toasts, errors, values passed to
+  our own views such as `Section(sentence:)` or `CommitField(title:)`) is wrapped in `String(localized:)`.
+- Plurals are catalog variations: write `String(localized: "\(n) photos")` and the catalog picks
+  "1 photo" / "21 фото" — never `n == 1 ? … : …`.
+- `PinPlan/Labels.xcstrings` — fixed English kept in data (enum raw values, role names, install steps, task statuses
+  from PinPlanCore), shown with `tr(…)` (`Support/Localization.swift`). Words whose Russian depends on what they
+  describe use a context key, e.g. `tr(label, context: "Task status")` → "Task status: Open".
+- `PinPlan/InfoPlist.xcstrings` — the permission texts.
+- Stays English: PDFs, CSVs, client links, anything sent to Billdu, text people typed, device letters, catalog and
+  trade data. Dates use `.formatted(…)`, so they follow the device locale.
+
 ## Plans: import, scanning and accuracy
 - **Digital plans (best):** PDFs from Files, iCloud Drive, Mail or AirDrop ("Open in PinPlan"), drag & drop on iPad.
   Each page is rendered from its vector content (crop box and page rotation honoured), the **original PDF is kept**, and

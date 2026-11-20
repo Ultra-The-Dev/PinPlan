@@ -291,17 +291,19 @@ struct PlanEditorView: View {
     private var hint: String? {
         switch model.tool {
         case .select: return nil
-        case .place(let id): return "Tap to place \(app.type(id)?.name ?? "device")\(model.room.isEmpty ? "" : " · \(model.room)")"
-        case .closet(let k): return "Tap to place the \(Catalog.closetInfo(k).name.lowercased())"
-        case .led: return "Tap along the LED run, then Finish"
-        case .wire: return "Tap a device, the path, then a closet"
-        case .stair: return "Tap the bottom and top of the stair"
-        case .calibrate: return model.draft.isEmpty ? "Press and drag to aim at one end of a known dimension" : "Now aim at the other end · two fingers to pan and zoom"
+        case .place(let id):
+            let name = app.type(id)?.name ?? String(localized: "device")
+            return model.room.isEmpty ? String(localized: "Tap to place \(name)") : String(localized: "Tap to place \(name) · \(model.room)")
+        case .closet(let k): return String(localized: "Tap to place the \(Catalog.closetInfo(k).name.lowercased())")
+        case .led: return String(localized: "Tap along the LED run, then Finish")
+        case .wire: return String(localized: "Tap a device, the path, then a closet")
+        case .stair: return String(localized: "Tap the bottom and top of the stair")
+        case .calibrate: return model.draft.isEmpty ? String(localized: "Press and drag to aim at one end of a known dimension") : String(localized: "Now aim at the other end · two fingers to pan and zoom")
         case .measure:
             if model.draft.count == 4, let s = model.activeSheet, let ft = Geometry.polylineFt(model.draft, sheet: s) {
-                return "\(Geometry.formatFeetInches(ft)) (\(ft.clean) ft) · tap to measure again"
+                return String(localized: "\(Geometry.formatFeetInches(ft)) (\(ft.clean) ft) · tap to measure again")
             }
-            return model.activeSheet?.pxPerFt == nil ? "Set the scale first to measure" : "Press and drag to aim · release to place"
+            return model.activeSheet?.pxPerFt == nil ? String(localized: "Set the scale first to measure") : String(localized: "Press and drag to aim · release to place")
         }
     }
 
@@ -447,7 +449,7 @@ struct CountsPanel: View {
     var body: some View {
         let sheet = model.activeSheet
         let floor = model.takeoff.floors.first { $0.sheetId == sheet?.id }?.bucket ?? TakeoffBucket()
-        PanelContainer(title: "Floor count", inSheet: inSheet, onClose: onClose) {
+        PanelContainer(title: String(localized: "Floor count"), inSheet: inSheet, onClose: onClose) {
             SentenceList {
                 Section {
                     TextField("Find device (label or room)", text: $find)
@@ -467,7 +469,7 @@ struct CountsPanel: View {
                 }
                 Section {
                     HStack {
-                        StatTile(label: "Devices", value: "\(floor.counts.values.reduce(0, +))")
+                        StatTile(label: String(localized: "Devices"), value: "\(floor.counts.values.reduce(0, +))")
                         StatTile(label: "LED", value: "\(floor.ledTotalFt.clean) LF", sub: "\(floor.ledZones) zones")
                     }
                     .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)

@@ -55,7 +55,7 @@ struct APIClient {
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
-            throw APIError(message: msg ?? (status == 401 ? "Sign in first (Settings › Account and cloud sync)." : "Server returned \(status)"), status: status)
+            throw APIError(message: msg ?? (status == 401 ? String(localized: "Sign in first (Settings › Account and cloud sync).") : String(localized: "Server returned \(status)")), status: status)
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
@@ -85,7 +85,7 @@ struct APIClient {
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status), let h = try? JSONDecoder().decode(Health.self, from: data), h.app == "pinplan" else {
-            throw APIError(message: status == 404 ? "That address isn't a PinPlan server (or it needs the latest version deployed)." : "The server answered \(status). Check the address.")
+            throw APIError(message: status == 404 ? String(localized: "That address isn't a PinPlan server (or it needs the latest version deployed).") : String(localized: "The server answered \(status). Check the address."))
         }
         return h
     }
@@ -136,9 +136,9 @@ struct APIClient {
         let (status, data) = try await authed("POST", "api/team/invite-email", body: body, token: token)
         if (200..<300).contains(status) { return }
         if status == 501 {
-            throw APIError(message: Self.errorText(data) ?? "Email isn't set up on this server. Share the invite with the buttons above instead.", status: status)
+            throw APIError(message: Self.errorText(data) ?? String(localized: "Email isn't set up on this server. Share the invite with the buttons above instead."), status: status)
         }
-        throw APIError(message: Self.errorText(data) ?? "Couldn't send the email (\(status)). Try again.", status: status)
+        throw APIError(message: Self.errorText(data) ?? String(localized: "Couldn't send the email (\(status)). Try again."), status: status)
     }
 
     // MARK: Billdu
@@ -161,14 +161,14 @@ struct APIClient {
         guard (200..<300).contains(status) else {
             let fallback: String
             switch status {
-            case 401: fallback = "Sign in to see your company's Billdu connection."
-            case 403: fallback = "Billdu is handled by the office. Ask an admin on your team."
-            default: fallback = "Couldn't check Billdu (\(status)). Try again in a moment."
+            case 401: fallback = String(localized: "Sign in to see your company's Billdu connection.")
+            case 403: fallback = String(localized: "Billdu is handled by the office. Ask an admin on your team.")
+            default: fallback = String(localized: "Couldn't check Billdu (\(status)). Try again in a moment.")
             }
             throw APIError(message: Self.errorText(data) ?? fallback, status: status)
         }
         do { return try JSONDecoder().decode(BillduStatus.self, from: data) } catch {
-            throw APIError(message: "This PinPlan server needs the latest version to show the Billdu connection.", status: status)
+            throw APIError(message: String(localized: "This PinPlan server needs the latest version to show the Billdu connection."), status: status)
         }
     }
 
@@ -220,7 +220,7 @@ struct APIClient {
     private func planImage(_ image: UIImage) throws -> String {
         // A sharper image than the scan suggestions use: plan text must stay legible.
         let small = image.downscaled(maxSide: 2400)
-        guard let jpeg = small.jpegData(compressionQuality: 0.88) else { throw APIError(message: "Couldn't encode the sheet image.") }
+        guard let jpeg = small.jpegData(compressionQuality: 0.88) else { throw APIError(message: String(localized: "Couldn't encode the sheet image.")) }
         return jpeg.base64EncodedString()
     }
 
@@ -257,7 +257,7 @@ struct APIClient {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-        guard let jpeg = small.jpegData(compressionQuality: 0.85) else { throw APIError(message: "Couldn't encode the sheet image.") }
+        guard let jpeg = small.jpegData(compressionQuality: 0.85) else { throw APIError(message: String(localized: "Couldn't encode the sheet image.")) }
         let cat = catalog.map { ["id": $0.id, "name": $0.name, "symbol": $0.symbol, "category": $0.category.rawValue] }
         return try await post("api/scan", body: ["imageBase64": jpeg.base64EncodedString(), "mime": "image/jpeg", "catalog": cat, "mode": titleOnly ? "title" : "full"], as: ScanResult.self)
     }

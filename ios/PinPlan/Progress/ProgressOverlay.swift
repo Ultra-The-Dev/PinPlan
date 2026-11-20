@@ -40,7 +40,7 @@ enum ProgressOverlays {
         if let i = InstallProgress.nearest(pts, to: loc, within: 28) {
             let m = markers[i]
             if m.tentative {
-                model.say("Optional (?) devices aren't tracked — confirm it first")
+                model.say(String(localized: "Optional (?) devices aren't tracked — confirm it first"))
                 return true
             }
             walk(.marker(m.id), model: model)
@@ -78,7 +78,7 @@ enum ProgressOverlays {
             to = current == s ? nil : s
         }
         guard let to else {
-            model.say("\(model.installLabel(ref)) is already \(wf.label(current).lowercased())")
+            model.say(String(localized: "\(model.installLabel(ref)) is already \(tr(wf.label(current), context: "Install").lowercased())"))
             return
         }
         if let why = model.installBlocked(ref, to: to) {
@@ -91,7 +91,7 @@ enum ProgressOverlays {
         }
         if model.setInstall(ref, to: to) {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            ui.show(ref, "\(model.installLabel(ref)) → \(wf.label(to))")
+            ui.show(ref, "\(model.installLabel(ref)) → \(tr(wf.label(to), context: "Install"))")
         }
     }
 }
@@ -168,7 +168,7 @@ struct ProgressControls: View {
                     Task { @MainActor in
                         guard let p = model.makeInstallPhoto(img, for: pending.ref) else { return }
                         if model.setInstall(pending.ref, to: pending.to, photo: p) {
-                            ProgressUI.shared.show(pending.ref, "\(model.installLabel(pending.ref)) → \(model.installWorkflow(pending.ref).label(pending.to)) (photo)")
+                            ProgressUI.shared.show(pending.ref, String(localized: "\(model.installLabel(pending.ref)) → \(tr(model.installWorkflow(pending.ref).label(pending.to), context: "Install")) (photo)"))
                         }
                     }
                 }
@@ -216,7 +216,7 @@ struct ProgressControls: View {
         let c = InstallProgress.countAtLeast(model.bundle.liveMarkers.filter { $0.sheetId == sheet.id }, catalog: model.app.catalog, counted)
         return HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("\(c.n)/\(c.total) \(InstallProgress.label(counted).lowercased())").font(.subheadline.weight(.semibold)).monospacedDigit()
+                Text(verbatim: "\(c.n)/\(c.total) \(tr(InstallProgress.label(counted), context: "Install").lowercased())").font(.subheadline.weight(.semibold)).monospacedDigit()
                 ProgressView(value: Double(c.n), total: Double(max(1, c.total)))
                     .tint(Color(hex: InstallProgress.color(counted)))
             }
@@ -251,10 +251,10 @@ struct ProgressControls: View {
     }
 
     private var targets: [TargetOption] {
-        var out = [TargetOption(target: .next, title: "Next step", status: nil)]
-        for s in [InstallStatus.roughed, .installed, .tested, .issue] { out.append(TargetOption(target: .status(s), title: InstallProgress.label(s), status: s)) }
-        if InstallProgress.canSet(model.app.cloud.role, .verified) { out.append(TargetOption(target: .status(.verified), title: "Verified", status: .verified)) }
-        out.append(TargetOption(target: .details, title: "Details", status: nil))
+        var out = [TargetOption(target: .next, title: String(localized: "Next step"), status: nil)]
+        for s in [InstallStatus.roughed, .installed, .tested, .issue] { out.append(TargetOption(target: .status(s), title: tr(InstallProgress.label(s), context: "Install"), status: s)) }
+        if InstallProgress.canSet(model.app.cloud.role, .verified) { out.append(TargetOption(target: .status(.verified), title: String(localized: "Verified"), status: .verified)) }
+        out.append(TargetOption(target: .details, title: String(localized: "Details"), status: nil))
         return out
     }
 
@@ -312,7 +312,7 @@ private struct TargetChip: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if let status { Circle().fill(Color(hex: InstallProgress.color(status))).frame(width: 9, height: 9) }
-                Text(status == nil ? title : "Mark \(title)").font(.footnote.weight(.semibold))
+                Text(status == nil ? title : String(localized: "Mark \(title)")).font(.footnote.weight(.semibold))
             }
             .padding(.horizontal, 12).frame(height: 40)
             .foregroundStyle(on ? Color.white : Color.primary)

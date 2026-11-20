@@ -15,11 +15,11 @@ struct SheetPill: View {
         let sheet = model.activeSheet
         let pos = SheetNav.position(of: sheet?.id, in: model.sheets)
         HStack(spacing: 0) {
-            stepButton(-1, icon: "chevron.left", label: "Previous plan")
+            stepButton(-1, icon: "chevron.left", label: String(localized: "Previous plan"))
             Button(action: onBrowse) {
                 HStack(spacing: 6) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(sheet?.name ?? "Sheet").font(.subheadline.weight(.semibold)).lineLimit(1)
+                        Text(sheet?.name ?? String(localized: "Sheet")).font(.subheadline.weight(.semibold)).lineLimit(1)
                         if let pos, pos.count > 1 {
                             Text("Plan \(pos.index) of \(pos.count)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                         }
@@ -33,7 +33,7 @@ struct SheetPill: View {
             .buttonStyle(.plain)
             .accessibilityLabel(a11yName(sheet, pos))
             .accessibilityHint("Shows all plans")
-            stepButton(1, icon: "chevron.right", label: "Next plan")
+            stepButton(1, icon: "chevron.right", label: String(localized: "Next plan"))
         }
         .padding(.horizontal, 2)
         .background(.regularMaterial, in: Capsule())
@@ -42,9 +42,9 @@ struct SheetPill: View {
     }
 
     private func a11yName(_ sheet: Sheet?, _ pos: (index: Int, count: Int)?) -> String {
-        let name = sheet?.name ?? "Sheet"
+        let name = sheet?.name ?? String(localized: "Sheet")
         guard let pos else { return name }
-        return "\(name), plan \(pos.index) of \(pos.count)"
+        return String(localized: "\(name), plan \(pos.index) of \(pos.count)")
     }
 
     private func stepButton(_ delta: Int, icon: String, label: String) -> some View {
@@ -66,8 +66,8 @@ struct ViewerModeSwitch: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            segment(.view, title: "View", icon: "eye")
-            segment(.edit, title: "Edit", icon: "pencil")
+            segment(.view, title: String(localized: "View"), icon: "eye")
+            segment(.edit, title: String(localized: "Edit"), icon: "pencil")
         }
         .padding(3)
         .background(.regularMaterial, in: Capsule())
@@ -122,18 +122,18 @@ struct ViewerControls: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            control(icon: "square.3.layers.3d", label: "Layers and filters", on: filtering) { showLayers = true }
+            control(icon: "square.3.layers.3d", label: String(localized: "Layers and filters"), on: filtering) { showLayers = true }
             Divider().frame(width: 44)
-            control(icon: showMinimap ? "map.fill" : "map", label: showMinimap ? "Hide minimap" : "Show minimap", on: showMinimap) { showMinimap.toggle() }
+            control(icon: showMinimap ? "map.fill" : "map", label: showMinimap ? String(localized: "Hide minimap") : String(localized: "Show minimap"), on: showMinimap) { showMinimap.toggle() }
             Divider().frame(width: 44)
             if zoomButtons {
-                control(icon: "plus.magnifyingglass", label: "Zoom in") { controller.zoom(by: 1.6) }
-                control(icon: "minus.magnifyingglass", label: "Zoom out") { controller.zoom(by: 1 / 1.6) }
+                control(icon: "plus.magnifyingglass", label: String(localized: "Zoom in")) { controller.zoom(by: 1.6) }
+                control(icon: "minus.magnifyingglass", label: String(localized: "Zoom out")) { controller.zoom(by: 1 / 1.6) }
                 Divider().frame(width: 44)
             }
-            control(icon: "viewfinder", label: "Whole sheet") { controller.fit() }
+            control(icon: "viewfinder", label: String(localized: "Whole sheet")) { controller.fit() }
             control(icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
-                    label: fullScreen ? "Exit full screen" : "Full screen", on: fullScreen) {
+                    label: fullScreen ? String(localized: "Exit full screen") : String(localized: "Full screen"), on: fullScreen) {
                 withAnimation(.easeInOut(duration: 0.25)) { fullScreen.toggle() }
                 Haptics.select()
             }
@@ -169,7 +169,7 @@ struct ScaleChip: View {
         HStack(spacing: 6) {
             Text("\(Int((controller.viewport.zoom * 100).rounded()))%").bold().monospacedDigit()
             Divider().frame(height: 12)
-            if sheet.pxPerFt != nil { Text("Scale \(sheet.scaleLabel ?? "set")") } else { Text("No scale set").foregroundStyle(Color.orange) }
+            if sheet.pxPerFt != nil { Text("Scale \(sheet.scaleLabel ?? String(localized: "set"))") } else { Text("No scale set").foregroundStyle(Color.orange) }
         }
         .font(.caption)
         .padding(.horizontal, 10).padding(.vertical, 5)
@@ -199,7 +199,7 @@ struct SelectionPeek: View {
                 Button { model.setViewerMode(.edit) } label: { Label("Edit", systemImage: "pencil") }
                     .buttonStyle(.borderedProminent).tint(Color.brand)
                 if case .marker(let id) = selection, photoCount(id) > 0 {
-                    Text("\(photoCount(id)) photo\(photoCount(id) == 1 ? "" : "s") on the Photos tab").font(.footnote).foregroundStyle(.secondary)
+                    Text("\(photoCount(id)) photos on the Photos tab").font(.footnote).foregroundStyle(.secondary)
                 }
             }
         }
@@ -234,7 +234,7 @@ struct SelectionPeek: View {
         HStack(alignment: .top, spacing: 12) {
             DeviceSymbol(type: app.type(m.deviceTypeId), size: 34, tentative: m.tentative)
             VStack(alignment: .leading, spacing: 3) {
-                Text("\(m.label)  \(app.type(m.deviceTypeId)?.name ?? "Device")").font(.headline).lineLimit(2)
+                Text(verbatim: "\(m.label)  \(app.type(m.deviceTypeId)?.name ?? String(localized: "Device"))").font(.headline).lineLimit(2)
                 Text(detailLine(m)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                 if !m.notes.isEmpty { Text(m.notes).font(.footnote).lineLimit(3) }
             }
@@ -247,14 +247,14 @@ struct SelectionPeek: View {
         if !m.room.isEmpty { parts.append(m.room) }
         parts.append(m.mount.rawValue.capitalized)
         if !m.cables.isEmpty { parts.append(Cables.summary(m.cables)) }
-        if m.tentative { parts.append("Optional") }
+        if m.tentative { parts.append(String(localized: "Optional")) }
         return parts.joined(separator: ", ")
     }
 
     private func runInfo(_ r: Run) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(r.kind == .wire ? "Wire run" : r.kind == .stair ? "Stair run" : "LED run").font(.headline)
-            let len = Geometry.runLengthFt(r).map { "\($0.clean) ft" } ?? "No length yet"
+            let len = Geometry.runLengthFt(r).map { "\($0.clean) ft" } ?? String(localized: "No length yet")
             Text(r.kind == .wire ? "\(Cables.summary(r.cables)), \(len)" : len).font(.subheadline).foregroundStyle(.secondary)
         }
     }

@@ -135,7 +135,7 @@ extension EditorModel {
         if status == .done || status == .verified { t.closedAt = now }
         if status == .verified { t.verifiedBy = taskAuthor; t.verifiedAt = now }
         saveRow(t, in: \.tasks)
-        say("Task #\(t.number) added")
+        say(String(localized: "Task #\(t.number) added"))
         return t
     }
 
@@ -150,7 +150,7 @@ extension EditorModel {
         copy.room = room ?? src.room
         copy.activity = [TaskEvent(at: now, by: taskAuthor, kind: .created, text: "copied from #\(src.number)")]
         saveRow(copy, in: \.tasks)
-        say("Task #\(copy.number) added")
+        say(String(localized: "Task #\(copy.number) added"))
         return copy
     }
 

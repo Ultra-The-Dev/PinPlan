@@ -51,12 +51,12 @@ struct ScanReviewView: View {
                 .padding()
             }
             .background(Color.paper)
-            .navigationTitle("Review \(pages.count) page\(pages.count == 1 ? "" : "s")")
+            .navigationTitle("Review \(pages.count) pages")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(importing ? "Adding…" : "Add \(pages.count) sheet\(pages.count == 1 ? "" : "s")") { finish() }
+                    Button(importing ? "Adding…" : "Add \(pages.count) sheets") { finish() }
                         .disabled(pages.isEmpty || importing).bold()
                 }
             }
@@ -71,9 +71,9 @@ struct ScanReviewView: View {
 
     private var intro: String {
         switch source {
-        case .scanner: return "Pages were straightened by the scanner. “Clean” evens out lighting and sharpens lines; “B&W” gives maximum contrast. Floor names are read from each page."
-        case .photos: return "Page edges were detected automatically — tap Corners to adjust. “Clean” evens out shadows and sharpens lines."
-        case .files: return "Check the orientation and floor names. Use Clean for photos or poor scans."
+        case .scanner: return String(localized: "Pages were straightened by the scanner. “Clean” evens out lighting and sharpens lines; “B&W” gives maximum contrast. Floor names are read from each page.")
+        case .photos: return String(localized: "Page edges were detected automatically — tap Corners to adjust. “Clean” evens out shadows and sharpens lines.")
+        case .files: return String(localized: "Check the orientation and floor names. Use Clean for photos or poor scans.")
         }
     }
 

@@ -75,14 +75,14 @@ struct TeamView: View {
         } message: {
             Text("They can no longer open the team's jobs. Their photos and notes stay on the jobs.")
         }
-        .confirmationDialog("Leave \(cloud.team?.team?.name ?? "the team")?", isPresented: $confirmLeave, titleVisibility: .visible) {
+        .confirmationDialog((cloud.team?.team?.name).map { String(localized: "Leave \($0)?") } ?? String(localized: "Leave the team?"), isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave team", role: .destructive) { Task { await run { try await app.cloud.leaveTeam() } } }
         } message: {
             Text("You'll need a new invite code to join again.")
         }
     }
 
-    private var removeTitle: String { "Remove \(toRemove?.label ?? "this person") from the team?" }
+    private var removeTitle: String { toRemove.map { String(localized: "Remove \($0.label) from the team?") } ?? String(localized: "Remove this person from the team?") }
 
     private func reload() async {
         await app.cloud.loadTeam()
@@ -139,15 +139,15 @@ struct TeamBadge: View {
             Button(action: action) {
                 HStack(spacing: 6) {
                     Image(systemName: "person.2.fill").font(.caption)
-                    Text(t.name.isEmpty ? "Your team" : t.name).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(t.name.isEmpty ? String(localized: "Your team") : t.name).font(.subheadline.weight(.semibold)).lineLimit(1)
                     Text("·").foregroundStyle(Color.secondary)
-                    Text(r.name).font(.subheadline).foregroundStyle(Color.secondary).lineLimit(1)
+                    Text(tr(r.name)).font(.subheadline).foregroundStyle(Color.secondary).lineLimit(1)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Team \(t.name), your role \(r.name)")
+            .accessibilityLabel("Team \(t.name), your role \(tr(r.name))")
         }
     }
 }
@@ -155,7 +155,7 @@ struct TeamBadge: View {
 struct RoleBadge: View {
     let role: TeamRole
     var body: some View {
-        Text(role.short)
+        Text(tr(role.short))
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8).padding(.vertical, 3)
             .foregroundStyle(tint)
@@ -313,13 +313,14 @@ private struct JoinTeamSection: View {
             Text(app.cloud.config == nil ? "Connect cloud sync first (Settings › Cloud sync), then enter the code." : "Got a code from your company? Enter it here.")
         }
         if needsAccount, let info {
-            AccountSection(intro: "Sign in or create your account to join \(info.team.isEmpty ? "the team" : info.team). You'll join as soon as you're signed in.")
+            AccountSection(intro: info.team.isEmpty ? String(localized: "Sign in or create your account to join the team. You'll join as soon as you're signed in.") : String(localized: "Sign in or create your account to join \(info.team). You'll join as soon as you're signed in."))
         }
     }
 
     private func joinTitle(_ info: InviteInfo) -> String {
-        if joining { return "Joining…" }
-        return "Join \(info.team.isEmpty ? "the team" : info.team) as \(info.role.name)"
+        if joining { return String(localized: "Joining…") }
+        let role = tr(info.role.name)
+        return info.team.isEmpty ? String(localized: "Join the team as \(role)") : String(localized: "Join \(info.team) as \(role)")
     }
 
     private func lookUp() async {
@@ -347,7 +348,7 @@ private struct JoinTeamSection: View {
         defer { joining = false }
         do {
             let r = try await app.cloud.acceptInvite(normalized, name: name)
-            app.cloud.teamNotice = "You joined \(r.team.isEmpty ? "the team" : r.team) as \(r.role.name)."
+            app.cloud.teamNotice = r.team.isEmpty ? String(localized: "You joined the team as \(tr(r.role.name)).") : String(localized: "You joined \(r.team) as \(tr(r.role.name)).")
             code = ""
             await app.cloud.syncNow()   // bring in the team's jobs
         } catch { problem = teamErrorText(error) }
@@ -360,8 +361,8 @@ private struct InviteSummaryRow: View {
         HStack(spacing: 12) {
             Image(systemName: "person.2.badge.plus").font(.title2).foregroundStyle(Color.brand)
             VStack(alignment: .leading, spacing: 2) {
-                Text(info.team.isEmpty ? "A PinPlan team" : info.team).font(.headline)
-                Text(info.role.description).font(.caption).foregroundStyle(Color.secondary)
+                Text(info.team.isEmpty ? String(localized: "A PinPlan team") : info.team).font(.headline)
+                Text(tr(info.role.description)).font(.caption).foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 0)
             RoleBadge(role: info.role)
@@ -385,7 +386,7 @@ private struct TeamDetailsSection: View {
             }
             LabeledContent("Team name") {
                 if canManage {
-                    CommitField(title: "Team name", value: cloud.team?.team?.name ?? "", prompt: "Company name") { v in
+                    CommitField(title: String(localized: "Team name"), value: cloud.team?.team?.name ?? "", prompt: String(localized: "Company name")) { v in
                         Task { await save { try await app.cloud.renameTeam(v) } }
                     }
                     .multilineTextAlignment(.trailing)
@@ -394,7 +395,7 @@ private struct TeamDetailsSection: View {
                 }
             }
             LabeledContent("Your name") {
-                CommitField(title: "Your name", value: cloud.teamMe?.name ?? "", prompt: "Shown on photos and logs") { v in
+                CommitField(title: String(localized: "Your name"), value: cloud.teamMe?.name ?? "", prompt: String(localized: "Shown on photos and logs")) { v in
                     Task { await save { try await app.cloud.setMyName(v) } }
                     FieldAuthor.set(v)
                 }
@@ -466,7 +467,7 @@ private struct MemberRow: View {
         HStack(spacing: 12) {
             MemberAvatar(label: member.label)
             VStack(alignment: .leading, spacing: 2) {
-                Text(isMe ? "\(member.label) (you)" : member.label).font(.body.weight(.medium)).lineLimit(1)
+                Text(isMe ? String(localized: "\(member.label) (you)") : member.label).font(.body.weight(.medium)).lineLimit(1)
                 if let e = member.email, !e.isEmpty {
                     Text(e).font(.caption).foregroundStyle(Color.secondary).lineLimit(1)
                 }
@@ -476,7 +477,7 @@ private struct MemberRow: View {
                 Menu {
                     Picker("Role", selection: Binding(get: { member.role }, set: { onRole($0) })) {
                         ForEach(TeamRole.invitable, id: \.self) { r in
-                            Text(r.name).tag(r)
+                            Text(tr(r.name)).tag(r)
                         }
                     }
                 } label: {
@@ -485,7 +486,7 @@ private struct MemberRow: View {
                         Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(Color.secondary)
                     }
                 }
-                .accessibilityLabel("Role: \(member.role.name). Change")
+                .accessibilityLabel("Role: \(tr(member.role.name)). Change")
             } else {
                 RoleBadge(role: member.role)
             }
@@ -534,10 +535,10 @@ private struct InviteRow: View {
             Image(systemName: icon(state)).foregroundStyle(tint(state)).frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(invite.name.isEmpty ? TeamLogic.formatCode(invite.code) : invite.name).font(.body.weight(.medium))
-                Text("\(TeamLogic.formatCode(invite.code)) · \(invite.role.name)").font(.caption.monospaced()).foregroundStyle(Color.secondary)
+                Text(verbatim: "\(TeamLogic.formatCode(invite.code)) · \(tr(invite.role.name))").font(.caption.monospaced()).foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 8)
-            Text(state.label).font(.caption.weight(.semibold)).foregroundStyle(tint(state))
+            Text(tr(state.label)).font(.caption.weight(.semibold)).foregroundStyle(tint(state))
         }
         .contentShape(Rectangle())
         .opacity(state == .open || state == .used ? 1 : 0.6)
@@ -580,11 +581,11 @@ private struct NewInviteSheet: View {
                 } footer: { Text("So you know whose code is whose. They can change it when they join.") }
                 Section {
                     Picker("Role", selection: $role) {
-                        ForEach(TeamRole.invitable, id: \.self) { r in Text(r.name).tag(r) }
+                        ForEach(TeamRole.invitable, id: \.self) { r in Text(tr(r.name)).tag(r) }
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                } header: { Text("Role").textCase(nil) } footer: { Text(role.description) }
+                } header: { Text("Role").textCase(nil) } footer: { Text(tr(role.description)) }
                 if let problem { Section { Text(problem).foregroundStyle(Color.red) } }
             }
             .navigationTitle("Invite someone")
@@ -667,8 +668,8 @@ private struct InviteCardView: View {
 
 private struct InviteCodeHeader: View {
     let item: InviteCardItem
-    private var title: String { item.name.isEmpty ? "Invite" : "For \(item.name)" }
-    private var spokenCode: String { "Code " + item.code.map { String($0) }.joined(separator: " ") }
+    private var title: String { item.name.isEmpty ? String(localized: "Invite") : String(localized: "For \(item.name)") }
+    private var spokenCode: String { String(localized: "Code ") + item.code.map { String($0) }.joined(separator: " ") }
     var body: some View {
         VStack(spacing: 8) {
             Text(title).font(.headline)
