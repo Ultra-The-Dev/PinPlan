@@ -2,7 +2,8 @@
 import { create } from "zustand";
 import { closetMeta, LAYERS } from "./catalog";
 import { canEditJob, READ_ONLY_MESSAGE, ReadOnlyError } from "./canEdit";
-import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
+import { getCatalog, getProducts, getSettings, loadProject, newId, noteJobOpened, nowIso, put, type SyncTable } from "./db";
+import { estimateLineId, newestOverride } from "./estimate";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
 import { claimPlanInput } from "./planOverlays";
@@ -200,6 +201,8 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   async load(projectId) {
     const seq = ++loadSeq;
+    // Opened here: sync downloads this job's plans, photos and files to this device (src/lib/sync.ts downloadFiles).
+    noteJobOpened(projectId);
     let bundle: Awaited<ReturnType<typeof loadProject>>, catalog: DeviceType[], products: Product[], settings: AppSettings;
     for (let attempt = 0; ; attempt++) {
       const gen = commitGen;
@@ -554,15 +557,18 @@ export const useEditor = create<EditorState>((set, get) => ({
   async upsertEstimateLine(key, patch) {
     const { project, estimateLines } = get();
     if (!project) return;
-    const before = estimateLines.find((l) => l.key === key) ?? null;
+    // The row the estimate uses for this key (the newest, as buildEstimate picks it).
+    const before = newestOverride(estimateLines, key);
+    // A new override gets the same id on every device (two devices overriding one line write one row, not two).
     const after: EstimateLine = before
       ? { ...before, ...patch }
-      : { id: newId(), projectId: project.id, key, updatedAt: nowIso(), ...patch };
+      : { id: estimateLineId(project.id, key), projectId: project.id, key, updatedAt: nowIso(), ...patch };
     await get().commit([{ table: "estimateLines", before, after }], false);
   },
   async removeEstimateOverride(key) {
-    const before = get().estimateLines.find((l) => l.key === key);
-    if (before) await get().commit([{ table: "estimateLines", before, after: { ...before, deleted: true } }], false);
+    // Every row for the key: a duplicate left behind (older devices made their own) would come back as the override.
+    const rows = get().estimateLines.filter((l) => l.key === key && !l.deleted);
+    if (rows.length) await get().commit(rows.map((before) => ({ table: "estimateLines", before, after: { ...before, deleted: true } })), false);
   },
   async saveRow(table, row) {
     const list = get()[tableKey[table] as ListKey] as AnyRow[];

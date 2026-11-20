@@ -9,6 +9,12 @@ export interface TableSpec {
   conflict: string;
   /** Local key -> remote column. Only these keys are sent. */
   columns: Record<string, string>;
+  /** Remote price columns on this table. Kept for app builds that aren't updated: the database moves whatever is
+   *  written there into the price tables (PRICE_TABLES) and stores them blank, so they are never read back, and a
+   *  technician's device never sends them (20261124300100_price_split_stale_writes.sql). */
+  priceColumns?: string[];
+  /** Columns read on pull besides `columns` (the database's own; never sent). */
+  readOnlyColumns?: string[];
 }
 
 const common = { id: "id", createdAt: "created_at", updatedAt: "updated_at", deleted: "deleted" };
@@ -34,6 +40,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       lat: "lat",
       lng: "lng",
     },
+    priceColumns: ["pricing", "billdu_docs", "billdu_client_id"],
   },
   sheets: {
     remote: "sheets",
@@ -57,6 +64,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       revisionLabel: "revision_label",
       revisions: "revisions",
     },
+    // Set by the device that uploaded the plan image, after the upload (sync.ts pushImage).
+    readOnlyColumns: ["image_path"],
   },
   deviceTypes: {
     remote: "device_types",
@@ -82,6 +91,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       sort: "sort_order",
       archived: "archived",
     },
+    priceColumns: ["unit_price", "labor_price", "billdu_product_id"],
+    readOnlyColumns: ["owner_id"],
   },
   products: {
     remote: "products",
@@ -99,6 +110,8 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       notes: "notes",
       archived: "archived",
     },
+    priceColumns: ["unit_price", "labor_price"],
+    readOnlyColumns: ["owner_id"],
   },
   markers: {
     remote: "markers",
@@ -625,6 +638,9 @@ export function schemaGap(error: { code?: string | null; message?: string | null
   // PostgREST: "Could not find the 'labels' column of 'projects' in the schema cache" (PGRST204).
   const col = /Could not find the '([^']+)' column/i.exec(msg);
   if (col) return { kind: "column", column: col[1] };
+  // Postgres (a select that names a column): "column projects.labels does not exist" (42703).
+  const sel = /column "?(?:[\w]+\.)?([\w]+)"? does not exist/i.exec(msg);
+  if (sel) return { kind: "column", column: sel[1] };
   // PostgREST: "Could not find the table 'public.photos' in the schema cache" (PGRST205); Postgres: relation does not exist (42P01).
   if (error.code === "PGRST205" || error.code === "42P01" || /Could not find the table|relation "?[\w.]+"? does not exist/i.test(msg)) return { kind: "table" };
   return null;
@@ -692,3 +708,181 @@ export const refusedKey = (table: string, rowId: string) => `${table}:${rowId}`;
 
 /** The "<remote table>.<column>" tag for a column the cloud database is missing. */
 export const gapTag = (remote: string, column: string) => `${remote}.${column}`;
+
+// ---------------- columns read on pull ----------------
+
+/** The columns a pull (or a single-row read) asks for: never '*', and never the price columns (they are stored blank;
+ *  prices come from PRICE_TABLES, for the office only). `missing`: columns the cloud database doesn't have yet. */
+export function selectColumns(table: SyncTable, missing?: ReadonlySet<string>): string {
+  const spec = TABLES[table];
+  const hidden = new Set(spec.priceColumns ?? []);
+  const cols = new Set<string>();
+  for (const c of [...Object.values(spec.columns), ...(spec.readOnlyColumns ?? []), "synced_at"]) if (!hidden.has(c) && !missing?.has(c)) cols.add(c);
+  return [...cols].join(",");
+}
+
+/** A technician's push: without the price columns (the database ignores them from a technician anyway). */
+export function withoutPriceColumns(table: SyncTable, row: Record<string, unknown>): Record<string, unknown> {
+  const hidden = TABLES[table].priceColumns;
+  if (!hidden?.length) return row;
+  return Object.fromEntries(Object.entries(row).filter(([k]) => !hidden.includes(k)));
+}
+
+// ---------------- prices (office only) ----------------
+
+/** The office-only price tables and the synced table each one belongs to (20261124300100_price_split_stale_writes.sql). */
+export interface PriceSpec {
+  remote: string;
+  parent: Extract<SyncTable, "deviceTypes" | "products" | "projects" | "jobTemplates">;
+  conflict: string;
+  /** The column naming the parent row's id. */
+  key: string;
+  /** Catalog tables: rows are per owner (owner_id). */
+  owned: boolean;
+}
+
+export const PRICE_TABLES: readonly PriceSpec[] = [
+  { remote: "project_finance", parent: "projects", conflict: "project_id", key: "project_id", owned: false },
+  { remote: "device_type_prices", parent: "deviceTypes", conflict: "owner_id,device_type_id", key: "device_type_id", owned: true },
+  { remote: "product_prices", parent: "products", conflict: "owner_id,product_id", key: "product_id", owned: true },
+  { remote: "job_template_pricing", parent: "jobTemplates", conflict: "template_id", key: "template_id", owned: false },
+];
+
+export const priceSpecFor = (table: SyncTable): PriceSpec | undefined => PRICE_TABLES.find((p) => p.parent === table);
+
+const PRICE_FIELDS: Record<PriceSpec["parent"], string[]> = {
+  deviceTypes: ["unit_price", "labor_price", "billdu_product_id"],
+  products: ["unit_price", "labor_price"],
+  projects: ["pricing", "billdu_docs", "billdu_client_id"],
+  jobTemplates: ["pricing"],
+};
+
+/** The columns a pull of a price table asks for. */
+export function priceSelectColumns(spec: PriceSpec): string {
+  return [...(spec.owned ? ["owner_id"] : []), spec.key, ...PRICE_FIELDS[spec.parent], "updated_at", "synced_at"].join(",");
+}
+
+type Rec = Record<string, unknown>;
+const isObj = (v: unknown): v is Rec => !!v && typeof v === "object" && !Array.isArray(v);
+
+/** Local row -> its price row (owner_id is the database's default: the signed-in user, like the catalog row). */
+export function priceRowFromLocal(spec: PriceSpec, row: Rec): Rec {
+  const updated_at = row.updatedAt ?? EPOCH;
+  switch (spec.parent) {
+    case "deviceTypes":
+      return { device_type_id: row.id, unit_price: Number(row.unitPrice) || 0, labor_price: Number(row.laborPrice) || 0, billdu_product_id: row.billduProductId ?? null, updated_at };
+    case "products":
+      return { product_id: row.id, unit_price: Number(row.unitPrice) || 0, labor_price: Number(row.laborPrice) || 0, updated_at };
+    case "projects":
+      return { project_id: row.id, pricing: row.pricing ?? null, billdu_docs: Array.isArray(row.billduDocs) ? row.billduDocs : [], billdu_client_id: row.billduClientId ?? null, updated_at };
+    case "jobTemplates": {
+      const payload = isObj(row.payload) ? row.payload : {};
+      const pricing: Rec = { estimateLines: Array.isArray(payload.estimateLines) ? payload.estimateLines : [] };
+      if (isObj(payload.project) && "pricing" in payload.project) pricing.pricing = payload.project.pricing ?? null;
+      return { template_id: row.id, pricing, updated_at };
+    }
+  }
+}
+
+/** The local fields a pulled price row sets on its parent row. */
+function priceFields(spec: PriceSpec, raw: Rec, local: Rec): Rec {
+  switch (spec.parent) {
+    case "deviceTypes":
+      return { unitPrice: Number(raw.unit_price) || 0, laborPrice: Number(raw.labor_price) || 0, billduProductId: raw.billdu_product_id ?? null };
+    case "products":
+      return { unitPrice: Number(raw.unit_price) || 0, laborPrice: Number(raw.labor_price) || 0 };
+    case "projects":
+      return { billduDocs: Array.isArray(raw.billdu_docs) ? raw.billdu_docs : [], billduClientId: raw.billdu_client_id ?? null, pricing: raw.pricing ?? undefined };
+    case "jobTemplates": {
+      const pricing = isObj(raw.pricing) ? raw.pricing : {};
+      const payload = isObj(local.payload) ? { ...local.payload } : {};
+      payload.estimateLines = Array.isArray(pricing.estimateLines) ? pricing.estimateLines : [];
+      const project = isObj(payload.project) ? { ...payload.project } : {};
+      if ("pricing" in pricing) project.pricing = pricing.pricing;
+      else delete project.pricing;
+      payload.project = project;
+      return { payload };
+    }
+  }
+}
+
+/**
+ * Put a pulled price row on the local row it belongs to. Null when there is nothing to change: no such row here, a
+ * catalog row of another owner (catalog rows are keyed by owner and id), or a local edit still waiting to be sent
+ * (`pending`), which carries its own prices.
+ */
+export function mergePriceRow(spec: PriceSpec, local: Rec | undefined, raw: Rec, opts: { pending: boolean; billingOwner: string | null }): Rec | null {
+  if (!local || opts.pending) return null;
+  if (spec.owned) {
+    if (!opts.billingOwner || raw.owner_id !== opts.billingOwner) return null;
+    if (typeof local.ownerId === "string" && local.ownerId !== raw.owner_id) return null;
+  }
+  const merged: Rec = { ...local, ...priceFields(spec, raw, local) };
+  for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
+  return merged;
+}
+
+/** A pulled row carries no prices (the server stores those columns blank): keep the ones this device has. */
+export function keepLocalPrices(table: SyncTable, pulled: Rec, have: Rec | undefined): Rec {
+  switch (table) {
+    case "deviceTypes":
+    case "products": {
+      const out: Rec = { ...pulled, unitPrice: Number(have?.unitPrice) || 0, laborPrice: Number(have?.laborPrice) || 0 };
+      delete out.billduProductId;
+      if (table === "deviceTypes" && have?.billduProductId != null) out.billduProductId = have.billduProductId;
+      return out;
+    }
+    case "projects": {
+      const out: Rec = { ...pulled, billduDocs: Array.isArray(have?.billduDocs) ? have.billduDocs : [] };
+      delete out.pricing;
+      delete out.billduClientId;
+      if (have?.pricing != null) out.pricing = have.pricing;
+      if (have?.billduClientId != null) out.billduClientId = have.billduClientId;
+      return out;
+    }
+    case "jobTemplates": {
+      if (!isObj(pulled.payload)) return pulled;
+      const hp = isObj(have?.payload) ? have.payload : {};
+      const payload: Rec = { ...pulled.payload, estimateLines: Array.isArray(hp.estimateLines) ? hp.estimateLines : [] };
+      const project: Rec = isObj(payload.project) ? { ...payload.project } : {};
+      delete project.pricing;
+      if (isObj(hp.project) && "pricing" in hp.project) project.pricing = hp.project.pricing;
+      payload.project = project;
+      return { ...pulled, payload };
+    }
+    default:
+      return pulled;
+  }
+}
+
+/** A pulled catalog / product row is the company's only when its owner is the billing owner (the team owner, or the
+ *  person working alone); anyone else's rows (e.g. an admin's own) would mix two catalogs that share ids. */
+export function isCompanyCatalogRow(table: SyncTable, raw: Rec, billingOwner: string | null): boolean {
+  if (table !== "deviceTypes" && table !== "products") return true;
+  return !!billingOwner && raw.owner_id === billingOwner;
+}
+
+// ---------------- uploads ----------------
+
+/** File types stored with their own content type. Everything else (SVG, HTML, XML, scripts…) is stored as
+ *  application/octet-stream, so a file opened from storage is downloaded, never rendered or run by the browser. */
+const SAFE_UPLOAD_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
+
+export function safeUploadType(mime: string | null | undefined): string {
+  const m = String(mime ?? "").split(";")[0].trim().toLowerCase();
+  return SAFE_UPLOAD_TYPES.has(m) ? m : "application/octet-stream";
+}

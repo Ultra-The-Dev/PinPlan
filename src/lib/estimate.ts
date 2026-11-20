@@ -68,6 +68,32 @@ export function lineProductId(key: string, project: Pick<Project, "productChoice
   return p && (wantType == null || p.deviceTypeId === wantType) ? p.id : null;
 }
 
+/** The id of a job's override row for an estimate line key: the same on every device, so two devices overriding one
+ *  line write one row. */
+export const estimateLineId = (projectId: string, key: string) => `${projectId}:${key}`;
+
+const stamp = (o: Pick<EstimateLine, "updatedAt">) => Date.parse(o.updatedAt ?? "") || 0;
+
+/**
+ * One override per line key: the newest by updatedAt (deleted rows don't count). Older devices gave every override a
+ * random id, so a key can have several rows; before, whichever came last in the list won, which could differ between
+ * devices. On a tie the later row in the list wins, as it did before.
+ */
+export function latestOverrides(overrides: EstimateLine[]): Map<string, EstimateLine> {
+  const byKey = new Map<string, EstimateLine>();
+  for (const o of overrides) {
+    if (o.deleted) continue;
+    const cur = byKey.get(o.key);
+    if (!cur || stamp(o) >= stamp(cur)) byKey.set(o.key, o);
+  }
+  return byKey;
+}
+
+/** The override row the estimate uses for `key`, if any. */
+export function newestOverride(overrides: EstimateLine[], key: string): EstimateLine | null {
+  return latestOverrides(overrides.filter((o) => o.key === key)).get(key) ?? null;
+}
+
 export interface ProductPricing {
   products?: Product[];
   /** Quantities per device type per product (from productSplit). */
@@ -181,7 +207,7 @@ export function buildEstimate(
     }
   }
 
-  const byKey = new Map(overrides.filter((o) => !o.deleted).map((o) => [o.key, o]));
+  const byKey = latestOverrides(overrides);
   const lines: ComputedLine[] = [];
   for (const l of base) {
     const o = byKey.get(l.key);
@@ -198,7 +224,7 @@ export function buildEstimate(
     lines.push(line);
   }
   // Added charges in the order they were added (sort stamp), as on iOS — not the database's id order.
-  const custom = overrides.filter((o) => !o.deleted && !o.removed && o.key.startsWith("custom:"));
+  const custom = [...byKey.values()].filter((o) => !o.removed && o.key.startsWith("custom:"));
   custom.sort((a, b) => chargeOrder(a.sort) - chargeOrder(b.sort) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const o of custom) {
     // Per-device charges (prewire to each camera…) follow the plan until a quantity is typed.
