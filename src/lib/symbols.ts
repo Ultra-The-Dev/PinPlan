@@ -172,6 +172,7 @@ export const WIRE_COLORS: Record<string, string> = {
   "LV per manufacturer": "#db2777",
   Coax: "#ea580c",
   Fiber: "#16a34a",
+  "22/4 alarm": "#be123c",
   // Other trades (trades.ts). NM-B follows the jacket colours where they show on a white plan (12 yellow, 10 orange…).
   "14/2 NM-B": "#64748b",
   "14/3 NM-B": "#475569",

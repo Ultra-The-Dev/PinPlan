@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { applyPriceList, catalogToCsv, type PriceImportResult } from "@/lib/catalogCsv";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
-import { categoryOf, MOUNTS, WIRE_TYPES } from "@/lib/catalog";
+import { categoryOf, MOUNTS, OPENING_TYPE_IDS, WIRE_TYPES } from "@/lib/catalog";
 import { allCategoriesFor, hasTrade, tradeCategories, tradeWireTypes, typeVisible } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
 import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
@@ -138,7 +138,8 @@ export default function CatalogEditor() {
   if (!types) return <p className="p-6 text-slate-500">{t("Loading…")}</p>;
   const inTrades = (dt: DeviceType) => typeVisible({ ...dt, archived: false }, trades);
   const hiddenOther = types.filter((dt) => !dt.archived && !inTrades(dt)).length;
-  const unpriced = types.filter((dt) => !dt.archived && dt.unitPrice === 0 && inTrades(dt)).length;
+  // Door and Window are reference counts: they stay off quotes until they have a price, so $0 is fine.
+  const unpriced = types.filter((dt) => !dt.archived && dt.unitPrice === 0 && inTrades(dt) && !OPENING_TYPE_IDS.includes(dt.id)).length;
   const mine = tradeCategories(trades);
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">

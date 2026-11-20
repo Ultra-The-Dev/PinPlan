@@ -3,23 +3,37 @@
 // device type's colour with its letters, a constant size on screen (name="cs"); rejected ones grey and crossed out;
 // the one under review haloed. Also the symbol that was searched for, and the box being dragged. The layer doesn't
 // listen: taps arrive through the overlay (findSimilarInput.ts), which hit-tests with GHOST_R.
-import { useLayoutEffect } from "react";
+// Add sensors (AlarmSensorsSection.tsx): a ring around each door and window (grey and crossed out when left out) and
+// a ghost pin where each sensor will go.
+import { useLayoutEffect, type ReactNode } from "react";
+import { sheetOpenings } from "@/lib/alarmSensors";
 import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { DRAFT, DRAFT_DASH, SELECT_HALO, SELECT_HALO_FILL, SELECT_INK } from "@/lib/canvasColors";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
-import { shownFinds, useFindSimilar } from "./findSimilarStore";
+import { sensorPlan, shownFinds, useFindSimilar } from "./findSimilarStore";
 
 /** Ghost radius, screen px at size factor 1. */
 export const GHOST_R = 12;
 const GREY = "#94a3b8";
 
+/** A dashed pin with the type's letters: where a sensor will go. */
+function ghost(key: string, x: number, y: number, letters: string, color: string): ReactNode {
+  return (
+    <Group key={key} name={CONSTANT_SIZE} x={x} y={y}>
+      <Circle radius={GHOST_R} fill="rgba(255,255,255,0.85)" stroke={color} strokeWidth={2} dash={[4, 3]} />
+      <Text text={letters} x={-GHOST_R} y={-GHOST_R} width={GHOST_R * 2} height={GHOST_R * 2} align="center" verticalAlign="middle" fontStyle="bold" fontSize={letters.length > 2 ? 7.5 : 10.5} fill={color} />
+    </Group>
+  );
+}
+
 export default function FindSimilarLayer({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
   const st = useFindSimilar();
   const markers = useEditor((s) => s.markers);
-  const type = useEditor((s) => s.catalog.find((d) => d.id === st.typeId));
-  const shown = shownFinds(st, markers, sheet);
+  const catalog = useEditor((s) => s.catalog);
+  const type = catalog.find((d) => d.id === st.typeId);
+  const shown = st.sensors ? [] : shownFinds(st, markers, sheet);
   const current = st.review != null ? shown[st.review] : undefined;
   useLayoutEffect(() => {
     viewport.updateConstantSize();
@@ -29,6 +43,27 @@ export default function FindSimilarLayer({ sheet, viewport }: { sheet: Sheet; vi
   const letters = type?.symbol ?? "?";
   const k = 1 / (viewport.transform.scale || 1);
   const drag = st.drag;
+  if (st.sensors) {
+    const excluded = new Set(st.sensors.excluded);
+    const plan = sensorPlan(st.sensors, markers, catalog, sheet);
+    return (
+      <Group listening={false}>
+        {sheetOpenings(markers, catalog, sheet.id).map((o) => {
+          const out = excluded.has(o.id);
+          return (
+            <Group key={o.id} name={CONSTANT_SIZE} x={o.x * sheet.width} y={o.y * sheet.height}>
+              <Circle radius={GHOST_R + 5} stroke={out ? GREY : SELECT_HALO} strokeWidth={2} dash={out ? undefined : [3, 3]} fill={out ? "rgba(148,163,184,0.25)" : undefined} />
+              {out && <Line points={[-GHOST_R, GHOST_R, GHOST_R, -GHOST_R]} stroke={GREY} strokeWidth={2.5} />}
+            </Group>
+          );
+        })}
+        {plan.placements.map((p, i) => {
+          const dt = catalog.find((d) => d.id === p.deviceTypeId);
+          return ghost(`s${i}`, p.x * sheet.width, p.y * sheet.height, dt?.symbol ?? "?", dt?.color ?? "#475569");
+        })}
+      </Group>
+    );
+  }
   return (
     <Group listening={false}>
       {st.template && st.sheetId === sheet.id && st.source === "match" && (

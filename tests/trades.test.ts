@@ -1,7 +1,7 @@
 // Trade packs: low voltage must look exactly as before; the other packs must be well-formed; the panel schedule and
 // the trade-aware helpers derive from the plan. Same rules as ios/PinPlanCore/Tests/PinPlanCoreTests/TradeTests.swift.
 import { describe, expect, it } from "vitest";
-import { CATEGORIES, CLOSET_KINDS, LAYERS, LOW_VOLTAGE_CATEGORIES, WIRE_TYPES, closetMeta, seedCatalog } from "@/lib/catalog";
+import { ALARM_SEED_IDS, CATEGORIES, CLOSET_KINDS, LAYERS, LOW_VOLTAGE_CATEGORIES, WIRE_TYPES, closetMeta, seedCatalog } from "@/lib/catalog";
 import { buildEstimate } from "@/lib/estimate";
 import { CHECKLIST_TEMPLATES, allChecklistTemplates } from "@/lib/fieldDocs";
 import { buildLegend } from "@/lib/legend";
@@ -68,10 +68,20 @@ describe("low voltage stays exactly as it was", () => {
     expect(typeVisible({ id: "custom-1", category: "network" }, LV)).toBe(true);
   });
 
-  it("the low-voltage pack is the original seed catalog (prices still start at 0)", () => {
+  it("the low-voltage pack is the original seed catalog (prices still start at 0, except the alarm items)", () => {
     const lv = tradePack("lowvoltage");
     expect(lv.catalog.map((s) => s.id)).toEqual(seedCatalog().map((d) => d.id));
-    expect(lv.catalog.every((s) => s.unitPrice === 0 && s.laborPrice === 0)).toBe(true);
+    expect(lv.catalog.filter((s) => !ALARM_SEED_IDS.includes(s.id)).every((s) => s.unitPrice === 0 && s.laborPrice === 0)).toBe(true);
+    // The alarm items come after the original 19, so the original sort order is unchanged.
+    expect(lv.catalog.slice(19).map((s) => s.id)).toEqual(ALARM_SEED_IDS);
+    for (const s of lv.catalog.slice(19)) {
+      expect(s.category).toBe("security");
+      expect(s.unitPrice, s.id).toBeGreaterThan(0);
+      expect(s.laborPrice, s.id).toBeGreaterThan(0);
+      expect(s.defaultWire).toBe("22/4 alarm");
+      expect(s.description, s.id).toBeTruthy();
+    }
+    expect(WIRE_TYPES).toContain("22/4 alarm");
   });
 
   it("the default scan and plan-reader prompts are unchanged", () => {

@@ -132,11 +132,14 @@ final class FindSimilarTests: XCTestCase {
         XCTAssertTrue(types.allSatisfy { $0.kind == .device && $0.archived != true })
         let remembered = types.last!
         XCTAssertEqual(FS.defaultType(types, remembered: remembered.id)?.id, remembered.id)
-        if let door = types.first(where: { $0.name.range(of: #"\bdoors?\b"#, options: [.regularExpression, .caseInsensitive]) != nil }) {
-            XCTAssertEqual(FS.defaultType(types, remembered: "gone")?.id, door.id)
-        } else {
-            XCTAssertEqual(FS.defaultType(types, remembered: nil)?.id, types.first?.id)
-        }
+        // No door in the seed catalog ("Door contact" is a sensor, not a door): the first type.
+        XCTAssertEqual(FS.defaultType(types, remembered: nil)?.id, types.first?.id)
+        // With the openings every catalog gets: the generic Door.
+        let withOpenings = FS.countableTypes(cat + Trades.builtInAdditions(catalog: cat))
+        XCTAssertEqual(FS.defaultType(withOpenings, remembered: "gone")?.id, "gen-door")
+        var mine = cat[0]
+        mine.id = "my-door"; mine.name = "Sliding door"; mine.sort = 999
+        XCTAssertEqual(FS.defaultType(types + [mine], remembered: nil)?.id, "my-door")
         XCTAssertFalse(FS.isDoorOrWindow("Indoor camera"))
         XCTAssertTrue(FS.isDoorOrWindow("Window sensor"))
         XCTAssertTrue(FS.isDoorOrWindow("Door contact"))

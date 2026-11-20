@@ -587,10 +587,12 @@ public enum FindSimilar {
         name.range(of: #"\b(doors?|windows?)\b"#, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
-    /// Type to count as when the tool opens: the one remembered on this device, else the first "Door", else the first.
+    /// Type to count as when the tool opens: the one remembered on this device, else the generic Door (an opening),
+    /// else the company's own door type (not a door contact), else the first.
     public static func defaultType(_ types: [DeviceType], remembered: String?) -> DeviceType? {
         types.first { $0.id == remembered }
-            ?? types.first { $0.name.range(of: #"\bdoors?\b"#, options: [.regularExpression, .caseInsensitive]) != nil }
+            ?? types.first { $0.id == Catalog.openingTypeIds[0] }
+            ?? types.first { AlarmSensors.openingKind($0) == .door }
             ?? types.first
     }
 

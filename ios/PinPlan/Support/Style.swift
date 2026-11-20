@@ -153,6 +153,7 @@ func wireColor(_ w: String?) -> Color {
     case "LV per driver": return Color(hex: "#d97706")
     case "LV per manufacturer": return Color(hex: "#db2777")
     case "Fiber": return Color(hex: "#16a34a")
+    case "22/4 alarm": return Color(hex: "#be123c")
     default: return Color(hex: "#64748b")
     }
 }

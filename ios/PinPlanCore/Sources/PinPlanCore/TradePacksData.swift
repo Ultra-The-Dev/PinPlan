@@ -11,7 +11,7 @@ extension Trades {
             categories: [.init(id: .security, name: "Security"), .init(id: .network, name: "Network"), .init(id: .audio, name: "Audio"), .init(id: .video, name: "Video"), .init(id: .smarthome, name: "Smart home"), .init(id: .lighting, name: "Lighting"), .init(id: .shades, name: "Shades"), .init(id: .infrastructure, name: "Infrastructure")],
             closets: [.equipment, .`switch`, .rack],
             run: .init(one: "Wire run", many: "Home runs", hint: "device → closet"), closetNoun: "closet", wireNoun: "Cable",
-            wireTypes: ["Cat6", "16/4 speaker", "HDMI", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber"],
+            wireTypes: ["Cat6", "16/4 speaker", "HDMI", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber", "22/4 alarm"],
             wirePrices: [:],
             catalog: Catalog.seed().map(TradeSeed.init(lowVoltage:)),
             checklists: FieldDocs.templates.filter { $0.id != "punch" },

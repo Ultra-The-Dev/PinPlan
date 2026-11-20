@@ -27,9 +27,9 @@ public struct TradeSeed: Sendable {
         self.description = description; self.va = va; self.breakerA = breakerA; self.volts = volts; self.poles = poles
     }
 
-    /// The original low-voltage seed items (prices 0, no electrical data).
+    /// The original low-voltage seed items (no electrical data; prices 0 except the alarm items).
     public init(lowVoltage d: DeviceType) {
-        type = d; description = nil; va = nil; breakerA = nil; volts = nil; poles = nil
+        type = d; description = Catalog.seedDescriptions[d.id]; va = nil; breakerA = nil; volts = nil; poles = nil
     }
 }
 
@@ -138,6 +138,8 @@ public enum Trades {
     /// In the palette for these trades? A pack's types show when the pack is on; the company's own when their category is.
     public static func typeVisible(_ d: DeviceType, for trades: [TradeId]) -> Bool {
         if d.archived == true { return false }
+        // Doors and windows are reference counts every trade uses (alarm sensors, takeoff "Openings").
+        if Catalog.openingTypeIds.contains(d.id) { return true }
         let t = normalize(trades)
         let owners = typeTrades(d.id)
         if !owners.isEmpty { return owners.contains { t.contains($0) } }
@@ -185,6 +187,22 @@ public enum Trades {
         var prices: [String: Double] = [:]
         for w in p.wireTypes where wirePrices[w] == nil { prices[w] = p.wirePrices[w] ?? 0 }
         return Additions(types: types, unarchive: unarchive, wirePrices: prices)
+    }
+
+    /// Built-in items an older catalog may lack: the alarm items (added to the original catalog later) and Door /
+    /// Window (openings, every trade). Only ids the catalog has no row for, so an archived one never comes back. Dated
+    /// 1970 like the seed catalog, so the company's copy on the server always wins. Same as builtInAdditions (web).
+    public static func builtInAdditions(catalog: [DeviceType]) -> [DeviceType] {
+        let have = Set(catalog.map(\.id))
+        var sort = (catalog.map(\.sort).max() ?? -1) + 1
+        let seeds = pack(.lowvoltage).catalog.filter { Catalog.alarmSeedIds.contains($0.type.id) }
+            + Catalog.openingTypeIds.compactMap { id in pack(.general).catalog.first { $0.type.id == id } }
+        return seeds.filter { !have.contains($0.type.id) }.map { s in
+            var d = s.type
+            d.sort = sort; sort += 1
+            d.updatedAt = "1970-01-01T00:00:00.000Z"
+            return d
+        }
     }
 
     /// Load and circuit defaults for a device type (pack data; the company's own types by category).

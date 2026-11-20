@@ -5,7 +5,7 @@
 //
 // Categories are one fixed superset shared by the database, the web app and the iPad app (see docs/trades.md); a pack
 // only chooses and renames them. Counts still come only from placed markers and runs (takeoff.ts).
-import { CATEGORIES, LOW_VOLTAGE_CATEGORIES, SEED, WIRE_TYPES, categoryOf, closetMeta, type ClosetKindInfo } from "./catalog";
+import { ALARM_SEED_IDS, CATEGORIES, LOW_VOLTAGE_CATEGORIES, OPENING_TYPE_IDS, SEED, SEED_DESCRIPTIONS, WIRE_TYPES, categoryOf, closetMeta, type ClosetKindInfo } from "./catalog";
 import { CHECKLIST_TEMPLATES } from "./fieldDocs";
 import { msg } from "./i18n/msg";
 import type { Category, ChecklistTemplate, ClosetKind, DeviceType, Layer, Mount, Shape, TradeId } from "./types";
@@ -13,7 +13,8 @@ import type { Category, ChecklistTemplate, ClosetKind, DeviceType, Layer, Mount,
 export const TRADE_IDS: TradeId[] = ["lowvoltage", "electrical", "fire", "hvac", "plumbing", "solar", "general"];
 export const DEFAULT_TRADES: TradeId[] = ["lowvoltage"];
 
-/** A catalog item a pack starts with. Prices are editable starting points (low voltage starts at 0, as before). */
+/** A catalog item a pack starts with. Prices are editable starting points (the original low-voltage items start at 0,
+ *  as before; its alarm items have starting prices). */
 export interface TradeSeed {
   id: string;
   name: string;
@@ -87,7 +88,7 @@ const LOW_VOLTAGE: TradePack = {
   wireTypes: WIRE_TYPES.filter((w) => w !== "None"),
   wirePrices: {},
   wireNoun: msg("Cable"),
-  catalog: SEED.map((s) => ({ unitPrice: 0, laborPrice: 0, ...s })),
+  catalog: SEED.map((s) => ({ unitPrice: 0, laborPrice: 0, ...s, ...(SEED_DESCRIPTIONS[s.id] ? { description: SEED_DESCRIPTIONS[s.id] } : {}) })),
   checklists: CHECKLIST_TEMPLATES.filter((t) => t.id !== "punch"),
   scanHint: "",
 };
@@ -612,10 +613,13 @@ export const typeTrades = (typeId: string): TradeId[] => OWNERS.get(typeId) ?? [
 
 /**
  * Does this device type belong in the palette for these trades? A pack's own types show when that pack is enabled;
- * the company's own types show when their category is. (Low voltage only: exactly the old palette.)
+ * the company's own types show when their category is; Door and Window (openings) always show. (Low voltage only:
+ * the old palette plus the alarm items and the openings.)
  */
 export function typeVisible(d: Pick<DeviceType, "id" | "category" | "archived">, trades: TradeId[]): boolean {
   if (d.archived) return false;
+  // Doors and windows are reference counts every trade uses (alarm sensors, takeoff "Openings").
+  if (OPENING_TYPE_IDS.includes(d.id)) return true;
   const t = normalizeTrades(trades);
   const owners = typeTrades(d.id);
   if (owners.length) return owners.some((o) => t.includes(o));
@@ -694,6 +698,22 @@ export function packAdditions(trade: TradeId, catalog: DeviceType[], wirePrices:
   const prices: Record<string, number> = {};
   for (const w of p.wireTypes) if (wirePrices[w] == null) prices[w] = p.wirePrices[w] ?? 0;
   return { types, unarchive, wirePrices: prices, checklists: p.checklists };
+}
+
+/**
+ * Built-in items every catalog should have that older catalogs may lack: the alarm items (added to the original catalog
+ * later) and Door / Window (openings, every trade). Only ids the catalog has no row for at all, so an archived or
+ * deleted one never comes back. Rows are dated 1970 like the seed catalog, so any copy on the server wins over them.
+ */
+export function builtInAdditions(catalog: Pick<DeviceType, "id" | "sort">[]): DeviceType[] {
+  const have = new Set(catalog.map((d) => d.id));
+  let sort = catalog.reduce((m, x) => Math.max(m, x.sort), -1) + 1;
+  const epoch = new Date(0).toISOString();
+  const seeds: TradeSeed[] = [
+    ...LOW_VOLTAGE.catalog.filter((s) => ALARM_SEED_IDS.includes(s.id)),
+    ...OPENING_TYPE_IDS.map((id) => GENERAL.catalog.find((s) => s.id === id)!),
+  ];
+  return seeds.filter((s) => !have.has(s.id)).map((s) => seedToDeviceType(s, sort++, epoch));
 }
 
 // ---------------- electrical: loads and circuits ----------------

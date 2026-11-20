@@ -2,7 +2,7 @@
 // The plan's floating toolbar. Icon buttons (labels on wide screens), bigger on touch screens. Editing tools only
 // show in edit mode; setting the scale is for the office. Measuring lives in the left rail (Measure, M). On phones
 // Home runs and Counts sit under "More" (a bottom sheet), so the row fits.
-import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, ScanSearch, Sparkles, Tag, Undo2, X } from "lucide-react";
+import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, ScanSearch, ShieldCheck, Sparkles, Tag, Undo2, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
@@ -30,6 +30,8 @@ export interface PlanToolbarProps {
   ai?: { open: boolean; onClick: () => void } | null;
   /** Find similar (edit mode): count repeated symbols like doors and windows (docs/find-similar.md). */
   findSimilar?: { open: boolean; onClick: () => void } | null;
+  /** Add alarm sensors (edit mode, when the sheet has doors or windows): opens Find similar's Add sensors. */
+  sensors?: { open: boolean; onClick: () => void } | null;
   fullscreen: boolean;
   onFullscreen: () => void;
   /** Phones: less used actions go under More. */
@@ -98,6 +100,11 @@ export default function PlanToolbar(p: PlanToolbarProps) {
           <ScanSearch />
         </B>
       )}
+      {p.sensors && !p.compact && (
+        <B wide={p.wideLabels} on={p.sensors.open} title={t("Add alarm sensors to the doors and windows on this plan")} label={t("Sensors")} onClick={p.sensors.onClick} testId="alarm-sensors-button">
+          <ShieldCheck />
+        </B>
+      )}
       {p.ai && (
         <B wide={p.wideLabels} on={p.ai.open} title={t("AI scan assist")} label={t("AI scan")} onClick={p.ai.onClick}>
           <Sparkles />
@@ -138,6 +145,17 @@ export default function PlanToolbar(p: PlanToolbarProps) {
                   onClick={() => {
                     setMore(false);
                     p.findSimilar!.onClick();
+                  }}
+                />
+              )}
+              {p.sensors && (
+                <MenuItem
+                  icon={<ShieldCheck />}
+                  label={t("Add alarm sensors")}
+                  on={p.sensors.open}
+                  onClick={() => {
+                    setMore(false);
+                    p.sensors!.onClick();
                   }}
                 />
               )}

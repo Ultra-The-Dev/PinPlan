@@ -2,14 +2,17 @@
 // Find similar's card (docs/find-similar.md): what to count, Match a symbol / Read tags, the result bar ("Found 14 —
 // Accept all · Review one by one · Clear"), the sensitivity slider and this floor's door / window count. In the plan's
 // status slot: a card above the bottom controls, a bottom sheet on phones. Edit mode only (the overlay is off in View).
-import { Check, ChevronLeft, ChevronRight, FileText, Loader2, ScanSearch, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileText, Loader2, ScanSearch, ShieldCheck, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
+import { openingKind, sheetOpenings } from "@/lib/alarmSensors";
+import { useT } from "@/lib/i18n";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
 import { useMedia } from "@/lib/useMedia";
 import { PHONE_QUERY, RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
-import { acceptFinds, rememberedType, runTags, shownFinds, toggleFind, useFindSimilar, type FindMode } from "./findSimilarStore";
+import AlarmSensorsSection from "./AlarmSensorsSection";
+import { acceptFinds, openSensors, rememberedType, runTags, shownFinds, toggleFind, useFindSimilar, type FindMode } from "./findSimilarStore";
 
 const MODES: { id: FindMode; label: string }[] = [
   { id: "match", label: "Match a symbol" },
@@ -18,6 +21,7 @@ const MODES: { id: FindMode; label: string }[] = [
 
 export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
   const st = useFindSimilar();
+  const t = useT();
   const phone = useMedia(PHONE_QUERY);
   const catalog = useEditor((s) => s.catalog);
   const markers = useEditor((s) => s.markers);
@@ -29,10 +33,10 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
   const types = useMemo(() => catalog.filter((d) => !d.archived && d.kind === "device").sort((a, b) => a.sort - b.sort), [catalog]);
   const type = types.find((d) => d.id === st.typeId) ?? null;
 
-  // Pick a type to count as: the last one used, else a door, else the first.
+  // Pick a type to count as: the last one used, else the generic Door (an opening), else a door, else the first.
   useEffect(() => {
     if (!st.open || type || !types.length) return;
-    const t = types.find((d) => d.id === rememberedType()) ?? types.find((d) => /\bdoors?\b/i.test(d.name)) ?? types[0];
+    const t = types.find((d) => d.id === rememberedType()) ?? types.find((d) => d.id === "gen-door") ?? types.find((d) => openingKind(d) === "door") ?? types[0];
     st.setType(t.id, t.name);
   }, [st, st.open, type, types]);
 
@@ -51,6 +55,9 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
     for (const m of markers) if (!m.deleted && m.sheetId === sheet.id && ids.has(m.deviceTypeId)) n.set(m.deviceTypeId, (n.get(m.deviceTypeId) ?? 0) + 1);
     return types.filter((d) => ids.has(d.id) && (n.get(d.id) || d.id === st.typeId)).map((d) => ({ id: d.id, name: d.name, n: n.get(d.id) ?? 0 }));
   }, [types, markers, sheet.id, st.typeId]);
+
+  // Doors and windows on this plan: Add sensors offers to put alarm sensors on them.
+  const openings = sheetOpenings(markers, catalog, sheet.id).length;
 
   if (!st.open) return null;
 
@@ -72,6 +79,10 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
         </button>
       </div>
 
+      {st.sensors ? (
+        <AlarmSensorsSection sheet={sheet} />
+      ) : (
+      <>
       <div className="flex items-center gap-2">
         <label htmlFor={typeSel} className="shrink-0 text-xs font-medium text-slate-500">
           Count as
@@ -243,6 +254,13 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
             </span>
           ))}
         </p>
+      )}
+      {openings > 0 && (
+        <button className="btn btn-sm self-start" onClick={() => openSensors()} data-testid="find-add-sensors">
+          <ShieldCheck /> {t("Add alarm sensors")}
+        </button>
+      )}
+      </>
       )}
     </div>
   );

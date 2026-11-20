@@ -5,7 +5,8 @@ import type { PlanOverlayContext, PlanTapEvent } from "@/lib/planOverlays";
 import { boxFromCorners, clampBox, tapBox } from "@/lib/findSimilar/match";
 import { useEditor } from "@/lib/store";
 import { GHOST_R } from "./FindSimilarLayer";
-import { runMatch, shownFinds, toggleFind, useFindSimilar, type Found } from "./findSimilarStore";
+import { sheetOpenings, type Opening } from "@/lib/alarmSensors";
+import { runMatch, shownFinds, toggleExcluded, toggleFind, useFindSimilar, type Found } from "./findSimilarStore";
 
 const TOUCH_PX = 22;
 const MOUSE_PX = 14;
@@ -25,9 +26,28 @@ export function ghostAt(e: Pick<PlanTapEvent, "screen" | "pointerType">, ctx: Pl
   return best?.f ?? null;
 }
 
+/** Add sensors: the door or window under a screen point, if any (nearest). */
+export function openingAt(e: Pick<PlanTapEvent, "screen" | "pointerType">, ctx: PlanOverlayContext): Opening | null {
+  const ed = useEditor.getState();
+  const tol = Math.max((GHOST_R + 5) * ctx.viewport.sizeFactor, e.pointerType === "mouse" ? MOUSE_PX : TOUCH_PX);
+  let best: { o: Opening; d: number } | null = null;
+  for (const o of sheetOpenings(ed.markers, ed.catalog, ctx.sheet.id)) {
+    const p = ctx.viewport.relToScreen({ x: o.x, y: o.y });
+    const d = Math.hypot(p.x - e.screen.x, p.y - e.screen.y);
+    if (d <= tol && (!best || d < best.d)) best = { o, d };
+  }
+  return best?.o ?? null;
+}
+
 export function onFindTap(e: PlanTapEvent, ctx: PlanOverlayContext): boolean {
   if (!active(ctx)) return false;
   const st = useFindSimilar.getState();
+  // Add sensors: a tap on a door or window leaves it out (or takes it back); other taps do nothing.
+  if (st.sensors) {
+    const o = openingAt(e, ctx);
+    if (o) toggleExcluded(o.id);
+    return true;
+  }
   const g = ghostAt(e, ctx);
   if (g) {
     toggleFind(g.id);
@@ -46,7 +66,7 @@ export function onFindTap(e: PlanTapEvent, ctx: PlanOverlayContext): boolean {
 export function onFindDragStart(e: PlanTapEvent, ctx: PlanOverlayContext): boolean {
   if (!active(ctx)) return false;
   const st = useFindSimilar.getState();
-  if (st.mode !== "match" || !st.picking || st.busy) return false;
+  if (st.sensors || st.mode !== "match" || !st.picking || st.busy) return false;
   st.set({ drag: { a: e.rel, b: e.rel } });
   return true;
 }
@@ -69,4 +89,4 @@ export function onFindDragEnd(_e: PlanTapEvent, ctx: PlanOverlayContext, cancell
 }
 
 /** Own plan input while waiting for a pick (a still press stays ready to draw a box; devices don't move). */
-export const findCapturing = (ctx: PlanOverlayContext) => active(ctx) && useFindSimilar.getState().picking && useFindSimilar.getState().mode === "match";
+export const findCapturing = (ctx: PlanOverlayContext) => active(ctx) && !useFindSimilar.getState().sensors && useFindSimilar.getState().picking && useFindSimilar.getState().mode === "match";

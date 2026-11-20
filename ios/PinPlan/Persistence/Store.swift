@@ -224,8 +224,12 @@ final class Store: @unchecked Sendable {
 
     func loadCatalog() -> [DeviceType] {
         if let data = try? Data(contentsOf: root.appendingPathComponent("catalog.json")),
-           let c = try? JSONDecoder().decode([DeviceType].self, from: data), !c.isEmpty { return c }
-        return Catalog.seed()
+           let c = try? JSONDecoder().decode([DeviceType].self, from: data), !c.isEmpty {
+            // Items added since this catalog was saved (alarm sensors, Door / Window), on this device only.
+            return c + Trades.builtInAdditions(catalog: c)
+        }
+        let seed = Catalog.seed()
+        return seed + Trades.builtInAdditions(catalog: seed)
     }
 
     func saveCatalog(_ c: [DeviceType]) {
