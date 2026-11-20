@@ -156,7 +156,7 @@ export function remapBackupProject(p: BackupProject, nextId: () => string): Back
   };
   const out = { ...p, images: p.images ?? [] } as BackupProject;
   out.project = { ...strip(p.project), billduDocs: [], billduClientId: undefined };
-  for (const t of PROJECT_TABLES) (out as unknown as Record<string, unknown>)[t] =((p[t] ?? []) as unknown[]).map(strip);
+  for (const t of PROJECT_TABLES) (out as unknown as Record<string, unknown>)[t] = ((p[t] ?? []) as unknown[]).map(strip);
   return out;
 }
 

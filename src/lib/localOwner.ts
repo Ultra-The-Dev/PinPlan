@@ -59,9 +59,38 @@ export async function hasLocalData(): Promise<boolean> {
   }
 }
 
+/**
+ * Installs from before the owner was recorded: the account that last synced here, found from its per-user keys (pull
+ * watermarks `pinplan.sync.pull.<user>.<table>` and the team cache). Null when `userId` itself synced here (the jobs
+ * may be theirs) or nothing says who it was.
+ */
+export function inferLocalOwner(userId: string): LocalOwner | null {
+  const others = new Set<string>();
+  let mine = false;
+  try {
+    const note = (id: string | null | undefined) => {
+      if (!id) return;
+      if (id === userId) mine = true;
+      else others.add(id);
+    };
+    for (const k of Object.keys(localStorage)) {
+      const m = /^pinplan\.sync\.pull\.([^.]+)\./.exec(k);
+      if (m) note(m[1]);
+    }
+    const team = localStorage.getItem("pinplan.team");
+    if (team) note((JSON.parse(team) as { userId?: string | null }).userId);
+  } catch {
+    return null;
+  }
+  if (mine || !others.size) return null;
+  return { userId: [...others][0], email: null };
+}
+
 /** Decide for a sign-in and remember the owner when the jobs here are (now) theirs. */
 export async function checkLocalOwner(userId: string, email: string | null): Promise<OwnerDecision> {
-  const decision = ownerDecision(readLocalOwner(), userId, await hasLocalData());
+  // Read before awaiting: loading the new account's team rewrites the team cache.
+  const stored = readLocalOwner() ?? inferLocalOwner(userId);
+  const decision = ownerDecision(stored, userId, await hasLocalData());
   if (decision !== "ask") writeLocalOwner({ userId, email });
   return decision;
 }

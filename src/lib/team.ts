@@ -47,7 +47,7 @@ export interface TeamState {
 const CACHE_KEY = "pinplan.team";
 /** When the team (and billing) was last read from the cloud, so background sync doesn't re-read it every tick. */
 let loadedAt: { userId: string; at: number } | null = null;
-const empty: TeamState ={ ready: false, userId: null, team: null, role: null, members: [], billing: null, needsMigration: false, error: null };
+const empty: TeamState = { ready: false, userId: null, team: null, role: null, members: [], billing: null, needsMigration: false, error: null };
 
 function readCache(): Partial<TeamState> | null {
   try {

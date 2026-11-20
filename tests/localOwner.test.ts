@@ -67,6 +67,22 @@ describe("checkLocalOwner", () => {
     expect(await checkLocalOwner("b", "b@example.com")).toBe("same");
   });
 
+  it("an older install with no owner recorded: the account that synced here last owns its jobs", async () => {
+    await put("projects", { id: "p1", clientName: "", address: "1 Test St", status: "estimate", billduDocs: [], createdAt: ts, updatedAt: ts });
+    storage.setItem("pinplan.sync.pull.a.projects", ts);
+    expect(await checkLocalOwner("b", null)).toBe("ask");
+    expect(readLocalOwner()).toBeNull();
+    // The account that synced here carries on (and is remembered).
+    expect(await checkLocalOwner("a", null)).toBe("claim");
+    expect(readLocalOwner()?.userId).toBe("a");
+  });
+
+  it("an older install found from the team cache", async () => {
+    await put("projects", { id: "p1", clientName: "", address: "1 Test St", status: "estimate", billduDocs: [], createdAt: ts, updatedAt: ts });
+    storage.setItem("pinplan.team", JSON.stringify({ userId: "a" }));
+    expect(await checkLocalOwner("b", null)).toBe("ask");
+  });
+
   it("an empty device goes to whoever signs in", async () => {
     writeLocalOwner({ userId: "a", email: null });
     expect(await hasLocalData()).toBe(false);

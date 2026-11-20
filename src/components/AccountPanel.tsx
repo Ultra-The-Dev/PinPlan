@@ -202,13 +202,13 @@ function RefusedChanges({ count }: { count: number }) {
 
 const REFUSED_LABELS: Partial<Record<SyncTable, string>> = {
   projects: "Job",
-  sheets: "Plan sheet",
+  sheets: "Plan",
   deviceTypes: "Price list item",
-  products: "Product",
+  products: "Brand & model",
   markers: "Device",
   runs: "Wire run",
-  closets: "Panel",
-  estimateLines: "Estimate line",
+  closets: "Panel / closet",
+  estimateLines: "Pricing line",
   photos: "Photo",
   photoComments: "Photo comment",
   checklists: "Checklist",
