@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { securityHeaders } from "./src/lib/securityHeaders";
+import { headerRules } from "./src/lib/securityHeaders";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -13,19 +13,16 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // Security headers (CSP, HSTS, …) on every route. See src/lib/securityHeaders.ts for what the CSP allows and why.
+  // Security headers (CSP, HSTS, COOP, …) on every route, and a stricter CSP for the public client pages
+  // (/d, /p, /r, /co, /q). See src/lib/securityHeaders.ts for what the CSP allows and why.
   async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: securityHeaders({
-          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-          dev: process.env.NODE_ENV === "development",
-          vercelPreview: process.env.VERCEL_ENV === "preview",
-          reportOnly: process.env.CSP_REPORT_ONLY === "1",
-        }),
-      },
-    ];
+    return headerRules({
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      dev: process.env.NODE_ENV === "development",
+      vercelPreview: process.env.VERCEL_ENV === "preview",
+      reportOnly: process.env.CSP_REPORT_ONLY === "1",
+      turnstile: !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    });
   },
 };
 

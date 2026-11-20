@@ -5,14 +5,16 @@ import {
   companyStorageReady,
   deleteOwnCreds,
   describeUser,
+  mayChangeServerCreds,
   readOwnCreds,
   resolveBillduCaller,
   saveOwnCreds,
   type BillduCaller,
 } from "@/lib/server/billduCreds";
-import { clientIp, rateLimit } from "@/lib/server/rateLimit";
-import { deleteBillduCreds, keyHint, loadBillduCreds, saveBillduCreds, storageKind } from "@/lib/server/secrets";
-import { jsonError } from "@/lib/billdu/route-helpers";
+import { requirePaidOrTrial } from "@/lib/server/planGate";
+import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { deleteBillduCreds, encryptionReady, keyHint, loadBillduCreds, saveBillduCreds, storageKind } from "@/lib/server/secrets";
+import { credsErrorResponse, jsonError } from "@/lib/billdu/route-helpers";
 
 const noStore = { "Cache-Control": "no-store" };
 const SAVE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
@@ -21,7 +23,7 @@ async function status(caller: BillduCaller) {
   const own = caller.mode === "single_company" ? null : await readOwnCreds(caller.owner);
   // Other companies never learn anything about the server-wide credentials.
   const server = allowsServerCreds(caller) ? await loadBillduCreds().catch(() => ({ creds: null, source: null })) : null;
-  const ready = caller.mode === "single_company" ? { ok: true, reason: null } : companyStorageReady();
+  const ready = caller.mode === "single_company" ? { ok: true, reason: null, code: null } : companyStorageReady();
   const source = own?.creds && caller.mode !== "single_company" ? caller.owner.kind : !own && server?.creds ? server.source : null;
   return {
     mode: caller.mode,
@@ -46,11 +48,14 @@ async function status(caller: BillduCaller) {
           removable: server.source === "file" || server.source === "database",
         }
       : null,
-    canMoveServer: caller.mode === "team" && caller.comped && !!server?.creds && !own,
-    encryptionKeySet: !!process.env.PINPLAN_ENCRYPTION_KEY,
+    canMoveServer: caller.mode === "team" && caller.founder && !!server?.creds && !own,
+    // Whether this caller may save / remove the server-wide credentials (single-company servers and the founder).
+    canChangeServer: mayChangeServerCreds(caller),
+    encryptionKeySet: encryptionReady(),
     storage: caller.mode === "single_company" ? storageKind() : "company",
     storageReady: ready.ok,
     storageMessage: ready.reason,
+    storageCode: ready.code,
   };
 }
 
@@ -60,7 +65,7 @@ export async function GET(request: Request) {
   try {
     return Response.json(await status(auth.caller), { headers: noStore });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    return credsErrorResponse(e, auth.caller);
   }
 }
 
@@ -69,9 +74,10 @@ export async function POST(req: Request) {
   const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
-  const limited = rateLimit(`billdu-save:${caller.userId ?? clientIp(req)}`, SAVE_LIMIT);
-  if (!limited.ok)
-    return jsonError(`Too many changes. Try again in ${limited.retryAfter} seconds.`, 429, { code: "rate_limited", retryAfter: limited.retryAfter });
+  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(req)}`}`, SAVE_LIMIT);
+  if (!limited.ok) return tooManyRequests(limited, `Too many changes. Try again in ${waitText(limited.retryAfter)}.`);
+  const gate = await requirePaidOrTrial(req, caller.userId);
+  if (gate) return gate;
   let body: { apiKey?: unknown; apiSecret?: unknown; action?: unknown };
   try {
     body = await req.json();
@@ -80,7 +86,7 @@ export async function POST(req: Request) {
   }
   try {
     if (body?.action === "move_server_credentials") {
-      if (caller.mode !== "team" || !caller.comped)
+      if (caller.mode !== "team" || !caller.founder)
         return jsonError("Only the founder's company can take over the server-wide Billdu credentials.", 403, { code: "forbidden" });
       const server = await loadBillduCreds();
       if (!server.creds) return jsonError("There are no server-wide Billdu credentials to move.", 404, { code: "not_configured" });
@@ -91,11 +97,14 @@ export async function POST(req: Request) {
     const apiSecret = typeof body?.apiSecret === "string" ? body.apiSecret.trim() : "";
     if (!apiKey || !apiSecret) return jsonError("Both API key and API secret are required.", 400);
     if (apiKey.length > 512 || apiSecret.length > 512) return jsonError("That API key or secret is too long.", 400);
-    if (caller.mode === "single_company") await saveBillduCreds({ apiKey, apiSecret });
-    else await saveOwnCreds(caller.owner, { apiKey, apiSecret }, caller.userId);
+    if (caller.mode === "single_company") {
+      // On a server with accounts, an access-code caller may use the server-wide credentials but never replace them.
+      if (!mayChangeServerCreds(caller)) return jsonError("Sign in to connect Billdu for your company.", 403, { code: "sign_in_required" });
+      await saveBillduCreds({ apiKey, apiSecret });
+    } else await saveOwnCreds(caller.owner, { apiKey, apiSecret }, caller.userId);
     return Response.json(await status(caller), { headers: noStore });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    return credsErrorResponse(e, caller);
   }
 }
 
@@ -105,16 +114,20 @@ export async function DELETE(request: Request) {
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
   const target = new URL(request.url).searchParams.get("target");
+  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(request)}`}`, SAVE_LIMIT);
+  if (!limited.ok) return tooManyRequests(limited, `Too many changes. Try again in ${waitText(limited.retryAfter)}.`);
   try {
     if (target === "server" || caller.mode === "single_company") {
-      if (!allowsServerCreds(caller))
-        return jsonError("Only the founder's company can remove the server-wide Billdu credentials.", 403, { code: "forbidden" });
+      if (!mayChangeServerCreds(caller))
+        return caller.mode === "single_company"
+          ? jsonError("Sign in to change your company's Billdu connection.", 403, { code: "sign_in_required" })
+          : jsonError("Only the founder's company can remove the server-wide Billdu credentials.", 403, { code: "forbidden" });
       await deleteBillduCreds();
     } else {
       await deleteOwnCreds(caller.owner);
     }
     return Response.json(await status(caller), { headers: noStore });
   } catch (e) {
-    return jsonError((e as Error).message, 500);
+    return credsErrorResponse(e, caller);
   }
 }

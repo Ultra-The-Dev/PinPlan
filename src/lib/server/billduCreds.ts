@@ -1,14 +1,17 @@
 // Per-company Billdu credentials (server-only). Never import from client components.
 //
 // Who is calling decides whose Billdu account a request uses:
-// - Single-company servers (no Supabase accounts: access code or open) and callers that sign in with the team access
-//   code only (the iPad app today): the server-wide credentials (env vars, .data file or app_secrets 'billdu').
-// - A signed-in owner/admin of a team: that team's own row in team_secrets. Only the founder's company (team
-//   plan_status 'comped') may fall back to the server-wide credentials; every other team must connect its own.
+// - Single-company servers (no Supabase accounts: access code or open), and on a Supabase server callers that use the
+//   team access code only (allowed only with PINPLAN_ALLOW_ACCESS_CODE=1, see ./auth.ts): the server-wide credentials
+//   (env vars, .data file or app_secrets 'billdu'). On a Supabase server such callers may use them but never save or
+//   remove them.
+// - A signed-in owner/admin of a team: that team's own row in team_secrets. Only the founder's company (the team whose
+//   id is PINPLAN_FOUNDER_TEAM_ID) may fall back to the server-wide credentials; every other team must connect its own.
+//   (Not plan_status 'comped': a team can be comped for other reasons and must not get the founder's Billdu account.)
 // - A signed-in user without a team: their own row in user_secrets. No server-wide fallback.
 // - Technicians: refused (403), as before.
 import { authMode, requireUser } from "./auth";
-import { decrypt, encrypt, keyHint, loadBillduCreds, type CredsSource, type StoredCreds } from "./secrets";
+import { decryptDetailed, encrypt, encryptionReady, keyHint, loadBillduCreds, type CredsSource, type StoredCreds } from "./secrets";
 import { anonKey, bearer, serviceConfigured, serviceFetch, supabaseUrl, userFetch } from "./supabaseAdmin";
 
 export const BILLDU_SECRET = "billdu";
@@ -17,16 +20,45 @@ export type SecretOwner = { kind: "team"; id: string } | { kind: "user"; id: str
 
 export type BillduCaller =
   | { mode: "single_company"; userId: null; via: "open" | "access_code" }
-  | { mode: "team"; userId: string; token: string; owner: { kind: "team"; id: string }; role: "owner" | "admin"; teamName: string; comped: boolean }
+  | { mode: "team"; userId: string; token: string; owner: { kind: "team"; id: string }; role: "owner" | "admin"; teamName: string; founder: boolean }
   | { mode: "solo"; userId: string; token: string; owner: { kind: "user"; id: string } };
 
 export type CallerResult = { ok: true; caller: BillduCaller } | { ok: false; response: Response };
 
 const fail = (status: number, error: string, code: string): CallerResult => ({ ok: false, response: Response.json({ error, code }, { status }) });
 
-/** May this caller use the server-wide credentials? Only single-company servers and the founder's (comped) team. */
+/** Where a company connects Billdu, for messages. */
+export const BILLDU_SETTINGS = "Settings → Connected apps → Billdu";
+export const NOT_CONNECTED = `Billdu isn't connected for your company. Add your Billdu API key and secret in ${BILLDU_SETTINGS}.`;
+
+/**
+ * A credentials problem with a fixed, user-safe message and a code. The detail (status codes, PostgREST text) stays in
+ * `detail` for the server log; routes show it only in development or on a single-company server.
+ */
+export class CredsError extends Error {
+  constructor(message: string, public code: string, public detail?: string) {
+    super(message);
+  }
+}
+
+/** Is this team the founder's company (PINPLAN_FOUNDER_TEAM_ID)? */
+export function isFounderTeam(teamId: string | null | undefined): boolean {
+  const founder = process.env.PINPLAN_FOUNDER_TEAM_ID?.trim();
+  return !!founder && !!teamId && teamId === founder;
+}
+
+/** May this caller use the server-wide credentials? Only single-company callers and the founder's team. */
 export function allowsServerCreds(c: BillduCaller): boolean {
-  return c.mode === "single_company" || (c.mode === "team" && c.comped);
+  return c.mode === "single_company" || (c.mode === "team" && c.founder);
+}
+
+/**
+ * May this caller save or remove the server-wide credentials? Only a real single-company server (no accounts), or the
+ * founder's team. On a Supabase server an access-code caller can use them but never change them.
+ */
+export function mayChangeServerCreds(c: BillduCaller): boolean {
+  if (c.mode === "single_company") return authMode() !== "supabase";
+  return c.mode === "team" && c.founder;
 }
 
 /** Authenticate the caller and work out whose Billdu credentials they use. Techs get 403. */
@@ -55,16 +87,20 @@ export async function resolveBillduCaller(request: Request): Promise<CallerResul
   }
   if (!userId) return fail(401, "Your session has expired. Sign in again.", "sign_in_required");
 
-  let row: { role?: string; team_id?: string; teams?: { name?: string; plan_status?: string | null } | null } | undefined;
+  let row: { role?: string; team_id?: string; teams?: { name?: string } | null } | undefined;
   try {
-    // Read with the caller's own token: RLS shows members their own row and team; plan_status can't be changed by users.
-    const r = await userFetch(token, `/rest/v1/team_members?select=role,team_id,teams(*)&user_id=eq.${encodeURIComponent(userId)}`);
+    // Read with the caller's own token: RLS shows members their own row and team.
+    const r = await userFetch(token, `/rest/v1/team_members?select=role,team_id,teams(name)&user_id=eq.${encodeURIComponent(userId)}`);
     if (r.status !== 404) {
-      if (!r.ok) return fail(503, `Could not check your team role (${r.status}).`, "role_check_failed");
+      if (!r.ok) {
+        console.error("[billdu] team role check failed", r.status);
+        return fail(503, "Could not check your team role. Try again in a minute.", "role_check_failed");
+      }
       row = ((await r.json()) as (typeof row)[])[0];
     }
   } catch (e) {
-    return fail(503, (e as Error).message || "Could not check your team role.", "role_check_failed");
+    console.error("[billdu] team role check failed", e);
+    return fail(503, "Could not check your team role. Try again in a minute.", "role_check_failed");
   }
   if (!row?.team_id) return { ok: true, caller: { mode: "solo", userId, token, owner: { kind: "user", id: userId } } };
   if (row.role !== "owner" && row.role !== "admin")
@@ -78,7 +114,7 @@ export async function resolveBillduCaller(request: Request): Promise<CallerResul
       owner: { kind: "team", id: row.team_id },
       role: row.role,
       teamName: row.teams?.name ?? "",
-      comped: row.teams?.plan_status === "comped",
+      founder: isFounderTeam(row.team_id),
     },
   };
 }
@@ -112,13 +148,16 @@ interface SecretRow {
 }
 
 const missingTable = (status: number, body: string) => status === 404 || /PGRST205|42P01|does not exist|Could not find the table/i.test(body);
-const MIGRATION_HINT = "Run supabase/migrations/20261122010000_team_secrets.sql.";
+const UNAVAILABLE = "Billdu can't be connected on this server right now. Contact support.";
 
-/** Can this server store per-company credentials at all? */
-export function companyStorageReady(): { ok: boolean; reason: string | null } {
-  if (!serviceConfigured()) return { ok: false, reason: "The server needs SUPABASE_SERVICE_ROLE_KEY to store each company's Billdu credentials." };
-  if (!process.env.PINPLAN_ENCRYPTION_KEY) return { ok: false, reason: "The server needs PINPLAN_ENCRYPTION_KEY to store Billdu credentials encrypted." };
-  return { ok: true, reason: null };
+/**
+ * Can this server store per-company credentials at all? `reason` is safe to show; `code` says what's missing
+ * (missing_service_key / missing_encryption_key) for whoever runs the server.
+ */
+export function companyStorageReady(): { ok: boolean; reason: string | null; code: string | null } {
+  if (!serviceConfigured()) return { ok: false, reason: UNAVAILABLE, code: "missing_service_key" };
+  if (!encryptionReady()) return { ok: false, reason: UNAVAILABLE, code: "missing_encryption_key" };
+  return { ok: true, reason: null, code: null };
 }
 
 /** The owner's own stored credentials, or null when none are stored (or storage isn't set up yet). */
@@ -128,16 +167,18 @@ export async function readOwnCreds(owner: SecretOwner): Promise<OwnCreds | null>
   if (!r.ok) {
     const body = await r.text();
     if (missingTable(r.status, body)) return null;
-    throw new Error(`Secret store read failed (${r.status}).`);
+    throw new CredsError("Couldn't load your Billdu connection. Try again in a minute.", "secret_store_read_failed", `read ${table(owner)}: ${r.status}`);
   }
   const row = ((await r.json()) as SecretRow[])[0];
   if (!row) return null;
   let creds: StoredCreds | null = null;
   let error: string | null = null;
   try {
-    creds = JSON.parse(decrypt(row.payload, secretAad(owner))) as StoredCreds;
+    const d = decryptDetailed(row.payload, secretAad(owner));
+    creds = JSON.parse(d.plain) as StoredCreds;
+    if (d.stale) await reencryptRow(owner, creds);
   } catch {
-    error = "The saved Billdu credentials can't be decrypted on this server (was PINPLAN_ENCRYPTION_KEY changed?). Connect Billdu again.";
+    error = `The saved Billdu connection can't be read any more. Connect Billdu again in ${BILLDU_SETTINGS}.`;
   }
   return {
     creds,
@@ -149,9 +190,22 @@ export async function readOwnCreds(owner: SecretOwner): Promise<OwnCreds | null>
   };
 }
 
+/** Re-seal a row opened with the previous key (or in the old format) with the current key. Best effort. */
+async function reencryptRow(owner: SecretOwner, creds: StoredCreds) {
+  try {
+    await serviceFetch(`/rest/v1/${table(owner)}?${rowFilter(owner)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ payload: encrypt(JSON.stringify({ apiKey: creds.apiKey, apiSecret: creds.apiSecret }), secretAad(owner)) }),
+    });
+  } catch (e) {
+    console.error("[billdu] re-encrypting credentials failed", e);
+  }
+}
+
 export async function saveOwnCreds(owner: SecretOwner, creds: StoredCreds, updatedBy: string | null) {
   const ready = companyStorageReady();
-  if (!ready.ok) throw new Error(ready.reason!);
+  if (!ready.ok) throw new CredsError(ready.reason!, "storage_unavailable", ready.code ?? undefined);
   const payload = encrypt(JSON.stringify({ apiKey: creds.apiKey, apiSecret: creds.apiSecret }), secretAad(owner));
   const r = await serviceFetch(`/rest/v1/${table(owner)}?on_conflict=${column(owner)},name`, {
     method: "POST",
@@ -171,14 +225,17 @@ export async function saveOwnCreds(owner: SecretOwner, creds: StoredCreds, updat
   });
   if (!r.ok) {
     const body = await r.text();
-    throw new Error(missingTable(r.status, body) ? `The database isn't ready for company credentials. ${MIGRATION_HINT}` : `Secret store write failed (${r.status}).`);
+    throw missingTable(r.status, body)
+      ? new CredsError(UNAVAILABLE, "storage_unavailable", `${table(owner)} is missing: run the Supabase migrations`)
+      : new CredsError("Couldn't save your Billdu connection. Try again in a minute.", "secret_store_write_failed", `write ${table(owner)}: ${r.status}`);
   }
 }
 
 export async function deleteOwnCreds(owner: SecretOwner) {
   if (!serviceConfigured()) return;
   const r = await serviceFetch(`/rest/v1/${table(owner)}?${rowFilter(owner)}`, { method: "DELETE" });
-  if (!r.ok && !missingTable(r.status, await r.text())) throw new Error(`Secret store delete failed (${r.status}).`);
+  if (!r.ok && !missingTable(r.status, await r.text()))
+    throw new CredsError("Couldn't disconnect Billdu. Try again in a minute.", "secret_store_delete_failed", `delete ${table(owner)}: ${r.status}`);
 }
 
 /** Remember the last connection test on the owner's row (best effort). */
@@ -214,7 +271,7 @@ export async function effectiveCreds(caller: BillduCaller): Promise<Effective> {
   }
   const own = await readOwnCreds(caller.owner);
   if (own?.creds) return { creds: own.creds, source: caller.owner.kind, own };
-  if (own?.error) throw new Error(own.error);
+  if (own?.error) throw new CredsError(own.error, "credentials_unreadable");
   if (allowsServerCreds(caller)) {
     const g = await loadBillduCreds();
     if (g.creds) return { creds: g.creds, source: g.source, own };

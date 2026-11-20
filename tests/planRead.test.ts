@@ -44,6 +44,7 @@ describe("POST /api/plan/read", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "");
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+    vi.stubEnv("ANTHROPIC_MODEL", "test-model");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -67,7 +68,7 @@ describe("POST /api/plan/read", () => {
     const j = await res.json();
     expect(j).toMatchObject({ mode: "explain", sheetTitle: "1ST FL", summary: "S" });
     const body = calls[0] as { model: string; messages: { content: { type: string; text?: string }[] }[] };
-    expect(body.model).toBe("claude-opus-5-5");
+    expect(body.model).toBe("test-model");
     expect(body.messages[0].content[0].type).toBe("image");
     expect(body.messages[0].content[1].text).toContain(`1/8" = 1'-0"`);
     expect(JSON.stringify(body)).toContain("json_schema");

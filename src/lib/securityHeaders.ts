@@ -6,6 +6,8 @@
 //   Next.js can't stamp per-request nonces on its inline bootstrap scripts. A nonce CSP would force dynamic rendering.
 // - script-src 'unsafe-eval': HEIC photo conversion (heic2any) and the photo-straightening tool (OpenCV.js) are
 //   Emscripten builds whose bindings call `new Function`. Drop it once both are replaced or rebuilt without it.
+//   The public client pages (/d, /p, /r, /co, /q: documents, proposals, photo reports, change orders, RFIs) load
+//   neither, so they get a stricter policy without it (publicPageHeaders below). `next dev` still needs it there.
 // - 'wasm-unsafe-eval': PDF.js image decoders, react-pdf's layout engine and OpenCV run WebAssembly.
 // - https://docs.opencv.org: OpenCV.js is loaded on demand from there (src/lib/perspective.ts).
 // - worker-src blob:: PDF.js runs from /pdf.worker.min.mjs; heic2any starts its worker from a blob: URL.
@@ -15,6 +17,9 @@
 // - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather).
 // - style/font: inline styles (Konva, react-pdf, Leaflet) and Google Fonts on the client proposal/report pages.
 // - object-src/frame-src blob:: generated PDFs and documents open from blob: URLs.
+// - https://challenges.cloudflare.com (script + frame), only when Turnstile is set up: the bot check on sign-up pages.
+// Cross-Origin-Opener-Policy same-origin: a page we open in a new window (or that opens us) can't reach our window
+// object, which closes cross-window attacks on the signed-in app. Nothing here relies on window.opener across origins.
 // Set CSP_REPORT_ONLY=1 to send the policy as Content-Security-Policy-Report-Only instead (debugging a regression).
 
 export interface HeaderEnv {
@@ -22,7 +27,14 @@ export interface HeaderEnv {
   dev?: boolean;
   vercelPreview?: boolean;
   reportOnly?: boolean;
+  /** Cloudflare Turnstile is set up (NEXT_PUBLIC_TURNSTILE_SITE_KEY): allow its script and frame. */
+  turnstile?: boolean;
+  /** Policy for the public client pages: no 'unsafe-eval' (outside `next dev`). */
+  publicPage?: boolean;
 }
+
+/** The public pages a customer opens from a link (no sign-in). They get publicPageHeaders(). */
+export const PUBLIC_PAGES = ["d", "p", "r", "co", "q"] as const;
 
 function origin(url: string | undefined): string | null {
   if (!url) return null;
@@ -38,10 +50,20 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
   const sbWs = sb ? sb.replace(/^http/, "ws") : null;
   // Vercel's preview-deployment toolbar (comments/feedback) only exists on preview URLs.
   const live = env.vercelPreview;
+  const cf = env.turnstile && "https://challenges.cloudflare.com";
+  const evalOk = !env.publicPage || env.dev;
   const list = (...xs: (string | null | false | undefined)[]) => xs.filter(Boolean).join(" ");
   const directives: Record<string, string> = {
     "default-src": "'self'",
-    "script-src": list("'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'", "https://docs.opencv.org", live && "https://vercel.live"),
+    "script-src": list(
+      "'self'",
+      "'unsafe-inline'",
+      evalOk && "'unsafe-eval'",
+      "'wasm-unsafe-eval'",
+      !env.publicPage && "https://docs.opencv.org",
+      cf,
+      live && "https://vercel.live",
+    ),
     "style-src": list("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", live && "https://vercel.live"),
     "img-src": list("'self'", "blob:", "data:", "https:", sb),
     "font-src": list("'self'", "data:", "https://fonts.gstatic.com", live && "https://vercel.live https://assets.vercel.com"),
@@ -49,7 +71,7 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
     "worker-src": "'self' blob:",
     "media-src": "'self' blob: data:",
     "object-src": "'self' blob:",
-    "frame-src": list("'self'", "blob:", live && "https://vercel.live"),
+    "frame-src": list("'self'", "blob:", cf, live && "https://vercel.live"),
     "manifest-src": "'self'",
     "base-uri": "'self'",
     "form-action": "'self'",
@@ -71,5 +93,22 @@ export function securityHeaders(env: HeaderEnv): { key: string; value: string }[
     { key: "Permissions-Policy", value: "camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), browsing-topics=()" },
     // Older browsers that ignore CSP frame-ancestors.
     { key: "X-Frame-Options", value: "DENY" },
+    { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  ];
+}
+
+/** Headers for the public client pages: the same set, with the stricter CSP (no 'unsafe-eval'). */
+export function publicPageHeaders(env: HeaderEnv): { key: string; value: string }[] {
+  return securityHeaders({ ...env, publicPage: true });
+}
+
+/** next.config.ts headers(): every route, then the public pages (a later entry's header wins for the same key). */
+export function headerRules(env: HeaderEnv): { source: string; headers: { key: string; value: string }[] }[] {
+  const pages = PUBLIC_PAGES.join("|");
+  const strict = publicPageHeaders(env);
+  return [
+    { source: "/:path*", headers: securityHeaders(env) },
+    { source: `/:page(${pages})`, headers: strict },
+    { source: `/:page(${pages})/:path*`, headers: strict },
   ];
 }

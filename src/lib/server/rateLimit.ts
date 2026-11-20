@@ -1,9 +1,13 @@
-// In-memory sliding-window rate limiter for API routes (server-only).
+// Rate limiting for API routes (server-only).
 //
-// Caveat: the window lives in this server instance's memory. On Vercel each function instance (and each region)
-// keeps its own counts and loses them on a cold start, so the effective limit is "per instance", not global.
-// That is enough to stop a runaway client loop or a casual abuser from burning AI credit; for a hard global cap,
-// back this with a shared store (Upstash Redis / Vercel KV / a Supabase table) behind the same `rateLimit()` API.
+// - rateLimit(): in-memory sliding window. The window lives in this server instance's memory: on Vercel each function
+//   instance (and each region) keeps its own counts and loses them on a cold start, so the limit is "per instance".
+//   Enough to stop a runaway client loop (the AI routes use it).
+// - durableRateLimit(): one shared count for every instance, kept in Supabase (public.rate_limits, counted by the
+//   rate_limit_hit() function, which only the service role may call). Used where abuse matters: sign-up with an invite
+//   code and the Billdu routes. Without SUPABASE_SERVICE_ROLE_KEY (or if the database can't be reached) it falls back
+//   to the in-memory limiter, so a database hiccup never blocks real users.
+import { serviceConfigured, serviceFetch } from "./supabaseAdmin";
 
 export interface RateLimitRule {
   /** Requests allowed inside the window. */
@@ -55,7 +59,46 @@ export function resetRateLimits() {
   lastSweep = 0;
 }
 
-/** Best-effort client IP: Vercel sets x-forwarded-for (client first) and x-real-ip. */
+/**
+ * Count one request for `key` in the shared store (fixed window of rule.windowMs, rounded up to whole seconds).
+ * Falls back to the in-memory limiter when there's no service key or the database call fails.
+ */
+export async function durableRateLimit(key: string, rule: RateLimitRule): Promise<RateLimitResult> {
+  if (!serviceConfigured()) return rateLimit(key, rule);
+  try {
+    const r = await serviceFetch("/rest/v1/rpc/rate_limit_hit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ p_key: key.slice(0, 200), p_window_seconds: Math.max(1, Math.ceil(rule.windowMs / 1000)), p_max: rule.limit }),
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (!r.ok) throw new Error(`rate_limit_hit ${r.status}`);
+    const j = (await r.json()) as { ok?: boolean; remaining?: number; retry_after?: number };
+    if (typeof j?.ok !== "boolean") throw new Error("rate_limit_hit: unexpected answer");
+    return { ok: j.ok, limit: rule.limit, remaining: Math.max(0, Number(j.remaining) || 0), retryAfter: j.ok ? 0 : Math.max(1, Number(j.retry_after) || 1) };
+  } catch (e) {
+    // Missing migration, network trouble or a timeout: keep counting here rather than refusing everyone.
+    console.warn("[rate limit] shared store unavailable, counting in memory:", (e as Error).message);
+    return rateLimit(key, rule);
+  }
+}
+
+/** A 429 with Retry-After for a refused request. */
+export function tooManyRequests(r: RateLimitResult, message: string): Response {
+  return Response.json(
+    { error: message, code: "rate_limited", retryAfter: r.retryAfter },
+    { status: 429, headers: { "Retry-After": String(r.retryAfter), "X-RateLimit-Limit": String(r.limit), "X-RateLimit-Remaining": "0", "Cache-Control": "no-store" } },
+  );
+}
+
+/** "45 seconds" / "3 minutes": for messages. */
+export const waitText = (s: number) => (s < 90 ? `${s} seconds` : `${Math.ceil(s / 60)} minutes`);
+
+/**
+ * Best-effort client IP, for per-IP limits. Trustworthy only on Vercel: Vercel's edge overwrites x-forwarded-for and
+ * x-real-ip with the real client address, so callers can't choose it. Behind any other host or proxy these headers are
+ * whatever the caller (or the proxy) sent, so per-IP limits there can be dodged; per-user and per-code limits can't.
+ */
 export function clientIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim() || "unknown";
@@ -73,7 +116,7 @@ export const AI_LIMITS = {
 /** Per-day ceiling shared by every AI route for one caller. */
 const AI_DAILY: RateLimitRule = { limit: 1500, windowMs: 24 * 60 * 60_000 };
 
-const minutes = (s: number) => (s < 90 ? `${s} seconds` : `${Math.ceil(s / 60)} minutes`);
+const minutes = waitText;
 
 /**
  * Rate-limit an AI request per signed-in user (or per IP when the caller has no user id, e.g. access-code mode).

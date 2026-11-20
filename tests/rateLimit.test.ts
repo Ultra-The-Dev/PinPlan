@@ -1,6 +1,6 @@
 process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AI_LIMITS, clientIp, limitAi, rateLimit, resetRateLimits } from "@/lib/server/rateLimit";
+import { AI_LIMITS, clientIp, durableRateLimit, limitAi, rateLimit, resetRateLimits, tooManyRequests } from "@/lib/server/rateLimit";
 
 describe("rateLimit (sliding window)", () => {
   beforeEach(() => resetRateLimits());
@@ -73,5 +73,75 @@ describe("AI routes are rate limited", () => {
     const req = () => new Request("http://x/api/plan/read", { method: "POST", headers: { "x-forwarded-for": "192.0.2.77" }, body: "{}" });
     for (let i = 0; i < AI_LIMITS.planRead.limit; i++) expect((await POST(req())).status).toBe(501);
     expect((await POST(req())).status).toBe(429);
+  });
+});
+
+describe("durableRateLimit (shared store)", () => {
+  beforeEach(() => resetRateLimits());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("asks rate_limit_hit with the service key, in whole seconds", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.test");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
+    const f = vi.fn(async () => Response.json({ ok: false, hits: 4, limit: 3, remaining: 0, retry_after: 42 }));
+    vi.stubGlobal("fetch", f);
+    const r = await durableRateLimit("k:1", { limit: 3, windowMs: 90_500 });
+    expect(r).toEqual({ ok: false, limit: 3, remaining: 0, retryAfter: 42 });
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://sb.test/rest/v1/rpc/rate_limit_hit");
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer svc");
+    expect(JSON.parse(String(init.body))).toEqual({ p_key: "k:1", p_window_seconds: 91, p_max: 3 });
+    const res = tooManyRequests(r, "Slow down.");
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("42");
+  });
+
+  it("counts in memory without a service key, or when the store fails", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    const rule = { limit: 2, windowMs: 60_000 };
+    expect((await durableRateLimit("m", rule)).ok).toBe(true);
+    expect((await durableRateLimit("m", rule)).ok).toBe(true);
+    expect((await durableRateLimit("m", rule)).ok).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.test");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("missing", { status: 404 })));
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect((await durableRateLimit("n", rule)).ok).toBe(true);
+    expect((await durableRateLimit("n", rule)).ok).toBe(true);
+    expect((await durableRateLimit("n", rule)).ok).toBe(false);
+  });
+});
+
+describe("AI routes need a configured model", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("answer 501 'AI model not configured' when ANTHROPIC_MODEL is unset, without calling the AI service", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("PINPLAN_ACCESS_CODE", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    vi.stubEnv("ANTHROPIC_MODEL", "");
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    for (const path of ["scan", "plan/read", "photos/describe", "photos/summary"]) {
+      vi.resetModules();
+      resetRateLimits();
+      const { POST } = await import(`@/app/api/${path}/route`);
+      const res: Response = await POST(new Request(`http://x/api/${path}`, { method: "POST", headers: { "x-forwarded-for": "192.0.2.9" }, body: "{}" }));
+      expect(res.status, path).toBe(501);
+      expect(await res.json(), path).toEqual({ error: "AI model not configured", code: "ai_model_not_configured" });
+    }
+    expect(f).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,6 @@ import { limitAi } from "@/lib/server/rateLimit";
 
 // AI caption + tags for one job photo. Body: { imageBase64 (JPEG), room?, device?, existingTags? }
 export const maxDuration = 120;
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
 export async function POST(request: Request) {
   if (!aiEnabledOnServer()) return Response.json({ error: "AI features are turned off on this server.", code: "ai_disabled" }, { status: 404 });
@@ -15,6 +14,9 @@ export async function POST(request: Request) {
   const limited = limitAi(request, auth.userId, "photoDescribe");
   if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) return Response.json({ error: "AI is not configured: set ANTHROPIC_API_KEY on the server." }, { status: 501 });
+  // No built-in default: the model is chosen per deployment (ANTHROPIC_MODEL), never hard-coded here.
+  const model = process.env.ANTHROPIC_MODEL?.trim();
+  if (!model) return Response.json({ error: "AI model not configured", code: "ai_model_not_configured" }, { status: 501 });
   let body: { imageBase64?: string; room?: string; device?: string; existingTags?: string[] };
   try {
     body = await request.json();
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
   const client = new Anthropic();
   try {
     const r = await client.beta.messages.create({
-      model: MODEL,
+      model,
       max_tokens: 2000,
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
     const text = r.content.map((b) => (b.type === "text" ? b.text : "")).join("");
     return Response.json(parseDescribe(text));
   } catch (e) {
-    return Response.json({ error: (e as Error).message || "AI request failed" }, { status: 502 });
+    console.error("[photo describe]", e);
+    return Response.json({ error: "AI request failed. Try again in a minute." }, { status: 502 });
   }
 }
