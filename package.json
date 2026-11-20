@@ -26,7 +26,7 @@
     "@anthropic-ai/sdk": "^1.8.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.119.0",
-    "@types/leaflet": "^1.9.12",
+    "@types/leaflet": "^1.9.22",
     "dexie": "^4.4.7",
     "heic2any": "^0.0.4",
     "konva": "^10.9.1",
