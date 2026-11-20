@@ -64,8 +64,9 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 2. **R: Fill in every `[placeholder]` in `src/lib/legal.ts`**: `LEGAL_EFFECTIVE_DATE`, and in `COMPANY`: legal name,
    entity, state, county, address, contact / support / privacy / security emails, website, data region (step 4.1),
    support time zone and transfer mechanism, plus `RETENTION.backupDays` (your Supabase recovery window, step 4.1).
-   Run `npm run check:legal`: it must print nothing left. A production build on Vercel **fails** while any placeholder
-   is left (the `prebuild` step runs the same check).
+   Run `npm run check:legal`: it must print nothing left. Then set `LEGAL_CHECK=strict` in Vercel's Production
+   environment: from then on a build fails if a placeholder ever comes back. (Until you set it, builds only warn, so
+   deployments keep working before launch.)
 3. **R: Edit `public/.well-known/security.txt`**: the security email and your domain. Move `Expires` forward (to less
    than a year ahead) every year, or production builds fail.
 4. **R: Lawyer review** of `/terms`, `/privacy`, `/legal/dpa`, `/legal/subprocessors`, `/accessibility`, `/support` and

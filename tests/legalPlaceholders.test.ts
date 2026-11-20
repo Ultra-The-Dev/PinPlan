@@ -51,8 +51,8 @@ describe("legal placeholders", () => {
     expect(readFileSync(path.join(root, "public/.well-known/security.txt"), "utf8")).toMatch(/^Contact: mailto:/m);
   });
 
-  it("only production builds are strict", () => {
-    expect(strictMode({ VERCEL_ENV: "production" })).toBe(true);
+  it("only LEGAL_CHECK=strict builds fail (production deploys warn until launch day)", () => {
+    expect(strictMode({ VERCEL_ENV: "production" })).toBe(false);
     expect(strictMode({ LEGAL_CHECK: "strict" })).toBe(true);
     expect(strictMode({ VERCEL_ENV: "preview" })).toBe(false);
     expect(strictMode({})).toBe(false);
@@ -61,12 +61,13 @@ describe("legal placeholders", () => {
   it("the prebuild script warns outside production and fails a production build while placeholders remain", () => {
     expect(runScript({})).toBe(0);
     expect(runScript({ VERCEL_ENV: "preview" })).toBe(0);
-    expect(runScript({ VERCEL_ENV: "production" })).toBe(checkLegal(root).length > 0 ? 1 : 0);
+    expect(runScript({ VERCEL_ENV: "production" })).toBe(0);
+    expect(runScript({ LEGAL_CHECK: "strict" })).toBe(checkLegal(root).length > 0 ? 1 : 0);
     const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
     expect(pkg.scripts.prebuild).toContain("scripts/check-legal.mjs");
   });
 
-  // The launch gate itself: runs in production builds / LEGAL_CHECK=strict, where every value must be real.
+  // The launch gate itself: runs with LEGAL_CHECK=strict, where every value must be real.
   it.runIf(strictMode())("nothing is left to fill in (launch gate)", () => {
     expect(legalPlaceholders()).toEqual([]);
     expect(isPlaceholder(LEGAL_EFFECTIVE_DATE)).toBe(false);

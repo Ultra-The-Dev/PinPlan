@@ -2,8 +2,9 @@
 // Launch gate for the legal pages: lists every "[placeholder]" still left in src/lib/legal.ts, in the public legal and
 // support pages, and in public/.well-known/security.txt, and checks that security.txt hasn't expired.
 //
-// Runs before every build (`prebuild` in package.json). It only FAILS the build when VERCEL_ENV=production (or
-// LEGAL_CHECK=strict), so previews and local builds still work while the owner fills the values in; otherwise it warns.
+// Runs before every build (`prebuild` in package.json). It only FAILS the build when LEGAL_CHECK=strict (set it in
+// Vercel's production environment on launch day, once the values are filled in); otherwise it warns, so deployments keep
+// working before launch.
 // tests/legalPlaceholders.test.ts uses the same functions.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -79,7 +80,7 @@ export function checkLegal(root, now = new Date()) {
 
 /** Production builds fail on problems; everything else only warns. @param {Record<string, string | undefined>} [env] */
 export function strictMode(env = process.env) {
-  return env.VERCEL_ENV === "production" || env.LEGAL_CHECK === "strict";
+  return env.LEGAL_CHECK === "strict";
 }
 
 const isMain = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -91,7 +92,7 @@ if (isMain) {
   } else {
     const strict = strictMode();
     const say = strict ? console.error : console.warn;
-    say(`check-legal: ${problems.length} placeholder(s) to fill before launch${strict ? "" : " (warning only: not a production build)"}:`);
+    say(`check-legal: ${problems.length} placeholder(s) to fill before launch${strict ? "" : " (warning only; set LEGAL_CHECK=strict to block builds)"}:`);
     for (const p of problems) say(`  ${p.file}${p.line ? `:${p.line}` : ""}  ${p.text}`);
     if (strict) {
       say("Fill them in (docs/production-checklist.md, section 1) and build again.");
