@@ -129,7 +129,7 @@ export function billingSummary(b: TeamBilling, now = new Date()): { label: strin
     case "none": {
       if (!works) return { label: "Trial ended", detail: "Jobs are read-only until you start a subscription.", tone: "red" };
       // Billing isn't switched on yet (billing_settings.enforce): the trial is over but nothing locks.
-      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: "Trial ended", detail: "Billing isn't switched on yet, so nothing is locked.", tone: "slate" };
+      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: "Trial ended", detail: "Your free trial is over. Start a subscription to keep using PinPlan; jobs stay editable for now.", tone: "slate" };
       if (ending && b.status === "trialing") return { label: "Trial", detail: endsNote(ending), tone: "amber" };
       if (b.hasSubscription && b.status === "trialing")
         return { label: "Trial", detail: b.trialEndsAt ? `${plural(daysLeft(b.trialEndsAt, now), "day")} left — then your subscription starts.` : "Subscription starts after the trial.", tone: "slate" };

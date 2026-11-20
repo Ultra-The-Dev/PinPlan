@@ -188,7 +188,7 @@ describe("billing routes", () => {
       const { POST } = await import("@/app/api/billing/checkout/route");
       expect((await POST(req("/api/billing/checkout"))).status).toBe(200);
       const [args, opts] = fake.checkout.sessions.create.mock.calls[0];
-      expect(opts.idempotencyKey).toMatch(/^pinplan-checkout-team-1-[0-9a-f]{24}-\d+$/);
+      expect(opts.idempotencyKey).toMatch(/^pinplan-checkout-team-1-[0-9a-f]{24}-[0-9a-f]{12}-\d+$/);
       expect(args.metadata).toEqual({ team_id: "team-1", terms_key: expect.stringMatching(/^[0-9a-f]{24}$/) });
       expect(args.custom_text.submit.message).toMatch(/renews automatically every month until you cancel/);
       expect(args.automatic_tax).toBeUndefined();
@@ -236,6 +236,22 @@ describe("billing routes", () => {
       expect(await (await POST(req("/api/billing/checkout"))).json()).toEqual({ url: "https://checkout.stripe.test/second" });
       expect(fake.checkout.sessions.expire).toHaveBeenCalledWith("cs_same");
       expect(fake.checkout.sessions.expire).not.toHaveBeenCalledWith("cs_other_team");
+    });
+
+    it("never asks Stripe to replay a page an earlier call closed (the open pages are part of the key)", async () => {
+      Object.assign(world.team, { stripe_customer_id: "cus_old" });
+      fake.checkout.sessions.create.mockResolvedValue({ url: "https://checkout.stripe.test/a" });
+      const { POST } = await import("@/app/api/billing/checkout/route");
+      await POST(req("/api/billing/checkout"));
+      const key = fake.checkout.sessions.create.mock.calls[0][0].metadata.terms_key;
+      // Same terms again, but now another page of this team is open (soon to expire, so it isn't reused): it's closed
+      // and the new page must not come back as the first, already-closed one.
+      const soon = Math.floor(Date.now() / 1000) + 60;
+      fake.checkout.sessions.list.mockResolvedValue({ data: [{ id: "cs_b", url: "https://checkout.stripe.test/b", expires_at: soon, metadata: { team_id: "team-1", terms_key: key } }] });
+      await POST(req("/api/billing/checkout"));
+      const [k1, k2] = fake.checkout.sessions.create.mock.calls.map((c: unknown[]) => (c[1] as { idempotencyKey: string }).idempotencyKey);
+      expect(k1).not.toBe(k2);
+      expect(fake.checkout.sessions.expire).toHaveBeenCalledWith("cs_b");
     });
 
     it("sends people back to PINPLAN_APP_URL, never a forwarded host; production without it is refused", async () => {

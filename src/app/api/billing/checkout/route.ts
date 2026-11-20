@@ -52,8 +52,12 @@ export async function POST(request: Request) {
       .digest("hex")
       .slice(0, 24);
 
+    // The open pages as they were before this call: part of the idempotency key, so a page this call closes (or one
+    // closed by an earlier call) is never handed back by Stripe's idempotent replay.
+    let openIds = "";
     if (!newCustomer) {
       const open = await stripe.checkout.sessions.list({ customer, status: "open", limit: 10 });
+      openIds = open.data.map((s) => s.id).sort().join(",");
       const soon = Date.now() / 1000 + 10 * 60;
       const reuse = open.data.find((s) => s.metadata?.team_id === team.id && s.metadata?.terms_key === terms_key && s.url && (s.expires_at ?? 0) > soon);
       if (reuse?.url) return Response.json({ url: reuse.url });
@@ -84,9 +88,10 @@ export async function POST(request: Request) {
       params.tax_id_collection = { enabled: true };
     }
     if (terms) params.consent_collection = { terms_of_service: "required" };
-    // Same terms within the hour: Stripe hands back the same page instead of making another.
-    const hour = Math.floor(Date.now() / 3_600_000);
-    const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `pinplan-checkout-${team.id}-${terms_key}-${hour}` });
+    // A double click (same terms, same open pages, within 10 minutes): Stripe hands back the same page instead of making another.
+    const slot = Math.floor(Date.now() / 600_000);
+    const state = createHash("sha256").update(openIds).digest("hex").slice(0, 12);
+    const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `pinplan-checkout-${team.id}-${terms_key}-${state}-${slot}` });
     if (!session.url) return billingFailure("checkout", new Error("Stripe returned a checkout session without a URL"), "Couldn't open the checkout page. Try again in a minute.");
     return Response.json({ url: session.url });
   } catch (e) {
