@@ -1,12 +1,16 @@
 import SwiftUI
 import PinPlanCore
 
+/// Takeoff: the device and wire count per floor, its exports, and the wiring sheets for the crew (no prices).
 struct TakeoffView: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
+    /// The wiring sheets page (home runs, wiring PDFs, closet ports), pushed from here.
+    @Binding var showWiring: Bool
     @Environment(\.exportPlacement) private var exportPlacement
     @State private var share: SharedFile?
     @State private var busy = false
+    @State private var openOrderList = false
 
     var body: some View {
         let t = model.takeoff
@@ -28,7 +32,7 @@ struct TakeoffView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                     StatTile(label: "Cameras", value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: "\(tot.counts["cam-outdoor"] ?? 0) outdoor")
                     StatTile(label: "Wi-Fi APs", value: "\(tot.counts["wap"] ?? 0)")
-                    StatTile(label: "Speakers", value: "\(tot.counts["speaker"] ?? 0)", sub: (tot.tentative["speaker"] ?? 0) > 0 ? "\(tot.tentative["speaker"]!) tentative" : nil)
+                    StatTile(label: "Speakers", value: "\(tot.counts["speaker"] ?? 0)", sub: (tot.tentative["speaker"] ?? 0) > 0 ? "\(tot.tentative["speaker"]!) optional" : nil)
                     StatTile(label: "TVs", value: "\(tot.counts["tv"] ?? 0)")
                     StatTile(label: "LED", value: "\(tot.ledTotalFt.clean) LF", sub: "\(tot.ledZones) zones")
                     StatTile(label: "Cable", value: "\(tot.wireFt.values.reduce(0, +).clean) ft", sub: "\(tot.wireRuns.values.reduce(0, +)) home runs")
@@ -80,14 +84,14 @@ struct TakeoffView: View {
                     .font(.subheadline.monospacedDigit())
                     .padding()
                 }
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                .paperCard()
                 if tot.unmeasuredRuns > 0 {
-                    Label("\(tot.unmeasuredRuns) run(s) have no length yet. Set each sheet's scale or type the LF on the run.", systemImage: "exclamationmark.triangle")
+                    Label("\(tot.unmeasuredRuns) wire run(s) have no length yet. Set each plan's scale or type the LF on the run.", systemImage: "exclamationmark.triangle")
                         .font(.callout).foregroundStyle(.orange)
                 }
                 let tentative = model.bundle.liveMarkers.filter(\.tentative)
                 if !tentative.isEmpty {
-                    Text("Tentative items (\(tentative.count))").font(.headline)
+                    Text("Optional items (\(tentative.count))").font(.headline)
                     ForEach(tentative) { m in
                         Button { model.focusOn(.marker(m.id)) } label: {
                             HStack {
@@ -102,9 +106,11 @@ struct TakeoffView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.paper)
         .shareSheet($share)
         .navigationDestination(isPresented: Binding(get: { openReview && app.cloud.can(.prices) }, set: { openReview = $0 })) { PlanReviewView(model: model) }
+        .navigationDestination(isPresented: $showWiring) { CrewView(model: model).navigationTitle("Wiring sheets").navigationBarTitleDisplayMode(.inline) }
+        .navigationDestination(isPresented: $openOrderList) { OrderListView(model: model) }
     }
 
     @ViewBuilder
@@ -119,20 +125,31 @@ struct TakeoffView: View {
     }
 
     private var countedNote: some View {
-        Text("Counted only from placed devices and runs. (n?) = tentative, listed separately.")
+        Text("Counted only from placed devices and wire runs. (n?) = optional, listed separately.")
             .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
 
-    @State private var openReview = ProcessInfo.processInfo.arguments.contains("--plan-review")
+    @State private var openReview: Bool = {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--plan-review")   // screenshot hook
+        #else
+        return false
+        #endif
+    }()
 
+    /// Simple by default: the marked-up plans (the one action-blue button) and the wiring sheets; the rest under More.
     @ViewBuilder private var exportButtons: some View {
-        if app.cloud.can(.prices) {   // client-facing sending is the office's (technicians don't see it)
-            NavigationLink { PlanReviewView(model: model) } label: { Label("Send plan to client", systemImage: "eye").lineLimit(1) }.buttonStyle(.bordered)
-        }
-        NavigationLink { OrderListView(model: model) } label: { Label("Order list", systemImage: "cart").lineLimit(1) }.buttonStyle(.bordered)
-        Button { csv() } label: { Label("CSV", systemImage: "tablecells").lineLimit(1) }.buttonStyle(.bordered)
         Button { pdf() } label: { Label(busy ? "Building…" : "Plans PDF", systemImage: "doc.richtext").lineLimit(1) }
             .buttonStyle(.borderedProminent).disabled(busy || model.sheets.isEmpty)
+        Button { showWiring = true } label: { Label("Wiring sheets", systemImage: "cable.connector").lineLimit(1) }.buttonStyle(.bordered)
+        Menu {
+            if app.cloud.can(.prices) {   // client-facing sending is the office's (technicians don't see it)
+                Button { openReview = true } label: { Label("Send plan to client", systemImage: "eye") }
+            }
+            Button { openOrderList = true } label: { Label("Order list", systemImage: "cart") }
+            Button { csv() } label: { Label("Count as CSV", systemImage: "tablecells") }
+        } label: { Label("More", systemImage: "ellipsis.circle").lineLimit(1) }
+        .buttonStyle(.bordered)
     }
 
     private func csv() {

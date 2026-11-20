@@ -18,13 +18,13 @@ struct CatalogView: View {
                     NavigationLink { ProductLibraryView() } label: {
                         LabeledContent {
                             Text("\(app.products.filter { $0.archived != true && $0.deleted != true }.count)")
-                        } label: { Label("Products (brands and models)", systemImage: "tag") }
+                        } label: { Label("Brands and models", systemImage: "tag") }
                     }
                 }
             }
             if !canEdit {
                 Section {
-                    Label("Only the office can change the catalog.", systemImage: "lock").font(.callout).foregroundStyle(.secondary)
+                    Label("Only the office can change the price list.", systemImage: "lock").font(.callout).foregroundStyle(.secondary)
                 }
             }
             ForEach(Trades.allCategories(for: app.trades), id: \.id) { cat in
@@ -60,7 +60,7 @@ struct CatalogView: View {
             }
         }
         .searchable(text: $query)
-        .navigationTitle("Device catalog")
+        .navigationTitle("Price list")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             ToolbarItemGroup(placement: .topBarLeading) {

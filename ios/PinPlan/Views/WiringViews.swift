@@ -72,7 +72,7 @@ struct OrderListView: View {
         let showPrices = app.cloud.can(.prices)
         SentenceList {
             Section {
-                Toggle("Include “?” items", isOn: $withTentative)
+                Toggle("Include optional (?) items", isOn: $withTentative)
                 Button { share = shareCSV(Wiring.materialCSV(rows), name: "\(slug(model.bundle.project.address))-order-list.csv") } label: {
                     Label("Share order list (CSV)", systemImage: "square.and.arrow.up")
                 }

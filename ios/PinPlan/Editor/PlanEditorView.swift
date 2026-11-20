@@ -19,6 +19,10 @@ struct PlanEditorView: View {
     @State private var fullScreen = false
     @State private var viewport = PlanViewportController()
     @State private var showMinimap = false
+    @State private var wantsManagePlans = false
+    @State private var canvasHeight: CGFloat = 0
+    @State private var overlayControlsHeight: CGFloat = 0
+    @State private var viewerControlsHeight: CGFloat = 0
     @AppStorage("viewer.minimap") private var savedMinimap = false
     @AppStorage("viewer.pencilDraws") private var pencilDraws = false
 
@@ -92,17 +96,8 @@ struct PlanEditorView: View {
             bottomChrome
             toastView
         }
-        .overlay(alignment: .bottomTrailing) {
-            VStack(alignment: .trailing, spacing: 12) {
-                // Plan overlays' own buttons (tasks…), stacked above the viewer controls.
-                if let sheet = model.activeSheet { PlanOverlayControlsHost(model: model, sheet: sheet, controller: viewport) }
-                ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
-                               showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
-                    .popover(isPresented: $showLayers) { layersPanel }
-            }
-            .padding(12)
-            .padding(.bottom, regular ? 0 : 56)
-        }
+        .measureHeight { canvasHeight = $0 }
+        .overlay(alignment: .bottomTrailing) { trailingControls }
         .overlay(alignment: regular ? .bottomLeading : .topLeading) {
             VStack(alignment: .leading, spacing: 8) {
                 if showMinimap, let sheet = model.activeSheet {
@@ -115,6 +110,34 @@ struct PlanEditorView: View {
             .padding(.top, regular ? 0 : (editing && !fullScreen ? 112 : 64))
             .animation(.easeOut(duration: 0.2), value: showMinimap)
         }
+    }
+
+    /// Room for the trailing controls: below the sheet pill (and the phone's action bar), above the bottom padding.
+    private var controlsRoom: CGFloat {
+        let top: CGFloat = regular || fullScreen ? 64 : 120
+        let bottom: CGFloat = regular ? 12 : 68
+        return max(0, canvasHeight - top - bottom)
+    }
+
+    /// Bottom-right controls: the plan overlays' buttons (tasks, install progress…) and the viewer controls. They
+    /// stack in one column when there is room; on short screens (iPhone, landscape) the overlays' buttons sit beside
+    /// the viewer controls instead, and scroll if even that is too tall, so nothing reaches the top bar.
+    private var trailingControls: some View {
+        let stacked = canvasHeight == 0 || overlayControlsHeight + 12 + viewerControlsHeight <= controlsRoom
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 12)) : AnyLayout(HStackLayout(alignment: .bottom, spacing: 10))
+        return layout {
+            if let sheet = model.activeSheet {
+                PlanOverlayControlsHost(model: model, sheet: sheet, controller: viewport)
+                    .measureHeight { overlayControlsHeight = $0 }
+                    .scrollable(if: !stacked && overlayControlsHeight > controlsRoom, maxHeight: controlsRoom)
+            }
+            ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
+                           showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
+                .measureHeight { viewerControlsHeight = $0 }
+                .popover(isPresented: $showLayers) { layersPanel }
+        }
+        .padding(12)
+        .padding(.bottom, regular ? 0 : 56)
     }
 
     @ViewBuilder
@@ -196,7 +219,7 @@ struct PlanEditorView: View {
                 if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) }
             }
             .frame(width: 340)
-            .background(Color(.systemGroupedBackground))
+            .background(Color.paper)
         } else if regular && showReader, let sheet = model.activeSheet {
             Divider()
             PlanInsightsView(model: model, sheet: sheet) { showReader = false }.frame(width: 360)
@@ -234,9 +257,13 @@ struct PlanEditorView: View {
                         .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                 }
             }
-            .sheet(isPresented: $showBrowser) {
-                SheetBrowserView(model: model) { s in model.setActiveSheet(s.id) }
+            .sheet(isPresented: $showBrowser, onDismiss: {
+                // "Add or manage plans" in the browser: open it once the browser has gone.
+                if wantsManagePlans { wantsManagePlans = false; model.showManagePlans = true }
+            }) {
+                SheetBrowserView(model: model, onPick: { s in model.setActiveSheet(s.id) }, onManage: { wantsManagePlans = true })
             }
+            .sheet(isPresented: $model.showManagePlans) { ManagePlansSheet(model: model) }
             .sheet(item: $model.pending) { p in PendingInputSheet(model: model, pending: p) }
             .sheet(isPresented: $scaleInput) { if let s = model.activeSheet { ScaleSheet(model: model, sheet: s) } }
             .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
@@ -317,6 +344,7 @@ struct PlanEditorView: View {
             Button { model.showLabels.toggle(); model.saveFilter() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }
             Button { showLayers = true } label: { Label("Layers and filters…", systemImage: "square.3.layers.3d") }
             Button { viewport.fit() } label: { Label("Fit sheet", systemImage: "viewfinder") }
+            Button { model.showManagePlans = true } label: { Label("Add or manage plans…", systemImage: "doc.badge.plus") }
             if regular {
                 Divider()
                 Toggle(isOn: $pencilDraws) { Label("Apple Pencil draws, finger pans", systemImage: "applepencil") }
@@ -398,7 +426,7 @@ private struct HintCapsule: View {
     let text: String
     var body: some View {
         HStack(spacing: 8) {
-            Circle().fill(.orange).frame(width: 6, height: 6)
+            Circle().fill(Color.electric).frame(width: 6, height: 6)
             Text(text).font(.subheadline).lineLimit(1)
         }
         .foregroundStyle(.white)

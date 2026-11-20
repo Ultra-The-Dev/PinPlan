@@ -49,7 +49,7 @@ struct SheetsView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.paper)
         .fileImporter(isPresented: $showPDF, allowedContentTypes: [.pdf, .image], allowsMultipleSelection: true) { result in
             guard let urls = try? result.get() else { return }
             importFiles(urls)
@@ -250,12 +250,12 @@ private struct SheetCard: View {
                         if let img = app.store.image(sheet.imageId) { Image(uiImage: img).resizable().scaledToFit() } else { Color(.secondarySystemBackground) }
                     }
                     .frame(height: 170).frame(maxWidth: .infinity).padding(8).background(Color(.secondarySystemBackground))
-                    Chip(text: "Floor \(index + 1)", tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
+                    Chip(text: "Plan \(index + 1)", tint: .secondary).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous)).padding(10)
                 }
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 10) {
-                CommitField(title: "Sheet name", value: sheet.name) { name in
+                CommitField(title: "Plan name", value: sheet.name) { name in
                     let n = name.trimmingCharacters(in: .whitespaces)
                     guard !n.isEmpty else { return }
                     model.edit { b in if let i = b.sheets.firstIndex(where: { $0.id == sheet.id }) { b.sheets[i].name = n } }
@@ -278,9 +278,8 @@ private struct SheetCard: View {
             }
             .padding(12)
         }
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.separator).opacity(0.4)))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .paperCard()
     }
 }
 
@@ -303,8 +302,8 @@ private struct ImportPanel: View {
                 .font(.caption).foregroundStyle(targeted ? Color.brand : .secondary)
         }
         .padding(16)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(targeted ? Color.brand : Color(.separator).opacity(0.4), style: StrokeStyle(lineWidth: targeted ? 2 : 1, dash: targeted ? [6, 4] : [])))
+        .background(Color.surface, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(targeted ? Color.brand : Color.rule, style: StrokeStyle(lineWidth: targeted ? 2 : 1, dash: targeted ? [6, 4] : [])))
     }
 
     @ViewBuilder
@@ -341,8 +340,23 @@ private struct ImportPanel: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+            .background(Color.paper, in: RoundedRectangle(cornerRadius: Theme.buttonRadius, style: .continuous))
             .contentShape(Rectangle())
+        }
+    }
+}
+
+/// "Add or manage plans", opened from the plan (sheet browser, tools menu): import more plans, rename, reorder,
+/// rotate or delete them. Tapping a plan opens it.
+struct ManagePlansSheet: View {
+    let model: EditorModel
+
+    var body: some View {
+        NavigationStack {
+            SheetsView(model: model) { model.showManagePlans = false }
+                .navigationTitle("Plans")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.showManagePlans = false } } }
         }
     }
 }

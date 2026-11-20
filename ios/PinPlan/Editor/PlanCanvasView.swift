@@ -353,7 +353,7 @@ private struct QuickActionsBar: View {
     var body: some View {
         HStack(spacing: 2) {
             button("Edit", "slider.horizontal.3") { model.selection = .marker(marker.id) }
-            button(marker.tentative ? "Confirm" : "Tentative", "questionmark.circle") {
+            button(marker.tentative ? "Confirm" : "Optional", "questionmark.circle") {
                 let pricing = model.pricing
                 model.edit { $0.updateMarker(marker.id, pricing: pricing) { $0.tentative.toggle() } }
             }
@@ -425,7 +425,7 @@ private struct MarkerAccessibilityLayer: View {
 extension MarkerAccessibilityLayer {
     func label(_ m: Marker, name: String, photos: Bool) -> String {
         var parts = ["\(name) \(m.label)"]
-        if m.tentative { parts.append("tentative") }
+        if m.tentative { parts.append("optional") }
         if !m.room.isEmpty { parts.append(m.room) }
         if photos { parts.append("has photos") }
         if model.isSelected(m.id) { parts.append("selected") }

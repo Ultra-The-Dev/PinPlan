@@ -2,7 +2,7 @@ import SwiftUI
 import PinPlanCore
 
 // Floating controls over the plan. The plan gets the whole screen; controls float in materials at the edges.
-// The one loud element is the mode: Edit puts a safety-orange frame around the plan and fills its segment orange,
+// The one loud element is the mode: Edit puts an action-blue frame around the plan and fills its segment blue,
 // so nobody moves a device thinking they were only looking.
 
 /// Current sheet: previous / name (opens the sheet browser) / next.
@@ -15,13 +15,13 @@ struct SheetPill: View {
         let sheet = model.activeSheet
         let pos = SheetNav.position(of: sheet?.id, in: model.sheets)
         HStack(spacing: 0) {
-            stepButton(-1, icon: "chevron.left", label: "Previous sheet")
+            stepButton(-1, icon: "chevron.left", label: "Previous plan")
             Button(action: onBrowse) {
                 HStack(spacing: 6) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(sheet?.name ?? "Sheet").font(.subheadline.weight(.semibold)).lineLimit(1)
                         if let pos, pos.count > 1 {
-                            Text("Sheet \(pos.index) of \(pos.count)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                            Text("Plan \(pos.index) of \(pos.count)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                         }
                     }
                     Image(systemName: "square.grid.2x2").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -32,8 +32,8 @@ struct SheetPill: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(a11yName(sheet, pos))
-            .accessibilityHint("Shows all sheets")
-            stepButton(1, icon: "chevron.right", label: "Next sheet")
+            .accessibilityHint("Shows all plans")
+            stepButton(1, icon: "chevron.right", label: "Next plan")
         }
         .padding(.horizontal, 2)
         .background(.regularMaterial, in: Capsule())
@@ -44,7 +44,7 @@ struct SheetPill: View {
     private func a11yName(_ sheet: Sheet?, _ pos: (index: Int, count: Int)?) -> String {
         let name = sheet?.name ?? "Sheet"
         guard let pos else { return name }
-        return "\(name), sheet \(pos.index) of \(pos.count)"
+        return "\(name), plan \(pos.index) of \(pos.count)"
     }
 
     private func stepButton(_ delta: Int, icon: String, label: String) -> some View {
@@ -247,7 +247,7 @@ struct SelectionPeek: View {
         if !m.room.isEmpty { parts.append(m.room) }
         parts.append(m.mount.rawValue.capitalized)
         if !m.cables.isEmpty { parts.append(Cables.summary(m.cables)) }
-        if m.tentative { parts.append("Tentative") }
+        if m.tentative { parts.append("Optional") }
         return parts.joined(separator: ", ")
     }
 

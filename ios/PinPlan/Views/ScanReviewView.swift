@@ -50,7 +50,7 @@ struct ScanReviewView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.paper)
             .navigationTitle("Review \(pages.count) page\(pages.count == 1 ? "" : "s")")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -49,7 +49,7 @@ private struct MarkerForm: View {
             }
             MarkerProductPicker(model: model, marker: marker)
             Toggle(isOn: Binding(get: { marker.tentative }, set: { v in update { $0.tentative = v } })) {
-                VStack(alignment: .leading) { Text("Tentative (?)"); Text("Listed separately; optional on the estimate").font(.caption).foregroundStyle(.secondary) }
+                VStack(alignment: .leading) { Text("Optional (?)"); Text("Listed separately; an add-on on the quote").font(.caption).foregroundStyle(.secondary) }
             }
             .tint(.orange)
         }
@@ -179,7 +179,7 @@ private struct RunForm: View {
                     ForEach(runWireChoices, id: \.self) { Text($0).tag($0) }
                 }
             }
-            Toggle("Tentative (?)", isOn: Binding(get: { run.tentative == true }, set: { v in update { $0.tentative = v } })).tint(.orange)
+            Toggle("Optional (?)", isOn: Binding(get: { run.tentative == true }, set: { v in update { $0.tentative = v } })).tint(.orange)
         } footer: { Text("Drag the white handles on the plan to reshape the run.") }
         Section {
             Button(role: .destructive) { model.deleteSelection() } label: { Label("Delete run", systemImage: "trash") }
