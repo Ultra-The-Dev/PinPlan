@@ -462,14 +462,21 @@ final class CloudSync {
         let owner = defaults.string(forKey: Self.dataOwnerKey)
         let files = ledgerFiles(app.store)
         let own = "sync-\(uid).json"
+        let others = files.contains { $0 != own }, ownFile = files.contains(own)
         let decision = AccountSwitch.decide(dataOwner: owner, signingIn: uid, hasLocalJobs: !app.projects.isEmpty,
-                                            otherAccountLedgers: files.contains { $0 != own }, ownLedger: files.contains(own))
+                                            otherAccountLedgers: others, ownLedger: ownFile)
         guard decision == .proceed else {
             accountSwitch = AccountSwitchPrompt(jobs: app.projects.count, previousEmail: owner == nil ? nil : defaults.string(forKey: Self.dataOwnerEmailKey))
             lastError = accountSwitch?.message
             return false
         }
         if owner != uid {
+            // The jobs are gone (removed by hand) but the catalog and products are still the other account's: keep
+            // them here without sending them into this account.
+            if AccountSwitch.isOtherAccount(dataOwner: owner, signingIn: uid, otherAccountLedgers: others, ownLedger: ownFile) {
+                AccountSwitch.keepWithoutSending(app.catalog, products: app.products, in: &ledger)
+                saveLedger()
+            }
             defaults.set(uid, forKey: Self.dataOwnerKey)
             defaults.set(session?.email, forKey: Self.dataOwnerEmailKey)
         }
@@ -563,7 +570,7 @@ final class CloudSync {
             func text(_ e: Error) -> String { (e as? LocalizedError)?.errorDescription ?? e.localizedDescription }
             lastError = refused.map { "Some changes weren't accepted by the cloud (they'll be tried again): " + text($0) }
                 ?? pullError.map { "Some changes couldn't be received (they'll be tried again): " + text($0) }
-                ?? (missingTables.isEmpty ? nil : "The cloud database needs the latest update (supabase/migrations) — not synced yet: " + missingTables.joined(separator: ", "))
+                ?? (missingTables.isEmpty ? nil : "The cloud isn't up to date yet, so some job data doesn't sync (" + missingTables.joined(separator: ", ") + "). Everything else is synced.")
             if blocked {
                 lastSummary = BillingLogic.readOnlyStatus(pending: pendingChanges, device: UIDevice.current.model)
             } else {
@@ -760,6 +767,20 @@ final class CloudSync {
         if refused == nil { refused = e }
     }
 
+    /// What a table holds, in words for the sync status.
+    private static func plainName(_ t: SyncTable, remote: String) -> String {
+        switch t {
+        case .salesDocs: return "quotes & invoices"
+        case .salesPayments: return "payments"
+        case .rfis: return "RFIs"
+        case .scheduleItems: return "schedule"
+        case .measurements: return "saved measurements"
+        case .sheetLinks: return "plan links"
+        case .planMarkups: return "markups"
+        default: return remote.replacingOccurrences(of: "_", with: " ")
+        }
+    }
+
     /// Fetch every table's changes (paged like the web app, with a 30 s lookback), then merge. One table the server
     /// refuses doesn't stop the others: what was fetched is merged and its watermark kept, and the error is returned.
     /// A table the database doesn't have yet is skipped. Rows that couldn't be applied are fetched again by id next
@@ -792,7 +813,7 @@ final class CloudSync {
                     askedAgain[t, default: []].formUnion(ids)
                 }
             } catch let e as SupabaseClient.Failure where e.isMissingTable {
-                missing.append(spec.remote)
+                missing.append(Self.plainName(t, remote: spec.remote))
             } catch let e as SupabaseClient.Failure where e.status != 0 && e.status != 401 {
                 if failure == nil { failure = SupabaseClient.Failure(message: "\(spec.remote): \(e.message)", status: e.status, code: e.code) }
                 if t == .projects { parentsFailed = true }

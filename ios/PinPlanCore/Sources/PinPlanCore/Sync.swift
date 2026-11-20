@@ -542,18 +542,30 @@ public enum AccountSwitch {
     ///   - ownLedger: this device has a sync record of `signingIn`.
     public static func decide(dataOwner: String?, signingIn: String, hasLocalJobs: Bool, otherAccountLedgers: Bool = false, ownLedger: Bool = false) -> Decision {
         guard hasLocalJobs else { return .proceed }
-        if let owner = dataOwner { return owner == signingIn ? .proceed : .askToRemoveLocalJobs }
+        return isOtherAccount(dataOwner: dataOwner, signingIn: signingIn, otherAccountLedgers: otherAccountLedgers, ownLedger: ownLedger)
+            ? .askToRemoveLocalJobs : .proceed
+    }
+
+    /// Whether what this device holds was last synced with another account than `signingIn`.
+    public static func isOtherAccount(dataOwner: String?, signingIn: String, otherAccountLedgers: Bool = false, ownLedger: Bool = false) -> Bool {
+        if let owner = dataOwner { return owner != signingIn }
         // Not recorded (first sign-in, or a device from before this check): jobs made signed out belong to whoever
         // signs in first. Only another account's earlier sync, with none of this account's, means they're someone else's.
-        return otherAccountLedgers && !ownLedger ? .askToRemoveLocalJobs : .proceed
+        return otherAccountLedgers && !ownLedger
+    }
+
+    /// Keep the catalog and products on this device without sending them: they came from another account, so they are
+    /// marked as already on the server (this account's own copies come down and replace them).
+    public static func keepWithoutSending(_ catalog: [DeviceType], products: [Product], in ledger: inout SyncLedger) {
+        let s = SyncState(bundles: [], catalog: catalog, products: products)
+        s.markSynced(s.rows(), ledger: &ledger)
     }
 
     /// What the device keeps after removing the other account's jobs: the catalog and products stay, but are marked as
     /// already on the server so they aren't pushed into the new account (the new account's own copies come down).
     public static func freshLedger(for userId: String, keeping catalog: [DeviceType], products: [Product]) -> SyncLedger {
         var l = SyncLedger(userId: userId)
-        let s = SyncState(bundles: [], catalog: catalog, products: products)
-        s.markSynced(s.rows(), ledger: &l)
+        keepWithoutSending(catalog, products: products, in: &l)
         return l
     }
 }

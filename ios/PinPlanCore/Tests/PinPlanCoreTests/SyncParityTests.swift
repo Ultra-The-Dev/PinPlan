@@ -131,6 +131,20 @@ final class SyncLedgerTests: XCTestCase {
         let s = SyncState(bundles: [], catalog: catalog, products: products)
         XCTAssertTrue(s.changes(since: l).isEmpty, "the kept catalog and products aren't sent to the new account")
     }
+
+    func testOtherAccountsCatalogIsNotPushedEvenWithNoJobsLeft() {
+        // The jobs were removed by hand, so no prompt: still, the catalog is the other account's.
+        XCTAssertTrue(AccountSwitch.isOtherAccount(dataOwner: "u1", signingIn: "u2"))
+        XCTAssertFalse(AccountSwitch.isOtherAccount(dataOwner: "u2", signingIn: "u2"))
+        XCTAssertFalse(AccountSwitch.isOtherAccount(dataOwner: nil, signingIn: "u2"), "made signed out: the first account's")
+        XCTAssertTrue(AccountSwitch.isOtherAccount(dataOwner: nil, signingIn: "u2", otherAccountLedgers: true))
+        let catalog = Catalog.seed()
+        var l = SyncLedger(userId: "u2")
+        l.watermarks["markers"] = "2026-11-15T17:00:00Z"
+        AccountSwitch.keepWithoutSending(catalog, products: [], in: &l)
+        XCTAssertTrue(SyncState(bundles: [], catalog: catalog, products: []).changes(since: l).isEmpty)
+        XCTAssertEqual(l.watermarks["markers"], "2026-11-15T17:00:00Z", "the account's own sync record is kept")
+    }
 }
 
 final class SyncMergeTests: XCTestCase {
