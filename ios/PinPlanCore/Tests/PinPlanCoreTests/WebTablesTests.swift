@@ -115,7 +115,7 @@ final class WebTablesTests: XCTestCase {
     func testDisplayStatusAndTotals() {
         let day = "2026-11-19"
         var inv = SalesDoc(id: "i1", projectId: "p", kind: .invoice, status: .sent, total: 108)
-        inv.subtotal = 100; inv.dueDate = "2026-11-18"; inv.balanceDue = 108; inv.number = "INV-1"
+        inv.subtotal = 100; inv.dueDate = "2026-11-18"; inv.balanceDue = 108; inv.number = "INV-1"; inv.sentAt = "2026-11-01T09:00:00.000Z"
         XCTAssertEqual(SalesDocs.displayStatus(inv, day: day), .overdue)
         inv.dueDate = "2026-11-19"
         XCTAssertEqual(SalesDocs.displayStatus(inv, day: day), .sent)

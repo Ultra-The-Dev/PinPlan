@@ -76,15 +76,32 @@ final class JobSummaryTests: XCTestCase {
     func testEstimateSteps() {
         let b = bundle()
         let unpriced: (total: Double, unpriced: Int) = (0, 3)
-        XCTAssertEqual(JobSummary.make(b, estimate: unpriced, today: today).next.text, "Price the estimate (3 lines without a price)")
+        XCTAssertEqual(JobSummary.make(b, estimate: unpriced, today: today).next.text, "Finish pricing (3 lines without a price)")
         XCTAssertEqual(JobSummary.make(b, estimate: unpriced, proposals: [], today: today).next, .init(kind: .sendReview, text: "Send plan for review", tab: "takeoff"))
         XCTAssertEqual(JobSummary.make(b, estimate: unpriced, proposals: [.init(isReview: true, status: "sent", createdAt: "x")], today: today).next.kind, .priceEstimate)
         XCTAssertEqual(JobSummary.make(b, estimate: (1200, 0), today: today).next.kind, .sendProposal)
-        XCTAssertEqual(JobSummary.make(b, estimate: (1200, 0), proposals: [.init(isReview: false, status: "viewed", createdAt: "x")], today: today).next.text, "Client viewed the proposal — follow up")
+        XCTAssertEqual(JobSummary.make(b, estimate: (1200, 0), proposals: [.init(isReview: false, status: "viewed", createdAt: "x")], today: today).next.text, "Client viewed the quote — follow up")
         XCTAssertEqual(JobSummary.make(b, proposals: [.init(isReview: false, status: "accepted", createdAt: "x")], today: today).next.kind, .markApproved)
         var billed = b
         billed.project.billduDocs = [BillduDocRef(id: 1, type: "estimate", serial: nil, amount: 1200, percent: nil, label: nil, createdAt: "x")]
         XCTAssertEqual(JobSummary.make(billed, estimate: (1200, 0), today: today).next.kind, .awaitClient)
+    }
+
+    /// Next-step wording matches src/lib/jobSummary.ts (glossary: Quote, not proposal/estimate).
+    func testQuoteWordingMatchesWeb() {
+        let b = bundle()
+        func text(_ status: String) -> String {
+            JobSummary.make(b, estimate: (1200, 0), proposals: [.init(isReview: false, status: status, createdAt: "x")], today: today).next.text
+        }
+        XCTAssertEqual(JobSummary.make(b, estimate: (1200, 0), today: today).next.text, "Send the quote to the client")
+        XCTAssertEqual(JobSummary.make(b, estimate: (0, 0), proposals: [.init(isReview: true, status: "sent", createdAt: "x")], today: today).next.text, "Finish pricing")
+        XCTAssertEqual(text("viewed"), "Client viewed the quote — follow up")
+        XCTAssertEqual(text("declined"), "Quote declined — revise and resend")
+        XCTAssertEqual(text("accepted"), "Client approved the quote — mark the job approved")
+        XCTAssertEqual(text("sent"), "Waiting on the client’s answer")
+        var billed = b
+        billed.project.billduDocs = [BillduDocRef(id: 1, type: "estimate", serial: nil, amount: 1200, percent: nil, label: nil, createdAt: "x")]
+        XCTAssertEqual(JobSummary.make(billed, estimate: (1200, 0), today: today).next.text, "Quote sent — mark the job approved when the client signs")
     }
 
     func testApprovedSteps() {

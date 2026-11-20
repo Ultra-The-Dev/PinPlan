@@ -117,17 +117,17 @@ public struct JobSummary: Hashable, Sendable {
         switch project.status {
         case .estimate:
             if let p = s.proposal {
-                if p.status == "accepted" { return step(.markApproved, "Client accepted — mark the job approved", "estimate") }
-                if p.status == "declined" { return step(.reviseProposal, "Proposal declined — revise and resend", "estimate") }
-                return step(.awaitClient, p.status == "viewed" ? "Client viewed the proposal — follow up" : "Waiting on the client’s answer", "estimate")
+                if p.status == "accepted" { return step(.markApproved, "Client approved the quote — mark the job approved", "estimate") }
+                if p.status == "declined" { return step(.reviseProposal, "Quote declined — revise and resend", "estimate") }
+                return step(.awaitClient, p.status == "viewed" ? "Client viewed the quote — follow up" : "Waiting on the client’s answer", "estimate")
             }
             // Not priced yet and the client hasn't seen the layout: a plan review needs no prices.
             if proposalsKnown && unpriced && s.review == nil && !billed { return step(.sendReview, "Send plan for review", "takeoff") }
             if unpriced {
-                return step(.priceEstimate, s.unpricedLines > 0 ? "Price the estimate (\(plural(s.unpricedLines, "line")) without a price)" : "Price the estimate", "estimate")
+                return step(.priceEstimate, s.unpricedLines > 0 ? "Finish pricing (\(plural(s.unpricedLines, "line")) without a price)" : "Finish pricing", "estimate")
             }
-            if billed { return step(.awaitClient, "Estimate sent — mark the job approved when the client signs", "estimate") }
-            return step(.sendProposal, "Send the proposal", "estimate")
+            if billed { return step(.awaitClient, "Quote sent — mark the job approved when the client signs", "estimate") }
+            return step(.sendProposal, "Send the quote to the client", "estimate")
         case .approved:
             if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "field") }
             if s.checklists == 0 { return step(.startChecklist, "Start an install checklist", "field") }

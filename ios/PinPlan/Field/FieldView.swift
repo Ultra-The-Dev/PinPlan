@@ -6,31 +6,62 @@ import PinPlanCore
 /// Field documentation for the job: checklists, daily logs, documents, the timeline, tasks, forms, RFIs and the
 /// schedule. Technicians get a Today card on top (TodayCard.swift); everyone gets one quiet "More on the web" row.
 struct FieldView: View {
-    enum Part: String, CaseIterable, Identifiable { case checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", tasks = "Tasks", forms = "Forms", rfis = "RFIs", schedule = "Schedule"; var id: String { rawValue } }
+    enum Part: String, CaseIterable, Identifiable {
+        case photos = "Photos", checklists = "Checklists", logs = "Daily logs", documents = "Documents", timeline = "Timeline", tasks = "Tasks", forms = "Forms", rfis = "RFIs", schedule = "Schedule"
+        var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .photos: return "photo.on.rectangle"
+            case .checklists: return "checklist"
+            case .logs: return "book.closed"
+            case .documents: return "doc"
+            case .timeline: return "clock.arrow.circlepath"
+            case .tasks: return "person.crop.circle.badge.checkmark"
+            case .forms: return "list.clipboard"
+            case .rfis: return "questionmark.bubble"
+            case .schedule: return "calendar"
+            }
+        }
+    }
     @Environment(AppModel.self) private var app
     @Environment(\.horizontalSizeClass) private var hSize
     let model: EditorModel
-    @State private var section: Part = {
+    /// When given, Photos is one of this view's sections (bound to the job's "open photos" link), so the Field tab
+    /// has one section control instead of a Photos switch above this one.
+    private let photos: Binding<Bool>?
+    @State private var section: Part
+
+    init(model: EditorModel, photos: Binding<Bool>? = nil) {
+        self.model = model
+        self.photos = photos
+        var start: Part = .checklists
         // Screenshot hook: `--field logs|documents|timeline`.
         let a = ProcessInfo.processInfo.arguments
         if let i = a.firstIndex(of: "--field"), a.indices.contains(i + 1) {
-            switch a[i + 1] { case "logs": return .logs; case "documents": return .documents; case "timeline": return .timeline; case "tasks": return .tasks; case "forms": return .forms; case "rfis": return .rfis; case "schedule": return .schedule; default: break }
+            switch a[i + 1] { case "logs": start = .logs; case "documents": start = .documents; case "timeline": start = .timeline; case "tasks": start = .tasks; case "forms": start = .forms; case "rfis": start = .rfis; case "schedule": start = .schedule; case "photos" where photos != nil: start = .photos; default: break }
         }
-        return .checklists
-    }()
+        if photos?.wrappedValue == true { start = .photos }
+        _section = State(initialValue: start)
+    }
+
+    /// Sections offered here: Photos only when this view owns it.
+    private var parts: [Part] { photos == nil ? Part.allCases.filter { $0 != .photos } : Part.allCases }
 
     var body: some View {
         VStack(spacing: 0) {
             // Technicians get Today on top; everyone gets the quiet row to what only the web does.
-            VStack(spacing: 6) {
-                if app.cloud.role == .tech { TodayCard(model: model) { section = $0 } }
-                MoreOnWebRow(model: model)
+            if section != .photos {
+                VStack(spacing: 6) {
+                    if app.cloud.role == .tech { TodayCard(model: model) { section = $0 } }
+                    MoreOnWebRow(model: model)
+                }
+                .padding([.horizontal, .top])
             }
-            .padding([.horizontal, .top])
             sectionPicker
                 .padding([.horizontal, .top])
                 .padding(.bottom, 8)
             switch section {
+            case .photos: PhotosView(model: model)
             case .checklists: ChecklistsView(model: model)
             case .logs: DailyLogsView(model: model)
             case .documents: DocumentsView(model: model)
@@ -41,33 +72,37 @@ struct FieldView: View {
             case .schedule: ScheduleLookaheadView(model: model)
             }
         }
+        // Keep the job's "open photos" link and this section in step both ways.
+        .onChange(of: section) { _, s in if let photos, photos.wrappedValue != (s == .photos) { photos.wrappedValue = s == .photos } }
+        .onChange(of: photos?.wrappedValue ?? false) { _, on in
+            if on { section = .photos } else if section == .photos { section = .checklists }
+        }
     }
 
-    /// Segments on iPad; on iPhone a scrolling row of chips (eight segments don't fit).
+    /// One control: labelled segments on iPad; on iPhone a single menu button showing the open section
+    /// (nine sections don't fit in a row, and a scrolling chip strip hides most of them).
     @ViewBuilder private var sectionPicker: some View {
         if hSize == .compact {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(Part.allCases) { p in
-                            Button { section = p } label: {
-                                Text(p.rawValue)
-                                    .font(.subheadline.weight(section == p ? .semibold : .regular))
-                                    .padding(.horizontal, 12)
-                                    .frame(minHeight: 36)
-                                    .background(section == p ? Color.brand : Color(.tertiarySystemFill), in: Capsule())
-                                    .foregroundStyle(section == p ? Color.white : Color.primary)
-                            }
-                            .buttonStyle(.plain)
-                            .id(p)
-                            .accessibilityAddTraits(section == p ? .isSelected : [])
-                        }
-                    }
+            Menu {
+                Picker("Section", selection: $section) {
+                    ForEach(parts) { p in Label(p.rawValue, systemImage: p.icon).tag(p) }
                 }
-                .onAppear { proxy.scrollTo(section, anchor: .center) }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: section.icon).foregroundStyle(Color.brand)
+                    Text(section.rawValue).font(.headline).foregroundStyle(Color.primary)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                .contentShape(Rectangle())
             }
+            .accessibilityLabel("Field section")
+            .accessibilityValue(section.rawValue)
         } else {
-            Picker("Section", selection: $section) { ForEach(Part.allCases) { Text($0.rawValue).tag($0) } }
+            Picker("Section", selection: $section) { ForEach(parts) { Text($0.rawValue).tag($0) } }
                 .pickerStyle(.segmented)
         }
     }
