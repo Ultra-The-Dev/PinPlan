@@ -8,8 +8,10 @@ import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import { materialCsv, materialList } from "@/lib/wiring";
+import { useT } from "@/lib/i18n";
 
 export default function OrderList() {
+  const t = useT();
   const { project, sheets, markers, runs, closets, catalog, products, settings } = useEditor();
   const [withTentative, setWithTentative] = useState(false);
   const prices = can(useRole(), "prices");
@@ -26,29 +28,29 @@ export default function OrderList() {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <ShoppingCart className="h-5 w-5 text-slate-500" /> Order list
+            <ShoppingCart className="h-5 w-5 text-slate-500" /> {t("Order list")}
           </h3>
-          <p className="mt-0.5 text-sm text-slate-500">What to buy, by supplier. Cable is rounded up to full boxes; HDMI to stock lengths.{prices && " Costs are your prices, before markup."}</p>
+          <p className="mt-0.5 text-sm text-slate-500">{t("What to buy, by supplier. Cable is rounded up to full boxes; HDMI to stock lengths.")}{prices && ` ${t("Costs are your prices, before markup.")}`}</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" className="accent-brand-600" checked={withTentative} onChange={(e) => setWithTentative(e.target.checked)} /> Include “?” items
+          <input type="checkbox" className="accent-brand-600" checked={withTentative} onChange={(e) => setWithTentative(e.target.checked)} /> {t("Include “?” items")}
         </label>
         <button className="btn" disabled={!rows.length} onClick={() => downloadText(materialCsv(rows, { prices }), `${slug(project.address)}-order-list.csv`)}>
-          <Download /> Order list CSV
+          <Download /> {t("Order list CSV")}
         </button>
       </div>
       {rows.length === 0 ? (
-        <p className="card p-6 text-center text-sm text-slate-500">Place devices and draw home runs to build the order list.</p>
+        <p className="card p-6 text-center text-sm text-slate-500">{t("Place devices and draw home runs to build the order list.")}</p>
       ) : (
         <div className="card overflow-x-auto">
           <table className={`tbl ${prices ? "min-w-[640px]" : "min-w-[480px]"}`}>
             <thead>
               <tr>
-                <th>Item</th>
-                <th>SKU</th>
-                <th className="text-right">Qty</th>
-                {prices && <th className="text-right">Unit cost</th>}
-                {prices && <th className="text-right">Total</th>}
+                <th>{t("Item")}</th>
+                <th>{t("SKU")}</th>
+                <th className="text-right">{t("Qty")}</th>
+                {prices && <th className="text-right">{t("Unit cost")}</th>}
+                {prices && <th className="text-right">{t("Total")}</th>}
               </tr>
             </thead>
             {suppliers.map((s) => (
@@ -84,7 +86,7 @@ export default function OrderList() {
               <tbody>
                 <tr className="border-t border-slate-200">
                   <td colSpan={4} className="text-right font-semibold">
-                    Material cost
+                    {t("Material cost")}
                   </td>
                   <td className="text-right font-semibold tabular-nums">{formatMoney(total, cur)}</td>
                 </tr>

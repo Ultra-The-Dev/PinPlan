@@ -9,14 +9,16 @@ import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import type { Project } from "@/lib/types";
 import { TemplateSheet, WarningList } from "./ui";
+import { t as tr, useT } from "@/lib/i18n";
 
 /** State for the new-job form: the picked template, applying it, and the "skipped" list afterwards. */
 export function useTemplateStart() {
+  const t = useT();
   const { templates } = useJobTemplates();
   const prices = can(useRole(), "prices");
   const [templateId, setTemplateId] = useState("");
   const [skipped, setSkipped] = useState<{ warnings: string[]; open: () => void } | null>(null);
-  const chosen = templates.find((t) => t.id === templateId) ?? null;
+  const chosen = templates.find((x) => x.id === templateId) ?? null;
 
   /** Apply the chosen template to the new job, then `open` it (after showing what was skipped, if anything). */
   async function applyThenOpen(project: Project, open: () => void) {
@@ -25,7 +27,7 @@ export function useTemplateStart() {
     try {
       warnings = await applyTemplateToJob(chosen, project, prices);
     } catch (e) {
-      warnings = [`The template couldn't be applied: ${e instanceof Error ? e.message : String(e)}`];
+      warnings = [tr("The template couldn't be applied: {error}", { error: e instanceof Error ? e.message : String(e) })];
     }
     setTemplateId("");
     if (warnings.length) setSkipped({ warnings, open });
@@ -36,13 +38,13 @@ export function useTemplateStart() {
     <div className="sm:col-span-2">
       <label className="label" htmlFor="new-job-template">
         <LayoutTemplate className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />
-        Start from template
+        {t("Start from template")}
       </label>
       <select id="new-job-template" className="input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-        <option value="">Blank</option>
-        {templates.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
+        <option value="">{t("Blank")}</option>
+        {templates.map((x) => (
+          <option key={x.id} value={x.id}>
+            {x.name}
           </option>
         ))}
       </select>
@@ -51,11 +53,11 @@ export function useTemplateStart() {
   ) : null;
 
   const dialog = skipped ? (
-    <TemplateSheet title="Job created" subtitle="A few things in the template were skipped:" onClose={() => (setSkipped(null), skipped.open())}>
+    <TemplateSheet title={t("Job created")} subtitle={t("A few things in the template were skipped:")} onClose={() => (setSkipped(null), skipped.open())}>
       <WarningList warnings={skipped.warnings} />
       <div className="mt-4 flex justify-end">
         <button className="btn btn-brand" autoFocus onClick={() => (setSkipped(null), skipped.open())}>
-          Open the job
+          {t("Open the job")}
         </button>
       </div>
     </TemplateSheet>

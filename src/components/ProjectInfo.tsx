@@ -11,11 +11,13 @@ import ProgressPanel from "./progress/ProgressPanel";
 import JobTemplatesCard from "./templates/JobTemplatesCard";
 import { toast } from "@/lib/toast";
 import { currentPosition, mapsLink } from "@/lib/photos";
+import { fmtDate, msg, useT } from "@/lib/i18n";
 
 /** Common job labels for low-voltage work (any label can be typed). */
-export const SUGGESTED_LABELS = ["Pre-wire", "Trim-out", "Service call", "Waiting on GC", "Waiting on client", "Punch list", "Warranty", "Commercial"];
+export const SUGGESTED_LABELS = [msg("Pre-wire"), msg("Trim-out"), msg("Service call"), msg("Waiting on GC"), msg("Waiting on client"), msg("Punch list"), msg("Warranty"), msg("Commercial")];
 
 function JobLabels() {
+  const t = useT();
   const { project, updateProject } = useEditor();
   const [draft, setDraft] = useState("");
   if (!project) return null;
@@ -30,20 +32,20 @@ function JobLabels() {
     <section className="card p-5">
       <div className="mb-2 flex items-center gap-2">
         <Tag className="h-4 w-4 text-slate-400" />
-        <h3 className="font-semibold">Labels</h3>
+        <h3 className="font-semibold">{t("Labels")}</h3>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {labels.map((l) => (
-          <button key={l} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title="Remove label" onClick={() => set(labels.filter((x) => x !== l))}>
+          <button key={l} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title={t("Remove label")} onClick={() => set(labels.filter((x) => x !== l))}>
             {l} ×
           </button>
         ))}
-        {!labels.length && <span className="text-sm text-slate-500">Filter the Jobs page by label.</span>}
+        {!labels.length && <span className="text-sm text-slate-500">{t("Filter the Jobs page by label.")}</span>}
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
-        {SUGGESTED_LABELS.filter((l) => !labels.includes(l)).map((l) => (
-          <button key={l} className="chip bg-slate-100 text-slate-600 hover:bg-slate-200" onClick={() => add(l)}>
-            + {l}
+        {SUGGESTED_LABELS.filter((l) => !labels.includes(l) && !labels.includes(t(l))).map((l) => (
+          <button key={l} className="chip bg-slate-100 text-slate-600 hover:bg-slate-200" onClick={() => add(t(l))}>
+            + {t(l)}
           </button>
         ))}
       </div>
@@ -54,9 +56,9 @@ function JobLabels() {
           add(draft);
         }}
       >
-        <input className="input h-9" placeholder="New label" value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <input className="input h-9" placeholder={t("New label")} value={draft} onChange={(e) => setDraft(e.target.value)} />
         <button className="btn btn-sm" disabled={!draft.trim()}>
-          Add
+          {t("Add")}
         </button>
       </form>
     </section>
@@ -64,6 +66,7 @@ function JobLabels() {
 }
 
 function JobLocation() {
+  const t = useT();
   const { project, updateProject, photos } = useEditor();
   const [busy, setBusy] = useState(false);
   if (!project) return null;
@@ -73,14 +76,14 @@ function JobLocation() {
     <section className="card p-5">
       <div className="mb-2 flex items-center gap-2">
         <MapPin className="h-4 w-4 text-slate-400" />
-        <h3 className="font-semibold">Location</h3>
+        <h3 className="font-semibold">{t("Location")}</h3>
       </div>
       {has ? (
         <a className="text-sm text-brand-600 hover:underline" href={mapsLink(project.lat!, project.lng!)} target="_blank" rel="noreferrer">
-          {project.lat!.toFixed(5)}, {project.lng!.toFixed(5)} — open in Maps
+          {t("{coords} — open in Maps", { coords: `${project.lat!.toFixed(5)}, ${project.lng!.toFixed(5)}` })}
         </a>
       ) : (
-        <p className="text-sm text-slate-500">Shows the job on the jobs map. Set automatically from the first photo with GPS.</p>
+        <p className="text-sm text-slate-500">{t("Shows the job on the jobs map. Set automatically from the first photo with GPS.")}</p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -91,19 +94,19 @@ function JobLocation() {
             const pos = await currentPosition(10000);
             setBusy(false);
             if (pos) await updateProject(pos);
-            else toast("Location isn’t available — allow location access in the browser.", "error");
+            else toast(t("Location isn’t available — allow location access in the browser."), "error");
           }}
         >
-          {busy ? "Locating…" : "Use my location"}
+          {busy ? t("Locating…") : t("Use my location")}
         </button>
         {gpsPhoto && (
           <button className="btn btn-sm" onClick={() => void updateProject({ lat: gpsPhoto.lat, lng: gpsPhoto.lng })}>
-            Use a photo’s location
+            {t("Use a photo’s location")}
           </button>
         )}
         {has && (
           <button className="btn btn-sm btn-ghost text-slate-500" onClick={() => void updateProject({ lat: null, lng: null })}>
-            Clear
+            {t("Clear")}
           </button>
         )}
       </div>
@@ -113,6 +116,7 @@ function JobLocation() {
 
 /** The job's Overview tab: health and the next step first, then the details, then everything else under "More". */
 export default function ProjectInfo() {
+  const t = useT();
   const { project, updateProject, settings, sheets, markers } = useEditor();
   const [form, setForm] = useState(() => ({
     address: project?.address ?? "",
@@ -147,26 +151,26 @@ export default function ProjectInfo() {
           onSubmit={async (e) => {
             e.preventDefault();
             await updateProject(form);
-            toast("Job details saved");
+            toast(t("Job details saved"));
           }}
         >
           <div>
-            <h2 className="text-lg font-semibold">Job details</h2>
-            <p className="text-sm text-slate-500">{prices ? "Shown on quotes, invoices and the client link." : "Address, client contact and site notes for the crew."}</p>
+            <h2 className="text-lg font-semibold">{t("Job details")}</h2>
+            <p className="text-sm text-slate-500">{prices ? t("Shown on quotes, invoices and the client link.") : t("Address, client contact and site notes for the crew.")}</p>
           </div>
-          {field("address", "Job address")}
+          {field("address", t("Job address"))}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">{field("clientName", "Client name")}</div>
-            {field("clientEmail", "Client email", "email")}
-            {field("clientPhone", "Client phone", "tel")}
+            <div className="sm:col-span-2">{field("clientName", t("Client name"))}</div>
+            {field("clientEmail", t("Client email"), "email")}
+            {field("clientPhone", t("Client phone"), "tel")}
           </div>
           <div>
-            <label className="label" htmlFor="job-notes">Notes</label>
-            <textarea id="job-notes" className="input min-h-28" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Gate code, site contact, special requests…" />
+            <label className="label" htmlFor="job-notes">{t("Notes")}</label>
+            <textarea id="job-notes" className="input min-h-28" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder={t("Gate code, site contact, special requests…")} />
           </div>
           <div className="flex justify-end">
             <button className="btn btn-brand" disabled={!dirty}>
-              <Save /> Save changes
+              <Save /> {t("Save changes")}
             </button>
           </div>
         </form>
@@ -178,8 +182,8 @@ export default function ProjectInfo() {
         <details className="group lg:col-span-2" data-testid="overview-more">
           <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
             <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
-            More
-            <span className="font-normal text-slate-500">Labels, job templates, backup</span>
+            {t("More")}
+            <span className="font-normal text-slate-500">{t("Labels, job templates, backup")}</span>
           </summary>
           <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
             <JobLabels />
@@ -189,7 +193,7 @@ export default function ProjectInfo() {
               <section className="card p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Receipt className="h-4 w-4 text-slate-400" />
-                  <h3 className="font-semibold">Billdu documents</h3>
+                  <h3 className="font-semibold">{t("Billdu documents")}</h3>
                 </div>
                 <ul className="divide-y divide-slate-100">
                   {project.billduDocs.map((d) => (
@@ -200,17 +204,17 @@ export default function ProjectInfo() {
                     </li>
                   ))}
                 </ul>
-                {project.billduClientId ? <p className="mt-3 text-xs text-slate-400">Billdu client #{project.billduClientId}</p> : null}
+                {project.billduClientId ? <p className="mt-3 text-xs text-slate-400">{t("Billdu client #{id}", { id: project.billduClientId })}</p> : null}
               </section>
             )}
 
             <section className="card p-5">
               <div className="mb-1 flex items-center gap-2">
                 <DatabaseBackup className="h-4 w-4 text-slate-400" />
-                <h3 className="font-semibold">Backup</h3>
+                <h3 className="font-semibold">{t("Backup")}</h3>
               </div>
               <p className="mb-3 text-sm text-slate-500">
-                One file with all {sheets.length} sheets, {markers.length} devices, runs and pricing edits. Restore it from the Jobs page on any device.
+                {t("One file with all sheets ({sheets}), devices ({devices}), runs and pricing edits. Restore it from the Jobs page on any device.", { sheets: sheets.length, devices: markers.length })}
               </p>
               <button
                 className="btn w-full"
@@ -226,14 +230,14 @@ export default function ProjectInfo() {
                   }
                 }}
               >
-                <DatabaseBackup /> {busy ? "Preparing…" : "Download backup"}
+                <DatabaseBackup /> {busy ? t("Preparing…") : t("Download backup")}
               </button>
             </section>
           </div>
         </details>
 
         <p className="px-1 text-xs text-slate-400 lg:col-span-2">
-          Created {new Date(project.createdAt).toLocaleDateString()} · Updated {new Date(project.updatedAt).toLocaleString()}
+          {t("Created {created} · Updated {updated}", { created: fmtDate(project.createdAt), updated: fmtDate(project.updatedAt, { dateStyle: "medium", timeStyle: "short" }) })}
         </p>
       </div>
     </div>

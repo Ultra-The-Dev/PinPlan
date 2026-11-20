@@ -2,6 +2,7 @@
 import { Cable, Download, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n";
 import PanelSchedule from "./PanelSchedule";
 import PortSchedule from "./PortSchedule";
 import { PANEL_KINDS } from "@/lib/catalog";
@@ -17,6 +18,7 @@ import type { Layer, Marker } from "@/lib/types";
 
 /** Takeoff → Wiring sheets, for the crew: no prices. Marked PDFs by layer plus the home-run schedule. */
 export default function CrewTab() {
+  const t = useT();
   const { project, sheets, markers, runs, closets, catalog, products, autoHomeRuns } = useEditor();
   // Layers follow the company's trades (low voltage only: the original list). Kept as the ones switched off, so the
   // list can change when the trades load.
@@ -60,7 +62,7 @@ export default function CrewTab() {
   }
 
   async function pdf(oneLayer?: Layer) {
-    setBusy("Preparing…");
+    setBusy(t("Preparing…"));
     try {
       await exportSheetsPdf(
         { project: project!, sheets, markers, runs, closets, catalog },
@@ -77,43 +79,43 @@ export default function CrewTab() {
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
         <div>
-          <h2 className="page-title">Wiring sheets</h2>
-          <p className="mt-1 text-sm text-slate-500">Where each wire goes and which type — no prices. Share the PDF with the crew pulling wire.</p>
+          <h2 className="page-title">{t("Wiring sheets")}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t("Where each wire goes and which type — no prices. Share the PDF with the crew pulling wire.")}</p>
         </div>
 
         <div className="card space-y-3 p-4">
-          <div className="section-title">Layers in the PDF</div>
+          <div className="section-title">{t("Layers in the PDF")}</div>
           <div className="flex flex-wrap gap-2">
             {LAYERS.map((l) => (
               <label key={l.id} className={`chip cursor-pointer px-3 py-1.5 text-sm ring-1 ${layers.includes(l.id) ? "bg-brand-50 text-brand-700 ring-brand-200" : "bg-white text-slate-500 ring-slate-200"}`}>
                 <input type="checkbox" className="sr-only" checked={layers.includes(l.id)} onChange={() => setLayers((ls) => (ls.includes(l.id) ? ls.filter((x) => x !== l.id) : [...ls, l.id]))} />
-                {l.name}
+                {t(l.name)}
               </label>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-primary" disabled={!!busy || !sheets.length} onClick={() => pdf()}>
-              <FileText /> {busy ?? "Wiring PDF (selected layers)"}
+              <FileText /> {busy ?? t("Wiring PDF (selected layers)")}
             </button>
             {oneLayerButtons.map((l) => (
               <button key={l} className="btn" disabled={!!busy || !sheets.length} onClick={() => pdf(l)}>
-                {LAYERS.find((x) => x.id === l)?.name} only
+                {t("{layer} only", { layer: t(LAYERS.find((x) => x.id === l)?.name ?? l) })}
               </button>
             ))}
             <button className="btn" onClick={csv}>
-              <Download /> Home-run CSV
+              <Download /> {t("Home-run CSV")}
             </button>
             <button
               className="btn"
               onClick={async () => {
                 const n = await autoHomeRuns();
-                toast(n ? `Drew ${n} home runs` : lowVoltage ? "Place an equipment closet first" : `Place a ${vocab.closet} and assign devices to it first`, n ? "success" : "info");
+                toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : lowVoltage ? t("Place an equipment closet first") : t("Place a {closet} and assign devices to it first", { closet: t(vocab.closet) }), n ? "success" : "info");
               }}
             >
-              <Cable /> Auto-draw all home runs
+              <Cable /> {t("Auto-draw all home runs")}
             </button>
           </div>
-          {noCloset > 0 && <p className="text-sm text-amber-700">{noCloset} device(s) have no home-run {vocab.closet} assigned.</p>}
+          {noCloset > 0 && <p className="text-sm text-amber-700">{t.tn("{n} device has no home-run {closet} assigned.", "{n} devices have no home-run {closet} assigned.", noCloset, { closet: t(vocab.closet) })}</p>}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -122,9 +124,9 @@ export default function CrewTab() {
               <div className="text-xs font-medium text-slate-500">{w}</div>
               <div className="mt-1 text-2xl font-semibold tabular-nums">
                 {ft}
-                <span className="ml-1 text-sm font-medium text-slate-400">ft</span>
+                <span className="ml-1 text-sm font-medium text-slate-400">{t("ft")}</span>
               </div>
-              <div className="text-xs text-slate-500">{takeoff.total.wireRuns[w]} home runs</div>
+              <div className="text-xs text-slate-500">{t.tn("{n} home run", "{n} home runs", takeoff.total.wireRuns[w] ?? 0)}</div>
             </div>
           ))}
         </div>
@@ -133,13 +135,13 @@ export default function CrewTab() {
           <table className="tbl min-w-[640px] whitespace-nowrap">
             <thead>
               <tr>
-                <th>Floor</th>
-                <th>Label</th>
-                <th>Device</th>
-                <th>Room</th>
-                <th>Cables</th>
-                <th>{lowVoltage ? "Home run to" : `${vocab.closet[0].toUpperCase()}${vocab.closet.slice(1)}`}</th>
-                <th className="text-right">Cable</th>
+                <th>{t("Floor")}</th>
+                <th>{t("Label")}</th>
+                <th>{t("Device")}</th>
+                <th>{t("Room")}</th>
+                <th>{t("Cables")}</th>
+                <th>{lowVoltage ? t("Home run to") : ((c) => `${c[0].toUpperCase()}${c.slice(1)}`)(t(vocab.closet))}</th>
+                <th className="text-right">{t("Cable")}</th>
               </tr>
             </thead>
             <tbody>
@@ -154,13 +156,13 @@ export default function CrewTab() {
                   <td>{m.room}</td>
                   <td>{cableSummary(markerCables(m))}</td>
                   <td>{closetName(m.closetId)}</td>
-                  <td className="text-right tabular-nums">{len != null ? `${Math.round(len * 10) / 10} ft` : drawn ? "no scale" : "—"}</td>
+                  <td className="text-right tabular-nums">{len != null ? t("{n} ft", { n: Math.round(len * 10) / 10 }) : drawn ? t("no scale") : "—"}</td>
                 </tr>
               ))}
               {!schedule.length && (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-slate-500">
-                    No devices placed yet.
+                    {t("No devices placed yet.")}
                   </td>
                 </tr>
               )}
