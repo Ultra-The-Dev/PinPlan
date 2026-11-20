@@ -62,8 +62,8 @@ describe("publishing a link and marking sent need the cloud's issued copy", () =
     const doc = await put("salesDocs", invoice());
     await expect(docActions.publishLink(doc, { settings, business, origin: "https://app.test" })).rejects.toThrow(docActions.NOT_IN_CLOUD);
     cloud.row = { id: doc.id, status: "draft", number: null };
-    cloud.syncError = "PinPlan subscription inactive";
-    await expect(docActions.publishLink(doc, { settings, business, origin: "https://app.test" })).rejects.toThrow(/hasn't reached the cloud yet.*\(PinPlan subscription inactive\)/);
+    cloud.syncError = "Northpin subscription inactive";
+    await expect(docActions.publishLink(doc, { settings, business, origin: "https://app.test" })).rejects.toThrow(/hasn't reached the cloud yet.*\(Northpin subscription inactive\)/);
     cloud.row = { id: doc.id, status: "sent", number: null };
     await expect(docActions.publishLink(doc, { settings, business, origin: "https://app.test" })).rejects.toThrow(docActions.NOT_IN_CLOUD);
     expect(cloud.links).toHaveLength(0);

@@ -73,7 +73,7 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
 
   const range = useMemo(() => ({ from, to }), [from, to]);
   const picked = useMemo(() => exportableDocs(docs, range), [docs, range]);
-  // Sending also takes the void ones, so a document voided in PinPlan is voided in the accounting app too (one never
+  // Sending also takes the void ones, so a document voided in Northpin is voided in the accounting app too (one never
   // sent is skipped by the server).
   const sendable = useMemo(() => {
     const voided = docs.filter((d) => !d.deleted && (d.kind === "invoice" || d.kind === "credit_note") && d.status === "void" && !!d.issueDate && (!from || d.issueDate >= from) && (!to || d.issueDate <= to));

@@ -436,8 +436,8 @@ const jobViews: Dictionary = {
 
   // Small shared pieces: error screen, office-only gate, uploads, trade picker
   "Something went wrong": "Что-то пошло не так",
-  "PinPlan hit an unexpected error. Your jobs are saved on this device, so reloading is safe. If it keeps happening, copy the details and send them to support.":
-    "В PinPlan произошла непредвиденная ошибка. Ваши объекты сохранены на этом устройстве, поэтому страницу можно спокойно перезагрузить. Если ошибка повторяется, скопируйте подробности и отправьте их в поддержку.",
+  "Northpin hit an unexpected error. Your jobs are saved on this device, so reloading is safe. If it keeps happening, copy the details and send them to support.":
+    "В Northpin произошла непредвиденная ошибка. Ваши объекты сохранены на этом устройстве, поэтому страницу можно спокойно перезагрузить. Если ошибка повторяется, скопируйте подробности и отправьте их в поддержку.",
   Reload: "Перезагрузить",
   Copied: "Скопировано",
   "Copy details": "Скопировать подробности",

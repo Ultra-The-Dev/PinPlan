@@ -70,7 +70,7 @@ export default function AdminDashboard() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">{t("Platform admin")}</h1>
-          <p className="text-sm text-slate-500">{t("Companies, usage and recent app errors across every PinPlan account.")}</p>
+          <p className="text-sm text-slate-500">{t("Companies, usage and recent app errors across every Northpin account.")}</p>
         </div>
         <button className="btn" onClick={load} disabled={state.kind === "loading"}>
           <RefreshCw className={state.kind === "loading" ? "animate-spin" : ""} /> {t("Refresh")}

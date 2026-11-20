@@ -19,8 +19,8 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION, SUBPROCESSORS } from "@/lib/l
 
 export const metadata: Metadata = publicMetadata({
   path: "/privacy",
-  title: "Privacy Policy · PinPlan",
-  description: "What PinPlan collects, why, who processes it, how long we keep it and the choices you have.",
+  title: "Privacy Policy · Northpin",
+  description: "What Northpin collects, why, who processes it, how long we keep it and the choices you have.",
 });
 
 const S = {
@@ -51,25 +51,25 @@ export default function PrivacyPage() {
       ru={privacyRu}
       intro={
         <p>
-          Electrical, low-voltage and specialty trade contractors trust PinPlan with their plans, quotes, invoices, jobs and their clients’ details. This
+          Electrical, low-voltage and specialty trade contractors trust Northpin with their plans, quotes, invoices, jobs and their clients’ details. This
           policy explains, in plain language, what we collect, why, who helps us process it, how long we keep it and how you can control it. In short: we use
-          your data to run PinPlan for you, we don’t sell it, and we don’t use it to train AI models.
+          your data to run Northpin for you, we don’t sell it, and we don’t use it to train AI models.
         </p>
       }
     >
       <Section item={S.scope} n={n(S.scope)}>
         <p>
-          PinPlan is operated by <Ph>{COMPANY.legalName}</Ph> (“PinPlan”, “we”, “us”), based in the United States. This policy covers our website, web
+          Northpin is operated by <Ph>{COMPANY.legalName}</Ph> (“Northpin”, “we”, “us”), based in the United States. This policy covers our website, web
           application and iOS app (together, the “Service”).
         </p>
-        <p>PinPlan is a business tool, so we handle personal information in two roles:</p>
+        <p>Northpin is a business tool, so we handle personal information in two roles:</p>
         <ul>
           <li>
-            <strong>As a business (controller)</strong> for information about the companies and people who sign up and use PinPlan: account, billing,
+            <strong>As a business (controller)</strong> for information about the companies and people who sign up and use Northpin: account, billing,
             support and usage information.
           </li>
           <li>
-            <strong>As a service provider (processor)</strong> for the job data our customers put into PinPlan, including information about their own clients.
+            <strong>As a service provider (processor)</strong> for the job data our customers put into Northpin, including information about their own clients.
             Our customers decide what goes in and why; we process it on their behalf under our <Link href="/terms">Terms of Service</Link> and{" "}
             <Link href="/legal/dpa">Data Processing Addendum</Link>. See <a href="#your-clients">section {n(S.clients)}</a>.
           </li>
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Photos and their metadata:</strong> photos you take or upload, with captions, tags and annotations. Photos can contain embedded metadata
-            (EXIF) such as the time taken, camera model and <strong>GPS location</strong>; PinPlan reads the location and time to place photos on job maps and in
+            (EXIF) such as the time taken, camera model and <strong>GPS location</strong>; Northpin reads the location and time to place photos on job maps and in
             reports.
           </li>
           <li>
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
         </ul>
         <h3 id="cookies">Cookies and local storage</h3>
         <p>
-          PinPlan does not use advertising cookies, analytics cookies or third-party trackers. To work offline and keep you signed in, it stores data on your
+          Northpin does not use advertising cookies, analytics cookies or third-party trackers. To work offline and keep you signed in, it stores data on your
           device:
         </p>
         <ul>
@@ -168,7 +168,7 @@ export default function PrivacyPage() {
           <li>send service emails such as sign-in links, team invitations, documents you send to your clients, receipts and important changes;</li>
           <li>provide support, and diagnose and fix problems;</li>
           <li>keep the Service and our customers secure, prevent abuse and enforce our Terms;</li>
-          <li>understand overall usage in aggregated or de-identified form to improve PinPlan; and</li>
+          <li>understand overall usage in aggregated or de-identified form to improve Northpin; and</li>
           <li>comply with legal obligations.</li>
         </ul>
         <p>
@@ -188,7 +188,7 @@ export default function PrivacyPage() {
             someone on your team uses them. The image or images involved and related text (such as room names, captions, notes or your device catalog) are then
             sent to Anthropic, PBC for processing under their commercial terms. Under those terms Anthropic does not use this data to train its models, and may
             retain it for a limited period for purposes such as trust and safety, as described in its commercial terms and policies. AI results come back to
-            PinPlan as suggestions that a person must review.
+            Northpin as suggestions that a person must review.
           </p>
         </Section>
       )}
@@ -209,10 +209,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>For legal reasons:</strong> to comply with law or valid legal process, or to protect the rights, safety and security of our customers, the
-            public or PinPlan. Where allowed, we will tell you about requests for your data.
+            public or Northpin. Where allowed, we will tell you about requests for your data.
           </li>
           <li>
-            <strong>In a business transfer:</strong> if PinPlan is involved in a merger, acquisition or sale of assets, subject to this policy.
+            <strong>In a business transfer:</strong> if Northpin is involved in a merger, acquisition or sale of assets, subject to this policy.
           </li>
         </ul>
         <p>
@@ -330,21 +330,21 @@ export default function PrivacyPage() {
 
       <Section item={S.clients} n={n(S.clients)}>
         <p>
-          If you are a client of a company that uses PinPlan (for example, you received a quote or an RFI), that company controls your information and decides
+          If you are a client of a company that uses Northpin (for example, you received a quote or an RFI), that company controls your information and decides
           how it is used. Please contact them to access, correct or delete it. If you contact us, we will pass your request to them and help them respond.
         </p>
       </Section>
 
       <Section item={S.transfers} n={n(S.transfers)}>
         <p>
-          PinPlan is operated from the United States and stores data in <Ph>{COMPANY.dataRegion}</Ph>. If you use PinPlan from outside the US, your information
+          Northpin is operated from the United States and stores data in <Ph>{COMPANY.dataRegion}</Ph>. If you use Northpin from outside the US, your information
           is transferred to and processed in the US. Where required, we rely on appropriate safeguards: <Ph>{COMPANY.transferMechanism}</Ph>.
         </p>
       </Section>
 
       <Section item={S.children} n={n(S.children)}>
         <p>
-          PinPlan is a business service and is not directed to children. We do not knowingly collect personal information from anyone under 16. If you believe a
+          Northpin is a business service and is not directed to children. We do not knowingly collect personal information from anyone under 16. If you believe a
           child has given us personal information, contact us and we will delete it.
         </p>
       </Section>

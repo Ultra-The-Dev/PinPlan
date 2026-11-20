@@ -17,8 +17,8 @@ import { COMPANY, RETENTION } from "@/lib/legal";
 
 export const metadata: Metadata = publicMetadata({
   path: "/support",
-  title: "Support · PinPlan",
-  description: "Contact PinPlan support, export your data, delete your account and check service status.",
+  title: "Support · Northpin",
+  description: "Contact Northpin support, export your data, delete your account and check service status.",
 });
 
 const S = {
@@ -33,7 +33,7 @@ const toc = Object.values(S);
 
 const FAQ: { q: string; a: React.ReactNode; onlyWhen?: "ai" }[] = [
   {
-    q: "Does PinPlan work without signal?",
+    q: "Does Northpin work without signal?",
     a: "Yes. Jobs, plans and photos are saved on your device first, so you can keep pinning devices and taking photos with no connection. When you’re back online, changes sync to your team automatically. The cloud badge in the header shows anything still waiting to upload.",
   },
   {
@@ -65,13 +65,13 @@ const FAQ: { q: string; a: React.ReactNode; onlyWhen?: "ai" }[] = [
   },
   {
     q: "A photo shows the wrong location or none at all.",
-    a: "PinPlan reads the GPS position saved in the photo by your camera. Make sure location access is allowed for your camera app (and for PinPlan when taking photos in the app). Photos sent through some messaging apps have their location removed.",
+    a: "Northpin reads the GPS position saved in the photo by your camera. Make sure location access is allowed for your camera app (and for Northpin when taking photos in the app). Photos sent through some messaging apps have their location removed.",
   },
   {
     q: "I can’t sign in or didn’t get an email.",
     a: (
       <>
-        Check your spam folder for a message from PinPlan, and make sure you’re using the same email your team invited. Still stuck? Email{" "}
+        Check your spam folder for a message from Northpin, and make sure you’re using the same email your team invited. Still stuck? Email{" "}
         <Ph>{COMPANY.supportEmail}</Ph> from that address and we’ll help.
       </>
     ),
@@ -88,7 +88,7 @@ export default function SupportPage() {
       title="Support"
       toc={toc}
       ru={supportRu}
-      intro={<p>We’re a small team that builds PinPlan for electrical, low-voltage and specialty contractors. Real people answer every message.</p>}
+      intro={<p>We’re a small team that builds Northpin for electrical, low-voltage and specialty contractors. Real people answer every message.</p>}
     >
       <Section item={S.contact}>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -143,7 +143,7 @@ export default function SupportPage() {
         <ul>
           <li>
             <strong>A whole job, with plans, markup, photos and pricing:</strong> open the job → <strong>Overview</strong> tab → <strong>Backup</strong> →{" "}
-            <strong>Download backup</strong>. This saves a single file that PinPlan can restore on any device (Jobs → <strong>Restore backup</strong>).
+            <strong>Download backup</strong>. This saves a single file that Northpin can restore on any device (Jobs → <strong>Restore backup</strong>).
           </li>
           <li>
             <strong>Takeoff, pricing and reports:</strong> download PDFs and CSV files from the <strong>Takeoff</strong>, <strong>Money</strong> (Pricing section),{" "}
@@ -174,7 +174,7 @@ export default function SupportPage() {
           <li>Your login is removed immediately and you are signed out on every device.</li>
           <li>
             If you are a <strong>team owner</strong>, deleting your account deletes the team’s jobs, photos and documents too. Transfer ownership first (Settings
-            → Team) if the company will keep using PinPlan, and cancel any App Store subscription in iOS Settings.
+            → Team) if the company will keep using Northpin, and cancel any App Store subscription in iOS Settings.
           </li>
           <li>If you are a team member, your jobs stay with your team; only your login and personal details are removed.</li>
           <li>

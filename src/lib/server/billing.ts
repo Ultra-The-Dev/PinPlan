@@ -94,7 +94,7 @@ export function billingFailure(where: string, e: unknown, message = "Billing is 
 
 let client: { key: string; stripe: Stripe } | null = null;
 export function getStripe(cfg: BillingConfig): Stripe {
-  if (client?.key !== cfg.secretKey) client = { key: cfg.secretKey, stripe: new Stripe(cfg.secretKey, { maxNetworkRetries: 2, appInfo: { name: "PinPlan" } }) };
+  if (client?.key !== cfg.secretKey) client = { key: cfg.secretKey, stripe: new Stripe(cfg.secretKey, { maxNetworkRetries: 2, appInfo: { name: "Northpin" } }) };
   return client.stripe;
 }
 

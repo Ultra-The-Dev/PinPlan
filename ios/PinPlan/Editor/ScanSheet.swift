@@ -1,7 +1,7 @@
 import SwiftUI
 import PinPlanCore
 
-/// AI scan assist via the PinPlan server: suggestions are reviewed here and only counted once accepted.
+/// AI scan assist via the Northpin server: suggestions are reviewed here and only counted once accepted.
 struct ScanSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -88,7 +88,7 @@ struct ScanSheet: View {
     private func toggle(_ id: String) { if accepted.contains(id) { accepted.remove(id) } else { accepted.insert(id) } }
 
     private func run(titleOnly: Bool) {
-        guard let client = APIClient(settings: app.settings) else { error = String(localized: "Set your PinPlan server address in Settings."); return }
+        guard let client = APIClient(settings: app.settings) else { error = String(localized: "Set your Northpin server address in Settings."); return }
         guard let image = app.store.image(sheet.imageId) else { return }
         busy = true
         error = nil

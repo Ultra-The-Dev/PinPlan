@@ -82,7 +82,7 @@ struct JobMoreView: View {
                 } label: { Label("Share backup (.pinplan.json)", systemImage: "square.and.arrow.up") }
                 if let error { Text(error).foregroundStyle(.red) }
             } header: { Text("Backup").textCase(nil) } footer: {
-                Text("One file with every plan, device, wire run, photo and price edit. It opens in this app or the PinPlan web app.")
+                Text("One file with every plan, device, wire run, photo and price edit. It opens in this app or the Northpin web app.")
             }
             if !p.billduDocs.isEmpty && app.cloud.can(.prices) {
                 Section(sentence: String(localized: "Billdu")) {

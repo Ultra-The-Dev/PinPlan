@@ -71,7 +71,7 @@ export const quickbooks: Provider = {
     { key: "taxItemId", label: "Product/service id for sales tax lines", help: "A non-taxable service that posts to your sales tax liability account." },
     { key: "feeItemId", label: "Product/service id for fees", help: "Defaults to the job lines item." },
     { key: "deductionItemId", label: "Product/service id for “already invoiced” lines", help: "Defaults to the job lines item." },
-    { key: "taxCode", label: "Tax code on every line", placeholder: "NON", help: "NON in US companies. PinPlan sends its tax as its own line so totals match." },
+    { key: "taxCode", label: "Tax code on every line", placeholder: "NON", help: "NON in US companies. Northpin sends its tax as its own line so totals match." },
     { key: "depositAccountId", label: "Deposit account id for payments", help: "Leave empty for Undeposited Funds." },
   ],
 

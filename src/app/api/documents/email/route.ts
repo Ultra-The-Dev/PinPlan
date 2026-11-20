@@ -4,7 +4,7 @@
 // row-level security decides whether they may (technicians and other companies can't see them).
 // Abuse limits (sendGuard.ts): the sender's email must be confirmed, the company's subscription active and under its
 // daily cap; a free trial can't put links in the message, the title or the names, and gets no pay button. Replies go
-// to the company's own business email, which is required: client mail never replies to PinPlan.
+// to the company's own business email, which is required: client mail never replies to Northpin.
 // The company's name and email come from its settings (company_settings, read with the caller's token so RLS applies),
 // never from the link's snapshot: the snapshot is whatever the app published. A pay button only for a known payment
 // site (allowedPayUrl).
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   }
   if (kind !== "document" && doc.kind !== "invoice") return json({ error: "Reminders and receipts are for invoices.", code: "bad_request" }, 400);
   // Replies go to the company (its settings, not the snapshot). Without its own email the client would reply to
-  // nobody (or to PinPlan): refuse.
+  // nobody (or to Northpin): refuse.
   const replyTo = business?.email?.trim() ?? "";
   if (!validEmail(replyTo))
     return json({ error: "Add your business email in Settings → Company → Your business, then send it again.", code: "business_email_required" }, 400);

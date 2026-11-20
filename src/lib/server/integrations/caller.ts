@@ -30,7 +30,7 @@ export async function planGate(c: IntegrationCaller): Promise<Response | null> {
   const team = ((await r.json()) as { plan_status?: PlanStatus | null; trial_ends_at?: string | null }[])[0];
   if (!team) return null;
   if (planAllowsWork(team.plan_status ?? "none", team.trial_ends_at ?? null)) return null;
-  return jsonError("Your PinPlan subscription is inactive. Renew it in Settings → Billing to send to your accounting app.", "subscription_inactive", 402);
+  return jsonError("Your Northpin subscription is inactive. Renew it in Settings → Billing to send to your accounting app.", "subscription_inactive", 402);
 }
 
 /** Office caller (techs get 403) and, with `requirePlan`, an active subscription (else 402). */

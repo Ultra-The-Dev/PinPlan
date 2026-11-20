@@ -63,7 +63,7 @@ export const xero: Provider = {
   settingsFields: [
     { key: "accountCode", label: "Sales account code", placeholder: "200", help: "Where job lines, fees and deductions post (Accounting → Chart of accounts)." },
     { key: "taxAccountCode", label: "Sales tax account code", help: "A liability account for the tax lines. Defaults to the sales account." },
-    { key: "taxType", label: "Tax type on every line", placeholder: "NONE", help: "PinPlan sends its tax as its own line, so lines are not taxed again." },
+    { key: "taxType", label: "Tax type on every line", placeholder: "NONE", help: "Northpin sends its tax as its own line, so lines are not taxed again." },
     { key: "paymentAccountCode", label: "Bank account code for payments", help: "Needed to send payments." },
   ],
 

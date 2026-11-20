@@ -127,7 +127,7 @@ export function adoptLocalData(userId: string, email: string | null): void {
 }
 
 /**
- * Remove every job, photo, setting and PinPlan key from this device but keep the current sign-in (Supabase's own
+ * Remove every job, photo, setting and Northpin key from this device but keep the current sign-in (Supabase's own
  * `sb-*` keys), then make `next` the owner. The caller reloads the page so nothing holds the old database open.
  */
 export async function removeLocalData(next: LocalOwner | null): Promise<void> {

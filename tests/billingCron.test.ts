@@ -54,7 +54,7 @@ describe("trial reminders cron", () => {
     vi.stubEnv("STRIPE_PRICE_BASE", "price_base");
     vi.stubEnv("STRIPE_PRICE_SEAT", "price_seat");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("EMAIL_FROM", "PinPlan <billing@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Northpin <billing@example.com>");
     vi.stubEnv("CRON_SECRET", "cron-secret");
     vi.stubEnv("PINPLAN_APP_URL", "https://app.example.com");
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -120,9 +120,9 @@ describe("trial reminders cron", () => {
     const r = await run();
     expect(await r.json()).toMatchObject({ ok: true, sent: 3 });
     expect(emails.map((e) => e.key).sort()).toEqual(["pinplan-trial-1d-b", "pinplan-trial-3d-a", "pinplan-trial-3d-e"]);
-    expect(emails.find((e) => e.key === "pinplan-trial-3d-a")).toMatchObject({ to: ["owner@a.test"], subject: "Your PinPlan trial ends in 3 days" });
+    expect(emails.find((e) => e.key === "pinplan-trial-3d-a")).toMatchObject({ to: ["owner@a.test"], subject: "Your Northpin trial ends in 3 days" });
     expect(emails.find((e) => e.key === "pinplan-trial-3d-e")!.to).toEqual(["pay@e.test"]);
-    expect(emails.find((e) => e.key === "pinplan-trial-1d-b")!.subject).toBe("Your PinPlan trial ends tomorrow");
+    expect(emails.find((e) => e.key === "pinplan-trial-1d-b")!.subject).toBe("Your Northpin trial ends tomorrow");
     // The 1-day reminder also marks the 3-day one.
     expect(teams[1].trial_reminder_3d_at).not.toBeNull();
     // A rerun the same day sends nothing.

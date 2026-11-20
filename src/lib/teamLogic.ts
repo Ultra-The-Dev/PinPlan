@@ -115,7 +115,7 @@ export function memberInitials(m: { name?: string | null; email?: string | null 
 export function inviteMessage(opts: { team: string; from?: string; role: "admin" | "tech"; code: string; link: string }): string {
   const who = opts.from?.trim() ? `${opts.from.trim()} invited you` : "You're invited";
   const as = opts.role === "admin" ? "the office" : "the crew";
-  return `${who} to join ${opts.team.trim() || "our team"} on PinPlan (${as}). Open ${opts.link} to set up your login — or enter code ${formatCode(opts.code)} on the Join page.`;
+  return `${who} to join ${opts.team.trim() || "our team"} on Northpin (${as}). Open ${opts.link} to set up your login — or enter code ${formatCode(opts.code)} on the Join page.`;
 }
 
 /** An sms: link that opens Messages with the text filled in (the "?&body=" form works on iPhone and Android). */

@@ -1,6 +1,6 @@
 import Foundation
 
-// Trade packs: low voltage (the original PinPlan), electrical, fire alarm, HVAC, plumbing, solar & EV, general.
+// Trade packs: low voltage (the original Northpin), electrical, fire alarm, HVAC, plumbing, solar & EV, general.
 // Same rules as src/lib/trades.ts; the pack data itself (TradePacksData.swift) is generated from the web app's file.
 // Categories are one fixed superset shared with the web app and the database; a pack only picks and renames them.
 

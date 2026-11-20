@@ -151,7 +151,7 @@ export async function pushDocument(provider: Provider, ic: IntegrationCaller, ct
     report.remoteTotal = out.remoteTotal ?? null;
     const name = doc.number ?? (doc.kind === "credit_note" ? "Credit note" : "Invoice");
     if (!isVoid && totalsDiffer(out.remoteTotal, doc.total))
-      report.warnings.push(`${provider.label} shows ${money(out.remoteTotal!).toFixed(2)} for ${name}, PinPlan shows ${doc.total.toFixed(2)}. Check its tax and item settings.`);
+      report.warnings.push(`${provider.label} shows ${money(out.remoteTotal!).toFixed(2)} for ${name}, Northpin shows ${doc.total.toFixed(2)}. Check its tax and item settings.`);
     await addEvent(owner, provider.id, {
       kind: isVoid ? "void" : "push",
       ok: report.warnings.length === 0,

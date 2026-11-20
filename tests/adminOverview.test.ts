@@ -8,7 +8,7 @@ describe("platform admin access", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://db.example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service");
-    vi.stubEnv("PLATFORM_ADMIN_EMAILS", " Boss@PinPlan.app , ops@pinplan.app");
+    vi.stubEnv("PLATFORM_ADMIN_EMAILS", " Boss@NorthPin.app , ops@northpin.app");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -36,14 +36,14 @@ describe("platform admin access", () => {
     const r = await requirePlatformAdmin(req("t"));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.response.status).toBe(403);
-    userIs({ email: "boss@pinplan.app", email_confirmed_at: null });
+    userIs({ email: "boss@northpin.app", email_confirmed_at: null });
     const r2 = await requirePlatformAdmin(req("t"));
     if (!r2.ok) expect(r2.response.status).toBe(403);
   });
 
   it("lets listed admins in (case-insensitive)", async () => {
-    userIs({ email: "boss@pinplan.app", email_confirmed_at: "2026-01-01" });
-    expect(await requirePlatformAdmin(req("t"))).toEqual({ ok: true, email: "boss@pinplan.app" });
+    userIs({ email: "boss@northpin.app", email_confirmed_at: "2026-01-01" });
+    expect(await requirePlatformAdmin(req("t"))).toEqual({ ok: true, email: "boss@northpin.app" });
   });
 });
 

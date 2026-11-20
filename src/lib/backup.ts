@@ -176,9 +176,9 @@ export async function importBackup(file: File): Promise<number> {
   try {
     data = JSON.parse(await file.text());
   } catch {
-    throw new Error(t("That file isn't a PinPlan backup (invalid JSON)."));
+    throw new Error(t("That file isn't a Northpin backup (invalid JSON)."));
   }
-  if (data.format !== FORMAT || !Array.isArray(data.projects)) throw new Error(t("That file isn't a PinPlan backup."));
+  if (data.format !== FORMAT || !Array.isArray(data.projects)) throw new Error(t("That file isn't a Northpin backup."));
   const me = backupOwner();
   const asCopy = restoreAsCopy(data, { userId: me.ownerId, teamId: me.teamId });
   // Technicians can't change the price list or job templates (the database refuses): only the jobs are restored.

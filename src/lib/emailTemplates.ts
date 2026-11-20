@@ -89,7 +89,7 @@ export const PAY_HOSTS = ["checkout.stripe.com", "buy.stripe.com", "paypal.com",
 
 /**
  * A pay-online link for an email: https, no user name or password in it, and on a known payment site. Anything else
- * (a look-alike domain, a shortener, plain http) gives null, so a company's settings can't turn PinPlan's email
+ * (a look-alike domain, a shortener, plain http) gives null, so a company's settings can't turn Northpin's email
  * button into a link to any site.
  */
 export function allowedPayUrl(u: string | null | undefined): string | null {
@@ -255,7 +255,7 @@ export const blocks = {
 
 // ---------------------------------------------------------------- page layout
 
-/** `sender`: client-facing mail, headed by the company's name instead of PinPlan's. */
+/** `sender`: client-facing mail, headed by the company's name instead of Northpin's. */
 export function layout(opts: { subject: string; preheader: string; company?: string; blocks: Block[]; footer: string; sender?: string }): EmailContent {
   const company = line(opts.company, 80);
   const sender = line(opts.sender, 80);

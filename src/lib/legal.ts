@@ -10,7 +10,7 @@ import { AI_ENABLED } from "./features";
 export const LEGAL_EFFECTIVE_DATE = "[Effective date, e.g. January 1, 2027]";
 
 export const COMPANY = {
-  product: "PinPlan",
+  product: "Northpin",
   legalName: "[Company legal name]",
   entity: "[a State limited liability company]",
   state: "[State]",

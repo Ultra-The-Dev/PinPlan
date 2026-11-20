@@ -15,7 +15,7 @@ struct CloudSyncView: View {
             if cloud.config == nil {
                 Section {
                     if APIClient(settings: app.settings) == nil {
-                        Text("This copy of PinPlan isn't connected to PinPlan accounts. Everything else works on this device without an account.")
+                        Text("This copy of Northpin isn't connected to Northpin accounts. Everything else works on this device without an account.")
                             .font(.callout).foregroundStyle(.secondary)
                         NavigationLink("Connection settings") { ServerSetupView() }
                     } else {
@@ -65,7 +65,7 @@ struct CloudSyncView: View {
                         Label("Delete account…", systemImage: "person.crop.circle.badge.xmark").foregroundStyle(Color.red)
                     }
                 } footer: {
-                    Text("Permanently deletes your PinPlan account and its data, and clears this device.")
+                    Text("Permanently deletes your Northpin account and its data, and clears this device.")
                 }
             }
         }
@@ -201,7 +201,7 @@ struct AccountSection: View {
             }
         } header: { Text("Account").textCase(nil) } footer: {
             Text(mode == .create
-                 ? (joining ? String(localized: "Creates your PinPlan account. The same email and password work on the web.") : String(localized: "Creates your PinPlan account and your company. The same email and password work on the web."))
+                 ? (joining ? String(localized: "Creates your Northpin account. The same email and password work on the web.") : String(localized: "Creates your Northpin account and your company. The same email and password work on the web."))
                  : String(localized: "Use the same account as on the web."))
         }
         .onChange(of: mode) { _, _ in problem = nil }

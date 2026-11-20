@@ -1,5 +1,5 @@
 // Creates a worker's account from a team invite, so they can join their team.
-// Only works when SUPABASE_SERVICE_ROLE_KEY is set on the server, and only for a live invite code that PinPlan itself
+// Only works when SUPABASE_SERVICE_ROLE_KEY is set on the server, and only for a live invite code that Northpin itself
 // emailed. The key never leaves the server. Otherwise this answers 501 and the join page falls back to a normal
 // sign-up (Supabase's own sign-up, with its own confirmation email and limits).
 //
@@ -166,7 +166,7 @@ export async function POST(req: Request) {
       cache: "no-store",
     });
 
-  // Who the invite is for, whether PinPlan emailed it, and whether it already made an account (service role: these
+  // Who the invite is for, whether Northpin emailed it, and whether it already made an account (service role: these
   // columns aren't public).
   let invite: InviteRow | undefined;
   try {
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
   if (!invite) return json({ error: "That invite code isn't valid any more. Ask for a new one.", code: "invalid_code" }, 400);
-  // Not emailed by PinPlan (shared by text or link): the normal sign-up, which proves the address itself.
+  // Not emailed by Northpin (shared by text or link): the normal sign-up, which proves the address itself.
   if (!invite.email || !invite.invite_emailed_at || !invite.created_by) return normalSignup();
   if (invite.created_user_id)
     return json({ error: "An account was already made with this invite. Open the link we emailed you, or ask for a new invite.", code: "code_used" }, 409);
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
   const release = () => patchInvite("&created_user_id=is.null", { signup_claimed_at: null }).catch(() => undefined);
 
   // The email Supabase is about to send counts against the inviting company (confirmed sender, active plan, daily
-  // invite cap, PinPlan's platform cap). Refused: the normal sign-up instead.
+  // invite cap, Northpin's platform cap). Refused: the normal sign-up instead.
   const guard = await reserveSend(invite.created_by, "invite", email);
   if (!guard.ok) {
     await release();

@@ -206,7 +206,7 @@ public enum Proposals {
             scope: scope, floors: floors, lines: lines, kind: review ? "review" : nil, legend: (legend?.isEmpty ?? true) ? nil : legend)
     }
 
-    /// "/brand/logo.png" on the PinPlan server → full URL (the client page loads it from there).
+    /// "/brand/logo.png" on the Northpin server → full URL (the client page loads it from there).
     static func absolute(_ path: String?, origin: String?) -> String? {
         guard let path, path.hasPrefix("/"), let origin, !origin.isEmpty else { return path }
         var o = origin.trimmingCharacters(in: .whitespaces)

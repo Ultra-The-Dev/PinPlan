@@ -156,7 +156,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
           </div>
           <div className="mt-0.5 text-xs text-slate-500">
             {c?.companyName && <>{c.companyName}{c.environment === "sandbox" ? ` ${t("(sandbox)")}` : ""} · </>}
-            {c?.lastSyncAt ? t("Last sync {when}", { when: when(c.lastSyncAt) }) : connected ? t("Nothing sent yet") : p.enabled ? t("Not connected") : t("Your PinPlan server needs this app's keys first.")}
+            {c?.lastSyncAt ? t("Last sync {when}", { when: when(c.lastSyncAt) }) : connected ? t("Nothing sent yet") : p.enabled ? t("Not connected") : t("Your Northpin server needs this app's keys first.")}
           </div>
           {c?.lastError && <div className="mt-1 text-xs text-red-600">{c.lastError}</div>}
         </div>
@@ -177,7 +177,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
                 className="btn btn-sm btn-ghost"
                 disabled={busy}
                 onClick={() => {
-                  if (!confirm(t("Disconnect {app}? Nothing is deleted there; PinPlan just stops sending.", { app: p.label }))) return;
+                  if (!confirm(t("Disconnect {app}? Nothing is deleted there; Northpin just stops sending.", { app: p.label }))) return;
                   void run(async () => {
                     setP(await disconnectProvider(p.id));
                     onChanged();
@@ -210,7 +210,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
               }}
             >
               <div className="label">{t("Mapping")}</div>
-              <p className="mb-2 text-xs text-slate-500">{t("Where PinPlan’s lines go in {app}. Tax is sent as its own line so totals match to the cent.", { app: p.label })}</p>
+              <p className="mb-2 text-xs text-slate-500">{t("Where Northpin’s lines go in {app}. Tax is sent as its own line so totals match to the cent.", { app: p.label })}</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {p.settingsFields.map((f) => (
                   <label key={f.key} className="text-sm">

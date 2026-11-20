@@ -37,7 +37,7 @@ export function buildServerReport(error: unknown, info: ServerErrorInfo): ErrorR
   return {
     ...report,
     url: path,
-    user_agent: `PinPlan-server${process.env.VERCEL_REGION ? ` (${process.env.VERCEL_REGION})` : ""}`,
+    user_agent: `Northpin-server${process.env.VERCEL_REGION ? ` (${process.env.VERCEL_REGION})` : ""}`,
     ...(info.userId && /^[0-9a-f-]{36}$/i.test(info.userId) ? { user_id: info.userId } : {}),
   };
 }

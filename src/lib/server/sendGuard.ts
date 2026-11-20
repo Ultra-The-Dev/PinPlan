@@ -1,10 +1,10 @@
-// Abuse limits for email PinPlan sends on a company's behalf (server-only). Before a quote, invoice, reminder,
+// Abuse limits for email Northpin sends on a company's behalf (server-only). Before a quote, invoice, reminder,
 // receipt or team invite goes to Resend, reserveSend() asks the database (email_send_reserve, service role) whether
 // this person may send it:
 //   - their own account email is confirmed (a throwaway sign-up can't send),
 //   - their company's subscription lets it work (plan_allows_work),
 //   - the company is under its daily cap (a trial gets a small allowance) and hasn't mailed this address too often,
-//   - PinPlan as a whole is under its daily allowance, and free trials together under their share of it
+//   - Northpin as a whole is under its daily allowance, and free trials together under their share of it
 //     (email_settings, 20261125000600_email_signup_abuse.sql).
 // The reservation is the log row: finishSend() records Resend's id, or removes the row when the send failed.
 // Notifications to the company itself (a client answered a link) are only logged (logNotification).
@@ -65,7 +65,7 @@ export function refusal(reason: string, info: { trial?: boolean; cap?: number; k
     case "unconfirmed":
       return refuse(403, "email_unconfirmed", "Confirm your email address first: open the link we sent you when you signed up, then try again.", reason);
     case "plan_inactive":
-      return refuse(402, "plan_inactive", "Your PinPlan subscription isn't active, so sending email is paused. The owner can restart it in Settings → Billing.", reason);
+      return refuse(402, "plan_inactive", "Your Northpin subscription isn't active, so sending email is paused. The owner can restart it in Settings → Billing.", reason);
     case "daily_cap":
       if (info.trial)
         return refuse(
@@ -85,7 +85,7 @@ export function refusal(reason: string, info: { trial?: boolean; cap?: number; k
         reason,
       );
     case "platform_cap":
-      // PinPlan's own sending allowance for the day (all companies, or all free trials together) is used up.
+      // Northpin's own sending allowance for the day (all companies, or all free trials together) is used up.
       return refuse(
         429,
         "platform_email_limit",
@@ -94,8 +94,8 @@ export function refusal(reason: string, info: { trial?: boolean; cap?: number; k
             ? "Invites by email are paused for free trials for the rest of the day. Share the invite with Copy link or Text it instead, or start your subscription in Settings → Billing."
             : "Email from free trials is paused for the rest of the day. Copy the client link and send it yourself, or start your subscription in Settings → Billing."
           : invites
-            ? "PinPlan can't send more email today. Share the invite with Copy link or Text it instead."
-            : "PinPlan can't send more email today. Copy the client link and send it yourself, or try again tomorrow.",
+            ? "Northpin can't send more email today. Share the invite with Copy link or Text it instead."
+            : "Northpin can't send more email today. Copy the client link and send it yourself, or try again tomorrow.",
         reason,
       );
     case "recipient_cap":
@@ -142,7 +142,7 @@ export async function reserveSend(userId: string, kind: GuardedKind, to: string)
     else if (out.reason !== "daily_cap" && out.reason !== "recipient_cap") console.warn(`[email] send refused: ${String(out.reason).replace(/[^a-z_]/g, "")}`);
     return refusal(out.reason ?? "", { trial: !!out.trial, cap: typeof out.cap === "number" ? out.cap : undefined, kind });
   }
-  // Once a day, when PinPlan as a whole passes 80 % of its daily email allowance (email_settings).
+  // Once a day, when Northpin as a whole passes 80 % of its daily email allowance (email_settings).
   if (out.platform_alert === true) console.warn("[email] platform email use passed the alert level of today's cap (email_settings)");
   return { ok: true, id: typeof out.id === "number" ? out.id : null, trial: out.trial !== false, durable: true };
 }

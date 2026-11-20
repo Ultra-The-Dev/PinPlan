@@ -4,7 +4,7 @@
 // Abuse limits (sendGuard.ts): confirmed sender email, active subscription and a daily invite cap per company.
 // Once sent, the address and the time are saved on the invite (team_invites.email and invite_emailed_at) by the server
 // (service role; the caller's right to the invite was checked with their own token above). /api/team/join only
-// creates an account for an invite PinPlan emailed, and only for that address. Sending again to another address moves
+// creates an account for an invite Northpin emailed, and only for that address. Sending again to another address moves
 // the invite to it. invite_emailed_at is the server's alone (team_invites_emailed_guard).
 // A free trial can't put links in the names the email shows (team, inviter, invitee): stripLinks.
 import { inviteState, joinUrl, memberLabel, normalizeCode } from "@/lib/teamLogic";
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   return json({ ok: true, savedEmail: saved });
 }
 
-/** Remembers who the invite went to, and that PinPlan emailed it (the server's own write: the caller's right to this
+/** Remembers who the invite went to, and that Northpin emailed it (the server's own write: the caller's right to this
  *  invite was checked above with their token). A failure (e.g. the migration not run yet) doesn't undo the send: the
  *  join page then uses the normal sign-up. Without the service key (local use) only the address is saved, as the
  *  caller. */

@@ -8,13 +8,13 @@ import { loadBillduCreds } from "@/lib/server/secrets";
 
 /**
  * Connection check for the apps and for uptime monitors.
- * - Anyone, including every ordinary signed-in customer: only that this is a PinPlan server ("app"), whether it is
+ * - Anyone, including every ordinary signed-in customer: only that this is a Northpin server ("app"), whether it is
  *   healthy ("ok"), whether the database answers ("database": "ok" | "unreachable") and whether the caller's own
  *   sign-in or access code was accepted ("authorized", for the apps' connection check). Nothing about how the server
  *   is set up: missing settings and a schema behind the code are written to the server log instead. The response is
  *   503 when the database is down, the schema is behind, or (on the production deployment) a required setting is
  *   missing, so an uptime monitor still catches misconfiguration.
- * - Whoever runs the server, i.e. a PinPlan platform admin (signed in, confirmed email in PLATFORM_ADMIN_EMAILS) or a
+ * - Whoever runs the server, i.e. a Northpin platform admin (signed in, confirmed email in PLATFORM_ADMIN_EMAILS) or a
  *   caller holding the access code where the server accepts it: also the details (names of missing settings, schema
  *   state, which features are configured as yes/no, never values, and whether the server-wide Billdu account is set).
  *   A customer's own company's Billdu connection is in Settings › Billdu.

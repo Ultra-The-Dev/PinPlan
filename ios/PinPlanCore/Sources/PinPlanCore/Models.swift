@@ -439,7 +439,7 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     public var estimateTerms = "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates."
     /// Branding for client-facing pages (optional so older settings files still load).
     public var tagline: String?
-    /// A site path on the PinPlan server ("/brand/…png") or a full URL.
+    /// A site path on the Northpin server ("/brand/…png") or a full URL.
     public var logo: String?
     public var brandColor: String?
     public var accentColor: String?

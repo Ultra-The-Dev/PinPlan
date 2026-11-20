@@ -1,4 +1,4 @@
-// Platform admin (the people who run PinPlan, not a customer's team admins). Server-only.
+// Platform admin (the people who run Northpin, not a customer's team admins). Server-only.
 // Access: the caller's Supabase session → their email must be in PLATFORM_ADMIN_EMAILS (comma-separated).
 // Data: read with SUPABASE_SERVICE_ROLE_KEY, which bypasses RLS — never send it to the browser.
 
@@ -35,7 +35,7 @@ export async function requirePlatformAdmin(request: Request): Promise<AdminAuth>
     return fail(503, "Could not verify your session.", "auth_unavailable");
   }
   const email = user.email?.trim().toLowerCase();
-  if (!email || !user.email_confirmed_at || !adminEmails().includes(email)) return fail(403, "This account is not a PinPlan platform admin.", "forbidden");
+  if (!email || !user.email_confirmed_at || !adminEmails().includes(email)) return fail(403, "This account is not a Northpin platform admin.", "forbidden");
   return { ok: true, email };
 }
 

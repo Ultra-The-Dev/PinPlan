@@ -42,7 +42,7 @@ final class PlanTileStore: @unchecked Sendable {
         }
     }
 
-    /// Where the app keeps a sheet image (Store: Documents/PinPlan/images/<id>.jpg).
+    /// Where the app keeps a sheet image (Store: Documents/Northpin/images/<id>.jpg).
     static func sourceURL(imageId: String, store: Store) -> URL {
         store.root.appendingPathComponent("images", isDirectory: true).appendingPathComponent("\(imageId).jpg")
     }

@@ -136,7 +136,7 @@ describe("health endpoint", () => {
     vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
     vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
     vi.stubEnv("RESEND_API_KEY", "re_x");
-    vi.stubEnv("EMAIL_FROM", "PinPlan <hello@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Northpin <hello@example.com>");
     vi.stubEnv("PINPLAN_APP_URL", "https://app.example.com");
     const me = await (await GET(get({ "x-pinplan-access": "s3cret" }))).json();
     expect(me.config).toMatchObject({ stripe: false, email: true, appUrl: true });

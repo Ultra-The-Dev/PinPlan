@@ -103,7 +103,7 @@ final class AppModel {
         for (k, v) in keep { defaults.set(v, forKey: k) }
         let fm = FileManager.default
         var folders = [fm.temporaryDirectory, fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]]
-        // Files other apps opened in PinPlan land in Documents/Inbox; older installs kept the store in Documents.
+        // Files other apps opened in Northpin land in Documents/Inbox; older installs kept the store in Documents.
         folders.append(fm.urls(for: .documentDirectory, in: .userDomainMask)[0])
         for dir in folders {
             for url in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] { try? fm.removeItem(at: url) }
@@ -154,7 +154,7 @@ final class AppModel {
 
     var creatingDemo = false
 
-    /// Files opened in PinPlan from other apps, waiting for the user to pick a project.
+    /// Files opened in Northpin from other apps, waiting for the user to pick a project.
     var incomingFiles: [URL] = []
     /// Files to import once the chosen project's Sheets screen appears.
     var pendingImport: (projectId: String, urls: [URL])?
@@ -164,7 +164,7 @@ final class AppModel {
     /// The outcome of a restore (or why a file was refused), shown once.
     var restoreMessage: String?
 
-    /// Copy an opened file into our temp folder right away (inbox / security-scoped URLs can disappear). A PinPlan
+    /// Copy an opened file into our temp folder right away (inbox / security-scoped URLs can disappear). A Northpin
     /// backup waits for confirmation (`pendingRestore`); other files wait for the user to pick a job.
     func receive(_ url: URL) {
         let access = url.startAccessingSecurityScopedResource()
@@ -298,7 +298,7 @@ final class AppModel {
     var mayImportLibrary: Bool { cloud.can(.editCatalog) }
 
     /// Read a backup and wait for the user to confirm (`pendingRestore`). Nothing is written yet. Throws when the
-    /// file isn't a PinPlan backup or contains an unsafe id.
+    /// file isn't a Northpin backup or contains an unsafe id.
     func prepareRestore(from url: URL) throws {
         let file = try store.readBackup(from: url)
         let plan = PinPlanCore.BackupRestore.plan(file, existingProjectIds: Set(projects.map(\.project.id)), catalog: catalog,

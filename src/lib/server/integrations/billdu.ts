@@ -66,7 +66,7 @@ export const billdu: Provider = {
 
   async pushInvoice(ctx, { doc, customerId, link }) {
     if (doc.kind !== "invoice") throw new IntegrationError("Billdu takes invoices only. Record credit notes in Billdu.", 400, "unsupported");
-    if (doc.status === "void") throw new IntegrationError("Void it in Billdu too: PinPlan can't void Billdu documents.", 400, "unsupported");
+    if (doc.status === "void") throw new IntegrationError("Void it in Billdu too: Northpin can't void Billdu documents.", 400, "unsupported");
     const c = await billduClient(ctx);
     // Tax, discounts and deductions are their own items (tax 0 on every line), so Billdu's total matches ours.
     const items: BillduItem[] = remoteLines(doc).map((l) => ({

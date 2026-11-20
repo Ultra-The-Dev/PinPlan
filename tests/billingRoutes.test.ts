@@ -451,7 +451,7 @@ describe("billing routes", () => {
 
     it("emails the owner once per failed invoice, and an email problem never fails the webhook", async () => {
       vi.stubEnv("RESEND_API_KEY", "re_test");
-      vi.stubEnv("EMAIL_FROM", "PinPlan <billing@example.com>");
+      vi.stubEnv("EMAIL_FROM", "Northpin <billing@example.com>");
       world.team.billing_email = "pay@acme.test";
       fake.subscriptions.retrieve.mockResolvedValue(sub({ status: "past_due" }));
       const invoice = { id: "in_1", amount_due: 6400, currency: "usd", next_payment_attempt: 1_800_000_000, subscription: "sub_1" };

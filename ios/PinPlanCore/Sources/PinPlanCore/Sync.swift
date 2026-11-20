@@ -294,7 +294,7 @@ public enum SyncMap {
     }
 }
 
-/// Where this device may connect, and which servers get the sign-in. The PinPlan server address and the cloud project
+/// Where this device may connect, and which servers get the sign-in. The Northpin server address and the cloud project
 /// address must be https (plain http only in debug builds, for a server on the developer's own machine), and the
 /// person's session token only goes to the server built into the app or one the person confirmed by hand.
 public enum CloudEndpoint {

@@ -31,7 +31,7 @@ describe("POST /api/team/invite-email saves the invite's email", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("EMAIL_FROM", "PinPlan <noreply@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Northpin <noreply@example.com>");
     vi.stubEnv("EMAIL_REPLY_TO", "");
     vi.stubEnv("PINPLAN_APP_URL", "");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "");

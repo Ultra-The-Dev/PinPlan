@@ -65,7 +65,7 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.jpeg, public.png, public.heic, public.tiff, public.image]
-          - CFBundleTypeName: PinPlan backup
+          - CFBundleTypeName: Northpin backup
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.json]
@@ -74,14 +74,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.pinplan.app
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: PinPlan
+        INFOPLIST_KEY_CFBundleDisplayName: Northpin
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_NSCameraUsageDescription: "PinPlan uses the camera to scan paper plan sets into a job and to take job-site photos that are saved with the job."
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "PinPlan lets you pick plan photos and job-site photos from your library to add them to a job. Only the photos you choose are used."
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "PinPlan saves where a job-site photo was taken with the photo and shows your jobs on the map. You can turn this off with Stamp location on a job's Photos tab."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Northpin uses the camera to scan paper plan sets into a job and to take job-site photos that are saved with the job."
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Northpin lets you pick plan photos and job-site photos from your library to add them to a job. Only the photos you choose are used."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Northpin saves where a job-site photo was taken with the photo and shows your jobs on the map. You can turn this off with Stamp location on a job's Photos tab."
         # Job data stays out of the Files app and Finder/iTunes file sharing; export and backup are explicit share actions.
         # Files opened from other apps are copied in (AppModel.receive), never edited in place.
         INFOPLIST_KEY_UIFileSharingEnabled: NO

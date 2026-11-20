@@ -219,7 +219,7 @@ struct PlanInsightsView: View {
     }
 
     private func explain() {
-        guard let client = APIClient(settings: app.settings) else { aiError = String(localized: "Set your PinPlan server in Settings."); return }
+        guard let client = APIClient(settings: app.settings) else { aiError = String(localized: "Set your Northpin server in Settings."); return }
         guard let image = app.store.image(sheet.imageId) else { return }
         aiBusy = true
         aiError = nil
@@ -240,7 +240,7 @@ struct PlanInsightsView: View {
         list.append(item)
         model.planQA[s.id] = list
         guard let client = APIClient(settings: app.settings), let image = app.store.image(s.imageId) else {
-            update(item.id, sheetId: s.id) { $0.error = String(localized: "Set your PinPlan server in Settings.") }
+            update(item.id, sheetId: s.id) { $0.error = String(localized: "Set your Northpin server in Settings.") }
             return
         }
         Task {

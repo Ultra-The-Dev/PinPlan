@@ -242,7 +242,7 @@ export function validateTemplate(raw: unknown): TemplateValidation {
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1)
     return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("The template's version isn't valid.") };
   if (version > TEMPLATE_VERSION)
-    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("This template was saved by a newer version of PinPlan. Update the app to use it.") };
+    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("This template was saved by a newer version of Northpin. Update the app to use it.") };
 
   const p = isObj(raw.project) ? raw.project : {};
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()) : null);
@@ -274,7 +274,7 @@ export function validateTemplate(raw: unknown): TemplateValidation {
   if (isObj(raw.parts))
     for (const [key, data] of Object.entries(raw.parts)) {
       if (registry.has(key) && !isBuiltIn(key)) parts[key] = data;
-      else warnings.push(t("Skipped “{name}”: this version of PinPlan doesn't know that part of a template.", { name: key }));
+      else warnings.push(t("Skipped “{name}”: this version of Northpin doesn't know that part of a template.", { name: key }));
     }
 
   return { ok: true, payload: { version: 1, project, checklists, estimateLines, ...(Object.keys(parts).length ? { parts } : {}) }, warnings };
@@ -585,10 +585,10 @@ export function parseTemplatesFile(text: string, now: string, newId: () => strin
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(t("That file isn't a PinPlan templates file (invalid JSON)."));
+    throw new Error(t("That file isn't a Northpin templates file (invalid JSON)."));
   }
   const list = isObj(data) && Array.isArray(data.templates) ? data.templates : isObj(data) && isObj(data.payload) ? [data] : null;
-  if (!list) throw new Error(t("That file isn't a PinPlan templates file."));
+  if (!list) throw new Error(t("That file isn't a Northpin templates file."));
   const warnings: string[] = [];
   const templates: JobTemplate[] = [];
   for (const raw of list) {

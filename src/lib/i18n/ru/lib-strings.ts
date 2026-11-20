@@ -105,8 +105,8 @@ const libStrings: Dictionary = {
     "Слишком много приглашений за час. Подождите или отправьте ссылку сообщением.",
   "Your session has expired. Sign in again.": "Сеанс истёк. Войдите снова.",
   "Couldn't check the invite. Try again.": "Не удалось проверить приглашение. Попробуйте ещё раз.",
-  "Email links aren't set up on this PinPlan server yet. The site address (PINPLAN_APP_URL) is missing.":
-    "Ссылки в письмах на этом сервере PinPlan ещё не настроены: не указан адрес сайта (PINPLAN_APP_URL).",
+  "Email links aren't set up on this Northpin server yet. The site address (PINPLAN_APP_URL) is missing.":
+    "Ссылки в письмах на этом сервере Northpin ещё не настроены: не указан адрес сайта (PINPLAN_APP_URL).",
   "That invite wasn't found on your team.": "Это приглашение не найдено в вашей команде.",
   "Couldn't load your team. Try again.": "Не удалось загрузить команду. Попробуйте ещё раз.",
   "Only the owner or an admin can send invites.": "Отправлять приглашения может только владелец или администратор.",
@@ -147,8 +147,8 @@ const libStrings: Dictionary = {
     "Последний платёж не прошёл. Stripe попробует списать снова — обновите карту, чтобы не было перерыва.",
   "Trial ended": "Пробный период окончен",
   "Jobs are read-only until you start a subscription.": "Объекты доступны только для просмотра, пока вы не оформите подписку.",
-  "Your free trial is over. Start a subscription to keep using PinPlan; jobs stay editable for now.":
-    "Бесплатный пробный период закончился. Оформите подписку, чтобы продолжить работу в PinPlan; пока объекты можно редактировать.",
+  "Your free trial is over. Start a subscription to keep using Northpin; jobs stay editable for now.":
+    "Бесплатный пробный период закончился. Оформите подписку, чтобы продолжить работу в Northpin; пока объекты можно редактировать.",
   Trial: "Пробный период",
   "{n} day left — then your subscription starts.": {
     one: "Остался {n} день — затем начнётся подписка.",
@@ -168,15 +168,15 @@ const libStrings: Dictionary = {
   "Ask your office to sort out the subscription.": "Попросите офис разобраться с подпиской.",
   "Your free trial has ended, so jobs are read-only — you can still view and export everything.":
     "Бесплатный пробный период закончился, поэтому объекты только для просмотра — смотреть и экспортировать всё по-прежнему можно.",
-  "Your PinPlan subscription is inactive, so jobs are read-only — you can still view and export everything.":
-    "Подписка PinPlan неактивна, поэтому объекты только для просмотра — смотреть и экспортировать всё по-прежнему можно.",
+  "Your Northpin subscription is inactive, so jobs are read-only — you can still view and export everything.":
+    "Подписка Northpin неактивна, поэтому объекты только для просмотра — смотреть и экспортировать всё по-прежнему можно.",
   "Start a subscription to edit again.": "Оформите подписку, чтобы снова редактировать.",
   "Your subscription was canceled.": "Ваша подписка отменена.",
   "Start a subscription to keep working.": "Оформите подписку, чтобы продолжить работу.",
   "Your subscription ends {date}: jobs turn read-only after that.":
     "Ваша подписка заканчивается {date}: после этого объекты станут только для просмотра.",
   "Renew it in billing to keep working.": "Продлите её в разделе оплаты, чтобы продолжить работу.",
-  "The last PinPlan payment failed.": "Последний платёж за PinPlan не прошёл.",
+  "The last Northpin payment failed.": "Последний платёж за Northpin не прошёл.",
   "Update the card to avoid interruption.": "Обновите карту, чтобы не было перерыва.",
   "Your free trial ends today or tomorrow.": "Бесплатный пробный период заканчивается сегодня или завтра.",
   "Your free trial ends in {n} day.": {
@@ -421,10 +421,10 @@ const libStrings: Dictionary = {
   "Estimate lines": "Строки расчёта",
   "The template is empty or damaged.": "Шаблон пуст или повреждён.",
   "The template's version isn't valid.": "Неверная версия шаблона.",
-  "This template was saved by a newer version of PinPlan. Update the app to use it.":
-    "Шаблон сохранён более новой версией PinPlan. Обновите приложение, чтобы им воспользоваться.",
-  "Skipped “{name}”: this version of PinPlan doesn't know that part of a template.":
-    "Пропущено «{name}»: эта версия PinPlan не знает такой части шаблона.",
+  "This template was saved by a newer version of Northpin. Update the app to use it.":
+    "Шаблон сохранён более новой версией Northpin. Обновите приложение, чтобы им воспользоваться.",
+  "Skipped “{name}”: this version of Northpin doesn't know that part of a template.":
+    "Пропущено «{name}»: эта версия Northpin не знает такой части шаблона.",
   "Skipped the estimate line “{name}”: its device type isn't in your catalog any more.":
     "Пропущена строка расчёта «{name}»: этого типа устройства больше нет в каталоге.",
   "Skipped the estimate line “{name}”: that product was deleted.": "Пропущена строка расчёта «{name}»: этот товар удалён.",
@@ -433,14 +433,14 @@ const libStrings: Dictionary = {
     "Пропущен выбор товара: типа устройства «{name}» больше нет в каталоге.",
   "Skipped a product choice for “{name}”: that product was deleted.": "Пропущен выбор товара для «{name}»: этот товар удалён.",
   "Couldn't apply “{name}”: {error}": "Не удалось применить «{name}»: {error}",
-  "That file isn't a PinPlan templates file (invalid JSON).": "Это не файл шаблонов PinPlan (неверный JSON).",
-  "That file isn't a PinPlan templates file.": "Это не файл шаблонов PinPlan.",
+  "That file isn't a Northpin templates file (invalid JSON).": "Это не файл шаблонов Northpin (неверный JSON).",
+  "That file isn't a Northpin templates file.": "Это не файл шаблонов Northpin.",
   "Skipped “{name}”: {error}": "Пропущено «{name}»: {error}",
   "Job not found": "Объект не найден",
 
   // Backups, plans, previews, scan, sync (backup.ts, proposalCloud.ts, thumbs.ts, scan.ts, sync.ts)
-  "That file isn't a PinPlan backup (invalid JSON).": "Это не резервная копия PinPlan (неверный JSON).",
-  "That file isn't a PinPlan backup.": "Это не резервная копия PinPlan.",
+  "That file isn't a Northpin backup (invalid JSON).": "Это не резервная копия Northpin (неверный JSON).",
+  "That file isn't a Northpin backup.": "Это не резервная копия Northpin.",
   "Cloud sync isn't set up — see Settings → Account.": "Облачная синхронизация не настроена — см. «Настройки» → «Аккаунт».",
   "Uploading plans: {error}": "Загрузка планов: {error}",
   "Couldn't make a preview": "Не удалось создать превью",
@@ -450,7 +450,7 @@ const libStrings: Dictionary = {
   "Scan failed ({status})": "Распознавание не удалось ({status})",
   "Sign in to discard these changes.": "Войдите, чтобы отменить эти изменения.",
   "You joined {team}": "Вы присоединились к команде «{team}»",
-  "{company} is set up — welcome to PinPlan": "Компания «{company}» готова — добро пожаловать в PinPlan",
+  "{company} is set up — welcome to Northpin": "Компания «{company}» готова — добро пожаловать в Northpin",
   // Form fields and validation (src/lib/forms/forms.ts; the fill screen and the template builder)
   "Section heading": "Заголовок раздела",
   "Short text": "Короткий текст",
@@ -524,8 +524,8 @@ const libStrings: Dictionary = {
   "Email from free trials is paused for the rest of the day. Copy the client link and send it yourself, or start your subscription in Settings → Billing.": "Отправка писем на пробном периоде приостановлена до конца дня. Скопируйте ссылку для клиента и отправьте её сами или оформите подписку в «Настройки» → «Оплата».",
   "Invites by email are paused for free trials for the rest of the day. Share the invite with Copy link or Text it instead, or start your subscription in Settings → Billing.": "Приглашения по email на пробном периоде приостановлены до конца дня. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS» либо оформите подписку в «Настройки» → «Оплата».",
   "Invoicing isn't set up on this server's database yet.": "Счета ещё не настроены в базе данных этого сервера.",
-  "PinPlan can't send more email today. Copy the client link and send it yourself, or try again tomorrow.": "Сегодня PinPlan больше не может отправлять письма. Скопируйте ссылку для клиента и отправьте её сами или попробуйте завтра.",
-  "PinPlan can't send more email today. Share the invite with Copy link or Text it instead.": "Сегодня PinPlan больше не может отправлять письма. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS».",
+  "Northpin can't send more email today. Copy the client link and send it yourself, or try again tomorrow.": "Сегодня Northpin больше не может отправлять письма. Скопируйте ссылку для клиента и отправьте её сами или попробуйте завтра.",
+  "Northpin can't send more email today. Share the invite with Copy link or Text it instead.": "Сегодня Northpin больше не может отправлять письма. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS».",
   "Sign up with your email and a password instead.": "Зарегистрируйтесь с email и паролем.",
   "That request is too large.": "Слишком большой запрос.",
 };

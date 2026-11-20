@@ -148,7 +148,7 @@ struct TodayCard: View {
 }
 
 /// One quiet row listing what's done on the web (change orders, quotes and invoices, job templates), each opening the
-/// PinPlan web app in Safari. Hidden when no server is set up in Settings.
+/// Northpin web app in Safari. Hidden when no server is set up in Settings.
 struct MoreOnWebRow: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
@@ -187,7 +187,7 @@ struct MoreOnWebRow: View {
                 .contentShape(Rectangle())
             }
             .foregroundStyle(Color.secondary)
-            .accessibilityHint("Opens the PinPlan web app in Safari")
+            .accessibilityHint("Opens the Northpin web app in Safari")
         }
     }
 }

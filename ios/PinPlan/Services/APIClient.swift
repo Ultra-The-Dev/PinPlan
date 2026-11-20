@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import PinPlanCore
 
-/// Talks to the hosted PinPlan server (the web app's API) for Billdu, account tools and AI scan.
+/// Talks to the hosted Northpin server (the web app's API) for Billdu, account tools and AI scan.
 /// Billdu credentials and the Anthropic key live only on that server.
 ///
 /// Who is asking: when signed in, every call carries the user's own session (`Authorization: Bearer …`), so Billdu
@@ -124,10 +124,10 @@ struct APIClient {
         req.timeoutInterval = 20
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        // 503 with a PinPlan body means "up, but some production settings (Stripe, email…) aren't set yet": the
+        // 503 with a Northpin body means "up, but some production settings (Stripe, email…) aren't set yet": the
         // server works for signing in and syncing, so accept it.
         guard (200..<300).contains(status) || status == 503, let h = try? JSONDecoder().decode(Health.self, from: data), h.app == "pinplan" else {
-            throw APIError(message: status == 404 ? String(localized: "That address isn't a PinPlan server (or it needs the latest version deployed).") : String(localized: "The server answered \(status). Check the address."))
+            throw APIError(message: status == 404 ? String(localized: "That address isn't a Northpin server (or it needs the latest version deployed).") : String(localized: "The server answered \(status). Check the address."))
         }
         return h
     }
@@ -210,7 +210,7 @@ struct APIClient {
             throw APIError(message: Self.errorText(data) ?? fallback, status: status)
         }
         do { return try JSONDecoder().decode(BillduStatus.self, from: data) } catch {
-            throw APIError(message: String(localized: "This PinPlan server needs the latest version to show the Billdu connection."), status: status)
+            throw APIError(message: String(localized: "This Northpin server needs the latest version to show the Billdu connection."), status: status)
         }
     }
 

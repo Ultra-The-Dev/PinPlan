@@ -24,10 +24,10 @@ struct ClientProposalView: View {
         SentenceForm {
             if !app.cloud.signedIn || !serverReady {
                 Section {
-                    Text("Client links need cloud sync and the PinPlan server address (the client opens the link on your web app).")
+                    Text("Client links need cloud sync and the Northpin server address (the client opens the link on your web app).")
                         .foregroundStyle(.secondary)
                     if !app.cloud.signedIn { NavigationLink("Set up cloud sync") { CloudSyncView() } }
-                    if !serverReady { NavigationLink("Set the PinPlan server") { ServerSetupView() } }
+                    if !serverReady { NavigationLink("Set the Northpin server") { ServerSetupView() } }
                 }
             } else {
                 ForEach(rows?.filter { $0.status != "revoked" } ?? []) { r in

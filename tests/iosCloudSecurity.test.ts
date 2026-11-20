@@ -1,4 +1,4 @@
-// Guards on the iPad / iPhone app's cloud and sign-in code (ios/PinPlan), for what Swift unit tests can't reach without
+// Guards on the iPad / iPhone app's cloud and sign-in code (ios/Northpin), for what Swift unit tests can't reach without
 // Xcode: the Keychain, the clipboard, sign-out and where the session token goes. Each check names the issue it covers.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";

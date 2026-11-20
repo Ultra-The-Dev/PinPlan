@@ -10,8 +10,8 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
 
 export const metadata: Metadata = publicMetadata({
   path: "/accessibility",
-  title: "Accessibility · PinPlan",
-  description: "PinPlan’s accessibility goal, what we know still needs work, and how to tell us about a barrier.",
+  title: "Accessibility · Northpin",
+  description: "Northpin’s accessibility goal, what we know still needs work, and how to tell us about a barrier.",
 });
 
 const S = {
@@ -29,7 +29,7 @@ export default function AccessibilityPage() {
       updated={LEGAL_EFFECTIVE_DATE}
       toc={toc}
       ru={accessibilityRu}
-      intro={<p>We want everyone on a crew, in the office and on the client side to be able to use PinPlan, whatever device or assistive technology they use.</p>}
+      intro={<p>We want everyone on a crew, in the office and on the client side to be able to use Northpin, whatever device or assistive technology they use.</p>}
     >
       <Section item={S.goal}>
         <p>
@@ -76,9 +76,9 @@ export default function AccessibilityPage() {
 
       <Section item={S.feedback}>
         <p>
-          If something in PinPlan is hard or impossible for you to use, email <Ph>{COMPANY.supportEmail}</Ph> with the page or screen, what you were trying to
+          If something in Northpin is hard or impossible for you to use, email <Ph>{COMPANY.supportEmail}</Ph> with the page or screen, what you were trying to
           do, and the device and assistive technology you use. We aim to reply within two business days and will work with you on a fix or another way to get
-          the job done. Clients of a PinPlan customer can also ask the company that sent them the link for the document in another format.
+          the job done. Clients of a Northpin customer can also ask the company that sent them the link for the document in another format.
         </p>
       </Section>
     </LegalDoc>

@@ -1,4 +1,4 @@
-// Pure mapping from PinPlan documents to QuickBooks Online and Xero API bodies. Uses the same lines as the accountant
+// Pure mapping from Northpin documents to QuickBooks Online and Xero API bodies. Uses the same lines as the accountant
 // export (exportLines), so what is pushed always adds up to the document total. See docs/integrations.md.
 import { exportLines, type ExportLine } from "@/lib/accountingExport";
 import { money } from "@/lib/estimate";
@@ -76,7 +76,7 @@ export function qboDocument(doc: SalesDoc, customerId: string, settings: Record<
     CustomerRef: { value: customerId },
     TxnDate: doc.issueDate ?? undefined,
     Line,
-    PrivateNote: clip(`From PinPlan${doc.title ? ` · ${doc.title}` : ""}`, 4000),
+    PrivateNote: clip(`From Northpin${doc.title ? ` · ${doc.title}` : ""}`, 4000),
   };
   if (doc.number) body.DocNumber = clip(doc.number, 21);
   if (doc.kind === "invoice" && doc.dueDate) body.DueDate = doc.dueDate;

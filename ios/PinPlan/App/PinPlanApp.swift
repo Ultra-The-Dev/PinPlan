@@ -77,7 +77,7 @@ struct PrivacyCoverView: View {
     var body: some View {
         ZStack {
             Color.paper.ignoresSafeArea()
-            Text(verbatim: "PinPlan")
+            Text(verbatim: "Northpin")
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.brand)
         }

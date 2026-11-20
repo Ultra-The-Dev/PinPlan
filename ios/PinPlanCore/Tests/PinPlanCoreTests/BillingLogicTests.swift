@@ -86,17 +86,17 @@ final class BillingLogicTests: XCTestCase {
         let owner = BillingLogic.banner(ending, role: .owner, now: now)
         XCTAssertEqual(owner?.tone, .amber)
         XCTAssertEqual(owner?.action, .manageOnWeb)
-        XCTAssertEqual(owner?.text, "Your company's PinPlan trial ends in 3 days.")
+        XCTAssertEqual(owner?.text, "Your company's Northpin trial ends in 3 days.")
         XCTAssertEqual(owner?.readOnly, false)
         let tech = BillingLogic.banner(ending, role: .tech, now: now)
         XCTAssertEqual(tech?.action, .askOffice)
-        XCTAssertEqual(tech?.text, "Your company's PinPlan trial ends in 3 days. Ask your office.")
+        XCTAssertEqual(tech?.text, "Your company's Northpin trial ends in 3 days. Ask your office.")
         XCTAssertEqual(BillingLogic.banner(TeamBilling(status: .trialing, trialEndsAt: iso(days: 0.5), now: now), role: .admin, now: now)?.text,
-                       "Your company's PinPlan trial ends today or tomorrow.")
+                       "Your company's Northpin trial ends today or tomorrow.")
 
         let late = BillingLogic.banner(TeamBilling(status: .pastDue, now: now), role: .admin, now: now)
         XCTAssertEqual(late?.tone, .amber)
-        XCTAssertEqual(late?.text, "Your company's PinPlan subscription needs attention.")
+        XCTAssertEqual(late?.text, "Your company's Northpin subscription needs attention.")
 
         for b in [TeamBilling(status: .canceled, now: now), TeamBilling(status: .unpaid, now: now), TeamBilling(status: .trialing, trialEndsAt: iso(days: -1), now: now)] {
             let r = BillingLogic.banner(b, role: .tech, now: now)
@@ -149,8 +149,8 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertEqual(BillingLogic.readOnlyStatus(pending: 1, device: "iPhone"), "Read-only — subscription inactive · 1 change kept on this iPhone")
         XCTAssertEqual(BillingLogic.readOnlyStatus(pending: 0), "Read-only — subscription inactive")
 
-        XCTAssertTrue(BillingLogic.isSubscriptionInactive("PinPlan subscription inactive"))
-        XCTAssertTrue(BillingLogic.isSubscriptionInactive("ERROR: PinPlan subscription inactive (P0001)"))
+        XCTAssertTrue(BillingLogic.isSubscriptionInactive("Northpin subscription inactive"))
+        XCTAssertTrue(BillingLogic.isSubscriptionInactive("ERROR: Northpin subscription inactive (P0001)"))
         XCTAssertFalse(BillingLogic.isSubscriptionInactive("permission denied"))
         XCTAssertFalse(BillingLogic.isSubscriptionInactive(nil))
 
@@ -223,16 +223,16 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertEqual(owner?.tone, .amber)
         XCTAssertEqual(owner?.readOnly, false)
         XCTAssertEqual(owner?.action, .manageOnWeb)
-        XCTAssertEqual(owner?.text, "Your company's PinPlan subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that.")
+        XCTAssertEqual(owner?.text, "Your company's Northpin subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that.")
         XCTAssertEqual(BillingLogic.banner(b, role: .tech, now: now)?.text,
-                       "Your company's PinPlan subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that. Ask your office.")
+                       "Your company's Northpin subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that. Ask your office.")
         // After the trial: read-only.
         let later = now.addingTimeInterval(6 * 86_400)
         XCTAssertFalse(BillingLogic.canEdit(b, now: later))
         XCTAssertEqual(BillingLogic.banner(b, role: .owner, now: later)?.readOnly, true)
         XCTAssertEqual(BillingLogic.statusLine(b, now: later).tone, .red)
         XCTAssertEqual(BillingLogic.editBlockedMessage(b, role: .owner, now: later),
-                       "Your PinPlan subscription is inactive, so jobs are read-only — you can still view and export everything. Manage your account on the web to edit again.")
+                       "Your Northpin subscription is inactive, so jobs are read-only — you can still view and export everything. Manage your account on the web to edit again.")
     }
 
     func testScheduledCancellation() {
@@ -240,7 +240,7 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertEqual(BillingLogic.statusLine(soon, now: now),
                        BillingStatusLine(label: "Ending", detail: "Ends Nov 24, 2026: jobs turn read-only after that.", tone: .amber))
         XCTAssertEqual(BillingLogic.banner(soon, role: .admin, now: now)?.text,
-                       "Your company's PinPlan subscription is ending. Ends Nov 24, 2026: jobs turn read-only after that.")
+                       "Your company's Northpin subscription is ending. Ends Nov 24, 2026: jobs turn read-only after that.")
         XCTAssertTrue(BillingLogic.canEdit(soon, now: now))
         // More than a week away: only the plan line says so.
         let far = TeamBilling(status: .active, hasSubscription: true, cancelAt: iso(days: 20), now: now)
@@ -291,9 +291,9 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertNil(BillingLogic.soloBanner(SoloBilling(trialEndsAt: nil), now: now))
         XCTAssertNil(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: -1), enforce: false), now: now))
         let ending = BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 2.5)), now: now)
-        XCTAssertEqual(ending?.text, "Your PinPlan trial ends in 3 days.")
+        XCTAssertEqual(ending?.text, "Your Northpin trial ends in 3 days.")
         XCTAssertEqual(ending?.readOnly, false)
-        XCTAssertEqual(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 0.5)), now: now)?.text, "Your PinPlan trial ends today or tomorrow.")
+        XCTAssertEqual(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 0.5)), now: now)?.text, "Your Northpin trial ends today or tomorrow.")
         let over = BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: -1)), now: now)
         XCTAssertEqual(over?.tone, .red)
         XCTAssertEqual(over?.readOnly, true)

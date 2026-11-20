@@ -23,7 +23,7 @@ describe("isRowRefusal: which push errors set rows aside", () => {
   });
 
   it("a lapsed subscription keeps edits queued (read-only), not refused", () => {
-    expect(isRowRefusal({ code: "P0001", message: "PinPlan subscription inactive" }, 400)).toBe(false);
+    expect(isRowRefusal({ code: "P0001", message: "Northpin subscription inactive" }, 400)).toBe(false);
   });
 
   it("a migration that hasn't been run is a schema gap, not a refusal", () => {

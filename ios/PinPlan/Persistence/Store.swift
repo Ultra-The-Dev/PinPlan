@@ -7,7 +7,7 @@ struct AppSettings: Codable, Equatable {
     var business = BusinessSettings()
     var pricing = Catalog.defaultPricing
     var billduDocType = "estimate"
-    /// Hosted PinPlan server (the web app) used for sign-in setup, Billdu and the legal pages; secrets stay on that server.
+    /// Hosted Northpin server (the web app) used for sign-in setup, Billdu and the legal pages; secrets stay on that server.
     /// Starts as the address built into the app (`PinPlanServerURL`); Settings › More › Advanced can change it.
     var serverURL = AppSettings.builtInServerURL
     /// Only for a self-hosted server that uses an access code instead of sign-in (Settings › More › Advanced).
@@ -19,7 +19,7 @@ struct AppSettings: Codable, Equatable {
     /// Company form templates (same JSON as the web app's settings `formTemplates`). Optional so older settings still decode.
     var formTemplates: [FormTemplate]? = nil
 
-    /// The PinPlan server this build ships with: the `PINPLAN_SERVER_URL` build setting, written into the Info.plist as
+    /// The Northpin server this build ships with: the `PINPLAN_SERVER_URL` build setting, written into the Info.plist as
     /// `PinPlanServerURL`. Empty when the build didn't set one (a developer build without a server).
     static var builtInServerURL: String {
         let raw = (Bundle.main.object(forInfoDictionaryKey: "PinPlanServerURL") as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -72,13 +72,13 @@ final class Store: @unchecked Sendable {
         }
     }
 
-    /// Application Support/PinPlan. The first launch after an update moves Documents/PinPlan here (once) and
+    /// Application Support/Northpin. The first launch after an update moves Documents/Northpin here (once) and
     /// re-protects what it moved.
     static func defaultRoot() -> URL {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let newRoot = support.appendingPathComponent("PinPlan", isDirectory: true)
-        let oldRoot = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("PinPlan", isDirectory: true)
+        let newRoot = support.appendingPathComponent("Northpin", isDirectory: true)
+        let oldRoot = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Northpin", isDirectory: true)
         guard fm.fileExists(atPath: oldRoot.path) else { return newRoot }
         try? fm.createDirectory(at: support, withIntermediateDirectories: true, attributes: protection)
         if !fm.fileExists(atPath: newRoot.path) {
@@ -301,7 +301,7 @@ final class Store: @unchecked Sendable {
         return url
     }
 
-    /// Read a backup without changing anything. Throws when it isn't a PinPlan backup or when any id in it is unsafe
+    /// Read a backup without changing anything. Throws when it isn't a Northpin backup or when any id in it is unsafe
     /// (PinPlanCore.SafeId): a bad file is refused as a whole.
     func readBackup(from url: URL) throws -> BackupFile {
         let access = url.startAccessingSecurityScopedResource()

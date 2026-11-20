@@ -17,7 +17,7 @@ function setup() {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
   vi.stubEnv("RESEND_API_KEY", "re_secret_123");
-  vi.stubEnv("EMAIL_FROM", "PinPlan <noreply@example.com>");
+  vi.stubEnv("EMAIL_FROM", "Northpin <noreply@example.com>");
   vi.stubEnv("EMAIL_REPLY_TO", "");
   vi.stubEnv("PINPLAN_APP_URL", "");
   vi.stubEnv("PINPLAN_ACCESS_CODE", "");
@@ -72,7 +72,7 @@ describe("sendEmail", () => {
     expect(c.method).toBe("POST");
     expect(c.headers.authorization).toBe("Bearer re_secret_123");
     expect(c.headers["idempotency-key"]).toBe("k1");
-    expect(c.body).toMatchObject({ from: "PinPlan <noreply@example.com>", to: ["sam@example.com"], subject: "Hi Bcc: x@y.z", reply_to: "office@example.com", text: "t" });
+    expect(c.body).toMatchObject({ from: "Northpin <noreply@example.com>", to: ["sam@example.com"], subject: "Hi Bcc: x@y.z", reply_to: "office@example.com", text: "t" });
     expect((c.body as { tags: unknown }).tags).toEqual([{ name: "type", value: "team_invite_" }]);
   });
 
@@ -182,7 +182,7 @@ describe("POST /api/team/invite-email", () => {
     expect(lookup.headers.apikey).toBe("anon-key");
     const s = sends()[0].body as { to: string[]; subject: string; html: string; text: string; reply_to: string };
     expect(s.to).toEqual(["sam@example.com"]);
-    expect(s.subject).toBe("Dana invited you to join Acme Low Voltage on PinPlan");
+    expect(s.subject).toBe("Dana invited you to join Acme Low Voltage on Northpin");
     expect(s.text).toContain("https://app.example.com/join?code=K7QMXR4TPA");
     expect(s.text).toContain("Hi Sam,");
     expect(s.reply_to).toBe("dana@acme.com");
@@ -417,7 +417,7 @@ describe("POST /api/email/welcome", () => {
     expect(r.status).toBe(200);
     const s = sends()[0];
     expect((s.body as { to: string[] }).to).toEqual(["dana@acme.com"]);
-    expect((s.body as { subject: string }).subject).toBe("Welcome to PinPlan, Acme Low Voltage");
+    expect((s.body as { subject: string }).subject).toBe("Welcome to Northpin, Acme Low Voltage");
     expect(s.headers["idempotency-key"]).toBe("welcome/u1");
     expect(appMeta.pinplan_welcome_sent_at).toBeTruthy();
     expect(appMeta.provider).toBe("email");

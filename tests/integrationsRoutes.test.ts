@@ -521,7 +521,7 @@ describe("QuickBooks Online", () => {
     qbo.skew(0.5);
     const r = await routes();
     const out = await (await r.push(req("/api/integrations/quickbooks/push", "tok-owner", pushBody(invoice())), ctx("quickbooks"))).json();
-    expect(out.warnings[0]).toMatch(/QuickBooks Online shows .* PinPlan shows/);
+    expect(out.warnings[0]).toMatch(/QuickBooks Online shows .* Northpin shows/);
   });
 
   it("refreshes after a 401 and retries the request", async () => {

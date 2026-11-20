@@ -314,8 +314,8 @@ describe("Stripe → team", () => {
   });
 
   it("spots the database's read-only refusal", () => {
-    expect(isSubscriptionInactive("projects: PinPlan subscription inactive")).toBe(true);
-    expect(isSubscriptionInactive({ message: "PinPlan subscription inactive" })).toBe(true);
+    expect(isSubscriptionInactive("projects: Northpin subscription inactive")).toBe(true);
+    expect(isSubscriptionInactive({ message: "Northpin subscription inactive" })).toBe(true);
     expect(isSubscriptionInactive("new row violates row-level security policy")).toBe(false);
   });
 });

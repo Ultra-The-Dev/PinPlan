@@ -110,7 +110,7 @@ const LAST_RUN_KEY = "pinplan.sync.lastRun";
 let running: Promise<void> | null = null;
 let failures = 0;
 let nextAttemptAt = 0;
-/** The database refused a write as "PinPlan subscription inactive": don't push again before this (pulls go on). */
+/** The database refused a write as "Northpin subscription inactive": don't push again before this (pulls go on). */
 let readOnlyUntil = 0;
 const READ_ONLY_RETRY_MS = 10 * 60_000;
 /** Cloud tables/columns found missing (the latest migration hasn't been run on the project yet). Kept between syncs. */
@@ -1006,7 +1006,7 @@ function joined(team: string | null) {
 
 /** A company sign-up that waited for email confirmation was finished on sign-in. */
 function companyReady(company: string | null) {
-  if (company) toast(t("{company} is set up — welcome to PinPlan", { company }));
+  if (company) toast(t("{company} is set up — welcome to Northpin", { company }));
 }
 
 /** Start background sync. Safe to call without Supabase configured. Returns a cleanup function. */

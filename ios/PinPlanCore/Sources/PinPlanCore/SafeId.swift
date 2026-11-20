@@ -32,7 +32,7 @@ public enum SafeId {
 
 public enum UnsafeIdError: Error, LocalizedError, Equatable {
     case unsafeId(String)
-    public var errorDescription: String? { "That file isn't a PinPlan backup." }
+    public var errorDescription: String? { "That file isn't a Northpin backup." }
 }
 
 extension ProjectBundle {

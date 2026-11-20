@@ -228,7 +228,7 @@ describe("appOrigin", () => {
 describe("sendEmail reply-to", () => {
   it("client mail never falls back to the platform reply-to", async () => {
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("EMAIL_FROM", "PinPlan <noreply@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Northpin <noreply@example.com>");
     vi.stubEnv("EMAIL_REPLY_TO", "support@example.com");
     routes["https://api.resend.com/emails"] = () => Response.json({ id: "e1" });
     const { sendEmail } = await import("@/lib/server/email");

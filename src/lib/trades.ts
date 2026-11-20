@@ -1,4 +1,4 @@
-// Trade packs: what a company works with — low voltage (the original PinPlan), electrical, fire alarm, HVAC, plumbing,
+// Trade packs: what a company works with — low voltage (the original Northpin), electrical, fire alarm, HVAC, plumbing,
 // solar & EV, or a general/custom setup. A pack picks which categories (layers) are shown and what they're called,
 // a starting catalog, wire/pipe types, the "closets" runs end at, what a run is called, built-in checklists and hints
 // for the AI plan reader. Pure (no browser APIs) so it runs in tests and on the server. Mirrors PinPlanCore/Trades.swift.

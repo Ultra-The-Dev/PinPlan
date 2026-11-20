@@ -363,12 +363,12 @@
         }
       }
     },
-    "%@ needs a connection to PinPlan" : {
+    "%@ needs a connection to Northpin" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Для функции «%@» нужно подключение к PinPlan"
+            "value" : "Для функции «%@» нужно подключение к Northpin"
           }
         }
       }
@@ -1463,7 +1463,7 @@
         }
       }
     },
-    "%lld items from the cloud weren't taken: their ids aren't one PinPlan makes." : {
+    "%lld items from the cloud weren't taken: their ids aren't one Northpin makes." : {
       "localizations" : {
         "ru" : {
           "variations" : {
@@ -1471,25 +1471,25 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld запись из облака не принята: её идентификатор не похож на идентификаторы PinPlan."
+                  "value" : "%lld запись из облака не принята: её идентификатор не похож на идентификаторы Northpin."
                 }
               },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы PinPlan."
+                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы Northpin."
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld записей из облака не принято: их идентификаторы не похожи на идентификаторы PinPlan."
+                  "value" : "%lld записей из облака не принято: их идентификаторы не похожи на идентификаторы Northpin."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы PinPlan."
+                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы Northpin."
                 }
               }
             }
@@ -1501,13 +1501,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld item from the cloud wasn't taken: its id isn't one PinPlan makes."
+                  "value" : "%lld item from the cloud wasn't taken: its id isn't one Northpin makes."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld items from the cloud weren't taken: their ids aren't one PinPlan makes."
+                  "value" : "%lld items from the cloud weren't taken: their ids aren't one Northpin makes."
                 }
               }
             }
@@ -2739,22 +2739,22 @@
         }
       }
     },
-    "A PinPlan team" : {
+    "A Northpin team" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Команда PinPlan"
+            "value" : "Команда Northpin"
           }
         }
       }
     },
-    "A review link needs cloud sync and the PinPlan server address (the client opens it on your web app). The PDF works without them." : {
+    "A review link needs cloud sync and the Northpin server address (the client opens it on your web app). The PDF works without them." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Для ссылки на согласование нужны облачная синхронизация и адрес сервера PinPlan (клиент открывает её в вашей веб-версии). PDF работает и без них."
+            "value" : "Для ссылки на согласование нужны облачная синхронизация и адрес сервера Northpin (клиент открывает её в вашей веб-версии). PDF работает и без них."
           }
         }
       }
@@ -2901,12 +2901,12 @@
         }
       }
     },
-    "Account deletion isn't switched on for this PinPlan server yet. Visit %@ and we'll delete your account for you." : {
+    "Account deletion isn't switched on for this Northpin server yet. Visit %@ and we'll delete your account for you." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Удаление аккаунта на этом сервере PinPlan пока не включено. Перейдите на %@, и мы удалим аккаунт за вас."
+            "value" : "Удаление аккаунта на этом сервере Northpin пока не включено. Перейдите на %@, и мы удалим аккаунт за вас."
           }
         }
       }
@@ -3669,12 +3669,12 @@
         }
       }
     },
-    "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu." : {
+    "An owner or admin connects Billdu in Northpin on the web, under Settings › Billdu." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Владелец или администратор подключает Billdu в веб-версии PinPlan: Настройки › Billdu."
+            "value" : "Владелец или администратор подключает Billdu в веб-версии Northpin: Настройки › Billdu."
           }
         }
       }
@@ -4737,12 +4737,12 @@
         }
       }
     },
-    "Client links need cloud sync and the PinPlan server address (the client opens the link on your web app)." : {
+    "Client links need cloud sync and the Northpin server address (the client opens the link on your web app)." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Для ссылок клиенту нужны облачная синхронизация и адрес сервера PinPlan (клиент открывает ссылку в вашей веб-версии)."
+            "value" : "Для ссылок клиенту нужны облачная синхронизация и адрес сервера Northpin (клиент открывает ссылку в вашей веб-версии)."
           }
         }
       }
@@ -4857,12 +4857,12 @@
         }
       }
     },
-    "Cloud sync isn't switched on for that PinPlan server yet." : {
+    "Cloud sync isn't switched on for that Northpin server yet." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Облачная синхронизация на этом сервере PinPlan пока не включена."
+            "value" : "Облачная синхронизация на этом сервере Northpin пока не включена."
           }
         }
       }
@@ -5017,12 +5017,12 @@
         }
       }
     },
-    "Confirm it's you to delete your PinPlan account" : {
+    "Confirm it's you to delete your Northpin account" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подтвердите, что это вы, чтобы удалить аккаунт PinPlan"
+            "value" : "Подтвердите, что это вы, чтобы удалить аккаунт Northpin"
           }
         }
       }
@@ -5057,12 +5057,12 @@
         }
       }
     },
-    "Connect cloud sync and the PinPlan server in Settings to share a link." : {
+    "Connect cloud sync and the Northpin server in Settings to share a link." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Чтобы делиться ссылкой, подключите облачную синхронизацию и сервер PinPlan в настройках."
+            "value" : "Чтобы делиться ссылкой, подключите облачную синхронизацию и сервер Northpin в настройках."
           }
         }
       }
@@ -5117,12 +5117,12 @@
         }
       }
     },
-    "Connection details. You only need these if your company runs its own copy of PinPlan." : {
+    "Connection details. You only need these if your company runs its own copy of Northpin." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Параметры подключения. Нужны, только если ваша компания использует собственную копию PinPlan."
+            "value" : "Параметры подключения. Нужны, только если ваша компания использует собственную копию Northpin."
           }
         }
       }
@@ -5237,12 +5237,12 @@
         }
       }
     },
-    "Couldn't connect to PinPlan. Check your internet connection and try again." : {
+    "Couldn't connect to Northpin. Check your internet connection and try again." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не удалось подключиться к PinPlan. Проверьте интернет и попробуйте ещё раз."
+            "value" : "Не удалось подключиться к Northpin. Проверьте интернет и попробуйте ещё раз."
           }
         }
       }
@@ -5507,22 +5507,22 @@
         }
       }
     },
-    "Creates your PinPlan account and your company. The same email and password work on the web." : {
+    "Creates your Northpin account and your company. The same email and password work on the web." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Создаёт ваш аккаунт PinPlan и вашу компанию. Те же почта и пароль подходят для веб-версии."
+            "value" : "Создаёт ваш аккаунт Northpin и вашу компанию. Те же почта и пароль подходят для веб-версии."
           }
         }
       }
     },
-    "Creates your PinPlan account. The same email and password work on the web." : {
+    "Creates your Northpin account. The same email and password work on the web." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Создаёт ваш аккаунт PinPlan. Те же почта и пароль подходят для веб-версии."
+            "value" : "Создаёт ваш аккаунт Northpin. Те же почта и пароль подходят для веб-версии."
           }
         }
       }
@@ -6761,12 +6761,12 @@
         }
       }
     },
-    "Everything PinPlan keeps on this device, including changes that haven't synced yet." : {
+    "Everything Northpin keeps on this device, including changes that haven't synced yet." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Всё, что PinPlan хранит на этом устройстве, включая ещё не синхронизированные изменения."
+            "value" : "Всё, что Northpin хранит на этом устройстве, включая ещё не синхронизированные изменения."
           }
         }
       }
@@ -7971,12 +7971,12 @@
         }
       }
     },
-    "Join our team on PinPlan" : {
+    "Join our team on Northpin" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Присоединяйтесь к нашей команде в PinPlan"
+            "value" : "Присоединяйтесь к нашей команде в Northpin"
           }
         }
       }
@@ -9961,12 +9961,12 @@
         }
       }
     },
-    "One file with every plan, device, wire run, photo and price edit. It opens in this app or the PinPlan web app." : {
+    "One file with every plan, device, wire run, photo and price edit. It opens in this app or the Northpin web app." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Один файл со всеми планами, устройствами, кабельными трассами, фото и правками цен. Открывается в этом приложении или в веб-версии PinPlan."
+            "value" : "Один файл со всеми планами, устройствами, кабельными трассами, фото и правками цен. Открывается в этом приложении или в веб-версии Northpin."
           }
         }
       }
@@ -9981,32 +9981,32 @@
         }
       }
     },
-    "Only change this if your company runs its own copy of PinPlan. The access code is only for a copy without sign-in; when you're signed in, your account is used instead." : {
+    "Only change this if your company runs its own copy of Northpin. The access code is only for a copy without sign-in; when you're signed in, your account is used instead." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Меняйте, только если ваша компания использует собственную копию PinPlan. Код доступа нужен только для копии без входа; когда вы вошли, используется ваш аккаунт."
+            "value" : "Меняйте, только если ваша компания использует собственную копию Northpin. Код доступа нужен только для копии без входа; когда вы вошли, используется ваш аккаунт."
           }
         }
       }
     },
-    "Only change this if your company runs its own copy of PinPlan. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead." : {
+    "Only change this if your company runs its own copy of Northpin. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Меняйте это, только если ваша компания запускает собственную копию PinPlan. Адрес должен начинаться с https://. Код доступа нужен только для копии без входа; если вы вошли в аккаунт, используется он."
+            "value" : "Меняйте это, только если ваша компания запускает собственную копию Northpin. Адрес должен начинаться с https://. Код доступа нужен только для копии без входа; если вы вошли в аккаунт, используется он."
           }
         }
       }
     },
-    "Only do this if your company runs this copy of PinPlan. The server will act as you: it can read and change your jobs." : {
+    "Only do this if your company runs this copy of Northpin. The server will act as you: it can read and change your jobs." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Делайте это, только если эту копию PinPlan запускает ваша компания. Сервер будет действовать от вашего имени: он сможет читать и менять ваши объекты."
+            "value" : "Делайте это, только если эту копию Northpin запускает ваша компания. Сервер будет действовать от вашего имени: он сможет читать и менять ваши объекты."
           }
         }
       }
@@ -10253,12 +10253,12 @@
         }
       }
     },
-    "Opens the PinPlan web app in Safari" : {
+    "Opens the Northpin web app in Safari" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Открывает веб-версию PinPlan в Safari"
+            "value" : "Открывает веб-версию Northpin в Safari"
           }
         }
       }
@@ -10609,12 +10609,12 @@
         }
       }
     },
-    "Permanently deletes your PinPlan account and its data, and clears this device." : {
+    "Permanently deletes your Northpin account and its data, and clears this device." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Навсегда удаляет ваш аккаунт PinPlan и его данные и очищает это устройство."
+            "value" : "Навсегда удаляет ваш аккаунт Northpin и его данные и очищает это устройство."
           }
         }
       }
@@ -10699,12 +10699,12 @@
         }
       }
     },
-    "Photo reports aren't switched on for this PinPlan server yet. Try again once it's updated." : {
+    "Photo reports aren't switched on for this Northpin server yet. Try again once it's updated." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Фотоотчёты на этом сервере PinPlan пока не включены. Попробуйте после обновления сервера."
+            "value" : "Фотоотчёты на этом сервере Northpin пока не включены. Попробуйте после обновления сервера."
           }
         }
       }
@@ -10849,22 +10849,22 @@
         }
       }
     },
-    "PinPlan found" : {
+    "Northpin found" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PinPlan найден"
+            "value" : "Northpin найден"
           }
         }
       }
     },
-    "PinPlan invite code" : {
+    "Northpin invite code" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Код приглашения в PinPlan"
+            "value" : "Код приглашения в Northpin"
           }
         }
       }
@@ -13199,12 +13199,12 @@
         }
       }
     },
-    "Sent through your PinPlan server; Billdu keys never live on this device" : {
+    "Sent through your Northpin server; Billdu keys never live on this device" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отправляется через ваш сервер PinPlan; ключи Billdu не хранятся на этом устройстве"
+            "value" : "Отправляется через ваш сервер Northpin; ключи Billdu не хранятся на этом устройстве"
           }
         }
       }
@@ -13359,12 +13359,12 @@
         }
       }
     },
-    "Set the PinPlan server" : {
+    "Set the Northpin server" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Указать сервер PinPlan"
+            "value" : "Указать сервер Northpin"
           }
         }
       }
@@ -13419,32 +13419,32 @@
         }
       }
     },
-    "Set your PinPlan server (Settings › PinPlan server) to also share a join link." : {
+    "Set your Northpin server (Settings › Northpin server) to also share a join link." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Укажите сервер PinPlan (Настройки › Сервер PinPlan), чтобы делиться и ссылкой для входа."
+            "value" : "Укажите сервер Northpin (Настройки › Сервер Northpin), чтобы делиться и ссылкой для входа."
           }
         }
       }
     },
-    "Set your PinPlan server address in Settings." : {
+    "Set your Northpin server address in Settings." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Укажите адрес сервера PinPlan в настройках."
+            "value" : "Укажите адрес сервера Northpin в настройках."
           }
         }
       }
     },
-    "Set your PinPlan server in Settings." : {
+    "Set your Northpin server in Settings." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Укажите сервер PinPlan в настройках."
+            "value" : "Укажите сервер Northpin в настройках."
           }
         }
       }
@@ -14339,12 +14339,12 @@
         }
       }
     },
-    "Still connecting to PinPlan. Try again in a moment." : {
+    "Still connecting to Northpin. Try again in a moment." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подключение к PinPlan ещё идёт. Попробуйте через минуту."
+            "value" : "Подключение к Northpin ещё идёт. Попробуйте через минуту."
           }
         }
       }
@@ -14929,12 +14929,12 @@
         }
       }
     },
-    "Teams aren't switched on for this PinPlan server yet. Pull to refresh once it's updated." : {
+    "Teams aren't switched on for this Northpin server yet. Pull to refresh once it's updated." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Команды на этом сервере PinPlan пока не включены. Потяните вниз для обновления, когда сервер обновят."
+            "value" : "Команды на этом сервере Northpin пока не включены. Потяните вниз для обновления, когда сервер обновят."
           }
         }
       }
@@ -15029,12 +15029,12 @@
         }
       }
     },
-    "That address isn't a PinPlan server (or it needs the latest version deployed)." : {
+    "That address isn't a Northpin server (or it needs the latest version deployed)." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "По этому адресу нет сервера PinPlan (или на нём нужна последняя версия)."
+            "value" : "По этому адресу нет сервера Northpin (или на нём нужна последняя версия)."
           }
         }
       }
@@ -15059,12 +15059,12 @@
         }
       }
     },
-    "That file isn't a PinPlan backup." : {
+    "That file isn't a Northpin backup." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Этот файл не является резервной копией PinPlan."
+            "value" : "Этот файл не является резервной копией Northpin."
           }
         }
       }
@@ -15119,12 +15119,12 @@
         }
       }
     },
-    "That PinPlan server gave a cloud address that isn't secure (https), so it wasn't used." : {
+    "That Northpin server gave a cloud address that isn't secure (https), so it wasn't used." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Этот сервер PinPlan передал небезопасный адрес облака (не https), поэтому он не использован."
+            "value" : "Этот сервер Northpin передал небезопасный адрес облака (не https), поэтому он не использован."
           }
         }
       }
@@ -15149,22 +15149,22 @@
         }
       }
     },
-    "The account can't be deleted from this device. Sign in to PinPlan on the web and choose Settings › Account › Delete account, or contact support and we'll delete it for you." : {
+    "The account can't be deleted from this device. Sign in to Northpin on the web and choose Settings › Account › Delete account, or contact support and we'll delete it for you." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "С этого устройства аккаунт удалить нельзя. Войдите в веб-версию PinPlan и выберите Настройки › Аккаунт › Удалить аккаунт или напишите в поддержку — мы удалим его за вас."
+            "value" : "С этого устройства аккаунт удалить нельзя. Войдите в веб-версию Northpin и выберите Настройки › Аккаунт › Удалить аккаунт или напишите в поддержку — мы удалим его за вас."
           }
         }
       }
     },
-    "The account is managed on the PinPlan website." : {
+    "The account is managed on the Northpin website." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Аккаунт управляется на сайте PinPlan."
+            "value" : "Аккаунт управляется на сайте Northpin."
           }
         }
       }
@@ -15289,12 +15289,12 @@
         }
       }
     },
-    "The PinPlan account %@ has been deleted and this device has been cleared." : {
+    "The Northpin account %@ has been deleted and this device has been cleared." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Аккаунт PinPlan %@ удалён, а это устройство очищено."
+            "value" : "Аккаунт Northpin %@ удалён, а это устройство очищено."
           }
         }
       }
@@ -15309,12 +15309,12 @@
         }
       }
     },
-    "The terms, privacy policy and support pages open once this copy of PinPlan is connected (Settings › More › Advanced)." : {
+    "The terms, privacy policy and support pages open once this copy of Northpin is connected (Settings › More › Advanced)." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Условия, политика конфиденциальности и страница поддержки откроются, когда эта копия PinPlan будет подключена (Настройки › Ещё › Дополнительно)."
+            "value" : "Условия, политика конфиденциальности и страница поддержки откроются, когда эта копия Northpin будет подключена (Настройки › Ещё › Дополнительно)."
           }
         }
       }
@@ -15429,22 +15429,22 @@
         }
       }
     },
-    "This copy of PinPlan isn't connected to PinPlan accounts. Everything else works on this device without an account." : {
+    "This copy of Northpin isn't connected to Northpin accounts. Everything else works on this device without an account." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Эта копия PinPlan не подключена к аккаунтам PinPlan. Всё остальное работает на этом устройстве без аккаунта."
+            "value" : "Эта копия Northpin не подключена к аккаунтам Northpin. Всё остальное работает на этом устройстве без аккаунта."
           }
         }
       }
     },
-    "This copy of PinPlan isn't connected yet." : {
+    "This copy of Northpin isn't connected yet." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Эта копия PinPlan ещё не подключена."
+            "value" : "Эта копия Northpin ещё не подключена."
           }
         }
       }
@@ -15609,12 +15609,12 @@
         }
       }
     },
-    "This PinPlan server needs the latest version to show the Billdu connection." : {
+    "This Northpin server needs the latest version to show the Billdu connection." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Чтобы показать подключение Billdu, серверу PinPlan нужна последняя версия."
+            "value" : "Чтобы показать подключение Billdu, серверу Northpin нужна последняя версия."
           }
         }
       }
@@ -15669,12 +15669,12 @@
         }
       }
     },
-    "Tip: drag PDFs or images here, or open a plan in PinPlan from Mail, Files or AirDrop." : {
+    "Tip: drag PDFs or images here, or open a plan in Northpin from Mail, Files or AirDrop." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Совет: перетащите сюда PDF или изображения либо откройте план в PinPlan из Почты, Файлов или AirDrop."
+            "value" : "Совет: перетащите сюда PDF или изображения либо откройте план в Northpin из Почты, Файлов или AirDrop."
           }
         }
       }
@@ -16289,12 +16289,12 @@
         }
       }
     },
-    "Use the standard PinPlan server" : {
+    "Use the standard Northpin server" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Стандартный сервер PinPlan"
+            "value" : "Стандартный сервер Northpin"
           }
         }
       }
@@ -16957,12 +16957,12 @@
         }
       }
     },
-    "You can keep using PinPlan on this device without an account, or create a new one any time." : {
+    "You can keep using Northpin on this device without an account, or create a new one any time." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вы можете пользоваться PinPlan на этом устройстве без аккаунта или в любой момент создать новый."
+            "value" : "Вы можете пользоваться Northpin на этом устройстве без аккаунта или в любой момент создать новый."
           }
         }
       }
@@ -17077,12 +17077,12 @@
         }
       }
     },
-    "Your company's Billdu keys stay on the PinPlan server and never come to this device." : {
+    "Your company's Billdu keys stay on the Northpin server and never come to this device." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ключи Billdu вашей компании хранятся на сервере PinPlan и не попадают на это устройство."
+            "value" : "Ключи Billdu вашей компании хранятся на сервере Northpin и не попадают на это устройство."
           }
         }
       }
@@ -17137,32 +17137,32 @@
         }
       }
     },
-    "Your PinPlan account has been deleted and this device has been cleared." : {
+    "Your Northpin account has been deleted and this device has been cleared." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваш аккаунт PinPlan удалён, а это устройство очищено."
+            "value" : "Ваш аккаунт Northpin удалён, а это устройство очищено."
           }
         }
       }
     },
-    "Your PinPlan account is managed outside this app." : {
+    "Your Northpin account is managed outside this app." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваш аккаунт PinPlan управляется вне этого приложения."
+            "value" : "Ваш аккаунт Northpin управляется вне этого приложения."
           }
         }
       }
     },
-    "Your PinPlan sign-in (email and password) and your name on the team." : {
+    "Your Northpin sign-in (email and password) and your name on the team." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваш вход в PinPlan (эл. почта и пароль) и ваше имя в команде."
+            "value" : "Ваш вход в Northpin (эл. почта и пароль) и ваше имя в команде."
           }
         }
       }
@@ -17217,12 +17217,12 @@
         }
       }
     },
-    "Your sign-in isn't used with this PinPlan server. Delete your account on the web instead, or contact support." : {
+    "Your sign-in isn't used with this Northpin server. Delete your account on the web instead, or contact support." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваш вход не используется с этим сервером PinPlan. Удалите аккаунт в веб-версии или обратитесь в поддержку."
+            "value" : "Ваш вход не используется с этим сервером Northpin. Удалите аккаунт в веб-версии или обратитесь в поддержку."
           }
         }
       }

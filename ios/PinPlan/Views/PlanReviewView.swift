@@ -28,10 +28,10 @@ struct PlanReviewView: View {
             }
             if !app.cloud.signedIn || !serverReady {
                 Section {
-                    Text("A review link needs cloud sync and the PinPlan server address (the client opens it on your web app). The PDF works without them.")
+                    Text("A review link needs cloud sync and the Northpin server address (the client opens it on your web app). The PDF works without them.")
                         .foregroundStyle(.secondary)
                     if !app.cloud.signedIn { NavigationLink("Set up cloud sync") { CloudSyncView() } }
-                    if !serverReady { NavigationLink("Set the PinPlan server") { ServerSetupView() } }
+                    if !serverReady { NavigationLink("Set the Northpin server") { ServerSetupView() } }
                 }
             } else {
                 ForEach(live) { r in

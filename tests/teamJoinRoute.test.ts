@@ -1,4 +1,4 @@
-// POST /api/team/join: creates one account per live invite code that PinPlan emailed, only with the service key set,
+// POST /api/team/join: creates one account per live invite code that Northpin emailed, only with the service key set,
 // for the invite's address only, without a password the requester chose (Supabase emails an invite link), counted
 // against the inviting company's email allowance, with shared rate limits, an optional Turnstile check, the terms
 // required, and the same answer whether or not the address already has an account.
@@ -127,7 +127,7 @@ describe("POST /api/team/join", () => {
     expect(JSON.stringify(calls.filter((c) => c.headers.apikey === "anon-key").map((c) => c.headers))).not.toContain("service-key");
   });
 
-  it("only for invites PinPlan emailed: a copied or texted code uses the normal sign-up", async () => {
+  it("only for invites Northpin emailed: a copied or texted code uses the normal sign-up", async () => {
     const { POST } = await import("@/app/api/team/join/route");
     for (const patch of [{ email: null }, { invite_emailed_at: null }, { created_by: null }]) {
       Object.assign(invite!, { email: "sam@acme.com", invite_emailed_at: "2026-11-19T10:00:00Z", created_by: "owner-1" }, patch);

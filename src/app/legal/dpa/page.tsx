@@ -15,8 +15,8 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
 
 export const metadata: Metadata = publicMetadata({
   path: "/legal/dpa",
-  title: "Data Processing Addendum · PinPlan",
-  description: "How PinPlan processes personal information in customer data on behalf of the businesses that use it.",
+  title: "Data Processing Addendum · Northpin",
+  description: "How Northpin processes personal information in customer data on behalf of the businesses that use it.",
 });
 
 const S = {

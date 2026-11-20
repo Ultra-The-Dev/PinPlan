@@ -1,8 +1,8 @@
-// What PinPlan sells: one place for plan names, trial length and the placeholder prices shown on the
+// What Northpin sells: one place for plan names, trial length and the placeholder prices shown on the
 // pricing page. Real charges come from Stripe (the Price IDs in the server's environment); keep these
 // display prices in step with Stripe when you set them there.
 
-export const PRODUCT_NAME = "PinPlan";
+export const PRODUCT_NAME = "Northpin";
 export const TRIAL_DAYS = 14;
 
 export interface Plan {

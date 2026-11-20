@@ -17,8 +17,8 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
 
 export const metadata: Metadata = publicMetadata({
   path: "/terms",
-  title: "Terms of Service · PinPlan",
-  description: "The agreement between PinPlan and the businesses that use it.",
+  title: "Terms of Service · Northpin",
+  description: "The agreement between Northpin and the businesses that use it.",
 });
 
 const S = {
@@ -56,19 +56,19 @@ export default function TermsPage() {
       ru={termsRu}
       intro={
         <p>
-          PinPlan helps electrical, low-voltage and specialty trade contractors count from plans, send quotes and invoices, and run their jobs in the field.
-          These terms explain what you can expect from us and what we expect from you. Please read them; by using PinPlan you agree to them.
+          Northpin helps electrical, low-voltage and specialty trade contractors count from plans, send quotes and invoices, and run their jobs in the field.
+          These terms explain what you can expect from us and what we expect from you. Please read them; by using Northpin you agree to them.
         </p>
       }
     >
       <Section item={S.agreement} n={n(S.agreement)}>
         <p>
-          These Terms of Service (the “Terms”) are an agreement between <Ph>{COMPANY.legalName}</Ph>, <Ph>{COMPANY.entity}</Ph> (“PinPlan”, “we”, “us”), and
-          the business or organization that signs up for PinPlan (“Customer”, “you”). If you accept these Terms on behalf of a company, you confirm that you
-          have authority to bind it. If you don’t have that authority, or don’t agree, don’t use PinPlan.
+          These Terms of Service (the “Terms”) are an agreement between <Ph>{COMPANY.legalName}</Ph>, <Ph>{COMPANY.entity}</Ph> (“Northpin”, “we”, “us”), and
+          the business or organization that signs up for Northpin (“Customer”, “you”). If you accept these Terms on behalf of a company, you confirm that you
+          have authority to bind it. If you don’t have that authority, or don’t agree, don’t use Northpin.
         </p>
         <p>
-          PinPlan is a business tool. It is offered to companies and their staff for business purposes only, not to consumers for personal, family or household
+          Northpin is a business tool. It is offered to companies and their staff for business purposes only, not to consumers for personal, family or household
           use. You must be at least 18 years old to create an account.
         </p>
         <p>
@@ -80,7 +80,7 @@ export default function TermsPage() {
       <Section item={S.definitions} n={n(S.definitions)}>
         <ul>
           <li>
-            <strong>Service</strong> means the PinPlan website, web application, iOS app, APIs and related support we provide.
+            <strong>Service</strong> means the Northpin website, web application, iOS app, APIs and related support we provide.
           </li>
           <li>
             <strong>Users</strong> are the people you allow to use the Service under your account, such as owners, office staff and technicians on your team.
@@ -185,7 +185,7 @@ export default function TermsPage() {
               your team accepts them. You are responsible for checking quantities, prices, captions and reports before you rely on them or send them to anyone.
             </li>
             <li>
-              <strong>Not professional advice.</strong> PinPlan does not provide engineering, design, code-compliance, fire/life-safety or legal advice, and AI
+              <strong>Not professional advice.</strong> Northpin does not provide engineering, design, code-compliance, fire/life-safety or legal advice, and AI
               output is not a substitute for it.
             </li>
             <li>
@@ -197,10 +197,10 @@ export default function TermsPage() {
 
       <Section item={S.proposals} n={n(S.proposals)}>
         <p>
-          PinPlan can produce quotes, invoices, change orders, RFIs, photo reports and other documents, and links your Clients can open, answer, sign and
+          Northpin can produce quotes, invoices, change orders, RFIs, photo reports and other documents, and links your Clients can open, answer, sign and
           accept. You decide their content, pricing and
           terms. Any contract formed is between you and your Client; we are not a party to it and are not responsible for its terms, for your work, or for
-          whether an electronic signature is valid for your purpose in your jurisdiction. Invoices and payment records in PinPlan are your records: you are
+          whether an electronic signature is valid for your purpose in your jurisdiction. Invoices and payment records in Northpin are your records: you are
           responsible for the taxes you charge and for your own bookkeeping. Anyone with a document link can view it, so share links only
           with the intended recipient and withdraw links you no longer want active.
         </p>
@@ -232,7 +232,7 @@ export default function TermsPage() {
 
       <Section item={S.availability} n={n(S.availability)}>
         <p>
-          We work to keep the Service available and fast, but it may sometimes be unavailable for maintenance, updates or reasons outside our control. PinPlan is
+          We work to keep the Service available and fast, but it may sometimes be unavailable for maintenance, updates or reasons outside our control. Northpin is
           designed to keep working offline: data you enter is stored on your device first and synced to our servers when a connection is available. Data that
           has not yet synced exists only on that device, so it can be lost if the device is lost, reset or its browser storage is cleared.
         </p>
@@ -288,7 +288,7 @@ export default function TermsPage() {
           before you rely on them.
         </p>
         <p>
-          PinPlan is a tool for your own work. It does not provide engineering, design, code-compliance, fire/life-safety, tax or legal advice, and nothing in
+          Northpin is a tool for your own work. It does not provide engineering, design, code-compliance, fire/life-safety, tax or legal advice, and nothing in
           it is a substitute for that advice.
         </p>
       </Section>
@@ -310,7 +310,7 @@ export default function TermsPage() {
 
       <Section item={S.indemnity} n={n(S.indemnity)}>
         <p>
-          You will defend and indemnify PinPlan against third-party claims arising from Customer Data, your work for your Clients, or your use of the Service in
+          You will defend and indemnify Northpin against third-party claims arising from Customer Data, your work for your Clients, or your use of the Service in
           breach of these Terms or the law. We will defend and indemnify you against third-party claims that the Service, as we provide it, infringes their
           intellectual property rights. The party seeking indemnity must notify the other promptly, let it control the defense, and reasonably cooperate.
         </p>
@@ -326,9 +326,9 @@ export default function TermsPage() {
       </Section>
 
       <Section item={S.apple} n={n(S.apple)}>
-        <p>If you use the PinPlan iOS app downloaded from the Apple App Store, the following also applies:</p>
+        <p>If you use the Northpin iOS app downloaded from the Apple App Store, the following also applies:</p>
         <ul>
-          <li>These Terms are between you and PinPlan only, not Apple. PinPlan, not Apple, is solely responsible for the app and its content.</li>
+          <li>These Terms are between you and Northpin only, not Apple. Northpin, not Apple, is solely responsible for the app and its content.</li>
           <li>Your license to use the app is limited to Apple-branded devices you own or control, as permitted by the App Store usage rules.</li>
           <li>Apple has no obligation to provide maintenance or support for the app.</li>
           <li>
@@ -336,7 +336,7 @@ export default function TermsPage() {
             allowed by law, Apple has no other warranty obligation for the app.
           </li>
           <li>
-            PinPlan, not Apple, is responsible for addressing any claims relating to the app, including product liability claims, claims that it fails to meet
+            Northpin, not Apple, is responsible for addressing any claims relating to the app, including product liability claims, claims that it fails to meet
             legal or regulatory requirements, consumer protection or privacy claims, and claims that it infringes third-party intellectual property.
           </li>
           <li>You confirm you are not located in a country subject to a US embargo and are not on any US government list of prohibited or restricted parties.</li>

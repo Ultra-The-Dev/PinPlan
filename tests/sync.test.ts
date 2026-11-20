@@ -239,7 +239,7 @@ describe("push: one bad row never stops syncing", () => {
 
   it("keeps edits queued (not refused) while the subscription is inactive", async () => {
     await put("markers", marker("m1"));
-    fake.refuse = (t) => (t === "markers" ? { code: "P0001", message: "PinPlan subscription inactive" } : null);
+    fake.refuse = (t) => (t === "markers" ? { code: "P0001", message: "Northpin subscription inactive" } : null);
     await __syncForTests("u1");
     expect(await db().syncRefused.count()).toBe(0);
     expect((await queue()).some((q) => q.table === "markers")).toBe(true);

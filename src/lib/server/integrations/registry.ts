@@ -1,4 +1,4 @@
-// Every accounting connector PinPlan knows, in the order Settings shows them (server-only).
+// Every accounting connector Northpin knows, in the order Settings shows them (server-only).
 import { billdu } from "./billdu";
 import { quickbooks } from "./quickbooks";
 import { isProviderId, type Provider, type ProviderId } from "./types";

@@ -1,7 +1,7 @@
 import Foundation
 import PinPlanCore
 
-/// Whether the PinPlan server has Billdu connected for this company (`GET /api/billdu/credentials`, the same call the
+/// Whether the Northpin server has Billdu connected for this company (`GET /api/billdu/credentials`, the same call the
 /// web app's Settings → Connected apps makes). The Billdu card on the estimate shows only when the server says so.
 enum BilldStatus: Equatable {
     /// Not asked yet, or the server couldn't be reached (offline): show nothing new, keep what was known.
@@ -10,7 +10,7 @@ enum BilldStatus: Equatable {
     case configured
     /// The server answered: Billdu isn't connected for this company (or not for this person) — connect it on the web.
     case connectOnWeb
-    /// No PinPlan server set in this app.
+    /// No Northpin server set in this app.
     case noServer
 
     static let connectText = String(localized: "Connect Billdu on the web: Settings → Connected apps")

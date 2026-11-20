@@ -266,7 +266,7 @@ struct PhotoThumb: View {
     }
 }
 
-// MARK: AI (through the PinPlan server, like the web app)
+// MARK: AI (through the Northpin server, like the web app)
 
 extension APIClient {
     struct PhotoDescription: Decodable { let caption: String; let tags: [String]; let issues: [String] }

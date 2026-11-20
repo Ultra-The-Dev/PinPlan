@@ -73,7 +73,7 @@ describe("public routes refuse oversized bodies before touching anything", () =>
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SB);
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("EMAIL_FROM", "PinPlan <noreply@example.com>");
+    vi.stubEnv("EMAIL_FROM", "Northpin <noreply@example.com>");
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL | Request) => {

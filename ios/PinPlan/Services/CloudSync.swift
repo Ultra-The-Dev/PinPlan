@@ -29,7 +29,7 @@ enum Keychain {
         add[kSecAttrAccessible as String] = accessible
         let status = SecItemAdd(add as CFDictionary, nil)
         if status != errSecSuccess {
-            NSLog("PinPlan: couldn't save the sign-in to the Keychain (OSStatus %d)", status)
+            NSLog("Northpin: couldn't save the sign-in to the Keychain (OSStatus %d)", status)
             return false
         }
         return true
@@ -48,7 +48,7 @@ enum Keychain {
         let status = SecItemUpdate(query(account) as CFDictionary, [kSecAttrAccessible as String: accessible] as CFDictionary)
         if status != errSecSuccess && status != errSecItemNotFound {
             // Can't change it in place: drop it (signing in again saves it the new way).
-            NSLog("PinPlan: couldn't update the saved sign-in (OSStatus %d); removing it", status)
+            NSLog("Northpin: couldn't update the saved sign-in (OSStatus %d); removing it", status)
             delete(account: account)
         }
     }
@@ -309,7 +309,7 @@ final class CloudSync {
     /// When the team was last loaded from the cloud (syncs refresh it at most about once a minute).
     @ObservationIgnored var teamLoadedAt: Date?
 
-    /// The team's subscription has lapsed (or the database refused a push as "PinPlan subscription inactive"): this
+    /// The team's subscription has lapsed (or the database refused a push as "Northpin subscription inactive"): this
     /// device keeps pulling but stops pushing. Local edits stay queued and go up once the team is active again.
     private(set) var readOnly = false
     /// Changes on this device the cloud doesn't have yet (counted while read-only, for the status line).
@@ -430,18 +430,18 @@ final class CloudSync {
         return true
     }
 
-    /// Fetch the cloud settings from the PinPlan server (they are public values: project URL + anon key).
+    /// Fetch the cloud settings from the Northpin server (they are public values: project URL + anon key).
     func configure(from api: APIClient) async throws {
         var req = URLRequest(url: api.baseURL.appendingPathComponent("api/config"))
         req.timeoutInterval = 20
         let (data, _) = try await URLSession.shared.data(for: req)
         guard let j = try JSONSerialization.jsonObject(with: data) as? [String: Any], let url = j["supabaseUrl"] as? String, let key = j["supabaseAnonKey"] as? String,
               !url.isEmpty, !key.isEmpty else {
-            throw SupabaseClient.Failure(message: String(localized: "Cloud sync isn't switched on for that PinPlan server yet."))
+            throw SupabaseClient.Failure(message: String(localized: "Cloud sync isn't switched on for that Northpin server yet."))
         }
         // Passwords and session tokens go to this address: never over plain http.
         guard CloudEndpoint.url(url, allowHTTP: APIClient.allowsHTTP) != nil, setConfig(url: url, anonKey: key) else {
-            throw SupabaseClient.Failure(message: String(localized: "That PinPlan server gave a cloud address that isn't secure (https), so it wasn't used."))
+            throw SupabaseClient.Failure(message: String(localized: "That Northpin server gave a cloud address that isn't secure (https), so it wasn't used."))
         }
     }
 
@@ -769,7 +769,7 @@ final class CloudSync {
             func text(_ e: Error) -> String { (e as? LocalizedError)?.errorDescription ?? e.localizedDescription }
             lastError = refused.map { String(localized: "Some changes weren't accepted by the cloud (they'll be tried again): \(text($0))") }
                 ?? pullError.map { String(localized: "Some changes couldn't be received (they'll be tried again): \(text($0))") }
-                ?? (refusedRows == 0 ? nil : String(localized: "\(refusedRows) items from the cloud weren't taken: their ids aren't one PinPlan makes."))
+                ?? (refusedRows == 0 ? nil : String(localized: "\(refusedRows) items from the cloud weren't taken: their ids aren't one Northpin makes."))
                 ?? (missingTables.isEmpty ? nil : String(localized: "The cloud isn't up to date yet, so some job data doesn't sync (\(missingTables.joined(separator: ", "))). Everything else is synced."))
             if blocked {
                 lastSummary = BillingLogic.readOnlyStatus(pending: pendingChanges, device: UIDevice.current.model)
@@ -856,7 +856,7 @@ final class CloudSync {
         } catch {
             let m = error.localizedDescription
             if m.contains("does not exist") || m.contains("schema cache") {
-                throw SupabaseClient.Failure(message: String(localized: "Photo reports aren't switched on for this PinPlan server yet. Try again once it's updated."))
+                throw SupabaseClient.Failure(message: String(localized: "Photo reports aren't switched on for this Northpin server yet. Try again once it's updated."))
             }
             throw error
         }
@@ -1580,12 +1580,12 @@ extension CloudSync {
 
 // MARK: - account
 
-/// Password reset, account deletion and the signed-in calls to the PinPlan web server.
+/// Password reset, account deletion and the signed-in calls to the Northpin web server.
 extension CloudSync {
-    /// A valid access token for calls to the PinPlan web server (account deletion, invite emails).
+    /// A valid access token for calls to the Northpin web server (account deletion, invite emails).
     func accessToken() async throws -> String { try await token() }
 
-    /// Email a password-reset link. `serverURL` is the PinPlan web server; its /reset page sets the new password.
+    /// Email a password-reset link. `serverURL` is the Northpin web server; its /reset page sets the new password.
     func sendPasswordReset(email: String, serverURL: String) async throws {
         guard let client else { throw SupabaseClient.Failure(message: String(localized: "Connect a cloud project first.")) }
         let e = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1601,7 +1601,7 @@ extension CloudSync {
     func deleteAccount(api: APIClient) async throws -> AccountDeletionResult {
         guard signedIn else { throw SupabaseClient.Failure(message: String(localized: "Sign in first.")) }
         guard api.mayCarrySession else {
-            throw SupabaseClient.Failure(message: String(localized: "Your sign-in isn't used with this PinPlan server. Delete your account on the web instead, or contact support."))
+            throw SupabaseClient.Failure(message: String(localized: "Your sign-in isn't used with this Northpin server. Delete your account on the web instead, or contact support."))
         }
         let tok = try await token()
         var req = URLRequest(url: api.baseURL.appendingPathComponent("api/account"))
@@ -1641,7 +1641,7 @@ extension CloudSync {
         store(fresh)
     }
 
-    /// Email a team invite through the PinPlan web server.
+    /// Email a team invite through the Northpin web server.
     func emailInvite(api: APIClient, code: String, email: String, name: String) async throws {
         let tok = try await token()
         try await api.sendInviteEmail(code: TeamLogic.normalizeCode(code), email: email.trimmingCharacters(in: .whitespacesAndNewlines),

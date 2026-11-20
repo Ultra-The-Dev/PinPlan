@@ -422,7 +422,7 @@ enum PlanSpot {
 
 // MARK: - web-only
 
-/// A quiet row that opens a page of the PinPlan web app in Safari (the server set in Settings). Hidden when no server
+/// A quiet row that opens a page of the Northpin web app in Safari (the server set in Settings). Hidden when no server
 /// is set up.
 struct WebOnlyLink: View {
     @Environment(AppModel.self) private var app

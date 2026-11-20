@@ -12,8 +12,8 @@ import { COMPANY, SUBPROCESSORS, SUBPROCESSORS_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = publicMetadata({
   path: "/legal/subprocessors",
-  title: "Subprocessors · PinPlan",
-  description: "The companies that host and operate parts of PinPlan and process customer data on our behalf.",
+  title: "Subprocessors · Northpin",
+  description: "The companies that host and operate parts of Northpin and process customer data on our behalf.",
 });
 
 export default function SubprocessorsPage() {
@@ -24,7 +24,7 @@ export default function SubprocessorsPage() {
       ru={subprocessorsRu}
       intro={
         <p>
-          These companies host and operate parts of PinPlan for us and may process Customer Data on our behalf. Each is bound by a contract that limits its use
+          These companies host and operate parts of Northpin for us and may process Customer Data on our behalf. Each is bound by a contract that limits its use
           of the data to providing its service to us. See our <Link href="/privacy">Privacy Policy</Link> and{" "}
           <Link href="/legal/dpa">Data Processing Addendum</Link> for how we handle data.
         </p>

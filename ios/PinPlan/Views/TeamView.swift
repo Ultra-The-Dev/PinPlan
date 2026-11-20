@@ -191,7 +191,7 @@ private struct MigrationNeededSection: View {
             Label {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("The cloud database needs the team update").font(.subheadline.weight(.semibold))
-                    Text("Teams aren't switched on for this PinPlan server yet. Pull to refresh once it's updated.")
+                    Text("Teams aren't switched on for this Northpin server yet. Pull to refresh once it's updated.")
                         .font(.callout).foregroundStyle(Color.secondary)
                 }
             } icon: {
@@ -361,7 +361,7 @@ private struct InviteSummaryRow: View {
         HStack(spacing: 12) {
             Image(systemName: "person.2.badge.plus").font(.title2).foregroundStyle(Color.brand)
             VStack(alignment: .leading, spacing: 2) {
-                Text(info.team.isEmpty ? String(localized: "A PinPlan team") : info.team).font(.headline)
+                Text(info.team.isEmpty ? String(localized: "A Northpin team") : info.team).font(.headline)
                 Text(tr(info.role.description)).font(.caption).foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 0)
@@ -624,7 +624,7 @@ private struct InviteCardView: View {
     @Environment(\.dismiss) private var dismiss
     let item: InviteCardItem
     @State private var copied = false
-    /// The PinPlan server can send email: offer to email the invite too.
+    /// The Northpin server can send email: offer to email the invite too.
     @State private var canEmail = false
 
     private var link: String? {
@@ -643,7 +643,7 @@ private struct InviteCardView: View {
                     if let link {
                         Text(link).font(.footnote.monospaced()).foregroundStyle(Color.secondary).multilineTextAlignment(.center).textSelection(.enabled)
                     } else {
-                        Text("Set your PinPlan server (Settings › PinPlan server) to also share a join link.").font(.footnote).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
+                        Text("Set your Northpin server (Settings › Northpin server) to also share a join link.").font(.footnote).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
                     }
                     InviteShareButtons(code: item.code, shareText: shareText, link: link, copied: $copied)
                     if canEmail { InviteEmailBox(code: item.code, name: item.name) }
@@ -709,7 +709,7 @@ private struct InviteShareButtons: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ShareLink(item: shareText, subject: Text("Join our team on PinPlan")) {
+            ShareLink(item: shareText, subject: Text("Join our team on Northpin")) {
                 Label("Share invite", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -717,7 +717,7 @@ private struct InviteShareButtons: View {
             // The code goes straight to the person it's for (Messages, Mail…) rather than through the clipboard; a
             // copied link stays on this device and clears itself after 10 minutes.
             HStack(spacing: 10) {
-                ShareLink(item: TeamLogic.formatCode(code), subject: Text("PinPlan invite code")) {
+                ShareLink(item: TeamLogic.formatCode(code), subject: Text("Northpin invite code")) {
                     Label("Share code", systemImage: "number").frame(maxWidth: .infinity)
                 }
                 if let link {

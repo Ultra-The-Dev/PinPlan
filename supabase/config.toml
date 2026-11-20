@@ -1,4 +1,4 @@
-# Supabase CLI settings for local development (`supabase start`) and the auth settings PinPlan expects in production.
+# Supabase CLI settings for local development (`supabase start`) and the auth settings Northpin expects in production.
 # The hosted project's Auth settings are set in the Supabase dashboard (Authentication → Providers / Policies / MFA);
 # keep them the same as below (see docs/launch-checklist.md). No secrets here: the repo is public.
 

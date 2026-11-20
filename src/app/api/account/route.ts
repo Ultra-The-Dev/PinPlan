@@ -1,4 +1,4 @@
-// DELETE /api/account: deletes the caller's PinPlan account (App Store rule 5.1.1(v): apps with sign-up must
+// DELETE /api/account: deletes the caller's Northpin account (App Store rule 5.1.1(v): apps with sign-up must
 // offer deletion). The caller is identified by their own Supabase access token; the work is done with the
 // service-role key, which never leaves the server. Without that key this answers 501.
 //

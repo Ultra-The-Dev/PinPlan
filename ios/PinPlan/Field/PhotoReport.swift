@@ -54,7 +54,7 @@ struct PhotoReportSheet: View {
                     if app.cloud.signedIn && !app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty {
                         Button { Task { await publish() } } label: { Label("Create client link", systemImage: "link") }
                     } else {
-                        Text("Connect cloud sync and the PinPlan server in Settings to share a link.").font(.footnote).foregroundStyle(.secondary)
+                        Text("Connect cloud sync and the Northpin server in Settings to share a link.").font(.footnote).foregroundStyle(.secondary)
                     }
                     if let busy { HStack { ProgressView(); Text(busy).foregroundStyle(.secondary) } }
                     if let error { Text(error).foregroundStyle(.red) }
@@ -177,7 +177,7 @@ enum PhotoReportBuilder {
         return Array(NSOrderedSet(array: days)).compactMap { $0 as? String }.joined(separator: " – ")
     }
 
-    /// The company logo from the PinPlan server (or a full URL); nil if it can't be loaded.
+    /// The company logo from the Northpin server (or a full URL); nil if it can't be loaded.
     static func logo(_ s: AppSettings) async -> UIImage? {
         guard var path = s.business.logo, !path.isEmpty else { return nil }
         if path.hasPrefix("/") {

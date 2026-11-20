@@ -44,7 +44,7 @@ export function ErrorFallback({ error, retry }: { error: unknown; retry?: () => 
         </div>
         <h1 className="text-lg font-semibold text-slate-900">{t("Something went wrong")}</h1>
         <p className="mt-2 text-sm text-slate-600">
-          {t("PinPlan hit an unexpected error. Your jobs are saved on this device, so reloading is safe. If it keeps happening, copy the details and send them to support.")}
+          {t("Northpin hit an unexpected error. Your jobs are saved on this device, so reloading is safe. If it keeps happening, copy the details and send them to support.")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button className="btn btn-primary" onClick={() => location.reload()}>

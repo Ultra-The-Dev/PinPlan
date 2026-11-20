@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { WifiOff } from "lucide-react";
 import RetryButton from "./RetryButton";
 
-export const metadata: Metadata = { title: "Offline · PinPlan" };
+export const metadata: Metadata = { title: "Offline · Northpin" };
 
 export default function OfflinePage() {
   return (

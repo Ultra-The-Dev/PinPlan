@@ -132,7 +132,7 @@ export function billingSummary(b: TeamBilling, now = new Date()): { label: strin
     case "none": {
       if (!works) return { label: t("Trial ended"), detail: t("Jobs are read-only until you start a subscription."), tone: "red" };
       // Billing isn't switched on yet (billing_settings.enforce): the trial is over but nothing locks.
-      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: t("Trial ended"), detail: t("Your free trial is over. Start a subscription to keep using PinPlan; jobs stay editable for now."), tone: "slate" };
+      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: t("Trial ended"), detail: t("Your free trial is over. Start a subscription to keep using Northpin; jobs stay editable for now."), tone: "slate" };
       if (ending && b.status === "trialing") return { label: t("Trial"), detail: endsNote(ending), tone: "amber" };
       if (b.hasSubscription && b.status === "trialing")
         return { label: t("Trial"), detail: b.trialEndsAt ? tn("{n} day left — then your subscription starts.", "{n} days left — then your subscription starts.", daysLeft(b.trialEndsAt, now)) : t("Subscription starts after the trial."), tone: "slate" };
@@ -164,7 +164,7 @@ export function bannerFor(b: TeamBilling | null | undefined, role: TeamRole | nu
     const why =
       b.status === "trialing" || b.status === "incomplete" || b.status === "none"
         ? t("Your free trial has ended, so jobs are read-only — you can still view and export everything.")
-        : t("Your PinPlan subscription is inactive, so jobs are read-only — you can still view and export everything.");
+        : t("Your Northpin subscription is inactive, so jobs are read-only — you can still view and export everything.");
     return {
       tone: "red",
       text: sentences(why, office ? t("Start a subscription to edit again.") : ask),
@@ -179,7 +179,7 @@ export function bannerFor(b: TeamBilling | null | undefined, role: TeamRole | nu
     if (d > 0 && d <= 7) return { tone: "amber", text: sentences(t("Your subscription ends {date}: jobs turn read-only after that.", { date: shortDate(b.cancelAt) }), office ? t("Renew it in billing to keep working.") : ask), action: office ? "portal" : null };
   }
   if (b.status === "past_due")
-    return { tone: "amber", text: sentences(t("The last PinPlan payment failed."), office ? t("Update the card to avoid interruption.") : ask), action: office ? "portal" : null };
+    return { tone: "amber", text: sentences(t("The last Northpin payment failed."), office ? t("Update the card to avoid interruption.") : ask), action: office ? "portal" : null };
   // While billing isn't switched on, the trial ending changes nothing: say nothing.
   if ((b.status === "trialing" || b.status === "incomplete") && !b.hasSubscription && b.trialEndsAt && b.enforce !== false) {
     const d = daysLeft(b.trialEndsAt, now);
@@ -308,7 +308,7 @@ export function seatItem(sub: SubscriptionLike, seatPriceId: string) {
   return sub.items?.data.find((i) => i.price?.id === seatPriceId) ?? null;
 }
 
-/** Does the subscription pay for PinPlan's base plan (STRIPE_PRICE_BASE)? */
+/** Does the subscription pay for Northpin's base plan (STRIPE_PRICE_BASE)? */
 export function hasBasePrice(sub: SubscriptionLike, basePriceId: string): boolean {
   return !!sub.items?.data.some((i) => i.price?.id === basePriceId && (i.quantity ?? 1) > 0);
 }
@@ -411,7 +411,7 @@ export function checkoutTrialEnd(team: { plan_status: string; trial_ends_at: str
 
 // ---------- the database's lock ----------
 
-export const INACTIVE_MESSAGE = "PinPlan subscription inactive";
+export const INACTIVE_MESSAGE = "Northpin subscription inactive";
 /** Did the database refuse a write because the team's subscription lapsed? */
 export function isSubscriptionInactive(e: { message?: string | null } | string | null | undefined): boolean {
   const msg = typeof e === "string" ? e : e?.message;

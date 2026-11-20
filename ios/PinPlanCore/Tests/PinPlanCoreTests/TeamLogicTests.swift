@@ -157,7 +157,7 @@ final class TeamLogicTests: XCTestCase {
 
     func testInviteMessageReadsWell() {
         let s = TeamLogic.inviteMessage(team: "Acme AV", role: .tech, name: "Sam", code: "K7QMXR4TPA", link: "https://x.example/join?code=K7QMXR4TPA")
-        XCTAssertTrue(s.hasPrefix("Hi Sam, you're invited to join Acme AV on PinPlan as a technician."))
+        XCTAssertTrue(s.hasPrefix("Hi Sam, you're invited to join Acme AV on Northpin as a technician."))
         XCTAssertTrue(s.contains("https://x.example/join?code=K7QMXR4TPA"))
         XCTAssertTrue(s.contains("K7QM-XR4T-PA"))
         XCTAssertFalse(TeamLogic.inviteMessage(team: "", role: .admin, name: "", code: "AB", link: nil).contains("Join here"))

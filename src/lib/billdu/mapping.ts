@@ -90,7 +90,7 @@ export function clientPayload(p: Pick<Project, "clientName" | "clientEmail" | "c
     country: "US",
     phone: p.clientPhone ?? "",
     email: p.clientEmail ?? "",
-    note: `PinPlan project: ${p.address}`,
+    note: `Northpin project: ${p.address}`,
   };
 }
 

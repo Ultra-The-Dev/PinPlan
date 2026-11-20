@@ -5,7 +5,7 @@ import Foundation
 // agree on when a team is read-only.
 //
 // App Store rule: the app never sells. No prices, no "subscribe" / "buy" buttons — the wording stays neutral
-// ("Your company's PinPlan subscription needs attention") and owners / admins only get a link to manage their
+// ("Your company's Northpin subscription needs attention") and owners / admins only get a link to manage their
 // account on the web.
 
 /// `teams.plan_status`. `none` = no billing record (or a value this version doesn't know).
@@ -140,7 +140,7 @@ public struct BillingBanner: Equatable, Sendable {
 public enum BillingLogic {
     public static let trialDays = 14
     /// The database refuses job writes with this message (error P0001) when the team can't work.
-    public static let inactiveMessage = "PinPlan subscription inactive"
+    public static let inactiveMessage = "Northpin subscription inactive"
     /// After the database refused a push as inactive, wait this long before pushing again (pulls go on).
     public static let readOnlyRetry: TimeInterval = 10 * 60
     /// Shown on the link for owners and admins. Neutral on purpose (App Store: no purchasing inside the app).
@@ -200,7 +200,7 @@ public enum BillingLogic {
     public static func editBlockedMessage(_ b: TeamBilling?, role: TeamRole?, now: Date = Date()) -> String? {
         guard !canEdit(b, now: now), let b else { return nil }
         let ended = b.status == .trialing || b.status == .incomplete || b.status == .none
-        let why = ended ? "Your free trial has ended" : "Your PinPlan subscription is inactive"
+        let why = ended ? "Your free trial has ended" : "Your Northpin subscription is inactive"
         let office = role == .owner || role == .admin
         return "\(why), so jobs are read-only — you can still view and export everything. " + (office ? "Manage your account on the web to edit again." : askOfficeText)
     }
@@ -312,22 +312,22 @@ public enum BillingLogic {
         let next = office ? "" : " " + askOfficeText
         if !allowsWork(b, now: now) {
             return BillingBanner(tone: .red, title: "Read-only",
-                                 text: "Your company's PinPlan subscription needs attention, so jobs are read-only. You can still view and export everything." + next,
+                                 text: "Your company's Northpin subscription needs attention, so jobs are read-only. You can still view and export everything." + next,
                                  action: action, readOnly: true)
         }
         if b.status == .canceled, let end = b.trialEndsAt {
             // Canceled during the trial: still working until the trial ends.
             return BillingBanner(tone: .amber, title: "Canceled",
-                                 text: "Your company's PinPlan subscription was canceled. " + endsNote(end) + next, action: action, readOnly: false)
+                                 text: "Your company's Northpin subscription was canceled. " + endsNote(end) + next, action: action, readOnly: false)
         }
         // A cancellation scheduled in Stripe, within a week.
         if b.status == .active || b.status == .trialing, let ending = endingAt(b, now: now), daysLeft(ending, now: now) <= 7 {
             return BillingBanner(tone: .amber, title: "Ending",
-                                 text: "Your company's PinPlan subscription is ending. " + endsNote(ending) + next, action: action, readOnly: false)
+                                 text: "Your company's Northpin subscription is ending. " + endsNote(ending) + next, action: action, readOnly: false)
         }
         if b.status == .pastDue {
             return BillingBanner(tone: .amber, title: "Needs attention",
-                                 text: "Your company's PinPlan subscription needs attention." + next, action: action, readOnly: false)
+                                 text: "Your company's Northpin subscription needs attention." + next, action: action, readOnly: false)
         }
         // While billing isn't switched on, the trial ending changes nothing: say nothing.
         if (b.status == .trialing || b.status == .incomplete) && !b.hasSubscription && b.trialEndsAt != nil && b.enforce {
@@ -335,7 +335,7 @@ public enum BillingLogic {
             if d <= 3 {
                 let when = d <= 1 ? "today or tomorrow" : "in \(d) days"
                 return BillingBanner(tone: .amber, title: "Trial ending",
-                                     text: "Your company's PinPlan trial ends \(when)." + next, action: action, readOnly: false)
+                                     text: "Your company's Northpin trial ends \(when)." + next, action: action, readOnly: false)
             }
         }
         return nil
@@ -351,7 +351,7 @@ public enum BillingLogic {
         let d = daysLeft(s.trialEndsAt, now: now)
         guard d <= 3 else { return nil }
         let when = d <= 1 ? "today or tomorrow" : "in \(d) days"
-        return BillingBanner(tone: .amber, title: "Trial ending", text: "Your PinPlan trial ends \(when).", action: .manageOnWeb, readOnly: false)
+        return BillingBanner(tone: .amber, title: "Trial ending", text: "Your Northpin trial ends \(when).", action: .manageOnWeb, readOnly: false)
     }
 
     /// `solo_billing()`'s answer. Nil for JSON null (on a team, or signed out) or anything unreadable.
@@ -367,7 +367,7 @@ public enum BillingLogic {
         return "\(base) · \(plural(pending, "change")) kept on this \(device)"
     }
 
-    /// A page on the PinPlan web server: "<origin>/<path>" (path may carry a #fragment). Nil without an origin.
+    /// A page on the Northpin web server: "<origin>/<path>" (path may carry a #fragment). Nil without an origin.
     public static func webURL(origin: String, path: String) -> String? {
         var o = origin.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !o.isEmpty else { return nil }

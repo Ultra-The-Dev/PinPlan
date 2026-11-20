@@ -291,7 +291,7 @@ export async function brandNewCompany(company: string, email: string): Promise<v
 
 // ---------------- leaving this device ----------------
 
-/** After the account is deleted: wipe this device's jobs, photos, settings and PinPlan keys. */
+/** After the account is deleted: wipe this device's jobs, photos, settings and Northpin keys. */
 export async function clearLocalData(): Promise<void> {
   try {
     const d = db();

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The `.pinplan.json` backup format shared with the PinPlan web app.
+/// The `.pinplan.json` backup format shared with the Northpin web app.
 public struct BackupFile: Codable, Sendable {
     public struct Image: Codable, Sendable {
         public var id: String
@@ -139,7 +139,7 @@ public struct BackupFile: Codable, Sendable {
 
     public enum BackupError: Error, LocalizedError {
         case notABackup
-        public var errorDescription: String? { "That file isn't a PinPlan backup." }
+        public var errorDescription: String? { "That file isn't a Northpin backup." }
     }
 
     public static func decode(_ data: Data) throws -> BackupFile {

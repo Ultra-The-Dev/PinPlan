@@ -6,7 +6,7 @@ export type ProviderId = "quickbooks" | "xero" | "billdu";
 export const PROVIDER_IDS: ProviderId[] = ["quickbooks", "xero", "billdu"];
 export const isProviderId = (s: unknown): s is ProviderId => typeof s === "string" && (PROVIDER_IDS as string[]).includes(s);
 
-/** Whose connection it is: a team (the company), or a person who uses PinPlan without a team. */
+/** Whose connection it is: a team (the company), or a person who uses Northpin without a team. */
 export interface Owner {
   kind: "team" | "user";
   id: string;
@@ -118,7 +118,7 @@ export interface Provider {
   enabled(): boolean;
   /** Mapping settings (item / account / tax codes in the remote books). */
   settingsFields: SettingField[];
-  /** OAuth: the provider's sign-in URL. API-key providers: the PinPlan page where the key is entered. */
+  /** OAuth: the provider's sign-in URL. API-key providers: the Northpin page where the key is entered. */
   connect(input: OAuthStart): string;
   /** OAuth: trade the code for tokens and work out which company was connected. */
   callback(input: { code: string; codeVerifier: string; redirectUri: string; params: URLSearchParams }): Promise<OAuthResult>;

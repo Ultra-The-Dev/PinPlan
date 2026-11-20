@@ -1,10 +1,10 @@
 // Transactional email through Resend's REST API (server-only; no SDK).
 // Switched on by two environment variables on the server:
 //   RESEND_API_KEY  the Resend API key ("re_…")
-//   EMAIL_FROM      the sender on a domain verified in Resend, e.g. "PinPlan <noreply@yourdomain.com>"
+//   EMAIL_FROM      the sender on a domain verified in Resend, e.g. "Northpin <noreply@yourdomain.com>"
 // Also needed in production: PINPLAN_APP_URL (the address used in links, e.g. https://app.example.com). Links are never
 // built from the request's Host header, so a forged Host can't put someone else's site into an email.
-// Optional: EMAIL_REPLY_TO (where replies to PinPlan's own mail go; never used for mail to a company's clients).
+// Optional: EMAIL_REPLY_TO (where replies to Northpin's own mail go; never used for mail to a company's clients).
 // Without the first two, emailConfigured() is false and routes answer 501 with a friendly message.
 // Sends on a company's behalf also go through sendGuard.ts (daily caps, confirmed email, active subscription).
 // Never log the key, the message body or the recipient.
@@ -18,7 +18,7 @@ export function emailConfigured(): boolean {
 
 /** 501 for callers when email isn't switched on yet. */
 export function emailUnavailable(hint = ""): Response {
-  return Response.json({ error: `Email isn't set up yet on this PinPlan server.${hint ? ` ${hint}` : ""}`, code: "email_unconfigured" }, { status: 501 });
+  return Response.json({ error: `Email isn't set up yet on this Northpin server.${hint ? ` ${hint}` : ""}`, code: "email_unconfigured" }, { status: 501 });
 }
 
 const EMAIL_RE = /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\]]+\.[^\s@<>()",;:\\[\]]+$/;
@@ -51,7 +51,7 @@ export function appOrigin(request: Request): string | null {
 export function appOriginMissing(): Response {
   console.warn("[email] PINPLAN_APP_URL is not set (or not https): links in emails can't be built");
   return Response.json(
-    { error: "Email links aren't set up on this PinPlan server yet. The site address (PINPLAN_APP_URL) is missing.", code: "app_url_unconfigured" },
+    { error: "Email links aren't set up on this Northpin server yet. The site address (PINPLAN_APP_URL) is missing.", code: "app_url_unconfigured" },
     { status: 501 },
   );
 }
@@ -62,7 +62,7 @@ export interface EmailMessage {
   html: string;
   text: string;
   replyTo?: string;
-  /** false: never fall back to EMAIL_REPLY_TO (mail to a company's client must reply to the company, not PinPlan). */
+  /** false: never fall back to EMAIL_REPLY_TO (mail to a company's client must reply to the company, not Northpin). */
   platformReplyTo?: boolean;
   /** Resend keeps a key for 24 hours: the same key + same message is sent only once. */
   idempotencyKey?: string;
@@ -98,7 +98,7 @@ const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").trim();
 export async function sendEmail(msg: EmailMessage, opts: { timeoutMs?: number } = {}): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
-  if (!key || !from) return fail(501, "email_unconfigured", "Email isn't set up yet on this PinPlan server.");
+  if (!key || !from) return fail(501, "email_unconfigured", "Email isn't set up yet on this Northpin server.");
   const to = (Array.isArray(msg.to) ? msg.to : [msg.to]).map((t) => t.trim()).filter(Boolean);
   if (!to.length || to.length > 50 || !to.every(validEmail)) return fail(400, "bad_recipient", "Enter a valid email address.");
 

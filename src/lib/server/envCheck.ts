@@ -56,7 +56,7 @@ export function configWarning(env: Env = process.env): string | null {
   if (!isProduction(env)) return null;
   const missing = missingProductionConfig(env);
   if (!missing.length) return null;
-  return `[PinPlan] PRODUCTION CONFIG INCOMPLETE — missing: ${missing.join(", ")}. /api/health answers 503 until these are set. See SETUP.md.`;
+  return `[Northpin] PRODUCTION CONFIG INCOMPLETE — missing: ${missing.join(", ")}. /api/health answers 503 until these are set. See SETUP.md.`;
 }
 
 /**

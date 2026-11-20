@@ -25,7 +25,7 @@ describe("invite sharing", () => {
     expect(m).toContain("(the crew)");
     expect(m).toContain("https://pinplan.app/join?code=K7QMXR4TPA");
     expect(m).toContain("K7QM-XR4T-PA");
-    expect(inviteMessage({ team: " ", role: "admin", code: "K7QMXR4TPA", link })).toMatch(/^You're invited to join our team on PinPlan \(the office\)/);
+    expect(inviteMessage({ team: " ", role: "admin", code: "K7QMXR4TPA", link })).toMatch(/^You're invited to join our team on Northpin \(the office\)/);
   });
   it("builds an sms link with the text encoded", () => {
     expect(smsHref("Hi & welcome")).toBe("sms:?&body=Hi%20%26%20welcome");

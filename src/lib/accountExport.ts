@@ -157,10 +157,10 @@ export function accountExportEntries(input: AccountExportInput): ZipEntry[] {
     {
       name: "README.txt",
       data: [
-        "Your PinPlan data",
+        "Your Northpin data",
         `Exported ${input.exportedAt}`,
         "",
-        `jobs/ — ${input.jobs.length} job backup file${input.jobs.length === 1 ? "" : "s"}. Each one restores in PinPlan with Projects › Restore backup,`,
+        `jobs/ — ${input.jobs.length} job backup file${input.jobs.length === 1 ? "" : "s"}. Each one restores in Northpin with Projects › Restore backup,`,
         "        and includes the job's plans, devices, cable runs, photos, estimate, checklists, logs and its quotes and invoices.",
         "sales/documents.json, sales/payments.json — every quote, invoice and credit note and every payment (also ones not tied to a job).",
         "invoices-and-quotes.csv, payments.csv — the same, as spreadsheets for your accountant.",

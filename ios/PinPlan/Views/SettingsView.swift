@@ -80,7 +80,7 @@ struct SettingsView: View {
             } header: {
                 Text("More").textCase(nil)
             } footer: {
-                Text("Connection details. You only need these if your company runs its own copy of PinPlan.")
+                Text("Connection details. You only need these if your company runs its own copy of Northpin.")
             }
             AboutSection()
         }
@@ -113,7 +113,7 @@ struct BillduSettingsView: View {
                     HStack { Text("Checking…").foregroundStyle(.secondary); Spacer(); ProgressView() }
                 } else if let s = status {
                     StatusRow(title: s.configured ? String(localized: "Connected") : String(localized: "Not connected"), ok: s.configured,
-                              detail: s.configured ? s.teamName.map { String(localized: "For \($0)") } : String(localized: "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu."))
+                              detail: s.configured ? s.teamName.map { String(localized: "For \($0)") } : String(localized: "An owner or admin connects Billdu in Northpin on the web, under Settings › Billdu."))
                 } else if let problem {
                     Text(problem).font(.callout).foregroundStyle(.secondary)
                 } else if !app.cloud.signedIn {
@@ -122,7 +122,7 @@ struct BillduSettingsView: View {
             } header: {
                 Text("Connection").textCase(nil)
             } footer: {
-                Text("Your company's Billdu keys stay on the PinPlan server and never come to this device.")
+                Text("Your company's Billdu keys stay on the Northpin server and never come to this device.")
             }
             Section {
                 Picker("First document", selection: $app.settings.billduDocType) {
@@ -137,7 +137,7 @@ struct BillduSettingsView: View {
     }
 
     private func check() async {
-        guard let api = APIClient(settings: app.settings) else { problem = String(localized: "This copy of PinPlan isn't connected yet."); return }
+        guard let api = APIClient(settings: app.settings) else { problem = String(localized: "This copy of Northpin isn't connected yet."); return }
         guard app.cloud.signedIn || !app.settings.accessCode.isEmpty else { status = nil; problem = nil; return }
         checking = true
         defer { checking = false }
@@ -308,7 +308,7 @@ struct WireSettingsView: View {
     }
 }
 
-/// Settings › More › Advanced: where this copy of PinPlan connects (the server address, an access code for a
+/// Settings › More › Advanced: where this copy of Northpin connects (the server address, an access code for a
 /// self-hosted server, and the cloud project for sign-in), with a connection check. Most people never open it:
 /// the app ships with its server built in.
 struct ServerSetupView: View {
@@ -342,7 +342,7 @@ struct ServerSetupView: View {
                 }
                 SecureField("Access code (self-hosted only)", text: $app.settings.accessCode)
                 if !builtIn.isEmpty && !app.settings.usesBuiltInServer {
-                    Button("Use the standard PinPlan server") {
+                    Button("Use the standard Northpin server") {
                         app.settings.accessCode = ""
                         save(builtIn)
                     }
@@ -366,7 +366,7 @@ struct ServerSetupView: View {
                 .disabled(checking || current.isEmpty)
                 if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
                 if let h = health {
-                    StatusRow(title: String(localized: "PinPlan found"), ok: true, detail: nil)
+                    StatusRow(title: String(localized: "Northpin found"), ok: true, detail: nil)
                     StatusRow(title: app.cloud.signedIn ? String(localized: "Your sign-in is accepted") : String(localized: "Access accepted"), ok: h.authorized,
                               detail: h.authorized ? nil : (app.cloud.signedIn ? String(localized: "Sign out and sign in again.") : String(localized: "Sign in, or check the access code.")))
                 }
@@ -413,12 +413,12 @@ struct ServerSetupView: View {
             Button("Use my sign-in with this server") { APIClient.trust(current); health = nil }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Only do this if your company runs this copy of PinPlan. The server will act as you: it can read and change your jobs.")
+            Text("Only do this if your company runs this copy of Northpin. The server will act as you: it can read and change your jobs.")
         }
     }
 
     private func serverFooter(current: String) -> String {
-        var s = String(localized: "Only change this if your company runs its own copy of PinPlan. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead.")
+        var s = String(localized: "Only change this if your company runs its own copy of Northpin. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead.")
         if !current.isEmpty && APIClient(settings: app.settings) != nil && !APIClient.mayCarrySession(current) {
             s += " " + String(localized: "Your sign-in isn't sent to this server until you choose to use it here.")
         }
@@ -501,7 +501,7 @@ struct ServerSetupPrompt: View {
     @State private var open = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(feature) needs a connection to PinPlan").font(.subheadline.weight(.medium))
+            Text("\(feature) needs a connection to Northpin").font(.subheadline.weight(.medium))
             Button("Connection settings") { open = true }.buttonStyle(.bordered)
         }
         .padding(.vertical, 4)

@@ -21,10 +21,10 @@ export default function StatusCheck() {
     };
   }, []);
   const view = {
-    checking: ["bg-slate-300", t("Checking {product}’s servers…", { product: "PinPlan" })],
+    checking: ["bg-slate-300", t("Checking {product}’s servers…", { product: "Northpin" })],
     ok: ["bg-emerald-500", t("All systems operational")],
     degraded: ["bg-amber-500", t("Some services are having problems. Your work is saved on your device and will sync when they recover.")],
-    offline: ["bg-slate-400", t("Can’t reach {product} from this device. Check your connection; {product} keeps working offline.", { product: "PinPlan" })],
+    offline: ["bg-slate-400", t("Can’t reach {product} from this device. Check your connection; {product} keeps working offline.", { product: "Northpin" })],
   }[status];
   return (
     <p className="flex items-start gap-2.5 text-sm text-slate-700" role="status" aria-live="polite">

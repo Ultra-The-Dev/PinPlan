@@ -56,7 +56,7 @@ function unknownProvider() {
 }
 
 function notEnabled(p: Provider) {
-  return jsonError(`${p.label} isn't switched on for this PinPlan server yet.`, "provider_not_configured", 501, { missing: p.requiredEnv.filter((k) => !process.env[k]) });
+  return jsonError(`${p.label} isn't switched on for this Northpin server yet.`, "provider_not_configured", 501, { missing: p.requiredEnv.filter((k) => !process.env[k]) });
 }
 
 function needsOwner() {

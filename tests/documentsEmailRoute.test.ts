@@ -36,7 +36,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
   vi.stubEnv("RESEND_API_KEY", "re_secret_123");
-  vi.stubEnv("EMAIL_FROM", "PinPlan <noreply@example.com>");
+  vi.stubEnv("EMAIL_FROM", "Northpin <noreply@example.com>");
   vi.stubEnv("EMAIL_REPLY_TO", "support@example.com");
   vi.stubEnv("PINPLAN_APP_URL", "https://app.example.com");
   vi.stubEnv("PINPLAN_ACCESS_CODE", "");
@@ -105,7 +105,7 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(t).not.toContain("payment page");
   });
 
-  it("needs the company's own business email: never replies to PinPlan", async () => {
+  it("needs the company's own business email: never replies to Northpin", async () => {
     company = [{ business_name: "Sample Electric", email: "" }];
     setDocument();
     const r = await (await load())(post(good));

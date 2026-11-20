@@ -207,7 +207,7 @@ final class BillingEditTests: XCTestCase {
         XCTAssertTrue(owner.contains("on the web"))
         XCTAssertFalse(owner.lowercased().contains("subscribe"), "no selling in the app")
         let tech = BillingLogic.editBlockedMessage(TeamBilling(status: .unpaid, now: now), role: .tech, now: now) ?? ""
-        XCTAssertTrue(tech.hasPrefix("Your PinPlan subscription is inactive"))
+        XCTAssertTrue(tech.hasPrefix("Your Northpin subscription is inactive"))
         XCTAssertTrue(tech.hasSuffix(BillingLogic.askOfficeText))
     }
 }

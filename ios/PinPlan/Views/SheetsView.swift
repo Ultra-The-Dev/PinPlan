@@ -178,7 +178,7 @@ struct SheetsView: View {
         }
     }
 
-    /// Files opened in PinPlan from another app (Mail, Files, AirDrop…) for this project.
+    /// Files opened in Northpin from another app (Mail, Files, AirDrop…) for this project.
     private func consumePendingImport() {
         guard let pending = app.pendingImport, pending.projectId == model.bundle.project.id else { return }
         app.pendingImport = nil
@@ -298,7 +298,7 @@ private struct ImportPanel: View {
                 HStack(spacing: 12) { options }
                 VStack(spacing: 10) { options }
             }
-            Text(targeted ? "Drop to import" : "Tip: drag PDFs or images here, or open a plan in PinPlan from Mail, Files or AirDrop.")
+            Text(targeted ? "Drop to import" : "Tip: drag PDFs or images here, or open a plan in Northpin from Mail, Files or AirDrop.")
                 .font(.caption).foregroundStyle(targeted ? Color.brand : .secondary)
         }
         .padding(16)

@@ -175,7 +175,7 @@ struct EstimateView: View {
         }
     }
 
-    /// Billdu: only when the PinPlan server says it is connected for this company; otherwise where to connect it.
+    /// Billdu: only when the Northpin server says it is connected for this company; otherwise where to connect it.
     @ViewBuilder private func billduSection(_ e: Estimate) -> some View {
         let cur = pricing.currency
         if billduOn {
@@ -197,7 +197,7 @@ struct EstimateView: View {
                     LabeledContent("\(tr(d.type.capitalized)) \(d.serial ?? "#\(d.id)")\(d.label.map { " · \($0)" } ?? "")", value: Money.format(d.amount, currency: cur))
                 }
             } header: { Text("Billdu").textCase(nil) } footer: {
-                Text("Sent through your PinPlan server; Billdu keys never live on this device")
+                Text("Sent through your Northpin server; Billdu keys never live on this device")
             }
         } else if billduState == "connect" {
             Section {
@@ -274,7 +274,7 @@ struct EstimateView: View {
     private func trySend(_ e: Estimate) { send(e, existing: existingDoc?.id) }
 
     private func send(_ e: Estimate, existing: Int?) {
-        guard let client = APIClient(settings: app.settings) else { message = (false, String(localized: "Set your PinPlan server address in Settings.")); return }
+        guard let client = APIClient(settings: app.settings) else { message = (false, String(localized: "Set your Northpin server address in Settings.")); return }
         let dep = Double(deposit).flatMap { $0 > 0 && $0 < 100 ? $0 : nil }
         sending = true
         message = nil

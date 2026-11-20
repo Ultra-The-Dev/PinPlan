@@ -53,7 +53,7 @@ function clip(s: string | null | undefined, n: number): string | null {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
-/** Errors that are noise (browser quirks, extensions, aborted requests) rather than PinPlan bugs. */
+/** Errors that are noise (browser quirks, extensions, aborted requests) rather than Northpin bugs. */
 export function isNoise(message: string, stack: string | null): boolean {
   if (!message || message === "Script error." || message === "Script error") return true;
   if (/ResizeObserver loop|AbortError|The (operation|user) aborted|Load failed$|NetworkError when attempting|Failed to fetch$/i.test(message)) return true;

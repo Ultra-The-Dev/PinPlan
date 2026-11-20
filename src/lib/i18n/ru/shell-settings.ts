@@ -62,8 +62,8 @@ const shellSettings: Dictionary = {
   Syncing: "Синхронизация",
   "{n} pending": "{n} в очереди",
   Synced: "Синхронизировано",
-  "Your company's PinPlan subscription is inactive: changes stay on this device until it's restarted.":
-    "Подписка PinPlan вашей компании не активна: изменения остаются на этом устройстве, пока её не возобновят.",
+  "Your company's Northpin subscription is inactive: changes stay on this device until it's restarted.":
+    "Подписка Northpin вашей компании не активна: изменения остаются на этом устройстве, пока её не возобновят.",
   "This device has another account's jobs. Open Settings to remove them before syncing.":
     "На этом устройстве есть объекты другого аккаунта. Откройте настройки и удалите их перед синхронизацией.",
   "{n} change wasn't accepted. Open Settings to discard or try again.": {
@@ -659,15 +659,15 @@ const shellSettings: Dictionary = {
   "(sandbox)": "(песочница)",
   "Last sync {date}": "Последняя синхронизация {date}",
   "Nothing sent yet": "Пока ничего не отправлено",
-  "Your PinPlan server needs this app's keys first.": "Сначала на вашем сервере PinPlan нужно задать ключи этого приложения.",
+  "Your Northpin server needs this app's keys first.": "Сначала на вашем сервере Northpin нужно задать ключи этого приложения.",
   Connect: "Подключить",
   Test: "Проверить",
-  "Disconnect {app}? Nothing is deleted there; PinPlan just stops sending.": "Отключить {app}? Там ничего не удалится; PinPlan просто перестанет отправлять данные.",
+  "Disconnect {app}? Nothing is deleted there; Northpin just stops sending.": "Отключить {app}? Там ничего не удалится; Northpin просто перестанет отправлять данные.",
   Less: "Свернуть",
   "Mapping saved.": "Сопоставление сохранено.",
   Mapping: "Сопоставление",
-  "Where PinPlan’s lines go in {app}. Tax is sent as its own line so totals match to the cent.":
-    "Куда попадают строки PinPlan в {app}. Налог отправляется отдельной строкой, чтобы итоги сходились до цента.",
+  "Where Northpin’s lines go in {app}. Tax is sent as its own line so totals match to the cent.":
+    "Куда попадают строки Northpin в {app}. Налог отправляется отдельной строкой, чтобы итоги сходились до цента.",
   "Save mapping": "Сохранить сопоставление",
   "Recent activity": "Последние события",
   "Nothing yet.": "Пока ничего.",
@@ -677,7 +677,7 @@ const shellSettings: Dictionary = {
   // Platform admin (/admin)
   "Trial ends {date}": "Пробный период до {date}",
   "Platform admin": "Администрирование платформы",
-  "Companies, usage and recent app errors across every PinPlan account.": "Компании, использование и последние ошибки приложения по всем аккаунтам PinPlan.",
+  "Companies, usage and recent app errors across every Northpin account.": "Компании, использование и последние ошибки приложения по всем аккаунтам Northpin.",
   Refresh: "Обновить",
   "Not available for this account": "Недоступно для этого аккаунта",
   "Sign in first": "Сначала войдите",

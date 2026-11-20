@@ -900,8 +900,8 @@ const moneyOffice: Dictionary = {
   "Nothing sent yet": "Пока ничего не отправлено",
   Connect: "Подключить",
   Test: "Проверить",
-  "Disconnect {app}? Nothing is deleted there; PinPlan just stops sending.":
-    "Отключить {app}? Там ничего не удалится; PinPlan просто перестанет отправлять данные.",
+  "Disconnect {app}? Nothing is deleted there; Northpin just stops sending.":
+    "Отключить {app}? Там ничего не удалится; Northpin просто перестанет отправлять данные.",
   "Disconnected.": "Отключено.",
   Disconnect: "Отключить",
   Less: "Свернуть",

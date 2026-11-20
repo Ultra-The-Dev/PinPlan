@@ -49,8 +49,8 @@ describe("esc / safeUrl", () => {
 describe("team invite", () => {
   it("reads like the brief, with the big code, join button and iPad steps", () => {
     const e = teamInviteEmail(invite);
-    expect(e.subject).toBe("Dana invited you to join Acme Low Voltage on PinPlan");
-    expect(e.text).toContain("Dana invited you to join Acme Low Voltage on PinPlan as a Technician.");
+    expect(e.subject).toBe("Dana invited you to join Acme Low Voltage on Northpin");
+    expect(e.text).toContain("Dana invited you to join Acme Low Voltage on Northpin as a Technician.");
     expect(e.html).toContain("K7QM-XR4T-PA");
     expect(e.text).toContain("Your invite code: K7QM-XR4T-PA");
     expect(e.html).toContain(`href="https://app.example.com/join?code=K7QMXR4TPA"`);
@@ -62,8 +62,8 @@ describe("team invite", () => {
   });
   it("says an Office admin, and copes without an inviter name", () => {
     const e = teamInviteEmail({ ...invite, role: "admin", inviterName: "" });
-    expect(e.subject).toBe("You're invited to join Acme Low Voltage on PinPlan");
-    expect(e.text).toContain("You've been invited to join Acme Low Voltage on PinPlan as an Office admin.");
+    expect(e.subject).toBe("You're invited to join Acme Low Voltage on Northpin");
+    expect(e.text).toContain("You've been invited to join Acme Low Voltage on Northpin as an Office admin.");
   });
   it("escapes the names and drops a non-http join link", () => {
     const e = teamInviteEmail({ ...invite, inviterName: EVIL, teamName: EVIL, inviteeName: EVIL, joinUrl: "javascript:alert(1)" });
@@ -75,7 +75,7 @@ describe("team invite", () => {
   });
   it("keeps line breaks out of the subject", () => {
     const e = teamInviteEmail({ ...invite, inviterName: "Dana\r\nBcc: evil@x.com", teamName: "Acme\nCorp" });
-    expect(e.subject).toBe("Dana Bcc: evil@x.com invited you to join Acme Corp on PinPlan");
+    expect(e.subject).toBe("Dana Bcc: evil@x.com invited you to join Acme Corp on Northpin");
   });
 });
 
@@ -137,22 +137,22 @@ describe("proposal / plan review response", () => {
 describe("welcome and billing", () => {
   it("welcome links into the app", () => {
     const e = welcomeEmail({ name: "Dana", companyName: "Acme Low Voltage", appUrl: "https://app.example.com/" });
-    expect(e.subject).toBe("Welcome to PinPlan, Acme Low Voltage");
+    expect(e.subject).toBe("Welcome to Northpin, Acme Low Voltage");
     expect(e.html).toContain(`href="https://app.example.com/settings#business"`);
-    expect(e.text).toContain("Open PinPlan: https://app.example.com/");
+    expect(e.text).toContain("Open Northpin: https://app.example.com/");
     expectSafe(welcomeEmail({ name: EVIL, companyName: EVIL, appUrl: "https://a.b" }));
   });
   it("trial ending in 3 days", () => {
     const e = trialEndingEmail({ name: "Dana", companyName: "Acme", endsAt: "2026-11-22T00:00:00Z", billingUrl: "https://app.example.com/settings#billing" });
-    expect(e.subject).toBe("Your PinPlan trial ends in 3 days");
+    expect(e.subject).toBe("Your Northpin trial ends in 3 days");
     expect(e.text).toContain("Nov 22, 2026");
     expect(e.text).toContain("Start subscription: https://app.example.com/settings#billing");
-    expect(trialEndingEmail({ daysLeft: 1, billingUrl: "https://x.y" }).subject).toBe("Your PinPlan trial ends tomorrow");
+    expect(trialEndingEmail({ daysLeft: 1, billingUrl: "https://x.y" }).subject).toBe("Your Northpin trial ends tomorrow");
     expectSafe(trialEndingEmail({ name: EVIL, companyName: EVIL, planName: EVIL, billingUrl: "https://x.y" }));
   });
   it("payment failed", () => {
     const e = paymentFailedEmail({ companyName: "Acme", amount: 79, currency: "USD", nextAttemptAt: "2026-11-25T00:00:00Z", billingUrl: "https://app.example.com/settings#billing" });
-    expect(e.subject).toBe("Action needed: your PinPlan payment didn't go through");
+    expect(e.subject).toBe("Action needed: your Northpin payment didn't go through");
     expect(e.text).toContain("Amount: $79.00");
     expect(e.text).toContain("Next try: Nov 25, 2026");
     expect(e.html).toContain(`href="https://app.example.com/settings#billing"`);

@@ -11,7 +11,7 @@ import PinPlanCore
 // are told to ask their office.
 
 /// Shown instead of the web link outside the United States storefront: no link, no call to action.
-let accountManagedOutsideText = String(localized: "Your PinPlan account is managed outside this app.")
+let accountManagedOutsideText = String(localized: "Your Northpin account is managed outside this app.")
 
 /// Whether this device's App Store storefront allows the web account link (United States only).
 func webAccountLinkAllowed() async -> Bool {
@@ -28,13 +28,13 @@ func billingToneColor(_ tone: BillingTone) -> Color {
     }
 }
 
-/// "<server>/settings#billing", when the PinPlan server is set up.
+/// "<server>/settings#billing", when the Northpin server is set up.
 func manageAccountURL(_ settings: AppSettings) -> URL? {
     guard let s = BillingLogic.manageURL(origin: settings.serverURL) else { return nil }
     return URL(string: s)
 }
 
-/// "<server>/terms" etc., when the PinPlan server is set up.
+/// "<server>/terms" etc., when the Northpin server is set up.
 func serverPageURL(_ settings: AppSettings, _ path: String) -> URL? {
     guard let s = BillingLogic.webURL(origin: settings.serverURL, path: path) else { return nil }
     return URL(string: s)
@@ -147,7 +147,7 @@ struct TeamPlanSection: View {
         var parts: [String] = []
         if !line.detail.isEmpty { parts.append(line.detail) }
         if BillingLogic.seatsFull(billing) { parts.append(String(localized: "Every seat is in use, so a new person can't join until a seat is free.")) }
-        parts.append(office ? (linkAllowed ? String(localized: "The account is managed on the PinPlan website.") : accountManagedOutsideText) : String(localized: "The owner or office manages the account."))
+        parts.append(office ? (linkAllowed ? String(localized: "The account is managed on the Northpin website.") : accountManagedOutsideText) : String(localized: "The owner or office manages the account."))
         return parts.joined(separator: " ")
     }
 }
@@ -246,7 +246,7 @@ struct DeleteAccountView: View {
                 problem = message
                 teamInTheWay = true
             case .unavailable:
-                problem = String(localized: "Account deletion isn't switched on for this PinPlan server yet. Visit \(api.supportURL) and we'll delete your account for you.")
+                problem = String(localized: "Account deletion isn't switched on for this Northpin server yet. Visit \(api.supportURL) and we'll delete your account for you.")
             case .failed(let message):
                 problem = message
             }
@@ -273,16 +273,16 @@ struct DeleteAccountView: View {
         let context = LAContext()
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return true }
-        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Confirm it's you to delete your PinPlan account"))) == true
+        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Confirm it's you to delete your Northpin account"))) == true
     }
 }
 
 private struct DeleteExplanationSection: View {
     var body: some View {
         Section {
-            DeleteBullet(icon: "person.crop.circle.badge.xmark", text: String(localized: "Your PinPlan sign-in (email and password) and your name on the team."))
+            DeleteBullet(icon: "person.crop.circle.badge.xmark", text: String(localized: "Your Northpin sign-in (email and password) and your name on the team."))
             DeleteBullet(icon: "folder", text: String(localized: "Jobs you own, with their plans, devices, estimates, photos, documents, checklists and logs, and links you shared with clients."))
-            DeleteBullet(icon: "ipad.and.iphone", text: String(localized: "Everything PinPlan keeps on this device, including changes that haven't synced yet."))
+            DeleteBullet(icon: "ipad.and.iphone", text: String(localized: "Everything Northpin keeps on this device, including changes that haven't synced yet."))
         } header: {
             Text("What's deleted").textCase(nil)
         } footer: {
@@ -331,7 +331,7 @@ private struct DeleteAccountActionSection: View {
             }
         } else if APIClient(settings: app.settings) == nil {
             Section {
-                Text("The account can't be deleted from this device. Sign in to PinPlan on the web and choose Settings › Account › Delete account, or contact support and we'll delete it for you.")
+                Text("The account can't be deleted from this device. Sign in to Northpin on the web and choose Settings › Account › Delete account, or contact support and we'll delete it for you.")
                     .font(.callout).foregroundStyle(Color.secondary)
             }
         } else {
@@ -385,9 +385,9 @@ private struct AccountDeletedSection: View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Account deleted", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(Color.green)
-                Text(email.isEmpty ? "Your PinPlan account has been deleted and this device has been cleared." : "The PinPlan account \(email) has been deleted and this device has been cleared.")
+                Text(email.isEmpty ? "Your Northpin account has been deleted and this device has been cleared." : "The Northpin account \(email) has been deleted and this device has been cleared.")
                     .font(.callout)
-                Text("You can keep using PinPlan on this device without an account, or create a new one any time.")
+                Text("You can keep using Northpin on this device without an account, or create a new one any time.")
                     .font(.footnote).foregroundStyle(Color.secondary)
             }
             .padding(.vertical, 4)
@@ -419,7 +419,7 @@ struct AboutSection: View {
             Text("About").textCase(nil)
         } footer: {
             if app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty {
-                Text("The terms, privacy policy and support pages open once this copy of PinPlan is connected (Settings › More › Advanced).")
+                Text("The terms, privacy policy and support pages open once this copy of Northpin is connected (Settings › More › Advanced).")
             }
         }
     }
@@ -446,7 +446,7 @@ private struct AboutLink: View {
 
 // MARK: - email invite
 
-/// On the invite card: email the invite (only when the PinPlan server can send email).
+/// On the invite card: email the invite (only when the Northpin server can send email).
 struct InviteEmailBox: View {
     @Environment(AppModel.self) private var app
     let code: String
@@ -516,7 +516,7 @@ extension CloudSync {
         await finishPendingCompany()
     }
 
-    /// Fetch the cloud settings from the PinPlan server when this device has none yet. Nil when connected (or there
+    /// Fetch the cloud settings from the Northpin server when this device has none yet. Nil when connected (or there
     /// is no server to ask); otherwise a plain message to show.
     @discardableResult
     func connectIfNeeded(settings: AppSettings) async -> String? {
@@ -530,7 +530,7 @@ extension CloudSync {
             try await configure(from: api)
             return nil
         } catch {
-            return String(localized: "Couldn't connect to PinPlan. Check your internet connection and try again.")
+            return String(localized: "Couldn't connect to Northpin. Check your internet connection and try again.")
         }
     }
 
@@ -556,7 +556,7 @@ extension CloudSync {
     /// with the account). True when it signed straight in and the company is set up; false when the email has to be
     /// confirmed first (the company is then made on the first sign-in). Joining from an invite makes no company.
     func createAccount(email: String, password: String, name: String, company: String, acceptedAt: Date) async throws -> Bool {
-        guard let config else { throw SupabaseClient.Failure(message: String(localized: "Still connecting to PinPlan. Try again in a moment.")) }
+        guard let config else { throw SupabaseClient.Failure(message: String(localized: "Still connecting to Northpin. Try again in a moment.")) }
         let e = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let meta = SignupLogic.metadata(name: name, company: company, acceptedAt: acceptedAt)
         let signedInNow = try await SupabaseClient(config: config).signUp(email: e, password: password, metadata: meta)

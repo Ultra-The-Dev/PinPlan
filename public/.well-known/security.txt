@@ -1,4 +1,4 @@
-# Security contact for PinPlan (RFC 9116). Fill in the bracketed values before launch, and move Expires forward
+# Security contact for Northpin (RFC 9116). Fill in the bracketed values before launch, and move Expires forward
 # (to less than a year ahead) at least once a year: scripts/check-legal.mjs fails a production build otherwise.
 Contact: mailto:[Security email]
 Expires: 2027-10-31T23:59:59.000Z

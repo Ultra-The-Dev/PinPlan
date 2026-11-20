@@ -667,7 +667,7 @@ function fold(line: string): string {
 /** An .ics calendar with one all-day event per live item (DTEND is the day after `end`, as the format wants). */
 export function toIcs(items: ScheduleItem[], project: { id: string; clientName?: string; address?: string }): string {
   const job = [project.clientName, project.address].filter((x) => x?.trim()).join(" · ");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PinPlan//Schedule//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${icsText(job || "PinPlan schedule")}`];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Northpin//Schedule//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${icsText(job || "Northpin schedule")}`];
   for (const i of live(items).sort((a, b) => a.start.localeCompare(b.start))) {
     const desc = [
       i.crew?.length ? `Crew: ${i.crew.join(", ")}` : "",

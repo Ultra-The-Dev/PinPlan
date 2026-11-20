@@ -260,8 +260,8 @@ public enum TeamLogic {
         let hi = name.trimmingCharacters(in: .whitespaces).isEmpty ? "Hi" : "Hi \(name.trimmingCharacters(in: .whitespaces))"
         let company = team.trimmingCharacters(in: .whitespaces).isEmpty ? "our team" : team.trimmingCharacters(in: .whitespaces)
         let joinWith = link.map { "Join here: \($0)\n" } ?? ""
-        return "\(hi), you're invited to join \(company) on PinPlan as \(role == .admin ? "office / admin" : "a technician").\n"
-            + joinWith + "Or open PinPlan › Settings › Team and enter the code \(formatCode(code))."
+        return "\(hi), you're invited to join \(company) on Northpin as \(role == .admin ? "office / admin" : "a technician").\n"
+            + joinWith + "Or open Northpin › Settings › Team and enter the code \(formatCode(code))."
     }
 }
 
