@@ -1,5 +1,5 @@
 "use client";
-import { statusChip } from "@/lib/statusStyle";
+import { projectStatusLabel, statusChip } from "@/lib/statusStyle";
 import { FileText, Loader2, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -154,8 +154,8 @@ export default function ProjectsList() {
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <div className="seg">
             {(["all", "estimate", "approved", "installed"] as const).map((s) => (
-              <button key={s} className={`tab h-7 capitalize ${status === s ? "tab-active" : ""}`} onClick={() => setStatus(s)}>
-                {s} <span className="text-xs text-slate-400">{totals![s]}</span>
+              <button key={s} className={`tab h-7 ${status === s ? "tab-active" : ""}`} onClick={() => setStatus(s)}>
+                {s === "all" ? "All" : projectStatusLabel(s)} <span className="text-xs text-slate-400">{totals![s]}</span>
               </button>
             ))}
           </div>
@@ -286,7 +286,7 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
               <FileText className="h-10 w-10" />
             </div>
           )}
-          <span className={`chip absolute top-3 left-3 capitalize ${STATUS_STYLE[p.status]}`}>{p.status}</span>
+          <span className={`chip absolute top-3 left-3 ${STATUS_STYLE[p.status]}`}>{projectStatusLabel(p.status)}</span>
         </div>
         <div className="p-4">
           <div className="truncate font-semibold text-slate-900">{p.address || "Untitled job"}</div>

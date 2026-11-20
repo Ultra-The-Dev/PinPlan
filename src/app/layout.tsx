@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "@/components/Providers";
 import { ErrorReporter } from "@/components/ErrorBoundary";
 import { archivo } from "@/components/marketing/fonts";
+import { SHARE_IMAGE } from "@/components/marketing/seo";
 import { PRODUCT_NAME } from "@/lib/plans";
 import "./globals.css";
 
@@ -42,9 +43,10 @@ export const metadata: Metadata = {
     siteName: PRODUCT_NAME,
     title: PRODUCT_NAME,
     description: DESCRIPTION,
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: PRODUCT_NAME }],
+    // The 1200 × 630 card from src/app/opengraph-image.tsx, not the square app icon.
+    images: [SHARE_IMAGE],
   },
-  twitter: { card: "summary_large_image", title: PRODUCT_NAME, description: DESCRIPTION, images: ["/icon-512.png"] },
+  twitter: { card: "summary_large_image", title: PRODUCT_NAME, description: DESCRIPTION, images: [SHARE_IMAGE] },
 };
 
 // No maximumScale / userScalable: people must be able to pinch-zoom pages (WCAG 1.4.4). The plan canvas handles its

@@ -32,7 +32,7 @@ export const PLANS: Plan[] = [
       "Deposit, progress and final invoices, with payments",
       "Photos with mark-up, checklists, tasks, daily logs and files",
       "iPad, iPhone and web, works offline and syncs",
-      "Technician logins that never show prices",
+      "Technician logins for field work, without the Money tab, quotes or invoices",
     ],
   },
 ];

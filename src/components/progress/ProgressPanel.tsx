@@ -115,7 +115,7 @@ export default function ProgressPanel() {
                       {r.done}/{r.total} · <span className="font-semibold text-slate-800">{r.pct}%</span>
                     </>
                   ) : null}
-                  {r.runs.total ? <span className="ml-2">cables {r.runs.done}/{r.runs.total}</span> : null}
+                  {r.runs.total ? <span className="ml-2">wire runs {r.runs.done}/{r.runs.total}</span> : null}
                 </span>
               </div>
               {r.total > 0 && <StatusBar c={r} />}

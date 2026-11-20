@@ -1,5 +1,5 @@
 "use client";
-import { statusChip } from "@/lib/statusStyle";
+import { PROJECT_STATUS_LABEL, projectStatusLabel, statusChip } from "@/lib/statusStyle";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -106,16 +106,18 @@ export default function ProjectView() {
             <div className="truncate text-xs text-slate-500">{project.clientName || "No client"}</div>
           </div>
           {/* Phones: a plain chip (the next step on Overview changes the status); a picker from sm up. */}
-          <span className={`chip shrink-0 capitalize ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{project.status}</span>
+          <span className={`chip shrink-0 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{projectStatusLabel(project.status)}</span>
           <select
-            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium capitalize ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
+            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
             aria-label="Job status"
           >
-            <option value="estimate">Estimate</option>
-            <option value="approved">Approved</option>
-            <option value="installed">Installed</option>
+            {(Object.keys(PROJECT_STATUS_LABEL) as ProjectStatus[]).map((st) => (
+              <option key={st} value={st}>
+                {PROJECT_STATUS_LABEL[st]}
+              </option>
+            ))}
           </select>
         </div>
         <div className="flex-1 max-lg:hidden" />

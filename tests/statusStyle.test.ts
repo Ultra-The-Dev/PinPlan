@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { STATUS_LABEL } from "@/lib/documents";
 import { RFI_STATUS_LABEL } from "@/lib/rfis";
-import { PROJECT_STATUS_HEX, STATUS_TONE, TONE_CHIP, TONE_HEX, statusChip, statusTone, type StatusTone } from "@/lib/statusStyle";
+import { PROJECT_STATUS_HEX, PROJECT_STATUS_LABEL, STATUS_TONE, TONE_CHIP, TONE_HEX, statusChip, statusTone, projectStatusLabel, type StatusTone } from "@/lib/statusStyle";
 
 const css = readFileSync(join(__dirname, "..", "src", "app", "globals.css"), "utf8");
 const token = (name: string): string => {
@@ -63,5 +63,22 @@ describe("colour tokens", () => {
     }
     expect(contrast("#ffffff", token("brand-600"))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(token("brand-700"), token("brand-50"))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("job stage labels", () => {
+  it("shows the stored status 'estimate' as Quoting (glossary), the others as themselves", () => {
+    expect(projectStatusLabel("estimate")).toBe("Quoting");
+    expect(projectStatusLabel("approved")).toBe("Approved");
+    expect(projectStatusLabel("installed")).toBe("Installed");
+    expect(Object.keys(PROJECT_STATUS_LABEL).sort()).toEqual(Object.keys(PROJECT_STATUS_HEX).sort());
+  });
+  it("never shows the word Estimate for a job stage", () => {
+    for (const l of Object.values(PROJECT_STATUS_LABEL)) expect(l).not.toMatch(/estimate/i);
+  });
+  it("shows an unknown status as stored, capitalised", () => {
+    expect(projectStatusLabel("on_hold")).toBe("On_hold");
+    expect(projectStatusLabel("")).toBe("");
+    expect(projectStatusLabel("toString")).toBe("ToString");
   });
 });

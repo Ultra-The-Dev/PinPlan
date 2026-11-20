@@ -55,12 +55,15 @@ In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so exis
 | `slate-600` … `slate-950` | `#3E506A` … `#08162A` | Body text and dark surfaces (`slate-900` = ink) |
 | `ok-*` | 50 `#E7F6F3`, 600 `#0B7F72`, 700 `#096B60` | Approved teal: approved, accepted, paid, installed, answered |
 | `info-*` | 50 `#EEF6FF`, 600 `#0B6FE0`, 700 `#0958B5` | Sent, viewed, open |
-| `warn-*` | 50 `#FFF6E0`, 600 `#B7791F`, 700 `#7F5300` | Estimate, partly paid, expired, due today |
+| `warn-*` | 50 `#FFF6E0`, 600 `#B7791F`, 700 `#7F5300` | Quoting (jobs), ready to send, partly paid, expired, due today |
 | `bad-*` | 50 `#FDEEEC`, 600 `#C73A2C`, 700 `#A32D21` | Declined, overdue, errors |
 
 Status chips all come from `src/lib/statusStyle.ts` (`statusChip(status)`): 50 ground, 200 ring, 700 text. Draft and
-closed are neutral grey; void is grey and struck through. The jobs map uses `PROJECT_STATUS_HEX` (estimate amber,
+closed are neutral grey; void is grey and struck through. The jobs map uses `PROJECT_STATUS_HEX` (quoting amber,
 approved teal, installed deep teal).
+
+Job stages are shown with `projectStatusLabel()` / `PROJECT_STATUS_LABEL` from the same file: the stored value
+`estimate` reads **Quoting**, then Approved and Installed. Never print a raw status value or rely on `capitalize`.
 
 Customer documents (quotes, invoices, PDFs, share pages) use the company's own colours from Settings; when those are
 blank or not a hex colour they fall back to `DOC_DEFAULT_BRAND` (ink) and `DOC_DEFAULT_ACCENT` (action blue) in
@@ -165,6 +168,10 @@ The app header (`AppHeader` `Logo`) uses `LogoMark` + the name; sign-in, sign-up
   corners), `icon-maskable-512.png` (full-bleed ink, mark scaled to 80% for the safe zone) and `apple-touch-icon.png`
   (180px, full bleed; iOS rounds it). Theme colour `#0F2340`, manifest background `#F2F6FA`. Regenerate all five
   together if the mark changes.
+- Share card: `src/app/opengraph-image.tsx` renders the 1200 × 630 link preview (Open Graph and Twitter) at build
+  time: the on-dark mark and the name on ink, the tagline in on-dark grey, an electric rule, and a corner of a plan
+  with lettered devices. It uses the default font (no external font fetch). `SHARE_IMAGE` in
+  `src/components/marketing/seo.ts` points every page at it; never use the square app icon as a share image.
 
 ## Voice
 
