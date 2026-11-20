@@ -53,7 +53,7 @@
     "eslint-config-next": "16.4.6",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "fake-indexeddb": "^6.2.8",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.5",
     "typescript": "^5",
     "vitest": "^5.1.0"
   },
