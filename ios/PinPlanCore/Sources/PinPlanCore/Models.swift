@@ -452,11 +452,12 @@ public struct BusinessSettings: Codable, Hashable, Sendable {
     /// The marker stored in `brandDefaults` on fresh installs.
     public static let neutralMarker = "neutral"
 
-    /// Neutral defaults for a new customer: no name or contact details, PinPlan's own colours, generic terms.
+    /// Neutral defaults for a new customer: no name or contact details, the default document colours (Blueprint Ink, like
+    /// the web app's `NEUTRAL_BUSINESS` / `DOC_DEFAULT_BRAND`), generic terms.
     public static let neutral: BusinessSettings = {
         var b = BusinessSettings()
-        b.brandColor = "#c2410c"
-        b.accentColor = "#f59e0b"
+        b.brandColor = "#0F2340"
+        b.accentColor = "#0B6FE0"
         return b
     }()
 

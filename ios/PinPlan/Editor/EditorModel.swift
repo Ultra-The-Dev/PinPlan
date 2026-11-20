@@ -157,30 +157,57 @@ final class EditorModel {
     var activeSheet: Sheet? { sheets.first { $0.id == activeSheetId } ?? sheets.first }
     var takeoff: Takeoff { TakeoffCalculator.compute(bundle) }
 
-    /// Apply a change as one undoable step, then save.
-    func edit(_ change: (inout ProjectBundle) -> Void) {
+    // MARK: read-only jobs
+
+    /// The job can't be changed on this device: the company's subscription lapsed, or a person on no team whose free
+    /// trial ended (`CloudSync.canEdit`, like the web app). Viewing and exporting still work.
+    var readOnly: Bool { !app.cloud.canEdit }
+    /// Why, shown as an alert the first time a change is refused in this job (later attempts get a short toast).
+    var readOnlyNotice: String?
+    @ObservationIgnored private var toldReadOnly = false
+
+    /// True (and says why) when changes are refused right now.
+    func refuseIfReadOnly() -> Bool {
+        guard readOnly else { return false }
+        if toldReadOnly {
+            say("Read-only — you can view and export, not change")
+        } else {
+            toldReadOnly = true
+            readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
+        }
+        return true
+    }
+
+    /// Apply a change as one undoable step, then save. False when nothing changed (or the job is read-only).
+    @discardableResult
+    func edit(_ change: (inout ProjectBundle) -> Void) -> Bool {
         // Mutate a copy so the closure may freely read the model (e.g. `pricing`) without overlapping access to `bundle`.
         let before = bundle
         var next = bundle
         change(&next)
-        guard next != before else { return }
+        guard next != before else { return false }
+        // Only a real change is refused (a sheet closing with nothing edited says nothing).
+        if refuseIfReadOnly() { return false }
         bundle = next
         past.append(before)
         if past.count > 100 { past.removeFirst() }
         future.removeAll()
         persist()
+        return true
     }
 
     /// Apply a change without an undo step (e.g. estimate edits, status).
     func editSilently(_ change: (inout ProjectBundle) -> Void) {
         var next = bundle
         change(&next)
+        // Only a real change is refused.
+        if next != bundle, refuseIfReadOnly() { return }
         bundle = next
         persist()
     }
 
     func undo() {
-        guard let prev = past.popLast() else { return }
+        guard !past.isEmpty, !refuseIfReadOnly(), let prev = past.popLast() else { return }
         future.append(bundle)
         bundle = prev
         selection = nil
@@ -188,7 +215,7 @@ final class EditorModel {
     }
 
     func redo() {
-        guard let next = future.popLast() else { return }
+        guard !future.isEmpty, !refuseIfReadOnly(), let next = future.popLast() else { return }
         past.append(bundle)
         bundle = next
         persist()

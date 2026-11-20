@@ -186,6 +186,9 @@ struct DeleteAccountView: View {
     /// The server said no because the user owns a team that still has other people (409).
     @State private var teamInTheWay = false
     @State private var deletedEmail: String?
+    /// The sign-in isn't fresh: the server wants the account's email typed again (403 reauth_required).
+    @State private var needsEmail = false
+    @State private var typedEmail = ""
 
     var body: some View {
         SentenceForm {
@@ -193,7 +196,8 @@ struct DeleteAccountView: View {
                 AccountDeletedSection(email: email) { dismiss() }
             } else {
                 DeleteExplanationSection()
-                DeleteAccountActionSection(confirm: $confirm, busy: busy, problem: problem, teamInTheWay: teamInTheWay) { Task { await delete() } }
+                DeleteAccountActionSection(confirm: $confirm, typedEmail: $typedEmail, needsEmail: needsEmail, busy: busy, problem: problem,
+                                           teamInTheWay: teamInTheWay) { Task { await delete() } }
             }
         }
         .navigationTitle("Delete account")
@@ -210,12 +214,23 @@ struct DeleteAccountView: View {
         defer { busy = false }
         let email = app.cloud.session?.email ?? ""
         do {
-            try await app.cloud.deleteAccount(api: api)
-            app.wipeLocalData()
-            deletedEmail = email
+            switch try await app.cloud.deleteAccount(api: api, confirmEmail: needsEmail ? typedEmail : nil) {
+            case .deleted:
+                app.wipeLocalData()
+                deletedEmail = email
+            case .needsEmail(let message):
+                needsEmail = true
+                problem = message
+            case .teamInTheWay(let message):
+                problem = message
+                teamInTheWay = true
+            case .unavailable:
+                problem = "Account deletion isn't switched on for this PinPlan server yet. Visit \(api.supportURL) and we'll delete your account for you."
+            case .failed(let message):
+                problem = message
+            }
         } catch {
             problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            teamInTheWay = (error as? APIClient.APIError)?.status == 409
         }
     }
 }
@@ -249,12 +264,17 @@ private struct DeleteBullet: View {
 private struct DeleteAccountActionSection: View {
     @Environment(AppModel.self) private var app
     @Binding var confirm: String
+    @Binding var typedEmail: String
+    /// The server asked for the account's email (the sign-in isn't fresh).
+    let needsEmail: Bool
     let busy: Bool
     let problem: String?
     var teamInTheWay = false
     let onDelete: () -> Void
 
-    private var ready: Bool { confirm.trimmingCharacters(in: .whitespaces) == "DELETE" && !busy }
+    private var ready: Bool {
+        confirm.trimmingCharacters(in: .whitespaces) == "DELETE" && !busy && (!needsEmail || typedEmail.contains("@"))
+    }
 
     var body: some View {
         let cloud = app.cloud
@@ -274,6 +294,14 @@ private struct DeleteAccountActionSection: View {
                 TextField("Type DELETE to confirm", text: $confirm)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
+                if needsEmail {
+                    // Keeps the account safe from a borrowed device: the email isn't filled in for them.
+                    TextField("The email you sign in with", text: $typedEmail)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
                 Button(role: .destructive, action: onDelete) {
                     HStack {
                         Text(busy ? "Deleting…" : "Delete my account").fontWeight(.semibold)
@@ -290,7 +318,8 @@ private struct DeleteAccountActionSection: View {
                     NavigationLink { TeamView() } label: { Label("Open Team", systemImage: "person.2") }
                 }
             } footer: {
-                Text("Type DELETE in capitals to confirm.")
+                Text(needsEmail ? "Type DELETE in capitals and the email you sign in with to confirm. Or sign out and sign in again, then delete within 5 minutes."
+                                : "Type DELETE in capitals to confirm.")
             }
         }
     }

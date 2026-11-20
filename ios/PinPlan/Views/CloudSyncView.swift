@@ -29,6 +29,7 @@ struct CloudSyncView: View {
             } else if !cloud.signedIn {
                 AccountSection()
             } else {
+                if let prompt = cloud.accountSwitch { AccountSwitchSection(prompt: prompt) }
                 Section {
                     LabeledContent("Signed in as", value: cloud.session?.email ?? "")
                     Button { Task { await cloud.syncNow(force: true) } } label: {
@@ -37,7 +38,10 @@ struct CloudSyncView: View {
                     .disabled(cloud.syncing)
                     ReadOnlySyncRow()
                     if let e = cloud.lastError {
-                        Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.callout)
+                        // The account-switch message has its own section above.
+                        if e != cloud.accountSwitch?.message {
+                            Label(e, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.callout)
+                        }
                     } else if let d = cloud.lastSync {
                         LabeledContent("Last sync", value: "\(d.formatted(date: .omitted, time: .shortened)) · \(cloud.lastSummary ?? "")")
                     }
@@ -77,6 +81,48 @@ struct CloudSyncView: View {
         connecting = true
         defer { connecting = false }
         problem = await app.cloud.connectIfNeeded(settings: app.settings)
+    }
+}
+
+/// This device holds another account's jobs: nothing syncs until the person removes them from this device (they stay
+/// in the other account's cloud) or signs out. They are never sent into the signed-in account.
+private struct AccountSwitchSection: View {
+    @Environment(AppModel.self) private var app
+    let prompt: CloudSync.AccountSwitchPrompt
+    @State private var confirming = false
+    @State private var removing = false
+
+    var body: some View {
+        let cloud = app.cloud
+        Section {
+            Label(prompt.message, systemImage: "person.crop.circle.badge.exclamationmark").font(.callout)
+            Button(role: .destructive) { confirming = true } label: {
+                HStack {
+                    Text(removing ? "Removing…" : "Remove these jobs from this device").fontWeight(.semibold)
+                    Spacer()
+                    if removing { ProgressView() }
+                }
+            }
+            .disabled(removing || cloud.syncing)
+            Button("Sign out instead") { cloud.signOut() }
+                .disabled(removing)
+        } header: {
+            Text("Jobs from another account").textCase(nil)
+        } footer: {
+            Text("Removing them only clears this device. Sign in with the other account to see them again.")
+        }
+        .confirmationDialog("Remove \(prompt.jobs) job\(prompt.jobs == 1 ? "" : "s") from this device?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("Remove from this device", role: .destructive) {
+                Task {
+                    removing = true
+                    await cloud.removeOtherAccountsJobs()
+                    removing = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They stay in the other account's cloud. Changes to them that were never synced are lost.")
+        }
     }
 }
 

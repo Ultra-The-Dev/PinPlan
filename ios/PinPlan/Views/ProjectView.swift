@@ -79,6 +79,13 @@ struct ProjectView: View {
         }
         // Trial ending, needs attention or read-only: say so in the job too.
         .safeAreaInset(edge: .top, spacing: 0) { JobBillingBanner() }
+        // A change refused because the job is read-only (lapsed subscription or ended trial): say why, once.
+        .alert("This job is read-only", isPresented: Binding(get: { model?.readOnlyNotice != nil },
+                                                             set: { if !$0 { model?.readOnlyNotice = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model?.readOnlyNotice ?? "")
+        }
         .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
         // A technician has no Money tab (also when the role arrives with a sync while the job is open).
         .onChange(of: app.cloud.can(.prices)) { _, ok in if !ok && tab == .money { tab = .overview } }

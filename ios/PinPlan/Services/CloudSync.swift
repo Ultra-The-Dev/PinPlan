@@ -70,7 +70,7 @@ struct SupabaseClient {
             var msg = (j?["error_description"] ?? j?["msg"] ?? j?["message"] ?? j?["error"]) as? String
             switch (j?["error_code"] as? String) ?? "" {
             case "invalid_credentials": msg = "Wrong email or password. Use the same ones as on the web app."
-            case "email_not_confirmed": msg = "This email isn't confirmed yet. Open the confirmation email from Supabase (check spam), then sign in."
+            case "email_not_confirmed": msg = "This email isn't confirmed yet. Open the confirmation email (check spam), then sign in."
             case "user_already_exists": msg = "This email already has an account — tap Sign in instead."
             case "over_email_send_rate_limit": msg = "Too many emails sent — wait an hour, or sign in if the account already exists."
             default: break
@@ -88,7 +88,7 @@ struct SupabaseClient {
               let user = j["user"] as? [String: Any], let uid = user["id"] as? String else {
             // Sign-up without a session: either a new account waiting for its confirmation email, or an email that
             // already has an account (Supabase sends nothing then, and doesn't say which).
-            throw Failure(message: "If you already have an account with this email, tap Sign in instead (no email is sent). If it's new, open the confirmation email from Supabase (check spam), then sign in.")
+            throw Failure(message: "If you already have an account with this email, tap Sign in instead (no email is sent). If it's new, open the confirmation email (check spam), then sign in.")
         }
         let expires = (j["expires_in"] as? Double) ?? 3600
         return Session(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(expires - 60), userId: uid, email: user["email"] as? String ?? "")
@@ -231,6 +231,9 @@ final class CloudSync {
     /// The signed-in user's company team as last loaded (kept on the device, so role gating works offline).
     /// `team == nil` inside means signed in but not on a team: working alone, full access.
     private(set) var team: TeamSnapshot?
+    /// On no team: the personal trial (`solo_billing()`) of `soloUserId`, cached on the device. Read through `solo`.
+    private(set) var soloBilling: SoloBilling?
+    @ObservationIgnored private var soloUserId: String?
     /// The cloud database doesn't have the team tables yet (supabase/migrations/20261120000000_teams.sql not run).
     private(set) var teamNeedsMigration = false
     private(set) var teamError: String?
@@ -333,7 +336,7 @@ final class CloudSync {
         let (data, _) = try await URLSession.shared.data(for: req)
         guard let j = try JSONSerialization.jsonObject(with: data) as? [String: Any], let url = j["supabaseUrl"] as? String, let key = j["supabaseAnonKey"] as? String,
               !url.isEmpty, !key.isEmpty else {
-            throw SupabaseClient.Failure(message: "Cloud sync isn't set up on that server yet (add the Supabase keys in Vercel).")
+            throw SupabaseClient.Failure(message: "Cloud sync isn't switched on for that PinPlan server yet.")
         }
         setConfig(url: url, anonKey: key)
     }
@@ -358,7 +361,7 @@ final class CloudSync {
             switch self {
             case .signedIn: return "Account created."
             case .confirmEmail(let e):
-                return "Check \(e.isEmpty ? "your inbox" : e) for the confirmation email from Supabase (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in."
+                return "Check \(e.isEmpty ? "your inbox" : e) for the confirmation email (and spam), tap the link, then come back and sign in. If this email already has an account, just sign in."
             }
         }
     }
@@ -375,7 +378,7 @@ final class CloudSync {
 
     /// A new sign-in: switch ledgers, learn the team (and finish a remembered invite), then sync.
     private func begin(_ s: SupabaseClient.Session) async {
-        if let old = session, old.userId != s.userId { ledger = SyncLedger(); team = nil }
+        if let old = session, old.userId != s.userId { ledger = SyncLedger(); team = nil; soloBilling = nil; soloUserId = nil }
         store(s)
         loadLedger()
         loadTeamCache()
@@ -398,7 +401,10 @@ final class CloudSync {
         readOnly = false
         pendingChanges = 0
         readOnlyUntil = nil
+        soloBilling = nil
+        soloUserId = nil
         UserDefaults.standard.removeObject(forKey: Self.teamKey)
+        UserDefaults.standard.removeObject(forKey: Self.soloKey)
     }
 
     private func store(_ s: SupabaseClient.Session) {
@@ -656,7 +662,7 @@ final class CloudSync {
         } catch {
             let m = error.localizedDescription
             if m.contains("does not exist") || m.contains("schema cache") {
-                throw SupabaseClient.Failure(message: "Photo reports aren't set up in Supabase yet — run supabase/migrations/20261119000000_field_docs.sql in the SQL editor.")
+                throw SupabaseClient.Failure(message: "Photo reports aren't switched on for this PinPlan server yet. Try again once it's updated.")
             }
             throw error
         }
@@ -965,6 +971,7 @@ final class CloudSync {
 /// cached on this device so the app hides the right things offline too.
 extension CloudSync {
     static let teamKey = "pinplan.team"
+    static let soloKey = "pinplan.soloBilling"
     private static let pendingInviteKey = "pinplan.pendingInvite"
 
     /// My role, or nil when working alone (full access) or signed out.
@@ -981,6 +988,7 @@ extension CloudSync {
     var teamMembers: [TeamMember] { role == nil ? [] : TeamLogic.sortMembers(team?.members ?? []) }
 
     func loadTeamCache() {
+        loadSoloCache()
         guard let uid = session?.userId, let d = UserDefaults.standard.data(forKey: Self.teamKey),
               let snap = try? JSONDecoder().decode(TeamSnapshot.self, from: d), snap.userId == uid else { return }
         if team == nil { team = snap }
@@ -1020,9 +1028,12 @@ extension CloudSync {
             teamNeedsMigration = false
             teamError = nil
             guard let row = mine.first, let tid = row["team_id"] as? String else {
+                // On no team: the personal trial decides whether jobs can be changed.
+                saveSolo(await loadSolo(client: client, token: tok), userId: uid)
                 saveTeam(TeamSnapshot(userId: uid))
                 return
             }
+            saveSolo(nil, userId: uid)
             // Trades are newer than teams: a database without the column still loads the team.
             let tData: Data
             do {
@@ -1061,6 +1072,43 @@ extension CloudSync {
         }
     }
 
+    /// The personal trial of a person on no team (`solo_billing()`). A database without it never locks (nil); any
+    /// other failure keeps what this device knew.
+    private func loadSolo(client: SupabaseClient, token: String) async -> SoloBilling? {
+        do {
+            let data = try await client.rpc("solo_billing", params: [:], token: token)
+            return BillingLogic.parseSolo(data)
+        } catch let e as SupabaseClient.Failure where TeamLogic.isMissingSchema(code: e.code, message: e.message) || e.code == "PGRST202" {
+            return nil
+        } catch {
+            return soloUserId == session?.userId ? soloBilling : nil
+        }
+    }
+
+    private struct SoloCache: Codable { var userId: String; var solo: SoloBilling? }
+
+    /// Remember the personal trial (on this device too, so it holds offline).
+    private func saveSolo(_ solo: SoloBilling?, userId: String) {
+        soloBilling = solo
+        soloUserId = userId
+        if let d = try? JSONEncoder().encode(SoloCache(userId: userId, solo: solo)) { UserDefaults.standard.set(d, forKey: Self.soloKey) }
+    }
+
+    /// The cached personal trial for the signed-in person (also on launch, before the first load).
+    func loadSoloCache() {
+        guard let uid = session?.userId, soloUserId != uid, let d = UserDefaults.standard.data(forKey: Self.soloKey),
+              let c = try? JSONDecoder().decode(SoloCache.self, from: d), c.userId == uid else { return }
+        soloBilling = c.solo
+        soloUserId = uid
+    }
+
+    /// The personal trial when signed in and on no team. Nil otherwise (or not loaded yet: never locks).
+    var solo: SoloBilling? {
+        guard signedIn, role == nil, let uid = session?.userId, soloUserId == uid else { return nil }
+        if ProcessInfo.processInfo.arguments.contains("--billing-banner") { return nil }
+        return soloBilling
+    }
+
     /// The team's subscription as last loaded. Nil when working alone (never locked).
     /// Screenshot hook: `--billing-banner` shows a read-only team, `--billing-banner trial` a trial about to end.
     var billing: TeamBilling? {
@@ -1073,20 +1121,23 @@ extension CloudSync {
                 b.hasSubscription = false
                 b.trialEndsAt = ISO8601DateFormatter().string(from: Date().addingTimeInterval(2 * 86_400))
                 b.canWork = true
+                b.cancelAt = nil
+                b.enforce = true
                 return b
             }
             return BillingLogic.readOnlyPreview(team?.billing)
         }
         return team?.billing
     }
-    /// The team may change jobs (solo users always may).
-    var canWork: Bool { BillingLogic.allowsWork(billing) }
-    /// Jobs may be changed on this device (a lapsed team is read-only: view and export only, like the web app).
-    var canEdit: Bool { BillingLogic.canEdit(billing) }
+    /// The team may change jobs; on no team, the personal trial decides (mirrors the database's team_can_write()).
+    var canWork: Bool { BillingLogic.allowsWork(onTeam: role != nil, billing: billing, solo: solo) }
+    /// Jobs may be changed on this device (a lapsed team, or an ended personal trial, is read-only: view and export
+    /// only, like the web app).
+    var canEdit: Bool { BillingLogic.canEdit(onTeam: role != nil, billing: billing, solo: solo) }
     /// Why changes are blocked, for an alert (nil when they're allowed).
-    var editBlockedMessage: String? { BillingLogic.editBlockedMessage(billing, role: role) }
+    var editBlockedMessage: String? { BillingLogic.editBlockedMessage(onTeam: role != nil, billing: billing, solo: solo, role: role) }
     /// The notice for the Projects screen and the job view, if any.
-    var billingBanner: BillingBanner? { BillingLogic.banner(billing, role: role) }
+    var billingBanner: BillingBanner? { role != nil ? BillingLogic.banner(billing, role: role) : BillingLogic.soloBanner(solo) }
     /// Plan status line for Settings › Team.
     var billingStatus: BillingStatusLine? { billing.map { BillingLogic.statusLine($0) } }
 
@@ -1263,11 +1314,22 @@ extension CloudSync {
         try await client.recover(email: e, redirectTo: BillingLogic.webURL(origin: serverURL, path: "reset"))
     }
 
-    /// Delete the account on the server (`DELETE /api/account`). The caller wipes this device afterwards.
-    func deleteAccount(api: APIClient) async throws {
+    /// Delete the account on the server (`DELETE /api/account`). The caller wipes this device after `.deleted`.
+    /// Unless the sign-in is fresh (the last 5 minutes), the server wants the account's email typed again
+    /// (`confirmEmail`) and answers 403 `reauth_required` without it: `.needsEmail`, so the screen asks for it.
+    func deleteAccount(api: APIClient, confirmEmail: String? = nil) async throws -> AccountDeletionResult {
         guard signedIn else { throw SupabaseClient.Failure(message: "Sign in first.") }
         let tok = try await token()
-        try await api.deleteAccount(token: tok)
+        var req = URLRequest(url: api.baseURL.appendingPathComponent("api/account"))
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
+        if let body = AccountDeletionResult.body(confirmEmail: confirmEmail) {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        req.timeoutInterval = 60
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        return AccountDeletionResult.from(status: (resp as? HTTPURLResponse)?.statusCode ?? 0, body: data)
     }
 
     /// Email a team invite through the PinPlan web server.

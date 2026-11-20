@@ -25,7 +25,11 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertFalse(BillingLogic.planAllowsWork(.none, trialEndsAt: nil, now: now))
         XCTAssertFalse(BillingLogic.planAllowsWork(nil, trialEndsAt: nil, now: now))
         XCTAssertTrue(BillingLogic.planAllowsWork(nil, trialEndsAt: future, now: now))
-        XCTAssertFalse(BillingLogic.planAllowsWork(.canceled, trialEndsAt: future, now: now))
+        // Canceled during the team's own trial: keeps working until it ends.
+        XCTAssertTrue(BillingLogic.planAllowsWork(.canceled, trialEndsAt: future, now: now))
+        XCTAssertFalse(BillingLogic.planAllowsWork(.canceled, trialEndsAt: past, now: now))
+        XCTAssertFalse(BillingLogic.planAllowsWork(.canceled, trialEndsAt: nil, now: now))
+        XCTAssertFalse(BillingLogic.planAllowsWork(.incomplete, trialEndsAt: past, now: now))
         XCTAssertFalse(BillingLogic.planAllowsWork(.unpaid, trialEndsAt: future, now: now))
         // Solo or not loaded: never locked.
         XCTAssertTrue(BillingLogic.allowsWork(nil, now: now))
@@ -158,5 +162,165 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertFalse(BillingLogic.allowsWork(preview, now: now))
         XCTAssertEqual(preview.members, 5)
         XCTAssertEqual(BillingLogic.banner(preview, role: .owner, now: now)?.readOnly, true)
+        // A canceled team still in its trial would keep working: the preview is past it.
+        let canceledInTrial = TeamBilling(status: .canceled, trialEndsAt: iso(days: 5), cancelAt: iso(days: 5), enforce: false, now: now)
+        XCTAssertFalse(BillingLogic.allowsWork(BillingLogic.readOnlyPreview(canceledInTrial, now: now), now: now))
+    }
+
+    // MARK: enforce switch (billing_settings.enforce)
+
+    func testEnforceOffNeverLocksAnUnpaidTrial() {
+        let past = iso(days: -3)
+        for s in [PlanStatus.trialing, .incomplete, .none] {
+            XCTAssertTrue(BillingLogic.planAllowsWork(s, trialEndsAt: past, now: now, enforce: false), s.rawValue)
+            XCTAssertFalse(BillingLogic.planAllowsWork(s, trialEndsAt: past, now: now), "enforced is the default: \(s.rawValue)")
+        }
+        XCTAssertTrue(BillingLogic.planAllowsWork(nil, trialEndsAt: nil, now: now, enforce: false))
+        // A lapsed subscription still locks.
+        XCTAssertFalse(BillingLogic.planAllowsWork(.canceled, trialEndsAt: past, now: now, enforce: false))
+        XCTAssertFalse(BillingLogic.planAllowsWork(.unpaid, trialEndsAt: nil, now: now, enforce: false))
+
+        let open = TeamBilling(status: .trialing, trialEndsAt: past, enforce: false, now: now)
+        XCTAssertTrue(open.canWork)
+        XCTAssertTrue(BillingLogic.allowsWork(open, now: now))
+        XCTAssertTrue(BillingLogic.canEdit(open, now: now))
+        XCTAssertNil(BillingLogic.editBlockedMessage(open, role: .owner, now: now))
+        // No banner while nothing will lock; the plan line says the trial is over but jobs stay editable.
+        XCTAssertNil(BillingLogic.banner(open, role: .owner, now: now))
+        XCTAssertNil(BillingLogic.banner(TeamBilling(status: .trialing, trialEndsAt: iso(days: 2), enforce: false, now: now), role: .owner, now: now))
+        XCTAssertEqual(BillingLogic.statusLine(open, now: now).label, "Trial ended")
+        XCTAssertEqual(BillingLogic.statusLine(open, now: now).tone, .slate)
+    }
+
+    func testParsesEnforceAndCancelAt() throws {
+        let off = try XCTUnwrap(BillingLogic.parse(Data(#"{"status":"trialing","trial_ends_at":"2026-11-01T00:00:00Z","enforce":false,"cancel_at":"2026-12-01T00:00:00Z"}"#.utf8)))
+        XCTAssertFalse(off.enforce)
+        XCTAssertEqual(off.cancelAt, "2026-12-01T00:00:00Z")
+        XCTAssertTrue(off.canWork, "worked out from the status when the server doesn't say")
+        XCTAssertTrue(BillingLogic.allowsWork(off, now: now))
+        // Older servers don't send them: enforced, no cancellation.
+        let old = try XCTUnwrap(BillingLogic.parse(Data(#"{"status":"trialing","trial_ends_at":"2026-11-01T00:00:00Z","cancel_at":""}"#.utf8)))
+        XCTAssertTrue(old.enforce)
+        XCTAssertNil(old.cancelAt)
+        XCTAssertFalse(BillingLogic.allowsWork(old, now: now))
+        // Cached in the team snapshot and read back; caches from before these fields existed still decode.
+        let snap = TeamSnapshot(userId: "u", billing: off)
+        XCTAssertEqual(try JSONDecoder().decode(TeamSnapshot.self, from: JSONEncoder().encode(snap)), snap)
+        let cached = try JSONDecoder().decode(TeamBilling.self, from: Data(#"{"status":"active","members":2,"can_work":true,"has_subscription":true}"#.utf8))
+        XCTAssertTrue(cached.enforce)
+        XCTAssertNil(cached.cancelAt)
+    }
+
+    // MARK: canceled within the trial, scheduled cancellations
+
+    func testCanceledWithinTheTrialKeepsWorkingUntilItEnds() {
+        let b = TeamBilling(status: .canceled, trialEndsAt: "2026-11-25T12:00:00Z", hasSubscription: true, now: now)
+        XCTAssertTrue(b.canWork)
+        XCTAssertTrue(BillingLogic.canEdit(b, now: now))
+        XCTAssertEqual(BillingLogic.statusLine(b, now: now),
+                       BillingStatusLine(label: "Canceled", detail: "Ends Nov 25, 2026: jobs turn read-only after that.", tone: .amber))
+        let owner = BillingLogic.banner(b, role: .owner, now: now)
+        XCTAssertEqual(owner?.tone, .amber)
+        XCTAssertEqual(owner?.readOnly, false)
+        XCTAssertEqual(owner?.action, .manageOnWeb)
+        XCTAssertEqual(owner?.text, "Your company's PinPlan subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that.")
+        XCTAssertEqual(BillingLogic.banner(b, role: .tech, now: now)?.text,
+                       "Your company's PinPlan subscription was canceled. Ends Nov 25, 2026: jobs turn read-only after that. Ask your office.")
+        // After the trial: read-only.
+        let later = now.addingTimeInterval(6 * 86_400)
+        XCTAssertFalse(BillingLogic.canEdit(b, now: later))
+        XCTAssertEqual(BillingLogic.banner(b, role: .owner, now: later)?.readOnly, true)
+        XCTAssertEqual(BillingLogic.statusLine(b, now: later).tone, .red)
+        XCTAssertEqual(BillingLogic.editBlockedMessage(b, role: .owner, now: later),
+                       "Your PinPlan subscription is inactive, so jobs are read-only — you can still view and export everything. Manage your account on the web to edit again.")
+    }
+
+    func testScheduledCancellation() {
+        let soon = TeamBilling(status: .active, currentPeriodEnd: "2026-11-24T00:00:00Z", hasSubscription: true, cancelAt: "2026-11-24T00:00:00Z", now: now)
+        XCTAssertEqual(BillingLogic.statusLine(soon, now: now),
+                       BillingStatusLine(label: "Ending", detail: "Ends Nov 24, 2026: jobs turn read-only after that.", tone: .amber))
+        XCTAssertEqual(BillingLogic.banner(soon, role: .admin, now: now)?.text,
+                       "Your company's PinPlan subscription is ending. Ends Nov 24, 2026: jobs turn read-only after that.")
+        XCTAssertTrue(BillingLogic.canEdit(soon, now: now))
+        // More than a week away: only the plan line says so.
+        let far = TeamBilling(status: .active, hasSubscription: true, cancelAt: iso(days: 20), now: now)
+        XCTAssertNil(BillingLogic.banner(far, role: .owner, now: now))
+        XCTAssertEqual(BillingLogic.statusLine(far, now: now).label, "Ending")
+        // A cancellation already past is ignored (the webhook turns the team canceled).
+        let gone = TeamBilling(status: .active, currentPeriodEnd: "2026-12-20T00:00:00Z", cancelAt: iso(days: -1), now: now)
+        XCTAssertEqual(BillingLogic.statusLine(gone, now: now).label, "Active")
+        XCTAssertNil(BillingLogic.banner(gone, role: .owner, now: now))
+        // A trial that will end with the subscription.
+        let trial = TeamBilling(status: .trialing, trialEndsAt: iso(days: 6), hasSubscription: true, cancelAt: iso(days: 6), now: now)
+        XCTAssertEqual(BillingLogic.statusLine(trial, now: now).tone, .amber)
+        XCTAssertEqual(BillingLogic.banner(trial, role: .owner, now: now)?.title, "Ending")
+    }
+
+    // MARK: people on no team (personal trial)
+
+    func testSoloTrialLocksWhenItEnds() throws {
+        XCTAssertNil(BillingLogic.parseSolo(Data("null".utf8)))
+        XCTAssertEqual(BillingLogic.parseSolo(Data(#"{"trial_ends_at":"2026-11-23T12:00:00Z","can_work":true,"enforce":true}"#.utf8)),
+                       SoloBilling(trialEndsAt: "2026-11-23T12:00:00Z", enforce: true))
+        XCTAssertEqual(BillingLogic.parseSolo(Data(#"{"trial_ends_at":null}"#.utf8)), SoloBilling(trialEndsAt: nil, enforce: true))
+        XCTAssertEqual(BillingLogic.parseSolo(Data(#"{"trial_ends_at":"2026-11-01T00:00:00Z","enforce":false}"#.utf8))?.enforce, false)
+
+        let lapsed = SoloBilling(trialEndsAt: iso(days: -1))
+        XCTAssertTrue(BillingLogic.soloAllowsWork(SoloBilling(trialEndsAt: iso(days: 2)), now: now))
+        XCTAssertFalse(BillingLogic.soloAllowsWork(lapsed, now: now))
+        XCTAssertTrue(BillingLogic.soloAllowsWork(SoloBilling(trialEndsAt: nil), now: now), "no deadline (signed up before launch)")
+        XCTAssertTrue(BillingLogic.soloAllowsWork(SoloBilling(trialEndsAt: iso(days: -1), enforce: false), now: now))
+        XCTAssertTrue(BillingLogic.soloAllowsWork(nil, now: now), "not loaded yet")
+
+        // The team decides when on one; else the personal trial.
+        XCTAssertFalse(BillingLogic.canEdit(onTeam: false, billing: nil, solo: lapsed, now: now))
+        XCTAssertTrue(BillingLogic.canEdit(onTeam: true, billing: TeamBilling(status: .active, now: now), solo: lapsed, now: now))
+        XCTAssertFalse(BillingLogic.canEdit(onTeam: true, billing: TeamBilling(status: .unpaid, now: now), solo: nil, now: now))
+        XCTAssertTrue(BillingLogic.canEdit(onTeam: true, billing: nil, solo: lapsed, now: now), "no billing in the database")
+        XCTAssertTrue(BillingLogic.canEdit(onTeam: false, billing: nil, solo: nil, now: now))
+
+        XCTAssertNil(BillingLogic.editBlockedMessage(onTeam: false, billing: nil, solo: SoloBilling(trialEndsAt: iso(days: 2)), role: nil, now: now))
+        XCTAssertEqual(BillingLogic.editBlockedMessage(onTeam: false, billing: nil, solo: lapsed, role: nil, now: now),
+                       "Your free trial has ended, so jobs are read-only — you can still view and export everything. Manage your account on the web to keep working.")
+        XCTAssertNil(BillingLogic.editBlockedMessage(onTeam: true, billing: nil, solo: lapsed, role: .owner, now: now))
+    }
+
+    func testSoloBanner() {
+        XCTAssertNil(BillingLogic.soloBanner(nil, now: now))
+        XCTAssertNil(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 10)), now: now))
+        XCTAssertNil(BillingLogic.soloBanner(SoloBilling(trialEndsAt: nil), now: now))
+        XCTAssertNil(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: -1), enforce: false), now: now))
+        let ending = BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 2.5)), now: now)
+        XCTAssertEqual(ending?.text, "Your PinPlan trial ends in 3 days.")
+        XCTAssertEqual(ending?.readOnly, false)
+        XCTAssertEqual(BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: 0.5)), now: now)?.text, "Your PinPlan trial ends today or tomorrow.")
+        let over = BillingLogic.soloBanner(SoloBilling(trialEndsAt: iso(days: -1)), now: now)
+        XCTAssertEqual(over?.tone, .red)
+        XCTAssertEqual(over?.readOnly, true)
+        XCTAssertEqual(over?.action, .manageOnWeb)
+        for b in [ending, over].compactMap({ $0 }) {
+            for word in ["subscribe", "buy", "purchase", "price", "$", "upgrade", "card"] {
+                XCTAssertFalse(b.text.lowercased().contains(word), b.text)
+            }
+        }
+    }
+
+    // MARK: account deletion
+
+    func testAccountDeletionAnswers() {
+        func answer(_ status: Int, _ json: String) -> AccountDeletionResult { AccountDeletionResult.from(status: status, body: Data(json.utf8)) }
+        XCTAssertEqual(answer(200, #"{"ok":true}"#), .deleted)
+        XCTAssertEqual(answer(403, #"{"error":"To keep your account safe, type the email.","code":"reauth_required"}"#),
+                       .needsEmail(message: "To keep your account safe, type the email."))
+        XCTAssertEqual(answer(403, ""), .needsEmail(message: AccountDeletionResult.needsEmailFallback))
+        XCTAssertEqual(answer(409, #"{"error":"Remove them first.","code":"team_has_members"}"#), .teamInTheWay(message: "Remove them first."))
+        XCTAssertEqual(answer(501, #"{"error":"x","code":"unavailable"}"#), .unavailable)
+        XCTAssertEqual(answer(404, "<html>"), .unavailable)
+        XCTAssertEqual(answer(401, #"{"error":"Your sign-in has expired.","code":"unauthorized"}"#), .failed(message: "Your sign-in has expired."))
+        XCTAssertEqual(answer(502, ""), .failed(message: "The server answered 502. Try again in a moment."))
+
+        XCTAssertNil(AccountDeletionResult.body(confirmEmail: nil))
+        XCTAssertNil(AccountDeletionResult.body(confirmEmail: "  "))
+        XCTAssertEqual(AccountDeletionResult.body(confirmEmail: " me@example.com \n"), ["confirmEmail": "me@example.com"])
     }
 }
