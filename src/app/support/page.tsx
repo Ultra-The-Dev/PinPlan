@@ -46,7 +46,7 @@ const FAQ: { q: string; a: React.ReactNode; onlyWhen?: "ai" }[] = [
   },
   {
     q: "Is my data used to train AI?",
-    a: "No. AI features (plan reading, device suggestions, photo captions, daily-log drafts) only run when you use them. The images and text involved are processed by Anthropic under their commercial terms, which do not allow training on this data. AI suggestions never count in a takeoff or estimate until someone accepts them.",
+    a: "No. AI features (plan reading, device suggestions, photo captions, daily-log drafts) only run when you use them. The images and text involved are processed by Anthropic under their commercial terms, which do not allow training on this data. AI suggestions never count in a takeoff or in pricing until someone accepts them.",
     onlyWhen: "ai",
   },
   {
@@ -57,7 +57,7 @@ const FAQ: { q: string; a: React.ReactNode; onlyWhen?: "ai" }[] = [
     q: "How do I change or cancel my subscription?",
     a: (
       <>
-        Team owners can change plans or cancel under Settings → Billing; cancellation takes effect at the end of the current period. If you subscribed through
+        Team owners can change plans or cancel under Settings → Plan &amp; billing; cancellation takes effect at the end of the current period. If you subscribed through
         the App Store, manage it in iOS Settings → your name → Subscriptions. See <Link href="/pricing">Pricing</Link> for plans.
       </>
     ),
@@ -140,15 +140,15 @@ export default function SupportPage() {
         <p>Your jobs belong to you. You can take them out at any time, including after your subscription ends (the account stays readable).</p>
         <ul>
           <li>
-            <strong>A whole job, with plans, markup, photos and estimate:</strong> open the job → <strong>Job</strong> tab → <strong>Backup</strong> →{" "}
-            <strong>Download backup</strong>. This saves a single file that PinPlan can restore on any device (Projects → <strong>Restore backup</strong>).
+            <strong>A whole job, with plans, markup, photos and pricing:</strong> open the job → <strong>Overview</strong> tab → <strong>Backup</strong> →{" "}
+            <strong>Download backup</strong>. This saves a single file that PinPlan can restore on any device (Jobs → <strong>Restore backup</strong>).
           </li>
           <li>
-            <strong>Takeoff, estimate and reports:</strong> download PDFs and CSV files from the <strong>Takeoff</strong>, <strong>Estimate</strong>,{" "}
-            <strong>Sheets</strong> and <strong>Photos</strong> tabs of a job.
+            <strong>Takeoff, pricing and reports:</strong> download PDFs and CSV files from the <strong>Takeoff</strong>, <strong>Money</strong> (Pricing section),{" "}
+            <strong>Plan</strong> and <strong>Field</strong> tabs of a job.
           </li>
           <li>
-            <strong>Your catalog and prices:</strong> Catalog → download the CSV price list.
+            <strong>Your price list:</strong> <strong>Price list</strong> → download the CSV.
           </li>
           <li>
             <strong>Everything at once:</strong> email <Ph>{COMPANY.supportEmail}</Ph> from the team owner’s address and we’ll send a full export of your

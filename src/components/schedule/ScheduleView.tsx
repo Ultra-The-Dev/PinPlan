@@ -33,6 +33,7 @@ import {
   validateDeps,
   weekStart,
 } from "@/lib/schedule";
+import { TONE_CHIP } from "@/lib/statusStyle";
 import { useEditor } from "@/lib/store";
 import { useRole, useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -46,11 +47,11 @@ import { CrewAvatars, DEFAULT_BAR, fmtDay, fmtRange, ProgressBar } from "./share
 const sortItems = (xs: ScheduleItem[]) => [...xs].sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0) || a.createdAt.localeCompare(b.createdAt));
 
 const STATUS: Record<ReturnType<typeof itemStatus>, { label: string; cls: string }> = {
-  done: { label: "Done", cls: "bg-emerald-50 text-emerald-700" },
-  late: { label: "Late", cls: "bg-red-50 text-red-700" },
-  behind: { label: "Behind", cls: "bg-amber-50 text-amber-800" },
-  active: { label: "Under way", cls: "bg-sky-50 text-sky-700" },
-  upcoming: { label: "Upcoming", cls: "bg-slate-100 text-slate-600" },
+  done: { label: "Done", cls: TONE_CHIP.ok },
+  late: { label: "Late", cls: TONE_CHIP.bad },
+  behind: { label: "Behind", cls: TONE_CHIP.warn },
+  active: { label: "Under way", cls: TONE_CHIP.info },
+  upcoming: { label: "Upcoming", cls: TONE_CHIP.neutral },
 };
 
 export default function ScheduleView() {
@@ -339,7 +340,7 @@ export default function ScheduleView() {
       )}
 
       {(problems.missing.length > 0 || problems.cycle.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-amber-200" role="status">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-warn-50 px-4 py-2.5 text-sm text-warn-700 ring-1 ring-warn-200" role="status">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
             {problems.cycle.length > 0 && <>Some phases wait on each other in a loop, so they aren’t pushed automatically. </>}

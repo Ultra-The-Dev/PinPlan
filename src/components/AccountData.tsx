@@ -60,7 +60,7 @@ export default function AccountData() {
       )}
       <div className="flex flex-wrap items-center gap-3">
         <span className="min-w-0 flex-1 text-xs text-slate-500">
-          Download every job on this device (plans, devices, photos and estimates) as one backup file. Restore it with “Restore backup” on the Projects page.
+          Download every job on this device (plans, devices, photos and pricing) as one backup file. Restore it with “Restore backup” on the Jobs page.
         </span>
         <button type="button" className="btn btn-sm" disabled={exporting} onClick={() => void exportAll()}>
           {exporting ? <Loader2 className="animate-spin" /> : <Download />} Export my data
@@ -151,7 +151,7 @@ function DeleteAccountDialog({ onClose, onExport, exporting }: { onClose: () => 
             {t.team && t.role !== "owner" ? (
               <li>· The jobs you created stay with {t.team.name || "your company"}.</li>
             ) : (
-              <li>· The jobs you own, with their plans, photos, estimates and proposal links, are deleted from the cloud.</li>
+              <li>· The jobs you own, with their plans, photos, pricing, quotes and client links, are deleted from the cloud.</li>
             )}
             {owner && <li>· Your company team ({t.team?.name}) is deleted.</li>}
             <li>· Everything {PRODUCT_NAME} stored on this device is cleared.</li>
