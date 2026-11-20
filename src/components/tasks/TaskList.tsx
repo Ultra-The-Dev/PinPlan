@@ -233,9 +233,9 @@ export default function TaskList() {
 
   return (
     <div className="space-y-4">
-      {/* Summary + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="mr-auto flex flex-wrap gap-1.5">
+      {/* Summary + actions. Phones: Add task first, the status counts in one row that scrolls sideways. */}
+      <div className="flex flex-wrap items-center gap-2 max-sm:justify-end">
+        <div className="scroll-thin mr-auto flex flex-wrap gap-1.5 max-sm:order-last max-sm:w-full max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:py-1.5">
           {STATUSES.map((s) => (
             <Chip small key={s.id} on={!!filter.status?.includes(s.id)} color={s.color} onClick={() => setFilter({ ...filter, status: toggle(filter.status, s.id) })}>
               {t(s.short)} <span className="tabular-nums opacity-80">{counts[s.id]}</span>
@@ -368,7 +368,7 @@ export default function TaskList() {
       ) : (
         <section className="card overflow-hidden">
           <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
-            <button className="flex h-8 w-8 items-center justify-center" onClick={() => setSelected(allPicked ? new Set() : new Set(shown.map((tk) => tk.id)))} aria-label={allPicked ? t("Select none") : t("Select all")}>
+            <button className="tap flex h-8 w-8 items-center justify-center" onClick={() => setSelected(allPicked ? new Set() : new Set(shown.map((tk) => tk.id)))} aria-label={allPicked ? t("Select none") : t("Select all")}>
               {allPicked ? <CheckSquare className="h-5 w-5 text-brand-600" /> : <Square className="h-5 w-5" />}
             </button>
             <span>{selected.size ? t.tn("{n} selected", "{n} selected", picked.length) : t.tn("{n} task", "{n} tasks", shown.length)}</span>
@@ -377,7 +377,7 @@ export default function TaskList() {
             {shown.map((tk) => (
               <li key={tk.id} className={`flex items-center gap-2 px-3 py-2 ${selected.has(tk.id) ? "bg-brand-50/60" : ""}`}>
                 <button
-                  className="flex h-10 w-8 shrink-0 items-center justify-center"
+                  className="flex h-10 w-8 shrink-0 items-center justify-center pointer-coarse:h-11 pointer-coarse:w-11"
                   onClick={() => setSelected((s) => (s.has(tk.id) ? new Set([...s].filter((x) => x !== tk.id)) : new Set([...s, tk.id])))}
                   aria-label={t("Select #{number}", { number: tk.number })}
                   aria-pressed={selected.has(tk.id)}

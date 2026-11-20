@@ -10,7 +10,7 @@ export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMo
     const on = mode === m;
     return (
       <button
-        className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold transition ${
+        className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold transition pointer-coarse:h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center ${
           on ? (m === "edit" ? "bg-brand-600 text-white shadow-sm" : "bg-ink text-white shadow-sm") : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         }`}
         onClick={() => onChange(m)}
@@ -24,7 +24,7 @@ export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMo
     );
   };
   return (
-    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label={t("Mode")} data-plan-ui>
+    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop pointer-coarse:h-[52px] ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label={t("Mode")} data-plan-ui>
       {btn("view", t("View"), Eye)}
       {btn("edit", t("Edit"), PencilLine)}
     </div>

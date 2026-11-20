@@ -22,10 +22,10 @@ export function AuthShell({ children, aside, wide }: { children: React.ReactNode
       </header>
       <main className={`mx-auto w-full px-4 pt-6 pb-16 sm:pt-12 ${wide ? "max-w-lg" : "max-w-md"}`}>{children}</main>
       <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-500">
-        <Link href="/terms" className="hover:text-slate-700">{t("Terms")}</Link>
-        <Link href="/privacy" className="hover:text-slate-700">{t("Privacy")}</Link>
-        <Link href="/support" className="hover:text-slate-700">{t("Support")}</Link>
-        <Link href="/pricing" className="hover:text-slate-700">{t("Pricing")}</Link>
+        <Link href="/terms" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Terms")}</Link>
+        <Link href="/privacy" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Privacy")}</Link>
+        <Link href="/support" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Support")}</Link>
+        <Link href="/pricing" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Pricing")}</Link>
         <LanguageSwitcher />
       </footer>
     </div>

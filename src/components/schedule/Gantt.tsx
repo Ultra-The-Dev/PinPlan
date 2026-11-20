@@ -261,7 +261,7 @@ export default function Gantt(props: {
                   )}
                   {draggable && (
                     <span
-                      className="absolute inset-y-0 -right-1 flex w-4 cursor-ew-resize items-center justify-center"
+                      className="absolute inset-y-0 -right-1 flex w-4 cursor-ew-resize items-center justify-center pointer-coarse:-right-3 pointer-coarse:w-8"
                       onPointerDown={(e) => onDown(e, i, "resize")}
                       onPointerMove={onMove}
                       onPointerUp={(e) => {
@@ -271,7 +271,7 @@ export default function Gantt(props: {
                       aria-hidden
                       data-testid={`resize-${i.name}`}
                     >
-                      <span className="h-3.5 w-1 rounded-full bg-white/90 opacity-0 shadow ring-1 ring-slate-300 transition group-hover:opacity-100" />
+                      <span className="h-3.5 w-1 rounded-full bg-white/90 opacity-0 shadow ring-1 ring-slate-300 transition group-hover:opacity-100 pointer-coarse:opacity-100" />
                     </span>
                   )}
                 </div>

@@ -255,7 +255,7 @@ function ConfirmUrl({ url, onClose }: { url: string; onClose: () => void }) {
   }
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={onClose} onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())} data-plan-ui>
-      <div role="dialog" aria-modal="true" aria-label={t("Open web page")} className="card animate-in w-full max-w-sm space-y-4 p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={t("Open web page")} className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-sm space-y-4 overflow-y-auto p-5 shadow-pop" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">{t("Open {host}?", { host })}</h2>

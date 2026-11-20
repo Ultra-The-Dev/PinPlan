@@ -19,10 +19,10 @@ interface Props {
 }
 
 /** Header strip (hidden on phones, where the bottom bar takes over). */
-export function JobTabStrip({ tabs, active, onSelect }: Props) {
+export function JobTabStrip({ tabs, active, onSelect, className = "" }: Props & { className?: string }) {
   const t = useT();
   return (
-    <nav className="seg max-sm:hidden" aria-label={t("Job sections")}>
+    <nav className={`seg max-sm:hidden ${className}`} aria-label={t("Job sections")}>
       {tabs.map((id) => {
         const m = JOB_TAB_META[id];
         return (
@@ -53,7 +53,7 @@ export function JobTabBar({ tabs, active, onSelect }: Props) {
             aria-current={on ? "page" : undefined}
           >
             <m.icon />
-            <span className="truncate">{t(m.label)}</span>
+            <span className="line-clamp-2 max-w-full px-0.5 text-center leading-[1.15] break-words">{t(m.label)}</span>
           </button>
         );
       })}

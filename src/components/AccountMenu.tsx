@@ -44,7 +44,7 @@ export default function AccountMenu() {
     <div className="relative shrink-0" ref={ref}>
       <button
         type="button"
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white ring-2 ring-white transition hover:bg-slate-800 focus-visible:ring-brand-300"
+        className="tap flex h-9 w-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white ring-2 ring-white transition hover:bg-slate-800 focus-visible:ring-brand-300"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("Account menu")}

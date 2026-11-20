@@ -124,7 +124,7 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
               <a
                 key={n.id}
                 href={`#${n.id}`}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm pointer-coarse:min-h-11"
               >
                 <n.icon className="h-4 w-4 text-slate-400" />
                 {t(n.label)}
@@ -139,7 +139,7 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
           {/* Phones: the sections as a scrolling row of chips. */}
           <nav className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1" aria-label={t("Settings sections")}>
             {NAV.map((n) => (
-              <a key={n.id} href={`#${n.id}`} className="chip shrink-0 bg-white px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-200">
+              <a key={n.id} href={`#${n.id}`} className="chip shrink-0 bg-white px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-200 pointer-coarse:min-h-11">
                 {t(n.label)}
               </a>
             ))}

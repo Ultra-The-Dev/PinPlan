@@ -52,10 +52,12 @@ export const metadata: Metadata = {
 };
 
 // No maximumScale / userScalable: people must be able to pinch-zoom pages (WCAG 1.4.4). The plan canvas handles its
-// own gestures.
+// own gestures. viewportFit "cover" turns on env(safe-area-inset-*) on iPhones and iPads, so bottom bars clear the
+// home indicator; globals.css pads the body's sides for the notch in landscape.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: "#0F2340",
 };
 

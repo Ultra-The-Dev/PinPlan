@@ -30,7 +30,7 @@ export default function Dialog(props: {
   return (
     <Modal onClose={props.onCancel} labelledBy={`${id}-title`} describedBy={props.description ? `${id}-desc` : undefined}>
       <form
-        className="card animate-in w-full max-w-sm space-y-4 p-5 shadow-pop"
+        className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-sm space-y-4 overflow-y-auto overscroll-contain p-5 shadow-pop"
         onSubmit={(e) => {
           e.preventDefault();
           props.onSubmit(values);
