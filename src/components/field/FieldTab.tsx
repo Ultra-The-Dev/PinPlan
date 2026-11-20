@@ -72,10 +72,15 @@ export default function FieldTab() {
             <h2 className="page-title">{t("Field")}</h2>
             <p className="mt-1 text-sm text-slate-500">{t("What to do today, tasks, checklists, the daily log and files for this job.")}</p>
           </div>
-          {/* Labelled at every width; scrolls sideways on narrow phones. */}
-          <nav className="seg scroll-thin max-w-full overflow-x-auto" aria-label={t("Field sections")}>
+          {/* Labelled at every width. Phones: a 3×2 grid of icon-over-label tiles, so every section is in sight. */}
+          <nav className="seg scroll-thin max-w-full max-sm:grid max-sm:w-full max-sm:grid-cols-3 sm:overflow-x-auto" aria-label={t("Field sections")}>
             {NAV.map((n) => (
-              <button key={n.id} className={`tab shrink-0 ${nav.id === n.id ? "tab-active" : ""}`} onClick={() => open(n.sections[0])} aria-current={nav.id === n.id ? "page" : undefined}>
+              <button
+                key={n.id}
+                className={`tab shrink-0 max-sm:h-auto max-sm:min-h-14 max-sm:flex-col max-sm:justify-center max-sm:gap-1 max-sm:px-1 max-sm:py-1.5 max-sm:text-center max-sm:text-xs max-sm:leading-tight max-sm:whitespace-normal ${nav.id === n.id ? "tab-active" : ""}`}
+                onClick={() => open(n.sections[0])}
+                aria-current={nav.id === n.id ? "page" : undefined}
+              >
                 <n.icon />
                 <span>{t(n.label)}</span>
               </button>

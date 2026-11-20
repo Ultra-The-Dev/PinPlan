@@ -14,7 +14,7 @@ import SyncBadge from "./SyncBadge";
 export function Logo({ compact }: { compact?: boolean }) {
   const t = useT();
   return (
-    <Link href="/jobs" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={t("{product} home", { product: PRODUCT_NAME })}>
+    <Link href="/jobs" className="tap flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={t("{product} home", { product: PRODUCT_NAME })}>
       <LogoMark size={32} />
       {!compact && <span className="hidden text-[15px] lg:inline">{PRODUCT_NAME}</span>}
     </Link>
@@ -50,7 +50,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
             <Link
               key={n.href}
               href={n.href}
-              className={`flex h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 text-[11px] font-medium whitespace-nowrap transition md:h-9 md:flex-row md:gap-1.5 md:px-3 md:text-sm [&_svg]:h-4 [&_svg]:w-4 ${
+              className={`flex h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 text-[11px] font-medium whitespace-nowrap transition md:h-9 md:flex-row md:gap-1.5 md:px-3 md:text-sm md:pointer-coarse:h-11 [&_svg]:h-4 [&_svg]:w-4 ${
                 active ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
               aria-current={active ? "page" : undefined}

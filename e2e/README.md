@@ -5,6 +5,9 @@
   PDF download. Any console error or uncaught page error fails it.
 - `a11y.spec.ts` runs an axe scan of `/welcome`, `/pricing`, `/login` and `/signup`. Critical violations fail the
   test. Everything else is attached to the report as a to-do list.
+- `mobile.spec.ts` opens the key pages on phones (iPhone SE, iPhone 13, Pixel 7) and tablets (iPad Mini, iPad Pro 11
+  landscape) with touch: no sideways page scroll, main actions at least 44×44 px (counting the touch hit area of
+  `.btn`, `.tab` and `.tap`), text fields at 16px or more (iOS zooms into smaller ones), and the plan's controls.
 
 ## Run
 

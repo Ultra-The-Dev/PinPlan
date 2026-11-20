@@ -23,7 +23,7 @@ export default function LanguageSwitcher({ className = "", tone = "light", showI
       <select
         value={t.locale}
         onChange={(e) => chooseLocale(e.target.value as Locale)}
-        className={`min-h-8 cursor-pointer appearance-none rounded-md py-1 pr-7 pl-2.5 font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
+        className={`min-h-8 cursor-pointer appearance-none pointer-coarse:min-h-11 rounded-md py-1 pr-7 pl-2.5 font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
           dark ? "bg-white/10 text-white hover:bg-white/15 focus-visible:outline-white [&>option]:text-slate-900" : "bg-slate-100 text-slate-700 hover:bg-slate-200/70 focus-visible:outline-blue-600"
         }`}
       >

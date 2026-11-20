@@ -58,7 +58,7 @@ function CellInner({
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v !== String(value) && onCommit(v)}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-      className={`w-full rounded border border-transparent bg-transparent px-1.5 py-1 hover:border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none ${numeric ? "text-right tabular-nums" : ""} ${className}`}
+      className={`w-full rounded border border-transparent bg-transparent px-1.5 py-1 hover:border-slate-200 pointer-coarse:border-slate-200 pointer-coarse:bg-white pointer-coarse:py-1.5 focus:border-brand-500 focus:bg-white focus:outline-none ${numeric ? "text-right tabular-nums" : ""} ${className}`}
     />
   );
 }
@@ -334,10 +334,10 @@ export default function EstimateTab() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
           <details className="card group">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-3 text-sm font-medium pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden">
               <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-              {t("Adjust pricing")}
-              <span className="ml-auto truncate text-xs font-normal text-slate-500">
+              <span className="shrink-0">{t("Adjust pricing")}</span>
+              <span className="min-w-0 text-xs font-normal text-slate-500 max-sm:basis-full max-sm:pl-6 sm:ml-auto sm:truncate">
                 {pricing.laborMode === "combined"
                   ? t("Markup {markup}% · tax {tax}% · labor in the price", { markup: pricing.markupPct, tax: fmtPct(pricing.taxPct) })
                   : t("Markup {markup}% · tax {tax}% · labor separate", { markup: pricing.markupPct, tax: fmtPct(pricing.taxPct) })}
@@ -406,7 +406,7 @@ export default function EstimateTab() {
                       <div className="w-16">
                         <Cell numeric label={t("Quantity: {item}", { item: l.description })} value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
                       </div>
-                      <span>{l.unit} ×</span>
+                      <span className="shrink-0 whitespace-nowrap">{l.unit} ×</span>
                       <div className="w-24">
                         <Cell numeric label={t("Unit price: {item}", { item: l.description })} value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
                       </div>
@@ -416,7 +416,7 @@ export default function EstimateTab() {
                       <div className="mt-1 flex gap-3 text-xs">
                         {l.optional && <span className="text-amber-700">{t("Optional, marked ?")}</span>}
                         {l.overridden && !l.key.startsWith("custom:") && (
-                          <button className="text-brand-600" onClick={() => removeOverride(l.key)}>
+                          <button className="tap text-brand-600" onClick={() => removeOverride(l.key)}>
                             {t("Edited · reset")}
                           </button>
                         )}

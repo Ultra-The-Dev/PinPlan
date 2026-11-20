@@ -77,14 +77,14 @@ export default function ProjectView() {
         <>
           <AppHeader />
           <div className="p-6">
-            Job not found. <Link className="underline" href="/jobs">Back to jobs</Link>
+            {t("Job not found.")} <Link className="underline" href="/jobs">{t("Back to jobs")}</Link>
           </div>
         </>
       );
     return (
       <>
         <AppHeader />
-        <div className="p-6 text-slate-500">Loading…</div>
+        <div className="p-6 text-slate-500">{t("Loading…")}</div>
       </>
     );
   }
@@ -94,8 +94,8 @@ export default function ProjectView() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4">
-        <Link href="/jobs" className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4 sm:max-lg:h-auto sm:max-lg:flex-wrap sm:max-lg:gap-y-2 sm:max-lg:py-2">
+        <Link href="/jobs" className="tap flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
           <ChevronLeft className="h-4 w-4" />
           {t("Jobs")}
         </Link>
@@ -110,7 +110,7 @@ export default function ProjectView() {
           {/* Phones: a plain chip (the next step on Overview changes the status); a picker from sm up. */}
           <span className={`chip shrink-0 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{t(projectStatusLabel(project.status))}</span>
           <select
-            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
+            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none pointer-coarse:h-9 pointer-coarse:rounded-lg pointer-coarse:px-2.5 sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
             aria-label={t("Job status")}
@@ -123,7 +123,8 @@ export default function ProjectView() {
           </select>
         </div>
         <div className="flex-1 max-lg:hidden" />
-        <JobTabStrip tabs={tabs} active={tab} onSelect={(id) => setTab(id)} />
+        {/* Tablets in portrait: the tabs get their own row, so the job name keeps its room. */}
+        <JobTabStrip tabs={tabs} active={tab} onSelect={(id) => setTab(id)} className="sm:max-lg:order-last sm:max-lg:w-full sm:max-lg:justify-center" />
         {tab === "plan" && sheets.length > 0 && (
           <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open">
             <FileText />
@@ -143,10 +144,10 @@ export default function ProjectView() {
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                   <FileText className="h-6 w-6" />
                 </div>
-                <p className="text-lg font-semibold">No plan sheets yet</p>
-                <p className="mt-1 text-sm text-slate-500">Upload the plan set (PDF or phone photos) to start placing devices.</p>
+                <p className="text-lg font-semibold">{t("No plan sheets yet")}</p>
+                <p className="mt-1 text-sm text-slate-500">{t("Upload the plan set (PDF or phone photos) to start placing devices.")}</p>
                 <button className="btn btn-brand mt-5" onClick={openManageSheets}>
-                  Upload plans
+                  {t("Upload plans")}
                 </button>
               </div>
             </div>
@@ -159,12 +160,12 @@ export default function ProjectView() {
           <div className="flex h-full flex-col">
             {/* Photos live under Field (old ?tab=photos links land here). */}
             <div className="flex shrink-0 justify-center border-b border-slate-200 bg-white px-3 py-2">
-              <div className="seg" role="tablist" aria-label="Field view">
+              <div className="seg" role="tablist" aria-label={t("Field view")}>
                 <button type="button" role="tab" aria-selected={!fieldPhotos} className={`tab ${!fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field")}>
-                  Field work
+                  {t("Field work")}
                 </button>
                 <button type="button" role="tab" aria-selected={fieldPhotos} className={`tab ${fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field", { section: "photos" })}>
-                  Photos
+                  {t("Photos")}
                   {photoCount > 0 && <span className="text-xs text-slate-400">{photoCount}</span>}
                 </button>
               </div>

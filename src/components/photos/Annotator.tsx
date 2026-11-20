@@ -68,25 +68,25 @@ export default function Annotator(props: { imageId: string; width: number; heigh
   const aspect = props.width / props.height;
   return (
     <Modal onClose={closeByKey} label={t("Mark up photo")} closeOnBackdrop={false} className="fixed inset-0 flex flex-col bg-slate-950/95 text-white">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <button className="btn btn-sm btn-ghost text-white hover:bg-white/10" onClick={props.onCancel} aria-label={t("Cancel")}>
           <X />
         </button>
         <div className="flex gap-1 rounded-xl bg-white/10 p-1" role="group" aria-label={t("Tool")}>
           {TOOLS.map((tl) => (
-            <button key={tl.id} title={t(tl.label)} aria-label={t(tl.label)} aria-pressed={tool === tl.id} onClick={() => setTool(tl.id)} className={`flex h-9 w-9 items-center justify-center rounded-lg ${tool === tl.id ? "bg-white text-slate-900" : "hover:bg-white/10"}`}>
+            <button key={tl.id} title={t(tl.label)} aria-label={t(tl.label)} aria-pressed={tool === tl.id} onClick={() => setTool(tl.id)} className={`flex h-9 w-9 items-center justify-center rounded-lg pointer-coarse:h-11 pointer-coarse:w-11 ${tool === tl.id ? "bg-white text-slate-900" : "hover:bg-white/10"}`}>
               <tl.icon className="h-4 w-4" />
             </button>
           ))}
         </div>
         <div className="flex gap-1.5" role="group" aria-label={t("Colour")}>
           {ANNOTATION_COLORS.map((c) => (
-            <button key={c} aria-label={t("Colour {code}", { code: c })} aria-pressed={color === c} onClick={() => setColor(c)} className={`h-7 w-7 rounded-full ring-2 ${color === c ? "ring-white" : "ring-white/20"}`} style={{ background: c }} />
+            <button key={c} aria-label={t("Colour {code}", { code: c })} aria-pressed={color === c} onClick={() => setColor(c)} className={`tap h-7 w-7 rounded-full ring-2 ${color === c ? "ring-white" : "ring-white/20"}`} style={{ background: c }} />
           ))}
         </div>
         <div className="flex gap-1" role="group" aria-label={t("Line width")}>
           {WIDTHS.map((w, i) => (
-            <button key={w} aria-label={[t("Thin"), t("Medium"), t("Thick")][i] ?? t("Line width")} aria-pressed={width === w} onClick={() => setWidth(w)} className={`flex h-8 w-8 items-center justify-center rounded-lg ${width === w ? "bg-white/20" : "hover:bg-white/10"}`}>
+            <button key={w} aria-label={[t("Thin"), t("Medium"), t("Thick")][i] ?? t("Line width")} aria-pressed={width === w} onClick={() => setWidth(w)} className={`flex h-8 w-8 items-center justify-center rounded-lg pointer-coarse:h-11 pointer-coarse:w-11 ${width === w ? "bg-white/20" : "hover:bg-white/10"}`}>
               <span className="block rounded-full bg-white" style={{ width: 4 + w * 900, height: 4 + w * 900 }} />
             </button>
           ))}
@@ -109,7 +109,7 @@ export default function Annotator(props: { imageId: string; width: number; heigh
           <AnnotationSvg shapes={draft ? [...shapes, draft] : shapes} w={props.width} h={props.height} />
         </div>
       </div>
-      <p className="pb-3 text-center text-xs text-white/70">{tool === "text" ? t("Tap where the text goes") : t("Drag on the photo")} · {t("the original photo is kept")}</p>
+      <p className="pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center text-xs text-white/70">{tool === "text" ? t("Tap where the text goes") : t("Drag on the photo")} · {t("the original photo is kept")}</p>
     </Modal>
   );
 }

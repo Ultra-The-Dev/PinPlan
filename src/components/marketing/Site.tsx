@@ -61,7 +61,7 @@ export function SiteHeader() {
         <button
           ref={menuButton}
           type="button"
-          className="-ml-2 rounded-md p-2 hover:bg-mk-sheet lg:hidden"
+          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-md hover:bg-mk-sheet lg:hidden"
           aria-expanded={open}
           aria-controls="site-menu"
           aria-label={open ? t("Close menu") : t("Open menu")}
@@ -72,7 +72,7 @@ export function SiteHeader() {
         <Wordmark />
         <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label={t("Site")}>
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
+            <Link key={n.href} href={n.href} className="tap rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
               {t(n.label)}
             </Link>
           ))}
@@ -90,11 +90,11 @@ export function SiteHeader() {
             <>
               <Link
                 href="/login"
-                className="hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
+                className="tap hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
               >
                 {t("Sign in")}
               </Link>
-              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 py-1 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
+              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 py-1 pointer-coarse:min-h-11 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
                 {t("Start free trial")}
               </Link>
             </>

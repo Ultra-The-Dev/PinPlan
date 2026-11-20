@@ -55,7 +55,7 @@ export default function SyncBadge() {
       title={readOnly ? t("Your company's Northpin subscription is inactive: changes stay on this device until it's restarted.") : ownerMismatch ? t("This device has another account's jobs. Open Settings to remove them before syncing.") : refused ? tn("{n} change wasn't accepted. Open Settings to discard or try again.", "{n} changes weren't accepted. Open Settings to discard or try again.", refused) : (error ?? text)}
       aria-label={t("Sync: {status}", { status: text })}
       data-testid="sync-badge"
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${quiet ? "max-sm:hidden" : ""} ${cls}`}
+      className={`tap inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${quiet ? "max-sm:hidden" : ""} ${cls}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full bg-current ${status.syncing ? "animate-pulse" : ""}`} aria-hidden />
       <span className="sm:hidden">{short}</span>

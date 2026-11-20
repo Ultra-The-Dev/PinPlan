@@ -477,7 +477,7 @@ function TextDialog() {
   };
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-3 sm:items-center" onClick={close}>
-      <div className="card animate-in w-full max-w-sm p-4 shadow-pop" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t("Text markup")}>
+      <div className="card animate-in max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto p-4 shadow-pop" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t("Text markup")}>
         <label className="label" htmlFor="markup-text">
           {draft.editId ? t("Edit text") : t("Text on the plan")}
         </label>

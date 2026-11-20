@@ -36,7 +36,7 @@ export default function Palette() {
     <button
       key={key}
       onClick={() => setTool(active(x) ? { kind: "select" } : x)}
-      className={`group flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13px] transition ${
+      className={`group flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13px] transition pointer-coarse:min-h-11 ${
         active(x) ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200" : "text-slate-700 hover:bg-slate-100"
       }`}
     >
@@ -55,7 +55,7 @@ export default function Palette() {
         <div className="relative">
           <DoorOpen className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            className={`input h-9 pl-8 ${room ? "border-brand-300 bg-brand-50/50" : ""}`}
+            className={`input h-9 pl-8 pointer-coarse:h-11 ${room ? "border-brand-300 bg-brand-50/50" : ""}`}
             placeholder={t("Room for new devices")}
             list="pinplan-rooms"
             value={room}
@@ -68,16 +68,16 @@ export default function Palette() {
             ))}
           </datalist>
           {room && (
-            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setRoom("")} aria-label={t("Clear room")}>
+            <button className="tap absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setRoom("")} aria-label={t("Clear room")}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input h-9 pl-8" placeholder={t("Find a device…")} aria-label={t("Find a device…")} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input h-9 pl-8 pointer-coarse:h-11" placeholder={t("Find a device…")} aria-label={t("Find a device…")} value={q} onChange={(e) => setQ(e.target.value)} />
           {q && (
-            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setQ("")} aria-label={t("Clear search")}>
+            <button className="tap absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setQ("")} aria-label={t("Clear search")}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -92,7 +92,7 @@ export default function Palette() {
           return (
             <section key={cat.id}>
               <button
-                className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left"
+                className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left pointer-coarse:min-h-11"
                 onClick={() => setCollapsed((c) => (c.includes(cat.id) ? c.filter((x) => x !== cat.id) : [...c, cat.id]))}
               >
                 <span className="h-2 w-2 rounded-full" style={{ background: cat.color }} />

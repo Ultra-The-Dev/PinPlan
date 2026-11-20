@@ -30,7 +30,7 @@ export default function MeasureToolbar({ count, recent, hidden, phone, colorFor 
     return (
       <div className="pointer-events-auto flex max-w-full gap-1.5" data-plan-ui>
         <button
-          className={`${glass} flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-semibold text-slate-700 hover:text-slate-900`}
+          className={`${glass} flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 px-3 text-sm font-semibold text-slate-700 hover:text-slate-900`}
           onClick={() => ui.setActive(true)}
           title={t("Measure and save lengths, runs and areas (M)")}
           aria-label={t("Measure takeoff")}

@@ -377,7 +377,7 @@ function TaskDetailBody({ task, tasks, onClose, onDuplicate, onPlace, placeLabel
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button className="btn" onClick={() => onPlace(task)}>
             <MapPin /> {placeLabel ?? (place === "pin" ? t("Move pin") : t("Place on plan"))}
           </button>

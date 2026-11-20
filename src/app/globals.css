@@ -76,6 +76,46 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   font-feature-settings: "cv11", "ss01";
+  /* viewport-fit=cover (layout.tsx): keep content clear of the notch when a phone is turned sideways. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Touch screens: iOS zooms the page into any field whose text is under 16px. Fields get 16px in the base layer (over
+   the inherited size); the unlayered rule wins over the small text utilities on compact fields, while larger ones
+   (text-base, text-lg …) keep their size. */
+@layer base {
+  @media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="button"], [type="submit"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+}
+@media (pointer: coarse) {
+  :is(input, select, textarea):is(.input, .text-xs, .text-sm, [class*="text-[1"]):not(.text-base, .text-lg, .text-xl, .text-2xl, .text-3xl) {
+    font-size: 16px;
+  }
+}
+
+/* No double-tap-zoom wait on controls. In the base layer so a `touch-none` utility (drag handles) still wins. */
+@layer base {
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  [role="button"] {
+    touch-action: manipulation;
+  }
 }
 
 ::selection {
@@ -179,8 +219,21 @@ body {
   .toolbar-sep {
     @apply mx-1 h-6 w-px shrink-0 bg-slate-200;
   }
-  /* Touch screens: buttons and tabs keep their drawn size but answer to a 44px target. */
+  /* Touch screens: buttons and tabs keep their drawn size but answer to a 44px target; fields at least 44px tall. */
+  /* The same 44px touch target for any small link, chip or icon button that isn't a .btn (`tap` class). */
+  .tap,
+  button.chip,
+  a.chip {
+    position: relative;
+  }
   @media (pointer: coarse) {
+    input.input,
+    select.input {
+      @apply min-h-11;
+    }
+    .tap::after,
+    button.chip::after,
+    a.chip::after,
     .btn::after,
     .tab::after {
       content: "";
@@ -191,6 +244,15 @@ body {
       height: max(100%, 44px);
       transform: translate(-50%, -50%);
     }
+  }
+}
+
+/* Jobs map (Leaflet): finger-sized zoom buttons. */
+@media (pointer: coarse) {
+  .leaflet-touch .leaflet-control-zoom.leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
   }
 }
 

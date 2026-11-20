@@ -178,8 +178,8 @@ export default function ProjectsList() {
       )}
 
       {creating && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center" onClick={() => setCreating(false)}>
-          <form onSubmit={create} onClick={(e) => e.stopPropagation()} className="card animate-in grid w-full max-w-lg gap-4 p-6 shadow-pop sm:grid-cols-2">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:items-center" onClick={() => setCreating(false)}>
+          <form onSubmit={create} onClick={(e) => e.stopPropagation()} className="card animate-in grid max-h-[calc(100dvh-2rem)] w-full max-w-lg gap-4 overflow-y-auto overscroll-contain p-5 shadow-pop sm:grid-cols-2 sm:p-6">
             <div className="flex items-start sm:col-span-2">
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">{t("New job")}</h2>

@@ -130,7 +130,7 @@ export function Chip(props: { on: boolean; onClick: () => void; color?: string; 
       disabled={props.disabled}
       aria-pressed={on}
       onClick={props.onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border font-medium whitespace-nowrap transition select-none active:scale-[0.97] disabled:opacity-40 ${
+      className={`tap inline-flex shrink-0 items-center gap-1.5 rounded-full border font-medium whitespace-nowrap transition select-none active:scale-[0.97] disabled:opacity-40 ${
         props.small ? "h-8 px-3 text-xs" : "h-10 px-3.5 text-sm"
       } ${on ? "text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
       style={on ? { background: color ?? "var(--color-ink)", borderColor: color ?? "var(--color-ink)" } : undefined}

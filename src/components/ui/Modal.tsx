@@ -169,7 +169,7 @@ export default function Modal(props: {
       }}
     >
       <div
-        className={props.className ?? "fixed inset-0 flex items-end justify-center bg-slate-900/30 p-4 backdrop-blur-[2px] sm:items-center"}
+        className={props.className ?? "fixed inset-0 flex items-end justify-center bg-slate-900/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:items-center"}
         onPointerDown={(e) => {
           downOnBackdrop.current = e.target === e.currentTarget;
         }}
