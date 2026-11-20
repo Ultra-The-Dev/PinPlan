@@ -283,7 +283,7 @@ a `NEXT_PUBLIC_` name. Descriptions and examples are in [.env.example](.env.exam
 | `NEXT_PUBLIC_WEATHER_URL` | Public | Required for a commercial launch | Weather source: `/api/weather` or a self-hosted Open-Meteo (A5). |
 | `OPEN_METEO_API_KEY` | Server | With `/api/weather` | Open-Meteo commercial key, added by `/api/weather`. |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Public | Optional | Bot check on web sign-up, sign-in, reset and join (A6). |
-| `TURNSTILE_SECRET_KEY` | Server | Optional | `/api/team/join` checks the bot-check token (A6). |
+| `TURNSTILE_SECRET_KEY` | Server | Optional | `/api/team/join` checks the bot-check token (A6). Read the Turnstile note in launch-checklist.md first: set too early, every invite join is refused. |
 | `PINPLAN_TERMS_VERSION` | Server | Optional | Terms version saved on invite joins when the page doesn't say (default `2026-11`). |
 | `NEXT_PUBLIC_APP_STORE_URL` | Public | Optional | The App Store listing, once live. |
 | `NEXT_PUBLIC_APP_VERSION` | Public | Optional | Version on error reports (default: the Vercel commit). |

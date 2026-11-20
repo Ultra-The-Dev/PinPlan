@@ -216,11 +216,10 @@ Office RPCs (`authenticated`): `issue_document(p_id) → number`, `document_numb
 
 Emailing a quote, invoice, reminder or receipt also needs the company's **business email** (Settings → Company): it
 is the reply-to address, read from the link snapshot (`snapshot.business.email`). Without a valid one the route
-answers 400 `business_email_required` and nothing is sent ("Add your business email in Settings → Business, then
-choose Update link on the document and send it again."): client mail never replies to PinPlan. A link published before
-the email was added keeps the old snapshot, so the office updates the link first. The sender's own account must be
-confirmed, and the company's daily email limits apply (`src/lib/server/sendGuard.ts`).
-
+answers 400 `business_email_required` and nothing is sent: client mail never replies to PinPlan. (The route's message
+still names the old section, "Settings → Business"; it is now Settings → Company.) A link published before the email
+was added keeps the old snapshot, so the office chooses **Update link** on the document, then sends again. The
+sender's own account must be confirmed, and the company's daily email limits apply (`src/lib/server/sendGuard.ts`).
 
 - `POST /api/documents/email {documentId, token, to, kind: "document"|"reminder"|"receipt", message?}` — office only;
   reads the link and document with the caller's token (RLS). Sends the company-branded email with the link (and the
