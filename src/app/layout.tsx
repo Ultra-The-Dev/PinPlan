@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "@/components/Providers";
 import { ErrorReporter } from "@/components/ErrorBoundary";
-import { archivo } from "@/components/marketing/fonts";
+import { plex } from "@/components/marketing/fonts";
 import { SHARE_IMAGE } from "@/components/marketing/seo";
 import { PRODUCT_NAME } from "@/lib/plans";
 import "./globals.css";
@@ -63,7 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   // Pages render in English; the browser switches `lang` to the visitor's language before hydration
   // (src/lib/i18n), hence suppressHydrationWarning on <html> (it covers this element's attributes only).
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${plex.variable} h-full antialiased`}>
       <body className="h-full flex flex-col bg-slate-50 text-slate-900">
         <ErrorReporter />
         <Providers>{children}</Providers>

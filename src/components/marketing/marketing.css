@@ -18,6 +18,7 @@
   --mk-focus: var(--mk-graphite);
 
   font-family: var(--font-mk), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
   font-feature-settings: normal;
   color: var(--mk-graphite);
   background: var(--mk-paper);
@@ -40,26 +41,33 @@
 }
 
 /* ---------- type ---------- */
+/* IBM Plex Sans: condensed (width 75) and bold for headlines, normal width for reading. Scale steps:
+   13 · 15 · 17 · 20 · 24/30 · 32→52 · 48→104. */
 .mk .mk-display,
 .mk .mk-h2,
 .mk .mk-h3,
 .mk .mk-figure {
   font-stretch: 75%;
-  font-weight: 750;
-  letter-spacing: -0.005em;
+  font-weight: 700;
+  letter-spacing: -0.012em;
   text-wrap: balance;
 }
 .mk .mk-display {
-  font-size: clamp(2.75rem, 1.6rem + 5vw, 5.25rem);
-  line-height: 0.92;
+  font-size: clamp(3rem, 1.55rem + 5.6vw, 6.5rem);
+  line-height: 0.93;
+  letter-spacing: -0.02em;
+}
+/* Russian runs about 15% longer: the display size steps down so the hero's three sentences keep to three lines. */
+html[lang="ru"] .mk .mk-display {
+  font-size: clamp(2.625rem, 1.4rem + 4.7vw, 5.5rem);
 }
 .mk .mk-h2 {
-  font-size: clamp(2rem, 1.4rem + 2.4vw, 3.25rem);
+  font-size: clamp(2.125rem, 1.45rem + 2.5vw, 3.5rem);
   line-height: 0.98;
 }
 .mk .mk-h3 {
   font-size: clamp(1.5rem, 1.25rem + 0.8vw, 1.875rem);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.05;
 }
 .mk .mk-figure {
@@ -106,7 +114,7 @@
   padding: 0 1.375rem;
   border-radius: 10px;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
   white-space: nowrap;
   border: 1.5px solid transparent;
   transition:
@@ -161,6 +169,8 @@
 /* ---------- surfaces ---------- */
 /* A sheet of paper: square-ish corners, a pencil-line border, a shadow like paper lying on a desk. */
 .mk .mk-sheet {
+  --mk-focus: var(--mk-graphite);
+  color: var(--mk-graphite);
   background: var(--mk-sheet);
   border: 1px solid var(--mk-rule);
   border-radius: 4px;
@@ -176,6 +186,7 @@
   box-shadow: 0 30px 60px -28px rgb(28 42 48 / 0.55);
 }
 .mk .mk-phone > .mk-screen {
+  color: var(--mk-graphite);
   border-radius: 23px;
   background: var(--mk-sheet);
   overflow: hidden;
@@ -202,7 +213,7 @@
   gap: 1rem;
   padding: 1.15rem 0;
   font-size: 1.0625rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
   list-style: none;
 }
@@ -238,19 +249,7 @@
   max-width: 40em;
 }
 
-/* ---------- workflow rail ---------- */
-/* The steps hang off one wire run, drawn in the same dashes the plan uses. */
-.mk .mk-rail {
-  position: relative;
-}
-.mk .mk-rail::before {
-  content: "";
-  position: absolute;
-  top: 1.25rem;
-  bottom: 2rem;
-  left: 1.1875rem;
-  border-left: 2px dashed color-mix(in srgb, var(--mk-graphite) 35%, transparent);
-}
+/* ---------- step pins (the run they hang off is .mk-steps, below) ---------- */
 .mk .mk-step-pin {
   display: flex;
   align-items: center;
@@ -261,9 +260,76 @@
   background: var(--mk-graphite);
   color: var(--mk-electric);
   font-stretch: 75%;
-  font-weight: 750;
+  font-weight: 700;
   font-size: 1.125rem;
   box-shadow: 0 0 0 5px var(--mk-paper);
+}
+
+
+/* ---------- the drafting table ---------- */
+/* The ink ground under the hero and the pricing card: blueprint paper with a 24px grid and a heavier line every
+   120px, the way drafting film is ruled. A pattern of lines, not a wash. */
+.mk .mk-table {
+  background-color: var(--mk-graphite);
+  background-image:
+    linear-gradient(rgb(169 188 212 / 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(169 188 212 / 0.075) 1px, transparent 1px),
+    linear-gradient(rgb(169 188 212 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(169 188 212 / 0.035) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+  background-position: center top;
+}
+/* A sheet lying on the ink table casts a longer, darker shadow. */
+.mk .mk-dark .mk-sheet {
+  border-color: transparent;
+  box-shadow:
+    0 2px 0 rgb(8 22 42 / 0.25),
+    0 40px 80px -36px rgb(8 22 42 / 0.75);
+}
+.mk .mk-dark .mk-phone {
+  background: #08162a;
+  box-shadow:
+    0 0 0 1px rgb(169 188 212 / 0.22),
+    0 40px 70px -30px rgb(8 22 42 / 0.8);
+}
+.mk .mk-dark .mk-link {
+  color: #fff;
+}
+
+/* ---------- trade strip and legend ---------- */
+.mk .mk-trade-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ---------- how it works: the steps hang off one wire run ---------- */
+/* Phones: a vertical dashed run down the pins. Wide screens: a horizontal run from the first pin to the last. */
+.mk .mk-steps {
+  position: relative;
+}
+.mk .mk-steps::before {
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  bottom: 2.5rem;
+  left: 1.1875rem;
+  border-left: 2px dashed color-mix(in srgb, var(--mk-graphite) 35%, transparent);
+}
+@media (min-width: 1024px) {
+  .mk .mk-steps::before {
+    top: 1.125rem;
+    bottom: auto;
+    /* The last pin's centre: one column (less half a pin) in from the right edge, with 1.5rem gaps. */
+    right: calc((100% - 6rem) / 5 - 1.1875rem);
+    border-left: 0;
+    border-top: 2px dashed color-mix(in srgb, var(--mk-graphite) 35%, transparent);
+  }
 }
 
 /* ---------- the one orchestrated moment: the hero plan fills in, counts, and gets approved ---------- */

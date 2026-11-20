@@ -2,17 +2,19 @@
 # Brand and design system
 
 The public site (`/welcome`, `/pricing`, the site footer) and the app both use Blueprint Ink. The site has its own
-`.mk` tokens and Archivo everywhere; the app maps the same colours onto its Tailwind tokens in `src/app/globals.css`
-(see "In the app" below) and keeps Geist for body text.
+`.mk` tokens and IBM Plex Sans everywhere; the app maps the same colours onto its Tailwind tokens in
+`src/app/globals.css` (see "In the app" below) and keeps Geist for body text.
 
 The product name always comes from `PRODUCT_NAME` in `src/lib/plans.ts`, including the wordmark. Never type it.
 
 ## Idea
 
-The site looks like the thing contractors work from: a plan sheet. Black linework on white drawing paper, device
-symbols with letters like a drawing legend, a title block, a scale bar, and the blue highlighter estimators use to
-mark what they've counted. One bold thing per page (the hero plan filling in with pins, its count and the approved
-quote); everything around it stays quiet.
+The site looks like the thing contractors work from: a plan sheet. Ink linework on white drawing paper, device
+symbols with letters like a drawing legend, a title block with a scale bar and plan north (drawn with the logo's
+needle), and the blue highlighter estimators use to mark what they've counted. One bold thing per page: the plan
+lying on the ink "drafting table" (`.mk-table`: ink with a 24px grid and a heavier line every 120px) at the top of
+`/welcome` and `/pricing`, running off the table's edge onto the paper below. On `/welcome` it fills in with pins,
+its count and the approved quote; everything around it stays quiet.
 
 ## Colour
 
@@ -35,7 +37,8 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 | On dark | `#A9BCD4` | Secondary text on ink. |
 
 Device symbol colours are not brand colours: they come from the trade packs (`src/lib/trades.ts`) so the site
-shows what the app shows. Trade colours appear only as the 2px rule above each trade in the trades section.
+shows what the app shows. Trade colours appear only as the 3px rule above each trade in the trades legend and as
+the small square beside each trade name under the hero.
 
 In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so existing class names (`bg-brand-600`,
 `text-slate-500`, …) pick them up with no renames. Contrast values are checked in `tests/statusStyle.test.ts`.
@@ -75,72 +78,57 @@ white linework and keep marker as the action colour.
 
 ## Type
 
-One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100–900), loaded with `next/font` in
-`src/components/marketing/fonts.ts` as `--font-mk`.
+One family: **IBM Plex Sans** (SIL Open Font License; `IBM_Plex_Sans` in `next/font/google`, self-hosted at build
+time), variable `wdth` 75–100 and `wght` 100–700, Latin and Cyrillic. Loaded once in
+`src/components/marketing/fonts.ts` (`plex`, also exported as `brandFont` for the wordmark) as `--font-mk`, set on
+`<html>` in `src/app/layout.tsx`.
 
-- Headlines: width 75% (`font-stretch: 75%`), weight 750, slight negative tracking. Condensed and heavy like the
+- Headlines: Condensed width (`font-stretch: 75%`), weight 700, slight negative tracking. Condensed and heavy like the
   lettering on panels and equipment labels.
-- Text and UI: width 100%, weight 400 / 600.
-- Figures: tabular lining numerals (`.mk-num`, `.mk-figure`). No monospace anywhere.
-- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title`; the font variable is loaded once
-  in `src/app/layout.tsx`. Everything else in the app stays Geist. The wordmark is already IBM Plex Sans (below).
+- Text and UI: width 100%, weight 400 / 500–600.
+- Figures: tabular by default in Plex; `.mk-num` / `.mk-figure` set `tabular-nums` anyway so a later face change
+  can't break the columns. No monospace anywhere.
+- In the app, Plex (75% width, weight 700, ink) is used only for `.page-title` and the auth pages' wordmark.
+  Everything else in the app stays Geist.
+- Russian runs about 15% longer than English: `html[lang="ru"] .mk-display` steps the display size down (to 88px at
+  most) so the hero's three sentences keep to three lines; other headlines wrap like the English thanks to the
+  Condensed width.
 
-| Role | Class | Size | Line height |
-|---|---|---|---|
-| Display (h1) | `.mk-display` | clamp(44px → 84px) | 0.92 |
-| Section (h2) | `.mk-h2` | clamp(32px → 52px) | 0.98 |
-| Step / item (h3) | `.mk-h3` | clamp(24px → 30px) | 1.05 |
-| Lede | `.mk-lede` | clamp(17px → 20px), pencil | 1.55, max 36em |
-| Body | `.mk-body` | 17px, pencil | 1.6, max 34em |
-| UI / lists | — | 15px | 1.5 |
-| Small / table | — | 13–14px | 1.4 |
+| Role | Class | Face, width / weight | Size | Line height |
+|---|---|---|---|---|
+| Display (h1, the final call) | `.mk-display` | Plex 75 / 700, tracking −0.02em | clamp(48px → 104px); Russian → 88px | 0.93 |
+| Section (h2) | `.mk-h2` | Plex 75 / 700 | clamp(34px → 56px) | 0.98 |
+| Step / item (h3) | `.mk-h3` | Plex 75 / 600 | clamp(24px → 30px) | 1.05 |
+| Lede | `.mk-lede` | Plex 100 / 400, pencil | clamp(17px → 20px) | 1.55, max 36em |
+| Body | `.mk-body` | Plex 100 / 400, pencil | 17px | 1.6, max 34em |
+| UI / lists | — | Plex 100 / 500–600 | 15px | 1.5 |
+| Small / table | — | Plex 100 / 400 | 13–14px | 1.4 |
 
 Sentence case everywhere. No all-caps labels or eyebrows above headings; the only capitals are room names inside
 plan drawings, because that's how plans are lettered. Don't colour or italicise one word of a headline.
 
-### Northpin type: IBM Plex Sans (chosen; the redesign applies it)
-
-Archivo has no Cyrillic on Google Fonts, and the site is being translated into Russian, so the redesign moves the
-site and the app to **IBM Plex Sans** (SIL Open Font License; `IBM_Plex_Sans` in `next/font/google`, self-hosted
-at build time). One variable superfamily, `wdth` 75–100 and `wght` 100–700, full Cyrillic drawn by the same
-designers as the Latin, and figures that are tabular by default, so prices and counts line up without a feature
-switch. Its Condensed width keeps the lettering-on-equipment voice the condensed Archivo headlines had, with
-engineering-drawing details (angled terminals on t, r and the stems) that match the needle's cut. It is the face of
-the wordmark too.
-
-Shortlist and why the others lost (renders: wordmark lockups and site specimens with a price table and Russian
-copy): Golos Text and Onest (excellent Cyrillic, but rounder and friendlier, generic for a drafting tool, and no
-width axis for condensed headlines); Sofia Sans with Sofia Sans Condensed (good widths, but its Cyrillic defaults
-to Bulgarian letterforms, wrong for Russian readers); Geist, Inter Tight and Manrope (clean, but the default look of
-current software); Space Grotesk, Schibsted Grotesk and Instrument Sans (no Cyrillic). Archivo stays the face of
-the current site until the redesign.
-
-| Role | Face | Width / weight | Size | Line height |
-|---|---|---|---|---|
-| Display (h1) | Plex Sans | 75 (`font-stretch: 75%`) / 700 | clamp(44px → 84px), tracking −0.01em | 0.95 |
-| Section (h2) | Plex Sans | 75 / 700 | clamp(32px → 52px) | 1.0 |
-| Step / item (h3) | Plex Sans | 75 / 600 | clamp(24px → 30px) | 1.05 |
-| Lede | Plex Sans | 100 / 400 | clamp(17px → 20px) | 1.55, max 36em |
-| Body | Plex Sans | 100 / 400 | 16–17px | 1.6, max 34em |
-| UI, buttons, labels | Plex Sans | 100 / 500–600 | 14–15px | 1.4 |
-| Small / table | Plex Sans | 100 / 400, figures tabular | 13–14px | 1.4 |
-
-- Load once with `IBM_Plex_Sans({ subsets: ["latin", "cyrillic"], axes: ["wdth"] })` (weight omitted = variable).
-  Only the Latin subset is loaded today, for the wordmark (`brandFont` in `src/components/marketing/fonts.ts`).
-- Russian runs about 15% longer than English: headlines use the Condensed width so they wrap like the English.
-- Tabular figures are the default; set `font-variant-numeric: tabular-nums` anyway on tables and totals so a later
-  face change can't break the columns. No monospace.
+Why Plex (renders: wordmark lockups and site specimens with a price table and Russian copy): Archivo, the face before
+the rebrand, has no Cyrillic on Google Fonts. Plex has full Cyrillic drawn by the same designers as the Latin, and
+its Condensed width keeps the lettering-on-equipment voice, with engineering-drawing details (angled terminals on t,
+r and the stems) that match the needle's cut. The shortlist lost for these reasons: Golos Text and Onest (excellent
+Cyrillic, but rounder and friendlier, generic for a drafting tool, and no width axis for condensed headlines); Sofia
+Sans with Sofia Sans Condensed (good widths, but its Cyrillic defaults to Bulgarian letterforms, wrong for Russian
+readers); Geist, Inter Tight and Manrope (clean, but the default look of current software); Space Grotesk, Schibsted
+Grotesk and Instrument Sans (no Cyrillic).
 
 ## Layout and spacing
 
 - Content width 1240px, 16px side gutter on phones, 24px from `sm`.
-- Two-column sections use a 5 : 6 (or 7 : 5 in the hero) split with 64px between, left-aligned. Nothing centred
-  except single buttons on phones.
+- Two-column sections use a 5 : 6 split with 64px between, left-aligned; a feature whose drawing is a document and
+  a phone side by side takes 4 : 7. Feature sections alternate which side the drawing is on, and the words stay
+  in view (`sticky`) while a tall drawing scrolls past. Nothing centred except single buttons on phones.
 - Section padding 80px on phones, 96–112px on desktop. Sections are separated by a 1px rule or a change of ground
   (paper → sheet → graphite → marker), not by cards.
 - Spacing steps: 4, 8, 12, 16, 20, 24, 32, 48, 64, 80, 112.
-- The workflow is numbered because it is a sequence; its steps hang off one dashed "wire run" rail. Don't number
-  things that aren't steps.
+- The workflow is numbered because it is a sequence; its five steps hang off one dashed "wire run" (`.mk-steps`:
+  across on wide screens, down on phones). Don't number things that aren't steps.
+- Trades are shown as a drawing legend: one sheet ruled into cells, each trade under a 3px rule in its pack colour,
+  and as a quiet line of trade names under the hero. No customer logos, testimonials or statistics.
 
 ## Shape and depth
 

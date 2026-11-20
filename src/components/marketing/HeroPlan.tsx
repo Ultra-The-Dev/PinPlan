@@ -3,6 +3,7 @@
 // symbols and starting prices (src/lib/trades.ts), the way computeTakeoff/buildEstimate do it in the app.
 import { msg, useT } from "@/lib/i18n";
 import { tradePack } from "@/lib/trades";
+import { NEEDLE } from "./markPaths";
 import { SymbolMark } from "./Symbol";
 
 const PACK = tradePack("electrical");
@@ -93,12 +94,12 @@ export default function HeroPlan() {
           { total: money(HERO_TOTAL) },
         )}
       </figcaption>
-      <div aria-hidden="true" className="grid gap-4 md:grid-cols-[minmax(0,1fr)_236px] md:items-start lg:grid-cols-[minmax(0,1fr)_256px] lg:gap-0">
+      <div aria-hidden="true" className="grid gap-4 md:grid-cols-[minmax(0,1fr)_248px] md:items-start lg:grid-cols-[minmax(0,1fr)_284px] lg:gap-0">
         <PlanSheet />
-        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-1 md:pt-8 lg:-ml-6 lg:gap-5">
+        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 md:grid-cols-1 md:pt-10 lg:relative lg:-ml-12 lg:gap-6">
           <Tally />
           <QuoteCard className="md:hidden" />
-          <div className="mk-phone mk-anim-rise hidden md:block lg:ml-8" style={{ ["--d" as string]: "2200ms" }}>
+          <div className="mk-phone mk-anim-rise hidden md:block lg:ml-14" style={{ ["--d" as string]: "2200ms" }}>
             <div className="mk-screen">
               <QuoteBody />
             </div>
@@ -187,15 +188,29 @@ function PlanSheet() {
           );
         })}
       </svg>
-      {/* Title block */}
-      <div className="grid grid-cols-[1fr_auto] border-t border-mk-rule text-[12px] leading-tight sm:grid-cols-[1.3fr_1fr_auto]">
-        <div className="border-r border-mk-rule px-3 py-2">
+      {/* Title block: job, floor, scale, north and sheet number, as on a real drawing */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] border-t border-mk-rule text-[12px] leading-tight sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto_auto]">
+        <div className="min-w-0 border-r border-mk-rule px-3 py-2">
           <div className="text-mk-pencil">{t("Job")}</div>
-          <div className="font-semibold">Harbor View Rd, unit 2</div>
+          <div className="truncate font-semibold">Harbor View Rd, unit 2</div>
+        </div>
+        <div className="hidden min-w-0 border-r border-mk-rule px-3 py-2 sm:block">
+          <div className="text-mk-pencil">{t("Floor")}</div>
+          <div className="truncate font-semibold">{t("First floor power and lighting")}</div>
         </div>
         <div className="hidden border-r border-mk-rule px-3 py-2 sm:block">
-          <div className="text-mk-pencil">{t("Floor")}</div>
-          <div className="font-semibold">{t("First floor power and lighting")}</div>
+          <div className="text-mk-pencil">{t("Scale")}</div>
+          <svg viewBox="0 0 74 13" width="74" height="13" className="mt-0.5 block">
+            <path d="M1 2h64v4H1z" fill="none" stroke="#0f2340" strokeWidth="1" />
+            <path d="M1 2h8v4H1zM17 2h16v4H17z" fill="#0f2340" />
+            <text x="1" y="12.5" fontSize="5.5" fill="#526580">0</text>
+            <text x="65" y="12.5" textAnchor="middle" fontSize="5.5" fill="#526580">
+              {t("{ft} ft", { ft: 16 })}
+            </text>
+          </svg>
+        </div>
+        <div className="flex items-center border-r border-mk-rule px-2.5">
+          <NorthArrow />
         </div>
         <div className="px-3 py-2 text-right">
           <div className="text-mk-pencil">{t("Sheet")}</div>
@@ -203,6 +218,18 @@ function PlanSheet() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Plan north, drawn with the logo's needle: its north half points up the sheet, tilted the way plan north usually is. */
+function NorthArrow() {
+  return (
+    <svg viewBox="0 0 64 64" width="28" height="28" className="block">
+      <circle cx="32" cy="32" r="29" fill="none" stroke="#c9d6e5" strokeWidth="2.5" />
+      <path d={NEEDLE.north} fill="#0b6fe0" />
+      <path d={NEEDLE.south} fill="#0f2340" />
+      <circle cx="32" cy="32" r="2.4" fill="#fff" />
+    </svg>
   );
 }
 

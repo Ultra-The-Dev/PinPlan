@@ -446,6 +446,38 @@ const siteAuth: Dictionary = {
     few: "Настройте компанию, загрузите план и отправьте настоящую смету за {n} дня пробного периода. Бригаду подключите, когда будете готовы.",
     many: "Настройте компанию, загрузите план и отправьте настоящую смету за {n} дней пробного периода. Бригаду подключите, когда будете готовы.",
   },
+  // /welcome, Northpin redesign: trade strip, steps, features, crew
+  "Starting device lists and prices for": "Готовые списки устройств и цены для",
+  "Upload the plans": "Загрузите планы",
+  "Drop in the PDF set or a photo of the drawings. Every page becomes a floor.":
+    "Добавьте комплект PDF или фото чертежей. Каждая страница становится этажом.",
+  "Pin every device": "Расставьте устройства",
+  "Tap a device from your trade’s list, then tap where it goes on the plan.":
+    "Выберите устройство из списка своего вида работ и нажмите на место на плане.",
+  "Get the count": "Получите подсчёт",
+  "Devices and wire add up per floor as you pin. Nothing is counted twice.":
+    "Устройства и кабель считаются по этажам по мере расстановки. Ничего не считается дважды.",
+  "Send the quote": "Отправьте смету",
+  "Your prices turn the count into a quote the client signs on their phone.":
+    "Ваши цены превращают подсчёт в смету, которую клиент подписывает в телефоне.",
+  "Bill and build": "Счета и монтаж",
+  "Invoice from the approved quote while the crew works from the same plans.":
+    "Счета — из утверждённой сметы, а бригада работает по тем же планам.",
+  "Count from the plan, floor by floor": "Подсчёт по плану, этаж за этажом",
+  "Tap a device, tap the plan. Device and wire counts add up as you pin, with wire lengths in feet and slack included. Electrical jobs also get circuits and a panel schedule.":
+    "Выберите устройство, нажмите на план. Количество устройств и кабеля складывается по мере расстановки, длина кабеля — в футах с запасом. Для электрики есть ещё цепи и схема щита.",
+  "A quote your client signs on their phone": "Смета, которую клиент подписывает в телефоне",
+  "Your material and labor prices, markup and wire by the foot turn the count into a quote. Send the client a link: they tick the options they want, sign with a finger and approve. No account or app for them.":
+    "Ваши цены на материалы и работу, наценка и стоимость кабеля за фут превращают подсчёт в смету. Отправьте клиенту ссылку: он отмечает нужные опции, расписывается пальцем и утверждает. Аккаунт и приложение ему не нужны.",
+  "Change orders signed the same way as quotes": "Доп. сметы подписываются так же, как сметы",
+  "The crew reads it in Russian. The client gets English.": "Бригада читает по-русски. Клиент получает на английском.",
+  "Each person picks English or Russian, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.":
+    "Каждый выбирает английский или русский, и выбор сохраняется в его аккаунте. Планы, чек-листы, задачи и ежедневные отчёты — на его языке, а сметы, счета и письма клиентам всегда уходят на английском.",
+  "Russian is in the web app today, in any computer, tablet or phone browser.":
+    "Русский язык уже есть в веб-версии — в браузере на компьютере, планшете или телефоне.",
+  "Can my crew use it in Russian?": "Может ли бригада работать на русском?",
+  "Yes. Anyone can switch the web app to Russian from the menu or the page footer, and the choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Да. Любой может переключить веб-версию на русский в меню или внизу страницы, и выбор сохранится в его аккаунте. Сметы, счета и всё, что видит клиент, остаются на английском.",
 
   // Pictures of the app on /welcome (illustrations; names, sheet numbers and wire types stay as they are)
   "An electrical floor plan with {n} device pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {total} quote that the client signed and approved on their phone.":
@@ -501,7 +533,7 @@ const siteAuth: Dictionary = {
   "{wire} wire": "Кабель {wire}",
   "Optional: under-cabinet lights, {ft} ft": "Опция: подсветка под шкафами, {ft} фт",
   "Markup {pct}%, labor included": "Наценка {pct}%, работа включена",
-  "Quote from {company}": "Смета от {company}",
+  "Quote from your company": "Смета от вашей компании",
   "Add under-cabinet lights": "Добавить подсветку под шкафами",
   "Add EV outlet in garage": "Добавить розетку для электромобиля в гараже",
   "Sign here": "Подпишите здесь",
