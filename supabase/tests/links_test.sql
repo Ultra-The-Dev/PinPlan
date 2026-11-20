@@ -1,4 +1,4 @@
--- Client link expiry checks (20261124300500_link_expiry.sql): run after the migrations.
+-- Client link expiry checks (20261125000500_link_expiry.sql): run after the migrations.
 -- Any failed check raises an exception.
 \set ON_ERROR_STOP on
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000071e1', 'lowner@example.com');

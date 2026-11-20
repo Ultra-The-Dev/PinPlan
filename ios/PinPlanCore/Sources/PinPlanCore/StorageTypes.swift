@@ -1,7 +1,7 @@
 import Foundation
 
 /// File types the private "plans" bucket accepts: the same list as src/lib/storageTypes.ts and the bucket's
-/// allowed_mime_types (supabase/migrations/20261124301000_access_guards.sql; tests/storageTypes.test.ts checks all three).
+/// allowed_mime_types (supabase/migrations/20261125001000_access_guards.sql; tests/storageTypes.test.ts checks all three).
 /// A job document of any other type is uploaded as application/octet-stream, so the bucket takes it.
 public enum StorageTypes {
     public static let plansBucketTypes: [String] = [

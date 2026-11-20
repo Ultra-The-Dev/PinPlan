@@ -78,7 +78,7 @@ select pg_temp.check((select created_user_id is not null and signup_claimed_at i
 select pg_temp.check((select created_user_id is null and signup_claimed_at is null from public.team_invites where code = 'RLCODE0004'),
   'the owner cannot set sign-up bookkeeping on a new invite');
 
--- ---------- invite_emailed_at is the server's (20261124300600_email_signup_abuse.sql) ----------
+-- ---------- invite_emailed_at is the server's (20261125000600_email_signup_abuse.sql) ----------
 -- The server emails RLCODE0001 to sam@example.com and stamps it.
 update public.team_invites set email = 'sam@example.com', invite_emailed_at = now() where code = 'RLCODE0001';
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000ac1', false);

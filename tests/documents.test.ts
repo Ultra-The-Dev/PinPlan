@@ -407,7 +407,7 @@ describe("snapshot, links, CSV and clients", () => {
   });
 });
 
-// The database works invoice balances out itself (public.payment_summary in 20261124300400_money_integrity.sql), so a
+// The database works invoice balances out itself (public.payment_summary in 20261125000400_money_integrity.sql), so a
 // device can't set them. supabase/tests/money_integrity_test.sql runs the same cases through the SQL function.
 describe("paymentSummary parity with the database", () => {
   type Case = {

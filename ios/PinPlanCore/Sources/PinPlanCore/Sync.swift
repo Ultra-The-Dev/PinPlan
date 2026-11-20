@@ -8,7 +8,7 @@ public enum SyncTable: String, CaseIterable, Codable, Sendable {
     case tasks
     /// Made on the web, pulled here (FieldSync.swift / SalesDocs.swift). See `SyncMap.pullOnly`.
     case salesDocs, salesPayments, rfis, scheduleItems, measurements, sheetLinks, planMarkups
-    /// Office-only price tables (20261124300100_price_split_stale_writes.sql). Not rows of their own here: each holds the
+    /// Office-only price tables (20261125000100_price_split_stale_writes.sql). Not rows of their own here: each holds the
     /// prices of a catalog type, a product or a job, and is merged into that row. Technicians never pull or push them.
     case deviceTypePrices, productPrices, projectFinance
 }
@@ -52,7 +52,7 @@ public enum SyncMap {
             ("model", "model"), ("sku", "sku"), ("notes", "notes"), ("archived", "archived"),
             // unit_price and labor_price live in product_prices (office only).
         ]),
-        // Prices, office only (CONTRACT at the top of 20261124300100_price_split_stale_writes.sql). "id" is the parent row's id.
+        // Prices, office only (CONTRACT at the top of 20261125000100_price_split_stale_writes.sql). "id" is the parent row's id.
         .deviceTypePrices: TableSpec(remote: "device_type_prices", conflict: "owner_id,device_type_id", columns: [
             ("id", "device_type_id"), ("unitPrice", "unit_price"), ("laborPrice", "labor_price"), ("billduProductId", "billdu_product_id"),
             ("updatedAt", "updated_at"),

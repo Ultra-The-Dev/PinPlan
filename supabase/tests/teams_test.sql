@@ -69,7 +69,7 @@ select pg_temp.check((select count(*) from public.estimate_lines where project_i
 select pg_temp.check(pg_temp.fails($$insert into public.estimate_lines (id, project_id, key) values ('tel2', 'tp1', 'custom:x')$$), 'tech cannot write estimate lines');
 select pg_temp.check(pg_temp.fails($$update public.projects set deleted = true where id = 'tp1'$$), 'tech cannot delete a job');
 update public.projects set pricing = '{"markup": 0}', notes = 'gate code 1234' where id = 'tp1';
--- Job pricing lives in project_finance, which technicians can't read (20261124300100_price_split_stale_writes.sql).
+-- Job pricing lives in project_finance, which technicians can't read (20261125000100_price_split_stale_writes.sql).
 select pg_temp.check((select pricing from public.projects where id = 'tp1') is null, 'tech reads no pricing on the job');
 reset role;
 select pg_temp.check((select pricing ->> 'markup' from public.project_finance where project_id = 'tp1') = '20', 'tech cannot change pricing');
@@ -115,7 +115,7 @@ select pg_temp.check((select count(*) from public.projects where id = 'tp2') = 0
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1');
 select pg_temp.check((select owner_id from public.projects where id = 'tp2') = '00000000-0000-0000-0000-0000000000f1', 'the owner now owns the removed tech''s job');
 
--- ---------- invite codes (20261124301000_access_guards.sql) ----------
+-- ---------- invite codes (20261125001000_access_guards.sql) ----------
 reset role;
 insert into auth.users (id, email, email_confirmed_at) values
   ('00000000-0000-0000-0000-0000000000f5', 'mail@example.com', null),        -- the invite's address, not confirmed yet

@@ -1,4 +1,4 @@
-// The platform-wide email allowance and address normalisation (20261124300600_email_signup_abuse.sql, sendGuard.ts),
+// The platform-wide email allowance and address normalisation (20261125000600_email_signup_abuse.sql, sendGuard.ts),
 // with fetch mocked: no network, no real keys, no real addresses.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

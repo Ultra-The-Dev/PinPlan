@@ -148,7 +148,7 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select pg_temp.check((select status = 'accepted' and client_name = 'Jane Client' from public.proposals where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa'), 'installer sees the acceptance');
 update public.proposals set status = 'revoked' where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa';
 select pg_temp.check(public.get_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa') is null, 'revoked link stops working');
--- The answer and the snapshot are the client's and the database's (20261124301000_access_guards.sql).
+-- The answer and the snapshot are the client's and the database's (20261125001000_access_guards.sql).
 insert into public.proposals (id, project_id, snapshot, status, client_name, signature, accepted_total, responded_at)
   values ('tok_bbbbbbbbbbbbbbbbbbbbbb', 'p1', '{"lines": []}', 'accepted', 'Forged', 'data:x', 1, now());
 select pg_temp.check((select status = 'sent' and client_name is null and signature is null and accepted_total is null and responded_at is null

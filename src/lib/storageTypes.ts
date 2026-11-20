@@ -1,4 +1,4 @@
-// File types the private "plans" bucket accepts (supabase/migrations/20261124301000_access_guards.sql sets the same
+// File types the private "plans" bucket accepts (supabase/migrations/20261125001000_access_guards.sql sets the same
 // list on the bucket; tests/storageTypes.test.ts keeps them equal, and PinPlanCore's StorageTypes.swift too).
 // A job document of any other type (SVG, HTML, a video format not listed…) is uploaded as application/octet-stream,
 // so the bucket takes it and a browser downloads it instead of opening it.

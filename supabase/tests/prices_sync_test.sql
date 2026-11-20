@@ -1,4 +1,4 @@
--- Checks for 20261124300100_price_split_stale_writes.sql: technicians can't read prices (any price column, any price
+-- Checks for 20261125000100_price_split_stale_writes.sql: technicians can't read prices (any price column, any price
 -- table), old app builds' price writes still land, and the server keeps the newer copy of a row. Runs after the other
 -- suites (its ids and users are its own). Any failed check raises an exception.
 \set ON_ERROR_STOP on
@@ -48,8 +48,9 @@ insert into public.projects (id, client_name, address, status, pricing, billdu_d
 insert into public.sheets (id, project_id, name, page_number, sort_order, image_id, width, height)
   values ('pr-s1', 'pr-p1', 'Main', 1, 0, 'pr-img', 1000, 800);
 select pg_temp.check(public.create_team('Price Test Co', 'Owner') is not null, 'owner starts a team');
-insert into public.team_invites (code, team_id, role) values ('PRADMIN01', public.my_team_id(), 'admin'),
-                                                            ('PRTECH001', public.my_team_id(), 'tech');
+-- Office rights only come with an invite sent to the person's address (20261125001000_access_guards).
+insert into public.team_invites (code, team_id, role, email) values ('PRADMIN01', public.my_team_id(), 'admin', 'price-admin@example.com'),
+                                                                   ('PRTECH001', public.my_team_id(), 'tech', null);
 insert into public.job_templates (id, name, payload, updated_at)
   values ('pr-t1', 'Standard', '{"version": 1, "project": {"pricing": {"markupPct": 15}, "labels": ["x"]}, "checklists": [], "estimateLines": [{"key": "custom:a", "unitPrice": 99}]}', now() - interval '1 hour');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000007a2');

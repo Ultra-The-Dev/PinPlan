@@ -2,7 +2,7 @@ import XCTest
 @testable import PinPlanCore
 
 /// Prices kept apart (office only), named pull columns, edit times and refused ids: the iPad side of
-/// 20261124300100_price_split_stale_writes.sql and src/lib/syncMap.ts.
+/// 20261125000100_price_split_stale_writes.sql and src/lib/syncMap.ts.
 final class SyncPricesTests: XCTestCase {
     private let priceColumns: [SyncTable: [String]] = [
         .projects: ["pricing", "billdu_docs", "billdu_client_id"],

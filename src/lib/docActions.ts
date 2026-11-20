@@ -60,7 +60,7 @@ let watchingPulls = false;
 /**
  * After a pull that brought payments or documents (another device recorded a payment or issued a credit note), the
  * office works those jobs' invoices out again here, so this device shows the same balance as the database (which
- * recomputes them itself: 20261124300400_money_integrity.sql). Installed once; technicians never hold money rows.
+ * recomputes them itself: 20261125000400_money_integrity.sql). Installed once; technicians never hold money rows.
  */
 export function watchPulledMoney() {
   if (watchingPulls || typeof window === "undefined") return;

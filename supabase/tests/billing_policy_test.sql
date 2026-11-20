@@ -78,7 +78,7 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000c2');
 select pg_temp.check((select count(*) from public.projects where id = 'cp2') = 1, 'lapsed solo still reads their job');
 select pg_temp.check(pg_temp.error_of($$insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)
   values ('cm2', 'cp2', 'cs2', 'ccam', 0.5, 0.5, 'CAM-1', '', 'ceiling', 'Cat6', false, '')$$) = 'PinPlan subscription inactive', 'lapsed solo cannot insert a marker');
--- Starting a company doesn't start a new trial (20261124300600_email_signup_abuse.sql: a new team's trial is what is
+-- Starting a company doesn't start a new trial (20261125000600_email_signup_abuse.sql: a new team's trial is what is
 -- left of the owner's personal trial); once the company subscribes they can work again.
 select pg_temp.check(public.create_team('Lapsed Co', 'Lee') is not null, 'lapsed solo starts a company');
 select pg_temp.check(not (public.team_billing() ->> 'can_work')::boolean, 'their new team gets no fresh trial');
@@ -160,7 +160,7 @@ set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000c1');
 select pg_temp.check(pg_temp.error_of($$update public.markers set notes = 'x' where id = 'cm1'$$) = 'PinPlan subscription inactive', 'canceled after the trial: read-only');
 
--- Read-only covers company-wide rows, photo reports and files too (20261124301000_access_guards.sql).
+-- Read-only covers company-wide rows, photo reports and files too (20261125001000_access_guards.sql).
 select pg_temp.check(pg_temp.error_of($$insert into public.device_types (id, name, category) values ('ccam2', 'Camera', 'security')$$) = 'PinPlan subscription inactive',
   'lapsed: no new catalog items');
 select pg_temp.check(pg_temp.error_of($$update public.device_types set unit_price = 1 where id = 'ccam'$$) = 'PinPlan subscription inactive', 'lapsed: no catalog price changes');

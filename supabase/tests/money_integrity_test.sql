@@ -1,4 +1,4 @@
--- Money integrity (20261124300400_money_integrity.sql): invoice balances worked out by the database, per-job numbers
+-- Money integrity (20261125000400_money_integrity.sql): invoice balances worked out by the database, per-job numbers
 -- for change orders / RFIs / tasks, and the OAuth cookie hash column. Run after the migrations from the repo root
 -- (scripts/test-supabase.sh). Any failed check raises an exception.
 \set ON_ERROR_STOP on
@@ -42,7 +42,8 @@ set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000004a1');
 insert into public.projects (id, client_name, address, status) values ('mp1', 'Sample Client', '1 Example St', 'estimate');
 select pg_temp.check(public.create_team('Money Co', 'Olivia') is not null, 'owner creates a team');
-insert into public.team_invites (code, team_id, role, name) values ('MONTECH01', public.my_team_id(), 'tech', 'Tom'), ('MONOFFICE1', public.my_team_id(), 'admin', 'Ann');
+-- Office rights only come with an invite sent to the person's address (20261125001000_access_guards).
+insert into public.team_invites (code, team_id, role, name, email) values ('MONTECH01', public.my_team_id(), 'tech', 'Tom', null), ('MONOFFICE1', public.my_team_id(), 'admin', 'Ann', 'moffice@example.com');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000004a2');
 select pg_temp.check(public.accept_team_invite('MONTECH01', '') ->> 'role' = 'tech', 'tech joins');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000004a3');

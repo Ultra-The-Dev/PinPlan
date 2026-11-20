@@ -177,7 +177,7 @@ select pg_temp.check((select response_notified_at is not null and subject = 'Mou
 
 reset role;
 
--- ================= 20261124300600_email_signup_abuse.sql =================
+-- ================= 20261125000600_email_signup_abuse.sql =================
 
 -- ---------- one address however it is written (same hash as sendGuard.ts recipientHash) ----------
 select pg_temp.check(public.email_normalize(' A.B+promo@GoogleMail.com ') = 'ab@gmail.com', 'gmail: dots and +tag dropped, googlemail read as gmail');

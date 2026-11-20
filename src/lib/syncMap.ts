@@ -11,7 +11,7 @@ export interface TableSpec {
   columns: Record<string, string>;
   /** Remote price columns on this table. Kept for app builds that aren't updated: the database moves whatever is
    *  written there into the price tables (PRICE_TABLES) and stores them blank, so they are never read back, and a
-   *  technician's device never sends them (20261124300100_price_split_stale_writes.sql). */
+   *  technician's device never sends them (20261125000100_price_split_stale_writes.sql). */
   priceColumns?: string[];
   /** Columns read on pull besides `columns` (the database's own; never sent). */
   readOnlyColumns?: string[];
@@ -730,7 +730,7 @@ export function withoutPriceColumns(table: SyncTable, row: Record<string, unknow
 
 // ---------------- prices (office only) ----------------
 
-/** The office-only price tables and the synced table each one belongs to (20261124300100_price_split_stale_writes.sql). */
+/** The office-only price tables and the synced table each one belongs to (20261125000100_price_split_stale_writes.sql). */
 export interface PriceSpec {
   remote: string;
   parent: Extract<SyncTable, "deviceTypes" | "products" | "projects" | "jobTemplates">;

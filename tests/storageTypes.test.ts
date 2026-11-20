@@ -7,7 +7,7 @@ const root = join(__dirname, "..");
 
 /** The plans bucket's allowed_mime_types as the migration sets them. */
 function migrationTypes(): string[] {
-  const sql = readFileSync(join(root, "supabase/migrations/20261124301000_access_guards.sql"), "utf8");
+  const sql = readFileSync(join(root, "supabase/migrations/20261125001000_access_guards.sql"), "utf8");
   const m = sql.match(/update storage\.buckets set file_size_limit = 52428800, allowed_mime_types = array\[([\s\S]*?)\]\s*where id = 'plans'/);
   if (!m) throw new Error("plans bucket list not found");
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);

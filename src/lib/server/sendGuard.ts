@@ -5,7 +5,7 @@
 //   - their company's subscription lets it work (plan_allows_work),
 //   - the company is under its daily cap (a trial gets a small allowance) and hasn't mailed this address too often,
 //   - PinPlan as a whole is under its daily allowance, and free trials together under their share of it
-//     (email_settings, 20261124300600_email_signup_abuse.sql).
+//     (email_settings, 20261125000600_email_signup_abuse.sql).
 // The reservation is the log row: finishSend() records Resend's id, or removes the row when the send failed.
 // Notifications to the company itself (a client answered a link) are only logged (logNotification).
 //
@@ -25,7 +25,7 @@ const isProduction = () => process.env.NODE_ENV === "production";
 
 /**
  * One mailbox, however it is written: lower case, the "+tag" dropped, and for Gmail the dots dropped too (googlemail.com
- * read as gmail.com). Must match public.email_normalize() (supabase/migrations/20261124300600_email_signup_abuse.sql).
+ * read as gmail.com). Must match public.email_normalize() (supabase/migrations/20261125000600_email_signup_abuse.sql).
  */
 export function normalizeEmail(email: string): string {
   const e = email.trim().toLowerCase();

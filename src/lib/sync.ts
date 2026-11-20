@@ -4,7 +4,7 @@
 // (permission, constraint, bad value) is set aside in `syncRefused` so the rest keeps syncing.
 // Pull: fetch rows changed on the server since the last pull (server `synced_at` watermark),
 // last-write-wins by `updatedAt`, written straight into Dexie without re-queuing. Pull runs even when push failed.
-// The server keeps the newer copy too: an older write is ignored there (20261124300100_price_split_stale_writes.sql).
+// The server keeps the newer copy too: an older write is ignored there (20261125000100_price_split_stale_writes.sql).
 // Prices live in office-only tables (syncMap PRICE_TABLES): only the office pulls and pushes them; every pull names its
 // columns (never '*'), and the catalog is the billing owner's only.
 // Cost: only visible tabs tick, one tab syncs at a time, the team/billing is re-read every few minutes, and the sweep
@@ -629,7 +629,7 @@ async function pullPrices(sb: Client, userId: string, ps: PriceSpec, owner: stri
       .order(ps.key, { ascending: true })
       .range(cur.skip, cur.skip + PAGE - 1);
     if (error && schemaGap(error)?.kind === "table") {
-      // Migration 20261124300100 not run yet: the old price columns still carry the prices (pushed above).
+      // Migration 20261125000100 not run yet: the old price columns still carry the prices (pushed above).
       schemaGaps.tables.add(ps.remote);
       return;
     }

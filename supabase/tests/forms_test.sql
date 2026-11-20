@@ -66,7 +66,7 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000a4');
 select pg_temp.check((select count(*) from public.job_forms) = 0, 'outsider sees no forms');
 select pg_temp.check(pg_temp.fails($$insert into public.job_forms (id, project_id, template, status) values ('jf3', 'fp1', '{}', 'draft')$$), 'outsider cannot add a form');
 
--- Who started a form, and who submitted it and when, are the database's to say (20261124301000_access_guards.sql).
+-- Who started a form, and who submitted it and when, are the database's to say (20261125001000_access_guards.sql).
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
 insert into public.job_forms (id, project_id, template_id, name, template, status, created_by, submitted_by, submitted_at)
   values ('jf4', 'fp1', 'jha', 'JHA', '{}', 'draft', 'Someone else', 'Someone else', '2000-01-01');

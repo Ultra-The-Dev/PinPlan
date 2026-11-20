@@ -579,7 +579,7 @@ end $$;
 create or replace function public.schema_version() returns text
 language plpgsql stable security definer set search_path = public as $$
 declare
-  v text := '20261124301000_access_guards';
+  v text := '20261125001000_access_guards';
   recorded text;
 begin
   if to_regclass('supabase_migrations.schema_migrations') is not null then

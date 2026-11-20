@@ -34,7 +34,7 @@ customer data requests.
       invoice by email, download a job backup, delete a test account.
 - [ ] Open the browser console on the main pages: no Content-Security-Policy errors.
 - [ ] iOS: run the TestFlight workflow and test the build before submitting (see [app-store.md](app-store.md)).
-- [ ] A migration that tightens what the database accepts from the apps (for example `20261124300100_…`): release the
+- [ ] A migration that tightens what the database accepts from the apps (for example `20261125000100_…`): release the
       matching iOS build on the App Store first, then run the migration.
 - [ ] Deploy settings unchanged: the Cloudflare token and server secrets are Environment secrets of the GitHub
       `production` environment (not repository secrets), `https://pinplan.<your-subdomain>.workers.dev` answers 404,

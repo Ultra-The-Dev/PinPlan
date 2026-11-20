@@ -191,7 +191,7 @@ select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_expi
 select pg_temp.check(public.get_document('tok_invoice_0000000001') is null, 'withdrawn link: nothing');
 set role authenticated;
 
--- Answers are checked (20261124301000_access_guards.sql): the signature must be a PNG data URL; name and note are capped.
+-- Answers are checked (20261125001000_access_guards.sql): the signature must be a PNG data URL; name and note are capped.
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
 insert into public.sales_documents (id, project_id, kind, status) values ('dq4', 'dp1', 'quote', 'sent');
 insert into public.document_links (id, document_id, project_id, snapshot) values ('tok_quote_000000000004', 'dq4', 'dp1', '{"requireSignature": true}');

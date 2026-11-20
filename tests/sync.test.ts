@@ -363,7 +363,7 @@ describe("company settings", () => {
   });
 });
 
-// ---------------- prices (20261124300100_price_split_stale_writes.sql) ----------------
+// ---------------- prices (20261125000100_price_split_stale_writes.sql) ----------------
 
 const camera = { id: "dt1", name: "Camera", category: "security", symbol: "C", abbrev: "CAM", shape: "circle", color: "#000000", unit: "each", unitPrice: 250, laborPrice: 80, defaultWire: "Cat6", defaultMount: "ceiling", kind: "device", sort: 1, updatedAt: ts };
 const remoteCamera = (owner: string, extra: Row = {}) => ({ owner_id: owner, id: "dt1", name: "Camera", category: "security", symbol: "C", abbrev: "CAM", shape: "circle", color: "#000000", unit: "each", unit_price: 0, labor_price: 0, default_wire: "Cat6", default_mount: "ceiling", kind: "device", sort_order: 1, updated_at: ts, deleted: false, synced_at: "2026-11-19T09:30:00.000Z", ...extra });

@@ -222,7 +222,7 @@ insert into public.plan_markups (id, project_id, sheet_id, kind, points, private
 select pg_temp.check((select count(*) from public.plan_markups where id = 'sec-mk1') = 1, 'author sees their private markup');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
 select pg_temp.check((select count(*) from public.plan_markups where id = 'sec-mk1') = 0, 'others (even the office) can''t see a private markup');
--- The database stamps the author (20261124301000_access_guards.sql): a markup sent under someone else's id is filed
+-- The database stamps the author (20261125001000_access_guards.sql): a markup sent under someone else's id is filed
 -- under the sender's own.
 insert into public.plan_markups (id, project_id, sheet_id, kind, private, author_id)
   values ('sec-mk2', 'sec-p1', 'sec-s1', 'pen', true, '00000000-0000-0000-0000-0000000005e3');
@@ -278,7 +278,7 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000005e3');
 select pg_temp.check(pg_temp.fails($$truncate public.markers$$), 'signed in: no TRUNCATE (it skips row security)');
 reset role;
 
--- ---------- access guards (20261124301000_access_guards.sql) ----------
+-- ---------- access guards (20261125001000_access_guards.sql) ----------
 -- Plan files: a technician can't overwrite a file someone else uploaded; the office can.
 update storage.objects set owner = '00000000-0000-0000-0000-0000000005e1' where bucket_id = 'plans' and name = 'sec-p1/sec-img1';
 set role authenticated;

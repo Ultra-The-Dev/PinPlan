@@ -317,7 +317,7 @@ Also, for Cloudflare:
    returns the Supabase address and public key.
 5. **R: Release:** Actions → iOS TestFlight → Run workflow (or push a tag like `ios-v1.0.1`). **O:** a TestFlight round
    on a real iPad and iPhone before you submit.
-   **Order matters for migration `20261124300100_…`:** release the iOS build that goes with it (approved and live on
+   **Order matters for migration `20261125000100_…`:** release the iOS build that goes with it (approved and live on
    the App Store, not only in TestFlight) **before** running that migration on production. It tightens database
    rules that older iOS builds still rely on, so running it first can break sync for people on an older build.
 6. **R: Listing.** Fill the `<…>` placeholders in [app-store.md](app-store.md) (no Billdu or AI claims). Enter the App
