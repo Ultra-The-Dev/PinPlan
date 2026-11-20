@@ -207,8 +207,9 @@ export default function DocumentsTab() {
             <h2 className="page-title">Invoices &amp; payments</h2>
             <p className="mt-1 text-sm text-slate-500">Bill the approved {quoteLabel}, record payments and credit notes. {settingsLink}</p>
           </div>
-          {billQuote && (
-            <button className="btn btn-brand" onClick={() => actions.convert(billQuote, firstBill && billQuote.deposit ? "deposit" : undefined)}>
+          {/* The first bill has its own "Next: bill the …" banner below, so the button shows from the second bill on. */}
+          {billQuote && !firstBill && (
+            <button className="btn btn-brand" onClick={() => actions.convert(billQuote)}>
               <Receipt /> Create invoice
             </button>
           )}
