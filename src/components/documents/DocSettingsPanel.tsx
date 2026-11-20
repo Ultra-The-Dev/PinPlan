@@ -12,7 +12,8 @@ import { toast } from "@/lib/toast";
 import type { DocKind, DocumentSettings } from "@/lib/types";
 import { parseAmount } from "./ui";
 
-const KIND_NAMES: Record<DocKind, string> = { quote: "Quotes / estimates", invoice: "Invoices", credit_note: "Credit notes" };
+const KIND_NAMES: Record<DocKind, string> = { quote: "Quotes", invoice: "Invoices", credit_note: "Credit notes" };
+const KIND_ONE: Record<DocKind, string> = { quote: "quote", invoice: "invoice", credit_note: "credit note" };
 
 export default function DocSettingsPanel() {
   const [s, setS] = useState<DocumentSettings | null>(null);
@@ -55,7 +56,7 @@ export default function DocSettingsPanel() {
     try {
       if (cloud) setNums(await setNextNumber(kind, n));
       else setLocalNextNumber(kind, s!, n);
-      toast(`Next ${KIND_NAMES[kind].toLowerCase()} number: ${formatDocNumber(k.format, n, today())}`);
+      toast(`Next ${KIND_ONE[kind]} number: ${formatDocNumber(k.format, n, today())}`);
     } catch (e) {
       toast((e as Error).message, "error");
     }
@@ -77,7 +78,7 @@ export default function DocSettingsPanel() {
             <span className="label">Title on the document</span>
             <input className="input" list={`doc-titles-${kind}`} value={k.label} onChange={(e) => setK({ label: e.target.value })} />
             <datalist id={`doc-titles-${kind}`}>
-              {(kind === "quote" ? ["Estimate", "Quote", "Proposal"] : kind === "invoice" ? ["Invoice", "Tax invoice", "Bill"] : ["Credit note", "Credit memo"]).map((t) => (
+              {(kind === "quote" ? ["Quote", "Estimate", "Proposal"] : kind === "invoice" ? ["Invoice", "Tax invoice", "Bill"] : ["Credit note", "Credit memo"]).map((t) => (
                 <option key={t} value={t} />
               ))}
             </datalist>
@@ -203,7 +204,7 @@ export default function DocSettingsPanel() {
           </div>
         ))}
         <label className="mt-1 flex items-center gap-2 text-sm">
-          <input type="checkbox" className="accent-brand-600" checked={s.laborTaxable} onChange={(e) => set({ laborTaxable: e.target.checked })} /> Labor lines are taxable (quotes made from the estimate)
+          <input type="checkbox" className="accent-brand-600" checked={s.laborTaxable} onChange={(e) => set({ laborTaxable: e.target.checked })} /> Labor lines are taxable (quotes made from the job’s pricing)
         </label>
       </div>
 
@@ -251,7 +252,7 @@ export default function DocSettingsPanel() {
           </select>
         </label>
         <label className="text-sm">
-          <span className="label">Group estimate lines</span>
+          <span className="label">Group pricing lines</span>
           <select className="input" value={s.grouping} onChange={(e) => set({ grouping: e.target.value as DocumentSettings["grouping"] })}>
             <option value="category">By category</option>
             <option value="floor">By floor</option>
@@ -288,7 +289,7 @@ export default function DocSettingsPanel() {
           </div>
         </div>
         <label className="flex items-center gap-2 text-sm sm:col-span-3">
-          <input type="checkbox" className="accent-brand-600" checked={s.lineDetails} onChange={(e) => set({ lineDetails: e.target.checked })} /> Rooms and device labels under each estimate line
+          <input type="checkbox" className="accent-brand-600" checked={s.lineDetails} onChange={(e) => set({ lineDetails: e.target.checked })} /> Rooms and device labels under each pricing line
         </label>
         <label className="flex items-center gap-2 text-sm sm:col-span-3">
           <input type="checkbox" className="accent-brand-600" checked={s.signatureOnQuotes} onChange={(e) => set({ signatureOnQuotes: e.target.checked })} /> Clients sign to approve quotes online

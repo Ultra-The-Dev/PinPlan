@@ -779,6 +779,41 @@ export function latestApprovedQuote<T extends Pick<SalesDoc, "kind" | "status" |
   return best;
 }
 
+/** The approved quote made from a client's approval has an id tied to the approval, so two devices never make two. */
+export const proposalQuoteId = (proposalId: string) => `quote-from-${proposalId}`;
+
+/**
+ * Whether a client's approval (a proposal row with status accepted) still needs its approved quote made. Not when one
+ * was made from it already, and not for jobs approved before approvals became quotes when the office has since made its
+ * own approved quote (or billed from one): that quote stands, so no second one is added next to it.
+ */
+export function approvalNeedsQuote(
+  docs: Pick<SalesDoc, "id" | "kind" | "status" | "deleted" | "options" | "createdAt" | "source" | "convertedFrom">[],
+  approval: { id: string; responded_at: string | null },
+): boolean {
+  if (docs.some((d) => d.kind === "quote" && !d.deleted && d.options?.approval?.proposalId === approval.id)) return false;
+  const handledByHand = docs.some(
+    (d) =>
+      !d.deleted &&
+      d.status !== "void" &&
+      !d.options?.approval &&
+      d.createdAt >= (approval.responded_at ?? "") &&
+      ((d.kind === "quote" && d.status === "accepted") || (d.kind === "invoice" && d.source === "quote" && !docs.some((q) => q.id === d.convertedFrom && !!q.options?.approval))),
+  );
+  return !handledByHand;
+}
+
+/** Money tab steps that list documents: quotes on "quote", invoices and credit notes on "invoices". */
+export type DocStep = "quote" | "invoices";
+
+/** The Money step a document belongs to. */
+export const docStepFor = (kind: DocKind): DocStep => (kind === "quote" ? "quote" : "invoices");
+
+/** The documents listed on a Money step. */
+export function docsForStep<T extends Pick<SalesDoc, "kind">>(docs: T[], step: DocStep): T[] {
+  return docs.filter((d) => docStepFor(d.kind) === step);
+}
+
 export interface JobBilling {
   /** The approved quote (latest), or null when none is approved yet. */
   quote: SalesDoc | null;

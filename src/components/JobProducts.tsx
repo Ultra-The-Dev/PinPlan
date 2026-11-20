@@ -2,30 +2,39 @@
 // "Products for this job": pick the brand/model used for each device type and cable on the job.
 import { Tags } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { formatMoney } from "@/lib/estimate";
 import { cableKey, productTitle, withProductChoice } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { wireColor } from "@/lib/symbols";
-import type { TakeoffBucket } from "@/lib/takeoff";
+import type { Takeoff } from "@/lib/takeoff";
 import type { PricingSettings, Product } from "@/lib/types";
 import { blankProduct, ProductDialog } from "./ProductsEditor";
 import SymbolIcon from "./editor/SymbolIcon";
+import { jobPriceSources, productJobPrice, type PriceSource } from "./products/priceSource";
 
 const NEW = "__new__";
 
-export default function JobProducts({ total, pricing }: { total: TakeoffBucket; pricing: PricingSettings }) {
+export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pricing: PricingSettings }) {
+  const total = takeoff.total;
   const project = useEditor((s) => s.project);
   const catalog = useEditor((s) => s.catalog);
   const products = useEditor((s) => s.products);
   const markers = useEditor((s) => s.markers);
+  const estimateLines = useEditor((s) => s.estimateLines);
   const updateProject = useEditor((s) => s.updateProject);
   const reloadCatalog = useEditor((s) => s.reloadCatalog);
   const [adding, setAdding] = useState<Product | null>(null);
+  // The price each item gets without a product: the same one the pricing table below uses.
+  const prices = useMemo(() => jobPriceSources(takeoff, catalog, pricing, estimateLines, cableKey), [takeoff, catalog, pricing, estimateLines]);
   if (!project) return null;
 
   const cur = pricing.currency;
+  const noProduct = (p: PriceSource | undefined, fallback: number, per = "") => {
+    const { price, source } = p ?? { price: fallback, source: fallback ? "price list" : "no price yet" };
+    return `No product · ${formatMoney(price, cur)}${per} (${source})`;
+  };
   const choose = (key: string, productId: string | null) => updateProject({ productChoices: withProductChoice(project, key, productId) });
   const rows = [
     ...catalog
@@ -35,7 +44,8 @@ export default function JobProducts({ total, pricing }: { total: TakeoffBucket; 
         name: d.name,
         qty: d.kind === "led" ? `${(total.ledFt[d.id] ?? 0) + (total.ledTentativeFt[d.id] ?? 0)} LF` : `× ${total.counts[d.id]}`,
         icon: d.kind === "led" ? <span className="block h-1.5 w-5 rounded" style={{ background: d.color }} /> : <SymbolIcon type={d} size={22} />,
-        fallback: `Catalog price ${formatMoney(d.unitPrice, cur)}`,
+        fallback: noProduct(prices.get(d.id), d.unitPrice),
+        per: "",
         overrides: markers.filter((m) => m.deviceTypeId === d.id && m.productId).length,
       })),
     ...Object.keys(total.wireFt)
@@ -46,7 +56,8 @@ export default function JobProducts({ total, pricing }: { total: TakeoffBucket; 
         name: `${w} cable`,
         qty: `${total.wireFt[w]} ft`,
         icon: <span className="block h-1 w-5 rounded" style={{ background: wireColor(w) }} />,
-        fallback: `Default ${formatMoney(pricing.wirePrices[w] ?? 0, cur)}/ft`,
+        fallback: noProduct(prices.get(cableKey(w)), pricing.wirePrices[w] ?? 0, "/ft"),
+        per: "/ft",
         overrides: 0,
       })),
   ];
@@ -60,7 +71,7 @@ export default function JobProducts({ total, pricing }: { total: TakeoffBucket; 
           Product library
         </Link>
       </div>
-      <p className="mb-3 text-sm text-slate-500">Choose the brand and model for each item. A single device can use another one from its inspector on the plan.</p>
+      <p className="mb-3 text-sm text-slate-500">Choose the brand and model for each item. With no product, an item uses the price shown, the same as in the table below. A single device can use another product from its inspector on the plan.</p>
       {rows.length === 0 ? (
         <p className="text-sm text-slate-400">Place devices or draw home runs to choose products.</p>
       ) : (
@@ -91,7 +102,8 @@ export default function JobProducts({ total, pricing }: { total: TakeoffBucket; 
                   <option value="">{r.fallback}</option>
                   {options.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {productTitle(p)} — {formatMoney(p.unitPrice, cur)}
+                      {productTitle(p)} — {formatMoney(productJobPrice(p, pricing), cur)}
+                      {r.per}
                     </option>
                   ))}
                   <option value={NEW}>+ New product…</option>

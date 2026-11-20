@@ -47,6 +47,14 @@ select pg_temp.check(public.format_document_number('EST', 3, '2026-11-19') = 'ES
 select pg_temp.check(public.format_document_number('', 3, '2026-11-19') = '0003', 'format: empty');
 select pg_temp.check(public.format_document_number('{000}/{0}', 5, '2026-11-19') = '005/5', 'format: two counters');
 
+-- ---------- fallback formats when a company saved none (quotes are "Quote", Q-{0000}; never the old EST-) ----------
+select pg_temp.check((select fmt from public.document_number_format('00000000-0000-0000-0000-0000000000d5', 'quote')) = 'Q-{0000}', 'quote fallback format is Q-{0000}');
+select pg_temp.check((select fmt = 'INV-{YYYY}-{0000}' and yearly from public.document_number_format('00000000-0000-0000-0000-0000000000d5', 'invoice')), 'invoice fallback format is INV-{YYYY}-{0000}, yearly');
+select pg_temp.check((select fmt = 'CN-{0000}' and not yearly from public.document_number_format('00000000-0000-0000-0000-0000000000d5', 'credit_note')), 'credit note fallback format is CN-{0000}');
+insert into public.document_settings (owner_id, config) values ('00000000-0000-0000-0000-0000000000d5', '{"kinds": {"quote": {"format": "EST-{0000}"}}}');
+select pg_temp.check((select fmt from public.document_number_format('00000000-0000-0000-0000-0000000000d5', 'quote')) = 'EST-{0000}', 'a format the company saved itself is kept (even EST-)');
+delete from public.document_settings where owner_id = '00000000-0000-0000-0000-0000000000d5';
+
 set role authenticated;
 
 -- ---------- a company: owner, office admin, technician ----------
@@ -66,12 +74,12 @@ insert into public.sales_documents (id, project_id, kind, status, number, total,
 select pg_temp.check((select number from public.sales_documents where id = 'dq1') is null, 'a draft has no number (a sent one is ignored)');
 select pg_temp.check((select owner_id from public.sales_documents where id = 'dq1') = '00000000-0000-0000-0000-0000000000d1', 'owner_id is the company owner');
 update public.sales_documents set status = 'sent', issue_date = '2026-11-19', updated_at = '2020-01-02' where id = 'dq1';
-select pg_temp.check((select number from public.sales_documents where id = 'dq1') = 'EST-0001', 'issuing (status sent) numbers it: EST-0001');
+select pg_temp.check((select number from public.sales_documents where id = 'dq1') = 'Q-0001', 'issuing (status sent) numbers it: Q-0001 (the quote fallback, no saved format)');
 select pg_temp.check((select updated_at > '2021-01-01' from public.sales_documents where id = 'dq1'), 'numbering bumps updated_at so devices pull it');
-update public.sales_documents set number = 'EST-9999', kind = 'invoice' where id = 'dq1';
-select pg_temp.check((select number = 'EST-0001' and kind = 'quote' from public.sales_documents where id = 'dq1'), 'number and kind never change once numbered');
+update public.sales_documents set number = 'Q-9999', kind = 'invoice' where id = 'dq1';
+select pg_temp.check((select number = 'Q-0001' and kind = 'quote' from public.sales_documents where id = 'dq1'), 'number and kind never change once numbered');
 update public.sales_documents set number = null, status = 'draft' where id = 'dq1';
-select pg_temp.check((select number from public.sales_documents where id = 'dq1') = 'EST-0001', 'a device pushing a stale draft copy keeps the number');
+select pg_temp.check((select number from public.sales_documents where id = 'dq1') = 'Q-0001', 'a device pushing a stale draft copy keeps the number');
 
 -- The admin issues an invoice offline: it arrives already 'sent' and is numbered on arrival.
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d3');
@@ -150,7 +158,7 @@ select pg_temp.check(pg_temp.fails($$select count(*) from public.document_links$
 select pg_temp.check(pg_temp.fails($$select public.issue_document('dq1')$$), 'anon cannot issue');
 select pg_temp.check(public.get_document('nope_nope_nope_nope_nope') is null, 'unknown link: nothing');
 select pg_temp.check(public.get_document('tok_quote_000000000001') ->> 'status' = 'viewed', 'opening the link marks it viewed');
-select pg_temp.check(public.get_document('tok_quote_000000000001') ->> 'number' = 'EST-0001', 'the link shows the number');
+select pg_temp.check(public.get_document('tok_quote_000000000001') ->> 'number' = 'Q-0001', 'the link shows the number');
 select pg_temp.check(position('internal' in public.get_document('tok_quote_000000000001')::text) = 0, 'no internal fields in the public view');
 select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_quote_000000000001', true, 'Jane', null, null)$$) like '%sign%', 'accepting needs a signature');
 select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_invoice_0000000001', true, 'Jane', 'data:image/png;base64,x', null)$$) like '%Only quotes%', 'invoices cannot be accepted');

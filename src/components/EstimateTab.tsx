@@ -22,6 +22,8 @@ import ProposalPanel from "./ProposalPanel";
 import AddChargeMenu from "./AddChargeMenu";
 
 type DocType = "estimate" | "order" | "invoice";
+// Billdu's own document types; "estimate" is what Billdu calls a quote (the id stays, the words follow the glossary).
+const DOC_TYPE_NAMES: Record<DocType, string> = { estimate: "quote", order: "order", invoice: "invoice" };
 
 function Cell(props: Parameters<typeof CellInner>[0]) {
   return <CellInner key={String(props.value)} {...props} />;
@@ -125,7 +127,8 @@ export default function EstimateTab() {
   const cur = pricing.currency;
   const pricedOverrides = estimateLines.filter((l) => !l.deleted && !l.removed && l.unitPrice != null && !l.key.startsWith("custom:")).length;
   const removedKeys = estimateLines.filter((l) => l.removed && !l.deleted).map((l) => l.key);
-  const fileBase = `${slug(project.address || project.clientName)}-estimate`;
+  const fileBase = `${slug(project.address || project.clientName)}-quote`;
+  const docTypeName = DOC_TYPE_NAMES[docType];
 
   const setPricing = (patch: Partial<PricingSettings>) => updateProject({ pricing: { ...(project.pricing ?? {}), ...patch } });
 
@@ -201,7 +204,7 @@ export default function EstimateTab() {
       const docs = old ? project!.billduDocs.map((d) => (d.id === old.id ? merged : d)) : [...project!.billduDocs, ref];
       await updateProject({ billduClientId: j.clientId, billduDocs: docs });
       setNotice(
-        `${j.doc.updated ? "Updated" : "Created"} Billdu ${docType} ${merged.serial ?? `#${merged.id}`} (${formatMoney(merged.amount, cur)} before tax). Attach the plans PDF in Billdu if needed.`,
+        `${j.doc.updated ? "Updated" : "Created"} Billdu ${docTypeName} ${merged.serial ?? `#${merged.id}`} (${formatMoney(merged.amount, cur)} before tax). Attach the plans PDF in Billdu if needed.`,
       );
     } catch (e) {
       setError((e as Error).message);
@@ -306,12 +309,12 @@ export default function EstimateTab() {
                 .slice(0, 3)
                 .map((l) => l.description.replace(" — installed", "").replace(/ \(home runs: \d+\)/, ""))
                 .join(", ")}
-              {unpriced.length > 3 ? ` and ${unpriced.length - 3} more` : ""}. Set prices in the catalog and settings, or type them here.
+              {unpriced.length > 3 ? ` and ${unpriced.length - 3} more` : ""}. Set prices in the price list and wire settings, or type them here.
             </span>
           </div>
           <div className="flex gap-2 pl-6 sm:pl-0">
             <Link href="/catalog" className="btn btn-sm">
-              <Package /> Catalog
+              <Package /> Price list
             </Link>
             <Link href="/settings#wire" className="btn btn-sm">
               <Settings /> Wire prices
@@ -366,7 +369,7 @@ export default function EstimateTab() {
           </div>
           </details>
 
-          <JobProducts total={takeoff.total} pricing={pricing} />
+          <JobProducts takeoff={takeoff} pricing={pricing} />
 
           {/* Phones: one stacked block per line (description, then qty × price = total), all still editable. */}
           <div className="card divide-y divide-slate-100 sm:hidden">
@@ -413,7 +416,7 @@ export default function EstimateTab() {
             <div className="px-4 py-2.5">
               <AddChargeMenu total={takeoff.total} currency={cur} onAdd={(k, p) => void upsert(k, p)} />
             </div>
-            {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the estimate.</p>}
+            {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the pricing.</p>}
           </div>
 
           <div className="card hidden overflow-x-auto sm:block">
@@ -490,7 +493,7 @@ export default function EstimateTab() {
                 </tr>
               </tbody>
             </table>
-            {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the estimate.</p>}
+            {estimate.lines.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Place devices on the plan to build the pricing.</p>}
           </div>
         </div>
 
@@ -536,8 +539,8 @@ export default function EstimateTab() {
                   </p>
                 </>
               ) : null}
-              <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=billing`} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">
-                Quotes & invoices
+              <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=money&step=invoices`} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">
+                Invoices & payments
               </Link>
             </section>
           )}
@@ -554,7 +557,7 @@ export default function EstimateTab() {
               <label className="text-sm">
                 <span className="label">Document</span>
                 <select className="input" value={docType} onChange={(e) => setDocType(e.target.value as DocType)}>
-                  <option value="estimate">Estimate</option>
+                  <option value="estimate">Quote</option>
                   <option value="order">Order</option>
                   <option value="invoice">Invoice</option>
                 </select>
@@ -574,8 +577,8 @@ export default function EstimateTab() {
               {busy === "send"
                   ? "Sending…"
                   : !isDeposit && existingSame
-                    ? `Update ${docType} ${existingSame.serial ?? `#${existingSame.id}`} in Billdu`
-                    : `Send ${isDeposit ? `${dep}% ` : ""}${docType} to Billdu`}
+                    ? `Update ${docTypeName} ${existingSame.serial ?? `#${existingSame.id}`} in Billdu`
+                    : `Send ${isDeposit ? `${dep}% ` : ""}${docTypeName} to Billdu`}
             </button>
             {!isDeposit && existingSame && (
               <p className="mt-1.5 text-center text-xs text-slate-500">
@@ -614,7 +617,7 @@ export default function EstimateTab() {
                   {project.billduDocs.map((d) => (
                     <li key={`${d.type}-${d.id}`} className="flex items-center justify-between gap-2 text-sm">
                       <span className="min-w-0 truncate">
-                        <span className="chip mr-1.5 bg-slate-100 capitalize text-slate-600">{d.type}</span>
+                        <span className="chip mr-1.5 bg-slate-100 capitalize text-slate-600">{DOC_TYPE_NAMES[d.type as DocType] ?? d.type}</span>
                         {d.serial ?? `#${d.id}`}
                         {d.label ? <span className="text-slate-500"> · {d.label}</span> : null}
                       </span>

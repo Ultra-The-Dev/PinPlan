@@ -1,6 +1,7 @@
 "use client";
-// The job's quotes, invoices and credit notes (Money tab): list, totals, and the editor for one document.
-import { FilePlus2, FileText, Plus, Receipt, Settings } from "lucide-react";
+// The job's quotes, invoices and credit notes (Money tab): list, totals, and the editor for one document. The Quote
+// step lists the quotes; the Invoices & payments step lists invoices, credit notes and payments (?step=).
+import { FilePlus2, FileText, Receipt, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,6 +15,8 @@ import {
   creditNoteFor,
   displayStatus,
   docName,
+  docsForStep,
+  docStepFor,
   documentTotals,
   duplicateDocument,
   formatDocDate,
@@ -23,8 +26,10 @@ import {
   jobBilling,
   newDocument,
   normalizeDocSettings,
+  PAYMENT_METHODS,
   today,
   type BillableChange,
+  type DocStep,
   type InvoiceMode,
 } from "@/lib/documents";
 import { projectEstimate } from "@/lib/estimate";
@@ -35,7 +40,8 @@ import type { DocKind, SalesDoc } from "@/lib/types";
 import { useChangeOrders } from "../changeOrders/useChangeOrders";
 import { ConvertDialog, NewQuoteDialog } from "./DocDialogs";
 import DocEditor from "./DocEditor";
-import { KindChip, Menu, StatusChip } from "./ui";
+import { KindChip, StatusChip } from "./ui";
+import { useApprovedProposalQuote } from "./useApprovedProposalQuote";
 
 type ConvertMode = InvoiceMode["mode"];
 
@@ -45,10 +51,14 @@ export default function DocumentsTab() {
   const docId = params.get("doc");
   // "&bill=deposit" (from "Bill the deposit" on an approved quote): open the invoice dialog on that quote.
   const billAsk = params.get("bill");
+  // Old links (?tab=billing) carry no step until the job page rewrites them: those were quote links.
+  const step: DocStep = params.get("step") === "invoices" ? "invoices" : "quote";
   const { project, sheets, markers, runs, closets, catalog, products, settings, estimateLines, updateProject } = useEditor();
   const liveSettings = useDocSettings();
   const ds = useMemo(() => liveSettings ?? normalizeDocSettings(settings?.documents, settings?.pricing.currency), [liveSettings, settings]);
   const { docs, payments } = useJobDocs(project?.id);
+  // A client approved the quote link: the approved quote is made here too, not only when Pricing is opened.
+  useApprovedProposalQuote(docs, ds);
   const { rows: changeOrders } = useChangeOrders(project?.id);
   const [dialog, setDialog] = useState<null | "quote" | { convert: SalesDoc; mode?: ConvertMode }>(null);
 
@@ -84,7 +94,7 @@ export default function DocumentsTab() {
     if (!asked || !project) return;
     const t = window.setTimeout(() => {
       setDialog({ convert: asked, mode: billAsk === "deposit" ? "deposit" : billAsk === "balance" ? "final" : undefined });
-      router.replace(`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(asked.id)}`);
+      router.replace(`/project?id=${encodeURIComponent(project.id)}&tab=money&step=quote&doc=${encodeURIComponent(asked.id)}`);
     }, 0);
     return () => window.clearTimeout(t);
   }, [asked, billAsk, project, router]);
@@ -100,13 +110,17 @@ export default function DocumentsTab() {
   );
 
   if (!project || !settings) return <div className="p-6 text-slate-500">Loading…</div>;
-  const base = `/project?id=${encodeURIComponent(project.id)}&tab=billing`;
-  const open = (id: string) => router.push(`${base}&doc=${encodeURIComponent(id)}`);
-  const back = () => router.push(base);
+  const stepHref = (st: DocStep) => `/project?id=${encodeURIComponent(project.id)}&tab=money&step=${st}`;
+  // A document opens under its own step (quotes under Quote, invoices and credit notes under Invoices & payments).
+  const openDoc = (d: Pick<SalesDoc, "id" | "kind">) => router.push(`${stepHref(docStepFor(d.kind))}&doc=${encodeURIComponent(d.id)}`);
+  const open = (id: string) => {
+    const d = all.find((x) => x.id === id);
+    router.push(`${stepHref(d ? docStepFor(d.kind) : step)}&doc=${encodeURIComponent(id)}`);
+  };
 
   async function create(doc: SalesDoc) {
     const saved = await saveDoc(doc);
-    open(saved.id);
+    openDoc(saved);
   }
   const newBlank = (kind: DocKind) => void create(newDocument({ ...ctx(), kind, project: project! }));
   const fromEstimate = (o: QuoteBuildOptions) => {
@@ -138,6 +152,7 @@ export default function DocumentsTab() {
   );
 
   const current = docId ? all.find((d) => d.id === docId) : null;
+  const back = () => router.push(stepHref(current ? docStepFor(current.kind) : step));
   if (docId && docs && !current)
     return (
       <div className="p-6 text-slate-500">
@@ -160,62 +175,103 @@ export default function DocumentsTab() {
   const label = (k: DocKind) => ds.kinds[k].label;
   const quoteLabel = label("quote").toLowerCase();
 
+  const shown = docsForStep(all, step);
+  const livePayments = payments.filter((p) => !p.deleted).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const docById = new Map(all.map((d) => [d.id, d]));
+  const billQuote = b.quote && b.leftToBill && b.leftToBill > 0 ? b.quote : null;
+  const firstBill = !!billQuote && !invoicesFromQuote(billQuote.id, all).length;
+  const settingsLink = (
+    <Link href="/settings#invoicing" className="font-medium text-brand-600 hover:underline">
+      Invoicing settings
+    </Link>
+  );
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <div className="mb-5 flex flex-wrap items-end gap-3">
-        <div className="mr-auto">
-          <h2 className="page-title">Money</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {label("quote")}s, invoices and payments for this job.{" "}
-            <Link href="/settings#invoicing" className="font-medium text-brand-600 hover:underline">
-              Invoicing settings
-            </Link>
-          </p>
+      {step === "quote" ? (
+        <div className="mb-5 flex flex-wrap items-end gap-3">
+          <div className="mr-auto">
+            <h2 className="page-title">{label("quote")}</h2>
+            <p className="mt-1 text-sm text-slate-500">What the client approves and signs online, built from the job’s pricing. {settingsLink}</p>
+          </div>
+          <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : "Place devices and price the job first"}>
+            <FilePlus2 /> New {quoteLabel} from job pricing
+          </button>
+          <button className="btn" onClick={() => newBlank("quote")}>
+            <FileText /> Blank {quoteLabel}
+          </button>
         </div>
-        <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : "Place devices and price the job first"}>
-          <FilePlus2 /> New {quoteLabel} from job pricing
-        </button>
-        <Menu
-          label="New"
-          icon={<Plus />}
-          items={[
-            { label: `Blank ${quoteLabel}`, icon: <FileText />, onClick: () => newBlank("quote") },
-            { label: "Blank invoice", icon: <Receipt />, onClick: () => newBlank("invoice") },
-          ]}
-        />
-      </div>
+      ) : (
+        <div className="mb-5 flex flex-wrap items-end gap-3">
+          <div className="mr-auto">
+            <h2 className="page-title">Invoices &amp; payments</h2>
+            <p className="mt-1 text-sm text-slate-500">Bill the approved {quoteLabel}, record payments and credit notes. {settingsLink}</p>
+          </div>
+          {/* The first bill has its own "Next: bill the …" banner below, so the button shows from the second bill on. */}
+          {billQuote && !firstBill && (
+            <button className="btn btn-brand" onClick={() => actions.convert(billQuote)}>
+              <Receipt /> Create invoice
+            </button>
+          )}
+          <button className="btn" onClick={() => newBlank("invoice")}>
+            <FileText /> Blank invoice
+          </button>
+        </div>
+      )}
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className={`mb-5 grid grid-cols-2 gap-3 ${step === "invoices" ? "sm:grid-cols-4" : ""}`}>
         <Stat
           label={`Approved ${quoteLabel}`}
           value={b.quote ? money(b.contract ?? 0) : "Not yet"}
           sub={b.quote ? `${docName(b.quote, ds)}${approvedChanges ? ` + ${money(approvedChanges)} in changes` : ""}` : undefined}
-          onClick={b.quote ? () => open(b.quote!.id) : undefined}
+          onClick={b.quote ? () => openDoc(b.quote!) : undefined}
         />
-        <Stat label="Billed" value={money(b.billed)} sub={b.paid ? `${money(b.paid)} paid` : undefined} />
-        <Stat label="Left to bill" value={b.leftToBill == null ? "—" : money(b.leftToBill)} strong={!!b.leftToBill} />
-        <Stat label="Unpaid" value={money(b.unpaid)} strong={b.unpaid > 0} />
+        {step === "quote" ? (
+          <Stat label="Left to bill" value={b.leftToBill == null ? "—" : money(b.leftToBill)} sub={b.billed ? `${money(b.billed)} billed` : undefined} />
+        ) : (
+          <>
+            <Stat label="Billed" value={money(b.billed)} sub={b.paid ? `${money(b.paid)} paid` : undefined} />
+            <Stat label="Left to bill" value={b.leftToBill == null ? "—" : money(b.leftToBill)} strong={!!b.leftToBill} />
+            <Stat label="Unpaid" value={money(b.unpaid)} strong={b.unpaid > 0} />
+          </>
+        )}
       </div>
-      {b.quote && b.leftToBill && b.leftToBill > 0 && !invoicesFromQuote(b.quote.id, all).length ? (
+      {billQuote && firstBill ? (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200">
           <span className="min-w-0 flex-1">
-            {docName(b.quote, ds)} is approved. {b.quote.deposit ? "Next: bill the deposit." : "Next: bill the client."}
+            {docName(billQuote, ds)} is approved. {billQuote.deposit ? "Next: bill the deposit." : "Next: bill the client."}
           </span>
-          <button className="btn btn-sm btn-brand" onClick={() => actions.convert(b.quote!, b.quote!.deposit ? "deposit" : "final")}>
-            <Receipt /> {b.quote.deposit ? `Bill the deposit (${money(documentTotals(b.quote).deposit ?? 0)})` : "Create invoice"}
+          <button className="btn btn-sm btn-brand" onClick={() => actions.convert(billQuote, billQuote.deposit ? "deposit" : "final")}>
+            <Receipt /> {billQuote.deposit ? `Bill the deposit (${money(documentTotals(billQuote).deposit ?? 0)})` : "Create invoice"}
           </button>
         </div>
       ) : null}
 
       {docs === null ? (
         <p className="text-slate-500">Loading…</p>
-      ) : all.length === 0 ? (
+      ) : shown.length === 0 ? (
         <div className="card p-8 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-            <Receipt className="h-6 w-6" />
+            {step === "quote" ? <FileText className="h-6 w-6" /> : <Receipt className="h-6 w-6" />}
           </div>
-          <p className="font-semibold">No {quoteLabel}s or invoices yet</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Turn the job’s pricing into a {quoteLabel} the client can approve and sign online, then bill the deposit and the balance and record payments.</p>
+          {step === "quote" ? (
+            <>
+              <p className="font-semibold">No {quoteLabel}s yet</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Turn the job’s pricing into a {quoteLabel} the client can approve and sign online. Once it’s approved, bill it under Invoices &amp; payments.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold">No invoices yet</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+                {b.quote ? `Bill the deposit and the balance of ${docName(b.quote, ds)}, then record payments here.` : `Once the client approves a ${quoteLabel}, bill the deposit and the balance here and record payments.`}{" "}
+                {!b.quote && (
+                  <Link href={stepHref("quote")} className="font-medium text-brand-600 hover:underline">
+                    Go to {label("quote")}
+                  </Link>
+                )}
+              </p>
+            </>
+          )}
           <p className="mt-3 text-xs text-slate-400">
             <Settings className="mr-1 inline h-3.5 w-3.5" />
             Set your numbering, terms, taxes and payment details in{" "}
@@ -227,11 +283,11 @@ export default function DocumentsTab() {
         </div>
       ) : (
         <ul className="card divide-y divide-slate-100">
-          {all.map((d) => {
+          {shown.map((d) => {
             const st = displayStatus(d);
             return (
               <li key={d.id}>
-                <button className="flex w-full items-center gap-x-3 px-4 py-3 text-left hover:bg-slate-50" onClick={() => open(d.id)}>
+                <button className="flex w-full items-center gap-x-3 px-4 py-3 text-left hover:bg-slate-50" onClick={() => openDoc(d)}>
                   <span className="hidden sm:inline-flex">
                     <KindChip kind={d.kind} />
                   </span>
@@ -258,6 +314,30 @@ export default function DocumentsTab() {
             );
           })}
         </ul>
+      )}
+
+      {step === "invoices" && livePayments.length > 0 && (
+        <section className="mt-6">
+          <h3 className="section-title mb-2">Payments</h3>
+          <ul className="card divide-y divide-slate-100" aria-label="Payments">
+            {livePayments.map((p) => {
+              const inv = docById.get(p.documentId);
+              return (
+                <li key={p.id}>
+                  <button className={`flex w-full items-center gap-x-3 px-4 py-2.5 text-left text-sm hover:bg-slate-50 ${p.voided ? "text-slate-400 line-through" : ""}`} onClick={() => inv && openDoc(inv)} disabled={!inv}>
+                    <span className="w-24 shrink-0 tabular-nums text-slate-500">{formatDocDate(p.date, ds.locale)}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method}
+                      {p.reference ? ` · ${p.reference}` : ""}
+                      {inv ? <span className="text-slate-500"> · {docName(inv, ds)}</span> : null}
+                    </span>
+                    <span className="shrink-0 font-medium tabular-nums">{formatDocMoney(p.amount, inv?.currency ?? ds.currency, ds.locale)}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {dialog === "quote" && estimate && <NewQuoteDialog settings={ds} pricingTotal={estimate.total} preview={buildQuote} onClose={() => setDialog(null)} onCreate={fromEstimate} />}
