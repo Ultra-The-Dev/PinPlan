@@ -123,3 +123,31 @@ export function headerRules(env: HeaderEnv): { source: string; headers: { key: s
     { source: `/:page(${pages})/:path*`, headers: strict },
   ];
 }
+
+/** The headers every static file gets: the baseline set without the page CSP (a page's CSP means nothing on a JS
+ *  chunk or an image, and the Worker answers pages itself, with headerRules() above). */
+const STATIC_KEYS = ["Strict-Transport-Security", "X-Content-Type-Options", "Referrer-Policy", "X-Frame-Options"] as const;
+
+/** An SVG opened directly runs as a document: no scripts, no requests, inline styles only. Never loosen this. */
+export const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'";
+
+/** public/_headers: Cloudflare Workers static assets (and Pages) serve files straight from the asset store, before
+ *  the Worker and next.config.ts headers() run, so they need their own headers. tests/securityHeadersInfra.test.ts checks
+ *  the committed file matches this. */
+export function staticAssetHeaderRules(): { path: string; headers: { key: string; value: string }[] }[] {
+  const base = securityHeaders({});
+  const pick = (k: string) => ({ key: k, value: base.find((h) => h.key === k)!.value });
+  return [
+    { path: "/*", headers: STATIC_KEYS.map(pick) },
+    { path: "/*.svg", headers: [{ key: "Content-Security-Policy", value: SVG_CSP }] },
+    // The service worker must be checked on every load, or a phone can keep an old build for a day.
+    { path: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
+  ];
+}
+
+/** The text of public/_headers, without its leading comment lines. */
+export function staticAssetHeadersFile(): string {
+  return staticAssetHeaderRules()
+    .map((r) => [r.path, ...r.headers.map((h) => `  ${h.key}: ${h.value}`)].join("\n"))
+    .join("\n\n") + "\n";
+}

@@ -1,0 +1,14 @@
+# Headers for static files on Cloudflare Workers static assets (served before the Worker runs, so next.config.ts
+# headers() don't reach them). Generated from staticAssetHeaderRules() in src/lib/securityHeaders.ts; change both
+# together (tests/securityHeadersInfra.test.ts compares them). Never loosen the SVG policy.
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+
+/*.svg
+  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'
+
+/sw.js
+  Cache-Control: no-cache

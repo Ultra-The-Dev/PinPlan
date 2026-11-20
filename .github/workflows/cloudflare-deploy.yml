@@ -4,11 +4,17 @@ name: Deploy to Cloudflare
 # settings from this repository's secrets into the Worker, so they live in one place.
 #
 # Needs (Settings → Secrets and variables → Actions):
-#   secrets   CLOUDFLARE_API_TOKEN (template "Edit Cloudflare Workers"), CLOUDFLARE_ACCOUNT_ID
+#   environment secrets (production)   CLOUDFLARE_API_TOKEN (template "Edit Cloudflare Workers"), CLOUDFLARE_ACCOUNT_ID
 #   variables NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, PINPLAN_APP_URL (and the optional ones below)
 # Until CLOUDFLARE_API_TOKEN is set, the run does nothing and passes.
+#
+# The deploy credentials and server secrets are GitHub *Environment secrets* of the `production` environment
+# (Settings → Environments → production), not repository secrets, so only this job sees them and the environment's
+# deployment-branch rule decides which branches may deploy. Inside the job only the steps that need them get them:
+# the install step (and every npm package's install script) and the build never see the Cloudflare token.
 on:
   push:
+    # TODO(owner): remove claude/quirky-clarke-gjz5h1 once main is the deploy branch (docs/launch-checklist.md §7).
     branches: [main, claude/quirky-clarke-gjz5h1]
   workflow_dispatch:
 
@@ -23,9 +29,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: production
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_TELEMETRY_DISABLED: 1
       # Built into the app (public values): repository variables.
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
@@ -41,6 +46,9 @@ jobs:
     steps:
       - name: Cloudflare token set?
         id: ready
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID aren't set yet: skipping the deploy (docs/cloudflare.md)."
@@ -58,17 +66,25 @@ jobs:
           cache: npm
       - name: Install
         if: steps.ready.outputs.go == 'true'
-        run: npm ci
+        # No dependency install scripts; the one this app needs (the PDF.js worker copy) runs explicitly below.
+        run: |
+          npm ci --ignore-scripts
+          node scripts/copy-pdf-worker.mjs
       - name: Build (OpenNext)
         if: steps.ready.outputs.go == 'true'
         run: npx opennextjs-cloudflare build
       - name: Deploy
         if: steps.ready.outputs.go == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx opennextjs-cloudflare deploy
 
       - name: Copy server settings into the Worker
         if: steps.ready.outputs.go == 'true'
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Server-side settings: repository secrets (or variables for the non-secret ones). Empty ones are skipped,
           # so a setting removed here stays on the Worker until you delete it there.
           S_NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}

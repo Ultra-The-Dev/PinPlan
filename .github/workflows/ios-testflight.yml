@@ -4,7 +4,7 @@ name: iOS TestFlight
 # Actions → iOS TestFlight → Run workflow, or push a tag like `ios-v1.0.1` (the part after "ios-v" becomes the version).
 # The build number is this workflow's run number, so every upload is newer than the last.
 #
-# Repository secrets (Settings → Secrets and variables → Actions):
+# Environment secrets of `appstore` (Settings → Environments → appstore):
 #   APPLE_TEAM_ID   your Apple Developer team ID (10 characters)
 #   ASC_KEY_ID      App Store Connect API key ID (Users and Access → Integrations → App Store Connect API, role App Manager)
 #   ASC_ISSUER_ID   the issuer ID shown on that page
@@ -27,6 +27,9 @@ jobs:
   testflight:
     runs-on: macos-26
     timeout-minutes: 60
+    # The signing secrets are Environment secrets of `appstore` (Settings → Environments), limited to the branches
+    # and tags allowed to release (docs/launch-checklist.md §10.4).
+    environment: appstore
     env:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}

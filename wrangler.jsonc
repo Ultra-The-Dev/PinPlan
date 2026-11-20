@@ -6,6 +6,11 @@
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Production answers only on the custom domain (Settings → Domains & Routes). No *.workers.dev address and no
+  // per-version preview URLs: both would be public copies of production outside the domain's WAF rules, rate limits
+  // and Supabase redirect list. Test on a separate staging Worker with its own Supabase project instead.
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
