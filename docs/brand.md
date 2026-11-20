@@ -27,7 +27,7 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 | Pencil | `#526580` | Secondary text (5.6:1 on paper). |
 | Rule | `#C9D6E5` | Hairlines, sheet borders, table rules. Never text. |
 | Action blue (marker token) | `#0B6FE0` | Primary action and the final call band. Text on it is always white (4.8:1). |
-| Electric | `#33A9FF` | Bright accent on ink: the logo pin, step numbers, focus ring on dark (6.2:1 on ink). Never text on white. |
+| Electric | `#33A9FF` | Bright accent on ink: the north half of the logo's needle, step numbers, focus ring on dark (6.2:1 on ink). Never text on white. |
 | Highlight | `#CFE6FF` | The takeoff highlighter behind counted figures; ink text on it. |
 | Action deep | `#0958B5` | Primary button hover. |
 | Redline | `#C73A2C` | Mark-up on photos and plans only. Not for errors or decoration. |
@@ -43,7 +43,7 @@ In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so exis
 | App token | Hex | Brand colour / use |
 |---|---|---|
 | `brand-50` … `brand-300` | `#EEF6FF` `#DDEDFF` `#B9DAFF` `#84BFFF` | Action-blue tints: selected states, `.btn-on`, focus ring on inputs |
-| `brand-400` | `#33A9FF` | Electric (logo pin, focus on dark). Not for text on white |
+| `brand-400` | `#33A9FF` | Electric (logo needle, focus on dark). Not for text on white |
 | `brand-500` | `#1A86F0` | Small accents |
 | `brand-600` | `#0B6FE0` | Action blue: `.btn-brand`, links, focus outline, input focus border. White text 4.8:1 |
 | `brand-700` / `brand-800` | `#0958B5` / `#0A4690` | Action deep (hover), text on blue tints (6.3:1 on brand-50) |
@@ -82,8 +82,8 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
   lettering on panels and equipment labels.
 - Text and UI: width 100%, weight 400 / 600.
 - Figures: tabular lining numerals (`.mk-num`, `.mk-figure`). No monospace anywhere.
-- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title` and the auth pages' wordmark; the
-  font variable is loaded once in `src/app/layout.tsx`. Everything else in the app stays Geist.
+- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title`; the font variable is loaded once
+  in `src/app/layout.tsx`. Everything else in the app stays Geist. The wordmark is already IBM Plex Sans (below).
 
 | Role | Class | Size | Line height |
 |---|---|---|---|
@@ -97,6 +97,39 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
 
 Sentence case everywhere. No all-caps labels or eyebrows above headings; the only capitals are room names inside
 plan drawings, because that's how plans are lettered. Don't colour or italicise one word of a headline.
+
+### Northpin type: IBM Plex Sans (chosen; the redesign applies it)
+
+Archivo has no Cyrillic on Google Fonts, and the site is being translated into Russian, so the redesign moves the
+site and the app to **IBM Plex Sans** (SIL Open Font License; `IBM_Plex_Sans` in `next/font/google`, self-hosted
+at build time). One variable superfamily, `wdth` 75–100 and `wght` 100–700, full Cyrillic drawn by the same
+designers as the Latin, and figures that are tabular by default, so prices and counts line up without a feature
+switch. Its Condensed width keeps the lettering-on-equipment voice the condensed Archivo headlines had, with
+engineering-drawing details (angled terminals on t, r and the stems) that match the needle's cut. It is the face of
+the wordmark too.
+
+Shortlist and why the others lost (renders: wordmark lockups and site specimens with a price table and Russian
+copy): Golos Text and Onest (excellent Cyrillic, but rounder and friendlier, generic for a drafting tool, and no
+width axis for condensed headlines); Sofia Sans with Sofia Sans Condensed (good widths, but its Cyrillic defaults
+to Bulgarian letterforms, wrong for Russian readers); Geist, Inter Tight and Manrope (clean, but the default look of
+current software); Space Grotesk, Schibsted Grotesk and Instrument Sans (no Cyrillic). Archivo stays the face of
+the current site until the redesign.
+
+| Role | Face | Width / weight | Size | Line height |
+|---|---|---|---|---|
+| Display (h1) | Plex Sans | 75 (`font-stretch: 75%`) / 700 | clamp(44px → 84px), tracking −0.01em | 0.95 |
+| Section (h2) | Plex Sans | 75 / 700 | clamp(32px → 52px) | 1.0 |
+| Step / item (h3) | Plex Sans | 75 / 600 | clamp(24px → 30px) | 1.05 |
+| Lede | Plex Sans | 100 / 400 | clamp(17px → 20px) | 1.55, max 36em |
+| Body | Plex Sans | 100 / 400 | 16–17px | 1.6, max 34em |
+| UI, buttons, labels | Plex Sans | 100 / 500–600 | 14–15px | 1.4 |
+| Small / table | Plex Sans | 100 / 400, figures tabular | 13–14px | 1.4 |
+
+- Load once with `IBM_Plex_Sans({ subsets: ["latin", "cyrillic"], axes: ["wdth"] })` (weight omitted = variable).
+  Only the Latin subset is loaded today, for the wordmark (`brandFont` in `src/components/marketing/fonts.ts`).
+- Russian runs about 15% longer than English: headlines use the Condensed width so they wrap like the English.
+- Tabular figures are the default; set `font-variant-numeric: tabular-nums` anyway on tables and totals so a later
+  face change can't break the columns. No monospace.
 
 ## Layout and spacing
 
@@ -157,21 +190,103 @@ Paper gets a 1px rule border and a long, soft shadow like a sheet lying on a des
 
 ## Logo
 
-`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`: an ink rounded tile (7/32 radius) with the
-corner of a floor plan in white linework and an electric-blue (`#33A9FF`) pin. On ink grounds the tile flips to
-electric with ink linework. The wordmark is `PRODUCT_NAME` in Archivo 75% width, weight 750, 23px in the header.
-The app header (`AppHeader` `Logo`) uses `LogoMark` + the name; sign-in, sign-up and reset use the `Wordmark` on paper.
+The product is being renamed Northpin (northpin.app); the identity below is the Northpin one. Until the rename
+lands, `PRODUCT_NAME` still supplies the name shown beside the mark.
 
-- Keep clear space of half the tile's width around the lockup. Minimum tile size 20px.
-- Don't recolour the pin, add effects, or set the name in another face.
-- App icons are drawn from `LogoMark`: `public/icon.svg` (tile), `icon-192.png` / `icon-512.png` (tile, transparent
-  corners), `icon-maskable-512.png` (full-bleed ink, mark scaled to 80% for the safe zone) and `apple-touch-icon.png`
-  (180px, full bleed; iOS rounds it). Theme colour `#0F2340`, manifest background `#F2F6FA`. Regenerate all five
-  together if the mark changes.
+`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`. The app header (`AppHeader` `Logo`) uses
+`LogoMark` + the name; sign-in, sign-up and reset use the `Wordmark` on paper; the footer uses it `onDark`.
+
 - Share card: `src/app/opengraph-image.tsx` renders the 1200 × 630 link preview (Open Graph and Twitter) at build
   time: the on-dark mark and the name on ink, the tagline in on-dark grey, an electric rule, and a corner of a plan
   with lettered devices. It uses the default font (no external font fetch). `SHARE_IMAGE` in
   `src/components/marketing/seo.ts` points every page at it; never use the square app icon as a share image.
+
+## Northpin identity
+
+![Brand sheet](../public/brand/northpin-brand-sheet.png)
+
+### Concept
+
+An N drawn the way a plan is drawn. The two uprights are walls, solid like the poché on a floor plan. The diagonal
+is a compass needle set to plan north, the arrow every drawing carries: its north half (electric) points up the
+sheet, its south half is the pin that marks the spot, and the pivot is the pin's head. It is tilted because plan
+north rarely matches the page, and because that is where an N's diagonal goes. Location, north and the drawing in
+one letter, with nothing borrowed from map apps.
+
+### Construction
+
+- 64-unit square, 8-unit module. The tile is a continuous-corner square (the iOS icon shape: the curve eases into
+  the sides instead of meeting them at a tangent), radius 14.4 (22.5%), the same in the mark, the lockup and the
+  icons, so the app icon and the logo match after iOS masks it.
+- Walls 8 × 40 units at x 12 and x 44, y 12 to 52. The N is 40 × 40, centred.
+- Needle: along the line from the walls' inside corners (20, 12) and (44, 52), 31° from vertical, the angle of an
+  N's diagonal. 15.2 units wide at the pivot (32, 32), half-width 7.6 against the walls' 8: wide enough that the
+  diamond carries the same weight as the walls (at 7 it read thin, at 8 heavy). The tips run 0.5 past the corners (like a pointed apex in type)
+  and the walls are drawn over them, so they touch the corners instead of falling short; nothing pokes out.
+- The halves are 0.9 apart (a seam in the tile colour), pivot r 2.4: the pin's head. From 40 px down the seam
+  closes; from 24 px down the pivot goes; in the 16 and 32 px favicons neither is drawn.
+- One-colour drawings cut the halves 1.8 apart so the needle still reads.
+- Wordmark: "Northpin" in IBM Plex Sans Condensed (width 75), weight 700, tracking −10/1000, HarfBuzz kerning plus
+  four hand-set pairs (N-o −8, r-t +4, t-h −4, p-i −4), outlined so the logo files need no font. Cap height 30/64 of
+  the tile (the walls are 40), baseline 46.5 (half a unit above centre, because the lowercase carries the word),
+  15 units from the tile to the N.
+- React (`Wordmark`) sets the name live from `PRODUCT_NAME` in Plex Sans at the same width, weight and tracking, sized
+  and nudged from `LOCKUP` so caps, baseline and gap match the SVG (checked overlaid: within a pixel at 3×). Pair
+  kerning beyond the font's own is only in the outlined files.
+- Source of truth: `scripts/brand-icons.mjs` (geometry, colours, pixel maps, every file below, and
+  `src/components/marketing/markPaths.ts`, which `Wordmark.tsx` and `opengraph-image.tsx` draw from). Change it
+  there and run `node scripts/brand-icons.mjs`; the output is byte-identical on re-run.
+
+### Files
+
+| File | Use |
+|---|---|
+| `public/brand/northpin-logo.svg` | Horizontal logo, full colour, on paper or white |
+| `public/brand/northpin-logo-on-dark.svg` | Full colour on ink: white tile, action-blue north half, white name |
+| `public/brand/northpin-logo-mono.svg` / `-white.svg` | One colour, ink or white; the N is cut out of the tile |
+| `public/brand/northpin-mark.svg` (+ `-on-dark`, `-mono`, `-white`) | The square mark alone |
+| `public/brand/northpin-brand-sheet.png` | This page's overview for the owner |
+| `src/components/marketing/markPaths.ts` | Generated paths for `LogoMark`, the share card and the lockup metrics |
+| `public/icon.svg`, `favicon.ico` (16, 32, 48), `favicon-16.png`, `favicon-32.png` | Browser tab |
+| `public/icon-192.png`, `icon-512.png` | PWA icon (tile, transparent corners) |
+| `public/icon-maskable-512.png` | PWA maskable: full-bleed ink, N at 85% (corners at 37.5% radius, inside the 40% safe circle) |
+| `public/apple-touch-icon.png` | 180 px, full bleed, no alpha; iOS rounds it |
+| `ios/PinPlan/Assets.xcassets/AppIcon.appiconset/*` | 1024 px light, dark (black ground) and tinted (grey levels), no alpha |
+
+Theme colour `#0F2340`, manifest background `#F2F6FA`.
+
+### Favicons
+
+The 16 and 32 px favicons are set by hand as pixel maps in the script, not scaled down: the walls sit on whole
+pixels (2 and 4 px wide), the needle is a clean stair, symmetric about the pivot, whose tips touch the walls'
+corners, and only its edges use half-strength pixels. Checked on white (`#FFFFFF`), grey (`#DEE1E6`) and dark
+(`#202124`) tabs: on dark tabs the ink tile melts into the tab and the white N carries the icon, which is intended.
+
+### Clear space and size
+
+- Keep a quarter of the tile (two wall widths) clear on every side of the mark or the lockup.
+- Smallest mark 16 px (favicon). Smallest lockup 24 px tall.
+
+### Colour
+
+Blueprint Ink. Ink tile, white walls and south half, electric (`#33A9FF`) north half. On ink grounds the tile turns
+white with ink walls and an action-blue (`#0B6FE0`) north half: electric on white is too faint (2.6:1) and an
+electric tile hides the needle. In the 16 and 32 px favicons the north half is `#1A86F0` (brand-500): electric next
+to white is only 2.6:1 and the halves smear together at that size; brand-500 keeps 4.5:1 on ink and parts from the
+white. The iOS dark icon uses off-white walls (`#E6EDF5`) on black; the tinted icon is grey levels with a mid-grey
+north half so the tint still shows two halves.
+
+### Do
+
+- Use the files or `LogoMark` / `Wordmark` as they are; pick the on-dark or one-colour version for the ground.
+- Keep the needle two-toned (or cut, in one colour). It is what makes the N a Northpin.
+
+### Don't
+
+- Don't straighten, flip or recolour the needle, or point it anywhere else.
+- Don't put the mark on a gradient, add shadows or outlines, or set the tile on a ground of the same colour.
+- Don't redraw the wordmark in another face, add a tagline inside the lockup, or stack the name under the mark.
+- Don't use the mark as a map pin or a device symbol in the plan; devices keep their trade letters and colours.
 
 ## Voice
 
