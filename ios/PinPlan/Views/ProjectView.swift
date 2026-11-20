@@ -162,7 +162,7 @@ struct MoneyView: View {
     var body: some View {
         EstimateView(model: model)
             .safeAreaInset(edge: .top, spacing: 0) {
-                if let url = serverPageURL(app.settings, "project?id=\(model.bundle.project.id)&tab=billing") {
+                if let url = serverPageURL(app.settings, WebLinks.quotes(job: model.bundle.project.id)) {
                     QuotesAndInvoicesLink(url: url)
                 }
             }

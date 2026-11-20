@@ -96,7 +96,8 @@ source; Russian lives in String Catalogs and follows the glossary in `docs/i18n.
 
 ## Native features
 - **Plan canvas**: pinch-zoom around your fingers, pan, tap to place, long-press/tap to edit, drag to move,
-  haptics; runs, wire runs, closets, measure tool, find-device, layers, labels, undo/redo.
+  haptics; runs, wire runs, closets, measure tool, find-device, layers, labels, undo/redo; **Find similar** counts
+  doors, windows and any repeated symbol, or reads door / window tags, on the device (docs/find-similar.md).
 - **iPad**: device menu and inspector as side panels. **iPhone**: the same panels as sheets.
 - **Exports** via the share sheet (AirDrop, Mail, Files): marked-up plan PDF with legend and count box, crew wiring
   PDF with the home-run schedule (no prices), branded client estimate PDF, CSVs, and `.pinplan.json` backups that
@@ -129,6 +130,8 @@ always uses their company's connection. **Settings › Billdu** in the app shows
 - `ios.yml` runs the core tests and builds the app (Debug for the Simulator, and an unsigned Release build) on every
   change under `ios/`.
 - `ios-testflight.yml` archives, signs and uploads to TestFlight (on demand or on an `ios-v…` tag).
+- `ios-sim-screens.yml` (on demand) runs the XCUITests in `PinPlanUITests/` on an iPad simulator (English plus one
+  more language) and uploads screenshots of the newer features (Find similar).
 - `ios-screenshots.yml` (on demand) screenshots every screen on an iPhone and an iPad simulator.
 - `ios-real-plans.yml` (on demand) runs real plans from the internet through the app's import, scan cleanup and plan
   reader on both simulators.

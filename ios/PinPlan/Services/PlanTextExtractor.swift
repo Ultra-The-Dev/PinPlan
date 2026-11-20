@@ -15,10 +15,23 @@ enum PlanTextExtractor {
         return ocrItems(image)
     }
 
+    /// Every word on a sheet with its own centre (Find similar → Read tags): the original PDF's text layer, else
+    /// on-device text recognition (scans and photos), one item per word.
+    static func words(for sheet: Sheet, store: Store) -> [PlanTextItem] {
+        if let pdfId = sheet.sourcePdfId, let page = sheet.sourcePage,
+           let doc = PDFDocument(url: store.pdfURL(pdfId)), let p = doc.page(at: page) {
+            let fromPDF = pdfItems(p, extraRotation: sheet.sourceRotation ?? 0, splitWords: true)
+            if !fromPDF.isEmpty { return fromPDF }
+        }
+        guard let image = store.image(sheet.imageId) else { return [] }
+        return ocrItems(image, splitWords: true)
+    }
+
     /// Text layer of a vector PDF page (exact text, no recognition errors).
     /// Glyphs are grouped into segments by baseline and horizontal gaps, so separate labels that share a
-    /// baseline (e.g. "LIVING" and "KITCHEN" across a wall) stay separate items.
-    static func pdfItems(_ page: PDFPage, extraRotation: Int) -> [PlanTextItem] {
+    /// baseline (e.g. "LIVING" and "KITCHEN" across a wall) stay separate items. `splitWords`: one item per word,
+    /// wrapped lines not joined.
+    static func pdfItems(_ page: PDFPage, extraRotation: Int, splitWords: Bool = false) -> [PlanTextItem] {
         let box = page.bounds(for: .cropBox)
         guard box.width > 0, box.height > 0, let string = page.string, !string.isEmpty else { return [] }
         let ns = string as NSString
@@ -41,6 +54,7 @@ enum PlanTextExtractor {
             let ch = ns.substring(with: NSRange(location: i, length: 1))
             if ch == "\n" || ch == "\r" { flush(); continue }
             if ch.trimmingCharacters(in: .whitespaces).isEmpty {
+                if splitWords { flush(); continue }
                 if !text.isEmpty { text += " " }
                 continue
             }
@@ -66,7 +80,7 @@ enum PlanTextExtractor {
             last = b
         }
         flush()
-        return PlanReader.joinWrappedLines(segments).map { seg in
+        return (splitWords ? segments : PlanReader.joinWrappedLines(segments)).map { seg in
             var x = ((seg.minX + seg.maxX) / 2 - Double(box.minX)) / Double(box.width)
             var y = ((seg.minY + seg.maxY) / 2) / Double(box.height)   // segment y is already measured down from the top
             for _ in 0..<(turns % 4) { (x, y) = (1 - y, x) }   // quarter turns clockwise
@@ -75,16 +89,30 @@ enum PlanTextExtractor {
     }
 
     /// On-device text recognition for scans and photos.
-    static func ocrItems(_ image: UIImage) -> [PlanTextItem] {
+    /// `splitWords`: one item per word, placed at that word's own box.
+    static func ocrItems(_ image: UIImage, splitWords: Bool = false) -> [PlanTextItem] {
         guard let cg = image.downscaled(maxSide: 3000).cgImage else { return [] }
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = false
         request.minimumTextHeight = 0.006
         try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
-        return (request.results ?? []).compactMap { obs in
-            guard let s = obs.topCandidates(1).first?.string else { return nil }
-            return PlanTextItem(text: s, x: Double(obs.boundingBox.midX), y: Double(1 - obs.boundingBox.midY))
+        return (request.results ?? []).flatMap { obs -> [PlanTextItem] in
+            guard let c = obs.topCandidates(1).first else { return [] }
+            guard splitWords else { return [PlanTextItem(text: c.string, x: Double(obs.boundingBox.midX), y: Double(1 - obs.boundingBox.midY))] }
+            // Words split on spaces only, so "D-12" stays one word.
+            var out: [PlanTextItem] = []
+            let s = c.string
+            var i = s.startIndex
+            while i < s.endIndex {
+                guard !s[i].isWhitespace else { i = s.index(after: i); continue }
+                var j = i
+                while j < s.endIndex && !s[j].isWhitespace { j = s.index(after: j) }
+                let box = (try? c.boundingBox(for: i..<j))?.boundingBox ?? obs.boundingBox
+                out.append(PlanTextItem(text: String(s[i..<j]), x: Double(box.midX), y: Double(1 - box.midY)))
+                i = j
+            }
+            return out
         }
     }
 }

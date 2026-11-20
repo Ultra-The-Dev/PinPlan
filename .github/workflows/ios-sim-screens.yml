@@ -1,0 +1,93 @@
+name: iOS simulator screens (new features)
+
+# Screenshots of the iPad app's newer features (Find similar: match a symbol, review, read tags, accept all) from a
+# small XCUITest (ios/PinPlanUITests) on an iPad simulator, in English and Spanish. The app runs in Debug on its demo
+# job with local data only: no secrets, no server, no sign-in. Run on demand (Actions → iOS simulator screens → Run
+# workflow); download the "ios-sim-screens" artifact. Test failures don't fail the run: the screenshots are the point,
+# and the xcresult bundles are uploaded too.
+on:
+  workflow_dispatch:
+    inputs:
+      second_language:
+        description: "Second language besides English (es, pt-BR, ru, uk, pl, zh-Hans, vi)"
+        required: false
+        default: "es"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-sim-screens
+  cancel-in-progress: true
+
+jobs:
+  screens:
+    runs-on: macos-26
+    timeout-minutes: 75
+    env:
+      SECOND_LANG: ${{ inputs.second_language || 'es' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
+      - run: brew install xcodegen
+      - name: Generate the project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Create and boot an iPad simulator
+        id: sim
+        run: |
+          # Every simulator command gets a time limit so one hang can't stall the whole run.
+          t () { local secs=$1; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@" || echo "warning: '$*' failed or timed out"; }
+          xcrun simctl list runtimes | tail -5
+          IPAD=$(xcrun simctl list devicetypes | grep -E "iPad Pro \(?13" | grep -oE "com\.apple\.CoreSimulator\.SimDeviceType\.[A-Za-z0-9-]+" | tail -1)
+          RUNTIME=$(xcrun simctl list runtimes | grep -E "^iOS" | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+" | tail -1)
+          echo "iPad type: $IPAD / runtime: $RUNTIME"
+          UDID=$(xcrun simctl create ipad-screens "${IPAD:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}" $RUNTIME)
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          t 180 xcrun simctl boot "$UDID"
+          t 400 xcrun simctl bootstatus "$UDID" -b
+          t 30 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4
+      - name: Build the app and the UI tests
+        working-directory: ios
+        run: |
+          set -o pipefail
+          perl -e 'alarm 1800; exec @ARGV' xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee build.log | grep -E "error:|\*\* (TEST )?BUILD" || true
+          grep -q "TEST BUILD SUCCEEDED" build.log
+      - name: Screens in English and ${{ env.SECOND_LANG }}
+        working-directory: ios
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          case "$SECOND_LANG" in es|pt-BR|ru|uk|pl|zh-Hans|vi) ;; *) echo "Unknown language: $SECOND_LANG"; exit 1 ;; esac
+          mkdir -p shots
+          for L in en "$SECOND_LANG"; do
+            echo "== $L"
+            # A fresh install each time, so the demo job starts without the devices the last run accepted.
+            perl -e 'alarm 60; exec @ARGV' xcrun simctl uninstall "$UDID" com.pinplan.app || true
+            # TEST_RUNNER_ variables reach the test process without the prefix (SHOT_LANG, SHOT_DIR).
+            TEST_RUNNER_SHOT_LANG="$L" TEST_RUNNER_SHOT_DIR="$PWD/shots" perl -e 'alarm 1200; exec @ARGV' \
+              xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -destination "id=$UDID" -derivedDataPath build \
+              -testLanguage "$L" -resultBundlePath "results-$L.xcresult" CODE_SIGNING_ALLOWED=NO test-without-building \
+              2>&1 | tee "test-$L.log" | grep -E "Test Case|error:|\*\* TEST" || echo "warning: the $L run failed or timed out"
+            # The same screenshots from the result bundle, in case the test couldn't write to SHOT_DIR.
+            perl -e 'alarm 300; exec @ARGV' xcrun xcresulttool export attachments --path "results-$L.xcresult" --output-path "shots/xcresult-$L" \
+              || echo "warning: no attachments exported for $L"
+          done
+          ls -laR shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-sim-screens
+          path: |
+            ios/shots
+            ios/test-*.log
+            ios/build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-sim-screens-xcresult
+          path: ios/results-*.xcresult
+          if-no-files-found: ignore

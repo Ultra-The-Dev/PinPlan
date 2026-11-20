@@ -411,6 +411,8 @@ struct AboutSection: View {
 
     var body: some View {
         Section {
+            // The web app's jobs list (/jobs; "/" is the public home page): quotes, invoices and change orders live there.
+            AboutLink(title: String(localized: "Northpin on the web"), icon: "safari", url: serverPageURL(app.settings, WebLinks.jobs))
             AboutLink(title: String(localized: "Terms of service"), icon: "doc.text", url: serverPageURL(app.settings, "terms"))
             AboutLink(title: String(localized: "Privacy policy"), icon: "hand.raised", url: serverPageURL(app.settings, "privacy"))
             AboutLink(title: String(localized: "Support"), icon: "questionmark.circle", url: serverPageURL(app.settings, "support"))

@@ -190,7 +190,7 @@ struct RfiDetailView: View {
                 // office sends it.
                 if r.status == .draft && FieldParity.RFI.can(app.cloud.role, "send") {
                     Section {
-                        WebOnlyLink(title: String(localized: "Send it from the web"), path: "project?id=\(model.bundle.project.id)&tab=field&section=rfis")
+                        WebOnlyLink(title: String(localized: "Send it from the web"), path: WebLinks.rfis(job: model.bundle.project.id))
                     } footer: {
                         Text("The office checks the wording and who it goes to, then sends it.")
                     }

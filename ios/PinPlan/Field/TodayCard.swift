@@ -161,13 +161,13 @@ struct MoreOnWebRow: View {
         // schedule.ts canEditSchedule, SettingsForm "templates" is office only): they get the schedule, where a crew
         // member updates progress.
         let pages: [(String, String, String)] = office ? [
-            (String(localized: "Change orders"), "doc.badge.plus", "project?id=\(job)&tab=changes"),
-            (String(localized: "Quotes and invoices"), "doc.text", "project?id=\(job)&tab=billing"),
-            (String(localized: "Send RFIs"), "questionmark.bubble", "project?id=\(job)&tab=field&section=rfis"),
-            (String(localized: "Plan the schedule"), "calendar", "project?id=\(job)&tab=field&section=schedule"),
+            (String(localized: "Change orders"), "doc.badge.plus", WebLinks.changeOrders(job: job)),
+            (String(localized: "Quotes and invoices"), "doc.text", WebLinks.quotes(job: job)),
+            (String(localized: "Send RFIs"), "questionmark.bubble", WebLinks.rfis(job: job)),
+            (String(localized: "Plan the schedule"), "calendar", WebLinks.schedule(job: job)),
             (String(localized: "Job templates"), "square.on.square", "settings#templates"),
         ] : [
-            (String(localized: "Update schedule progress"), "calendar", "project?id=\(job)&tab=field&section=schedule"),
+            (String(localized: "Update schedule progress"), "calendar", WebLinks.schedule(job: job)),
         ]
         let links = pages.compactMap { p in serverPageURL(app.settings, p.2).map { (p.0, p.1, $0) } }
         if !links.isEmpty {
