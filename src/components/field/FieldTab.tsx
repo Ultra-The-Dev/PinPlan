@@ -47,7 +47,8 @@ export default function FieldTab() {
   const role = useRole();
   const project = useEditor((s) => s.project);
   const section = pickFieldSection(params.get("section"), { taskLink: params.has("tf") || params.has("task"), tech: role === "tech" });
-  const nav = NAV.find((n) => n.sections.includes(section))!;
+  // "photos" is shown by the job page in place of this view; fall back rather than crash if it ever lands here.
+  const nav = NAV.find((n) => n.sections.includes(section)) ?? NAV[0];
   const sub = SUB[nav.id];
 
   /** Switch section (and pass extra params such as log=today); params that belong to another section are dropped. */

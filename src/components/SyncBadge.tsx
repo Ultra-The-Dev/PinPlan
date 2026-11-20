@@ -26,7 +26,7 @@ export function syncBadgeState(s: BadgeInput): SyncBadgeState {
   if (!signedIn) return { text: "Not signed in", short: "Sign in", quiet: false, cls: grey };
   if (ownerMismatch) return { text: "Sync paused", short: "Paused", quiet: false, cls: amber };
   if (readOnly) return { text: pending ? `Read-only · ${pending} kept here` : "Read-only", short: "Read-only", quiet: false, cls: amber };
-  if (refused) return { text: refused === 1 ? "1 change not accepted" : `${refused} changes not accepted`, short: "Not saved", quiet: false, cls: red };
+  if (refused) return { text: refused === 1 ? "1 change not accepted" : `${refused} changes not accepted`, short: "Not accepted", quiet: false, cls: red };
   if (error) return { text: "Sync error", short: "Sync error", quiet: false, cls: red };
   // Syncing comes and goes every few seconds; on phones it would make the header jump, so it stays quiet there.
   if (syncing) return { text: "Syncing…", short: "Syncing", quiet: true, cls: "bg-blue-100 text-blue-700" };

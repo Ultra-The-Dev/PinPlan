@@ -15,7 +15,7 @@ describe("syncBadgeState", () => {
     expect(syncBadgeState({ ...ok, online: false, configured: false })).toMatchObject({ text: "Offline", short: "Offline", quiet: false });
     expect(syncBadgeState({ ...ok, pending: 2 })).toMatchObject({ text: "2 pending", short: "2 pending", quiet: false });
     expect(syncBadgeState({ ...ok, signedIn: false })).toMatchObject({ short: "Sign in", quiet: false });
-    expect(syncBadgeState({ ...ok, refused: 1 })).toMatchObject({ text: "1 change not accepted", short: "Not saved", quiet: false });
+    expect(syncBadgeState({ ...ok, refused: 1 })).toMatchObject({ text: "1 change not accepted", short: "Not accepted", quiet: false });
     expect(syncBadgeState({ ...ok, error: "boom" })).toMatchObject({ text: "Sync error", quiet: false });
     expect(syncBadgeState({ ...ok, readOnly: true, pending: 4 })).toMatchObject({ text: "Read-only · 4 kept here", short: "Read-only", quiet: false });
     expect(syncBadgeState({ ...ok, ownerMismatch: { email: null } })).toMatchObject({ text: "Sync paused", short: "Paused", quiet: false });
