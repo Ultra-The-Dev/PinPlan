@@ -1,6 +1,7 @@
 // Plan markups: pure geometry, visibility and permission rules shared by the plan overlay, the PDF export and tests.
 // Positions are relative (0–1) to the sheet; widths and text sizes are fractions of the sheet width. See
 // docs/plan-markups.md. Nothing here is counted: markups never reach computeTakeoff.
+import { msg } from "./i18n/msg";
 import type { MarkupKind, PlanMarkup } from "./types";
 import type { TeamRole } from "./teamLogic";
 
@@ -27,14 +28,14 @@ export const HIGHLIGHT_FACTOR = 6;
 export const HIGHLIGHT_OPACITY = 0.35;
 
 export const KIND_NAMES: Record<MarkupKind, string> = {
-  pen: "Pen",
-  highlight: "Highlighter",
-  line: "Line",
-  arrow: "Arrow",
-  cloud: "Cloud",
-  rect: "Rectangle",
-  ellipse: "Ellipse",
-  text: "Text",
+  pen: msg("Pen"),
+  highlight: msg("Highlighter"),
+  line: msg("Line"),
+  arrow: msg("Arrow"),
+  cloud: msg("Cloud"),
+  rect: msg("Rectangle"),
+  ellipse: msg("Ellipse"),
+  text: msg("Text"),
 };
 
 /** Kinds drawn by dragging from one corner / end to the other (two points). */

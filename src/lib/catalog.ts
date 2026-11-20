@@ -1,25 +1,26 @@
+import { msg } from "./i18n/msg";
 import { DOC_DEFAULT_ACCENT, DOC_DEFAULT_BRAND } from "./brandDefaults";
 import type { AppSettings, BusinessSettings, Category, ClosetKind, DeviceType, Layer, Mount } from "./types";
 
 export const CATEGORIES: { id: Category; name: string; color: string }[] = [
-  { id: "security", name: "Security", color: "#dc2626" },
-  { id: "network", name: "Network", color: "#2563eb" },
-  { id: "audio", name: "Audio", color: "#7c3aed" },
-  { id: "video", name: "Video", color: "#0891b2" },
-  { id: "smarthome", name: "Smart home", color: "#059669" },
-  { id: "lighting", name: "Lighting", color: "#d97706" },
-  { id: "shades", name: "Shades", color: "#db2777" },
-  { id: "infrastructure", name: "Infrastructure", color: "#16a34a" },
+  { id: "security", name: msg("Security"), color: "#dc2626" },
+  { id: "network", name: msg("Network"), color: "#2563eb" },
+  { id: "audio", name: msg("Audio"), color: "#7c3aed" },
+  { id: "video", name: msg("Video"), color: "#0891b2" },
+  { id: "smarthome", name: msg("Smart home"), color: "#059669" },
+  { id: "lighting", name: msg("Lighting"), color: "#d97706" },
+  { id: "shades", name: msg("Shades"), color: "#db2777" },
+  { id: "infrastructure", name: msg("Infrastructure"), color: "#16a34a" },
   // Other trades. These are the default names/colours; a trade pack can rename a category (see trades.ts).
-  { id: "power", name: "Receptacles", color: "#c2410c" },
-  { id: "switching", name: "Switches & controls", color: "#4f46e5" },
-  { id: "panels", name: "Panels & equipment", color: "#334155" },
-  { id: "fire", name: "Fire & life safety", color: "#e11d48" },
-  { id: "hvac", name: "HVAC", color: "#0284c7" },
-  { id: "plumbing", name: "Plumbing", color: "#0d9488" },
-  { id: "solar", name: "Solar", color: "#ca8a04" },
-  { id: "ev", name: "EV charging", color: "#65a30d" },
-  { id: "general", name: "General", color: "#64748b" },
+  { id: "power", name: msg("Receptacles"), color: "#c2410c" },
+  { id: "switching", name: msg("Switches & controls"), color: "#4f46e5" },
+  { id: "panels", name: msg("Panels & equipment"), color: "#334155" },
+  { id: "fire", name: msg("Fire & life safety"), color: "#e11d48" },
+  { id: "hvac", name: msg("HVAC"), color: "#0284c7" },
+  { id: "plumbing", name: msg("Plumbing"), color: "#0d9488" },
+  { id: "solar", name: msg("Solar"), color: "#ca8a04" },
+  { id: "ev", name: msg("EV charging"), color: "#65a30d" },
+  { id: "general", name: msg("General"), color: "#64748b" },
 ];
 
 /** The low-voltage categories (the original catalog), in their original order. */
@@ -27,7 +28,7 @@ export const LOW_VOLTAGE_CATEGORIES: Category[] = ["security", "network", "audio
 
 export const LAYERS: { id: Layer; name: string }[] = [
   ...CATEGORIES.map((c) => ({ id: c.id as Layer, name: c.name })),
-  { id: "wiring", name: "Wiring" },
+  { id: "wiring", name: msg("Wiring") },
 ];
 
 export const WIRE_TYPES = [

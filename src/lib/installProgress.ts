@@ -3,6 +3,7 @@
 // runs in tests; the iPad app mirrors it in PinPlanCore (InstallProgress.swift).
 //
 // Install state never changes what was quoted: takeoff.ts ignores it (counts still come only from placed markers/runs).
+import { msg } from "./i18n/msg";
 import { categoryOf } from "./catalog";
 import { tradeCategory } from "./trades";
 import type { Closet, DeviceType, InstallState, InstallStatus, Marker, Run, RunKind, Sheet, TradeId } from "./types";
@@ -21,12 +22,12 @@ export const STATUS_COLORS: Record<InstallStatus, string> = {
 };
 
 export const STATUS_LABELS: Record<InstallStatus, string> = {
-  planned: "Planned",
-  roughed: "Roughed",
-  installed: "Installed",
-  tested: "Tested",
-  verified: "Verified",
-  issue: "Issue",
+  planned: msg("Planned"),
+  roughed: msg("Roughed"),
+  installed: msg("Installed"),
+  tested: msg("Tested"),
+  verified: msg("Verified"),
+  issue: msg("Issue"),
 };
 
 /** Default: a photo is needed to mark something installed. */
@@ -69,22 +70,22 @@ const NO_ROUGH_CATS = new Set(["infrastructure", "panels"]);
  */
 export function workflowFor(item: { category?: string | null; kind?: string | null; run?: RunKind | null }, trades: TradeId[] = ["lowvoltage"]): Workflow {
   const primary = trades[0] ?? "lowvoltage";
-  if (item.run === "led" || item.run === "stair") return wf("led", ["installed", "tested"], { installed: "Installed", tested: "Lit & tested" });
+  if (item.run === "led" || item.run === "stair") return wf("led", ["installed", "tested"], { installed: msg("Installed"), tested: msg("Lit & tested") });
   if (item.run === "wire") {
-    if (primary === "plumbing" || primary === "hvac") return wf("pipe", ["roughed", "installed", "tested"], { roughed: "Run", installed: "Connected", tested: "Pressure tested" });
-    if (primary === "electrical") return wf("circuit", ["roughed", "installed", "tested"], { roughed: "Pulled", installed: "Terminated", tested: "Tested" });
-    return wf("cable", ["roughed", "installed", "tested"], { roughed: "Pulled", installed: "Terminated", tested: "Certified" });
+    if (primary === "plumbing" || primary === "hvac") return wf("pipe", ["roughed", "installed", "tested"], { roughed: msg("Run"), installed: msg("Connected"), tested: msg("Pressure tested") });
+    if (primary === "electrical") return wf("circuit", ["roughed", "installed", "tested"], { roughed: msg("Pulled"), installed: msg("Terminated"), tested: msg("Tested") });
+    return wf("cable", ["roughed", "installed", "tested"], { roughed: msg("Pulled"), installed: msg("Terminated"), tested: msg("Certified") });
   }
-  if (item.kind === "led") return wf("led", ["installed", "tested"], { installed: "Installed", tested: "Lit & tested" });
+  if (item.kind === "led") return wf("led", ["installed", "tested"], { installed: msg("Installed"), tested: msg("Lit & tested") });
   const cat = item.category ?? "general";
   const steps: InstallStatus[] = NO_ROUGH_CATS.has(cat) ? ["installed", "tested"] : ["roughed", "installed", "tested"];
   if (ELECTRICAL_CATS.has(cat) || (cat === "lighting" && primary === "electrical"))
-    return wf("electrical", steps, { roughed: "Rough-in", installed: "Trimmed out", tested: "Tested" });
-  if (cat === "fire") return wf("fire", steps, { roughed: "Rough-in", installed: "Installed", tested: "Tested" });
-  if (cat === "hvac") return wf("hvac", steps, { roughed: "Rough-in", installed: "Set", tested: "Started up" });
-  if (cat === "plumbing") return wf("plumbing", steps, { roughed: "Rough-in", installed: "Set", tested: "Tested" });
-  if (cat === "solar") return wf("solar", steps, { roughed: "Mounted", installed: "Wired", tested: "Commissioned" });
-  return wf("lowvoltage", steps, { roughed: "Pre-wired", installed: "Installed", tested: "Tested" });
+    return wf("electrical", steps, { roughed: msg("Rough-in"), installed: msg("Trimmed out"), tested: msg("Tested") });
+  if (cat === "fire") return wf("fire", steps, { roughed: msg("Rough-in"), installed: msg("Installed"), tested: msg("Tested") });
+  if (cat === "hvac") return wf("hvac", steps, { roughed: msg("Rough-in"), installed: msg("Set"), tested: msg("Started up") });
+  if (cat === "plumbing") return wf("plumbing", steps, { roughed: msg("Rough-in"), installed: msg("Set"), tested: msg("Tested") });
+  if (cat === "solar") return wf("solar", steps, { roughed: msg("Mounted"), installed: msg("Wired"), tested: msg("Commissioned") });
+  return wf("lowvoltage", steps, { roughed: msg("Pre-wired"), installed: msg("Installed"), tested: msg("Tested") });
 }
 
 /** The workflow for a marker (via its device type) or a run. */

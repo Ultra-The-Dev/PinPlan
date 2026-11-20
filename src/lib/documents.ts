@@ -1,6 +1,7 @@
 // Quotes, invoices and credit notes: totals, statuses, numbering, A/R aging, CSV and the client snapshot.
 // Pure (no browser, database or network) so the web app, the server and tests share it; the iPad app mirrors it
 // (see docs/documents.md). Money is rounded to cents half away from zero, like the estimate (`money`).
+import { msg, t } from "./i18n";
 import { money } from "./estimate";
 import type {
   Adjust,
@@ -85,21 +86,21 @@ export function normalizeDocSettings(s: Partial<DocumentSettings> | null | undef
 export const DOC_KINDS: DocKind[] = ["quote", "invoice", "credit_note"];
 
 export const PAYMENT_METHODS: { id: PaymentMethod; label: string }[] = [
-  { id: "check", label: "Check" },
-  { id: "ach", label: "ACH / bank transfer" },
-  { id: "card", label: "Card" },
+  { id: "check", label: msg("Check") },
+  { id: "ach", label: msg("ACH / bank transfer") },
+  { id: "card", label: msg("Card") },
   { id: "zelle", label: "Zelle" },
-  { id: "cash", label: "Cash" },
-  { id: "other", label: "Other" },
+  { id: "cash", label: msg("Cash") },
+  { id: "other", label: msg("Other") },
 ];
 
 export const PAYMENT_TERMS: { days: number; label: string }[] = [
-  { days: 0, label: "Due on receipt" },
-  { days: 7, label: "Net 7" },
-  { days: 15, label: "Net 15" },
-  { days: 30, label: "Net 30" },
-  { days: 45, label: "Net 45" },
-  { days: 60, label: "Net 60" },
+  { days: 0, label: msg("Due on receipt") },
+  { days: 7, label: msg("Net 7") },
+  { days: 15, label: msg("Net 15") },
+  { days: 30, label: msg("Net 30") },
+  { days: 45, label: msg("Net 45") },
+  { days: 60, label: msg("Net 60") },
 ];
 
 export function termsLabel(days: number | null | undefined): string {
@@ -321,17 +322,17 @@ export function displayStatus(doc: Pick<SalesDoc, "kind" | "status" | "dueDate" 
 }
 
 export const STATUS_LABEL: Record<DocDisplayStatus, string> = {
-  draft: "Draft",
-  ready: "Ready to send",
-  sent: "Sent",
-  viewed: "Viewed",
-  accepted: "Approved",
-  declined: "Declined",
-  partially_paid: "Partly paid",
-  paid: "Paid",
-  void: "Void",
-  overdue: "Overdue",
-  expired: "Expired",
+  draft: msg("Draft"),
+  ready: msg("Ready to send"),
+  sent: msg("Sent"),
+  viewed: msg("Viewed"),
+  accepted: msg("Approved"),
+  declined: msg("Declined"),
+  partially_paid: msg("Partly paid"),
+  paid: msg("Paid"),
+  void: msg("Void"),
+  overdue: msg("Overdue"),
+  expired: msg("Expired"),
 };
 
 /** Recompute the denormalised money fields and the status from lines, payments and credit notes. */
@@ -378,7 +379,7 @@ export function numberFormatProblem(format: string): string | null {
 // ---------------------------------------------------------------- A/R aging
 
 export type AgingBucket = "current" | "d1_30" | "d31_60" | "d61_90" | "d90";
-export const AGING_LABELS: Record<AgingBucket, string> = { current: "Current", d1_30: "1–30 days", d31_60: "31–60 days", d61_90: "61–90 days", d90: "90+ days" };
+export const AGING_LABELS: Record<AgingBucket, string> = { current: msg("Current"), d1_30: msg("1–30 days"), d31_60: msg("31–60 days"), d61_90: msg("61–90 days"), d90: msg("90+ days") };
 
 export function agingBucket(daysOverdue: number): AgingBucket {
   if (daysOverdue <= 0) return "current";
@@ -641,7 +642,7 @@ export function addChangeOrders(doc: SalesDoc, changes: BillableChange[]): Sales
   const already = new Set(doc.options?.changeOrderIds ?? []);
   const todo = changes.filter((c) => !already.has(c.id) && c.lines.length);
   if (!todo.length) return doc;
-  if (!canAddChangeOrders(doc)) throw new Error("This invoice has a discount, so change orders can't go on it. Bill them on their own invoice (Change orders → Bill this change).");
+  if (!canAddChangeOrders(doc)) throw new Error(t("This invoice has a discount, so change orders can't go on it. Bill them on their own invoice (Change orders → Bill this change)."));
   const before = documentTotals(doc);
   let taxes = [...doc.taxes];
   let lines = [...doc.lines];

@@ -4,6 +4,7 @@ import { closetMeta, LAYERS } from "./catalog";
 import { canEditJob, READ_ONLY_MESSAGE, ReadOnlyError } from "./canEdit";
 import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
+import { t } from "./i18n";
 import { nextLabel } from "./labels";
 import { claimPlanInput } from "./planOverlays";
 import { rotateSheetMeasurements } from "./measurements";
@@ -315,7 +316,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   async commit(changes, record = true) {
     // The free trial or subscription has ended: jobs are read-only here too (the cloud would refuse the change).
     if (!canEditJob()) {
-      toast(READ_ONLY_MESSAGE, "error");
+      toast(t(READ_ONLY_MESSAGE), "error");
       throw new ReadOnlyError();
     }
     commitGen++;

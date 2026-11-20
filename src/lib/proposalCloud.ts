@@ -1,6 +1,7 @@
 "use client";
 // Publishing proposals to Supabase, and reading/answering them from the client page.
 import { LAYERS } from "./catalog";
+import { t } from "./i18n";
 import { renderSheet } from "./renderSheet";
 import { getSupabase } from "./supabase";
 import type { ProposalSnapshot, ProposalStatus } from "./proposal";
@@ -39,7 +40,7 @@ export const CLIENT_LAYERS: Layer[] = LAYERS.map((l) => l.id).filter((l) => l !=
 
 function need() {
   const sb = getSupabase();
-  if (!sb) throw new Error("Cloud sync isn't set up — see Settings → Account.");
+  if (!sb) throw new Error(t("Cloud sync isn't set up — see Settings → Account."));
   return sb;
 }
 
@@ -69,7 +70,7 @@ export async function publishProposal(args: {
       const blob: Blob = await new Promise((r, j) => canvas.toBlob((b) => (b ? r(b) : j(new Error("Couldn't render the plan"))), "image/jpeg", 0.82));
       const path = `${args.userId}/${args.token}/${sheet.id}.jpg`;
       const { error } = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-      if (error) throw new Error(`Uploading plans: ${error.message}`);
+      if (error) throw new Error(t("Uploading plans: {error}", { error: error.message }));
       images[sheet.id] = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
     }
   }

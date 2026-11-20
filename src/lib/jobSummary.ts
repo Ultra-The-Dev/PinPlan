@@ -1,6 +1,7 @@
 // Job health at a glance: counts, checklist progress, tasks, photos, logs and the one thing to do next.
 // Pure; works offline from the local job data. Mirrors PinPlanCore/JobSummary.swift.
 import { checklistProgress, taskBucket } from "./fieldDocs";
+import { t, tn } from "./i18n";
 import type { ProposalStatus } from "./proposal";
 import type { Checklist, JobLog, Marker, Photo, Project, Run, Sheet } from "./types";
 
@@ -77,8 +78,6 @@ export interface JobSummary {
   next: NextStep;
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
 function latest(list: ProposalInfo[], kind: ProposalInfo["kind"]): ProposalInfo | null {
   let best: ProposalInfo | null = null;
   for (const p of list) if (p.kind === kind && p.status !== "revoked" && (!best || p.createdAt > best.createdAt)) best = p;
@@ -137,44 +136,44 @@ export function jobSummary(input: JobSummaryInput): JobSummary {
 /** The single most useful thing to do next on the job. */
 export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposalsKnown: boolean, prices = true): NextStep {
   const step = (kind: NextStepKind, text: string, tab: JobTab): NextStep => ({ kind, text, tab });
-  if (!s.sheets) return step("addPlans", "Add the floor plans", "sheets");
-  if (!s.devices && !s.ledRuns) return step("placeDevices", "Pin devices on the plan", "plan");
-  if (s.tasks.overdue) return step("overdueTasks", `${plural(s.tasks.overdue, "overdue task")}`, "field");
+  if (!s.sheets) return step("addPlans", t("Add the floor plans"), "sheets");
+  if (!s.devices && !s.ledRuns) return step("placeDevices", t("Pin devices on the plan"), "plan");
+  if (s.tasks.overdue) return step("overdueTasks", tn("{n} overdue task", "{n} overdue tasks", s.tasks.overdue), "field");
   if (!prices) {
     // Technicians: estimates, proposals and invoices are the office's job.
     if (project.status === "estimate") {
-      if (s.tasks.dueToday) return step("tasksToday", `${plural(s.tasks.dueToday, "task")} due today`, "field");
-      return step("officePricing", "With the office for pricing — check the plan and devices", "plan");
+      if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "field");
+      return step("officePricing", t("With the office for pricing — check the plan and devices"), "plan");
     }
-    if (project.status === "installed") return s.tasks.open ? step("closeTasks", `Close out ${plural(s.tasks.open, "open task")}`, "field") : step("done", "All wrapped up", "info");
+    if (project.status === "installed") return s.tasks.open ? step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "field") : step("done", t("All wrapped up"), "info");
   }
   const unpriced = !!s.estimate && (s.estimate.unpriced > 0 || s.estimate.total <= 0);
   const billed = (project.billduDocs ?? []).length > 0;
 
   if (project.status === "estimate") {
     const p = s.proposal;
-    if (p?.status === "accepted") return step("markApproved", "Client approved the quote — mark the job approved", "estimate");
-    if (p?.status === "declined") return step("reviseProposal", "Quote declined — revise and resend", "estimate");
-    if (p) return step("awaitClient", p.status === "viewed" ? "Client viewed the quote — follow up" : "Waiting on the client’s answer", "estimate");
+    if (p?.status === "accepted") return step("markApproved", t("Client approved the quote — mark the job approved"), "estimate");
+    if (p?.status === "declined") return step("reviseProposal", t("Quote declined — revise and resend"), "estimate");
+    if (p) return step("awaitClient", p.status === "viewed" ? t("Client viewed the quote — follow up") : t("Waiting on the client’s answer"), "estimate");
     // Not priced yet and the client hasn't seen the layout: a plan review needs no prices.
-    if (proposalsKnown && unpriced && !s.review && !billed) return step("sendReview", "Send plan for review", "takeoff");
+    if (proposalsKnown && unpriced && !s.review && !billed) return step("sendReview", t("Send plan for review"), "takeoff");
     if (unpriced)
-      return step("priceEstimate", s.estimate!.unpriced ? `Finish pricing (${plural(s.estimate!.unpriced, "line")} without a price)` : "Finish pricing", "estimate");
-    if (billed) return step("awaitClient", "Quote sent — mark the job approved when the client signs", "estimate");
-    return step("sendProposal", "Send the quote to the client", "estimate");
+      return step("priceEstimate", s.estimate!.unpriced ? tn("Finish pricing ({n} line without a price)", "Finish pricing ({n} lines without a price)", s.estimate!.unpriced) : t("Finish pricing"), "estimate");
+    if (billed) return step("awaitClient", t("Quote sent — mark the job approved when the client signs"), "estimate");
+    return step("sendProposal", t("Send the quote to the client"), "estimate");
   }
 
   if (project.status === "approved") {
-    if (s.tasks.dueToday) return step("tasksToday", `${plural(s.tasks.dueToday, "task")} due today`, "field");
-    if (!s.checklists.lists) return step("startChecklist", "Start an install checklist", "field");
-    if (s.checklists.missingPhotos) return step("checklistPhotos", `${plural(s.checklists.missingPhotos, "checklist item")} need${s.checklists.missingPhotos === 1 ? "s" : ""} a photo`, "field");
+    if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "field");
+    if (!s.checklists.lists) return step("startChecklist", t("Start an install checklist"), "field");
+    if (s.checklists.missingPhotos) return step("checklistPhotos", tn("{n} checklist item needs a photo", "{n} checklist items need a photo", s.checklists.missingPhotos), "field");
     if (s.checklists.done < s.checklists.total)
-      return step("finishChecklists", `Finish checklists (${s.checklists.done} of ${s.checklists.total} done)`, "field");
-    return step("markInstalled", "Everything checked off — mark the job installed", "info");
+      return step("finishChecklists", t("Finish checklists ({done} of {total} done)", { done: s.checklists.done, total: s.checklists.total }), "field");
+    return step("markInstalled", t("Everything checked off — mark the job installed"), "info");
   }
 
   // installed
-  if (s.tasks.open) return step("closeTasks", `Close out ${plural(s.tasks.open, "open task")}`, "field");
-  if (!(project.billduDocs ?? []).some((d) => d.type === "invoice")) return step("invoice", "Send the final invoice", "estimate");
-  return step("done", "All wrapped up", "info");
+  if (s.tasks.open) return step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "field");
+  if (!(project.billduDocs ?? []).some((d) => d.type === "invoice")) return step("invoice", t("Send the final invoice"), "estimate");
+  return step("done", t("All wrapped up"), "info");
 }

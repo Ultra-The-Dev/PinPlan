@@ -4,6 +4,7 @@
 import { nanoid } from "nanoid";
 import type { BillableChange } from "./documents";
 import { money } from "./estimate";
+import { msg, t } from "./i18n";
 import { productIdFor, productTitle } from "./products";
 import type {
   AppSettings,
@@ -240,22 +241,33 @@ export function revisedTitle(title: string): string {
   return `${title.trim() || "Change order"} (rev 1)`;
 }
 
+/** "Can't <action> a <status> change order.": one whole sentence per action, so it translates (src/lib/i18n). */
+const CANT: Record<CoAction, string> = {
+  send: msg("Can't send a {status} change order."),
+  approve: msg("Can't approve a {status} change order."),
+  reject: msg("Can't reject a {status} change order."),
+  void: msg("Can't void a {status} change order."),
+  revise: msg("Can't revise a {status} change order."),
+};
+/** The status as a word in those sentences. */
+const CO_STATUS_WORD: Record<ChangeOrder["status"], string> = { draft: msg("draft"), sent: msg("sent"), approved: msg("approved"), rejected: msg("rejected"), void: msg("void") };
+
 /** Move a change order through its life cycle. Throws when the action isn't allowed from its status. */
 export function transition(co: ChangeOrder, action: CoAction, now: string, opts: TransitionOptions = {}): TransitionResult {
   if (!canDo(co, action)) {
-    if (co.status === "approved") throw new Error(`${coCode(co.number)} is approved and can't be changed. Make a new change order for further changes.`);
-    throw new Error(`Can't ${action} a ${co.status} change order.`);
+    if (co.status === "approved") throw new Error(t("{code} is approved and can't be changed. Make a new change order for further changes.", { code: coCode(co.number) }));
+    throw new Error(t(CANT[action], { status: CO_STATUS_WORD[co.status] ? t(CO_STATUS_WORD[co.status]) : co.status }));
   }
   switch (action) {
     case "send": {
-      if (!co.lines.length) throw new Error("Add at least one line before sending.");
+      if (!co.lines.length) throw new Error(t("Add at least one line before sending."));
       const token = co.shareToken || opts.token;
-      if (!token) throw new Error("A link token is needed to send.");
+      if (!token) throw new Error(t("A link token is needed to send."));
       return { co: { ...co, status: "sent", shareToken: token, sentAt: co.sentAt ?? now, publicView: opts.publicView ?? co.publicView ?? null, updatedAt: now } };
     }
     case "approve": {
       const name = opts.name?.trim();
-      if (!name) throw new Error("Enter who approved it.");
+      if (!name) throw new Error(t("Enter who approved it."));
       return {
         co: { ...co, status: "approved", approvedName: name, respondedAt: now, signatureImageId: opts.signatureImageId ?? co.signatureImageId ?? null, clientComment: opts.comment?.trim() || co.clientComment || null, updatedAt: now },
       };

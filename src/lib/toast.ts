@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { t } from "./i18n";
 
 export type ToastKind = "success" | "error" | "info";
 /** A button on the toast that goes somewhere in the app (e.g. "Plan & billing" → /settings#billing). */
@@ -54,7 +55,7 @@ export const useToasts = create<ToastState>((set, get) => {
     paused: false,
     push(text, kind = "success", opts = {}) {
       const id = ++seq;
-      const action = opts.action ?? standingActions.get(text);
+      const action = opts.action ?? standingAction(text);
       const all = [...get().toasts, action ? { id, kind, text, action } : { id, kind, text }];
       const dropped = all.slice(0, Math.max(0, all.length - MAX_TOASTS));
       for (const d of dropped) {
@@ -88,6 +89,12 @@ export const toast = (text: string, kind?: ToastKind, opts?: ToastOptions) => us
 
 /** Messages that always carry the same button, wherever they are shown from (e.g. the read-only message). */
 const standingActions = new Map<string, ToastAction>();
+/** The button for a message, which may be shown in English or translated (src/lib/i18n); its label is translated. */
+function standingAction(text: string): ToastAction | undefined {
+  let a = standingActions.get(text);
+  if (!a) for (const [k, v] of standingActions) if (t(k) === text) a = v;
+  return a && { ...a, label: t(a.label) };
+}
 export function setToastAction(text: string, action: ToastAction | null): void {
   if (action) standingActions.set(text, action);
   else standingActions.delete(text);

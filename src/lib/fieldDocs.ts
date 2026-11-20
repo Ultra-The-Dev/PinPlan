@@ -1,5 +1,6 @@
 // Field documentation helpers: checklist templates and progress, tags, the job timeline and photo filters.
 // Mirrors PinPlanCore/FieldDocsLogic.swift.
+import { msg } from "./i18n/msg";
 import type { Checklist, ChecklistItem, ChecklistTemplate, JobDocument, JobLog, Photo, PhotoComment, Project } from "./types";
 import { memberLabel } from "./teamLogic";
 
@@ -251,11 +252,12 @@ export function localDay(iso: string): string {
 
 export type TaskBucket = "overdue" | "today" | "week" | "later" | "none";
 export const TASK_BUCKETS: { id: TaskBucket; name: string }[] = [
+  // Not msg(): the dictionary's "Overdue" is the invoice status («Просрочен»), wrong for a list of tasks.
   { id: "overdue", name: "Overdue" },
-  { id: "today", name: "Today" },
-  { id: "week", name: "Next 7 days" },
-  { id: "later", name: "Later" },
-  { id: "none", name: "No due date" },
+  { id: "today", name: msg("Today") },
+  { id: "week", name: msg("Next 7 days") },
+  { id: "later", name: msg("Later") },
+  { id: "none", name: msg("No due date") },
 ];
 
 export interface OpenTask {
@@ -410,11 +412,11 @@ export function timeline(input: {
 export type TimelineFilterId = "photos" | "comments" | "checklists" | "logs" | "documents" | "billdu";
 /** Filter chips for the timeline and the event kinds each one shows. */
 export const TIMELINE_FILTERS: { id: TimelineFilterId; label: string; kind: TimelineEvent["kind"] }[] = [
-  { id: "photos", label: "Photos", kind: "photos" },
-  { id: "comments", label: "Comments", kind: "comment" },
-  { id: "checklists", label: "Checklists", kind: "checklist" },
-  { id: "logs", label: "Logs", kind: "log" },
-  { id: "documents", label: "Documents", kind: "document" },
+  { id: "photos", label: msg("Photos"), kind: "photos" },
+  { id: "comments", label: msg("Comments"), kind: "comment" },
+  { id: "checklists", label: msg("Checklists"), kind: "checklist" },
+  { id: "logs", label: msg("Logs"), kind: "log" },
+  { id: "documents", label: msg("Documents"), kind: "document" },
   { id: "billdu", label: "Billdu", kind: "billdu" },
 ];
 /** How many events the timeline shows at first (and adds per "Load more"). */

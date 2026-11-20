@@ -1,6 +1,7 @@
 "use client";
 import { apiFetch } from "@/lib/api";
 import { db } from "./db";
+import { t } from "./i18n";
 import type { ScanResult } from "./scanParse";
 import type { DeviceType, Sheet } from "./types";
 import { typeVisible } from "./trades";
@@ -11,7 +12,7 @@ const MAX_SIDE = 1568;
 
 async function sheetJpeg(sheet: Pick<Sheet, "imageId">): Promise<Blob> {
   const img = await db().images.get(sheet.imageId);
-  if (!img) throw new Error("This sheet's image is not on this device yet.");
+  if (!img) throw new Error(t("This sheet's image is not on this device yet."));
   const bitmap = await createImageBitmap(img.blob);
   const k = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -37,7 +38,7 @@ export async function scanSheet(
   mode: "full" | "title" = "full",
   signal?: AbortSignal,
 ): Promise<ScanResult> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) throw new Error("You're offline. The AI scan needs a connection; place markers by hand meanwhile.");
+  if (typeof navigator !== "undefined" && !navigator.onLine) throw new Error(t("You're offline. The AI scan needs a connection; place markers by hand meanwhile."));
   const form = new FormData();
   form.append("image", await sheetJpeg(sheet), "sheet.jpg");
   form.append("mode", mode);
@@ -50,6 +51,6 @@ export async function scanSheet(
   form.append("trades", JSON.stringify(trades));
   const res = await apiFetch("/api/scan", { method: "POST", body: form, signal });
   const data = await res.json().catch(() => ({ error: `Scan failed (${res.status})` }));
-  if (!res.ok) throw new Error(data.error || `Scan failed (${res.status})`);
+  if (!res.ok) throw new Error(data.error ? t(data.error) : t("Scan failed ({status})", { status: res.status }));
   return data as ScanResult;
 }

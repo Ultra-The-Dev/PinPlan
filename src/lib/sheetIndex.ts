@@ -2,6 +2,7 @@
 // ("E-501", "3 over A-501") that become tappable links to other sheets. Pure except `readPdfText` (browser, PDF.js).
 // No AI: it only reads the text the PDF already carries; scanned PDFs simply give no proposals. See
 // docs/sheet-index-links.md.
+import { t } from "./i18n";
 import { loadPdfjs, pageTextItems, type PageTextItem } from "./importPlans";
 import type { Sheet, SheetLink, SheetLinkTarget } from "./types";
 
@@ -398,11 +399,11 @@ export function brokenReason(
   link: Pick<SheetLink, "target">,
   have: { sheets: Pick<Sheet, "id" | "deleted">[]; documents: { id: string; deleted?: boolean }[]; photos: { id: string; deleted?: boolean }[] },
 ): string | null {
-  const t = link.target;
-  if (t.kind === "sheet") return have.sheets.some((s) => s.id === t.sheetId && !s.deleted) ? null : "The sheet this link pointed to was deleted.";
-  if (t.kind === "document") return have.documents.some((d) => d.id === t.documentId && !d.deleted) ? null : "The document this link pointed to was deleted.";
-  if (t.kind === "photo") return have.photos.some((p) => p.id === t.photoId && !p.deleted) ? null : "The photo this link pointed to was deleted.";
-  return /^https?:\/\//i.test(t.url) ? null : "This link's web address isn't valid.";
+  const target = link.target;
+  if (target.kind === "sheet") return have.sheets.some((s) => s.id === target.sheetId && !s.deleted) ? null : t("The sheet this link pointed to was deleted.");
+  if (target.kind === "document") return have.documents.some((d) => d.id === target.documentId && !d.deleted) ? null : t("The document this link pointed to was deleted.");
+  if (target.kind === "photo") return have.photos.some((p) => p.id === target.photoId && !p.deleted) ? null : t("The photo this link pointed to was deleted.");
+  return /^https?:\/\//i.test(target.url) ? null : t("This link's web address isn't valid.");
 }
 
 /** Make a typed URL openable ("example.com/spec" → "https://example.com/spec"); null when it isn't a web address. */

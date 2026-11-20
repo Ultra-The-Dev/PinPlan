@@ -3,6 +3,7 @@
 // The server holds the Stripe keys; these only get back a URL to open, or the new seat count.
 import { useSyncExternalStore } from "react";
 import { apiFetch } from "./api";
+import { t } from "./i18n";
 import type { SeatAction } from "./billingLogic";
 import { reloadTeam, useTeam } from "./team";
 
@@ -25,10 +26,11 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   try {
     r = await apiFetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
   } catch {
-    throw new Error("You're offline. Billing needs a connection.");
+    throw new Error(t("You're offline. Billing needs a connection."));
   }
   const data = (await r.json().catch(() => ({}))) as T & { error?: string };
-  if (!r.ok) throw new Error(data.error || `Billing request failed (${r.status}).`);
+  // The server answers in English; known messages are shown in the app's language.
+  if (!r.ok) throw new Error(data.error ? t(data.error) : t("Billing request failed ({status}).", { status: r.status }));
   return data;
 }
 

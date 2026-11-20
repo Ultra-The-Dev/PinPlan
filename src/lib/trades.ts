@@ -7,6 +7,7 @@
 // only chooses and renames them. Counts still come only from placed markers and runs (takeoff.ts).
 import { CATEGORIES, LOW_VOLTAGE_CATEGORIES, SEED, WIRE_TYPES, categoryOf, closetMeta, type ClosetKindInfo } from "./catalog";
 import { CHECKLIST_TEMPLATES } from "./fieldDocs";
+import { msg } from "./i18n/msg";
 import type { Category, ChecklistTemplate, ClosetKind, DeviceType, Layer, Mount, Shape, TradeId } from "./types";
 
 export const TRADE_IDS: TradeId[] = ["lowvoltage", "electrical", "fire", "hvac", "plumbing", "solar", "general"];
@@ -74,18 +75,18 @@ const d = (...[id, name, category, symbol, abbrev, shape, color, defaultWire, de
 
 const LOW_VOLTAGE: TradePack = {
   id: "lowvoltage",
-  name: "Low voltage & smart home",
-  short: "Low voltage",
-  description: "Cameras, Wi-Fi, audio/video, smart home, LED lighting and shades — home-run to equipment closets and racks.",
-  examples: "Cameras · Wi-Fi · speakers · TVs · LED · shades",
+  name: msg("Low voltage & smart home"),
+  short: msg("Low voltage"),
+  description: msg("Cameras, Wi-Fi, audio/video, smart home, LED lighting and shades — home-run to equipment closets and racks."),
+  examples: msg("Cameras · Wi-Fi · speakers · TVs · LED · shades"),
   color: "#2563eb",
   categories: LOW_VOLTAGE_CATEGORIES.map((id) => ({ id, name: categoryOf(id).name })),
   closets: ["equipment", "switch", "rack"],
-  run: { one: "Wire run", many: "Home runs", hint: "device → closet" },
-  closetNoun: "closet",
+  run: { one: msg("Wire run"), many: msg("Home runs"), hint: msg("device → closet") },
+  closetNoun: msg("closet"),
   wireTypes: WIRE_TYPES.filter((w) => w !== "None"),
   wirePrices: {},
-  wireNoun: "Cable",
+  wireNoun: msg("Cable"),
   catalog: SEED.map((s) => ({ unitPrice: 0, laborPrice: 0, ...s })),
   checklists: CHECKLIST_TEMPLATES.filter((t) => t.id !== "punch"),
   scanHint: "",
@@ -100,28 +101,28 @@ const ELECTRICAL_WIRES = [NM14, NM12, NM143, "12/3 NM-B", "10/2 NM-B", "10/3 NM-
 
 const ELECTRICAL: TradePack = {
   id: "electrical",
-  name: "Electrical",
-  short: "Electrical",
-  description: "Receptacles, switches, lighting, smoke/CO and equipment — circuits home-run to panels, with a panel schedule.",
-  examples: "Receptacles · switches · fixtures · panels · circuits",
+  name: msg("Electrical"),
+  short: msg("Electrical"),
+  description: msg("Receptacles, switches, lighting, smoke/CO and equipment — circuits home-run to panels, with a panel schedule."),
+  examples: msg("Receptacles · switches · fixtures · panels · circuits"),
   color: "#ea580c",
   categories: [
-    { id: "power", name: "Receptacles" },
-    { id: "switching", name: "Switches & controls" },
-    { id: "lighting", name: "Lighting" },
-    { id: "fire", name: "Life safety" },
-    { id: "panels", name: "Panels & equipment" },
-    { id: "ev", name: "EV charging" },
+    { id: "power", name: msg("Receptacles") },
+    { id: "switching", name: msg("Switches & controls") },
+    { id: "lighting", name: msg("Lighting") },
+    { id: "fire", name: msg("Life safety") },
+    { id: "panels", name: msg("Panels & equipment") },
+    { id: "ev", name: msg("EV charging") },
   ],
   closets: ["panel", "subpanel"],
-  run: { one: "Circuit", many: "Circuits", hint: "device → panel (home run)" },
-  closetNoun: "panel",
+  run: { one: msg("Circuit"), many: msg("Circuits"), hint: msg("device → panel (home run)") },
+  closetNoun: msg("panel"),
   wireTypes: ELECTRICAL_WIRES,
   wirePrices: {
     [NM14]: 0.65, [NM12]: 0.95, [NM143]: 0.95, "12/3 NM-B": 1.35, "10/2 NM-B": 1.75, "10/3 NM-B": 2.3, "8/3 NM-B": 3.6, "6/3 NM-B": 5.5,
     "14/2 MC": 1.2, "12/2 MC": 1.45, 'EMT 1/2"': 0.8, 'EMT 3/4"': 1.3, 'PVC 3/4"': 0.75, 'PVC 1"': 1.1,
   },
-  wireNoun: "Wire",
+  wireNoun: msg("Wire"),
   catalog: [
     // Receptacles (NEC 220.14(I): 180 VA per yoke)
     d("el-rec15", "Duplex receptacle 15A (TR)", "power", "R", "REC", "circle", "#c2410c", NM14, "wall", 4, 45, { va: 180, breakerA: 15, description: "Standard wall outlet." }),
@@ -233,18 +234,18 @@ const ELECTRICAL: TradePack = {
 const FPLR18 = "18/2 FPLR";
 const FIRE: TradePack = {
   id: "fire",
-  name: "Fire alarm & life safety",
-  short: "Fire alarm",
-  description: "Detectors, pull stations, horn/strobes and modules — SLC and NAC wiring back to the FACP and power extenders.",
-  examples: "Smoke & heat detectors · pull stations · horn/strobes · modules",
+  name: msg("Fire alarm & life safety"),
+  short: msg("Fire alarm"),
+  description: msg("Detectors, pull stations, horn/strobes and modules — SLC and NAC wiring back to the FACP and power extenders."),
+  examples: msg("Smoke & heat detectors · pull stations · horn/strobes · modules"),
   color: "#e11d48",
-  categories: [{ id: "fire", name: "Fire alarm" }],
+  categories: [{ id: "fire", name: msg("Fire alarm") }],
   closets: ["facp", "nac"],
-  run: { one: "Wire run", many: "Wire runs", hint: "device → FACP / NAC" },
-  closetNoun: "panel",
+  run: { one: msg("Wire run"), many: msg("Wire runs"), hint: msg("device → FACP / NAC") },
+  closetNoun: msg("panel"),
   wireTypes: [FPLR18, "18/4 FPLR", "16/2 FPLR", "16/4 FPLR", "14/2 FPLP", "14/2 FPLR"],
   wirePrices: { [FPLR18]: 0.28, "18/4 FPLR": 0.42, "16/2 FPLR": 0.36, "16/4 FPLR": 0.6, "14/2 FPLP": 0.95, "14/2 FPLR": 0.55 },
-  wireNoun: "Cable",
+  wireNoun: msg("Cable"),
   catalog: [
     d("fa-smoke", "Smoke detector (addressable)", "fire", "SD", "SD", "circle", "#e11d48", FPLR18, "ceiling", 65, 55, { description: "Smoke detector on the fire alarm system." }),
     d("fa-heat", "Heat detector", "fire", "HD", "HD", "circle", "#f43f5e", FPLR18, "ceiling", 45, 55, { description: "Heat detector." }),
@@ -297,18 +298,18 @@ const FIRE: TradePack = {
 
 const HVAC: TradePack = {
   id: "hvac",
-  name: "HVAC",
-  short: "HVAC",
-  description: "Registers, returns, thermostats, mini-splits and fans — line sets, thermostat wire and condensate back to the equipment.",
-  examples: "Registers · returns · thermostats · mini-splits · line sets",
+  name: msg("HVAC"),
+  short: msg("HVAC"),
+  description: msg("Registers, returns, thermostats, mini-splits and fans — line sets, thermostat wire and condensate back to the equipment."),
+  examples: msg("Registers · returns · thermostats · mini-splits · line sets"),
   color: "#0284c7",
-  categories: [{ id: "hvac", name: "HVAC" }],
+  categories: [{ id: "hvac", name: msg("HVAC") }],
   closets: ["airhandler", "condenser"],
-  run: { one: "Line run", many: "Line runs", hint: "device → equipment" },
-  closetNoun: "equipment",
+  run: { one: msg("Line run"), many: msg("Line runs"), hint: msg("device → equipment") },
+  closetNoun: msg("equipment"),
   wireTypes: ['Line set 1/4"×1/2"', 'Line set 3/8"×3/4"', "Thermostat 18/5", "Thermostat 18/8", 'Condensate 3/4" PVC', 'Flex duct 6"', 'Flex duct 8"'],
   wirePrices: { 'Line set 1/4"×1/2"': 4.5, 'Line set 3/8"×3/4"': 6.5, "Thermostat 18/5": 0.35, "Thermostat 18/8": 0.55, 'Condensate 3/4" PVC': 0.6, 'Flex duct 6"': 2.2, 'Flex duct 8"': 2.9 },
-  wireNoun: "Line",
+  wireNoun: msg("Line"),
   catalog: [
     d("hv-supply", "Supply register / diffuser", "hvac", "SR", "SUP", "square", "#0284c7", 'Flex duct 6"', "ceiling", 18, 65, { description: "Where heated or cooled air comes in." }),
     d("hv-return", "Return grille", "hvac", "RG", "RET", "square", "#0369a1", 'Flex duct 8"', "wall", 28, 75, { description: "Where air goes back to the system." }),
@@ -355,18 +356,18 @@ const HVAC: TradePack = {
 
 const PLUMBING: TradePack = {
   id: "plumbing",
-  name: "Plumbing",
-  short: "Plumbing",
-  description: "Fixtures, hose bibbs, drains and gas outlets — supply and drain lines back to the water heater and manifold.",
-  examples: "Sinks · toilets · showers · hose bibbs · PEX & drain",
+  name: msg("Plumbing"),
+  short: msg("Plumbing"),
+  description: msg("Fixtures, hose bibbs, drains and gas outlets — supply and drain lines back to the water heater and manifold."),
+  examples: msg("Sinks · toilets · showers · hose bibbs · PEX & drain"),
   color: "#0d9488",
-  categories: [{ id: "plumbing", name: "Plumbing" }],
+  categories: [{ id: "plumbing", name: msg("Plumbing") }],
   closets: ["waterheater", "manifold"],
-  run: { one: "Pipe run", many: "Pipe runs", hint: "fixture → manifold" },
-  closetNoun: "manifold",
+  run: { one: msg("Pipe run"), many: msg("Pipe runs"), hint: msg("fixture → manifold") },
+  closetNoun: msg("manifold"),
   wireTypes: ['PEX 1/2"', 'PEX 3/4"', 'PEX 1"', 'Copper 1/2"', 'Copper 3/4"', 'Drain 1-1/2"', 'Drain 2"', 'Drain 3"', 'Drain 4"', 'Gas 1/2" CSST'],
   wirePrices: { 'PEX 1/2"': 0.55, 'PEX 3/4"': 0.95, 'PEX 1"': 1.6, 'Copper 1/2"': 3.2, 'Copper 3/4"': 5.4, 'Drain 1-1/2"': 1.6, 'Drain 2"': 2.1, 'Drain 3"': 3.6, 'Drain 4"': 4.8, 'Gas 1/2" CSST': 3.4 },
-  wireNoun: "Pipe",
+  wireNoun: msg("Pipe"),
   catalog: [
     d("pl-lav", "Lavatory sink", "plumbing", "LAV", "LAV", "circle", "#0d9488", 'PEX 1/2"', "wall", 0, 220, { description: "Bathroom sink." }),
     d("pl-ks", "Kitchen sink", "plumbing", "KS", "KS", "square", "#0f766e", 'PEX 1/2"', "cabinet", 0, 260, { description: "Kitchen sink." }),
@@ -415,21 +416,21 @@ const PLUMBING: TradePack = {
 
 const SOLAR: TradePack = {
   id: "solar",
-  name: "Solar & EV charging",
-  short: "Solar & EV",
-  description: "PV modules, optimizers, rapid shutdown, combiner and EV chargers — PV wire and conduit back to the inverter and panel.",
-  examples: "PV modules · inverters · rapid shutdown · EV chargers",
+  name: msg("Solar & EV charging"),
+  short: msg("Solar & EV"),
+  description: msg("PV modules, optimizers, rapid shutdown, combiner and EV chargers — PV wire and conduit back to the inverter and panel."),
+  examples: msg("PV modules · inverters · rapid shutdown · EV chargers"),
   color: "#ca8a04",
   categories: [
-    { id: "solar", name: "Solar" },
-    { id: "ev", name: "EV charging" },
+    { id: "solar", name: msg("Solar") },
+    { id: "ev", name: msg("EV charging") },
   ],
   closets: ["inverter", "panel"],
-  run: { one: "Conduit run", many: "Conduit runs", hint: "array → inverter / panel" },
-  closetNoun: "inverter",
+  run: { one: msg("Conduit run"), many: msg("Conduit runs"), hint: msg("array → inverter / panel") },
+  closetNoun: msg("inverter"),
   wireTypes: ["PV wire 10 AWG", "THHN 10 AWG", "THHN 8 AWG", "THHN 6 AWG", 'EMT 3/4"', 'PVC 1"', "6/3 NM-B"],
   wirePrices: { "PV wire 10 AWG": 0.45, "THHN 10 AWG": 0.35, "THHN 8 AWG": 0.6, "THHN 6 AWG": 0.95, 'EMT 3/4"': 1.3, 'PVC 1"': 1.1, "6/3 NM-B": 5.5 },
-  wireNoun: "Wire",
+  wireNoun: msg("Wire"),
   catalog: [
     d("pv-module", "PV module", "solar", "PV", "PV", "square", "#ca8a04", "PV wire 10 AWG", "exterior", 240, 90, { description: "Solar panel." }),
     d("pv-mi", "Optimizer / microinverter", "solar", "MI", "MI", "diamond", "#a16207", "PV wire 10 AWG", "exterior", 160, 25, { description: "Electronics under each panel." }),
@@ -476,18 +477,18 @@ const SOLAR: TradePack = {
 
 const GENERAL: TradePack = {
   id: "general",
-  name: "General contractor / custom",
-  short: "General",
-  description: "A blank slate: mark items, notes and punch work on plans, and build your own catalog for any trade.",
-  examples: "Your own items · punch work · notes",
+  name: msg("General contractor / custom"),
+  short: msg("General"),
+  description: msg("A blank slate: mark items, notes and punch work on plans, and build your own catalog for any trade."),
+  examples: msg("Your own items · punch work · notes"),
   color: "#64748b",
-  categories: [{ id: "general", name: "General" }],
+  categories: [{ id: "general", name: msg("General") }],
   closets: ["equipment"],
-  run: { one: "Run", many: "Runs", hint: "item → hub" },
-  closetNoun: "hub",
+  run: { one: msg("Run"), many: msg("Runs"), hint: msg("item → hub") },
+  closetNoun: msg("hub"),
   wireTypes: [],
   wirePrices: {},
-  wireNoun: "Run",
+  wireNoun: msg("Run"),
   catalog: [
     d("gen-item", "Item", "general", "X", "ITEM", "circle", "#64748b", "None", "other", 0, 0, { description: "Item." }),
     d("gen-fixture", "Fixture", "general", "FX", "FIX", "square", "#475569", "None", "other", 0, 0, { description: "Fixture." }),
@@ -578,12 +579,12 @@ export function allCategoriesFor(trades: TradeId[]): TradeCategory[] {
 
 /** Layer toggles: the company's categories plus wiring. */
 export function tradeLayers(trades: TradeId[]): { id: Layer; name: string }[] {
-  return [...tradeCategories(trades).map((c) => ({ id: c.id as Layer, name: c.name })), { id: "wiring" as Layer, name: primaryTrade(trades).id === "lowvoltage" ? "Wiring" : wiringName(trades) }];
+  return [...tradeCategories(trades).map((c) => ({ id: c.id as Layer, name: c.name })), { id: "wiring" as Layer, name: primaryTrade(trades).id === "lowvoltage" ? msg("Wiring") : wiringName(trades) }];
 }
 
 function wiringName(trades: TradeId[]): string {
   const p = primaryTrade(trades);
-  return p.id === "electrical" ? "Circuits" : p.id === "plumbing" ? "Piping" : p.id === "hvac" ? "Lines" : "Wiring";
+  return p.id === "electrical" ? msg("Circuits") : p.id === "plumbing" ? msg("Piping") : p.id === "hvac" ? msg("Lines") : msg("Wiring");
 }
 
 /** Closet kinds (where runs end) the company places, primary trade's first. */
@@ -630,7 +631,8 @@ export function tradeChecklists(trades: TradeId[]): ChecklistTemplate[] {
   return out;
 }
 
-/** Words that change with the trade: what a run, a closet and the wire list are called. */
+/** Words that change with the trade: what a run, a closet and the wire list are called (English: translate where
+ *  shown, with t()). */
 export function tradeVocab(trades: TradeId[]) {
   const p = primaryTrade(trades);
   return { run: p.run.one, runs: p.run.many, runHint: p.run.hint, closet: p.closetNoun, wire: p.wireNoun };

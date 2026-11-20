@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { canWork, parseSoloBilling, type SoloBilling } from "./billingLogic";
+import { msg, t } from "./i18n";
 import { getSupabase } from "./supabase";
 import { useTeam, type TeamState } from "./team";
 import { setToastAction, type ToastAction } from "./toast";
@@ -118,16 +119,16 @@ export function canEditJob(now = new Date()): boolean {
 }
 
 /** Shown when an edit is refused. */
-export const READ_ONLY_MESSAGE = "Jobs are read-only: the free trial or subscription has ended. You can still view and export. See Settings → Plan & billing.";
+export const READ_ONLY_MESSAGE = msg("Jobs are read-only: the free trial or subscription has ended. You can still view and export. See Settings → Plan & billing.");
 /** The read-only toast's button: straight to Settings › Plan & billing. */
-export const READ_ONLY_ACTION: ToastAction = { label: "Plan & billing", href: "/settings#billing" };
+export const READ_ONLY_ACTION: ToastAction = { label: msg("Plan & billing"), href: "/settings#billing" };
 // Every read-only toast carries the button, whoever shows it (the editor's commit() toasts the message).
 setToastAction(READ_ONLY_MESSAGE, READ_ONLY_ACTION);
 
 /** The error a refused edit throws (the toast has already been shown). */
 export class ReadOnlyError extends Error {
   constructor() {
-    super(READ_ONLY_MESSAGE);
+    super(t(READ_ONLY_MESSAGE));
     this.name = "ReadOnlyError";
   }
 }

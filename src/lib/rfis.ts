@@ -1,10 +1,20 @@
 // RFIs (requests for information): numbering, status changes, ball-in-court, overdue, summary, permissions, the
 // email text and what the no-login answer page may show. Pure (no browser, database or network): shared by the
 // web screens, the server route and tests. See docs/rfis.md.
+import { msg, t } from "./i18n";
 import type { TeamRole } from "./teamLogic";
 import type { Photo, PhotoShape, Project, Rfi, RfiSender, RfiStatus } from "./types";
 
-export const RFI_STATUS_LABEL: Record<RfiStatus, string> = { draft: "Draft", open: "Open", answered: "Answered", closed: "Closed", void: "Void" };
+/** "Can't <action> an RFI that is <status>": one whole sentence per action, so it translates (src/lib/i18n). */
+const CANT: Record<RfiAction, string> = {
+  send: msg("Can't send an RFI that is {status}"),
+  answer: msg("Can't answer an RFI that is {status}"),
+  close: msg("Can't close an RFI that is {status}"),
+  reopen: msg("Can't reopen an RFI that is {status}"),
+  void: msg("Can't void an RFI that is {status}"),
+};
+
+export const RFI_STATUS_LABEL: Record<RfiStatus, string> = { draft: msg("Draft"), open: msg("Open"), answered: msg("Answered"), closed: msg("Closed"), void: msg("Void") };
 
 /** Next number on a job: one past the highest ever used (deleted and void ones included, so numbers aren't reused). */
 export function nextRfiNumber(rfis: Pick<Rfi, "number">[]): number {
@@ -39,15 +49,15 @@ export function canTransition(status: RfiStatus, action: RfiAction): boolean {
  * reopen → open, ball with them (the earlier answer is kept for the record). Throws on a move that isn't allowed.
  */
 export function transition(rfi: Rfi, action: RfiAction, by: string, now: string, extra: { answer?: string; shareToken?: string | null } = {}): Rfi {
-  if (rfi.deleted) throw new Error("This RFI was deleted");
-  if (!canTransition(rfi.status, action)) throw new Error(`Can't ${action} an RFI that is ${RFI_STATUS_LABEL[rfi.status]?.toLowerCase() ?? rfi.status}`);
+  if (rfi.deleted) throw new Error(t("This RFI was deleted"));
+  if (!canTransition(rfi.status, action)) throw new Error(t(CANT[action], { status: RFI_STATUS_LABEL[rfi.status] ? t(RFI_STATUS_LABEL[rfi.status]).toLowerCase() : rfi.status }));
   switch (action) {
     case "send":
-      if (!rfi.subject.trim() && !rfi.question.trim()) throw new Error("Write the question first");
+      if (!rfi.subject.trim() && !rfi.question.trim()) throw new Error(t("Write the question first"));
       return { ...rfi, status: "open", ballInCourt: "them", sentAt: rfi.sentAt ?? now, shareToken: extra.shareToken ?? rfi.shareToken ?? null, closedAt: null };
     case "answer": {
       const answer = (extra.answer ?? "").trim();
-      if (!answer) throw new Error("Write the answer first");
+      if (!answer) throw new Error(t("Write the answer first"));
       return { ...rfi, status: "answered", ballInCourt: "us", answer, answeredBy: by.trim() || null, answeredAt: now };
     }
     case "close":

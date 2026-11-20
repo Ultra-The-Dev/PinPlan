@@ -1,6 +1,7 @@
 // Structured daily reports: the pure rules behind the daily log editor, its list badges, the weekly hours view and the
 // PDF. A report lives on the existing JobLog row (`report`, JSON); logs without one are the older free-text logs and
 // still read and print as before. Mirrored in PinPlanCore/DailyReportLogic.swift (same Open-Meteo fixture in tests).
+import { msg } from "./i18n/msg";
 import type { DailyReport, JobLog } from "./types";
 
 export type DailyWeather = NonNullable<DailyReport["weather"]>;
@@ -354,11 +355,11 @@ export function weeklyHoursCsv(w: WeeklyHours): string {
 
 export type ReportSection = "weather" | "crew" | "work" | "safety" | "signature";
 export const SECTION_LABELS: Record<ReportSection, string> = {
-  weather: "Weather",
-  crew: "Crew & hours",
-  work: "Work performed",
-  safety: "Safety",
-  signature: "Signature",
+  weather: msg("Weather"),
+  crew: msg("Crew & hours"),
+  work: msg("Work performed"),
+  safety: msg("Safety"),
+  signature: msg("Signature"),
 };
 
 /** Recommended sections still empty, in form order. */

@@ -9,38 +9,39 @@
 import type { Checklist, ChecklistItem, FormCalcOp, FormField, FormFieldType, FormSignature, FormTemplate, JobForm } from "../types";
 import type { TeamRole } from "../teamLogic";
 import { CHECKLIST_TEMPLATES, PUNCH_TEMPLATE_ID, checklistFromTemplate, findPunchList } from "../fieldDocs";
+import { msg, t } from "../i18n";
 
 export const FIELD_TYPES: { type: FormFieldType; name: string }[] = [
-  { type: "heading", name: "Section heading" },
-  { type: "text", name: "Short text" },
-  { type: "longtext", name: "Long text" },
-  { type: "number", name: "Number" },
-  { type: "date", name: "Date" },
-  { type: "time", name: "Time" },
-  { type: "yesno", name: "Yes / No / N.A." },
-  { type: "checkbox", name: "Checkbox" },
-  { type: "select", name: "Dropdown" },
-  { type: "multiselect", name: "Multiple choice" },
-  { type: "photo", name: "Photos" },
-  { type: "signature", name: "Signature" },
-  { type: "table", name: "Table" },
-  { type: "calc", name: "Calculation" },
+  { type: "heading", name: msg("Section heading") },
+  { type: "text", name: msg("Short text") },
+  { type: "longtext", name: msg("Long text") },
+  { type: "number", name: msg("Number") },
+  { type: "date", name: msg("Date") },
+  { type: "time", name: msg("Time") },
+  { type: "yesno", name: msg("Yes / No / N.A.") },
+  { type: "checkbox", name: msg("Checkbox") },
+  { type: "select", name: msg("Dropdown") },
+  { type: "multiselect", name: msg("Multiple choice") },
+  { type: "photo", name: msg("Photos") },
+  { type: "signature", name: msg("Signature") },
+  { type: "table", name: msg("Table") },
+  { type: "calc", name: msg("Calculation") },
 ];
 export const TABLE_COLUMN_TYPES: FormFieldType[] = ["text", "number", "select", "yesno", "date"];
 export const MAX_TABLE_COLUMNS = 8;
 export const CALC_OPS: { op: FormCalcOp; name: string }[] = [
-  { op: "sum", name: "Total" },
-  { op: "avg", name: "Average" },
-  { op: "min", name: "Lowest" },
-  { op: "max", name: "Highest" },
-  { op: "count_no", name: "Count of “No”" },
+  { op: "sum", name: msg("Total") },
+  { op: "avg", name: msg("Average") },
+  { op: "min", name: msg("Lowest") },
+  { op: "max", name: msg("Highest") },
+  { op: "count_no", name: msg("Count of “No”") },
 ];
 export const FORM_CATEGORIES: { id: FormTemplate["category"]; name: string }[] = [
-  { id: "inspection", name: "Inspection" },
-  { id: "test", name: "Test record" },
-  { id: "tm", name: "T&M tag" },
-  { id: "safety", name: "Safety" },
-  { id: "other", name: "Other" },
+  { id: "inspection", name: msg("Inspection") },
+  { id: "test", name: msg("Test record") },
+  { id: "tm", name: msg("T&M tag") },
+  { id: "safety", name: msg("Safety") },
+  { id: "other", name: msg("Other") },
 ];
 export const HISTORY_KEY = "_history";
 export type YesNo = "yes" | "no" | "na";
@@ -175,15 +176,15 @@ export interface FormIssue {
 }
 
 function checkValue(f: FormField, v: unknown): string | null {
-  if (f.type === "number" && typeof v === "string" && v.trim() && parseNumber(v) == null) return "Enter a number";
-  if (!hasAnswer(f, v)) return f.required ? (f.type === "checkbox" ? "Must be ticked" : "Required") : null;
+  if (f.type === "number" && typeof v === "string" && v.trim() && parseNumber(v) == null) return t("Enter a number");
+  if (!hasAnswer(f, v)) return f.required ? (f.type === "checkbox" ? t("Must be ticked") : t("Required")) : null;
   if (f.type === "number") {
     const n = parseNumber(v)!;
-    if (f.min != null && n < f.min) return `Must be at least ${formatNumber(f.min)}`;
-    if (f.max != null && n > f.max) return `Must be ${formatNumber(f.max)} or less`;
+    if (f.min != null && n < f.min) return t("Must be at least {min}", { min: formatNumber(f.min) });
+    if (f.max != null && n > f.max) return t("Must be {max} or less", { max: formatNumber(f.max) });
   }
-  if (f.type === "select" && f.options?.length && !f.options.includes(String(v))) return "Pick one of the options";
-  if (f.type === "multiselect" && f.options?.length && (v as unknown[]).some((x) => !f.options!.includes(String(x)))) return "Pick from the options";
+  if (f.type === "select" && f.options?.length && !f.options.includes(String(v))) return t("Pick one of the options");
+  if (f.type === "multiselect" && f.options?.length && (v as unknown[]).some((x) => !f.options!.includes(String(x)))) return t("Pick from the options");
   return null;
 }
 
@@ -194,18 +195,18 @@ export function validateForm(form: Pick<JobForm, "template" | "values" | "signat
   for (const f of form.template.fields) {
     if (f.type === "heading" || f.type === "calc") continue;
     if (f.type === "signature") {
-      if (f.required && !signatureFor(form, f.id)) out.push({ fieldId: f.id, message: "Signature required" });
+      if (f.required && !signatureFor(form, f.id)) out.push({ fieldId: f.id, message: t("Signature required") });
       continue;
     }
     if (f.type === "table") {
       const rows = tableRows(values[f.id]);
       const filled = rows.map((r, i) => [r, i] as const).filter(([r]) => rowHasData(r));
-      if (f.required && !filled.length) out.push({ fieldId: f.id, message: "Add at least one row" });
+      if (f.required && !filled.length) out.push({ fieldId: f.id, message: t("Add at least one row") });
       // Blank rows are ignored (a row added by mistake doesn't block submitting).
       for (const [r, i] of filled)
         for (const c of f.columns ?? []) {
           const m = checkValue(c, r[c.id]);
-          if (m) out.push({ fieldId: f.id, row: i, columnId: c.id, message: `Row ${i + 1}: ${c.label} — ${m.toLowerCase()}` });
+          if (m) out.push({ fieldId: f.id, row: i, columnId: c.id, message: t("Row {row}: {column} — {problem}", { row: i + 1, column: c.label, problem: m.toLowerCase() }) });
         }
       continue;
     }
@@ -351,48 +352,48 @@ const TYPE_IDS = new Set(FIELD_TYPES.map((t) => t.type));
 const CATEGORY_IDS = new Set(FORM_CATEGORIES.map((c) => c.id));
 
 /** Problems that make a template unusable (shown in the builder; imports with any are refused). Empty = fine. */
-export function validateTemplate(t: FormTemplate): string[] {
+export function validateTemplate(tpl: FormTemplate): string[] {
   const out: string[] = [];
-  if (!t || typeof t !== "object") return ["Not a form template"];
-  if (!t.name?.trim()) out.push("Give the form a name");
-  if (!CATEGORY_IDS.has(t.category)) out.push(`Unknown category “${t.category}”`);
-  if (!Array.isArray(t.fields) || !t.fields.length) return [...out, "Add at least one field"];
+  if (!tpl || typeof tpl !== "object") return [t("Not a form template")];
+  if (!tpl.name?.trim()) out.push(t("Give the form a name"));
+  if (!CATEGORY_IDS.has(tpl.category)) out.push(t("Unknown category “{category}”", { category: String(tpl.category) }));
+  if (!Array.isArray(tpl.fields) || !tpl.fields.length) return [...out, t("Add at least one field")];
   const ids = new Set<string>();
-  for (const f of t.fields) {
+  for (const f of tpl.fields) {
     const name = f.label?.trim() || f.id;
-    if (!f.id || typeof f.id !== "string") out.push(`A field has no id (“${name}”)`);
-    else if (f.id.startsWith("_") || f.id.includes(".")) out.push(`Field id “${f.id}” can't start with “_” or contain “.”`);
-    else if (ids.has(f.id)) out.push(`Two fields share the id “${f.id}”`);
+    if (!f.id || typeof f.id !== "string") out.push(t("A field has no id (“{name}”)", { name }));
+    else if (f.id.startsWith("_") || f.id.includes(".")) out.push(t("Field id “{id}” can't start with “_” or contain “.”", { id: f.id }));
+    else if (ids.has(f.id)) out.push(t("Two fields share the id “{id}”", { id: f.id }));
     ids.add(f.id);
-    if (!TYPE_IDS.has(f.type)) out.push(`“${name}” has an unknown type “${f.type}”`);
-    if (!f.label?.trim()) out.push(`A ${f.type} field has no label`);
-    if ((f.type === "select" || f.type === "multiselect") && !(f.options ?? []).some((o) => o.trim())) out.push(`“${name}” needs at least one option`);
-    if (f.min != null && f.max != null && f.min > f.max) out.push(`“${name}”: the minimum is above the maximum`);
+    if (!TYPE_IDS.has(f.type)) out.push(t("“{name}” has an unknown type “{type}”", { name, type: String(f.type) }));
+    if (!f.label?.trim()) out.push(t("A {type} field has no label", { type: String(f.type) }));
+    if ((f.type === "select" || f.type === "multiselect") && !(f.options ?? []).some((o) => o.trim())) out.push(t("“{name}” needs at least one option", { name }));
+    if (f.min != null && f.max != null && f.min > f.max) out.push(t("“{name}”: the minimum is above the maximum", { name }));
     if (f.type === "table") {
       const cols = f.columns ?? [];
-      if (!cols.length) out.push(`Table “${name}” has no columns`);
-      if (cols.length > MAX_TABLE_COLUMNS) out.push(`Table “${name}” has more than ${MAX_TABLE_COLUMNS} columns`);
+      if (!cols.length) out.push(t("Table “{name}” has no columns", { name }));
+      if (cols.length > MAX_TABLE_COLUMNS) out.push(t("Table “{name}” has more than {max} columns", { name, max: MAX_TABLE_COLUMNS }));
       const cids = new Set<string>();
       for (const c of cols) {
-        if (!c.id || c.id.startsWith("_") || c.id.includes(".")) out.push(`Table “${name}” has a column with a bad id`);
-        else if (cids.has(c.id)) out.push(`Table “${name}” has two columns with the id “${c.id}”`);
+        if (!c.id || c.id.startsWith("_") || c.id.includes(".")) out.push(t("Table “{name}” has a column with a bad id", { name }));
+        else if (cids.has(c.id)) out.push(t("Table “{name}” has two columns with the id “{id}”", { name, id: c.id }));
         cids.add(c.id);
-        if (!TABLE_COLUMN_TYPES.includes(c.type)) out.push(`Table “${name}”: a column can't be a ${c.type} field`);
-        if (!c.label?.trim()) out.push(`Table “${name}” has a column with no label`);
-        if (c.type === "select" && !(c.options ?? []).some((o) => o.trim())) out.push(`Table “${name}”: column “${c.label}” needs options`);
+        if (!TABLE_COLUMN_TYPES.includes(c.type)) out.push(t("Table “{name}”: a column can't be a {type} field", { name, type: String(c.type) }));
+        if (!c.label?.trim()) out.push(t("Table “{name}” has a column with no label", { name }));
+        if (c.type === "select" && !(c.options ?? []).some((o) => o.trim())) out.push(t("Table “{name}”: column “{column}” needs options", { name, column: c.label }));
       }
     }
   }
-  for (const f of t.fields) {
+  for (const f of tpl.fields) {
     if (f.type !== "calc") continue;
     const name = f.label?.trim() || f.id;
     if (!f.calc || !CALC_OP_IDS.has(f.calc.op)) {
-      out.push(`Calculation “${name}” needs an operation`);
+      out.push(t("Calculation “{name}” needs an operation", { name }));
       continue;
     }
-    const target = calcTarget(t, f.calc.of);
-    if (!target) out.push(`Calculation “${name}” refers to “${f.calc.of}”, which isn't on the form`);
-    else if (f.calc.op === "count_no" ? target.type !== "yesno" : target.type !== "number") out.push(`Calculation “${name}” can't use “${target.label}” (${f.calc.op === "count_no" ? "needs a yes/no" : "needs a number"})`);
+    const target = calcTarget(tpl, f.calc.of);
+    if (!target) out.push(t("Calculation “{name}” refers to “{ref}”, which isn't on the form", { name, ref: f.calc.of }));
+    else if (f.calc.op === "count_no" ? target.type !== "yesno" : target.type !== "number") out.push(f.calc.op === "count_no" ? t("Calculation “{name}” can't use “{field}” (needs a yes/no)", { name, field: target.label }) : t("Calculation “{name}” can't use “{field}” (needs a number)", { name, field: target.label }));
   }
   return out;
 }
@@ -450,12 +451,12 @@ export function templateFromJson(input: unknown): { template: FormTemplate | nul
     try {
       raw = JSON.parse(input);
     } catch {
-      return { template: null, errors: ["That file isn't valid JSON"] };
+      return { template: null, errors: [t("That file isn't valid JSON")] };
     }
   }
   // An export wraps the template: { format: "pinplan-form-template", template }.
   if (raw && typeof raw === "object" && (raw as { template?: unknown }).template) raw = (raw as { template: unknown }).template;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { template: null, errors: ["That isn't a form template"] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { template: null, errors: [t("That isn't a form template")] };
   const r = raw as Record<string, unknown>;
   const template: FormTemplate = {
     id: str(r.id)?.trim() || "",
@@ -468,7 +469,7 @@ export function templateFromJson(input: unknown): { template: FormTemplate | nul
   if (str(r.createdAt)) template.createdAt = str(r.createdAt);
   if (str(r.updatedAt)) template.updatedAt = str(r.updatedAt);
   const errors = validateTemplate(template);
-  if (!template.id) errors.unshift("The template has no id");
+  if (!template.id) errors.unshift(t("The template has no id"));
   return { template, errors };
 }
 

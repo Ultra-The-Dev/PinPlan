@@ -3,6 +3,7 @@
 // The role is cached on this device so the app hides the right things offline too.
 import { create } from "zustand";
 import { parseTeamBilling, type TeamBilling } from "./billingLogic";
+import { t } from "./i18n";
 import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
 import { newInviteCode, normalizeCode, teamErrorMessage, type TeamRole } from "./teamLogic";
@@ -173,7 +174,7 @@ async function reload(): Promise<TeamState> {
 
 function client() {
   const sb = getSupabase();
-  if (!sb) throw new Error("Cloud sync isn't set up on this server.");
+  if (!sb) throw new Error(t("Cloud sync isn't set up on this server."));
   return sb;
 }
 function fail(e: { message?: string; code?: string } | null): never {
@@ -224,16 +225,16 @@ export async function listInvites(): Promise<TeamInvite[]> {
 }
 
 export async function createInvite(role: "admin" | "tech", name: string): Promise<string> {
-  const t = useTeam.getState().team;
-  if (!t) throw new Error("Start your team first.");
+  const team = useTeam.getState().team;
+  if (!team) throw new Error(t("Start your team first."));
   // A clash is astronomically unlikely, but retry rather than fail.
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = newInviteCode();
-    const { error } = await client().from("team_invites").insert({ code, team_id: t.id, role, name: name.trim() });
+    const { error } = await client().from("team_invites").insert({ code, team_id: team.id, role, name: name.trim() });
     if (!error) return code;
     if (error.code !== "23505") fail(error);
   }
-  throw new Error("Couldn't make an invite code. Try again.");
+  throw new Error(t("Couldn't make an invite code. Try again."));
 }
 
 export async function revokeInvite(code: string): Promise<void> {
