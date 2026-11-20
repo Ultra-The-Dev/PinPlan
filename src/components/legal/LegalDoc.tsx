@@ -126,7 +126,7 @@ export default function LegalDoc({
               versions={Object.fromEntries(
                 Object.entries(all).map(([code, v]) => [
                   code,
-                  <DocBody key={code} title={v.title} intro={v.intro} effective={effective} updated={updated} toc={v.toc} translated>
+                  <DocBody key={code} title={v.title} intro={v.intro} effective={effective} updated={updated} toc={v.toc} translated={code as Locale}>
                     {v.children}
                   </DocBody>,
                 ]),
@@ -141,6 +141,17 @@ export default function LegalDoc({
     </div>
   );
 }
+
+/** "This is a translation; the English text governs", in each translation's own language. */
+const TRANSLATION_NOTE: Partial<Record<Locale, string>> = {
+  ru: "Перевод для удобства. Юридическую силу имеет английская версия: если перевод расходится с ней, действует английский текст. Английская версия откроется, если выбрать English в переключателе языка.",
+  es: "Traducción para tu comodidad. La versión en inglés es la que tiene validez legal: si esta traducción difiere de ella, prevalece el texto en inglés. Para verla, elige English en el selector de idioma.",
+  pt: "Tradução para sua conveniência. A versão em inglês é a que tem validade jurídica: se esta tradução divergir dela, prevalece o texto em inglês. Para vê-la, escolha English no seletor de idioma.",
+  uk: "Переклад для зручності. Юридичну силу має англійська версія: якщо переклад розходиться з нею, діє англійський текст. Англійська версія відкриється, якщо вибрати English у перемикачі мови.",
+  pl: "Tłumaczenie dla wygody. Wiążąca jest wersja angielska: jeśli tłumaczenie się od niej różni, obowiązuje tekst angielski. Aby ją zobaczyć, wybierz English w przełączniku języka.",
+  zh: "本译文仅供参考。具有法律效力的是英文版本：如本译文与英文版本不一致，以英文文本为准。在语言切换中选择 English 即可查看英文版本。",
+  vi: "Bản dịch chỉ để tiện theo dõi. Bản tiếng Anh là bản có giá trị pháp lý: nếu bản dịch khác với bản tiếng Anh, văn bản tiếng Anh được áp dụng. Chọn English trong bộ chọn ngôn ngữ để xem bản tiếng Anh.",
+};
 
 /** Title, dates, intro, contents and text of one language's version. */
 function DocBody({
@@ -157,8 +168,8 @@ function DocBody({
   effective?: string;
   updated?: string;
   toc?: TocItem[];
-  /** A translation for convenience: say so above the text. */
-  translated?: boolean;
+  /** A translation for convenience (its language): say so above the text, in that language. */
+  translated?: Locale;
   children: React.ReactNode;
 }) {
   return (
@@ -179,8 +190,7 @@ function DocBody({
         )}
         {translated && (
           <p className="mt-5 rounded-md bg-mk-sheet px-4 py-3 text-[15px] leading-6 ring-1 ring-mk-rule" role="note">
-            Перевод для удобства. Юридическую силу имеет английская версия: если перевод расходится с ней, действует английский текст. Английская
-            версия откроется, если выбрать English в переключателе языка.
+            {TRANSLATION_NOTE[translated]}
           </p>
         )}
         {intro && <div className="mt-6 text-[17px] leading-7 text-mk-pencil">{intro}</div>}

@@ -7,6 +7,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph } from "@/components/legal/LegalDoc";
 import { subprocessorsRu } from "@/components/legal/ru/SubprocessorsRu";
+import { subprocessorsEs } from "@/components/legal/es/SubprocessorsEs";
+import { subprocessorsPt } from "@/components/legal/pt/SubprocessorsPt";
+import { subprocessorsUk } from "@/components/legal/uk/SubprocessorsUk";
+import { subprocessorsPl } from "@/components/legal/pl/SubprocessorsPl";
+import { subprocessorsZh } from "@/components/legal/zh/SubprocessorsZh";
+import { subprocessorsVi } from "@/components/legal/vi/SubprocessorsVi";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, SUBPROCESSORS, SUBPROCESSORS_UPDATED } from "@/lib/legal";
 
@@ -22,6 +28,7 @@ export default function SubprocessorsPage() {
       title="Subprocessors"
       updated={SUBPROCESSORS_UPDATED}
       ru={subprocessorsRu}
+      translations={{ es: subprocessorsEs, pt: subprocessorsPt, uk: subprocessorsUk, pl: subprocessorsPl, zh: subprocessorsZh, vi: subprocessorsVi }}
       intro={
         <p>
           These companies host and operate parts of Northpin for us and may process Customer Data on our behalf. Each is bound by a contract that limits its use

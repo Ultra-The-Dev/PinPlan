@@ -10,6 +10,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import { supportRu } from "@/components/legal/ru/SupportRu";
+import { supportEs } from "@/components/legal/es/SupportEs";
+import { supportPt } from "@/components/legal/pt/SupportPt";
+import { supportUk } from "@/components/legal/uk/SupportUk";
+import { supportPl } from "@/components/legal/pl/SupportPl";
+import { supportZh } from "@/components/legal/zh/SupportZh";
+import { supportVi } from "@/components/legal/vi/SupportVi";
 import StatusCheck from "@/components/legal/StatusCheck";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
@@ -88,6 +94,7 @@ export default function SupportPage() {
       title="Support"
       toc={toc}
       ru={supportRu}
+      translations={{ es: supportEs, pt: supportPt, uk: supportUk, pl: supportPl, zh: supportZh, vi: supportVi }}
       intro={<p>We’re a small team that builds Northpin for electrical, low-voltage and specialty contractors. Real people answer every message.</p>}
     >
       <Section item={S.contact}>

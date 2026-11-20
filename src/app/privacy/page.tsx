@@ -13,6 +13,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import { privacyRu } from "@/components/legal/ru/PrivacyRu";
+import { privacyEs } from "@/components/legal/es/PrivacyEs";
+import { privacyPt } from "@/components/legal/pt/PrivacyPt";
+import { privacyUk } from "@/components/legal/uk/PrivacyUk";
+import { privacyPl } from "@/components/legal/pl/PrivacyPl";
+import { privacyZh } from "@/components/legal/zh/PrivacyZh";
+import { privacyVi } from "@/components/legal/vi/PrivacyVi";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION, SUBPROCESSORS } from "@/lib/legal";
@@ -49,6 +55,7 @@ export default function PrivacyPage() {
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
       ru={privacyRu}
+      translations={{ es: privacyEs, pt: privacyPt, uk: privacyUk, pl: privacyPl, zh: privacyZh, vi: privacyVi }}
       intro={
         <p>
           Electrical, low-voltage and specialty trade contractors trust Northpin with their plans, quotes, invoices, jobs and their clients’ details. This

@@ -11,6 +11,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import { termsRu } from "@/components/legal/ru/TermsRu";
+import { termsEs } from "@/components/legal/es/TermsEs";
+import { termsPt } from "@/components/legal/pt/TermsPt";
+import { termsUk } from "@/components/legal/uk/TermsUk";
+import { termsPl } from "@/components/legal/pl/TermsPl";
+import { termsZh } from "@/components/legal/zh/TermsZh";
+import { termsVi } from "@/components/legal/vi/TermsVi";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
@@ -54,6 +60,7 @@ export default function TermsPage() {
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
       ru={termsRu}
+      translations={{ es: termsEs, pt: termsPt, uk: termsUk, pl: termsPl, zh: termsZh, vi: termsVi }}
       intro={
         <p>
           Northpin helps electrical, low-voltage and specialty trade contractors count from plans, send quotes and invoices, and run their jobs in the field.

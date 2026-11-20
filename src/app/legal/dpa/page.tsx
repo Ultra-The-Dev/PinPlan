@@ -10,6 +10,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import { dpaRu } from "@/components/legal/ru/DpaRu";
+import { dpaEs } from "@/components/legal/es/DpaEs";
+import { dpaPt } from "@/components/legal/pt/DpaPt";
+import { dpaUk } from "@/components/legal/uk/DpaUk";
+import { dpaPl } from "@/components/legal/pl/DpaPl";
+import { dpaZh } from "@/components/legal/zh/DpaZh";
+import { dpaVi } from "@/components/legal/vi/DpaVi";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
 
@@ -44,6 +50,7 @@ export default function DpaPage() {
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
       ru={dpaRu}
+      translations={{ es: dpaEs, pt: dpaPt, uk: dpaUk, pl: dpaPl, zh: dpaZh, vi: dpaVi }}
       intro={
         <p>
           This addendum is part of our <Link href="/terms">Terms of Service</Link> and applies whenever we process personal information inside your Customer

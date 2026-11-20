@@ -5,6 +5,12 @@
 import type { Metadata } from "next";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
 import { accessibilityRu } from "@/components/legal/ru/AccessibilityRu";
+import { accessibilityEs } from "@/components/legal/es/AccessibilityEs";
+import { accessibilityPt } from "@/components/legal/pt/AccessibilityPt";
+import { accessibilityUk } from "@/components/legal/uk/AccessibilityUk";
+import { accessibilityPl } from "@/components/legal/pl/AccessibilityPl";
+import { accessibilityZh } from "@/components/legal/zh/AccessibilityZh";
+import { accessibilityVi } from "@/components/legal/vi/AccessibilityVi";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
 
@@ -29,6 +35,7 @@ export default function AccessibilityPage() {
       updated={LEGAL_EFFECTIVE_DATE}
       toc={toc}
       ru={accessibilityRu}
+      translations={{ es: accessibilityEs, pt: accessibilityPt, uk: accessibilityUk, pl: accessibilityPl, zh: accessibilityZh, vi: accessibilityVi }}
       intro={<p>We want everyone on a crew, in the office and on the client side to be able to use Northpin, whatever device or assistive technology they use.</p>}
     >
       <Section item={S.goal}>
