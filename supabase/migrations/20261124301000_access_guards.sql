@@ -269,7 +269,7 @@ begin
 end $$;
 
 -- Plan files (<job id>/<file id>): adding or replacing one is a write on the job. Technicians replace only files
--- they uploaded themselves.
+-- they uploaded themselves (storage fills owner_id, and owner on older files).
 drop policy if exists plans_insert on storage.objects;
 create policy plans_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'plans' and public.is_project_member((storage.foldername(name))[1])
@@ -277,10 +277,10 @@ create policy plans_insert on storage.objects for insert to authenticated
 drop policy if exists plans_update on storage.objects;
 create policy plans_update on storage.objects for update to authenticated
   using (bucket_id = 'plans' and public.is_project_member((storage.foldername(name))[1])
-         and (owner = auth.uid() or not public.is_tech())
+         and (owner = auth.uid() or owner_id = auth.uid()::text or not public.is_tech())
          and public.team_can_write(public.billing_owner((storage.foldername(name))[1])))
   with check (bucket_id = 'plans' and public.is_project_member((storage.foldername(name))[1])
-              and (owner = auth.uid() or not public.is_tech())
+              and (owner = auth.uid() or owner_id = auth.uid()::text or not public.is_tech())
               and public.team_can_write(public.billing_owner((storage.foldername(name))[1])));
 
 -- Proposal and photo report images: only <your id>/<link token>/<id>.jpg or <your id>/reports/<link token>/<id>.jpg.
@@ -301,19 +301,28 @@ create policy proposals_files_update on storage.objects for update to authentica
 update storage.buckets set file_size_limit = 10485760, allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp']
   where id = 'proposals';
 -- plans (private): plan pages, photos, signatures, logos and job documents (permits, spec sheets, contracts,
--- drawings; the apps cap those at 25 MB). Images other than SVG, PDF, office and text formats; files whose type the
--- device can't tell arrive as application/octet-stream. Never SVG or HTML.
+-- drawings, site videos; the apps cap those at 25 MB). Images other than SVG, PDF, office, text, CAD, archive, audio
+-- and video formats; anything else is sent as application/octet-stream (the apps do that for a type not on this
+-- list, so it downloads instead of opening in the browser). Never SVG, HTML or XML. Keep the list the same as
+-- src/lib/storageTypes.ts and PinPlanCore's StorageTypes.swift (tests/storageTypes.test.ts checks it).
 update storage.buckets set file_size_limit = 52428800, allowed_mime_types = array[
-    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/tiff', 'image/bmp',
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/tiff', 'image/bmp', 'image/avif',
     'application/pdf',
     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-word.document.macroEnabled.12', 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    'application/vnd.ms-word.document.macroenabled.12', 'application/vnd.ms-excel.sheet.macroenabled.12',
     'application/vnd.oasis.opendocument.text', 'application/vnd.oasis.opendocument.spreadsheet',
     'application/vnd.oasis.opendocument.presentation', 'application/rtf', 'text/rtf',
     'application/vnd.apple.pages', 'application/vnd.apple.numbers', 'application/vnd.apple.keynote',
-    'text/plain', 'text/csv', 'application/zip', 'image/vnd.dwg', 'image/vnd.dxf', 'application/acad', 'application/dxf',
-    'message/rfc822', 'application/vnd.ms-outlook', 'application/octet-stream']
+    'application/vnd.ms-project', 'application/vnd.visio', 'application/vnd.ms-visio.drawing',
+    'text/plain', 'text/csv',
+    'application/zip', 'application/x-zip-compressed', 'application/x-7z-compressed', 'application/vnd.rar', 'application/x-rar-compressed',
+    'image/vnd.dwg', 'image/x-dwg', 'application/x-dwg', 'image/vnd.dxf', 'application/acad', 'application/dxf', 'application/x-autocad',
+    'message/rfc822', 'application/vnd.ms-outlook',
+    'video/mp4', 'video/quicktime', 'video/x-m4v', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/wav', 'audio/x-wav',
+    'application/octet-stream']
   where id = 'plans';
 
 -- ---------- 5. proposals: the answer and the snapshot are the client's and the database's ----------
@@ -542,18 +551,18 @@ create trigger job_forms_lock before insert or update or delete on public.job_fo
 
 -- ---------- 9. ids that become storage paths ----------
 -- Job ids name the plan folder and image / file ids name the file in it, so they are plain ids (letters, digits,
--- _ and -). Added NOT VALID, then validated when the rows already there pass (otherwise only new rows are checked,
+-- _ and -). An empty image / file id is let through: the apps send '' for a row that lost its id (it names no file). Added NOT VALID, then validated when the rows already there pass (otherwise only new rows are checked,
 -- and a notice says so).
 do $$
 declare c record;
 begin
   for c in select * from (values
       ('projects', 'projects_id_format', $c$id ~ '^[A-Za-z0-9_-]{1,64}$'$c$),
-      ('sheets', 'sheets_image_id_format', $c$image_id ~ '^[A-Za-z0-9_-]{1,64}$'$c$),
+      ('sheets', 'sheets_image_id_format', $c$image_id ~ '^[A-Za-z0-9_-]{0,64}$'$c$),
       ('sheets', 'sheets_image_path_format',
         $c$image_path is null or (left(image_path, length(project_id) + 1) = project_id || '/' and substr(image_path, length(project_id) + 2) ~ '^[A-Za-z0-9_-]{1,64}$')$c$),
-      ('photos', 'photos_image_id_format', $c$image_id ~ '^[A-Za-z0-9_-]{1,64}$'$c$),
-      ('job_documents', 'job_documents_file_id_format', $c$file_id ~ '^[A-Za-z0-9_-]{1,64}$'$c$)
+      ('photos', 'photos_image_id_format', $c$image_id ~ '^[A-Za-z0-9_-]{0,64}$'$c$),
+      ('job_documents', 'job_documents_file_id_format', $c$file_id ~ '^[A-Za-z0-9_-]{0,64}$'$c$)
     ) as v(tbl, name, expr) loop
     if to_regclass('public.' || c.tbl) is null then continue; end if;
     execute format('alter table public.%I drop constraint if exists %I', c.tbl, c.name);

@@ -288,6 +288,12 @@ select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where
 insert into storage.objects (bucket_id, name, owner) values ('plans', 'sec-p1/sec-tech1', '00000000-0000-0000-0000-0000000005e3');
 select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-tech1'$$) = 1,
   'tech can replace a plan file they uploaded');
+-- Current Supabase storage fills owner_id (text) too.
+insert into storage.objects (bucket_id, name, owner_id) values ('plans', 'sec-p1/sec-tech2', '00000000-0000-0000-0000-0000000005e3');
+select pg_temp.check(pg_temp.rows($$update storage.objects set name = name where bucket_id = 'plans' and name = 'sec-p1/sec-tech2'$$) = 1,
+  'tech can replace a plan file they uploaded (owner_id)');
+select pg_temp.check(pg_temp.rows($$update storage.objects set owner_id = '00000000-0000-0000-0000-0000000005e3' where bucket_id = 'plans' and name = 'sec-p1/sec-img1'$$) = 0,
+  'tech can''t claim a plan file the office uploaded');
 select pg_temp.check(pg_temp.fails($$insert into storage.objects (bucket_id, name, owner) values ('plans', 'sec-op1/x', '00000000-0000-0000-0000-0000000005e3')$$),
   'nobody uploads into another company''s job folder');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000005e2');
@@ -339,6 +345,8 @@ update public.sheets set image_path = 'sec-p1/sec-img1' where id = 'sec-s1';
 select pg_temp.check((select image_path from public.sheets where id = 'sec-s1') = 'sec-p1/sec-img1', 'a normal sheet image path is fine');
 select pg_temp.check(pg_temp.fails($$insert into public.photos (id, project_id, image_id) values ('sec-ph9', 'sec-p1', 'a b')$$), 'a photo image id is a plain id');
 select pg_temp.check(pg_temp.fails($$insert into public.job_documents (id, project_id, file_id) values ('sec-jd9', 'sec-p1', 'x.html')$$), 'a document file id is a plain id');
+-- The apps send '' for a row that lost its file id (syncMap NOT_NULL_DEFAULTS); it names no file, so it isn't refused.
+select pg_temp.check(not pg_temp.fails($$insert into public.photos (id, project_id, image_id) values ('sec-ph8', 'sec-p1', '')$$), 'a photo row without an image id still syncs');
 reset role;
 select pg_temp.check((select bool_and(convalidated) from pg_constraint where conname in
   ('projects_id_format', 'sheets_image_id_format', 'sheets_image_path_format', 'photos_image_id_format', 'job_documents_file_id_format')), 'the id checks are validated');

@@ -12,6 +12,7 @@ import { db, type RefusedChange, type SyncItem, type SyncTable } from "./db";
 import { reportError } from "./errorReporting";
 import { adoptLocalData, checkLocalOwner, readLocalOwner, removeLocalData } from "./localOwner";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
+import { plansUploadBody, plansUploadType } from "./storageTypes";
 import {
   dedupeQueue,
   gapTag,
@@ -376,7 +377,7 @@ async function pushImage(sb: Client, imageId: string, owners: Map<string, ImageO
     const owner = owners.get(imageId);
     if (!owner) return "waiting";
     const path = `${owner.projectId}/${imageId}`;
-    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, img.blob, { upsert: true, contentType: img.mime || "image/jpeg" });
+    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, plansUploadBody(img.blob, img.mime), { upsert: true, contentType: plansUploadType(img.blob.type || img.mime) });
     if (error) return "failed";
     // Only a sheet's current image is named on its row.
     if (owner.sheet) {
