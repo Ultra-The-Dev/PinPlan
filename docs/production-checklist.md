@@ -86,5 +86,7 @@ leaked. Redeploy in Vercel after every change.
   `plans/<job id>/…` storage files; see [backups.md](backups.md). Deliver with a time-limited link within 7 days
   (promised on `/support`).
 - **Deletion:** in-app account deletion (Settings → Account). For email requests, check the requester controls the
-  account email first. Deleting a user removes their jobs and company; also remove storage files and the Stripe
-  customer. Backups roll off within the point-in-time recovery window.
+  account email first. Deleting an account removes the login, the person's own jobs, price list and files, and the
+  company if they own it alone. An owner with other people on the team must remove them first; a member's jobs move
+  to the company owner. Deleting a company cancels its Stripe subscription; the Stripe customer and its invoices
+  stay in Stripe for your accounting records. Backups roll off within the point-in-time recovery window.

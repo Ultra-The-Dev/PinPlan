@@ -118,7 +118,7 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
 6. **R: Set the launch time.** `billing_settings.launched_at` was set when the first billing migration ran. Accounts made
    before it never get a trial deadline. If that was well before the real launch, set it to the launch time:
    `update public.billing_settings set launched_at = '<launch time, e.g. 2026-12-01T00:00:00Z>';`
-   Leave `enforce` false for now (step 9.3).
+   Leave `enforce` false for now (step 12.1).
 7. **R: Authentication → URL Configuration.** Site URL = `https://<your-domain>`. Redirect URLs =
    `https://<your-domain>/**` (this covers `/login?confirmed=1`, `/reset`, `/join` and `/settings`, which the web and
    iOS apps use). Remove `localhost`. Add preview addresses only if you test sign-in on previews.
@@ -242,9 +242,6 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
    providers and Apple. Every key lives in a password manager.
 2. **R: GitHub → Settings.** Secret scanning, push protection and Dependabot alerts on. Branch protection on `main`:
    require the web, database and Swift core checks, and block force-pushes.
-3. **R: Switch billing on** only after one real live purchase works end to end (step 11.1):
-   `update public.billing_settings set enforce = true;`
-   While it is false, an unpaid trial never locks anyone and no trial reminders are sent.
 
 ## 10. Apple (Developer Program $99 a year)
 
@@ -307,7 +304,9 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
 
 ## 12. Launch day and the first weeks
 
-1. **R: Switch billing on** (step 9.3) once the live purchase in 11.1 worked.
+1. **R: Switch billing on** once the live purchase in step 11.1 worked (SQL editor):
+   `update public.billing_settings set enforce = true;`
+   While it is false, an unpaid trial never locks anyone and no trial reminders are sent.
 2. **R: Uptime monitor** (Better Stack or UptimeRobot, free tier) on `https://<your-domain>/api/health`, alerting your
    phone. It answers 503 when the database is down, the database is behind the code, or a required setting is missing.
 3. **R: Stripe → Developers → Webhooks:** turn on failure alerts for the endpoint.
