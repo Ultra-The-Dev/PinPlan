@@ -115,7 +115,7 @@ export function warpToRect(img: HTMLImageElement | HTMLCanvasElement, corners: P
 // ---- OpenCV.js page detection (optional; loaded on demand) ----
 
 /** Self-hosted (public/vendor/README.md): works offline once cached and needs no third-party script host. */
-const OPENCV_URL = "/vendor/opencv-4.10.0.js";
+export const OPENCV_URL = "/vendor/opencv-4.10.0.js";
 
 type CV = {
   Mat: new () => CvMat;

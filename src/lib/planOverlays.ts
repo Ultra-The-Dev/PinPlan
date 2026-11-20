@@ -127,7 +127,7 @@ export function useViewTransform(viewport: PlanViewport): ViewportSnapshot {
 // `claimPlanInput(id)` when it starts. A release only closes its own feature (it never claims).
 
 /** Who can own plan input. */
-export type PlanInputId = "measure" | "markups" | "walk" | "links" | "task-drop" | "editor-tool";
+export type PlanInputId = "measure" | "markups" | "walk" | "links" | "task-drop" | "editor-tool" | "find-similar";
 
 const releasers: { id: PlanInputId; release: () => void }[] = [];
 let claiming = false;

@@ -37,6 +37,7 @@ import "./overlays";
 import { setPlanToolbarRow, StatusSlot, StatusSlotHost } from "./overlays/PlanRail";
 import { resetPlanUi } from "./overlays/planInputs";
 import { AI_ENABLED } from "@/lib/features";
+import { useFindSimilar } from "../findSimilar/findSimilarStore";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -112,6 +113,7 @@ export default function PlanEditor() {
   // Technicians start in view only; everyone else where they left it (edit by default).
   const mode = viewer.mode ?? (role === "tech" ? "view" : "edit");
   const editing = mode === "edit";
+  const findOpen = useFindSimilar((s) => s.open);
   const filters = viewer.filters;
   const showLabels = filters.labels;
   const setShowLabels = (u: (v: boolean) => boolean) => viewer.setFilters({ labels: u(filters.labels) });
@@ -528,6 +530,7 @@ export default function PlanEditor() {
       }}
       countsOpen={panel === "counts" && !selection}
       onCounts={() => setPanel(panel === "counts" ? null : "counts")}
+      findSimilar={editing ? { open: findOpen, onClick: () => useFindSimilar.getState().setOpen(!findOpen) } : null}
       ai={AI_ENABLED ? { open: panel === "scan" && !selection, onClick: () => setPanel(panel === "scan" ? null : "scan") } : null}
       fullscreen={fullscreen}
       onFullscreen={() => toggleFullscreen()}

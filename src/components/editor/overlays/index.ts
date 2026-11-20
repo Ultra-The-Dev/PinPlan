@@ -7,3 +7,4 @@ import "@/components/sheetIndex/registerOverlay";
 import "@/components/tasks/registerOverlay";
 import "@/components/markups/registerOverlay";
 import "../../revisions/revisionOverlay";
+import "@/components/findSimilar/registerOverlay";

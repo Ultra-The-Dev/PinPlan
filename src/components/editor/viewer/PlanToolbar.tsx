@@ -2,7 +2,7 @@
 // The plan's floating toolbar. Icon buttons (labels on wide screens), bigger on touch screens. Editing tools only
 // show in edit mode; setting the scale is for the office. Measuring lives in the left rail (Measure, M). On phones
 // Home runs and Counts sit under "More" (a bottom sheet), so the row fits.
-import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, Sparkles, Tag, Undo2, X } from "lucide-react";
+import { Cable, Hand, Layers, ListChecks, Maximize2, Minimize2, MoreHorizontal, Redo2, Ruler, ScanSearch, Sparkles, Tag, Undo2, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -27,6 +27,8 @@ export interface PlanToolbarProps {
   countsOpen: boolean;
   onCounts: () => void;
   ai?: { open: boolean; onClick: () => void } | null;
+  /** Find similar (edit mode): count repeated symbols like doors and windows (docs/find-similar.md). */
+  findSimilar?: { open: boolean; onClick: () => void } | null;
   fullscreen: boolean;
   onFullscreen: () => void;
   /** Phones: less used actions go under More. */
@@ -89,6 +91,11 @@ export default function PlanToolbar(p: PlanToolbarProps) {
           </B>
         </>
       )}
+      {p.findSimilar && !p.compact && (
+        <B wide={p.wideLabels} on={p.findSimilar.open} title="Find similar: tap a door, window or any symbol to find the others like it" label="Find similar" onClick={p.findSimilar.onClick} testId="find-similar-button">
+          <ScanSearch />
+        </B>
+      )}
       {p.ai && (
         <B wide={p.wideLabels} on={p.ai.open} title="AI scan assist" label="AI scan" onClick={p.ai.onClick}>
           <Sparkles />
@@ -121,6 +128,17 @@ export default function PlanToolbar(p: PlanToolbarProps) {
                   p.onCounts();
                 }}
               />
+              {p.findSimilar && (
+                <MenuItem
+                  icon={<ScanSearch />}
+                  label="Find similar (doors, windows…)"
+                  on={p.findSimilar.open}
+                  onClick={() => {
+                    setMore(false);
+                    p.findSimilar!.onClick();
+                  }}
+                />
+              )}
               {p.editing && (
                 <MenuItem
                   icon={<Cable />}

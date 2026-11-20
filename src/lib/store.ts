@@ -116,6 +116,8 @@ interface EditorState {
 
   pricing(): PricingSettings;
   addMarker(deviceTypeId: string, x: number, y: number, extra?: Partial<Marker>): Promise<Marker | null>;
+  /** Place several devices on the active sheet as one undo step (accepting Find similar suggestions). */
+  addMarkers(items: { deviceTypeId: string; x: number; y: number; extra?: Partial<Marker> }[]): Promise<Marker[]>;
   updateMarker(id: string, patch: Partial<Marker>): Promise<void>;
   addRun(run: Omit<Run, "id" | "projectId" | "sheetId" | "createdAt" | "updatedAt">): Promise<Run | null>;
   updateRun(id: string, patch: Partial<Run>): Promise<void>;
@@ -410,6 +412,43 @@ export const useEditor = create<EditorState>((set, get) => ({
     };
     await get().commit([{ table: "markers", before: null, after: m }]);
     return m;
+  },
+  async addMarkers(items) {
+    const { project, activeSheetId, sheets, catalog } = get();
+    const sheet = sheets.find((s) => s.id === activeSheetId);
+    if (!project || !sheet) return [];
+    // Default home-run closet: the project's equipment closet (same floor first).
+    const eq = defaultCloset(get().closets, sheet.id);
+    // Labels number on from each other within the batch.
+    const markers = [...get().markers];
+    const out: Marker[] = [];
+    for (const { deviceTypeId, x, y, extra } of items) {
+      const type = catalog.find((d) => d.id === deviceTypeId);
+      if (!type) continue;
+      const m: Marker = {
+        id: newId(),
+        projectId: project.id,
+        sheetId: sheet.id,
+        deviceTypeId,
+        x,
+        y,
+        label: nextLabel(type, sheet, sheets, markers),
+        room: get().room.trim(),
+        mount: type.defaultMount,
+        wireType: type.defaultWire,
+        closetId: eq?.id ?? null,
+        tentative: false,
+        notes: "",
+        photoId: null,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+        ...extra,
+      };
+      markers.push(m);
+      out.push(m);
+    }
+    if (out.length) await get().commit(out.map((m) => ({ table: "markers", before: null, after: m })));
+    return out;
   },
   async updateMarker(id, patch) {
     const before = get().markers.find((m) => m.id === id);
