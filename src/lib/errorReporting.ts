@@ -1,14 +1,13 @@
-"use client";
 // Client error reporting without a third-party service: uncaught errors, unhandled promise rejections and
 // React error-boundary errors are inserted into Supabase `public.app_errors` (insert-only; see
 // supabase/migrations/20261121020000_ops.sql for the columns, which the iOS app can use too).
 // Without Supabase configured this is a no-op apart from the console.
+// The pure parts (scrubbing, buildReport) are shared with server error capture (src/lib/server/serverErrors.ts), so
+// this module has no "use client" and loads the browser Supabase client only when a report is actually sent.
 //
 // Privacy: URLs lose their query string and hash (proposal tokens, auth fragments), and messages/stacks are
 // scrubbed of JWTs, bearer tokens, long opaque ids and email addresses before anything leaves the device.
-import { getSupabase, supabaseConfigured } from "./supabase";
-
-export type ErrorKind = "onerror" | "unhandledrejection" | "boundary" | "manual";
+export type ErrorKind = "onerror" | "unhandledrejection" | "boundary" | "manual" | "server";
 
 export interface ErrorReport {
   message: string;
@@ -16,7 +15,7 @@ export interface ErrorReport {
   url: string | null;
   user_agent: string | null;
   app_version: string;
-  platform: "web";
+  platform: "web" | "server";
   context: Record<string, unknown>;
 }
 
@@ -73,7 +72,7 @@ function toParts(error: unknown): { message: string; stack: string | null } {
 }
 
 /** Build the row to insert (pure; exported for tests). */
-export function buildReport(error: unknown, kind: ErrorKind, extra: Record<string, unknown> = {}, href?: string, ua?: string): ErrorReport {
+export function buildReport(error: unknown, kind: ErrorKind, extra: Record<string, unknown> = {}, href?: string, ua?: string, platform: ErrorReport["platform"] = "web"): ErrorReport {
   const { message, stack } = toParts(error);
   const digest = (error as { digest?: unknown })?.digest;
   let context: Record<string, unknown> = { kind, ...extra, ...(typeof digest === "string" ? { digest } : {}) };
@@ -85,7 +84,7 @@ export function buildReport(error: unknown, kind: ErrorKind, extra: Record<strin
     url: sanitizeUrl(href),
     user_agent: clip(ua ?? null, 512),
     app_version: APP_VERSION,
-    platform: "web",
+    platform,
     context,
   };
 }
@@ -119,13 +118,13 @@ export function reportError(error: unknown, kind: ErrorKind = "manual", extra: R
     if (seen.has(key)) return;
     seen.add(key);
     if (sent >= MAX_REPORTS_PER_SESSION || sessionCount() >= MAX_REPORTS_PER_SESSION) return;
-    const sb = supabaseConfigured ? getSupabase() : null;
-    if (!sb) return;
     bumpSessionCount();
-    // No .select(): the table is insert-only for app users.
-    void sb
-      .from("app_errors")
-      .insert(report)
+    void import("./supabase")
+      .then(({ getSupabase, supabaseConfigured }) => {
+        const sb = supabaseConfigured ? getSupabase() : null;
+        // No .select(): the table is insert-only for app users.
+        return sb ? sb.from("app_errors").insert(report) : undefined;
+      })
       .then(
         () => undefined,
         () => undefined,

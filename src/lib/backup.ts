@@ -64,7 +64,7 @@ export async function exportAllBackup(): Promise<number> {
   return projects.length;
 }
 
-async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof loadProject>>>) {
+export async function projectWithImages(bundle: NonNullable<Awaited<ReturnType<typeof loadProject>>>) {
   const imageIds = new Set<string>([
     ...bundle.sheets.map((s) => s.imageId),
     ...bundle.sheets.flatMap((s) => (s.revisions ?? []).map((r) => r.imageId)),

@@ -20,6 +20,7 @@ import type { TeamRole } from "@/lib/teamLogic";
 import { extraSeats, seatItem, seatTarget, type SubscriptionLike } from "@/lib/billingLogic";
 import { applySubscription, billingConfig, getStripe } from "@/lib/server/billing";
 import { tokenIssuedAt } from "@/lib/server/auth";
+import { reportServerError } from "@/lib/server/serverErrors";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const anonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -206,6 +207,7 @@ export async function DELETE(req: Request) {
     });
   } catch (e) {
     console.error("[account delete]", e);
+    await reportServerError(e, { where: "account delete", path: "/api/account", method: "DELETE", userId });
     return json({ error: "Your account wasn’t deleted — something went wrong on the server. Try again in a minute, or email support.", code: "upstream" }, 502);
   }
 }

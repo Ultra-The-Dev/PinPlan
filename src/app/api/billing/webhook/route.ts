@@ -5,7 +5,7 @@
 //     than the new subscription has seats, the seats are raised to fit (with prorations).
 //   invoice.payment_failed: the owner gets one "payment didn't go through" email per invoice. Email problems are
 //     logged and never make Stripe retry the event.
-import { seatTarget, subscriptionIdFromEvent, HANDLED_EVENTS, type SubscriptionLike } from "@/lib/billingLogic";
+import { HANDLED_EVENTS, seatTarget, subscriptionIdFromEvent, type SubscriptionLike } from "@/lib/billingLogic";
 import {
   applySubscription,
   billingConfig,
@@ -20,6 +20,7 @@ import {
   verifyWebhook,
   type InvoiceLike,
 } from "@/lib/server/billing";
+import { reportServerError } from "@/lib/server/serverErrors";
 
 const HANDLED = new Set<string>(HANDLED_EVENTS);
 
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     // 500 makes Stripe retry later (the database or Stripe may be briefly unreachable).
     const err = e as { type?: string; code?: string; message?: string };
     console.error("[billing] webhook", event.type, event.id, err?.type ?? "", err?.code ?? "", err?.message);
+    await reportServerError(e, { where: "billing webhook", path: "/api/billing/webhook", method: "POST", extra: { eventType: event.type } });
     return jsonError("Couldn't apply the event.", "apply_failed", 500);
   }
 
