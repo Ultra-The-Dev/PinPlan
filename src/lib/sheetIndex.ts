@@ -1,6 +1,6 @@
 // Sheet index and plan hyperlinks: sheet numbers, titles and disciplines read from a PDF's text layer, and callouts
 // ("E-501", "3 over A-501") that become tappable links to other sheets. Pure except `readPdfText` (browser, PDF.js).
-// No AI: it only reads the text the PDF already carries; scanned PDFs simply give no proposals. See
+// No AI: it only reads the text the PDF already carries (scanned pages: floor names come from on-device OCR, src/lib/ocr.ts). See
 // docs/sheet-index-links.md.
 import { t } from "./i18n";
 import { loadPdfjs, pageTextItems, type PageTextItem } from "./importPlans";

@@ -86,3 +86,24 @@ final class FloorNameTests: XCTestCase {
         XCTAssertEqual(FloorName.propose(floor: nil, current: "Sheet 4"), "Sheet 4")
     }
 }
+
+/// Deleting a plan (sheet pill, plans screen): a soft delete; its devices stay stored but the takeoff drops them,
+/// and putting the sheet back (Undo) counts them again. Same as tests/sheetDelete.test.ts.
+final class SheetDeleteTakeoffTests: XCTestCase {
+    func testDeletedSheetsDevicesDontCount() {
+        var b = ProjectBundle(project: Project(id: "p", clientName: "", address: ""))
+        b.sheets = [Sheet(id: "s1", projectId: "p", name: "Attic", pageNumber: 1, order: 0, imageId: "i1", width: 10, height: 10),
+                    Sheet(id: "s2", projectId: "p", name: "1st Fl", pageNumber: 2, order: 1, imageId: "i2", width: 10, height: 10)]
+        b.markers = [Marker(id: "m1", projectId: "p", sheetId: "s1", deviceTypeId: "cam", x: 0, y: 0, label: "a"),
+                     Marker(id: "m2", projectId: "p", sheetId: "s2", deviceTypeId: "cam", x: 0, y: 0, label: "b"),
+                     Marker(id: "m3", projectId: "p", sheetId: "s2", deviceTypeId: "cam", x: 0, y: 0, label: "c")]
+        XCTAssertEqual(TakeoffCalculator.compute(b).total.counts["cam"], 3)
+        let before = b
+        b.sheets[1].deleted = true
+        let t = TakeoffCalculator.compute(b)
+        XCTAssertEqual(t.floors.map(\.name), ["Attic"])
+        XCTAssertEqual(t.total.counts["cam"], 1)
+        XCTAssertEqual(b.liveMarkers.count, 3, "devices stay stored")
+        XCTAssertEqual(TakeoffCalculator.compute(before).total.counts["cam"], 3)
+    }
+}

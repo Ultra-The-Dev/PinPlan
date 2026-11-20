@@ -89,7 +89,8 @@ function getWorker(): Promise<TessWorker> {
       },
     });
     // Title blocks: sparse text, so let it find lines anywhere in the crop.
-    await worker.setParameters({ tessedit_pageseg_mode: "11" });
+    // A fixed DPI also keeps Tesseract from logging "Estimating resolution" as an error on every read.
+    await worker.setParameters({ tessedit_pageseg_mode: "11", user_defined_dpi: "200" });
     return worker;
   })().catch((e) => {
     workerPromise = null;

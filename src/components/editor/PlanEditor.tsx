@@ -590,7 +590,7 @@ export default function PlanEditor() {
         {editing && <div className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_0_3px_var(--color-brand-500)]" aria-hidden />}
 
         {/* Top: sheet title (opens the browser) on the left, tools and mode on the right. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-2 sm:p-3">
+        <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-2 sm:p-3 ${sheetMenu ? "z-40" : "z-10"}`}>
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
             {editing && wide && (
               <button

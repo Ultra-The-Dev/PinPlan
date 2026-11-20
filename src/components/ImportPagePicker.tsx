@@ -270,7 +270,7 @@ export default function ImportPagePicker({ file, onCancel, onImport }: { file: F
               <Loader2 className="h-4 w-4 animate-spin" /> {t("Reading the pages…")}
             </p>
           ) : (
-            <ul ref={listRef} className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <ul ref={listRef} className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3">
               {rows.map((r) => {
                 const label = t("Page {n}", { n: r.pageNumber });
                 return (
