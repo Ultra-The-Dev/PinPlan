@@ -254,8 +254,10 @@ describe("CSP and configurable endpoints", () => {
   });
 
   it("uses OpenStreetMap tiles by default and a configured provider with its key", () => {
-    expect(mapTiles({}).url).toBe(OSM_TILE_URL);
-    const t = mapTiles({ url: "https://tiles.example.com/{z}/{x}/{y}.png?key={key}", key: "pk", attribution: "© Example" });
+    expect(mapTiles({})?.url).toBe(OSM_TILE_URL);
+    // A production build with no provider set shows no background map (never OSM's server).
+    expect(mapTiles({ production: true })).toBeNull();
+    const t = mapTiles({ url: "https://tiles.example.com/{z}/{x}/{y}.png?key={key}", key: "pk", attribution: "© Example" })!;
     expect(t.url).toContain("{key}");
     expect(t.options).toMatchObject({ key: "pk", attribution: "© Example" });
   });

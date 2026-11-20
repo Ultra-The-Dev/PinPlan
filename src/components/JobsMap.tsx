@@ -1,5 +1,5 @@
 "use client";
-// Jobs on a map (Leaflet; tiles from NEXT_PUBLIC_MAP_TILE_URL, else OpenStreetMap — src/lib/endpoints.ts). A job's
+// Jobs on a map (Leaflet; tiles from NEXT_PUBLIC_MAP_TILE_URL, else none in production — src/lib/endpoints.ts). A job's
 // location comes from its first geotagged photo, or is set on its Job tab. Filter by status and label; the list beside
 // the map flies to a job's pin. Offline, the pins and the list still work; only the background map is missing.
 import { PROJECT_STATUS_HEX } from "@/lib/statusStyle";
@@ -76,15 +76,17 @@ export default function JobsMap() {
     const map = L.map(el.current, { zoomControl: true, attributionControl: true });
     const tiles = mapTiles();
     let failed = 0;
-    L.tileLayer(tiles.url, tiles.options)
-      .on("tileerror", () => {
-        if (++failed >= 4) setNoTiles(true);
-      })
-      .on("tileload", () => {
-        failed = 0;
-        if (navigator.onLine !== false) setNoTiles(false);
-      })
-      .addTo(map);
+    // No tile provider set up on this server: pins on a plain background.
+    if (tiles)
+      L.tileLayer(tiles.url, tiles.options)
+        .on("tileerror", () => {
+          if (++failed >= 4) setNoTiles(true);
+        })
+        .on("tileload", () => {
+          failed = 0;
+          if (navigator.onLine !== false) setNoTiles(false);
+        })
+        .addTo(map);
     map.setView([40.73, -73.95], 9);
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);

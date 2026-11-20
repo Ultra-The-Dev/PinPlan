@@ -12,19 +12,25 @@ running the service after launch (monitoring, key rotation, incidents).
   password manager. Never into a file in this repo, an issue, a pull request or a chat.
 - AI features stay **off** for launch. Don't set any of the AI settings (step 7.3).
 
-**Rough running cost at launch: about $170–$250 a month**, plus Apple $99 a year, the domain about $15 a year, Stripe
-fees on each payment, and one-time company formation ($50–$500) and lawyer review ($1,000–$3,000).
+**Lean setup (recommended for launch): about $45 a month**, plus the domain (about $10–$14 a year at cost from
+Cloudflare Registrar), Stripe fees on each payment, Apple $99 a year once you ship the App Store app, and one-time
+company formation (your state's fee). Upgrade a line when you outgrow it; the "Later" column is the step up.
 
-| Service | Plan | About |
-| --- | --- | --- |
-| Vercel (hosting) | Pro | $20 per team member a month |
-| Supabase (database, sign-in, files) | Pro + point-in-time recovery (7 days) | $25 + about $100 a month |
-| Resend (email) | Pro | $20 a month |
-| Map tiles (MapTiler, Stadia Maps or Mapbox) | free tier or starter | $0–$25 a month |
-| Open-Meteo (weather on daily logs) | commercial API | from about $30 a month |
-| Mailboxes (support@, privacy@, security@) | any email host | $5–$10 a month |
-| Stripe | pay as you go | 2.9% + 30¢ per card payment, 0.7% Billing, 0.5% Stripe Tax if used |
-| Apple Developer Program | organization | $99 a year |
+| Service | Launch with | About | Later |
+| --- | --- | --- | --- |
+| Vercel (hosting) | Pro, one member (the free Hobby plan forbids commercial use) | $20 a month | Cloudflare Workers paid (~$5 a month) is cheaper but needs a migration (OpenNext) |
+| Supabase (database, sign-in, files) | Pro, which already includes 7 days of daily backups | $25 a month | Point-in-time recovery add-on (~$100 a month) once you have many paying companies |
+| Resend (email) | Free: 3,000 emails a month, 100 a day, one domain | $0 | Pro ($20 a month) when you near 100 a day; Amazon SES ($0.10 per 1,000) at scale |
+| Map tiles | A provider's free commercial tier, or leave the jobs map background off (pins and list still work) | $0 | MapTiler / Stadia / Mapbox paid plan |
+| Weather on daily logs | See step 8.2 for the free options | $0 | Open-Meteo commercial subscription |
+| Mailboxes (support@, privacy@, security@) | Cloudflare Email Routing (free forwarding to your existing inbox; reply as support@ through Gmail "Send mail as"), or Zoho Mail's free plan | $0 | Google Workspace / Microsoft 365 |
+| Uptime monitor, bot protection | UptimeRobot or Better Stack free; Cloudflare Turnstile | $0 | — |
+| Legal pages | A policy generator (Termly, iubenda) as a starting point | $0–$20 a month | A flat-fee lawyer review (~$300–$500) once revenue starts; full review $1,000–$3,000 |
+| Stripe | pay as you go | 2.9% + 30¢ per card payment, 0.7% Billing | Stripe Tax (0.5%) only if an accountant says you must collect sales tax |
+| Apple Developer Program | organization | $99 a year | Optional at launch: the web app works on iPad and phones, including offline |
+
+The fuller setup the audits first suggested (Supabase point-in-time recovery, Resend Pro, paid maps and weather,
+paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day one.
 
 ---
 
@@ -71,14 +77,14 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
 7. When the Terms or Privacy Policy change later: ask the developer to change `TERMS_VERSION` in
    `src/lib/onboardingLogic.ts` together with `LEGAL_EFFECTIVE_DATE` in `src/lib/legal.ts`.
 
-## 3. Domain and mailboxes (domain about $15 a year)
+## 3. Domain and mailboxes (domain about $10–$15 a year; mailboxes can be free with Cloudflare Email Routing)
 
 1. **R: Buy the domain.** Later, in Vercel → Project → Settings → Domains, add it (apex and `www`, or an `app.`
    subdomain) and redirect one to the other.
 2. **R: Mailboxes on the main domain:** `support@`, `privacy@`, `security@` (aliases are fine) and `dmarc-reports@`.
    Use role addresses, not a personal one, and make sure someone reads them every day.
 
-## 4. Supabase (Pro $25 a month, point-in-time recovery about $100 a month)
+## 4. Supabase (Pro $25 a month, includes 7 days of daily backups; point-in-time recovery is an optional ~$100 a month add-on)
 
 1. **R: Production project on the Pro plan.** Pick the region on purpose (near your customers, and use the same region
    for Vercel functions in step 7.4). Write it into `COMPANY.dataRegion`. Add the point-in-time recovery add-on and put
@@ -140,7 +146,7 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
     after the iOS app sends captcha tokens, which it doesn't yet: turning it on earlier breaks sign-in and sign-up in the
     iPad and iPhone app. The web side is step 7.1.
 
-## 5. Resend (Pro about $20 a month; the free tier is too small)
+## 5. Resend (free plan at launch: 3,000 emails a month, 100 a day; Pro about $20 a month when you outgrow it)
 
 1. **R: Verify `mail.<your-domain>`** (Domains → Add domain). Add the SPF, MX and DKIM records it shows at your DNS
    host. Add DMARC: a `TXT` record `_dmarc` with `v=DMARC1; p=none; rua=mailto:dmarc-reports@<your-domain>`, and move
@@ -228,13 +234,18 @@ fees on each payment, and one-time company formation ($50–$500) and lawyer rev
 
 ## 8. Map and weather licences
 
-1. **R: Map tiles.** OpenStreetMap's public tile server doesn't allow a commercial app's traffic. Make an account with
-   MapTiler, Stadia Maps or Mapbox (raster tiles), restrict the browser key to `<your-domain>`, then set
+1. **R: Map tiles.** OpenStreetMap's public tile server doesn't allow a commercial app's traffic. Use a provider whose free tier allows commercial use, or a paid plan (MapTiler, Stadia Maps or Mapbox, raster tiles). Free option:
+   leave `NEXT_PUBLIC_MAP_TILE_URL` unset. A production build then shows the jobs map with pins on a plain background
+   (it never uses the OpenStreetMap server). Otherwise make an account, restrict the browser key to `<your-domain>`, then set
    `NEXT_PUBLIC_MAP_TILE_URL` (a Leaflet template such as `https://<provider>/{z}/{x}/{y}.png?key={key}`),
    `NEXT_PUBLIC_MAP_TILE_KEY` and `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` (the credit line the provider asks for).
-2. **R: Weather on daily logs.** Open-Meteo's free API is for non-commercial use only. Buy an Open-Meteo API
-   subscription, then set `OPEN_METEO_API_KEY` (server only) and `NEXT_PUBLIC_WEATHER_URL=/api/weather`. Or point
-   `NEXT_PUBLIC_WEATHER_URL` at the https address of a self-hosted Open-Meteo.
+2. **R: Weather on daily logs.** Open-Meteo's free API is for non-commercial use only. Cheapest options, in order:
+   - **Self-host Open-Meteo** (open source) on a small server (~$5 a month) and set `NEXT_PUBLIC_WEATHER_URL` to its
+     https address. No per-call fees.
+   - **Buy an Open-Meteo API subscription**, then set `OPEN_METEO_API_KEY` (server only) and
+     `NEXT_PUBLIC_WEATHER_URL=/api/weather`.
+   - Free sources that allow commercial use (US National Weather Service `api.weather.gov`, MET Norway with
+     attribution) need a small code change to the weather adapter; ask the developer before relying on them.
 
 ## 9. Security hygiene (free)
 

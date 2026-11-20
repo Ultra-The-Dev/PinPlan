@@ -14,17 +14,19 @@ export interface TileConfig {
 /**
  * Map tiles for the jobs map: NEXT_PUBLIC_MAP_TILE_URL (a Leaflet template such as
  * `https://tiles.example.com/{z}/{x}/{y}.png?key={key}`) with NEXT_PUBLIC_MAP_TILE_KEY and
- * NEXT_PUBLIC_MAP_TILE_ATTRIBUTION, else OpenStreetMap.
+ * NEXT_PUBLIC_MAP_TILE_ATTRIBUTION. Unset: OpenStreetMap in development, and no background map in a production build
+ * (OSM's tile policy doesn't allow a commercial app's traffic; the pins and the job list still work).
  */
 export function mapTiles(
-  env: { url?: string; key?: string; attribution?: string } = {
+  env: { url?: string; key?: string; attribution?: string; production?: boolean } = {
     url: process.env.NEXT_PUBLIC_MAP_TILE_URL,
     key: process.env.NEXT_PUBLIC_MAP_TILE_KEY,
     attribution: process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION,
+    production: process.env.NODE_ENV === "production",
   },
-): TileConfig {
+): TileConfig | null {
   const url = env.url?.trim();
-  if (!url) return { url: OSM_TILE_URL, options: { maxZoom: 19, attribution: OSM_ATTRIBUTION } };
+  if (!url) return env.production ? null : { url: OSM_TILE_URL, options: { maxZoom: 19, attribution: OSM_ATTRIBUTION } };
   const options: TileConfig["options"] = { maxZoom: 19, attribution: env.attribution?.trim() || OSM_ATTRIBUTION };
   if (env.key?.trim()) options.key = env.key.trim();
   return { url, options };
