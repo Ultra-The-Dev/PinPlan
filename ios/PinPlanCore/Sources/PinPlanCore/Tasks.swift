@@ -45,8 +45,8 @@ public enum TaskLogic {
 
     public static let statuses: [StatusInfo] = [
         StatusInfo(id: .open, label: "Open", short: "Open", color: "#dc2626"),
-        StatusInfo(id: .in_progress, label: "In progress", short: "In progress", color: "#ea580c"),
-        StatusInfo(id: .ready, label: "Ready for review", short: "Review", color: "#ca8a04"),
+        StatusInfo(id: .in_progress, label: "In progress", short: "In progress", color: "#B7791F"),
+        StatusInfo(id: .ready, label: "Ready for review", short: "Review", color: "#7c3aed"),
         StatusInfo(id: .done, label: "Completed", short: "Completed", color: "#16a34a"),
         StatusInfo(id: .verified, label: "Verified", short: "Verified", color: "#2563eb"),
     ]

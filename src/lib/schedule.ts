@@ -474,7 +474,7 @@ export interface ScheduleTemplate {
   phases: PhaseTemplate[];
 }
 
-const C = { blue: "#2563eb", amber: "#d97706", violet: "#7c3aed", teal: "#0d9488", green: "#16a34a", rose: "#e11d48", slate: "#57524c", orange: "#ea580c" };
+const C = { blue: "#2563eb", amber: "#d97706", violet: "#7c3aed", teal: "#0d9488", green: "#16a34a", rose: "#e11d48", slate: "#57524c", orange: "#B7791F" };
 
 const TEMPLATES: Record<TradeId, ScheduleTemplate> = {
   lowvoltage: {

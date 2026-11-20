@@ -36,7 +36,7 @@ export default function ProjectView() {
   const office = can(useRole(), "prices");
   // Old tab ids (?tab=sheets, billing, crew, …) and technicians asking for Money resolve to one of the five tabs; the
   // URL is then rewritten so the sub-view (Money step, Field section, …) reads its own param.
-  // Documents still link `?tab=billing&doc=…` with no step: stay on Invoices & payments when that's where you were.
+  // Old `?tab=billing&doc=…` links (bookmarks, older emails) have no step: stay on Invoices & payments when that's where you were.
   const [lastMoneyStep, setLastMoneyStep] = useState<string | null>(null);
   let search = params.toString();
   if (params.get("tab") === "billing" && !params.has("step") && lastMoneyStep === "invoices") search = withParam(search, "step", "invoices");

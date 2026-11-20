@@ -1,8 +1,7 @@
 "use client";
 // A client approved the job's quote link: make the job's approved quote (locked, with the signature) and mark the job
-// approved with the options the client picked. Used on the Quote and Invoices & payments steps, so the approved quote
-// is there without anyone opening Pricing first (Pricing's quote card does the same; both make the same quote id and
-// check the device first, so there is never a second one).
+// approved with the options the client picked. Runs once in MoneyTab, on every Money step, so the approved quote is
+// there without anyone opening Pricing first (a fixed quote id and a check on the device first mean never a second one).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { db, nowIso } from "@/lib/db";
 import { saveDoc } from "@/lib/docActions";

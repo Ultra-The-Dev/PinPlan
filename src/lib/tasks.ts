@@ -9,7 +9,7 @@ import type { Checklist, ChecklistItem, Marker, Photo, PhotoComment, PlanTask, T
 export const STATUSES: { id: TaskStatus; label: string; short: string; color: string }[] = [
   { id: "open", label: "Open", short: "Open", color: "#dc2626" },
   { id: "in_progress", label: "In progress", short: "In progress", color: TONE_HEX.warn },
-  { id: "ready", label: "Ready for review", short: "Review", color: "#ca8a04" },
+  { id: "ready", label: "Ready for review", short: "Review", color: "#7c3aed" },
   { id: "done", label: "Completed", short: "Completed", color: "#16a34a" },
   { id: "verified", label: "Verified", short: "Verified", color: "#2563eb" },
 ];
