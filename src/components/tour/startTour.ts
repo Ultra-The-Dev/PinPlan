@@ -3,7 +3,7 @@
 // hands over to the TourHost, which goes to the first step's place.
 import { db } from "@/lib/db";
 import { t } from "@/lib/i18n";
-import { toast } from "@/lib/toast";
+import { toast, useToasts } from "@/lib/toast";
 import type { TourId } from "@/lib/tour/model";
 import { createSampleJob, existingSampleJob } from "@/lib/tour/sampleJob";
 import { useTour } from "@/lib/tour/store";
@@ -30,8 +30,9 @@ export async function ensureSampleJob(): Promise<string | null> {
   const had = await existingSampleJob(useTour.getState().prefs.sampleJobId);
   if (had) return had;
   try {
-    toast(t("Making a sample job…"), "info");
+    const note = toast(t("Making a sample job…"), "info");
     const id = await createSampleJob();
+    useToasts.getState().dismiss(note);
     useTour.getState().setSampleJob(id);
     return id;
   } catch {

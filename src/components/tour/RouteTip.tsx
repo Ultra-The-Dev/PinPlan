@@ -46,7 +46,11 @@ export default function RouteTip() {
   return (
     <div
       className={`pointer-events-none fixed inset-x-0 z-[45] flex justify-center px-3 ${
-        def.edge === "top" ? "top-[calc(env(safe-area-inset-top)+7.5rem)] sm:top-[7rem]" : "bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:bottom-6"
+        def.edge === "top"
+          ? "top-[calc(env(safe-area-inset-top)+7.5rem)] sm:top-[7rem]"
+          : def.edge === "middle"
+            ? "top-[45%] sm:top-auto sm:bottom-[5.5rem]"
+            : "bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:bottom-6"
       }`}
     >
       <div role="status" className="tour-tip pointer-events-auto flex max-w-xl items-center gap-2 rounded-xl py-1 pr-1 pl-3 text-sm" data-testid="route-tip">

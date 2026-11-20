@@ -25459,6 +25459,52 @@
         }
       }
     },
+    "Dismiss tip" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar el consejo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknij wskazówkę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fechar a dica"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скрыть подсказку"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сховати підказку"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đóng mẹo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭提示"
+          }
+        }
+      }
+    },
     "Distance %@ (%@ ft)" : {
       "localizations" : {
         "es" : {
@@ -31653,6 +31699,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "有照片"
+          }
+        }
+      }
+    },
+    "Help & tutorials" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayuda y tutoriales"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomoc i samouczki"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajuda e tutoriais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Справка и обучение"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Довідка й навчання"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trợ giúp & hướng dẫn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帮助和教程"
           }
         }
       }
@@ -39753,6 +39845,52 @@
         }
       }
     },
+    "New here? Help & tutorials has short guides for the office and the crew." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eres nuevo? Ayuda y tutoriales tiene guías cortas para la oficina y la cuadrilla."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwszy raz? W Pomocy i samouczkach są krótkie przewodniki dla biura i ekipy."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É novo aqui? Ajuda e tutoriais tem guias curtos para o escritório e a equipe de campo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Впервые здесь? В «Справке и обучении» есть короткие инструкции для офиса и бригады."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ви тут уперше? У «Довідці й навчанні» є короткі інструкції для офісу й бригади."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mới dùng? Trợ giúp & hướng dẫn có các hướng dẫn ngắn cho văn phòng và đội thi công."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第一次使用？“帮助和教程”里有写给办公室和施工队的简短指南。"
+          }
+        }
+      }
+    },
     "New job" : {
       "localizations" : {
         "es" : {
@@ -45131,6 +45269,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未完成的检查清单"
+          }
+        }
+      }
+    },
+    "Open Help" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la Ayuda"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz Pomoc"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir a Ajuda"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть справку"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити довідку"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở Trợ giúp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开帮助"
           }
         }
       }
@@ -61029,6 +61213,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "图页名称"
+          }
+        }
+      }
+    },
+    "Short guides for the office and the crew." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guías cortas para la oficina y la cuadrilla."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krótkie przewodniki dla biura i ekipy."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guias curtos para o escritório e a equipe de campo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткие инструкции для офиса и бригады."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткі інструкції для офісу й бригади."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hướng dẫn ngắn cho văn phòng và đội thi công."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写给办公室和施工队的简短指南。"
           }
         }
       }

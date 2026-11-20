@@ -19,4 +19,16 @@ final class WebLinksTests: XCTestCase {
         // Every tab id is one the app's own router knows too.
         for t in WebLinks.Tab.allCases { XCTAssertNotNil(ProjectTabRoute.resolve(t.rawValue)) }
     }
+
+    // "Help & tutorials" opens /help on the app's server; a copy that isn't connected opens the public site's Help.
+    func testHelpOpensOnTheServerElseThePublicSite() {
+        XCTAssertEqual(WebLinks.help, "help")
+        XCTAssertEqual(WebLinks.helpGuide("crew"), "help/crew")
+        XCTAssertEqual(WebLinks.helpGuide("a b"), "help/a%20b")
+        XCTAssertEqual(WebLinks.helpURL(origin: "https://example.test/"), "https://example.test/help")
+        XCTAssertEqual(WebLinks.helpURL(origin: "example.test", guide: "offline-sync"), "https://example.test/help/offline-sync")
+        XCTAssertEqual(WebLinks.helpURL(origin: "  "), WebLinks.publicHelpURL)
+        XCTAssertEqual(WebLinks.helpURL(origin: "", guide: "crew"), WebLinks.publicHelpURL + "/crew")
+        XCTAssertTrue(WebLinks.publicHelpURL.hasPrefix("https://"))
+    }
 }

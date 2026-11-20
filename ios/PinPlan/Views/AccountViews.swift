@@ -411,6 +411,8 @@ struct AboutSection: View {
 
     var body: some View {
         Section {
+            // Short guides and tours (the web Help center, opened in-app; HelpViews.swift).
+            HelpRow()
             // The web app's jobs list (/jobs; "/" is the public home page): quotes, invoices and change orders live there.
             AboutLink(title: String(localized: "Northpin on the web"), icon: "safari", url: serverPageURL(app.settings, WebLinks.jobs))
             AboutLink(title: String(localized: "Terms of service"), icon: "doc.text", url: serverPageURL(app.settings, "terms"))

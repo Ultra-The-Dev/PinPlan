@@ -9,7 +9,7 @@ The simplified navigation from `docs/ux-audit.md` (items 2 and 6).
 ## Header
 
 **Jobs** (`/`) · **Tasks** (`/tasks`) · **Money** (`/invoices`, office) · **Price list** (`/catalog`, office) and the
-avatar **account menu** (Settings, Team, Plan & billing, Sign out). Labels show at every width (under the icon on
+avatar **account menu** (Settings, Team, Plan & billing, Help & tutorials, Sign out; Help is `/help`, docs/help-and-tours.md). Labels show at every width (under the icon on
 phones). `src/components/AppHeader.tsx`, `src/components/AccountMenu.tsx`.
 
 Older pages still work and light up the section they belong to:

@@ -204,8 +204,10 @@ export const TOURS: Record<TourId, TourDef> = {
 export const TOUR_LIST: TourDef[] = [TOURS["first-job"], TOURS["crew-day"], TOURS["office-money"]];
 
 /** One-line tips, shown once on the first visit to each place (never on client pages). */
-export const TIPS: Record<TipId, { text: string; edge: "top" | "bottom"; guide: string }> = {
-  plan: { text: msg("Tap Edit, tap a device in the list, then tap the plan to place it."), edge: "top", guide: "place-devices" },
+/** `edge`: where the tip sits. "middle" (the plan) keeps clear of the plan's own controls: mid-screen on phones,
+ *  above the plan toolbar on larger screens. */
+export const TIPS: Record<TipId, { text: string; edge: "top" | "bottom" | "middle"; guide: string }> = {
+  plan: { text: msg("Tap Edit, tap a device in the list, then tap the plan to place it."), edge: "middle", guide: "place-devices" },
   takeoff: { text: msg("Counts come only from the devices and wire on the plan. To change a count, change the plan."), edge: "bottom", guide: "takeoff-pricing" },
   money: { text: msg("Work left to right: Pricing, Quote, Change orders, then Invoices & payments."), edge: "bottom", guide: "quotes-invoices" },
   tasks: { text: msg("Tick a task when it's done. Open it to see the spot on the plan or add a photo."), edge: "bottom", guide: "crew" },
