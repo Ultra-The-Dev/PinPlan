@@ -13,6 +13,7 @@ import {
   AGING_LABELS,
   clientDirectory,
   displayStatus,
+  docStepFor,
   docName,
   documentsCsv,
   formatDocDate,
@@ -111,7 +112,8 @@ export default function InvoicesPage() {
     }
     return true;
   });
-  const open = (d: SalesDoc) => router.push(`/project?id=${encodeURIComponent(d.projectId)}&tab=billing&doc=${encodeURIComponent(d.id)}`);
+  const docHref = (d: Pick<SalesDoc, "id" | "kind" | "projectId">) => `/project?id=${encodeURIComponent(d.projectId)}&tab=money&step=${docStepFor(d.kind)}&doc=${encodeURIComponent(d.id)}`;
+  const open = (d: SalesDoc) => router.push(docHref(d));
   const sum = (xs: SalesDoc[], f: (d: SalesDoc) => number) => xs.filter((d) => d.status !== "void").reduce((s, d) => s + f(d), 0);
   const clearFilters = () => {
     setKind("all");
@@ -131,7 +133,7 @@ export default function InvoicesPage() {
   async function newInvoice(project: Project) {
     const d = newDocument({ id: newId(), kind: "invoice", project, settings: ds!, now: nowIso(), day: today() });
     const saved = await saveDoc(d);
-    router.push(`/project?id=${encodeURIComponent(project.id)}&tab=billing&doc=${encodeURIComponent(saved.id)}`);
+    router.push(docHref(saved));
   }
   async function newJob(c: { name: string; email?: string | null; phone?: string | null; address: string }) {
     const p: Project = { id: newId(), clientName: c.name, clientEmail: c.email ?? "", clientPhone: c.phone ?? "", address: c.address, status: "approved", billduDocs: [], createdAt: nowIso(), updatedAt: nowIso() };
@@ -295,7 +297,7 @@ export default function InvoicesPage() {
                         <KindChip kind={d.kind} />
                         <a
                           className="font-medium hover:underline"
-                          href={`/project?id=${encodeURIComponent(d.projectId)}&tab=billing&doc=${encodeURIComponent(d.id)}`}
+                          href={docHref(d)}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
