@@ -41,6 +41,8 @@ test("money path: job → plans → devices → takeoff → pricing → quote �
 
   // 2. Import the sample plan set (4 pages) on Plan › manage sheets.
   await page.locator("input[type=file][multiple]").setInputFiles(PDF);
+  // The page picker: every page ticked and named from its title block.
+  await page.getByTestId("import-pages-go").click();
   await expect(page.locator('input[aria-label="Sheet name"]')).toHaveCount(4, { timeout: 90_000 });
 
   // 3. Place 3 devices on the first sheet.

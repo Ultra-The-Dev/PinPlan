@@ -85,7 +85,7 @@ function SheetIndexPanel({ onClose }: { onClose: () => void }) {
       const skipped = pages.length - matched.length;
       if (!matched.length) return toast(t("No page of that PDF matches a sheet here (same page number and size, not rotated)."), "info");
       if (!pages.some((p) => p.items.length)) return toast(t("That PDF has no text layer (a scan), so there's nothing to read."), "info");
-      if (!hasProposals(matched)) toast(t("No sheet numbers found in the title blocks — you can still type them."), "info");
+      if (!hasProposals(matched, { names: true })) toast(t("No sheet numbers found in the title blocks — you can still type them."), "info");
       setReview({ pages: matched, note: skipped ? t.tn("{n} page didn't match a sheet (different page, size or rotated) and was skipped.", "{n} pages didn't match a sheet (different page, size or rotated) and were skipped.", skipped) : undefined });
     } catch (e) {
       toast(t("Couldn't read that PDF: {error}", { error: (e as Error).message }), "error");

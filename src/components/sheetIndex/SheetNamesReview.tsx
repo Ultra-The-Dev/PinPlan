@@ -1,9 +1,11 @@
 "use client";
-// "Review sheet names": sheet numbers, titles and disciplines read from the PDF's title blocks, shown for a quick
-// check after import (or "Detect from PDF"). Accept, edit, or go back to page numbers; then callouts that name a
-// confirmed sheet number become links. Duplicated numbers are flagged and never auto-linked.
+// "Review sheet names": floor names, sheet numbers, titles and disciplines read from the PDF's title blocks, shown for
+// a quick check after import (or "Detect from PDF"). A floor name read from the page replaces only a name the app made
+// up ("Sheet 3", "Page 2", a file name), never one someone typed. Accept, edit, or go back to page numbers; then
+// callouts that name a confirmed sheet number become links. Duplicated numbers are flagged and never auto-linked.
 import { AlertTriangle, Link2, RotateCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { isDefaultSheetName, parseFloorName, proposeSheetName } from "@/lib/floorName";
 import { DISCIPLINE_NAMES, disciplineFromNumber, proposeSheetMeta, sheetNumberKey, type TextItem } from "@/lib/sheetIndex";
 import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
@@ -20,18 +22,32 @@ export interface ReviewPage {
 interface Row {
   sheetId: string;
   pageNumber: number;
+  name: string;
   number: string;
   title: string;
   discipline: string;
   /** Read from the PDF (for "revert"). */
-  proposed: { number: string; title: string; discipline: string };
+  proposed: { name: string; number: string; title: string; discipline: string };
 }
 
-/** True when any page has something to review (scanned PDFs don't). */
-export function hasProposals(pages: ReviewPage[]): boolean {
+/** The floor name a page proposes (positioned text first, else its plain text). */
+function floorOf(p: ReviewPage): string | null {
+  return (p.items.length ? parseFloorName(p.items) : null) ?? (p.text ? parseFloorName(p.text) : null);
+}
+
+/**
+ * True when any page has something to review (scanned PDFs don't): a sheet number or title, or with `names`, a floor
+ * name for a sheet that still has a made-up name.
+ */
+export function hasProposals(pages: ReviewPage[], opts: { names?: boolean } = {}): boolean {
+  const sheets = useEditor.getState().sheets;
   return pages.some((p) => {
     const m = proposeSheetMeta(p.items, p.text);
-    return !!(m.number || m.title);
+    if (m.number || m.title) return true;
+    if (!opts.names) return false;
+    const sh = sheets.find((s) => s.id === p.sheetId);
+    const floor = floorOf(p);
+    return !!(floor && sh && isDefaultSheetName(sh.name) && floor !== sh.name);
   });
 }
 
@@ -42,11 +58,15 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
     pages.map((p) => {
       const m = proposeSheetMeta(p.items, p.text);
       const sh = useEditor.getState().sheets.find((s) => s.id === p.sheetId);
-      const proposed = { number: m.number ?? "", title: m.title ?? "", discipline: m.discipline ?? "" };
+      const current = sh?.name ?? "";
+      // A floor name read from the page replaces a made-up name ("Sheet 3"), never one someone typed.
+      const readName = proposeSheetName({ floor: floorOf(p), title: m.title, number: null }, current);
+      const proposed = { name: isDefaultSheetName(current) ? readName : current, number: m.number ?? "", title: m.title ?? "", discipline: m.discipline ?? "" };
       // Sheets named earlier keep their names unless the PDF has one and they don't.
       return {
         sheetId: p.sheetId,
         pageNumber: p.pageNumber,
+        name: proposed.name,
         number: sh?.number || proposed.number,
         title: sh?.title || proposed.title,
         discipline: sh?.discipline || proposed.discipline,
@@ -73,6 +93,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
   const set = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const nameOf = (id: string) => sheets.find((s) => s.id === id)?.name ?? "";
   const anyNumber = rows.some((r) => r.number.trim());
+  const autoNamed = rows.filter((r) => r.name !== nameOf(r.sheetId)).length;
 
   async function apply() {
     setBusy(true);
@@ -80,7 +101,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
       const n = await saveSheetMeta(
         rows.map((r) => ({
           id: r.sheetId,
-          patch: { number: r.number.trim() || null, title: r.title.trim() || null, discipline: r.discipline.trim() || (r.number.trim() ? disciplineFromNumber(r.number) : null) },
+          patch: { name: r.name.trim().replace(/\s+/g, " ") || nameOf(r.sheetId), number: r.number.trim() || null, title: r.title.trim() || null, discipline: r.discipline.trim() || (r.number.trim() ? disciplineFromNumber(r.number) : null) },
         })),
       );
       const made = links ? await createCalloutLinks(pages.map((p) => ({ sheetId: p.sheetId, items: p.items }))) : 0;
@@ -106,6 +127,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">{t("Review sheet names")}</h2>
             <p className="mt-0.5 text-sm text-slate-500">{t("Read from each page's title block. Fix anything that looks off, then save.")}</p>
+            {autoNamed > 0 && <p className="mt-1 text-xs text-emerald-700">{t.tn("{n} floor name read from the plan — check it below.", "{n} floor names read from the plan — check them below.", autoNamed)}</p>}
             {note && <p className="mt-1 text-xs text-slate-500">{note}</p>}
           </div>
           <button className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
@@ -121,8 +143,9 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
           </div>
         )}
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-4">
-          <div className="hidden grid-cols-[3.5rem_7rem_1fr_9rem_2rem] gap-2 px-2 pb-1 text-xs font-medium text-slate-500 sm:grid">
+          <div className="hidden grid-cols-[3.5rem_10rem_6.5rem_1fr_8rem_2rem] gap-2 px-2 pb-1 text-xs font-medium text-slate-500 sm:grid">
             <span>{t("Page")}</span>
+            <span>{t("Name")}</span>
             <span>{t("Number")}</span>
             <span>{t("Title")}</span>
             <span>{t("Discipline")}</span>
@@ -131,16 +154,24 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
           <ul className="divide-y divide-slate-100">
             {rows.map((r, i) => {
               const dup = !!r.number.trim() && dups.has(sheetNumberKey(r.number));
-              const changed = r.number !== r.proposed.number || r.title !== r.proposed.title || r.discipline !== r.proposed.discipline;
+              const changed = r.name !== r.proposed.name || r.number !== r.proposed.number || r.title !== r.proposed.title || r.discipline !== r.proposed.discipline;
               return (
-                <li key={r.sheetId} className="grid grid-cols-[3rem_1fr_2rem] items-center gap-2 px-2 py-2 sm:grid-cols-[3.5rem_7rem_1fr_9rem_2rem]" data-testid="review-row">
-                  <span className="row-span-2 text-xs text-slate-500 sm:row-span-1">
+                <li key={r.sheetId} className="grid grid-cols-[3rem_1fr_2rem] items-center gap-2 px-2 py-2 sm:grid-cols-[3.5rem_10rem_6.5rem_1fr_8rem_2rem]" data-testid="review-row">
+                  <span className="row-span-3 text-xs text-slate-500 sm:row-span-1">
                     <span className="block font-medium text-slate-700 tabular-nums">{t("p. {n}", { n: r.pageNumber })}</span>
                     <span className="block truncate" title={nameOf(r.sheetId)}>
                       {nameOf(r.sheetId)}
                     </span>
                   </span>
-                  <div className="col-span-1 flex gap-2 sm:contents">
+                  <input
+                    className={`input h-11 font-medium sm:h-9 ${r.name !== nameOf(r.sheetId) ? "border-emerald-300 bg-emerald-50/40" : ""}`}
+                    value={r.name}
+                    placeholder={t("Floor name")}
+                    aria-label={t("Name, page {n}", { n: r.pageNumber })}
+                    onChange={(e) => set(i, { name: e.target.value })}
+                    data-testid="review-name"
+                  />
+                  <div className="col-span-1 col-start-2 flex gap-2 sm:contents">
                     <input
                       className={`input h-9 w-24 shrink-0 font-mono text-[13px] font-semibold sm:w-full ${dup ? "border-amber-400 ring-2 ring-amber-100" : ""}`}
                       value={r.number}
@@ -156,7 +187,7 @@ export default function SheetNamesReview({ pages, onClose, note }: { pages: Revi
                     <input className="input h-9 min-w-0 flex-1" value={r.title} placeholder={t("Title")} aria-label={t("Sheet title, page {n}", { n: r.pageNumber })} onChange={(e) => set(i, { title: e.target.value })} />
                   </div>
                   <button
-                    className="btn btn-sm btn-icon btn-ghost row-span-2 text-slate-400 sm:order-last sm:row-span-1"
+                    className="btn btn-sm btn-icon btn-ghost row-span-3 text-slate-400 sm:order-last sm:row-span-1"
                     disabled={!changed}
                     onClick={() => set(i, { ...r.proposed })}
                     title={t("Back to what the PDF says")}

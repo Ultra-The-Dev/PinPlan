@@ -89,13 +89,18 @@ async function pdfjs() {
   return lib;
 }
 
-export async function renderPdf(file: File | Blob, onProgress?: (done: number, total: number) => void): Promise<RenderedPage[]> {
+/**
+ * Render a PDF's pages to sheet images (with their text). `only`: the page numbers to render (the import page picker's
+ * ticked pages), in that order; default every page. Progress counts the pages rendered.
+ */
+export async function renderPdf(file: File | Blob, onProgress?: (done: number, total: number) => void, only?: number[]): Promise<RenderedPage[]> {
   const lib = await pdfjs();
   const data = new Uint8Array(await file.arrayBuffer());
   const task = lib.getDocument({ data });
   const doc = await task.promise;
   const pages: RenderedPage[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
+  const list = only ? only.filter((n) => n >= 1 && n <= doc.numPages) : Array.from({ length: doc.numPages }, (_, k) => k + 1);
+  for (const [done, i] of list.entries()) {
     const page = await doc.getPage(i);
     const base = page.getViewport({ scale: 1 });
     const scale = Math.min(MAX_SIDE / Math.max(base.width, base.height), Math.sqrt(MAX_PIXELS / (base.width * base.height)), 6);
@@ -120,7 +125,7 @@ export async function renderPdf(file: File | Blob, onProgress?: (done: number, t
     pages.push({ blob, width: canvas.width, height: canvas.height, pageNumber: i, pxPerInch: 72 * scale, text, items });
     canvas.width = canvas.height = 0;
     page.cleanup();
-    onProgress?.(i, doc.numPages);
+    onProgress?.(done + 1, list.length);
   }
   await task.destroy();
   return pages;

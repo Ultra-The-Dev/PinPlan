@@ -122,6 +122,7 @@ for (const name of [...PHONES, ...TABLETS]) {
         test.setTimeout(240_000);
         const id = await newJob(page);
         await page.locator("input[type=file][multiple]").setInputFiles(PDF);
+        await page.getByTestId("import-pages-go").click();
         await expect(page.locator('input[aria-label="Sheet name"]')).toHaveCount(4, { timeout: 120_000 });
         await page.goto(`/project?id=${id}&tab=plan`);
         await page.waitForFunction(() => (window as unknown as { __pinplanViewer?: { viewport?: { ready?: boolean } } }).__pinplanViewer?.viewport?.ready, null, { timeout: 30_000 });

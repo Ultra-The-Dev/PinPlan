@@ -1,8 +1,10 @@
 "use client";
-import { ArrowDown, ArrowUp, FileUp, MapPin, RotateCw, Ruler, Trash, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckSquare, FileUp, MapPin, RotateCw, Ruler, Square, Trash, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { db, newId, nowIso, put, saveImage } from "@/lib/db";
-import { canvasToBlob, guessFloorName, loadPhoto, renderPdf } from "@/lib/importPlans";
+import { isDefaultSheetName } from "@/lib/floorName";
+import { canvasToBlob, loadPhoto, renderPdf } from "@/lib/importPlans";
+import { ocrFloorName } from "@/lib/ocr";
 import { findScale } from "@/lib/geometry";
 import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
@@ -11,7 +13,9 @@ import { toast } from "@/lib/toast";
 import { useT } from "@/lib/i18n";
 import { useSheetImage } from "@/lib/useImage";
 import type { Sheet } from "@/lib/types";
+import ImportPagePicker, { type PickedPage } from "./ImportPagePicker";
 import PhotoStraighten from "./PhotoStraighten";
+import { deleteSheetsWithUndo, renameSheet } from "./sheetActions";
 import { SheetIndexButton, SheetMetaChips } from "./sheetIndex/SheetIndexPanel";
 import SheetNamesReview, { hasProposals, type ReviewPage } from "./sheetIndex/SheetNamesReview";
 import { rotateSheetMarkups } from "./markups/useMarkups";
@@ -20,13 +24,18 @@ import { saveImportedSheetText } from "@/lib/findSimilar/sheetText";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
   const t = useT();
-  const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
+  const { project, sheets, load, setActiveSheet, markers, runs, rotateSheetCW, moveSheet } = useEditor();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [photoQueue, setPhotoQueue] = useState<{ file: File; img: HTMLImageElement }[]>([]);
+  // PDFs waiting for the page picker (choose pages, confirm names), one at a time.
+  const [pdfQueue, setPdfQueue] = useState<File[]>([]);
+  // Manage sheets: several sheets ticked for "Delete selected".
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   // Sheet numbers / titles read from the PDF text, for the office to confirm (docs/sheet-index-links.md).
   const [review, setReview] = useState<ReviewPage[] | null>(null);
   const office = useRole() !== "tech";
@@ -51,32 +60,58 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
     if (!files?.length) return;
     setError(null);
     const photos: { file: File; img: HTMLImageElement }[] = [];
-    let order = nextOrder();
-    let added = 0;
-    const imported: ReviewPage[] = [];
+    const pdfs: File[] = [];
     try {
       for (const file of Array.from(files)) {
-        if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-          setBusy(t("Rendering {name}", { name: file.name }));
-          setProgress(0);
-          const pages = await renderPdf(file, (d, total) => {
-            setBusy(t("Rendering {name} — page {n} of {total}", { name: file.name, n: d, total }));
-            setProgress(d / total);
-          });
-          for (const p of pages) {
-            const sheetId = await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
-            imported.push({ sheetId, pageNumber: p.pageNumber, items: p.items ?? [], text: p.text });
-            void saveImportedSheetText(sheetId, p.items ?? []); // Find similar → Read tags
-            added++;
-          }
-        } else {
+        if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) pdfs.push(file);
+        else {
           setBusy(t("Loading {name}", { name: file.name }));
           photos.push({ file, img: await loadPhoto(file) });
         }
       }
+      // Each PDF opens the page picker first: tick the pages to keep and check their names.
+      if (pdfs.length) setPdfQueue((q) => [...q, ...pdfs]);
+      if (photos.length) setPhotoQueue((q) => [...q, ...photos]);
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  /** Render the pages ticked in the picker and add them as sheets, with the names confirmed there. */
+  async function importPages(file: File, chosen: PickedPage[]) {
+    setPdfQueue((q) => q.slice(1));
+    setError(null);
+    let order = nextOrder();
+    let added = 0;
+    const imported: ReviewPage[] = [];
+    const byPage = new Map(chosen.map((c) => [c.pageNumber, c]));
+    try {
+      setBusy(t("Rendering {name}", { name: file.name }));
+      setProgress(0);
+      const pages = await renderPdf(
+        file,
+        (d, total) => {
+          setBusy(t("Rendering {name} — page {n} of {total}", { name: file.name, n: d, total }));
+          setProgress(d / total);
+        },
+        chosen.map((c) => c.pageNumber),
+      );
+      for (const p of pages) {
+        const pick = byPage.get(p.pageNumber);
+        const name = pick?.name.trim() || `Page ${p.pageNumber}`;
+        const sheetId = await addSheet(p.blob, p.width, p.height, name, p.pageNumber, p.pxPerInch, order++, p.text);
+        const items = p.items?.length ? p.items : (pick?.items ?? []);
+        imported.push({ sheetId, pageNumber: p.pageNumber, items, text: p.text });
+        void saveImportedSheetText(sheetId, p.items ?? []); // Find similar → Read tags
+        added++;
+      }
       await load(project!.id);
       if (added) toast(t.tn("Added {n} sheet", "Added {n} sheets", added));
-      if (photos.length) setPhotoQueue((q) => [...q, ...photos]);
+      // Sheet numbers and titles (for callout links) are confirmed next, when the title blocks carry them.
       if (office && hasProposals(imported)) setReview(imported);
     } catch (e) {
       console.error(e);
@@ -84,7 +119,22 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
     } finally {
       setBusy(null);
       setProgress(null);
-      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  /** A photo's floor name, read on the device after it is added; it only replaces the name while that is still the file name. */
+  async function nameFromPhoto(sheetId: string, canvas: HTMLCanvasElement, fileBase: string) {
+    try {
+      const r = await ocrFloorName(canvas);
+      const sheet = useEditor.getState().sheets.find((s) => s.id === sheetId);
+      if (r?.name && sheet && isDefaultSheetName(sheet.name, fileBase)) {
+        await renameSheet(sheetId, r.name);
+        toast(t("Named “{name}” from the photo", { name: r.name }));
+      }
+    } catch {
+      /* best effort: the file name stays */
+    } finally {
+      canvas.width = canvas.height = 0;
     }
   }
 
@@ -94,21 +144,15 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
       setBusy(t("Saving photo"));
       const blob = await canvasToBlob(canvas, "image/jpeg", 0.9);
       const order = nextOrder();
-      await addSheet(blob, canvas.width, canvas.height, cur.file.name.replace(/\.[^.]+$/, "") || `Sheet ${order + 1}`, 1, null, order);
+      const base = cur.file.name.replace(/\.[^.]+$/, "");
+      const id = await addSheet(blob, canvas.width, canvas.height, base || `Sheet ${order + 1}`, 1, null, order);
       URL.revokeObjectURL(cur.img.src);
       await load(project!.id);
       setBusy(null);
       toast(t("Photo added as a sheet"));
+      void nameFromPhoto(id, canvas, base);
     }
     setPhotoQueue(rest);
-  }
-
-  async function move(sheet: Sheet, dir: -1 | 1) {
-    const idx = sheets.findIndex((s) => s.id === sheet.id);
-    const other = sheets[idx + dir];
-    if (!other) return;
-    await updateSheet(sheet.id, { order: other.order });
-    await updateSheet(other.id, { order: sheet.order });
   }
 
   async function rotate(sheet: Sheet) {
@@ -138,11 +182,14 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
     }
   }
 
-  async function del(sheet: Sheet) {
-    const n = markers.filter((m) => m.sheetId === sheet.id).length;
-    if (!confirm(n ? t.tn("Delete sheet “{name}” and its {n} device?", "Delete sheet “{name}” and its {n} devices?", n, { name: sheet.name }) : t("Delete sheet “{name}”?", { name: sheet.name }))) return;
-    await updateSheet(sheet.id, { deleted: true });
-    toast(t("Sheet deleted — undo from the Plan toolbar"));
+  const togglePick = (id: string) => setPicked((p) => (p.has(id) ? new Set([...p].filter((x) => x !== id)) : new Set([...p, id])));
+  const live = sheets.filter((s) => !s.deleted);
+  const pickedLive = live.filter((s) => picked.has(s.id));
+  async function deletePicked() {
+    if (await deleteSheetsWithUndo(pickedLive.map((s) => s.id))) {
+      setPicked(new Set());
+      setPicking(false);
+    }
   }
 
   return (
@@ -200,6 +247,37 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
           )}
         </button>
 
+        {sheets.length > 1 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="sheets-select-bar">
+            {picking ? (
+              <>
+                <button type="button" className="btn btn-sm h-11 sm:h-9" onClick={() => setPicked(pickedLive.length === live.length ? new Set() : new Set(live.map((s) => s.id)))}>
+                  {pickedLive.length === live.length ? t("Select none") : t("Select all")}
+                </button>
+                <span className="text-sm text-slate-500">{t.tn("{n} selected", "{n} selected", pickedLive.length)}</span>
+                <div className="flex-1" />
+                <button type="button" className="btn btn-sm h-11 text-red-600 hover:bg-red-50 sm:h-9" disabled={!pickedLive.length || !!busy} onClick={() => void deletePicked()} data-testid="delete-selected">
+                  <Trash /> {t("Delete selected")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm h-11 sm:h-9"
+                  onClick={() => {
+                    setPicking(false);
+                    setPicked(new Set());
+                  }}
+                >
+                  {t("Done")}
+                </button>
+              </>
+            ) : (
+              <button type="button" className="btn btn-sm h-11 sm:h-9" onClick={() => setPicking(true)} data-testid="select-sheets">
+                <CheckSquare /> {t("Select sheets")}
+              </button>
+            )}
+          </div>
+        )}
+
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sheets.map((s, i) => (
             <SheetCard
@@ -211,11 +289,15 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
               first={i === 0}
               last={i === sheets.length - 1}
               busy={!!busy}
-              onRename={(name) => updateSheet(s.id, { name })}
-              onMove={(d) => move(s, d)}
+              onRename={(name) => void renameSheet(s.id, name)}
+              onMove={(d) => void moveSheet(s.id, d)}
               onRotate={() => rotate(s)}
-              onDelete={() => del(s)}
+              onDelete={() => void deleteSheetsWithUndo([s.id])}
+              picking={picking}
+              picked={picked.has(s.id)}
+              onPick={() => togglePick(s.id)}
               onOpen={() => {
+                if (picking) return togglePick(s.id);
                 setActiveSheet(s.id);
                 onOpenSheet();
               }}
@@ -224,6 +306,9 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
         </ul>
       </div>
       {review && <SheetNamesReview pages={review} onClose={() => setReview(null)} />}
+      {pdfQueue[0] && !busy && (
+        <ImportPagePicker key={`${pdfQueue[0].name}-${pdfQueue[0].lastModified}-${pdfQueue.length}`} file={pdfQueue[0]} onCancel={() => setPdfQueue((q) => q.slice(1))} onImport={(chosen) => void importPages(pdfQueue[0], chosen)} />
+      )}
       {photoQueue[0] && <PhotoStraighten key={photoQueue[0].img.src} image={photoQueue[0].img} name={photoQueue[0].file.name} onDone={finishPhoto} />}
     </div>
   );
@@ -242,13 +327,24 @@ function SheetCard(props: {
   onRotate: () => void;
   onDelete: () => void;
   onOpen: () => void;
+  picking: boolean;
+  picked: boolean;
+  onPick: () => void;
 }) {
   const t = useT();
   const { sheet } = props;
   const img = useSheetImage(sheet.imageId);
   const [name, setName] = useState(sheet.name);
   return (
-    <li className="card group overflow-hidden">
+    <li className={`card group relative overflow-hidden ${props.picked ? "ring-2 ring-brand-500" : ""}`} data-testid="sheet-card">
+      {props.picking && (
+        <label className="absolute top-0 right-0 z-10 flex h-12 w-12 cursor-pointer items-center justify-center" aria-label={t("Select {name}", { name: sheet.name })}>
+          <input type="checkbox" className="peer sr-only" checked={props.picked} onChange={props.onPick} data-testid="sheet-pick" />
+          <span className={`flex h-7 w-7 items-center justify-center rounded-lg shadow ring-1 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 ${props.picked ? "bg-brand-600 text-white ring-brand-700" : "bg-white text-slate-300 ring-slate-300"}`}>
+            {props.picked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+          </span>
+        </label>
+      )}
       <button className="relative block aspect-[4/3] w-full overflow-hidden border-b border-slate-100 bg-slate-50" onClick={props.onOpen} aria-label={t("Open {name}", { name: sheet.name })}>
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element

@@ -56,7 +56,7 @@ type EntityTable =
   | "documents";
 type AnyRow = Marker | Run | Closet | Sheet | Project | EstimateLine | Photo | PhotoComment | Checklist | JobLog | JobDocument;
 type ListKey = Exclude<EntityTable, "projects">;
-interface Change {
+export interface Change {
   table: EntityTable;
   before: AnyRow | null;
   after: AnyRow | null;
@@ -128,6 +128,15 @@ interface EditorState {
   deleteSelected(): Promise<void>;
   deleteEntity(table: "markers" | "runs" | "closets", id: string): Promise<void>;
   updateSheet(id: string, patch: Partial<Sheet>): Promise<void>;
+  /**
+   * Soft-delete sheets as one undo step. Their devices, runs and closets stay stored (as before) but leave the takeoff,
+   * estimate and exports with the sheet; Undo brings everything back. Returns the step (for a toast's Undo), or null.
+   */
+  deleteSheets(ids: string[]): Promise<Change[] | null>;
+  /** Undo `step` only if it is still the latest change (a toast's Undo); false when something else changed since. */
+  undoStep(step: Change[]): Promise<boolean>;
+  /** Swap a sheet with the one before (-1) or after (1) it in plan order, as one undo step. */
+  moveSheet(id: string, dir: -1 | 1): Promise<void>;
   /** Swap in a 90°-clockwise-rotated image and rotate everything drawn on the sheet with it. */
   rotateSheetCW(id: string, imageId: string, width: number, height: number): Promise<void>;
   updateProject(patch: Partial<Project>): Promise<void>;
@@ -567,6 +576,35 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
     }
     await get().commit(changes);
+  },
+  async deleteSheets(ids) {
+    const changes: Change[] = [];
+    for (const id of ids) {
+      const before = get().sheets.find((sh) => sh.id === id);
+      if (before && !before.deleted) changes.push({ table: "sheets", before, after: { ...before, deleted: true } });
+    }
+    if (!changes.length) return null;
+    await get().commit(changes);
+    return changes;
+  },
+  async undoStep(step) {
+    const past = get().past;
+    if (past[past.length - 1] !== step) return false;
+    await get().undo();
+    return true;
+  },
+  async moveSheet(id, dir) {
+    const list = get().sheets;
+    const i = list.findIndex((sh) => sh.id === id);
+    const a = list[i];
+    const b = list[i + dir];
+    if (!a || !b) return;
+    // Equal orders (older imports) still swap: give them distinct places first.
+    const [oa, ob] = a.order === b.order ? (dir > 0 ? [a.order + 1, a.order] : [a.order - 1, a.order]) : [b.order, a.order];
+    await get().commit([
+      { table: "sheets", before: a, after: { ...a, order: oa } },
+      { table: "sheets", before: b, after: { ...b, order: ob } },
+    ]);
   },
   async rotateSheetCW(id, imageId, width, height) {
     const before = get().sheets.find((s) => s.id === id);
