@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     // `npm run test:coverage`. Thresholds guard only the money math (counts, prices, documents); the rest of
     // src/lib is reported but not gated. Raise these as tests are added, don't lower them.
     coverage: {

@@ -1,9 +1,10 @@
 "use client";
 import { Building, CreditCard, LayoutTemplate, MoreHorizontal, Plug, ReceiptText, Save, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DOC_DEFAULT_ACCENT, DOC_DEFAULT_BRAND } from "@/lib/brandDefaults";
 import { toast } from "@/lib/toast";
-import { getSettings, saveSettings } from "@/lib/db";
+import { COMPANY_SETTINGS_EVENT, saveSettingsAndCompany } from "@/lib/companySettings";
+import { getSettings } from "@/lib/db";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { tradeWireTypes, tradeVocab } from "@/lib/trades";
 import { TRADES_EVENT, useTrades } from "@/lib/useTrades";
@@ -40,6 +41,11 @@ function Group({ id, title, children }: { id?: string; title: string; children: 
 export default function SettingsForm({ connectedApps }: { connectedApps?: React.ReactNode } = {}) {
   const [s, setS] = useState<AppSettings | null>(null);
   const [orig, setOrig] = useState<string>("");
+  // The last saved copy, for the company-settings listener (which must not throw away unsaved edits).
+  const origRef = useRef(orig);
+  useEffect(() => {
+    origRef.current = orig;
+  }, [orig]);
   useEffect(() => {
     const load = () =>
       void getSettings().then((x) => {
@@ -47,9 +53,23 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
         setS((cur) => (cur ? { ...cur, trades: x.trades, pricing: { ...cur.pricing, wirePrices: { ...x.pricing.wirePrices, ...cur.pricing.wirePrices } } } : x));
         setOrig((o) => (o ? JSON.stringify({ ...JSON.parse(o), trades: x.trades, pricing: { ...JSON.parse(o).pricing, wirePrices: { ...x.pricing.wirePrices, ...JSON.parse(o).pricing.wirePrices } } }) : JSON.stringify(x)));
       });
+    // The company's details changed (another device, or a sync): show them, unless this business card has unsaved edits.
+    const onCompany = () =>
+      void getSettings().then((x) => {
+        const saved = origRef.current ? (JSON.parse(origRef.current) as AppSettings) : null;
+        setS((cur) => {
+          if (!cur || !saved) return x;
+          return JSON.stringify(cur.business) === JSON.stringify(saved.business) ? { ...cur, business: x.business } : cur;
+        });
+        setOrig((o) => (o ? JSON.stringify({ ...JSON.parse(o), business: x.business }) : JSON.stringify(x)));
+      });
     load();
     window.addEventListener(TRADES_EVENT, load);
-    return () => window.removeEventListener(TRADES_EVENT, load);
+    window.addEventListener(COMPANY_SETTINGS_EVENT, onCompany);
+    return () => {
+      window.removeEventListener(TRADES_EVENT, load);
+      window.removeEventListener(COMPANY_SETTINGS_EVENT, onCompany);
+    };
   }, []);
   const trades = useTrades();
   // Technicians don't see prices, the business branding or connected apps (office work).
@@ -63,9 +83,12 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
   const dirty = JSON.stringify(s) !== orig;
   const save = async () => {
     try {
-      await saveSettings(s);
-      setOrig(JSON.stringify(s));
-      toast("Settings saved");
+      // The business name, contact details, logo and quote terms belong to the company: they go up for everyone.
+      const r = await saveSettingsAndCompany(s, orig ? (JSON.parse(orig) as AppSettings) : null);
+      setS(r.settings);
+      setOrig(JSON.stringify(r.settings));
+      if (r.error) toast(`Settings saved on this device. Your business details go to your team on the next sync (${r.error}).`, "info");
+      else toast("Settings saved");
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildOverview, requirePlatformAdmin } from "@/lib/server/admin";
+import { buildOverview, loadRaw, mergeErrors, requirePlatformAdmin, type RawError } from "@/lib/server/admin";
 
 const req = (token?: string) => new Request("http://x/api/admin/overview", { headers: token ? { authorization: `Bearer ${token}` } : {} });
 
@@ -77,5 +77,67 @@ describe("buildOverview", () => {
     );
     expect(o.companies[0]).toMatchObject({ planStatus: "trialing", trialEndsAt: "2026-12-01T00:00:00Z", seatLimit: 5, jobs: 0 });
     expect(o.missing.join(" ")).toMatch(/admin_usage.*app_errors/);
+  });
+
+  it("counts each error once, and takes the database's exact 24 h count when there is one", () => {
+    const e = (id: string, created_at: string): RawError => ({ id, created_at, user_id: null, message: id, stack: null, url: null, user_agent: null, app_version: null, platform: "web", context: null });
+    const errors = mergeErrors([e("a", "2026-11-19T11:00:00Z"), e("b", "2026-11-17T00:00:00Z")], [e("a", "2026-11-19T11:00:00Z"), e("s", "2026-11-19T10:00:00Z")]);
+    expect(errors!.map((x) => x.id)).toEqual(["a", "s", "b"]);
+    expect(buildOverview({ users, teams: [], members, usage, errors }, now).totals.errors24h).toBe(2);
+    expect(buildOverview({ users, teams: [], members, usage, errors, errors24h: 812 }, now).totals.errors24h).toBe(812);
+    expect(mergeErrors(null, null)).toBeNull();
+  });
+});
+
+describe("loadRaw", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://db.example.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("reads the newest server errors on their own, so a client crash loop can't push them off the page", async () => {
+    const report = (id: string, platform: string, minute: number) => ({ id, platform, created_at: `2026-11-19T11:${String(minute).padStart(2, "0")}:00Z`, message: id });
+    // A crashing browser filed the 50 newest reports; the server's two are older.
+    const flood = Array.from({ length: 50 }, (_, i) => report(`c${i}`, "web", 59 - (i % 50)));
+    const server = [report("s1", "server", 5), report("s2", "server", 1)];
+    const seen: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const u = String(input);
+        seen.push(u);
+        if (u.includes("/auth/v1/admin/users")) return Response.json({ users: [] });
+        if (u.includes("/app_errors") && new Headers(init?.headers).get("Prefer") === "count=exact")
+          return new Response("[]", { status: 206, headers: { "Content-Range": "0-0/1234" } });
+        if (u.includes("/app_errors") && u.includes("platform=eq.server")) return Response.json(server);
+        if (u.includes("/app_errors")) return Response.json(flood);
+        return Response.json([]);
+      }),
+    );
+    const raw = await loadRaw(new Date("2026-11-19T12:00:00Z"));
+    expect(seen.some((u) => u.includes("platform=eq.server") && u.includes("limit=50"))).toBe(true);
+    expect(raw.errors).toHaveLength(52);
+    expect(raw.errors!.slice(-2).map((e) => e.id)).toEqual(["s1", "s2"]);
+    expect(raw.errors24h).toBe(1234);
+    expect(seen.find((u) => u.includes("count") || u.includes("created_at=gt."))).toContain("created_at=gt.2026-11-18T12%3A00%3A00.000Z");
+  });
+
+  it("still loads when the count isn't available", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const u = String(input);
+        if (u.includes("/auth/v1/admin/users")) return Response.json({ users: [] });
+        if (new Headers(init?.headers).get("Prefer") === "count=exact") return new Response("oops", { status: 500 });
+        return Response.json([]);
+      }),
+    );
+    const raw = await loadRaw();
+    expect(raw.errors24h).toBeNull();
+    expect(buildOverview(raw).totals.errors24h).toBe(0);
   });
 });

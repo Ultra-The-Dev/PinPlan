@@ -2,16 +2,25 @@
 import { create } from "zustand";
 
 export type ToastKind = "success" | "error" | "info";
+/** A button on the toast that goes somewhere in the app (e.g. "Plan & billing" → /settings#billing). */
+export interface ToastAction {
+  label: string;
+  href: string;
+}
 export interface Toast {
   id: number;
   kind: ToastKind;
   text: string;
+  action?: ToastAction;
+}
+export interface ToastOptions {
+  action?: ToastAction;
 }
 interface ToastState {
   toasts: Toast[];
   /** True while the pointer is over the toasts or focus is inside them: nothing times out. */
   paused: boolean;
-  push(text: string, kind?: ToastKind): number;
+  push(text: string, kind?: ToastKind, opts?: ToastOptions): number;
   dismiss(id: number): void;
   pause(): void;
   resume(): void;
@@ -43,9 +52,10 @@ export const useToasts = create<ToastState>((set, get) => {
   return {
     toasts: [],
     paused: false,
-    push(text, kind = "success") {
+    push(text, kind = "success", opts = {}) {
       const id = ++seq;
-      const all = [...get().toasts, { id, kind, text }];
+      const action = opts.action ?? standingActions.get(text);
+      const all = [...get().toasts, action ? { id, kind, text, action } : { id, kind, text }];
       const dropped = all.slice(0, Math.max(0, all.length - MAX_TOASTS));
       for (const d of dropped) {
         stop(d.id);
@@ -74,4 +84,11 @@ export const useToasts = create<ToastState>((set, get) => {
   };
 });
 
-export const toast = (text: string, kind?: ToastKind) => useToasts.getState().push(text, kind);
+export const toast = (text: string, kind?: ToastKind, opts?: ToastOptions) => useToasts.getState().push(text, kind, opts);
+
+/** Messages that always carry the same button, wherever they are shown from (e.g. the read-only message). */
+const standingActions = new Map<string, ToastAction>();
+export function setToastAction(text: string, action: ToastAction | null): void {
+  if (action) standingActions.set(text, action);
+  else standingActions.delete(text);
+}

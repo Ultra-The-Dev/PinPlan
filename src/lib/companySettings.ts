@@ -182,6 +182,18 @@ export async function saveCompanySettings(patch: Partial<CompanySettings>): Prom
   }
 }
 
+/** Settings › Save: this device's settings, then (when the company part changed since `before`) the company's copy
+ *  for everyone, through saveCompanySettings. Returns what is stored now (names trimmed) and whether the cloud has it. */
+export async function saveSettingsAndCompany(next: AppSettings, before: AppSettings | null): Promise<{ settings: AppSettings; cloud: boolean; error?: string }> {
+  await saveSettings(next);
+  const company = companyFromBusiness(next.business);
+  if (before && sameCompany(companyFromBusiness(before.business), company)) return { settings: await getSettings(), cloud: false };
+  const patch: Partial<CompanySettings> = {};
+  for (const k of COMPANY_FIELDS) patch[k] = company[k];
+  const r = await saveCompanySettings(patch);
+  return { settings: await getSettings(), ...r };
+}
+
 let pulling: Promise<void> | null = null;
 
 /** Bring this device and the company's copy in step (newest change wins). Safe to call often; quiet when offline,

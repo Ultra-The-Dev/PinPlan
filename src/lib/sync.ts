@@ -32,6 +32,7 @@ import {
 } from "./syncMap";
 import { markupsToPush } from "./markups";
 import type { JobLog, PlanMarkup, Sheet } from "./types";
+import { pullCompanySettings } from "./companySettings";
 import { pullDocSettings } from "./docSettings";
 import { clearLocalData, finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, loadTeamIfStale, TEAM_MAX_AGE_MS, useTeam } from "./team";
@@ -693,6 +694,8 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
     await pull(userId, changed);
     // Company invoicing settings (numbering, terms, taxes…) are shared by the office: keep this device's copy current.
     if (useTeam.getState().role !== "tech") await pullDocSettings().catch(() => undefined);
+    // The company's name, phone, logo and quote terms (every member reads them; the office's edits go up from here too).
+    await pullCompanySettings().catch(() => undefined);
     if (pushError) throw pushError;
     failures = 0;
     nextAttemptAt = 0;

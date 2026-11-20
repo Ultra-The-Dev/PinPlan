@@ -4,6 +4,7 @@
 // toasts pauses their timers; errors stay 10 s, or until dismissed while paused. While a modal is open the toasts
 // move into it (the rest of the page is inert then).
 import { CircleExclamationPoint, CircleCheck, Info, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useToasts, type Toast } from "@/lib/toast";
@@ -18,6 +19,15 @@ function ToastItem({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
         {t.kind === "error" && <span className="sr-only">Error: </span>}
         {t.text}
       </span>
+      {t.action && (
+        <Link
+          href={t.action.href}
+          onClick={onDismiss}
+          className="flex h-9 shrink-0 items-center rounded-lg px-2.5 font-semibold whitespace-nowrap text-white underline-offset-2 hover:bg-white/10 hover:underline focus-visible:outline-2 focus-visible:outline-white"
+        >
+          {t.action.label}
+        </Link>
+      )}
       <button
         type="button"
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
