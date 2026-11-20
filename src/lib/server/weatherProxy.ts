@@ -1,7 +1,7 @@
 // Daily-log weather through this server (server-only): set NEXT_PUBLIC_WEATHER_URL=/api/weather and OPEN_METEO_API_KEY
 // so the key for Open-Meteo's commercial API stays on the server. Only the daily fields the app asks for are
 // forwarded; anything else in the query is dropped. See docs/offline.md.
-import { clientIp, rateLimit } from "./rateLimit";
+import { clientIpKey, durableRateLimit } from "./rateLimit";
 
 export type WeatherKind = "forecast" | "archive";
 
@@ -28,7 +28,8 @@ export function upstreamWeatherUrl(kind: WeatherKind, search: URLSearchParams, a
 }
 
 export async function proxyWeather(request: Request, kind: WeatherKind): Promise<Response> {
-  const r = rateLimit(`weather:${clientIp(request)}`, LIMIT);
+  // Counted across every server instance (each Workers isolate keeps its own memory).
+  const r = await durableRateLimit(`weather:${clientIpKey(request)}`, LIMIT);
   if (!r.ok) return Response.json({ error: "Too many weather requests. Try again shortly." }, { status: 429, headers: { "Retry-After": String(r.retryAfter) } });
   const url = upstreamWeatherUrl(kind, new URL(request.url).searchParams, process.env.OPEN_METEO_API_KEY);
   if (!url) return Response.json({ error: "Bad weather request." }, { status: 400 });

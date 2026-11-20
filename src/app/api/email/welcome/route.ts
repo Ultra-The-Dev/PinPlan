@@ -3,13 +3,16 @@
 // app_metadata (which only the server can write) remembers that it went out.
 import { welcomeEmail } from "@/lib/emailTemplates";
 import { requireUser } from "@/lib/server/auth";
-import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { durableRateLimit } from "@/lib/server/rateLimit";
+import { readTextLimited } from "@/lib/server/readBody";
 import { logNotification } from "@/lib/server/sendGuard";
 import { getAuthUser, mergeAppMetadata, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
 
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
 const SENT_KEY = "pinplan_welcome_sent_at";
-const perUser = rateLimiter(60 * 60 * 1000, 5);
+/** Per person, counted across every server instance (in memory only when the shared store is unavailable). */
+const PER_USER = { limit: 5, windowMs: 60 * 60 * 1000 };
 
 export async function POST(req: Request) {
   if (!emailConfigured()) return emailUnavailable();
@@ -21,13 +24,17 @@ export async function POST(req: Request) {
   if (!auth.userId) return json({ error: "Sign in first.", code: "sign_in_required" }, 401);
 
   let body: { company?: unknown; name?: unknown } = {};
+  const read = await readTextLimited(req, 16 * 1024);
+  if (!read.ok) return read.response;
   try {
-    const raw = await req.text();
-    if (raw.trim()) body = JSON.parse(raw);
+    if (read.text.trim()) {
+      const parsed: unknown = JSON.parse(read.text);
+      if (parsed && typeof parsed === "object") body = parsed as typeof body;
+    }
   } catch {
     return json({ error: "Invalid request.", code: "bad_request" }, 400);
   }
-  if (perUser.limited(auth.userId)) return json({ error: "Too many tries. Wait a few minutes.", code: "rate_limited" }, 429);
+  if (!(await durableRateLimit(`welcome:${auth.userId}`, PER_USER)).ok) return json({ error: "Too many tries. Wait a few minutes.", code: "rate_limited" }, 429);
 
   let user;
   try {

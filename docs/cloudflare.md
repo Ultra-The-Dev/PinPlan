@@ -76,7 +76,7 @@ GitHub into the Worker. You only ever edit settings in one place: GitHub → Set
 7. **Point the other services at the domain:** Supabase Authentication → URL configuration (Site URL and Redirect
    URLs), the Stripe webhook endpoint `https://<your-domain>/api/billing/webhook`, the QuickBooks / Xero redirect
    URLs, and the iOS build's server address (`PINPLAN_SERVER_URL` repository variable on GitHub).
-8. **Check it:** `https://<your-domain>/api/health` answers 200 with `"schema":"ok"`, and `https://<your-domain>/sw.js`
+8. **Check it:** `https://<your-domain>/api/health` answers 200 (signed in as a platform admin it also shows `"schema":"ok"`), and `https://<your-domain>/sw.js`
    starts with `const BUILD = "…"`. The cron shows under the Worker → Settings → Trigger events; its runs and any
    errors are under Logs.
 9. **Rate limit (free):** Security → WAF → Rate limiting rules → `/api/*`, 60 requests per minute per IP, action

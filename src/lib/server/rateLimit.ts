@@ -1,12 +1,17 @@
 // Rate limiting for API routes (server-only).
 //
-// - rateLimit(): in-memory sliding window. The window lives in this server instance's memory: on Vercel each function
-//   instance (and each region) keeps its own counts and loses them on a cold start, so the limit is "per instance".
-//   Enough to stop a runaway client loop (the AI routes use it).
+// - rateLimit(): in-memory sliding window. The window lives in this server instance's memory. On Cloudflare Workers
+//   every isolate (and every data centre) keeps its own counts and loses them whenever the isolate is recycled, and a
+//   busy site runs many isolates at once, so a per-instance limit is NOT enough on its own there: a caller spreading
+//   requests over isolates gets many times the limit. Use it only as a fallback, or as a cheap "stop a runaway loop"
+//   check in front of a durable limit.
 // - durableRateLimit(): one shared count for every instance, kept in Supabase (public.rate_limits, counted by the
-//   rate_limit_hit() function, which only the service role may call). Used where abuse matters: sign-up with an invite
-//   code and the Billdu routes. Without SUPABASE_SERVICE_ROLE_KEY (or if the database can't be reached) it falls back
-//   to the in-memory limiter, so a database hiccup never blocks real users.
+//   rate_limit_hit() function, which only the service role may call). Used wherever abuse costs money or sends mail:
+//   sign-up with an invite code, the Billdu routes, the weather proxy, the welcome email and the AI routes. Without
+//   SUPABASE_SERVICE_ROLE_KEY (or if the database can't be reached) it falls back to the in-memory limiter, so a
+//   database hiccup never blocks real users. The AI routes refuse to run at all without the shared store
+//   (durableLimiterAvailable(), checked by aiEnabledOnServer()).
+// - clientIp() / clientIpKey(): the caller's address. Only headers the hosting platform sets are trusted (see below).
 import { serviceConfigured, serviceFetch } from "./supabaseAdmin";
 
 export interface RateLimitRule {
@@ -94,19 +99,61 @@ export function tooManyRequests(r: RateLimitResult, message: string): Response {
 /** "45 seconds" / "3 minutes": for messages. */
 export const waitText = (s: number) => (s < 90 ? `${s} seconds` : `${Math.ceil(s / 60)} minutes`);
 
+/** Where X-Forwarded-For / X-Real-IP are set by the platform (Vercel's edge overwrites them) or by a proxy the owner runs. */
+function trustForwardedFor(): boolean {
+  return process.env.PINPLAN_TRUST_XFF === "1" || !!process.env.VERCEL_ENV;
+}
+
+function firstForwarded(request: Request): string | null {
+  const fwd = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return fwd || request.headers.get("x-real-ip")?.trim() || null;
+}
+
+/** A plausible IP literal (v4 or v6); anything else counts as missing, so junk can't mint fresh keys. */
+const IP_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f:.]{2,45})$/;
+const plausibleIp = (v: string | null | undefined) => (v && IP_RE.test(v) ? v : null);
+
 /**
- * Best-effort client IP, for per-IP limits. On Cloudflare Workers, cf-connecting-ip is set by Cloudflare and callers
- * can't choose it. On Vercel, the edge overwrites x-forwarded-for and x-real-ip with the real client address. Behind
- * any other host or proxy these headers are whatever the caller (or the proxy) sent, so per-IP limits there can be
- * dodged; per-user and per-code limits can't.
+ * The client IP, for per-IP limits and for Turnstile's remoteip. "unknown" when the platform didn't say.
+ * - Cloudflare Workers: cf-connecting-ip, set by Cloudflare; a caller can't choose it, and X-Forwarded-For (which the
+ *   caller can) is ignored.
+ * - Vercel (VERCEL_ENV set) or behind a proxy the owner runs (PINPLAN_TRUST_XFF=1): that edge overwrites
+ *   x-real-ip / x-forwarded-for, and only they are read (a cf-connecting-ip header there is the caller's own).
+ * - Anything else: X-Forwarded-For is whatever the caller sent, so it is never read. Every caller then shares the
+ *   "unknown" key, which is strict but can't be dodged; per-user and per-link limits still apply.
  */
 export function clientIp(request: Request): string {
-  const cf = request.headers.get("cf-connecting-ip")?.trim();
-  if (cf) return cf;
-  const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim() || "unknown";
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
+  // Where the forwarded headers are trusted, a cf-connecting-ip header is whatever the caller sent (Vercel's edge and
+  // an ordinary reverse proxy pass it through untouched), so it is never read there.
+  if (trustForwardedFor()) return plausibleIp(firstForwarded(request)) ?? "unknown";
+  return plausibleIp(request.headers.get("cf-connecting-ip")?.trim()) ?? "unknown";
 }
+
+/**
+ * The rate-limit key for an address: IPv4 as is, IPv6 on its /64 prefix (one customer line usually gets a whole /64,
+ * so keying on the full address would hand each caller 2^64 fresh buckets). IPv4-mapped IPv6 counts as the IPv4.
+ */
+export function ipKey(ip: string): string {
+  const s = ip.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  if (!s.includes(":")) return s || "unknown";
+  const mapped = /^(?:0{1,4}:){5}ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s) ?? /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(s);
+  if (mapped) return mapped[1];
+  let groups: string[];
+  const dbl = s.indexOf("::");
+  if (dbl >= 0) {
+    const head = s.slice(0, dbl).split(":").filter(Boolean);
+    const tail = s.slice(dbl + 2).split(":").filter(Boolean);
+    // An embedded IPv4 tail takes two groups.
+    const tailLen = tail.reduce((n, g) => n + (g.includes(".") ? 2 : 1), 0);
+    groups = [...head, ...Array<string>(Math.max(0, 8 - head.length - tailLen)).fill("0"), ...tail];
+  } else groups = s.split(":");
+  const prefix = groups.slice(0, 4).map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? g.replace(/^0+(?=.)/, "") : "0"));
+  while (prefix.length < 4) prefix.push("0");
+  return `${prefix.join(":")}::/64`;
+}
+
+/** clientIp() as a rate-limit key (IPv6 on its /64). Use this for per-IP limits, clientIp() for Turnstile. */
+export const clientIpKey = (request: Request): string => ipKey(clientIp(request));
 
 /** Limits for the AI routes. Each call costs real money and takes seconds, so these are generous for a person, tight for a loop. */
 export const AI_LIMITS = {
@@ -121,14 +168,18 @@ const AI_DAILY: RateLimitRule = { limit: 1500, windowMs: 24 * 60 * 60_000 };
 
 const minutes = waitText;
 
+/** The shared store can count (service key set). The AI routes refuse to run without it. */
+export const durableLimiterAvailable = (): boolean => serviceConfigured();
+
 /**
- * Rate-limit an AI request per signed-in user (or per IP when the caller has no user id, e.g. access-code mode).
+ * Rate-limit an AI request per signed-in user (or per IP when the caller has no user id, e.g. access-code mode),
+ * counted in the shared store across every server instance (in memory only when the store can't be reached).
  * Returns a friendly 429 response when the caller is over the limit, otherwise null.
  */
-export function limitAi(request: Request, userId: string | null, route: keyof typeof AI_LIMITS): Response | null {
-  const who = userId ? `u:${userId}` : `ip:${clientIp(request)}`;
-  const daily = rateLimit(`ai-day:${who}`, AI_DAILY);
-  const r = daily.ok ? rateLimit(`ai:${route}:${who}`, AI_LIMITS[route]) : daily;
+export async function limitAi(request: Request, userId: string | null, route: keyof typeof AI_LIMITS): Promise<Response | null> {
+  const who = userId ? `u:${userId}` : `ip:${clientIpKey(request)}`;
+  const daily = await durableRateLimit(`ai-day:${who}`, AI_DAILY);
+  const r = daily.ok ? await durableRateLimit(`ai:${route}:${who}`, AI_LIMITS[route]) : daily;
   if (r.ok) return null;
   const message = daily.ok
     ? `You're sending AI requests faster than we can handle. Please wait ${minutes(r.retryAfter)} and try again.`

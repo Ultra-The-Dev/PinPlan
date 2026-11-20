@@ -1,5 +1,12 @@
 process.env.AI_ENABLED = "1"; // these tests exercise the AI routes, which are off unless enabled
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// The AI routes run only with the shared rate limiter (service key set). Its RPC is answered here, so the model mock
+// below sees only model calls.
+vi.mock("@/lib/server/supabaseAdmin", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/server/supabaseAdmin")>()),
+  serviceFetch: async () => Response.json({ ok: true, remaining: 100, retry_after: 0 }),
+}));
 import { parseAnswer, parseExplanation } from "@/lib/planRead";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -41,7 +48,9 @@ describe("POST /api/plan/read", () => {
   let calls: Record<string, unknown>[] = [];
   beforeEach(() => {
     calls = [];
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
     vi.stubEnv("PINPLAN_ACCESS_CODE", "");
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
     vi.stubEnv("ANTHROPIC_MODEL", "test-model");

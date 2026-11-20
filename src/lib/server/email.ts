@@ -139,6 +139,8 @@ export function sendFailure(r: Extract<SendResult, { ok: false }>): Response {
 }
 
 // ---- tiny in-memory rate limiter (per server instance) ----
+// Only a first line: on Cloudflare Workers each isolate counts on its own. Routes that matter add a shared limit too
+// (durableRateLimit in rateLimit.ts, or durableLimited in sendGuard.ts).
 export function rateLimiter(windowMs: number, max: number) {
   const hits = new Map<string, number[]>();
   return {
@@ -160,4 +162,6 @@ export function rateLimiter(windowMs: number, max: number) {
   };
 }
 
-export const clientIp = (req: Request) => req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+// The caller's address comes from rateLimit.ts, which trusts only headers the hosting platform sets (never a forged
+// X-Forwarded-For on Cloudflare). clientIpKey is the per-IP rate-limit key (IPv6 on its /64).
+export { clientIp, clientIpKey } from "./rateLimit";

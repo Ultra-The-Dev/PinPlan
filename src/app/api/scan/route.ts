@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!aiEnabledOnServer()) return Response.json({ error: "AI features are turned off on this server.", code: "ai_disabled" }, { status: 404 });
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
-  const limited = limitAi(request, auth.userId, "scan");
+  const limited = await limitAi(request, auth.userId, "scan");
   if (limited) return limited;
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json(

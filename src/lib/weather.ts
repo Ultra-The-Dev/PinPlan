@@ -1,8 +1,10 @@
 // Daily weather for a job from Open-Meteo (free, no API key). Fails quietly: offline, slow (5 s), out of range or an
 // error all give null and the foreman types it instead. Answers are cached in memory for the session.
-// When it goes through this app's own proxy (/api/weather), a signed-in person's session token goes with it, so they
-// get the per-person limit rather than the tighter per-IP one for pages without a session (api/weather/v1/gate.ts).
+// When it goes through this app's own proxy (/api/weather), a signed-in person's session token (or, on a server that
+// takes it, the team access code) goes with it: with a paid weather key the proxy answers only callers it accepts
+// (api/weather/v1/gate.ts).
 import { openMeteoUrl, weatherFromOpenMeteo, type DailyWeather } from "./dailyReport";
+import { getAccessCode } from "./api";
 import { weatherUrl } from "./endpoints";
 import { getSupabase } from "./supabase";
 
@@ -30,11 +32,14 @@ async function sessionToken(): Promise<string | null> {
   }
 }
 
-/** Request headers for the weather URL: the session token only for this app's own proxy, never for another host. */
-export async function weatherHeaders(url: string, token: () => Promise<string | null> = sessionToken): Promise<Record<string, string>> {
+/** Request headers for the weather URL: the session token / access code only for this app's own proxy, never for another host. */
+export async function weatherHeaders(url: string, token: () => Promise<string | null> = sessionToken, accessCode: () => string = getAccessCode): Promise<Record<string, string>> {
   if (!isOwnPath(url)) return {};
   const t = await token().catch(() => null);
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  const headers: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
+  const code = accessCode();
+  if (code) headers["x-pinplan-access"] = code;
+  return headers;
 }
 
 /** The weather on `date` (YYYY-MM-DD) at lat/lng, or null. `today` is the device's local day. `token` is for tests. */

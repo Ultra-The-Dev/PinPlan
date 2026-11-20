@@ -67,7 +67,7 @@ Configured in `src/lib/endpoints.ts`. The defaults are fine for development but 
 | What | Default | Set for production |
 | --- | --- | --- |
 | Jobs map tiles | OpenStreetMap's public tile server (its usage policy rules out an app's production traffic) | `NEXT_PUBLIC_MAP_TILE_URL` — a Leaflet template, e.g. `https://<provider>/{z}/{x}/{y}.png?key={key}`; `NEXT_PUBLIC_MAP_TILE_KEY` (a browser key — restrict it to your domain at the provider); `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` |
-| Daily-log weather | Open-Meteo's free API (non-commercial use only) | `NEXT_PUBLIC_WEATHER_URL=/api/weather` plus server-only `OPEN_METEO_API_KEY`: requests go through `src/app/api/weather/v1/{forecast,archive}` (rate-limited per IP), which adds the key and calls Open-Meteo's commercial hosts. Or an `https://` origin of a self-hosted Open-Meteo. |
+| Daily-log weather | Open-Meteo's free API (non-commercial use only) | `NEXT_PUBLIC_WEATHER_URL=/api/weather` plus server-only `OPEN_METEO_API_KEY`: requests go through `src/app/api/weather/v1/{forecast,archive}` (with the key: signed-in people only, rate-limited per IP and per person in the database), which adds the key and calls Open-Meteo's commercial hosts. Or an `https://` origin of a self-hosted Open-Meteo. |
 
 Offline, the map shows "The map needs a connection" over the map while pins and the job list keep working; the weather
 fields stay editable by hand. The CSP adds an off-site `NEXT_PUBLIC_WEATHER_URL` origin to `connect-src`; tiles are

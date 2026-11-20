@@ -123,7 +123,8 @@ settings and the team list. Point customers who are leaving, or who ask for "all
 - `GET /api/health` answers **503** when the database is unreachable, when the database is missing migrations the code
   needs (`schema: "behind"`; it compares `public.schema_version()` with `REQUIRED_SCHEMA_VERSION` in
   `src/lib/server/envCheck.ts`), or — on the production deployment — when a required setting is missing
-  (`missingConfig` lists the names, never values). Point an uptime monitor at it.
+  (`missingConfig` lists the names, never values; `schema` and `missingConfig` are shown only to a platform admin or
+  the access code, everyone else sees `ok: false` and the server log names the cause). Point an uptime monitor at it.
 - At start-up the server logs one line, `[PinPlan] PRODUCTION CONFIG INCOMPLETE — missing: …`, when settings are missing.
 - Server errors (route handlers, server rendering, the billing webhook, account deletion) are written to `app_errors`
   with platform `server` and show in `/admin` under Recent errors › Server. App floods can't stop them being recorded:

@@ -5,13 +5,15 @@ import { createHash } from "node:crypto";
 import type { DocSnapshot } from "@/lib/documents";
 import { documentResponseEmail } from "@/lib/emailTemplates";
 import { logNotification } from "@/lib/server/sendGuard";
-import { appOrigin, clientIp, emailConfigured, rateLimiter, sendEmail, validEmail } from "@/lib/server/email";
+import { appOrigin, clientIpKey, emailConfigured, rateLimiter, sendEmail, validEmail } from "@/lib/server/email";
+import { readJsonLimited } from "@/lib/server/readBody";
 import { getAuthUser, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
 import { jobHref } from "@/lib/tabRoutes";
 
 const nothing = () => new Response(null, { status: 204 });
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,128}$/;
 const HOUR = 60 * 60 * 1000;
+const MAX_BODY_BYTES = 64 * 1024;
 const perIp = rateLimiter(HOUR, 60);
 const perToken = rateLimiter(HOUR, 6);
 
@@ -33,16 +35,14 @@ interface DocRow {
 }
 
 export async function POST(req: Request) {
-  let body: { token?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ ok: false }, { status: 400 });
-  }
+  // Only a token is expected: anything bigger is refused before it is read.
+  const read = await readJsonLimited<{ token?: unknown } | null>(req, MAX_BODY_BYTES);
+  if (!read.ok) return Response.json({ ok: false }, { status: read.status });
+  const body = read.value && typeof read.value === "object" ? read.value : {};
   const token = typeof body.token === "string" ? body.token.trim() : "";
   if (!TOKEN_RE.test(token)) return Response.json({ ok: false }, { status: 400 });
   if (!emailConfigured() || !serviceConfigured()) return nothing();
-  if (perIp.limited(clientIp(req)) || perToken.limited(token)) return Response.json({ ok: false }, { status: 429 });
+  if (perIp.limited(clientIpKey(req)) || perToken.limited(token)) return Response.json({ ok: false }, { status: 429 });
   // Links in the email need the site address (PINPLAN_APP_URL in production): without it, don't claim or send.
   const origin = appOrigin(req);
   if (!origin) {

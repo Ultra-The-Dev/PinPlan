@@ -26,7 +26,7 @@ customer data requests.
 - [ ] Changed a file in `supabase/templates/`? Paste it again into Supabase → Authentication → Emails → Templates. All
       six must be set: `confirm-signup`, `invite`, `magic-link`, `reset-password`, `change-email` and
       `reauthentication` (subjects in [SETUP.md](../SETUP.md) A2).
-- [ ] After deploying: `https://<your-domain>/api/health` returns `200` with `"database": "ok"`. Signed in, it lists
+- [ ] After deploying: `https://<your-domain>/api/health` returns `200` with `"database": "ok"`. Signed in as a platform admin (`PLATFORM_ADMIN_EMAILS`), it lists
       which services are configured (yes/no only, never values); all should be `true` except ones you deliberately
       don't use (AI stays off).
 - [ ] Smoke test on production: sign up, set up a company, invite a technician, import a PDF plan, place devices,
