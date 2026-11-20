@@ -62,7 +62,7 @@ jobs:
           echo "Resend domain $DOMAIN: $STATUS"
           if [ "$STATUS" != "verified" ]; then
             if [ "$STATUS" = "missing" ]; then
-              echo "::warning::Couldn't see $DOMAIN in Resend (a sending-only key can't list domains). Continuing; the test email below will tell."
+              echo "::warning::Couldn't see $DOMAIN in Resend (a sending-only key can't list domains). Continuing; send a test (Forgot password on /login) to check delivery."
             else
               echo "::error::$DOMAIN isn't verified in Resend yet ($STATUS)."; exit 1
             fi
