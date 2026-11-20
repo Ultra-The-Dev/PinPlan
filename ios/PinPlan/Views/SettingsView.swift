@@ -53,7 +53,7 @@ struct SettingsView: View {
                 if app.cloud.can(.prices) {
                     NavigationLink { PricingSettingsView() } label: {
                         LabeledContent {
-                            Text("\(app.settings.pricing.markupPct.clean)% markup · \(app.settings.pricing.taxPct.pct2)% tax")
+                            Text("\(app.settings.pricing.markupPct.clean)% markup · \(app.settings.pricing.taxPct.pctText)% tax")
                         } label: { Label("Pricing", systemImage: "dollarsign.circle") }
                     }
                 }
@@ -423,9 +423,9 @@ struct DoubleField: View {
     @Binding var value: Double
     var body: some View {
         // Saves as you type (the number pad has no Return key).
-        // Two decimals at most (8.875 -> 8.88), shown and kept the same way.
-        CommitField(title: "", value: value.pct2, prompt: "0", keyboard: .decimalPad) { s in
-            value = ((Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0) * 100).rounded() / 100
+        // Three decimals at most (NYC's 8.875% stays exact), shown and kept the same way.
+        CommitField(title: "", value: value.pctText, prompt: "0", keyboard: .decimalPad) { s in
+            value = ((Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0) * 1000).rounded() / 1000
         }
             .multilineTextAlignment(.trailing).frame(maxWidth: 120)
     }

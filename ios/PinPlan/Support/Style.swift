@@ -135,9 +135,9 @@ struct Chip: View {
 extension Double {
     /// 12.0 → "12", 12.5 → "12.5".
     var clean: String { self == rounded() ? String(Int(self)) : String(format: "%.1f", self) }
-    /// Percentages (tax rate, markup): at most two decimals, no trailing zeros. 8.875 -> "8.88", 8.5 -> "8.5".
-    var pct2: String {
-        let r = (self * 100).rounded() / 100
+    /// Percentages (tax rate, markup): at most three decimals, no trailing zeros. 8.875 -> "8.875", 8.5 -> "8.5".
+    var pctText: String {
+        let r = (self * 1000).rounded() / 1000
         return r == r.rounded() ? String(Int(r)) : String(format: "%g", r)
     }
 }

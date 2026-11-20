@@ -36,7 +36,7 @@ struct EstimateView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(pricing.taxPct > 0 ? "Total with \(pricing.taxPct.pct2)% tax" : "Total").font(.subheadline).foregroundStyle(.secondary)
+                            Text(pricing.taxPct > 0 ? "Total with \(pricing.taxPct.pctText)% tax" : "Total").font(.subheadline).foregroundStyle(.secondary)
                             Text(Money.format(e.total, currency: cur)).font(.system(size: 38, weight: .bold)).monospacedDigit()
                                 .contentTransition(.numericText())
                         }
@@ -134,7 +134,7 @@ struct EstimateView: View {
             } footer: { Text("The client reviews the plans and price, picks options and signs online.") }
             Section(sentence: "Summary") {
                 LabeledContent("Subtotal", value: Money.format(e.subtotal, currency: cur))
-                LabeledContent("Tax (\(pricing.taxPct.pct2)%)", value: Money.format(e.tax, currency: cur))
+                LabeledContent("Tax (\(pricing.taxPct.pctText)%)", value: Money.format(e.tax, currency: cur))
                 LabeledContent { Text(Money.format(e.total, currency: cur)).font(.title3.bold()) } label: { Text("Total").bold() }
                 if e.optionalTotal > 0 { LabeledContent("Optional (“?”) not included", value: Money.format(e.optionalTotal, currency: cur)).font(.caption) }
             }

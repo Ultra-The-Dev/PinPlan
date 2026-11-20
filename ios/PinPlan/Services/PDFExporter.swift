@@ -256,7 +256,7 @@ enum PDFExporter {
                 ls.forEach(row)
             }
             y += 8
-            for (k, v, bold) in [("Subtotal", money(estimate.subtotal), false), ("Tax (\(pricing.taxPct.pct2)%)", money(estimate.tax), false), ("Total", money(estimate.total), true)] {
+            for (k, v, bold) in [("Subtotal", money(estimate.subtotal), false), ("Tax (\(pricing.taxPct.pctText)%)", money(estimate.tax), false), ("Total", money(estimate.total), true)] {
                 if bold { ctx.setFillColor(UIColor.black.cgColor); ctx.fill(CGRect(x: R - 240, y: y, width: 240, height: 1.2)); y += 6 }
                 text(k, at: CGPoint(x: R - 240, y: y), size: bold ? 13 : 9.5, weight: bold ? .bold : .regular, color: bold ? .black : .gray)
                 text(v, at: CGPoint(x: R - 140, y: y), size: bold ? 13 : 9.5, weight: bold ? .bold : .regular, align: .right, width: 140)
