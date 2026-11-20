@@ -15,6 +15,14 @@ begin
   raise notice 'ok: %', what;
 end $$;
 
+create function pg_temp.error_of(stmt text) returns text language plpgsql as $$
+begin
+  execute stmt;
+  return '';
+exception when others then
+  return sqlerrm;
+end $$;
+grant execute on function pg_temp.error_of(text) to anon, authenticated;
 -- User A creates a project with a sheet and a marker.
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
@@ -140,6 +148,32 @@ select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
 select pg_temp.check((select status = 'accepted' and client_name = 'Jane Client' from public.proposals where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa'), 'installer sees the acceptance');
 update public.proposals set status = 'revoked' where id = 'tok_aaaaaaaaaaaaaaaaaaaaaa';
 select pg_temp.check(public.get_proposal('tok_aaaaaaaaaaaaaaaaaaaaaa') is null, 'revoked link stops working');
+-- The answer and the snapshot are the client's and the database's (20261124301000_access_guards.sql).
+insert into public.proposals (id, project_id, snapshot, status, client_name, signature, accepted_total, responded_at)
+  values ('tok_bbbbbbbbbbbbbbbbbbbbbb', 'p1', '{"lines": []}', 'accepted', 'Forged', 'data:x', 1, now());
+select pg_temp.check((select status = 'sent' and client_name is null and signature is null and accepted_total is null and responded_at is null
+  from public.proposals where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb'), 'a new proposal starts unanswered');
+select pg_temp.check(pg_temp.error_of($$update public.proposals set status = 'accepted' where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb'$$) <> '', 'the installer cannot mark a proposal accepted');
+update public.proposals set snapshot = '{"lines": [{"key": "dev:x", "total": 1}]}', client_name = 'Forged', accepted_total = 1, status = 'viewed'
+  where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb';
+select pg_temp.check((select snapshot -> 'lines' = '[]'::jsonb and client_name is null and accepted_total is null and status = 'viewed'
+  from public.proposals where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb'), 'the snapshot and answer fields stay; sent -> viewed is fine');
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub', '', false), set_config('request.jwt.claim.role', 'anon', false);
+select pg_temp.check(pg_temp.error_of($$select public.respond_proposal('tok_bbbbbbbbbbbbbbbbbbbbbb', true, 'Jane', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=', '[]', null)$$) like '%PNG%',
+  'an SVG signature is refused');
+select pg_temp.check(pg_temp.error_of($$select public.respond_proposal('tok_bbbbbbbbbbbbbbbbbbbbbb', true, 'Jane', 'data:image/png;base64,AA==" onload="x', '[]', null)$$) like '%PNG%',
+  'a signature with anything after the data is refused');
+select pg_temp.check(public.respond_proposal('tok_bbbbbbbbbbbbbbbbbbbbbb', false, repeat('N', 300), null, null, repeat('x', 5000)) ->> 'status' = 'declined',
+  'the client declines');
+reset role;
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a');
+select pg_temp.check((select length(client_name) = 120 and length(client_note) = 4000 from public.proposals where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb'),
+  'the client''s name and note are capped');
+update public.proposals set status = 'revoked' where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb';
+select pg_temp.check((select status = 'revoked' and client_name is not null from public.proposals where id = 'tok_bbbbbbbbbbbbbbbbbbbbbb'), 'an answered proposal can still be withdrawn');
 
 -- Field documentation: team members see job photos; outsiders don't; photo reports open only by link.
 reset role;

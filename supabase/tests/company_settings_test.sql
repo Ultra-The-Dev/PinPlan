@@ -35,7 +35,7 @@ set role authenticated;
 -- ---------- a company: owner, office admin, technician ----------
 select pg_temp.as_user('00000000-0000-0000-0000-000000000cc1');
 select pg_temp.check(public.create_team('Settings Co', 'Olivia') is not null, 'owner creates a team');
-insert into public.team_invites (code, team_id, role, name) values ('CSTECH0001', public.my_team_id(), 'tech', 'Tom'), ('CSOFFICE01', public.my_team_id(), 'admin', 'Ann');
+insert into public.team_invites (code, team_id, role, name, email) values ('CSTECH0001', public.my_team_id(), 'tech', 'Tom', null), ('CSOFFICE01', public.my_team_id(), 'admin', 'Ann', 'coffice@example.com');
 select pg_temp.as_user('00000000-0000-0000-0000-000000000cc2');
 select pg_temp.check(public.accept_team_invite('CSTECH0001', '') ->> 'role' = 'tech', 'tech joins');
 select pg_temp.as_user('00000000-0000-0000-0000-000000000cc3');

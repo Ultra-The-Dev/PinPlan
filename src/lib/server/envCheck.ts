@@ -7,7 +7,7 @@
  * when the database is behind. Bump it (and redefine schema_version() in that migration) when code starts depending on
  * a newer migration.
  */
-export const REQUIRED_SCHEMA_VERSION = "20261124100800_ops_hardening";
+export const REQUIRED_SCHEMA_VERSION = "20261124301000_access_guards";
 
 /** What a paid production deployment can't run without. */
 export const REQUIRED_PRODUCTION_VARS = [
@@ -27,6 +27,8 @@ export const REQUIRED_PRODUCTION_VARS = [
   "EMAIL_FROM",
   // links in emails (must be an https:// address)
   "PINPLAN_APP_URL",
+  // bot check on /api/team/join (account creation with an invite code)
+  "TURNSTILE_SECRET_KEY",
 ] as const;
 
 type Env = Record<string, string | undefined>;

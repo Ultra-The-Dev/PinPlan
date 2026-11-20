@@ -61,7 +61,7 @@ set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
 insert into public.projects (id, client_name, address, status) values ('dp1', 'Jane Client', '12 Maple Ridge Rd', 'estimate');
 select pg_temp.check(public.create_team('Docs Co', 'Olivia') is not null, 'owner creates a team');
-insert into public.team_invites (code, team_id, role, name) values ('DOCTECH01', public.my_team_id(), 'tech', 'Tom'), ('DOCOFFICE1', public.my_team_id(), 'admin', 'Ann');
+insert into public.team_invites (code, team_id, role, name, email) values ('DOCTECH01', public.my_team_id(), 'tech', 'Tom', null), ('DOCOFFICE1', public.my_team_id(), 'admin', 'Ann', 'doffice@example.com');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
 select pg_temp.check(public.accept_team_invite('DOCTECH01', '') ->> 'role' = 'tech', 'tech joins');
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d3');
@@ -191,6 +191,20 @@ select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_expi
 select pg_temp.check(public.get_document('tok_invoice_0000000001') is null, 'withdrawn link: nothing');
 set role authenticated;
 
+-- Answers are checked (20261124301000_access_guards.sql): the signature must be a PNG data URL; name and note are capped.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+insert into public.sales_documents (id, project_id, kind, status) values ('dq4', 'dp1', 'quote', 'sent');
+insert into public.document_links (id, document_id, project_id, snapshot) values ('tok_quote_000000000004', 'dq4', 'dp1', '{"requireSignature": true}');
+select pg_temp.as_anon();
+set role anon;
+select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_quote_000000000004', true, 'Jane', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=', null)$$) like '%PNG%', 'an SVG signature is refused');
+select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_quote_000000000004', true, 'Jane', 'javascript:alert(1)', null)$$) like '%PNG%', 'a non-image signature is refused');
+select pg_temp.check(pg_temp.error_of($$select public.respond_document('tok_quote_000000000004', true, 'Jane', 'data:image/png;base64,AAA"><script>', null)$$) like '%PNG%', 'a signature with markup after the data is refused');
+select pg_temp.check(public.respond_document('tok_quote_000000000004', true, repeat('N', 300), 'data:image/png;base64,iVBORw0KGgo=', repeat('x', 5000)) ->> 'status' = 'accepted', 'a PNG signature is accepted');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.check((select length(signer_name) = 120 and length(client_note) = 4000 from public.sales_documents where id = 'dq4'), 'the signer''s name and note are capped');
+
 -- ---------- tech still can't see links ----------
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');
 select pg_temp.check((select count(*) from public.document_links) = 0, 'tech sees no client links');
@@ -204,6 +218,8 @@ select pg_temp.check(pg_temp.error_of($$insert into public.sales_documents (id, 
 select pg_temp.check(pg_temp.error_of($$insert into public.sales_document_payments (id, project_id, document_id, amount) values ('dplock', 'dp1', 'di1', 5)$$) like '%subscription inactive%', 'locked company cannot add payments');
 insert into public.sales_documents (id, project_id, kind, status) select 'x', 'dp1', 'quote', 'draft' where false;
 select pg_temp.check((select count(*) from public.sales_documents where project_id = 'dp1') >= 5, 'locked company still reads its documents');
+select pg_temp.check(pg_temp.error_of($$insert into public.document_settings (owner_id, config) values ('00000000-0000-0000-0000-0000000000d1', '{}')
+  on conflict (owner_id) do update set config = excluded.config$$) like '%subscription inactive%', 'locked company cannot change its document settings');
 reset role;
 update public.teams set plan_status = 'active' where owner_id = '00000000-0000-0000-0000-0000000000d1';
 set role authenticated;
