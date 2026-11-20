@@ -132,7 +132,7 @@ const STATIC_KEYS = ["Strict-Transport-Security", "X-Content-Type-Options", "Ref
 export const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'";
 
 /** public/_headers: Cloudflare Workers static assets (and Pages) serve files straight from the asset store, before
- *  the Worker and next.config.ts headers() run, so they need their own headers. tests/securityHeaders.test.ts checks
+ *  the Worker and next.config.ts headers() run, so they need their own headers. tests/securityHeadersInfra.test.ts checks
  *  the committed file matches this. */
 export function staticAssetHeaderRules(): { path: string; headers: { key: string; value: string }[] }[] {
   const base = securityHeaders({});
