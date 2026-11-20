@@ -10,6 +10,8 @@ const CACHE = PREFIX + BUILD;
 const META = "pinplan-meta";
 const KEEP_BUILDS = 2;
 const OFFLINE = "/offline";
+/** How long a page load waits for the network before using the saved copy (weak signal on site). */
+const NAV_TIMEOUT_MS = 4000;
 
 /** A same-origin, successful, non-redirected response is safe to keep (and to answer a navigation with). */
 function cacheable(res) {
@@ -76,19 +78,31 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
-  // Pages: network first so a deploy shows up right away; offline, the cached page, else the offline page.
+  // Pages: network first so a deploy shows up right away; offline, the cached page, else the offline page. On a weak
+  // signal (the network neither answers nor fails within NAV_TIMEOUT_MS) the saved copy of the page is used instead
+  // of a blank screen; the network answer still refreshes the saved copy when it arrives.
   if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (cacheable(res)) {
-            const copy = res.clone();
-            event.waitUntil(caches.open(CACHE).then((c) => c.put(url.pathname, copy)).catch(() => undefined));
-          }
-          return res;
-        })
-        .catch(async () => (await cachedPage(url.pathname)) || Response.error()),
-    );
+    const network = fetch(req).then((res) => {
+      if (cacheable(res)) {
+        const copy = res.clone();
+        event.waitUntil(caches.open(CACHE).then((c) => c.put(url.pathname, copy)).catch(() => undefined));
+      }
+      return res;
+    });
+    const fallback = async () => (await cachedPage(url.pathname)) || Response.error();
+    let timer;
+    const slow = new Promise((resolve) => {
+      timer = setTimeout(async () => {
+        const own = await caches.open(CACHE);
+        const hit = (await own.match(url.pathname)) || (await caches.match(url.pathname));
+        if (hit) resolve(hit);
+      }, NAV_TIMEOUT_MS);
+    });
+    const answered = network.catch(fallback);
+    answered.finally(() => clearTimeout(timer)).catch(() => undefined);
+    // Keep the worker alive until the network settles so the late answer can still refresh the saved page.
+    event.waitUntil(network.then(() => undefined, () => undefined));
+    event.respondWith(Promise.race([answered, slow]));
     return;
   }
 

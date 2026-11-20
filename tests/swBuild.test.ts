@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import vm from "node:vm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildServiceWorker, collectPdfWorker, collectRoutes, collectStatic, renderSw, REQUIRED_ROUTES } from "../scripts/build-sw.mjs";
 import { isChunkLoadError, reloadOnceForChunkError } from "@/lib/chunkError";
 import { contentSecurityPolicy } from "@/lib/securityHeaders";
@@ -76,7 +76,7 @@ describe("service worker build", () => {
 });
 
 /** Run the generated worker against in-memory caches and a fake network. */
-function runWorker(source: string, opts: { network: (url: string) => Response | Promise<Response>; caches?: Map<string, Map<string, Response>> }) {
+function runWorker(source: string, opts: { network: (url: string) => Response | Promise<Response>; caches?: Map<string, Map<string, Response>>; timers?: { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout } }) {
   const stores = opts.caches ?? new Map<string, Map<string, Response>>();
   const key = (r: string | Request) => {
     const u = new URL(typeof r === "string" ? r : r.url, "https://app.test");
@@ -117,7 +117,7 @@ function runWorker(source: string, opts: { network: (url: string) => Response | 
     return res;
   };
   const fetch = async (r: string | Request) => basic(await opts.network(key(r)));
-  vm.runInNewContext(source, { self, caches, fetch, Request: class extends Request { constructor(u: string, i?: RequestInit) { super(new URL(u, "https://app.test"), i); } }, Response, URL, console: { warn: () => undefined }, Promise, JSON, Set });
+  vm.runInNewContext(source, { self, caches, fetch, Request: class extends Request { constructor(u: string, i?: RequestInit) { super(new URL(u, "https://app.test"), i); } }, Response, URL, console: { warn: () => undefined }, Promise, JSON, Set, setTimeout: opts.timers?.setTimeout ?? setTimeout, clearTimeout: opts.timers?.clearTimeout ?? clearTimeout });
   const fire = async (type: string, extra: Record<string, unknown> = {}) => {
     const waits: Promise<unknown>[] = [];
     let responded: Promise<Response> | undefined;
@@ -151,6 +151,25 @@ describe("generated service worker", () => {
     const offline = runWorker(make("b1", []), { caches: w.stores, network: () => Promise.reject(new TypeError("offline")) });
     expect(await (await offline.fire("fetch", nav("/project?id=job1&tab=plan")))!.text()).toBe("page /project");
     expect(await (await offline.fire("fetch", nav("/never-seen")))!.text()).toBe("page /offline");
+  });
+
+  it("uses the saved page when a weak signal neither answers nor fails, and still refreshes it later", async () => {
+    vi.useFakeTimers();
+    try {
+      const w = runWorker(make("b1", ["/project"]), { network: (u) => new Response(`page ${u}`) });
+      await w.fire("install");
+      let answer: (r: Response) => void = () => undefined;
+      const slow = runWorker(make("b1", []), { caches: w.stores, network: () => new Promise<Response>((r) => (answer = r)), timers: { setTimeout, clearTimeout } });
+      const pending = slow.fire("fetch", nav("/project?id=job1"));
+      await vi.advanceTimersByTimeAsync(4100);
+      answer(new Response("fresh /project"));
+      const res = await pending;
+      expect(await res!.text()).toBe("page /project");
+      await vi.advanceTimersByTimeAsync(10);
+      expect(await w.stores.get("pinplan-b1")!.get("/project")!.clone().text()).toBe("fresh /project");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps only successful same-origin pages", async () => {

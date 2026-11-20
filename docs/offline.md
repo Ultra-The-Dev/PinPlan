@@ -17,7 +17,8 @@ image-heavy screens light enough for an iPad.
 - **Install** fetches each URL on its own (`Promise.allSettled`), so one missing file never stops the rest from being
   cached. Only `ok`, same-origin (`type: "basic"`), non-redirected responses are stored.
 - **Pages** are network first; a successful page is saved under its path (the query is ignored, so
-  `/project?id=…` is one saved page for every job). Offline: the saved page, else `/offline`.
+  `/project?id=…` is one saved page for every job). Offline: the saved page, else `/offline`. On a weak signal
+  (no answer and no failure within 4 s) the saved page is used; the late network answer still refreshes it.
 - **Build files** (`/_next/static`, `/vendor`, the PDF.js worker) are cache first: their URLs change with their
   content. Workers get a fresh copy of the cached response so Turbopack's `#params=` bootstrap fragment survives.
 - **RSC payloads** (`?_rsc=` / `RSC: 1`) are never cached; offline, the router falls back to a full page load, which

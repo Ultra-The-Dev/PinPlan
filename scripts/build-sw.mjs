@@ -65,7 +65,8 @@ export function collectPdfWorker(publicDir) {
 export function renderSw(template, { build, precache }) {
   if (!template.includes("__BUILD__") || !template.includes("__PRECACHE__")) throw new Error("sw.template.js is missing __BUILD__ or __PRECACHE__");
   const urls = [...new Set(precache)];
-  return template.replace("__BUILD__", JSON.stringify(String(build))).replace("__PRECACHE__", JSON.stringify(urls, null, 0));
+  // Replacer functions, so a "$" in a file name is never read as a replacement pattern.
+  return template.replace("__BUILD__", () => JSON.stringify(String(build))).replace("__PRECACHE__", () => JSON.stringify(urls, null, 0));
 }
 
 /** Build the precache list and the service worker source for the project at `root`. */

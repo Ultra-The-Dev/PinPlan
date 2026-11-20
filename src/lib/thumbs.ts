@@ -87,13 +87,16 @@ export async function saveThumb(imageId: string, maxSide: number, t: { blob: Blo
 let running = 0;
 const waiting: (() => void)[] = [];
 async function slot<T>(fn: () => Promise<T>): Promise<T> {
+  // A freed slot is handed straight to the next waiter (running stays the same), so a new caller arriving in between
+  // can't take it too and push the count past CONCURRENCY.
   if (running >= CONCURRENCY) await new Promise<void>((r) => waiting.push(r));
-  running++;
+  else running++;
   try {
     return await fn();
   } finally {
-    running--;
-    waiting.shift()?.();
+    const next = waiting.shift();
+    if (next) next();
+    else running--;
   }
 }
 
