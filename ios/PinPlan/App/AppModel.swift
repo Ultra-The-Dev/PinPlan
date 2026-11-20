@@ -17,8 +17,31 @@ final class AppModel {
     /// The project open in the editor, so synced changes show up there.
     @ObservationIgnored weak var openEditor: EditorModel?
 
+    /// True while the app was started with the device locked (iOS can pre-launch apps): Store files are written
+    /// complete-unless-open, so they can't be read yet. Nothing is loaded, saved or synced until the device is
+    /// unlocked (`loadIfWaiting`), so empty data read while locked never overwrites the real files.
+    private(set) var waitingForUnlock = false
+
     init(store: Store = .shared) {
         self.store = store
+        guard store.isReadable() else {
+            waitingForUnlock = true
+            NotificationCenter.default.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.loadIfWaiting() }
+            }
+            return
+        }
+        load()
+    }
+
+    /// Load what a launch while locked skipped. `force` when the user is in the app (the device is unlocked).
+    func loadIfWaiting(force: Bool = false) {
+        guard waitingForUnlock, force || store.isReadable() else { return }
+        waitingForUnlock = false
+        load()
+    }
+
+    private func load() {
         projects = store.loadAllProjects().sorted { $0.project.updatedAt > $1.project.updatedAt }
         catalog = store.loadCatalog()
         products = store.loadProducts()
@@ -151,7 +174,7 @@ final class AppModel {
         guard (try? fm.copyItem(at: url, to: copy)) != nil else { return }
         // iOS puts files opened from other apps in Documents/Inbox: we have our copy, so the original goes.
         let inbox = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Inbox", isDirectory: true)
-        if PinPlanCore.SafeId.isContained(url, in: inbox) { try? fm.removeItem(at: url) }
+        if PinPlanCore.SafeId.isContained(url.resolvingSymlinksInPath(), in: inbox.resolvingSymlinksInPath()) { try? fm.removeItem(at: url) }
         if url.pathExtension.lowercased() == "json" {
             do {
                 try prepareRestore(from: copy)

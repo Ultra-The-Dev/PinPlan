@@ -20,7 +20,10 @@ struct PinPlanApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ProjectsView()
+            Group {
+                // Launched while the device was locked: nothing is loaded until it is unlocked (AppModel.waitingForUnlock).
+                if app.waitingForUnlock { PrivacyCoverView().onAppear { app.loadIfWaiting() } } else { ProjectsView() }
+            }
                 .environment(app)
                 .onOpenURL { url in app.receive(url) }
                 .tint(.brand)
@@ -37,7 +40,7 @@ struct PinPlanApp: App {
                 // client names and prices never show in the snapshot.
                 .overlay { if scenePhase != .active { PrivacyCoverView() } }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { PrivacyCover.hide() } else { PrivacyCover.show() }
+                    if phase == .active { PrivacyCover.hide(); app.loadIfWaiting(force: true) } else { PrivacyCover.show() }
                 }
         }
     }

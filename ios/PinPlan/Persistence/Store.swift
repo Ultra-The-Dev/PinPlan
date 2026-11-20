@@ -113,6 +113,14 @@ final class Store: @unchecked Sendable {
         for case let url as URL in e { try? fm.setAttributes(protection, ofItemAtPath: url.path) }
     }
 
+    /// Can this app read its files right now? False while the device is locked (complete-unless-open protection):
+    /// a small check file is written if missing and read back.
+    func isReadable() -> Bool {
+        let url = root.appendingPathComponent(".readable")
+        if !FileManager.default.fileExists(atPath: url.path) { try? Data("ok".utf8).write(to: url, options: Self.writeOptions) }
+        return (try? Data(contentsOf: url)) != nil
+    }
+
     // MARK: safe paths
 
     /// `dir/<id>.<ext>` for a safe id (PinPlanCore.SafeId: checked, and the path must stay inside `dir`); nil otherwise.
