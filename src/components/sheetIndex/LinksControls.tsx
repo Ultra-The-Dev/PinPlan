@@ -1,7 +1,7 @@
 "use client";
 // Plan hyperlinks: the HTML part over the plan (screen px). "Back to E-101" after following a link and the Link tool
-// button (office, Edit mode) in the plan's left rail, the box-drawing surface of the link tool with its bar in the status
-// slot, the target picker, a photo opened from a link and the "open web page?" check. Show / hide and auto links are in
+// button (office, Edit mode) in the plan's left rail (the right rail on phones), the box-drawing surface of the link
+// tool with its bar in the status slot, the target picker, a photo opened from a link and the "open web page?" check. Show / hide and auto links are in
 // Layers ("Show on plan"). The Link tool owns plan taps: starting it closes the other tools (claimPlanInput).
 import { ArrowLeft, Check, Link2, X } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -12,7 +12,8 @@ import { useJobLinks, useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
-import { RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
+import { useMedia } from "@/lib/useMedia";
+import { PHONE_QUERY, RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
 import { goBack } from "./follow";
 import LinkTargetPicker, { targetLabel } from "./LinkTargetPicker";
 
@@ -34,6 +35,9 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
   const documents = useEditor((s) => s.documents);
   const tool = useEditor((s) => s.tool.kind);
   const canEdit = office && editing;
+  // Phones: the Link tool goes in the right rail with the other plan tools (Tasks, Markups). In the left rail it was
+  // pushed down under Back / Measure / Progress onto the drawing's top-left corner at the default zoom.
+  const phone = useMedia(PHONE_QUERY);
 
   // The link tool is an edit-mode tool: leave it when the mode, role or editor tool changes.
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function LinksControls({ ctx }: { ctx: PlanOverlayContext }) {
       )}
 
       {canEdit && !st.drawing && tool === "select" && (
-        <RailSlot side="left" order={40}>
+        <RailSlot side={phone ? "right" : "left"} order={40}>
           <button
             className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-xl bg-white/95 text-slate-700 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900"
             onClick={() => {
@@ -204,7 +208,9 @@ function DrawSurface({ ctx }: { ctx: PlanOverlayContext }) {
     <>
       <div
         ref={ref}
-        className="pointer-events-auto absolute inset-0 z-[15] cursor-crosshair touch-none"
+        // z 12: over the plan and its top / bottom bars (10), under the rails (13, 21) and the status slot (14), so the
+        // bar's Done and the rail buttons stay pressable while drawing.
+        className="pointer-events-auto absolute inset-0 z-[12] cursor-crosshair touch-none"
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}

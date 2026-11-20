@@ -2,7 +2,8 @@
 // Shared places for overlay controls over the plan, so they stack instead of overlapping each other or the viewer's
 // own chrome (docs/plan-viewer.md, "Controls: the plan rails"):
 // - the right rail (under View / Edit): tasks, markups, revisions — <RailSlot order={n}>;
-// - the left rail (under the sheet pill): Back to sheet, Measure, Progress, the Link tool — <RailSlot side="left">;
+// - the left rail (under the sheet pill): Back to sheet, Measure, Progress, the Link tool (right rail on phones) —
+//   <RailSlot side="left">;
 // - the status slot (bottom centre, above the bottom controls): one-line hint / drawing / measure / link bars and the
 //   progress snackbar — <StatusSlot order={n}>. PlanEditor renders its host (it knows where the bottom controls are).
 // Slots sort by `order` (CSS order, so mount order doesn't matter). The rails are a plan overlay themselves (html only)
