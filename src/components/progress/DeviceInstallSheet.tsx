@@ -5,6 +5,7 @@ import { AlertTriangle, BadgeCheck, Camera, Check, RotateCcw, X } from "lucide-r
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { STATUS_COLORS, STATUS_LABELS, canResetInstall, canSetInstall, statusOf, testText, workflowOf, type Workflow } from "@/lib/installProgress";
+import { fmtDate, t, useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -17,16 +18,17 @@ import type { InstallRef } from "./progressStore";
 import IssueTaskButton from "../tasks/IssueTaskButton";
 
 export function testPlaceholder(w: Workflow): string {
-  if (w.id === "cable") return "e.g. 0.4 dB loss, 92 m";
-  if (w.id === "circuit" || w.id === "electrical") return "e.g. 0.3 Ω, 120 V";
-  if (w.id === "pipe" || w.id === "plumbing" || w.id === "hvac") return "e.g. 150 psi held 15 min";
-  if (w.id === "fire") return "e.g. signal received at panel";
-  return "Reading (optional)";
+  if (w.id === "cable") return t("e.g. 0.4 dB loss, 92 m");
+  if (w.id === "circuit" || w.id === "electrical") return t("e.g. 0.3 Ω, 120 V");
+  if (w.id === "pipe" || w.id === "plumbing" || w.id === "hvac") return t("e.g. 150 psi held 15 min");
+  if (w.id === "fire") return t("e.g. signal received at panel");
+  return t("Reading (optional)");
 }
 
-const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
+const when = (iso?: string | null) => (iso ? fmtDate(iso, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 
 export default function DeviceInstallSheet({ item: ref, onClose }: { item: InstallRef; onClose: () => void }) {
+  const t = useT();
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
@@ -39,7 +41,7 @@ export default function DeviceInstallSheet({ item: ref, onClose }: { item: Insta
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Install progress"
+        aria-label={t("Install progress")}
         className="animate-in scroll-thin max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-pop sm:max-w-md sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
         data-testid="device-install-sheet"
@@ -52,6 +54,7 @@ export default function DeviceInstallSheet({ item: ref, onClose }: { item: Insta
 }
 
 function InstallBody({ ref_: ref, onClose }: { ref_: InstallRef; onClose: () => void }) {
+  const t = useT();
   const markers = useEditor((s) => s.markers);
   const runs = useEditor((s) => s.runs);
   const catalog = useEditor((s) => s.catalog);
@@ -59,9 +62,9 @@ function InstallBody({ ref_: ref, onClose }: { ref_: InstallRef; onClose: () => 
   if (!item || item.deleted)
     return (
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">This device was deleted.</p>
+        <p className="text-sm text-slate-500">{t("This device was deleted.")}</p>
         <button className="btn btn-sm" onClick={onClose}>
-          Close
+          {t("Close")}
         </button>
       </div>
     );
@@ -70,13 +73,13 @@ function InstallBody({ ref_: ref, onClose }: { ref_: InstallRef; onClose: () => 
     <>
       <div className="mb-3 flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="section-title">Install progress</div>
+          <div className="section-title">{t("Install progress")}</div>
           <h3 className="truncate text-lg font-semibold">{itemLabel(item)}</h3>
           <p className="truncate text-xs text-slate-500">
-            {"points" in item ? (item.kind === "wire" ? `${item.wireType || "Cable"} run` : "LED run") : [type?.name, item.room].filter(Boolean).join(" · ")}
+            {"points" in item ? (item.kind === "wire" ? (item.wireType ? t("{wire} run", { wire: item.wireType }) : t("Cable run")) : t("LED run")) : [type?.name, item.room].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <button className="btn btn-icon btn-ghost h-11 w-11" onClick={onClose} aria-label="Close">
+        <button className="btn btn-icon btn-ghost h-11 w-11" onClick={onClose} aria-label={t("Close")}>
           <X />
         </button>
       </div>
@@ -87,6 +90,7 @@ function InstallBody({ ref_: ref, onClose }: { ref_: InstallRef; onClose: () => 
 
 /** Status buttons, photos, test, issue and history for one item. Shared by the sheet and the inspector. */
 export function InstallControls({ item, table, big }: { item: Marker | Run; table: "markers" | "runs"; big?: boolean }) {
+  const t = useT();
   const role = useRole();
   const trades = useTrades();
   const catalog = useEditor((s) => s.catalog);
@@ -140,7 +144,7 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
     void run(to, () => setInstall(ref, to));
   };
 
-  if (tentative) return <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">Optional (?) devices aren&apos;t tracked. Confirm the device first.</p>;
+  if (tentative) return <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">{t("Optional (?) devices aren't tracked. Confirm the device first.")}</p>;
 
   const steps: InstallStatus[] = [...wf.steps, ...(canSetInstall(role, "verified") ? (["verified"] as InstallStatus[]) : [])];
   const h = big ? "h-14" : "h-10";
@@ -148,7 +152,7 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
     <div className="space-y-4" data-testid="install-controls">
       <div className="flex items-center gap-2">
         <span className="h-3 w-3 rounded-full" style={{ background: STATUS_COLORS[status] }} />
-        <span className="text-sm font-semibold">{status === "planned" ? "Not started" : wf.labels[status]}</span>
+        <span className="text-sm font-semibold">{status === "planned" ? t("Not started") : t(wf.labels[status])}</span>
         {inst?.at && (
           <span className="truncate text-xs text-slate-500">
             {inst.by ? `${inst.by} · ` : ""}
@@ -171,16 +175,16 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
             >
               <span className="flex items-center gap-1.5">
                 {on ? <Check className="h-4 w-4" /> : s === "verified" ? <BadgeCheck className="h-4 w-4" style={{ color: STATUS_COLORS[s] }} /> : <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLORS[s] }} />}
-                {wf.labels[s]}
+                {t(wf.labels[s])}
               </span>
-              {photoNeeded(s) && !on && <span className="text-[10px] font-normal opacity-70">photo</span>}
+              {photoNeeded(s) && !on && <span className="text-[10px] font-normal opacity-70">{t("photo")}</span>}
             </button>
           );
         })}
       </div>
 
       <div>
-        <div className="label">Proof photos ({photos.length})</div>
+        <div className="label">{t("Proof photos ({n})", { n: photos.length })}</div>
         <div className="flex flex-wrap gap-1.5">
           {photos.map((p) => (
             <Thumb key={p.id} photo={p} onOpen={() => setViewer(p.id)} />
@@ -196,23 +200,23 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
             disabled={busy === "photo"}
           >
             <Camera className="h-5 w-5" />
-            {busy === "photo" ? "Saving…" : "Add"}
+            {busy === "photo" ? t("Saving…") : t("Add")}
           </button>
         </div>
       </div>
 
       <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
-        <div className="label">Test result{inst?.test ? ` · last: ${testText(inst.test)}` : ""}</div>
+        <div className="label">{inst?.test ? t("Test result · last: {result}", { result: testText(inst.test) }) : t("Test result")}</div>
         <div className="mb-2 grid grid-cols-2 gap-2">
           <button className={`${h} rounded-xl text-sm font-semibold ring-1 ${pass === true ? "bg-emerald-600 text-white ring-transparent" : "bg-white ring-slate-200"}`} onClick={() => setPass(true)} aria-pressed={pass === true}>
-            Pass
+            {t("Pass")}
           </button>
           <button className={`${h} rounded-xl text-sm font-semibold ring-1 ${pass === false ? "bg-red-600 text-white ring-transparent" : "bg-white ring-slate-200"}`} onClick={() => setPass(false)} aria-pressed={pass === false}>
-            Fail
+            {t("Fail")}
           </button>
         </div>
         <div className="flex gap-2">
-          <input className="input" value={value} onChange={(e) => setValue(e.target.value)} placeholder={testPlaceholder(wf)} aria-label="Test reading" />
+          <input className="input" value={value} onChange={(e) => setValue(e.target.value)} placeholder={testPlaceholder(wf)} aria-label={t("Test reading")} />
           <button
             className="btn btn-primary h-10"
             disabled={pass === null || !!busy || !canSetInstall(role, pass ? "tested" : "issue", status)}
@@ -228,19 +232,19 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
               void run("test", () => saveTest(ref, test));
             }}
           >
-            Save
+            {t("Save")}
           </button>
         </div>
       </div>
 
       {!issueOpen ? (
         <button className="btn btn-danger w-full" onClick={() => setIssueOpen(true)} disabled={!canSetInstall(role, "issue", status)}>
-          <AlertTriangle /> Report issue
+          <AlertTriangle /> {t("Report issue")}
         </button>
       ) : (
         <div className="space-y-2 rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
-          <label className="label text-red-700">What&apos;s wrong?</label>
-          <textarea className="input min-h-16" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} placeholder="e.g. Box missing, ceiling not open yet" autoFocus />
+          <label className="label text-red-700">{t("What's wrong?")}</label>
+          <textarea className="input min-h-16" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} placeholder={t("e.g. Box missing, ceiling not open yet")} autoFocus />
           <div className="flex gap-2">
             <button
               className="btn btn-danger flex-1"
@@ -254,10 +258,10 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
                 })
               }
             >
-              Flag issue
+              {t("Flag issue")}
             </button>
             <button className="btn" onClick={() => setIssueOpen(false)}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </div>
@@ -266,13 +270,13 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
 
       {!!inst?.history?.length && (
         <div>
-          <div className="label">History</div>
+          <div className="label">{t("History")}</div>
           <ol className="space-y-1.5 text-xs">
             {[...inst.history].reverse().map((e, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: STATUS_COLORS[e.status] ?? "#94a3b8" }} />
                 <span className="min-w-0 flex-1">
-                  <span className="font-medium">{e.status === "planned" ? "Reset" : (wf.labels[e.status] ?? STATUS_LABELS[e.status])}</span>
+                  <span className="font-medium">{e.status === "planned" ? t("Reset") : t(wf.labels[e.status] ?? STATUS_LABELS[e.status])}</span>
                   {e.note ? <span className="text-slate-600"> — {e.note}</span> : null}
                   <span className="block text-slate-400">
                     {e.by ? `${e.by} · ` : ""}
@@ -286,8 +290,8 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
       )}
 
       {canResetInstall(role) && inst && (
-        <button className="btn btn-sm btn-ghost text-slate-500" onClick={() => confirm("Clear this device's progress and history?") && void run("reset", () => resetInstall(ref))}>
-          <RotateCcw /> Reset progress
+        <button className="btn btn-sm btn-ghost text-slate-500" onClick={() => confirm(t("Clear this device's progress and history?")) && void run("reset", () => resetInstall(ref))}>
+          <RotateCcw /> {t("Reset progress")}
         </button>
       )}
       {viewer && <PhotoViewer photos={photos} startId={viewer} onClose={() => setViewer(null)} />}
@@ -296,9 +300,10 @@ export function InstallControls({ item, table, big }: { item: Marker | Run; tabl
 }
 
 function Thumb({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+  const t = useT();
   const url = useBlobUrl(photo.imageId);
   return (
-    <button onClick={onOpen} className="h-16 w-16 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={photo.caption || "Open photo"}>
+    <button onClick={onOpen} className="h-16 w-16 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={photo.caption || t("Open photo")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>

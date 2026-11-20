@@ -3,6 +3,7 @@
 // Markers, runs and closets go through the editor store (one undo step); other registered tables are written directly.
 import { db, nowIso, putMany, type SyncTable } from "@/lib/db";
 import { polylineFt } from "@/lib/geometry";
+import { t } from "@/lib/i18n";
 import { getAuthor } from "@/lib/photos";
 import {
   carryRow,
@@ -149,7 +150,7 @@ export async function moveSheetMarkup(sheetId: string, T: Affine, opts: { since?
 export async function alignToPrevious(sheetId: string, T: Affine): Promise<CarryReport> {
   const sheet = await latestSheet(sheetId);
   const prev = sheet?.revisions?.[0];
-  if (!sheet || !prev) throw new Error("This sheet has no earlier drawing to align to.");
+  if (!sheet || !prev) throw new Error(t("This sheet has no earlier drawing to align to."));
   // Markup may already have been moved by an earlier alignment: undo that one first.
   const undoPrev = prev.transformToNext ? invertTransform(prev.transformToNext) : null;
   const move = undoPrev ? composeTransforms(undoPrev, T) : T;
@@ -180,7 +181,7 @@ export async function rollbackTo(sheetId: string, revisionId: string): Promise<C
   if (!target) return null;
   // Restoring a drawing this device doesn't have would leave the plan blank here.
   if (!(await fetchProjectImage(before.projectId, target.imageId, target.width, target.height)))
-    throw new Error(`${target.label} isn't downloaded on this device yet — connect to the internet and try again.`);
+    throw new Error(t("{label} isn't downloaded on this device yet — connect to the internet and try again.", { label: target.label }));
   const res = rollbackRevision(before, revisionId, revisionAuthor(), new Date().toISOString());
   if (!res) return null;
   const report = await moveSheetMarkup(sheetId, res.transform, { sheetAfter: () => res.sheet });

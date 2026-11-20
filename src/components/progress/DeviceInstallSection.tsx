@@ -4,6 +4,7 @@
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { STATUS_COLORS, STATUS_LABELS, markable, nextStatus, statusOf, workflowOf } from "@/lib/installProgress";
+import { useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { useTrades } from "@/lib/useTrades";
 import type { Marker, Run } from "@/lib/types";
@@ -12,6 +13,7 @@ import DeviceInstallSheet from "./DeviceInstallSheet";
 import { photoInput, showSnack, useProgressUi } from "./progressStore";
 
 export default function DeviceInstallSection({ marker, run }: { marker?: Marker; run?: Run }) {
+  const t = useT();
   const item = marker ?? run;
   const catalog = useEditor((s) => s.catalog);
   const trades = useTrades();
@@ -32,21 +34,21 @@ export default function DeviceInstallSection({ marker, run }: { marker?: Marker;
       photoInput.current?.click();
       return;
     }
-    if (await setInstall(ref, next)) showSnack(ref, label, STATUS_LABELS[next]);
+    if (await setInstall(ref, next)) showSnack(ref, label, t(STATUS_LABELS[next]));
   };
   return (
     <div data-testid="inspector-install">
-      <label className="label">Install</label>
+      <label className="label">{t("Install")}</label>
       <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
         <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: STATUS_COLORS[status] }} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{!can ? "Not tracked (optional)" : status === "planned" ? "Not started" : wf.labels[status]}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{!can ? t("Not tracked (optional)") : status === "planned" ? t("Not started") : t(wf.labels[status])}</span>
         {can && next && (
-          <button className="btn btn-sm" onClick={() => void advance()} title={photoNeeded(next) ? "Needs a photo" : undefined}>
-            {wf.labels[next]}
+          <button className="btn btn-sm" onClick={() => void advance()} title={photoNeeded(next) ? t("Needs a photo") : undefined}>
+            {t(wf.labels[next])}
           </button>
         )}
         {can && (
-          <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setOpen(true)} aria-label="Install details">
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setOpen(true)} aria-label={t("Install details")}>
             <ChevronRight />
           </button>
         )}

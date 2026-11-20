@@ -1,6 +1,7 @@
 "use client";
 // Walk mode: one tap on a device sets the chosen status (or the next step). Taps go through the plan overlay's onTap,
 // before the editor's own tools; the nearest device within 24 screen px wins (a run when no device is near).
+import { t } from "@/lib/i18n";
 import { nextStatus, nearestWithin, statusOf, workflowOf, STATUS_LABELS } from "@/lib/installProgress";
 import type { PlanOverlayContext, PlanTapEvent } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
@@ -43,7 +44,7 @@ export function walkTap(e: PlanTapEvent, ctx: PlanOverlayContext): boolean {
     // Anything else under the finger (an optional device, a closet) isn't selected in walk mode: only empty plan is.
     if (!e.hit) return false;
     const m = e.hit.kind === "marker" ? useEditor.getState().markers.find((x) => x.id === e.hit!.id) : undefined;
-    if (m?.tentative) toast("Optional (?) devices aren't tracked: confirm it first", "info");
+    if (m?.tentative) toast(t("Optional (?) devices aren't tracked: confirm it first"), "info");
     return true;
   }
   // Right-click: details instead of a change.
@@ -64,7 +65,7 @@ export async function walkSet(ref: InstallRef) {
   const label = itemLabel(item);
   const to = walkTargetFor(ref);
   if (!to) {
-    toast(`${label} is already ${STATUS_LABELS[statusOf(item)].toLowerCase()}`, "info");
+    toast(t("{label} is already {status}", { label, status: t(STATUS_LABELS[statusOf(item)]).toLowerCase() }), "info");
     return;
   }
   const why = blockedReason(item, to);
@@ -78,5 +79,5 @@ export async function walkSet(ref: InstallRef) {
     photoInput.current?.click();
     return;
   }
-  if (await setInstall(ref, to)) showSnack(ref, label, STATUS_LABELS[to]);
+  if (await setInstall(ref, to)) showSnack(ref, label, t(STATUS_LABELS[to]));
 }

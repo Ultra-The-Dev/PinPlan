@@ -5,9 +5,11 @@ import { X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/db";
+import { fmtDate as fmtLocaleDate, useT } from "@/lib/i18n";
 import { fetchProjectImage } from "@/lib/sync";
 
 export function Screen(props: { title: ReactNode; subtitle?: ReactNode; onClose: () => void; actions?: ReactNode; children: ReactNode; label: string }) {
+  const t = useT();
   // Only ever opened by a tap, so the document exists.
   const host = typeof document === "undefined" ? null : document.body;
   const onClose = useRef(props.onClose);
@@ -39,7 +41,7 @@ export function Screen(props: { title: ReactNode; subtitle?: ReactNode; onClose:
           {props.subtitle && <p className="truncate text-xs text-slate-500">{props.subtitle}</p>}
         </div>
         {props.actions}
-        <button className="btn btn-icon btn-ghost" onClick={props.onClose} aria-label="Close" title="Close">
+        <button className="btn btn-icon btn-ghost" onClick={props.onClose} aria-label={t("Close")} title={t("Close")}>
           <X />
         </button>
       </header>
@@ -83,10 +85,11 @@ export function useStoredImage(imageId: string | null | undefined, projectId: st
 }
 
 export function ImageState({ img }: { img: StoredImage }) {
+  const t = useT();
   if (img.state === "ready") return null;
   return (
     <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-500">
-      {img.state === "loading" ? "Loading drawing…" : "Not downloaded yet — connect to the internet once to fetch this drawing."}
+      {img.state === "loading" ? t("Loading drawing…") : t("Not downloaded yet — connect to the internet once to fetch this drawing.")}
     </div>
   );
 }
@@ -111,6 +114,7 @@ export function ZoomPane(props: {
   fitKey?: string;
   testId?: string;
 }) {
+  const t = useT();
   const { width, height, onTap } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ s: 0, x: 0, y: 0 });
@@ -213,14 +217,14 @@ export function ZoomPane(props: {
         {props.children(view.s || 1)}
       </div>
       <div className="absolute right-2 bottom-2 flex overflow-hidden rounded-lg bg-white/95 shadow-soft ring-1 ring-slate-200" onPointerDown={(e) => e.stopPropagation()}>
-        <button className="h-10 w-10 text-lg text-slate-600 hover:bg-slate-50" onClick={() => zoomAt((ref.current?.clientWidth ?? 0) / 2, (ref.current?.clientHeight ?? 0) / 2, 1.5)} aria-label="Zoom in">
+        <button className="h-10 w-10 text-lg text-slate-600 hover:bg-slate-50" onClick={() => zoomAt((ref.current?.clientWidth ?? 0) / 2, (ref.current?.clientHeight ?? 0) / 2, 1.5)} aria-label={t("Zoom in")}>
           +
         </button>
-        <button className="h-10 w-10 text-lg text-slate-600 hover:bg-slate-50" onClick={() => zoomAt((ref.current?.clientWidth ?? 0) / 2, (ref.current?.clientHeight ?? 0) / 2, 1 / 1.5)} aria-label="Zoom out">
+        <button className="h-10 w-10 text-lg text-slate-600 hover:bg-slate-50" onClick={() => zoomAt((ref.current?.clientWidth ?? 0) / 2, (ref.current?.clientHeight ?? 0) / 2, 1 / 1.5)} aria-label={t("Zoom out")}>
           −
         </button>
-        <button className="h-10 px-2 text-xs font-medium text-slate-600 hover:bg-slate-50" onClick={fit} aria-label="Fit">
-          Fit
+        <button className="h-10 px-2 text-xs font-medium text-slate-600 hover:bg-slate-50" onClick={fit} aria-label={t("Fit")}>
+          {t("Fit")}
         </button>
       </div>
     </div>
@@ -259,5 +263,5 @@ export function Dots({ points, scale, color }: { points: { x: number; y: number;
 export const fmtDate = (iso: string | null | undefined) => {
   if (!iso) return "";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return Number.isNaN(d.getTime()) ? "" : fmtLocaleDate(d);
 };

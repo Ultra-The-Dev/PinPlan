@@ -5,6 +5,7 @@ import { Calculator, Check, ChevronRight, Download, Pentagon, Ruler, TriangleAle
 import { useMemo, useState } from "react";
 import { downloadText, slug } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import { estimateLineFromGroup, formatFeetInches, formatSqFt, formatValue, measureLineKey, measurementValue, suggestUnitPrice, summarize, toCsv, type SummaryRow } from "@/lib/measure";
 import { useEditor } from "@/lib/store";
 import { can } from "@/lib/teamLogic";
@@ -16,6 +17,7 @@ import { useMeasureUi } from "./measureUi";
 const fmtTotal = (r: Pick<SummaryRow, "kind" | "total">) => (r.kind === "area" ? formatSqFt(r.total) : formatFeetInches(r.total));
 
 function AddToEstimate({ row, onDone }: { row: SummaryRow; onDone: () => void }) {
+  const t = useT();
   const { estimateLines, settings, project, products, upsertEstimateLine } = useEditor();
   const key = measureLineKey(row);
   const existing = estimateLines.find((l) => l.key === key && !l.deleted);
@@ -38,7 +40,8 @@ function AddToEstimate({ row, onDone }: { row: SummaryRow; onDone: () => void })
         try {
           const unitPrice = price.trim() === "" ? (existing?.unitPrice ?? null) : n;
           await upsertEstimateLine(key, { ...estimateLineFromGroup(row, unitPrice), sort: existing?.sort ?? Date.now() });
-          toast(`${existing ? "Updated" : "Added"} on the estimate: ${line.description} — ${line.qty} ${line.unit}`);
+          const what = { description: line.description ?? "", qty: line.qty ?? "", unit: line.unit ?? "" };
+          toast(existing ? t("Updated on the estimate: {description} — {qty} {unit}", what) : t("Added on the estimate: {description} — {qty} {unit}", what));
           onDone();
         } finally {
           setBusy(false);
@@ -50,25 +53,28 @@ function AddToEstimate({ row, onDone }: { row: SummaryRow; onDone: () => void })
         <span className="font-semibold text-slate-800 tabular-nums">
           {line.qty} {line.unit}
         </span>{" "}
-        (rounded up) as an estimate line{existing ? ` — replaces ${existing.qty ?? "?"} ${existing.unit ?? ""}` : ""}.
+        {existing
+          ? t("(rounded up) as an estimate line — replaces {qty} {unit}.", { qty: existing.qty ?? "?", unit: existing.unit ?? "" })
+          : t("(rounded up) as an estimate line.")}
       </div>
       <div className="flex items-end gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="label">Unit price per {line.unit}</span>
+          <span className="label">{t("Unit price per {unit}", { unit: line.unit ?? "" })}</span>
           <input className="input h-10" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" autoFocus aria-invalid={!valid} data-testid="measure-unit-price" />
         </label>
         <button className="btn btn-brand h-10" disabled={!valid || busy} data-testid="measure-add-confirm">
-          <Check /> {existing ? "Update" : "Add"}
+          <Check /> {existing ? t("Update") : t("Add")}
         </button>
       </div>
-      {suggestion && existing?.unitPrice == null && <p className="mt-1.5 text-[11px] text-slate-500">Price from {suggestion.source}.</p>}
-      {valid && price.trim() !== "" && <p className="mt-1 text-[11px] text-slate-500">Line total {formatMoney((line.qty ?? 0) * n, currency)} before markup and tax.</p>}
+      {suggestion && existing?.unitPrice == null && <p className="mt-1.5 text-[11px] text-slate-500">{t("Price from {source}.", { source: suggestion.source })}</p>}
+      {valid && price.trim() !== "" && <p className="mt-1 text-[11px] text-slate-500">{t("Line total {amount} before markup and tax.", { amount: formatMoney((line.qty ?? 0) * n, currency) })}</p>}
     </form>
   );
 }
 
 /** Totals panel: beside the right rail on sm+, a bottom sheet on phones (`sheetMode`, in the status slot). */
 export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: Sheet; rows: Measurement[]; sheetMode?: boolean }) {
+  const t = useT();
   const ui = useMeasureUi();
   const sheets = useEditor((s) => s.sheets);
   const project = useEditor((s) => s.project);
@@ -109,17 +115,17 @@ export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: S
     >
       <div className="flex items-center gap-2 border-b border-slate-100 p-3">
         <div className="min-w-0 flex-1">
-          <div className="section-title">Measurements</div>
-          <h3 className="truncate text-base leading-tight font-semibold">{scope === "sheet" ? sheet.name : "Whole job"}</h3>
+          <div className="section-title">{t("Measurements")}</div>
+          <h3 className="truncate text-base leading-tight font-semibold">{scope === "sheet" ? sheet.name : t("Whole job")}</h3>
         </div>
-        <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 text-xs font-semibold" role="group" aria-label="Totals for">
+        <div className="flex shrink-0 rounded-lg bg-slate-100 p-0.5 text-xs font-semibold" role="group" aria-label={t("Totals for")}>
           {(["sheet", "job"] as const).map((s) => (
             <button key={s} aria-pressed={scope === s} className={`rounded-md px-2.5 py-1.5 ${scope === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`} onClick={() => setScope(s)} data-testid={`measure-scope-${s}`}>
-              {s === "sheet" ? "Sheet" : "Job"}
+              {s === "sheet" ? t("Sheet") : t("Job")}
             </button>
           ))}
         </div>
-        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => ui.setPanelOpen(false)} aria-label="Close">
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => ui.setPanelOpen(false)} aria-label={t("Close")}>
           <X />
         </button>
       </div>
@@ -128,7 +134,7 @@ export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: S
         {!summary.rows.length && !summary.uncalibrated.length && (
           <div className="px-2 py-8 text-center text-sm text-slate-500">
             <Ruler className="mx-auto mb-2 h-6 w-6 text-slate-300" />
-            Nothing measured {scope === "sheet" ? "on this sheet" : "on this job"} yet. Open <b>Measure</b>, pick Length, Run or Area and tap the plan.
+            {scope === "sheet" ? t("Nothing measured on this sheet yet.") : t("Nothing measured on this job yet.")} {t("Open Measure, pick Length, Run or Area and tap the plan.")}
           </div>
         )}
         <ul className="space-y-2" data-testid="measure-groups">
@@ -146,12 +152,12 @@ export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: S
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{r.label}</span>
                     <span className="block truncate text-[11px] text-slate-500">
-                      {r.count} {r.kind === "area" ? (r.count === 1 ? "area" : "areas") : r.count === 1 ? "length" : "lengths"}
-                      {r.kind === "area" && r.perimeterFt != null && <> · perimeter {formatFeetInches(r.perimeterFt)}</>}
+                      {r.kind === "area" ? t.tn("{n} area", "{n} areas", r.count) : t.tn("{n} length", "{n} lengths", r.count)}
+                      {r.kind === "area" && r.perimeterFt != null && <> · {t("perimeter {len}", { len: formatFeetInches(r.perimeterFt) })}</>}
                       {scope === "job" && <> · {r.sheets.map((s) => s.name).join(", ")}</>}
                     </span>
                   </span>
-                  {r.warning && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Approximate: an outline crosses itself" />}
+                  {r.warning && <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label={t("Approximate: an outline crosses itself")} />}
                   <span className="shrink-0 text-sm font-semibold tabular-nums" data-testid="measure-group-total">
                     {fmtTotal(r)}
                   </span>
@@ -182,14 +188,14 @@ export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: S
                         {est ? (
                           <span className="min-w-0 flex-1 truncate text-[11px] text-emerald-700">
                             <Check className="mr-0.5 inline h-3 w-3" />
-                            In estimate: {est.qty ?? "?"} {est.unit ?? ""}
-                            {Math.ceil(r.total - 1e-9) !== est.qty && <span className="text-amber-700"> · now {Math.ceil(r.total - 1e-9)}</span>}
+                            {t("In estimate: {qty} {unit}", { qty: est.qty ?? "?", unit: est.unit ?? "" })}
+                            {Math.ceil(r.total - 1e-9) !== est.qty && <span className="text-amber-700"> · {t("now {n}", { n: Math.ceil(r.total - 1e-9) })}</span>}
                           </span>
                         ) : (
                           <span className="flex-1" />
                         )}
                         <button className="btn btn-sm btn-ghost text-brand-600" onClick={() => setAdding(r.key)} data-testid="measure-add-estimate">
-                          <Calculator /> {est ? "Update estimate" : "Add to estimate"}
+                          <Calculator /> {est ? t("Update estimate") : t("Add to estimate")}
                         </button>
                       </div>
                     )}
@@ -201,14 +207,14 @@ export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: S
         </ul>
         {summary.uncalibrated.length > 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800" data-testid="measure-uncalibrated">
-            Not totalled — no scale yet: {summary.uncalibrated.map((u) => `${u.name} (${u.count})`).join(", ")}.
+            {t("Not totalled — no scale yet: {sheets}.", { sheets: summary.uncalibrated.map((u) => `${u.name} (${u.count})`).join(", ") })}
           </p>
         )}
       </div>
 
       {summary.rows.length > 0 && (
         <div className="flex items-center gap-2 border-t border-slate-100 p-2.5">
-          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-500">Totals include extra feet and waste.</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-500">{t("Totals include extra feet and waste.")}</span>
           <button
             className="btn btn-sm"
             onClick={() => downloadText(toCsv(summary.rows), `measurements-${slug(project?.address || "job")}${scope === "sheet" ? `-${slug(sheet.name)}` : ""}.csv`)}

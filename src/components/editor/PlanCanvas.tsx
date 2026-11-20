@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { Circle, Layer, Line, Rect, Stage } from "react-konva";
 import { DRAFT, DRAFT_DASH } from "@/lib/canvasColors";
 import { closetMeta } from "@/lib/catalog";
+import { useT } from "@/lib/i18n";
 import { AI_ENABLED } from "@/lib/features";
 import { DEFAULT_FILTERS, closetVisibility, markerVisibility, runVisibility, type PlanFilters, type Visibility } from "@/lib/planFilter";
 import { PlanGestures, type GestureHandlers, type TapInfo } from "@/lib/planGestures";
@@ -56,6 +57,7 @@ const DRAWING = new Set(["led", "wire", "stair", "calibrate"]);
 if (typeof window !== "undefined") Konva.pixelRatio = Math.min(2, window.devicePixelRatio || 1);
 
 export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImage, onDoubleTap, viewport: vp, editing = true, filters = DEFAULT_FILTERS, overlays: extraOverlays, onEdgeSwipe }: Props) {
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const sheetLayerRef = useRef<Konva.Layer>(null);
@@ -476,7 +478,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
       )}
       {!pyramid?.preview && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="rounded-md bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-soft ring-1 ring-slate-200">Loading sheet…</span>
+          <span className="rounded-md bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-soft ring-1 ring-slate-200">{t("Loading sheet…")}</span>
         </div>
       )}
     </div>

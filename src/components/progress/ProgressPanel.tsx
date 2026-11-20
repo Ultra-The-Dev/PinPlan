@@ -5,6 +5,7 @@ import { AlertTriangle, BadgeCheck, FileDown, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, canSetInstall, issues, progress, progressMarkers, progressTotals, statusOf, type ProgressBy, type ProgressCounts } from "@/lib/installProgress";
+import { fmtDate, msg, useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
@@ -12,23 +13,25 @@ import { useTrades } from "@/lib/useTrades";
 import { bulkVerify } from "./actions";
 
 const BY: { id: ProgressBy; name: string }[] = [
-  { id: "sheet", name: "Floor" },
-  { id: "category", name: "Category" },
-  { id: "closet", name: "Closet" },
+  { id: "sheet", name: msg("Floor") },
+  { id: "category", name: msg("Category") },
+  { id: "closet", name: msg("Closet") },
 ];
 
 export function StatusBar({ c, className = "h-2.5" }: { c: ProgressCounts; className?: string }) {
+  const t = useT();
   return (
-    <div className={`flex w-full overflow-hidden rounded-full bg-slate-100 ${className}`} role="img" aria-label={`${c.pct}% tested`}>
+    <div className={`flex w-full overflow-hidden rounded-full bg-slate-100 ${className}`} role="img" aria-label={t("{pct}% tested", { pct: c.pct })}>
       {c.total > 0 &&
         STATUS_ORDER.filter((s) => c.counts[s] > 0).map((s) => (
-          <div key={s} style={{ width: `${(c.counts[s] / c.total) * 100}%`, background: STATUS_COLORS[s] }} title={`${STATUS_LABELS[s]}: ${c.counts[s]}`} />
+          <div key={s} style={{ width: `${(c.counts[s] / c.total) * 100}%`, background: STATUS_COLORS[s] }} title={`${t(STATUS_LABELS[s])}: ${c.counts[s]}`} />
         ))}
     </div>
   );
 }
 
 export default function ProgressPanel() {
+  const t = useT();
   const { project, sheets, markers, runs, closets, catalog, focusOn } = useEditor();
   const trades = useTrades();
   const role = useRole();
@@ -50,7 +53,7 @@ export default function ProgressPanel() {
   };
 
   async function asBuilt() {
-    setBusy("Preparing…");
+    setBusy(t("Preparing…"));
     try {
       const { exportAsBuiltPdf } = await import("./asBuilt");
       const s = useEditor.getState();
@@ -66,11 +69,11 @@ export default function ProgressPanel() {
     <section className="card space-y-4 p-4" data-testid="progress-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">Install progress</h3>
-          <p className="text-sm text-slate-500">Tap devices through rough-in → installed → tested on the plan (Progress → Walk). Quotes and counts don&apos;t change.</p>
+          <h3 className="text-lg font-semibold">{t("Install progress")}</h3>
+          <p className="text-sm text-slate-500">{t("Tap devices through rough-in → installed → tested on the plan (Progress → Walk). Quotes and counts don't change.")}</p>
         </div>
         <button className="btn btn-primary" onClick={asBuilt} disabled={!!busy || !sheets.length} data-testid="asbuilt-pdf">
-          <FileDown /> {busy ?? "As-built PDF"}
+          <FileDown /> {busy ?? t("As-built PDF")}
         </button>
       </div>
 
@@ -80,7 +83,7 @@ export default function ProgressPanel() {
             {total.pct}%
           </div>
           <div className="text-xs text-slate-500">
-            {total.done} of {total.total} devices tested
+            {t.tn("{done} of {n} device tested", "{done} of {n} devices tested", total.total, { done: total.done })}
           </div>
         </div>
         <div className="min-w-[200px] flex-1">
@@ -89,17 +92,17 @@ export default function ProgressPanel() {
             {STATUS_ORDER.map((s) => (
               <span key={s} className="flex items-center gap-1 text-xs text-slate-600">
                 <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLORS[s] }} />
-                {STATUS_LABELS[s]} <span className="font-semibold tabular-nums">{total.counts[s]}</span>
+                {t(STATUS_LABELS[s])} <span className="font-semibold tabular-nums">{total.counts[s]}</span>
               </span>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="seg" role="tablist" aria-label="Group progress by">
+      <div className="seg" role="tablist" aria-label={t("Group progress by")}>
         {BY.map((b) => (
           <button key={b.id} role="tab" aria-selected={by === b.id} className={`tab ${by === b.id ? "tab-active" : ""}`} onClick={() => setBy(b.id)}>
-            {b.name}
+            {t(b.name)}
           </button>
         ))}
       </div>
@@ -108,14 +111,14 @@ export default function ProgressPanel() {
           {rows.map((r) => (
             <li key={r.key}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                <span className="truncate font-medium">{r.name}</span>
+                <span className="truncate font-medium">{by === "category" ? t(r.name) : r.name}</span>
                 <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                   {r.total ? (
                     <>
                       {r.done}/{r.total} · <span className="font-semibold text-slate-800">{r.pct}%</span>
                     </>
                   ) : null}
-                  {r.runs.total ? <span className="ml-2">wire runs {r.runs.done}/{r.runs.total}</span> : null}
+                  {r.runs.total ? <span className="ml-2">{t("wire runs {done}/{total}", { done: r.runs.done, total: r.runs.total })}</span> : null}
                 </span>
               </div>
               {r.total > 0 && <StatusBar c={r} />}
@@ -124,13 +127,13 @@ export default function ProgressPanel() {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-slate-500">No devices placed yet.</p>
+        <p className="text-sm text-slate-500">{t("No devices placed yet.")}</p>
       )}
 
       <div>
         <div className="mb-2 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-red-600" />
-          <span className="text-sm font-semibold">Issues ({open.length})</span>
+          <span className="text-sm font-semibold">{t("Issues ({n})", { n: open.length })}</span>
         </div>
         {open.length ? (
           <ul className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200" data-testid="progress-issues">
@@ -141,7 +144,7 @@ export default function ProgressPanel() {
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">{i.label}</span>
                     {i.note ? <span className="text-sm text-slate-600"> — {i.note}</span> : null}
-                    <span className="block text-xs text-slate-400">{[sheetName(i.sheetId), i.by, i.at ? new Date(i.at).toLocaleDateString() : ""].filter(Boolean).join(" · ")}</span>
+                    <span className="block text-xs text-slate-400">{[sheetName(i.sheetId), i.by, i.at ? fmtDate(i.at) : ""].filter(Boolean).join(" · ")}</span>
                   </span>
                   <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
                 </button>
@@ -149,7 +152,7 @@ export default function ProgressPanel() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500">No issues reported.</p>
+          <p className="text-sm text-slate-500">{t("No issues reported.")}</p>
         )}
       </div>
 
@@ -157,16 +160,16 @@ export default function ProgressPanel() {
         <div className="rounded-xl bg-emerald-50/60 p-3 ring-1 ring-emerald-200">
           <div className="flex flex-wrap items-center gap-2">
             <BadgeCheck className="h-4 w-4 text-emerald-700" />
-            <span className="flex-1 text-sm font-semibold">Ready to verify ({ready.length})</span>
+            <span className="flex-1 text-sm font-semibold">{t("Ready to verify ({n})", { n: ready.length })}</span>
             <button className="btn btn-sm" onClick={() => setVerifyOpen((o) => !o)}>
-              {verifyOpen ? "Hide" : "Review"}
+              {verifyOpen ? t("Hide") : t("Review")}
             </button>
           </div>
           {verifyOpen && (
             <div className="mt-2 space-y-2">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={picked.length === ready.length} onChange={(e) => setPicked(e.target.checked ? ready.map((m) => m.id) : [])} />
-                Select all
+                {t("Select all")}
               </label>
               <ul className="max-h-64 divide-y divide-emerald-100 overflow-y-auto rounded-lg bg-white ring-1 ring-emerald-100">
                 {ready.map((m) => (
@@ -184,17 +187,17 @@ export default function ProgressPanel() {
                 className="btn btn-brand"
                 disabled={!picked.length || !!busy}
                 onClick={async () => {
-                  setBusy("Verifying…");
+                  setBusy(t("Verifying…"));
                   try {
                     const n = await bulkVerify(ready.filter((m) => picked.includes(m.id)));
-                    toast(`Verified ${n} device${n === 1 ? "" : "s"}`, "success");
+                    toast(t.tn("Verified {n} device", "Verified {n} devices", n), "success");
                     setPicked([]);
                   } finally {
                     setBusy(null);
                   }
                 }}
               >
-                <BadgeCheck /> Mark {picked.length || ""} verified
+                <BadgeCheck /> {picked.length ? t("Mark {n} verified", { n: picked.length }) : t("Mark verified")}
               </button>
             </div>
           )}

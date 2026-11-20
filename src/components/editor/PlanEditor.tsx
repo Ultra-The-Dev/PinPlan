@@ -1,6 +1,7 @@
 "use client";
 import { Cable, ChevronDown, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { closetMeta, PANEL_KINDS } from "@/lib/catalog";
@@ -47,6 +48,7 @@ type Pending =
   | null;
 
 export default function PlanEditor() {
+  const t = useT();
   const st = useEditor();
   const { sheets, activeSheetId, setActiveSheet, tool, setTool, selection, undo, redo, past, future, hiddenLayers, toggleLayer, setOnlyLayer } = st;
   // Layer toggles and wording follow the company's trades (low voltage only: exactly the original list).
@@ -165,10 +167,10 @@ export default function PlanEditor() {
   useEffect(() => {
     if (!sheet || !projectId) return;
     useViewer.getState().markViewed(projectId, sheet.id);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       for (const n of [sheets[sheetIndex + 1], sheets[sheetIndex - 1]]) if (n) tileClient().prefetch(n.imageId);
     }, 1500);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet?.id, projectId]);
 
@@ -181,9 +183,9 @@ export default function PlanEditor() {
     if (!manageOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      const t = e.target instanceof Element ? e.target : null;
-      if (t?.closest("input,textarea,select,[contenteditable]")) return;
-      const inner = t?.closest("[role=dialog],[role=alertdialog]");
+      const el = e.target instanceof Element ? e.target : null;
+      if (el?.closest("input,textarea,select,[contenteditable]")) return;
+      const inner = el?.closest("[role=dialog],[role=alertdialog]");
       if (inner && inner.getAttribute("data-testid") !== "manage-sheets-drawer") return;
       if (document.querySelectorAll("[aria-modal='true']").length > 1) return;
       setManageOpen(false);
@@ -191,6 +193,52 @@ export default function PlanEditor() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [manageOpen]);
+
+  function dedupe(points: number[]) {
+    const out: number[] = [];
+    for (let i = 0; i + 1 < points.length; i += 2) {
+      const n = out.length;
+      if (n && Math.hypot(out[n - 2] - points[i], out[n - 1] - points[i + 1]) < 0.002) continue;
+      out.push(points[i], points[i + 1]);
+    }
+    return out;
+  }
+
+  async function finishDraft(points = draft, snap = draftSnap) {
+    const pts = dedupe(points);
+    const s = useEditor.getState();
+    if (pts.length < 4) {
+      if (tool.kind === "led" || tool.kind === "wire") toast(t("Tap at least two points"), "info");
+      return;
+    }
+    if (tool.kind === "led") {
+      setPending({ kind: "led", points: pts, deviceTypeId: tool.deviceTypeId });
+      setDraft([]);
+    } else if (tool.kind === "wire") {
+      const marker = s.markers.find((m) => m.id === snap.markerId);
+      const closet = s.closets.find((c) => c.id === snap.closetId);
+      // Electrical: a run to a panel is a circuit — start it with the device's usual breaker, voltage and poles.
+      const spec = marker ? deviceSpec(s.catalog.find((d) => d.id === marker.deviceTypeId)) : null;
+      const circuit =
+        hasTrade(trades, "electrical") && closet && PANEL_KINDS.includes(closet.kind)
+          ? { number: marker?.circuit ?? null, breakerA: spec?.breakerA ?? null, volts: spec?.volts ?? 120, poles: spec?.poles ?? 1 }
+          : null;
+      const r = await s.addRun({
+        kind: "wire",
+        points: pts,
+        ...(circuit ? { circuit } : {}),
+        wireType: (marker && markerCables(marker)[0]) || tradeWireTypes(trades)[0] || "Cat6",
+        wireTypes: marker && markerCables(marker).length > 1 ? markerCables(marker) : null,
+        markerId: snap.markerId ?? null,
+        closetId: snap.closetId ?? null,
+        tentative: marker?.tentative ?? false,
+      });
+      if (marker && snap.closetId && marker.closetId !== snap.closetId) await s.updateMarker(marker.id, { closetId: snap.closetId });
+      setDraft([]);
+      setDraftSnap(() => ({}));
+      if (r) toast(r.measuredFt != null ? t("Added: {run} · {ft} ft", { run: t(vocab.run), ft: r.measuredFt.toFixed(1) }) : t("Added: {run}", { run: t(vocab.run) }));
+    }
+  }
 
   // Keyboard shortcuts (laptop). Never behind a dialog, while typing or on a focused button's Space / Enter
   // (planKeyBlocked); E and Delete don't repeat while held; single keys can be switched off ("?").
@@ -243,10 +291,10 @@ export default function PlanEditor() {
       } else if (plain && e.key.startsWith("Arrow")) {
         e.preventDefault();
         const d = e.shiftKey ? 320 : 100;
-        const t = vp.transform;
+        const tf = vp.transform;
         const dx = e.key === "ArrowLeft" ? d : e.key === "ArrowRight" ? -d : 0;
         const dy = e.key === "ArrowUp" ? d : e.key === "ArrowDown" ? -d : 0;
-        vp.animateTo({ ...t, x: t.x + dx, y: t.y + dy }, 140);
+        vp.animateTo({ ...tf, x: tf.x + dx, y: tf.y + dy }, 140);
       } else if (plain && e.key === "[") {
         step(-1);
       } else if (plain && e.key === "]") {
@@ -336,52 +384,6 @@ export default function PlanEditor() {
     }
   }
 
-  function dedupe(points: number[]) {
-    const out: number[] = [];
-    for (let i = 0; i + 1 < points.length; i += 2) {
-      const n = out.length;
-      if (n && Math.hypot(out[n - 2] - points[i], out[n - 1] - points[i + 1]) < 0.002) continue;
-      out.push(points[i], points[i + 1]);
-    }
-    return out;
-  }
-
-  async function finishDraft(points = draft, snap = draftSnap) {
-    const pts = dedupe(points);
-    const s = useEditor.getState();
-    if (pts.length < 4) {
-      if (tool.kind === "led" || tool.kind === "wire") toast("Tap at least two points", "info");
-      return;
-    }
-    if (tool.kind === "led") {
-      setPending({ kind: "led", points: pts, deviceTypeId: tool.deviceTypeId });
-      setDraft([]);
-    } else if (tool.kind === "wire") {
-      const marker = s.markers.find((m) => m.id === snap.markerId);
-      const closet = s.closets.find((c) => c.id === snap.closetId);
-      // Electrical: a run to a panel is a circuit — start it with the device's usual breaker, voltage and poles.
-      const spec = marker ? deviceSpec(s.catalog.find((d) => d.id === marker.deviceTypeId)) : null;
-      const circuit =
-        hasTrade(trades, "electrical") && closet && PANEL_KINDS.includes(closet.kind)
-          ? { number: marker?.circuit ?? null, breakerA: spec?.breakerA ?? null, volts: spec?.volts ?? 120, poles: spec?.poles ?? 1 }
-          : null;
-      const r = await s.addRun({
-        kind: "wire",
-        points: pts,
-        ...(circuit ? { circuit } : {}),
-        wireType: (marker && markerCables(marker)[0]) || tradeWireTypes(trades)[0] || "Cat6",
-        wireTypes: marker && markerCables(marker).length > 1 ? markerCables(marker) : null,
-        markerId: snap.markerId ?? null,
-        closetId: snap.closetId ?? null,
-        tentative: marker?.tentative ?? false,
-      });
-      if (marker && snap.closetId && marker.closetId !== snap.closetId) await s.updateMarker(marker.id, { closetId: snap.closetId });
-      setDraft([]);
-      setDraftSnap(() => ({}));
-      if (r) toast(`${vocab.run} added${r.measuredFt != null ? ` · ${r.measuredFt.toFixed(1)} ft` : ""}`);
-    }
-  }
-
   const ledMeasured = pending?.kind === "led" ? polylineFt(pending.points, sheet) : null;
   const typesById = new Map(st.catalog.map((d) => [d.id, d]));
   const nextZone = () => {
@@ -393,69 +395,69 @@ export default function PlanEditor() {
   if (pending?.kind === "calibrate") {
     const px = polylinePx(pending.points, sheet.width, sheet.height);
     dialog = {
-      title: "Set scale",
-      description: "How long is the line you just drew, in real life?",
-      fields: [{ name: "len", label: "Real length", placeholder: `e.g. 12'6" or 12.5`, inputMode: "text" }],
+      title: t("Set scale"),
+      description: t("How long is the line you just drew, in real life?"),
+      fields: [{ name: "len", label: t("Real length"), placeholder: t("e.g. 12'6\" or 12.5"), inputMode: "text" }],
       submit: async (v) => {
         const ft = parseFeet(v.len);
-        if (!ft) return "Enter a length like 12'6\" or 12.5";
-        if (px < MIN_CALIBRATION_PX) return "That line is too short to set a scale — draw it again across the whole dimension";
+        if (!ft) return t("Enter a length like 12'6\" or 12.5");
+        if (px < MIN_CALIBRATION_PX) return t("That line is too short to set a scale — draw it again across the whole dimension");
         await st.updateSheet(sheet.id, { pxPerFt: px / ft, scaleLabel: `line ${v.len.trim()}` });
         setTool({ kind: "select" });
-        toast(`Scale set: ${(px / ft).toFixed(1)} px/ft`);
+        toast(t("Scale set: {n} px/ft", { n: (px / ft).toFixed(1) }));
       },
     };
   } else if (pending?.kind === "scale") {
     dialog = {
-      title: "Plan scale",
+      title: t("Plan scale"),
       description: sheet.pxPerInch
-        ? "Type the scale printed on the sheet. Or use “Draw a line” to calibrate on a known dimension."
-        : "This sheet came from a photo, so the paper size is unknown — calibrate by drawing a line over a known dimension.",
-      fields: sheet.pxPerInch ? [{ name: "scale", label: "Scale", placeholder: `1/4" = 1'-0"`, initial: sheet.scaleLabel?.startsWith("line") ? "" : (sheet.scaleLabel ?? "") }] : [],
+        ? t("Type the scale printed on the sheet. Or use “Draw a line” to calibrate on a known dimension.")
+        : t("This sheet came from a photo, so the paper size is unknown — calibrate by drawing a line over a known dimension."),
+      fields: sheet.pxPerInch ? [{ name: "scale", label: t("Scale"), placeholder: `1/4" = 1'-0"`, initial: sheet.scaleLabel?.startsWith("line") ? "" : (sheet.scaleLabel ?? "") }] : [],
       submit: async (v) => {
         if (!sheet.pxPerInch) {
           setTool({ kind: "calibrate" });
           return;
         }
         const inPerFt = parseScale(v.scale ?? "");
-        if (!inPerFt) return `Enter a scale like 1/4" = 1'-0" or 1:48`;
+        if (!inPerFt) return t("Enter a scale like 1/4\" = 1'-0\" or 1:48");
         await st.updateSheet(sheet.id, { pxPerFt: inPerFt * sheet.pxPerInch, scaleLabel: v.scale.trim() });
-        toast("Scale set");
+        toast(t("Scale set"));
       },
     };
   } else if (pending?.kind === "led") {
-    const t = typesById.get(pending.deviceTypeId);
+    const ty = typesById.get(pending.deviceTypeId);
     dialog = {
-      title: t?.name ?? "LED run",
-      description: ledMeasured != null ? `Measured ${ledMeasured.toFixed(1)} LF from the scale. Type the plan's LF to override.` : "No scale on this sheet — type the LF from the plan callout.",
+      title: ty?.name ?? t("LED run"),
+      description: ledMeasured != null ? t("Measured {n} LF from the scale. Type the plan's LF to override.", { n: ledMeasured.toFixed(1) }) : t("No scale on this sheet — type the LF from the plan callout."),
       fields: [
-        { name: "zone", label: "Zone #", initial: nextZone(), inputMode: "numeric" },
-        { name: "switch", label: "Switch label", placeholder: "S21" },
-        { name: "lf", label: "LF (optional if measured)", placeholder: ledMeasured != null ? ledMeasured.toFixed(1) : "e.g. 24", inputMode: "decimal" },
+        { name: "zone", label: t("Zone #"), initial: nextZone(), inputMode: "numeric" },
+        { name: "switch", label: t("Switch label"), placeholder: "S21" },
+        { name: "lf", label: t("LF (optional if measured)"), placeholder: ledMeasured != null ? ledMeasured.toFixed(1) : t("e.g. 24"), inputMode: "decimal" },
       ],
       submit: async (v) => {
         const typed = v.lf.trim() ? parseFeet(v.lf) : null;
-        if (v.lf.trim() && typed == null) return "LF must be a number";
+        if (v.lf.trim() && typed == null) return t("LF must be a number");
         const r = await st.addRun({ kind: "led", deviceTypeId: pending.deviceTypeId, points: pending.points, typedFt: typed, zone: v.zone.trim(), switchLabel: v.switch.trim() });
-        if (r) toast(`LED zone ${v.zone} added`);
+        if (r) toast(t("LED zone {zone} added", { zone: v.zone }));
       },
     };
   } else if (pending?.kind === "stair") {
     dialog = {
-      title: "Stair-step LED",
-      description: "Total LF = number of steps × LF per step.",
+      title: t("Stair-step LED"),
+      description: t("Total LF = number of steps × LF per step."),
       fields: [
-        { name: "steps", label: "Number of steps", inputMode: "numeric", placeholder: "14" },
-        { name: "lfPerStep", label: "LF per step", inputMode: "decimal", placeholder: "3.5" },
-        { name: "zone", label: "Zone #", initial: nextZone(), inputMode: "numeric" },
-        { name: "switch", label: "Switch label", placeholder: "S5" },
+        { name: "steps", label: t("Number of steps"), inputMode: "numeric", placeholder: "14" },
+        { name: "lfPerStep", label: t("LF per step"), inputMode: "decimal", placeholder: "3.5" },
+        { name: "zone", label: t("Zone #"), initial: nextZone(), inputMode: "numeric" },
+        { name: "switch", label: t("Switch label"), placeholder: "S5" },
       ],
       submit: async (v) => {
         const steps = parseInt(v.steps, 10);
         const per = parseFeet(v.lfPerStep);
-        if (!steps || !per) return "Enter the steps and LF per step";
+        if (!steps || !per) return t("Enter the steps and LF per step");
         await st.addRun({ kind: "stair", deviceTypeId: "led-stair", points: pending.points, steps, lfPerStep: per, zone: v.zone.trim(), switchLabel: v.switch.trim() });
-        toast(`Stair LED: ${steps} × ${per} = ${(steps * per).toFixed(1)} LF`);
+        toast(t("Stair LED: {steps} × {per} = {total} LF", { steps, per, total: (steps * per).toFixed(1) }));
       },
     };
   }
@@ -463,17 +465,19 @@ export default function PlanEditor() {
   const drawing = tool.kind === "led" || tool.kind === "wire" || tool.kind === "stair" || tool.kind === "calibrate";
   const hint =
     tool.kind === "place"
-      ? `Tap to place ${typesById.get(tool.deviceTypeId)?.name}${st.room.trim() ? ` · ${st.room.trim()}` : ""}`
+      ? st.room.trim()
+        ? t("Tap to place {name} · {room}", { name: typesById.get(tool.deviceTypeId)?.name ?? "", room: st.room.trim() })
+        : t("Tap to place {name}", { name: typesById.get(tool.deviceTypeId)?.name ?? "" })
       : tool.kind === "closet"
-        ? `Tap to place the ${closetMeta(tool.closetKind).name.toLowerCase()}`
+        ? t("Tap to place: {name}", { name: closetMeta(tool.closetKind).name })
         : tool.kind === "led"
-          ? "Tap along the LED run · double-tap or Finish"
+          ? t("Tap along the LED run · double-tap or Finish")
           : tool.kind === "wire"
-            ? `Tap a device, the path, then a ${vocab.closet}`
+            ? t("Tap a device, the path, then a {closet}", { closet: t(vocab.closet) })
             : tool.kind === "stair"
-              ? "Tap the bottom and top of the stair"
+              ? t("Tap the bottom and top of the stair")
               : tool.kind === "calibrate"
-                ? "Tap both ends of a known dimension"
+                ? t("Tap both ends of a known dimension")
                 : null;
 
   const floorCounts = floor ? Object.entries(floor.counts) : [];
@@ -526,7 +530,7 @@ export default function PlanEditor() {
       onLabels={() => setShowLabels((v) => !v)}
       onHomeRuns={async () => {
         const n = await useEditor.getState().autoHomeRuns(sheet.id);
-        toast(n ? `Drew ${n} home runs` : useEditor.getState().closets.length ? "No wired devices on this sheet" : "Place an equipment closet first", n ? "success" : "info");
+        toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : useEditor.getState().closets.length ? t("No wired devices on this sheet") : t("Place an equipment closet first"), n ? "success" : "info");
       }}
       countsOpen={panel === "counts" && !selection}
       onCounts={() => setPanel(panel === "counts" ? null : "counts")}
@@ -584,8 +588,8 @@ export default function PlanEditor() {
               <button
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/90 text-slate-600 shadow-pop ring-1 ring-black/5 backdrop-blur-md hover:text-slate-900"
                 onClick={() => setPaletteOpen((o) => !o)}
-                title={paletteOpen ? "Hide device menu" : "Show device menu"}
-                aria-label={paletteOpen ? "Hide device menu" : "Show device menu"}
+                title={paletteOpen ? t("Hide device menu") : t("Show device menu")}
+                aria-label={paletteOpen ? t("Hide device menu") : t("Show device menu")}
                 data-plan-ui
               >
                 {paletteOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
@@ -604,12 +608,12 @@ export default function PlanEditor() {
         <StatusSlotHost />
         <StatusSlot order={10}>
         {hint && (
-          <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur" data-plan-ui data-testid="plan-hint">
+          <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] text-white shadow-pop backdrop-blur" data-plan-ui data-testid="plan-hint">
             <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
-            <span className="min-w-0 truncate py-1">{hint}</span>
+            <span className="min-w-0 py-1 leading-snug">{hint}</span>
             {tool.kind !== "select" && !drawing ? (
               <button className="ml-1 flex h-8 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25" onClick={() => setTool({ kind: "select" })}>
-                <X className="h-3.5 w-3.5" /> Done
+                <X className="h-3.5 w-3.5" /> {t("Done")}
               </button>
             ) : (
               <span className="w-2" />
@@ -619,15 +623,15 @@ export default function PlanEditor() {
         {drawing && (
           <div className="pointer-events-auto mt-2 flex max-w-full gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur" data-plan-ui data-testid="plan-draw-bar">
             <button className="btn btn-sm btn-ghost" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
-              <Undo2 /> Point
+              <Undo2 /> {t("Point")}
             </button>
             {(tool.kind === "led" || tool.kind === "wire") && (
               <button className="btn btn-sm btn-brand" onClick={() => finishDraft()} disabled={draft.length < 4}>
-                Finish
+                {t("Finish")}
               </button>
             )}
             <button className="btn btn-sm btn-ghost" onClick={() => (draft.length ? setDraft([]) : setTool({ kind: "select" }))}>
-              <X /> Cancel
+              <X /> {t("Cancel")}
             </button>
           </div>
         )}
@@ -641,7 +645,7 @@ export default function PlanEditor() {
               {editing && !wide && !paletteOpen && (
                 <button className="btn btn-brand h-11 px-4 text-sm shadow-pop" onClick={() => setPaletteOpen(true)} data-plan-ui>
                   <Plus />
-                  Devices
+                  {t("Devices")}
                 </button>
               )}
             </div>
@@ -709,11 +713,11 @@ export default function PlanEditor() {
                     <Sparkles className="h-4 w-4" />
                   </span>
                   <div>
-                    <div className="section-title">AI scan assist</div>
+                    <div className="section-title">{t("AI scan assist")}</div>
                     <h3 className="text-base leading-tight font-semibold">{sheet.name}</h3>
                   </div>
                 </div>
-                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label="Close">
+                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label={t("Close")}>
                   <X />
                 </button>
               </div>
@@ -724,20 +728,20 @@ export default function PlanEditor() {
               <div className="p-4 text-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <div className="section-title">Floor count</div>
+                    <div className="section-title">{t("Floor count")}</div>
                     <h3 className="text-base font-semibold">{floor.name}</h3>
                   </div>
-                  <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label="Close">
+                  <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setPanel(null)} aria-label={t("Close")}>
                     <X />
                   </button>
                 </div>
                 <div className="mb-3 grid grid-cols-2 gap-2">
-                  <Stat label="Devices" value={floorCounts.reduce((n, [, v]) => n + v, 0)} />
+                  <Stat label={t("Devices")} value={floorCounts.reduce((n, [, v]) => n + v, 0)} />
                   <FloorSecondStat floor={floor} />
                 </div>
                 <div className="relative mb-3">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input className="input h-9 pl-8" placeholder="Find device (label or room)" value={find} onChange={(e) => setFind(e.target.value)} aria-label="Find device" />
+                  <input className="input h-9 pl-8" placeholder={t("Find device (label or room)")} value={find} onChange={(e) => setFind(e.target.value)} aria-label={t("Find device")} />
                 </div>
                 {find.trim() && (
                   <ul className="mb-3 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
@@ -751,18 +755,18 @@ export default function PlanEditor() {
                         </button>
                       </li>
                     ))}
-                    {!findResults.length && <li className="px-3 py-3 text-center text-slate-500">No match</li>}
+                    {!findResults.length && <li className="px-3 py-3 text-center text-slate-500">{t("No match")}</li>}
                   </ul>
                 )}
                 <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
                   {floorCounts.map(([id, n]) => {
-                    const t = typesById.get(id);
+                    const ty = typesById.get(id);
                     const open = expanded === id;
                     return (
                       <li key={id}>
                         <button className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-slate-50" onClick={() => setExpanded(open ? null : id)} aria-expanded={open}>
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: t?.color }} />
-                          <span className="min-w-0 flex-1 truncate">{t?.name ?? id}</span>
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ty?.color }} />
+                          <span className="min-w-0 flex-1 truncate">{ty?.name ?? id}</span>
                           {floor.tentative[id] ? <span className="chip bg-amber-50 text-amber-700">{floor.tentative[id]}?</span> : null}
                           <span className="font-semibold tabular-nums">{n}</span>
                           <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition ${open ? "" : "-rotate-90"}`} />
@@ -792,13 +796,13 @@ export default function PlanEditor() {
                     <li key={w} className="flex items-center gap-2 px-3 py-2 text-slate-600">
                       <Cable className="h-3.5 w-3.5 shrink-0" />
                       <span className="min-w-0 flex-1 truncate">{w}</span>
-                      <span className="tabular-nums">{ft} ft</span>
+                      <span className="tabular-nums">{t("{n} ft", { n: ft })}</span>
                     </li>
                   ))}
-                  {!floorCounts.length && !Object.keys(floor.wireFt).length && <li className="px-3 py-6 text-center text-slate-500">Pick a device on the left, then tap the plan.</li>}
+                  {!floorCounts.length && !Object.keys(floor.wireFt).length && <li className="px-3 py-6 text-center text-slate-500">{t("Pick a device on the left, then tap the plan.")}</li>}
                 </ul>
                 {floor.unmeasuredRuns > 0 && (
-                  <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">{floor.unmeasuredRuns} run(s) have no length yet — set the scale or type LF.</p>
+                  <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">{t.tn("{n} run has no length yet — set the scale or type LF.", "{n} runs have no length yet — set the scale or type LF.", floor.unmeasuredRuns)}</p>
                 )}
               </div>
             )
@@ -813,14 +817,14 @@ export default function PlanEditor() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Manage sheets"
+            aria-label={t("Manage sheets")}
             className="animate-in flex h-full w-full max-w-3xl flex-col bg-slate-50 shadow-pop"
             onClick={(e) => e.stopPropagation()}
             data-testid="manage-sheets-drawer"
           >
             <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">
-              <h2 className="flex-1 text-base font-semibold">Manage sheets</h2>
-              <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setManageOpen(false)} aria-label="Close">
+              <h2 className="flex-1 text-base font-semibold">{t("Manage sheets")}</h2>
+              <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setManageOpen(false)} aria-label={t("Close")}>
                 <X />
               </button>
             </div>
@@ -842,8 +846,8 @@ export default function PlanEditor() {
           description={dialog.description}
           fields={dialog.fields}
           error={dialogError}
-          submitLabel={pending?.kind === "scale" && !sheet.pxPerInch ? "Draw a line" : "Save"}
-          secondary={pending?.kind === "scale" && sheet.pxPerInch ? { label: "Draw a line instead", onClick: () => { setPending(null); setTool({ kind: "calibrate" }); } } : undefined}
+          submitLabel={pending?.kind === "scale" && !sheet.pxPerInch ? t("Draw a line") : t("Save")}
+          secondary={pending?.kind === "scale" && sheet.pxPerInch ? { label: t("Draw a line instead"), onClick: () => { setPending(null); setTool({ kind: "calibrate" }); } } : undefined}
           onCancel={() => {
             setPending(null);
             setDialogError(null);
@@ -864,12 +868,13 @@ export default function PlanEditor() {
 
 /** Floor count's second tile: LED for low voltage (as before), else the trade's wire / pipe footage. */
 function FloorSecondStat({ floor }: { floor: { ledTotalFt: number; ledZones: number; wireFt: Record<string, number>; wireRuns: Record<string, number> } }) {
+  const t = useT();
   const trades = useTrades();
-  if (hasTrade(trades, "lowvoltage")) return <Stat label="LED" value={`${floor.ledTotalFt} LF`} sub={`${floor.ledZones} zones`} />;
+  if (hasTrade(trades, "lowvoltage")) return <Stat label="LED" value={t("{n} LF", { n: floor.ledTotalFt })} sub={t.tn("{n} zone", "{n} zones", floor.ledZones)} />;
   const vocab = tradeVocab(trades);
   const ft = Math.round(Object.values(floor.wireFt).reduce((a, b) => a + b, 0));
   const runs = Object.values(floor.wireRuns).reduce((a, b) => a + b, 0);
-  return <Stat label={vocab.wire} value={`${ft} ft`} sub={`${runs} ${vocab.runs.toLowerCase()}`} />;
+  return <Stat label={t(vocab.wire)} value={t("{n} ft", { n: ft })} sub={t("{n} {runs}", { n: runs, runs: t(vocab.runs).toLowerCase() })} />;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {

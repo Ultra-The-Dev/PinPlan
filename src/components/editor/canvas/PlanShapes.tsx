@@ -6,6 +6,7 @@ import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { categoryOf, closetMeta } from "@/lib/catalog";
 import { HANDLE_FILL, HANDLE_STROKE, SELECT_HALO, SELECT_HALO_OPACITY, SELECT_INK } from "@/lib/canvasColors";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
+import { useT } from "@/lib/i18n";
 import { CONSTANT_SIZE } from "@/lib/planViewport";
 import { cableSummary, runCables } from "@/lib/products";
 import { wireColor } from "@/lib/symbols";
@@ -23,6 +24,7 @@ export function RunShape(props: {
   handles: boolean;
   dim: boolean;
 }) {
+  const t = useT();
   const { run: r, pts, inv } = props;
   const color = r.kind === "wire" ? wireColor(r.wireType) : (props.type?.color ?? categoryOf("lighting").color);
   const width = r.kind === "wire" ? 2 : 5;
@@ -36,7 +38,7 @@ export function RunShape(props: {
       ? props.selected || cables.length > 1
         ? cableSummary(cables)
         : ""
-      : [r.zone ? `Z${r.zone}` : "", len != null ? `${Math.round(len * 10) / 10} LF` : "LF?", r.switchLabel ?? "", r.kind === "stair" && r.steps ? `${r.steps} steps` : ""]
+      : [r.zone ? `Z${r.zone}` : "", len != null ? t("{n} LF", { n: Math.round(len * 10) / 10 }) : t("LF?"), r.switchLabel ?? "", r.kind === "stair" && r.steps ? t.tn("{n} step", "{n} steps", r.steps) : ""]
           .filter(Boolean)
           .join(" · ");
   const opacity = props.dim ? 0.2 : r.tentative ? 0.5 : 0.95;

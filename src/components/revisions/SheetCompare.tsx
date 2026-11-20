@@ -5,6 +5,7 @@ import { applyTransform, CURRENT, hasStoredAlignment, IDENTITY, revisionChain, t
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
 import { TwoPointAlign } from "./AlignRevision";
+import { useT } from "@/lib/i18n";
 import { Dots, fmtDate, Screen, useStoredImage, ZoomPane, type StoredImage } from "./ui";
 
 const MAX_SIDE = 2400;
@@ -52,6 +53,7 @@ function paint(canvas: HTMLCanvasElement, img: StoredImage, size: { width: numbe
  * swipe, with a fader and the current devices on top. Works offline on drawings stored on this device.
  */
 export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Sheet; onClose: () => void; initialA?: string }) {
+  const t = useT();
   const { sheets, markers, catalog } = useEditor();
   const options = useMemo<Option[]>(() => {
     const list = sheets.some((s) => s.id === sheet.id) ? sheets : [sheet, ...sheets];
@@ -60,13 +62,13 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
         value: `${s.id}|${e.key}`,
         sheet: s,
         key: e.key,
-        label: `${s.name} · ${e.label}${e.current && s.revisions?.length ? " (current)" : ""}${!e.current ? ` · ${fmtDate(e.since)}` : ""}`,
+        label: `${s.name} · ${e.current && (e.label === "Current" || e.label === "Original") ? t(e.label) : e.label}${e.current && s.revisions?.length ? ` ${t("(current)")}` : ""}${!e.current ? ` · ${fmtDate(e.since)}` : ""}`,
         imageId: e.imageId,
         width: e.width,
         height: e.height,
       })),
     );
-  }, [sheets, sheet]);
+  }, [sheets, sheet, t]);
   const live = sheets.find((s) => s.id === sheet.id) ?? sheet;
   const [aVal, setA] = useState(() => (initialA ? `${live.id}|${initialA}` : live.revisions?.[0] ? `${live.id}|${live.revisions[0].id}` : `${live.id}|${CURRENT}`));
   const [bVal, setB] = useState(`${live.id}|${CURRENT}`);
@@ -129,7 +131,7 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
   const select = (value: string, set: (v: string) => void, label: string, color: string) => (
     <label className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-semibold" style={{ color }}>
       <span className="shrink-0">{label}</span>
-      <select className="input h-9 min-w-0 flex-1 py-0 text-sm text-slate-800" value={value} onChange={(e) => set(e.target.value)} aria-label={`Drawing ${label}`}>
+      <select className="input h-9 min-w-0 flex-1 py-0 text-sm text-slate-800" value={value} onChange={(e) => set(e.target.value)} aria-label={t("Drawing {label}", { label })}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -142,9 +144,9 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
   if (aligning)
     return (
       <Screen
-        label="Align drawings"
-        title="Line up the two drawings"
-        subtitle="Tap the same 2 spots on each. Only used for this comparison."
+        label={t("Align drawings")}
+        title={t("Line up the two drawings")}
+        subtitle={t("Tap the same 2 spots on each. Only used for this comparison.")}
         onClose={() => setAligning(false)}
         actions={
           <button
@@ -155,7 +157,7 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
               setAligning(false);
             }}
           >
-            <Check /> Use alignment
+            <Check /> {t("Use alignment")}
           </button>
         }
       >
@@ -164,12 +166,12 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
     );
 
   return (
-    <Screen label="Compare drawings" title="Compare drawings" subtitle={`${live.name}${live.revisionLabel ? ` · ${live.revisionLabel}` : ""}`} onClose={onClose}>
+    <Screen label={t("Compare drawings")} title={t("Compare drawings")} subtitle={`${live.name}${live.revisionLabel ? ` · ${live.revisionLabel}` : ""}`} onClose={onClose}>
       <div className="absolute inset-0 flex flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
           <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:flex-1">
             {select(aVal, setA, "A", "#dc2626")}
-            <button className="btn btn-sm btn-icon btn-ghost shrink-0" onClick={() => (setA(bVal), setB(aVal))} title="Swap A and B" aria-label="Swap A and B">
+            <button className="btn btn-sm btn-icon btn-ghost shrink-0" onClick={() => (setA(bVal), setB(aVal))} title={t("Swap A and B")} aria-label={t("Swap A and B")}>
               <ArrowLeftRight />
             </button>
             {select(bVal, setB, "B", "#2563eb")}
@@ -177,26 +179,26 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
           <div className="seg flex rounded-lg bg-slate-100 p-0.5 text-sm">
             {(["overlay", "swipe"] as const).map((m) => (
               <button key={m} className={`rounded-md px-3 py-1.5 capitalize ${mode === m ? "bg-white font-medium shadow-sm" : "text-slate-600"}`} onClick={() => setMode(m)} data-testid={`compare-${m}`}>
-                {m}
+                {m === "overlay" ? t("Overlay") : t("Swipe")}
               </button>
             ))}
           </div>
           <button className={`btn btn-sm ${showDevices ? "btn-on" : ""}`} onClick={() => setShowDevices((v) => !v)} aria-pressed={showDevices}>
-            <MapPin /> Devices
+            <MapPin /> {t("Devices")}
           </button>
-          <button className={`btn btn-sm ${adhoc?.pair === pair ? "btn-on" : ""}`} onClick={() => (setPending(null), setAligning(true))} title="Line up drawings that moved or changed size">
-            <Move /> Align
+          <button className={`btn btn-sm ${adhoc?.pair === pair ? "btn-on" : ""}`} onClick={() => (setPending(null), setAligning(true))} title={t("Line up drawings that moved or changed size")}>
+            <Move /> {t("Align")}
           </button>
           {adhoc?.pair === pair && (
-            <button className="btn btn-sm btn-ghost" onClick={() => setAdhoc(null)} title="Drop this comparison's alignment">
-              <X /> Clear
+            <button className="btn btn-sm btn-ghost" onClick={() => setAdhoc(null)} title={t("Drop this comparison's alignment")}>
+              <X /> {t("Clear")}
             </button>
           )}
         </div>
         {(!sameShape && !aligned) || missing.length ? (
           <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            {missing.length ? `Not downloaded yet: ${missing.join(", ")}. ` : ""}
-            {!sameShape && !aligned ? "These drawings have different page shapes — tap Align and pick 2 matching spots for a precise overlay." : ""}
+            {missing.length ? `${t("Not downloaded yet: {names}.", { names: missing.join(", ") })} ` : ""}
+            {!sameShape && !aligned ? t("These drawings have different page shapes — tap Align and pick 2 matching spots for a precise overlay.") : ""}
           </div>
         ) : null}
         <ZoomPane width={OW} height={OH} className="min-h-0 flex-1 bg-slate-200" fitKey={`${OW}x${OH}`} testId="compare-pane">
@@ -223,19 +225,19 @@ export default function SheetCompare({ sheet, onClose, initialA }: { sheet: Shee
             <>
               <label className="flex flex-1 items-center gap-2">
                 <span className="font-semibold text-red-600">A</span>
-                <input type="range" min={0} max={1} step={0.01} value={fade} onChange={(e) => setFade(Number(e.target.value))} className="min-w-0 flex-1" aria-label="Fade between A and B" />
+                <input type="range" min={0} max={1} step={0.01} value={fade} onChange={(e) => setFade(Number(e.target.value))} className="min-w-0 flex-1" aria-label={t("Fade between A and B")} />
                 <span className="font-semibold text-blue-600">B</span>
               </label>
               <span className="flex items-center gap-3 text-slate-600">
-                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-600" />only in A</span>
-                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600" />only in B</span>
-                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-ink" />both</span>
+                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-600" />{t("only in A")}</span>
+                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600" />{t("only in B")}</span>
+                <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-ink" />{t("both")}</span>
               </span>
             </>
           ) : (
             <label className="flex flex-1 items-center gap-2">
               <span className="font-semibold">A</span>
-              <input type="range" min={0} max={1} step={0.005} value={swipe} onChange={(e) => setSwipe(Number(e.target.value))} className="min-w-0 flex-1" aria-label="Swipe between A and B" />
+              <input type="range" min={0} max={1} step={0.005} value={swipe} onChange={(e) => setSwipe(Number(e.target.value))} className="min-w-0 flex-1" aria-label={t("Swipe between A and B")} />
               <span className="font-semibold">B</span>
             </label>
           )}

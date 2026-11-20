@@ -1,6 +1,7 @@
 "use client";
 import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
+import { msg, useT } from "@/lib/i18n";
 import { productTitle } from "@/lib/products";
 import { useEditor, type Tool } from "@/lib/store";
 import { tradeCategories, tradeClosetKinds, tradeVocab, typeVisible } from "@/lib/trades";
@@ -8,6 +9,7 @@ import { useTrades } from "@/lib/useTrades";
 import SymbolIcon from "./SymbolIcon";
 
 export default function Palette() {
+  const t = useT();
   const { catalog, tool, setTool, markers, runs, activeSheetId, room, setRoom, products, project } = useEditor();
   // The job's chosen product for a type, shown under its name ("Ubiquiti G5 Turret").
   const chosen = (typeId: string) => {
@@ -17,7 +19,7 @@ export default function Palette() {
   const rooms = Array.from(new Set(markers.filter((m) => m.sheetId === activeSheetId && m.room).map((m) => m.room))).sort();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const active = (t: Tool) => JSON.stringify(t) === JSON.stringify(tool);
+  const active = (x: Tool) => JSON.stringify(x) === JSON.stringify(tool);
   const countOnSheet = (id: string) => markers.filter((m) => m.sheetId === activeSheetId && m.deviceTypeId === id).length;
   const runsOnSheet = (id: string) => runs.filter((r) => r.sheetId === activeSheetId && r.deviceTypeId === id).length;
   const match = (name: string) => !q || name.toLowerCase().includes(q.toLowerCase());
@@ -28,14 +30,14 @@ export default function Palette() {
   const sections = tradeCategories(trades);
   // Closet kinds whose category isn't one of the sections (e.g. a solar company's main panel) get their own section.
   const orphanClosets = closetKinds.filter((k) => !sections.some((c) => c.id === k.category));
-  if (orphanClosets.length) sections.push({ id: orphanClosets[0].category, name: "Equipment", color: orphanClosets[0].color });
+  if (orphanClosets.length) sections.push({ id: orphanClosets[0].category, name: msg("Equipment"), color: orphanClosets[0].color });
 
-  const item = (t: Tool, key: string, icon: React.ReactNode, name: string, hint?: string, badge?: number) => (
+  const item = (x: Tool, key: string, icon: React.ReactNode, name: string, hint?: string, badge?: number) => (
     <button
       key={key}
-      onClick={() => setTool(active(t) ? { kind: "select" } : t)}
+      onClick={() => setTool(active(x) ? { kind: "select" } : x)}
       className={`group flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[13px] transition ${
-        active(t) ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200" : "text-slate-700 hover:bg-slate-100"
+        active(x) ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200" : "text-slate-700 hover:bg-slate-100"
       }`}
     >
       {icon}
@@ -43,7 +45,7 @@ export default function Palette() {
         <span className="block truncate font-medium">{name}</span>
         {hint && <span className="block truncate text-[11px] text-slate-400">{hint}</span>}
       </span>
-      {badge ? <span className={`rounded-md px-1.5 py-px text-[11px] font-semibold tabular-nums ${active(t) ? "bg-brand-100" : "bg-slate-100 text-slate-500"}`}>{badge}</span> : null}
+      {badge ? <span className={`rounded-md px-1.5 py-px text-[11px] font-semibold tabular-nums ${active(x) ? "bg-brand-100" : "bg-slate-100 text-slate-500"}`}>{badge}</span> : null}
     </button>
   );
 
@@ -54,11 +56,11 @@ export default function Palette() {
           <DoorOpen className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             className={`input h-9 pl-8 ${room ? "border-brand-300 bg-brand-50/50" : ""}`}
-            placeholder="Room for new devices"
+            placeholder={t("Room for new devices")}
             list="pinplan-rooms"
             value={room}
             onChange={(e) => setRoom(e.target.value)}
-            aria-label="Room for new devices"
+            aria-label={t("Room for new devices")}
           />
           <datalist id="pinplan-rooms">
             {rooms.map((r) => (
@@ -66,16 +68,16 @@ export default function Palette() {
             ))}
           </datalist>
           {room && (
-            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setRoom("")} aria-label="Clear room">
+            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setRoom("")} aria-label={t("Clear room")}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input h-9 pl-8" placeholder="Find a device…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input h-9 pl-8" placeholder={t("Find a device…")} aria-label={t("Find a device…")} value={q} onChange={(e) => setQ(e.target.value)} />
           {q && (
-            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setQ("")} aria-label="Clear search">
+            <button className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700" onClick={() => setQ("")} aria-label={t("Clear search")}>
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -94,7 +96,7 @@ export default function Palette() {
                 onClick={() => setCollapsed((c) => (c.includes(cat.id) ? c.filter((x) => x !== cat.id) : [...c, cat.id]))}
               >
                 <span className="h-2 w-2 rounded-full" style={{ background: cat.color }} />
-                <span className="section-title flex-1">{cat.name}</span>
+                <span className="section-title flex-1">{t(cat.name)}</span>
                 <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition ${isCollapsed ? "-rotate-90" : ""}`} />
               </button>
               {!isCollapsed && (
@@ -102,8 +104,8 @@ export default function Palette() {
                   {types.map((d) =>
                     d.kind === "led"
                       ? d.id === "led-stair"
-                        ? item({ kind: "stair" }, d.id, <SymbolIcon type={d} />, d.name, "steps × LF per step", runsOnSheet(d.id))
-                        : item({ kind: "led", deviceTypeId: d.id }, d.id, <LineIcon color={d.color} />, d.name.replace("LED strip — ", "LED · "), chosen(d.id) ?? "draw run · LF", runsOnSheet(d.id))
+                        ? item({ kind: "stair" }, d.id, <SymbolIcon type={d} />, d.name, t("steps × LF per step"), runsOnSheet(d.id))
+                        : item({ kind: "led", deviceTypeId: d.id }, d.id, <LineIcon color={d.color} />, d.name.replace("LED strip — ", "LED · "), chosen(d.id) ?? t("draw run · LF"), runsOnSheet(d.id))
                       : item({ kind: "place", deviceTypeId: d.id }, d.id, <SymbolIcon type={d} />, d.name, chosen(d.id), countOnSheet(d.id)),
                   )}
                   {closets.map((c) =>
@@ -125,9 +127,9 @@ export default function Palette() {
           <section>
             <div className="flex items-center gap-1.5 px-1.5 py-1">
               <span className="h-2 w-2 rounded-full bg-blue-600" />
-              <span className="section-title">{vocab.run === "Wire run" ? "Wiring" : vocab.runs}</span>
+              <span className="section-title">{vocab.run === "Wire run" ? t("Wiring") : t(vocab.runs)}</span>
             </div>
-            {item({ kind: "wire" }, "wire", <span className="flex h-7 w-7 items-center justify-center text-blue-600"><Spline className="h-5 w-5" /></span>, vocab.run, vocab.runHint)}
+            {item({ kind: "wire" }, "wire", <span className="flex h-7 w-7 items-center justify-center text-blue-600"><Spline className="h-5 w-5" /></span>, t(vocab.run), t(vocab.runHint))}
           </section>
         )}
       </div>

@@ -6,6 +6,7 @@
 import { Check, Crosshair, Undo2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { areaSqFt, formatFeetInches, formatSqFt, KIND_NAMES, lengthFt, MIN_POINTS, recentLabels, snapAngle } from "@/lib/measure";
+import { useT } from "@/lib/i18n";
 import { useMeasurements } from "@/lib/measurements";
 import { getAuthor } from "@/lib/photos";
 import { planKeyBlocked, repeatBlocked } from "@/lib/planOverlays";
@@ -27,43 +28,44 @@ const bar = "pointer-events-auto flex max-w-full items-center gap-1.5 rounded-xl
 const barBtn = "flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25";
 
 function DrawBar({ sheet }: { sheet: Sheet }) {
+  const t = useT();
   const { kind, draft, draftSheetId, label } = useMeasureUi();
   const pts = draftSheetId === sheet.id ? draft : [];
   const n = pts.length / 2;
   const value = kind === "area" ? (n >= 3 ? formatSqFt(areaSqFt(pts, sheet)) : null) : n >= 2 ? formatFeetInches(lengthFt(pts, sheet)) : null;
   const hint = !n
     ? kind === "length"
-      ? "Tap the start point"
+      ? t("Tap the start point")
       : kind === "area"
-        ? "Tap the first corner"
-        : "Tap the start of the run"
+        ? t("Tap the first corner")
+        : t("Tap the start of the run")
     : kind === "area"
       ? n < 3
-        ? "Tap the next corner"
-        : "Tap the first corner to close"
+        ? t("Tap the next corner")
+        : t("Tap the first corner to close")
       : kind === "length"
-        ? "Tap the end point"
-        : "Tap each bend · double-tap to finish";
+        ? t("Tap the end point")
+        : t("Tap each bend · double-tap to finish");
   return (
     <div className={bar} data-plan-ui data-testid="measure-bar">
       <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
       <span className="min-w-0 truncate py-1">
-        <b className="font-semibold">{KIND_NAMES[kind]}</b>
+        <b className="font-semibold">{t(KIND_NAMES[kind])}</b>
         {label.trim() ? ` · ${label.trim()}` : ""}
         {value ? <span className="tabular-nums"> · {value}</span> : null}
         <span className="text-white/70"> · {hint}</span>
       </span>
       {n > 0 && (
         <>
-          <button className={`ml-1 ${barBtn}`} onClick={undoPoint} aria-label="Undo last point" title="Undo last point (Backspace)">
+          <button className={`ml-1 ${barBtn}`} onClick={undoPoint} aria-label={t("Undo last point")} title={t("Undo last point (Backspace)")}>
             <Undo2 className="h-3.5 w-3.5" />
           </button>
           {kind !== "length" && (
             <button className="flex h-9 shrink-0 items-center gap-1 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600 disabled:opacity-50" onClick={() => void finishDraft()} disabled={n < MIN_POINTS[kind]} data-testid="measure-done">
-              <Check className="h-3.5 w-3.5" /> Done
+              <Check className="h-3.5 w-3.5" /> {t("Done")}
             </button>
           )}
-          <button className={barBtn} onClick={cancelDraft} aria-label="Cancel this measurement" title="Cancel (Esc)">
+          <button className={barBtn} onClick={cancelDraft} aria-label={t("Cancel this measurement")} title={t("Cancel (Esc)")}>
             <X className="h-3.5 w-3.5" />
           </button>
         </>
@@ -74,12 +76,13 @@ function DrawBar({ sheet }: { sheet: Sheet }) {
 
 /** No scale on this sheet: the office sets it (after a check when that means leaving View); technicians ask. */
 function CalibrateBar({ editing, office }: { editing: boolean; office: boolean }) {
+  const t = useT();
   const [confirm, setConfirm] = useState(false);
   if (!office) {
     return (
       <div className={bar} data-plan-ui data-testid="measure-calibrate">
-        <span className="min-w-0 truncate py-1">Ask the office to set this sheet&apos;s scale</span>
-        <button className={`ml-1 ${barBtn}`} onClick={() => useMeasureUi.getState().setActive(false)} aria-label="Close">
+        <span className="min-w-0 py-1 leading-snug">{t("Ask the office to set this sheet's scale")}</span>
+        <button className={`ml-1 ${barBtn}`} onClick={() => useMeasureUi.getState().setActive(false)} aria-label={t("Close")}>
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -97,19 +100,19 @@ function CalibrateBar({ editing, office }: { editing: boolean; office: boolean }
   };
   return (
     <div className={bar} data-plan-ui data-testid="measure-calibrate">
-      <span className="min-w-0 truncate py-1">{confirm ? "Setting the scale switches to Edit for a moment" : "Set this sheet's scale to measure"}</span>
+      <span className="min-w-0 py-1 leading-snug">{confirm ? t("Setting the scale switches to Edit for a moment") : t("Set this sheet's scale to measure")}</span>
       {confirm ? (
         <>
           <button className="ml-1 flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600" onClick={start} data-testid="measure-calibrate-confirm">
-            <Crosshair className="h-3.5 w-3.5" /> Set scale
+            <Crosshair className="h-3.5 w-3.5" /> {t("Set scale")}
           </button>
           <button className={barBtn} onClick={() => setConfirm(false)}>
-            Cancel
+            {t("Cancel")}
           </button>
         </>
       ) : (
         <button className="ml-1 flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600" onClick={() => (editing ? start() : setConfirm(true))} data-testid="measure-calibrate-start">
-          <Crosshair className="h-3.5 w-3.5" /> Set scale
+          <Crosshair className="h-3.5 w-3.5" /> {t("Set scale")}
         </button>
       )}
     </div>
@@ -117,6 +120,7 @@ function CalibrateBar({ editing, office }: { editing: boolean; office: boolean }
 }
 
 export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sheet; viewport: PlanViewport; editing: boolean }) {
+  const t = useT();
   const ui = useMeasureUi();
   const rows = useMeasurements((s) => s.rows);
   const load = useMeasurements((s) => s.load);
@@ -156,7 +160,7 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
   const selected = ui.selectedId ? mine.find((m) => m.id === ui.selectedId) : undefined;
   const mayEdit = (m: { author?: string | null }) => canEditMeasurement(role, m, getAuthor(email), { editing, measuring: useMeasureUi.getState().active });
   const lockedWhy = (m: { author?: string | null }) =>
-    mayEdit(m) ? null : !editing && !ui.active ? "Open Measure or switch to Edit to change it." : "Only the person who drew it or the office can change it.";
+    mayEdit(m) ? null : !editing && !ui.active ? t("Open Measure or switch to Edit to change it.") : t("Only the person who drew it or the office can change it.");
 
   // "Go to" from the panel: centre it once its sheet is on screen.
   const pf = ui.pendingFocus;
@@ -266,7 +270,7 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
       <StatusSlot order={20}>
         {ui.active && !sheet.pxPerFt && <CalibrateBar editing={editing} office={office} />}
         {ui.active && !!sheet.pxPerFt && <DrawBar sheet={sheet} />}
-        {last && !ui.active && <UndoDelete name={last.label || KIND_NAMES[last.kind]} />}
+        {last && !ui.active && <UndoDelete name={last.label || t(KIND_NAMES[last.kind])} />}
       </StatusSlot>
       {phone ? (
         (card || panel) && (
@@ -286,14 +290,15 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
 }
 
 function UndoDelete({ name }: { name: string }) {
+  const t = useT();
   const last = useMeasureUi((s) => s.lastDeleted);
   useEffect(() => {
-    const t = setTimeout(() => useMeasureUi.getState().setLastDeleted(null), 6000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => useMeasureUi.getState().setLastDeleted(null), 6000);
+    return () => clearTimeout(timer);
   }, [last]);
   return (
     <div className={bar} data-plan-ui>
-      <span className="min-w-0 truncate py-1">Deleted {name}</span>
+      <span className="min-w-0 truncate py-1">{t("Deleted {name}", { name })}</span>
       <button
         className={`ml-1 ${barBtn}`}
         onClick={async () => {
@@ -303,7 +308,7 @@ function UndoDelete({ name }: { name: string }) {
           useMeasureUi.getState().select(last.id);
         }}
       >
-        <Undo2 className="h-3.5 w-3.5" /> Undo
+        <Undo2 className="h-3.5 w-3.5" /> {t("Undo")}
       </button>
     </div>
   );

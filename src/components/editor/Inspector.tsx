@@ -10,6 +10,7 @@ import { BREAKER_SIZES, deviceSpec, hasTrade, tradeClosetKinds, tradeVocab, trad
 import { useTrades } from "@/lib/useTrades";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n";
 import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
 import SymbolIcon from "./SymbolIcon";
@@ -54,6 +55,7 @@ const num = (s: string) => {
 };
 
 export default function Inspector() {
+  const t = useT();
   const st = useEditor();
   const { selection, select, multi } = st;
   if (multi.length >= 2) return <BulkInspector />;
@@ -62,8 +64,8 @@ export default function Inspector() {
   return (
     <div key={key}>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur">
-        <span className="section-title">{selection.table === "markers" ? "Device" : selection.table === "runs" ? "Run" : "Closet"}</span>
-        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label="Close">
+        <span className="section-title">{selection.table === "markers" ? t("Device") : selection.table === "runs" ? t("Run") : t("Closet")}</span>
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label={t("Close")}>
           <X />
         </button>
       </div>
@@ -78,36 +80,37 @@ export default function Inspector() {
 
 /** The cables pulled to a device or carried by a home run: one row per type with a count, plus "Add cable". */
 function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list: string[]) => void }) {
+  const t = useT();
   const counts = cableCounts(cables);
   // The company's wire / pipe types (low voltage: the original cable list).
   const trades = useTrades();
   const unused = tradeWireTypes(trades).filter((w) => !counts.some((c) => c.type === w));
   return (
     <div>
-      <div className="label">Cables</div>
+      <div className="label">{t("Cables")}</div>
       <div className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
         {counts.map((c) => (
           <div key={c.type} className="flex items-center gap-2 px-3 py-1.5">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: wireColor(c.type) }} />
             <span className="min-w-0 flex-1 truncate text-sm">{c.type}</span>
-            <button className="btn btn-sm btn-icon btn-ghost" aria-label={`One less ${c.type}`} onClick={() => onChange(settingCable(c.type, c.count - 1, cables))}>
+            <button className="btn btn-sm btn-icon btn-ghost" aria-label={t("One less {type}", { type: c.type })} onClick={() => onChange(settingCable(c.type, c.count - 1, cables))}>
               <Minus />
             </button>
             <span className="w-5 text-center text-sm font-medium tabular-nums">{c.count}</span>
-            <button className="btn btn-sm btn-icon btn-ghost" aria-label={`One more ${c.type}`} onClick={() => onChange(settingCable(c.type, c.count + 1, cables))}>
+            <button className="btn btn-sm btn-icon btn-ghost" aria-label={t("One more {type}", { type: c.type })} onClick={() => onChange(settingCable(c.type, c.count + 1, cables))}>
               <Plus />
             </button>
           </div>
         ))}
-        {!counts.length && <p className="px-3 py-2 text-sm text-slate-400">No cable</p>}
+        {!counts.length && <p className="px-3 py-2 text-sm text-slate-400">{t("No cable")}</p>}
         {unused.length > 0 && (
           <select
-            aria-label="Add cable"
+            aria-label={t("Add cable")}
             className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
             value=""
             onChange={(e) => e.target.value && onChange([...cables, e.target.value])}
           >
-            <option value="">+ Add cable…</option>
+            <option value="">{t("+ Add cable…")}</option>
             {unused.map((w) => (
               <option key={w} value={w}>
                 {w}
@@ -122,6 +125,7 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
 
 /** Edit several devices at once. Each change is one undo step. */
 function BulkInspector() {
+  const t = useT();
   const uid = useId();
   const { multi, markers, catalog, closets, sheets, products, multiMode, setMultiMode, updateMarkers, deleteMarkers, autoHomeRuns, select } = useEditor();
   const ms = markers.filter((m) => multi.includes(m.id));
@@ -140,37 +144,37 @@ function BulkInspector() {
   return (
     <div>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur">
-        <span className="section-title">{ms.length} devices selected</span>
-        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label="Clear selection">
+        <span className="section-title">{t.tn("{n} device selected", "{n} devices selected", ms.length)}</span>
+        <button className="btn btn-sm btn-icon btn-ghost" onClick={() => select(null)} aria-label={t("Clear selection")}>
           <X />
         </button>
       </div>
       <div className="space-y-3.5 p-4">
         <div className="flex flex-wrap gap-1.5">
-          {typeIds.map((t) => (
-            <span key={t} className="chip bg-slate-100 text-slate-600">
-              {typeName(t)} × {ms.filter((m) => m.deviceTypeId === t).length}
+          {typeIds.map((tid) => (
+            <span key={tid} className="chip bg-slate-100 text-slate-600">
+              {typeName(tid)} × {ms.filter((m) => m.deviceTypeId === tid).length}
             </span>
           ))}
         </div>
-        <p className="text-xs text-slate-500">{multiMode ? "Tap devices to add or remove them." : "Shift-click devices to add or remove them."}</p>
+        <p className="text-xs text-slate-500">{multiMode ? t("Tap devices to add or remove them.") : t("Shift-click devices to add or remove them.")}</p>
         <div>
-          <label className="label" htmlFor={`${uid}-room`}>Room</label>
+          <label className="label" htmlFor={`${uid}-room`}>{t("Room")}</label>
           <div className="flex gap-2">
-            <input id={`${uid}-room`} className="input" placeholder={[...new Set(ms.map((m) => m.room))].length === 1 ? ms[0].room || "e.g. Kitchen" : "Mixed"} value={room} onChange={(e) => setRoom(e.target.value)} />
+            <input id={`${uid}-room`} className="input" placeholder={[...new Set(ms.map((m) => m.room))].length === 1 ? ms[0].room || t("e.g. Kitchen") : t("Mixed")} value={room} onChange={(e) => setRoom(e.target.value)} />
             <button className="btn" disabled={!room.trim()} onClick={() => updateMarkers(ids, () => ({ room: room.trim() }))}>
-              Apply
+              {t("Apply")}
             </button>
           </div>
         </div>
         {oneType ? (
           <div>
-            <label className="label" htmlFor={`${uid}-product`}>Product</label>
+            <label className="label" htmlFor={`${uid}-product`}>{t("Product")}</label>
             <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-product`} value="" onChange={(e) => updateMarkers(ids, () => ({ productId: e.target.value === "__job" ? null : e.target.value }))}>
               <option value="" disabled>
-                Set product for all {ms.length}…
+                {t("Set product for all {n}…", { n: ms.length })}
               </option>
-              <option value="__job">Job’s choice</option>
+              <option value="__job">{t("Job’s choice")}</option>
               {typeProducts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {productTitle(p)}
@@ -179,17 +183,17 @@ function BulkInspector() {
             </select>
           </div>
         ) : (
-          <p className="text-xs text-slate-500">Select devices of one type to set their product.</p>
+          <p className="text-xs text-slate-500">{t("Select devices of one type to set their product.")}</p>
         )}
         <CablesEditor cables={sameCables ? markerCables(ms[0]) : []} onChange={(list) => updateMarkers(ids, () => cablesPatch(list))} />
-        {!sameCables && <p className="-mt-2 text-xs text-slate-500">Cables differ between these devices — a change replaces each device’s cables.</p>}
+        {!sameCables && <p className="-mt-2 text-xs text-slate-500">{t("Cables differ between these devices — a change replaces each device’s cables.")}</p>}
         <div>
-          <label className="label" htmlFor={`${uid}-home-run`}>Home-run {tradeVocab(trades).closet}</label>
+          <label className="label" htmlFor={`${uid}-home-run`}>{t("Home run to: {closet}", { closet: t(tradeVocab(trades).closet) })}</label>
           <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
             <option value="" disabled>
-              Set {tradeVocab(trades).closet} for all {ms.length}…
+              {t("Set {closet} for all {n}…", { closet: t(tradeVocab(trades).closet), n: ms.length })}
             </option>
-            <option value="__none">— none —</option>
+            <option value="__none">{t("— none —")}</option>
             {closets.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({sheetName(c.sheetId)})
@@ -199,19 +203,19 @@ function BulkInspector() {
         </div>
         {electrical && (
           <div>
-            <label className="label" htmlFor={`${uid}-circuit`}>Circuit #</label>
+            <label className="label" htmlFor={`${uid}-circuit`}>{t("Circuit #")}</label>
             <div className="flex gap-2">
-              <input id={`${uid}-circuit`} className="input" inputMode="numeric" placeholder={[...new Set(ms.map((m) => m.circuit ?? ""))].length === 1 ? ms[0].circuit || "e.g. 12" : "Mixed"} value={circuit} onChange={(e) => setCircuit(e.target.value)} />
+              <input id={`${uid}-circuit`} className="input" inputMode="numeric" placeholder={[...new Set(ms.map((m) => m.circuit ?? ""))].length === 1 ? ms[0].circuit || t("e.g. 12") : t("Mixed")} value={circuit} onChange={(e) => setCircuit(e.target.value)} />
               <button className="btn" onClick={() => updateMarkers(ids, () => ({ circuit: circuit.trim() || null }))}>
-                {circuit.trim() ? "Apply" : "Clear"}
+                {circuit.trim() ? t("Apply") : t("Clear")}
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-500">Puts these devices on one circuit of their panel (the panel schedule groups them).</p>
+            <p className="mt-1 text-xs text-slate-500">{t("Puts these devices on one circuit of their panel (the panel schedule groups them).")}</p>
           </div>
         )}
         <label className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 ${allTentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
           <input type="checkbox" className="accent-amber-600" checked={allTentative} onChange={(e) => updateMarkers(ids, () => ({ tentative: e.target.checked }))} />
-          <span className="font-medium">Tentative (?)</span>
+          <span className="font-medium">{t("Tentative (?)")}</span>
         </label>
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
@@ -219,17 +223,17 @@ function BulkInspector() {
             onClick={async () => {
               let n = 0;
               for (const id of ids) n += await autoHomeRuns(undefined, id);
-              toast(n ? `Drew ${n} home runs` : "Place an equipment closet first", n ? "success" : "info");
+              toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : t("Place an equipment closet first"), n ? "success" : "info");
             }}
           >
-            Draw home runs
+            {t("Draw home runs")}
           </button>
           <button className="btn btn-danger" onClick={() => deleteMarkers(ids)}>
-            <Trash /> Delete {ms.length}
+            <Trash /> {t("Delete {n}", { n: ms.length })}
           </button>
         </div>
         <button className={`btn w-full ${multiMode ? "btn-on" : ""}`} onClick={() => setMultiMode(!multiMode)}>
-          {multiMode ? "Done adding" : "Tap to add more"}
+          {multiMode ? t("Done adding") : t("Tap to add more")}
         </button>
       </div>
     </div>
@@ -238,6 +242,7 @@ function BulkInspector() {
 
 /** Quick ways into a multi-selection from one device. */
 function SelectMore({ id }: { id: string }) {
+  const t = useT();
   const { markers, selectMany, setMultiMode } = useEditor();
   const m = markers.find((x) => x.id === id);
   if (!m) return null;
@@ -247,25 +252,25 @@ function SelectMore({ id }: { id: string }) {
   const pick = (ids: string[]) => selectMany([id, ...ids.filter((x) => x !== id)]);
   return (
     <div>
-      <div className="label">Select more</div>
+      <div className="label">{t("Select more")}</div>
       <div className="flex flex-wrap gap-1.5">
         {sameFloor.length > 1 && (
           <button className="btn btn-sm" onClick={() => pick(sameFloor)}>
-            All like this on floor ({sameFloor.length})
+            {t("All like this on floor ({n})", { n: sameFloor.length })}
           </button>
         )}
         {sameJob.length > sameFloor.length && (
           <button className="btn btn-sm" onClick={() => pick(sameJob)}>
-            In whole job ({sameJob.length})
+            {t("In whole job ({n})", { n: sameJob.length })}
           </button>
         )}
         {sameRoom.length > 1 && (
           <button className="btn btn-sm" onClick={() => pick(sameRoom)}>
-            Everything in {m.room} ({sameRoom.length})
+            {t("Everything in {room} ({n})", { room: m.room, n: sameRoom.length })}
           </button>
         )}
-        <button className="btn btn-sm" onClick={() => setMultiMode(true)} title="Then tap devices on the plan (or shift-click)">
-          Tap to pick…
+        <button className="btn btn-sm" onClick={() => setMultiMode(true)} title={t("Then tap devices on the plan (or shift-click)")}>
+          {t("Tap to pick…")}
         </button>
       </div>
     </div>
@@ -273,6 +278,7 @@ function SelectMore({ id }: { id: string }) {
 }
 
 function MarkerInspector({ id }: { id: string }) {
+  const t = useT();
   const uid = useId();
   const { markers, catalog, closets, sheets, runs, products, project, updateMarker, deleteEntity, autoHomeRuns, addMarker, select } = useEditor();
   const m = markers.find((x) => x.id === id);
@@ -315,7 +321,7 @@ function MarkerInspector({ id }: { id: string }) {
         </div>
       </div>
       <div>
-        <label className="label" htmlFor={`${uid}-device`}>Device</label>
+        <label className="label" htmlFor={`${uid}-device`}>{t("Device")}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-device`} value={m.deviceTypeId} onChange={(e) => updateMarker(m.id, { deviceTypeId: e.target.value, productId: null })}>
           {catalog
             .filter((d) => d.kind === "device")
@@ -327,14 +333,14 @@ function MarkerInspector({ id }: { id: string }) {
         </select>
       </div>
       <div>
-        <label className="label" htmlFor={`${uid}-product`}>Product</label>
+        <label className="label" htmlFor={`${uid}-product`}>{t("Product")}</label>
         <select
           id={`${uid}-product`}
           className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           value={m.productId && typeProducts.some((p) => p.id === m.productId) ? m.productId : ""}
           onChange={(e) => updateMarker(m.id, { productId: e.target.value || null })}
         >
-          <option value="">{jobProduct ? `Job’s choice — ${productTitle(jobProduct)}` : "Job’s choice — catalog price"}</option>
+          <option value="">{jobProduct ? t("Job’s choice — {product}", { product: productTitle(jobProduct) }) : t("Job’s choice — catalog price")}</option>
           {typeProducts
             .filter((p) => p.id !== jobProduct?.id)
             .map((p) => (
@@ -345,9 +351,9 @@ function MarkerInspector({ id }: { id: string }) {
         </select>
         {typeProducts.length === 0 && (
           <p className="mt-1 text-xs text-slate-500">
-            No products for this type yet ·{" "}
+            {t("No products for this type yet")} ·{" "}
             <Link href="/products" className="font-medium text-brand-600 hover:underline">
-              add in Products
+              {t("add in Products")}
             </Link>
           </p>
         )}
@@ -355,27 +361,29 @@ function MarkerInspector({ id }: { id: string }) {
       <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2.5 text-sm ring-1 transition ${m.tentative ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
         <input type="checkbox" className="mt-0.5 accent-amber-600" checked={m.tentative} onChange={(e) => updateMarker(m.id, { tentative: e.target.checked })} />
         <span>
-          <span className="font-medium">Tentative (?)</span>
-          <span className="block text-xs text-slate-500">Listed separately; optional on the estimate</span>
+          <span className="font-medium">{t("Tentative (?)")}</span>
+          <span className="block text-xs text-slate-500">{t("Listed separately; optional on the estimate")}</span>
         </span>
       </label>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Label" value={m.label} onCommit={(v) => updateMarker(m.id, { label: v })} />
-        <Field label="Room" value={m.room} placeholder="e.g. Kitchen" onCommit={(v) => updateMarker(m.id, { room: v })} />
+        <Field label={t("Label")} value={m.label} onCommit={(v) => updateMarker(m.id, { label: v })} />
+        <Field label={t("Room")} value={m.room} placeholder={t("e.g. Kitchen")} onCommit={(v) => updateMarker(m.id, { room: v })} />
       </div>
       <div>
-        <label className="label" htmlFor={`${uid}-mount`}>Mount</label>
+        <label className="label" htmlFor={`${uid}-mount`}>{t("Mount")}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-mount`} value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
           {MOUNTS.map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {t(x)}
+            </option>
           ))}
         </select>
       </div>
       <CablesEditor cables={markerCables(m)} onChange={(list) => updateMarker(m.id, cablesPatch(list))} />
       <div>
-        <label className="label" htmlFor={`${uid}-home-run`}>Home-run {vocab.closet}</label>
+        <label className="label" htmlFor={`${uid}-home-run`}>{t("Home run to: {closet}", { closet: t(vocab.closet) })}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
-          <option value="">— none —</option>
+          <option value="">{t("— none —")}</option>
           {closets.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name} ({sheetName(c.sheetId)})
@@ -384,37 +392,38 @@ function MarkerInspector({ id }: { id: string }) {
         </select>
         {m.closetId && (
           <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-            {run ? <span>Home run: {formatFt(runLengthFt(run)).replace("LF", "ft")}</span> : <span>No wire line drawn</span>}
+            {run ? <span>{t("Home run: {len}", { len: formatFt(runLengthFt(run)).replace("LF", t("ft")) })}</span> : <span>{t("No wire line drawn")}</span>}
             <button className="btn btn-sm" onClick={() => autoHomeRuns(undefined, m.id)}>
-              {run ? "Redraw" : "Draw home run"}
+              {run ? t("Redraw") : t("Draw home run")}
             </button>
           </div>
         )}
       </div>
       {showCircuit && (
         <div>
-          <Field label="Circuit #" value={m.circuit ?? ""} inputMode="numeric" placeholder={circuitsOnPanel.length ? `e.g. ${circuitsOnPanel.join(", ")}` : "e.g. 12"} onCommit={(v) => updateMarker(m.id, { circuit: v.trim() || null })} />
+          <Field label={t("Circuit #")} value={m.circuit ?? ""} inputMode="numeric" placeholder={circuitsOnPanel.length ? t("e.g. {list}", { list: circuitsOnPanel.join(", ") }) : t("e.g. 12")} onCommit={(v) => updateMarker(m.id, { circuit: v.trim() || null })} />
           <p className="mt-1 text-xs text-slate-500">
             {(() => {
               const sp = deviceSpec(type);
-              return `Typical: ${sp.breakerA ? `${sp.breakerA} A` : "—"}${sp.poles >= 2 ? " 2-pole" : ""}, ${sp.volts} V${sp.va ? ` · ~${sp.va} VA` : ""}`;
+              const spec = `${sp.breakerA ? `${sp.breakerA} A` : "—"}${sp.poles >= 2 ? ` ${t("2-pole")}` : ""}, ${sp.volts} V${sp.va ? ` · ~${sp.va} VA` : ""}`;
+              return t("Typical: {spec}", { spec });
             })()}
           </p>
         </div>
       )}
       <div>
-        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <label className="label" htmlFor={`${uid}-notes`}>{t("Notes")}</label>
         <NotesField id={`${uid}-notes`} value={m.notes} onCommit={(v) => updateMarker(m.id, { notes: v })} />
       </div>
       <div>
-        <div className="label">Photo</div>
+        <div className="label">{t("Photo")}</div>
         {photo && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo.url} alt="Device location" className="mb-2 max-h-40 w-full rounded-lg object-cover" />
+          <img src={photo.url} alt={t("Device location")} className="mb-2 max-h-40 w-full rounded-lg object-cover" />
         )}
         <label className="btn btn-sm cursor-pointer">
           <Camera />
-          {photo ? "Replace photo" : "Add photo"}
+          {photo ? t("Replace photo") : t("Add photo")}
           <input
             type="file"
             accept="image/*"
@@ -441,10 +450,10 @@ function MarkerInspector({ id }: { id: string }) {
       <SelectMore id={m.id} />
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button className="btn" onClick={() => duplicate()}>
-          <Copy /> Duplicate
+          <Copy /> {t("Duplicate")}
         </button>
         <button className="btn btn-danger" onClick={() => deleteEntity("markers", m.id)}>
-          <Trash /> Delete
+          <Trash /> {t("Delete")}
         </button>
       </div>
     </>
@@ -457,6 +466,7 @@ function NotesField({ id, value, onCommit }: { id?: string; value: string; onCom
 }
 
 function RunInspector({ id }: { id: string }) {
+  const t = useT();
   const uid = useId();
   const { runs, catalog, markers, closets, sheets, updateRun, deleteEntity } = useEditor();
   const trades = useTrades();
@@ -468,7 +478,7 @@ function RunInspector({ id }: { id: string }) {
   const marker = markers.find((m) => m.id === r.markerId);
   const closet = closets.find((c) => c.id === r.closetId);
   const isCircuit = r.kind === "wire" && (!!r.circuit || (hasTrade(trades, "electrical") && !!closet && PANEL_KINDS.includes(closet.kind)));
-  const title = r.kind === "wire" ? (isCircuit ? "Circuit" : tradeVocab(trades).run) : r.kind === "stair" ? "Stair LED" : "LED run";
+  const title = r.kind === "wire" ? (isCircuit ? t("Circuit") : t(tradeVocab(trades).run)) : r.kind === "stair" ? t("Stair LED") : t("LED run");
   return (
     <>
       <h3 className="font-semibold">
@@ -477,7 +487,7 @@ function RunInspector({ id }: { id: string }) {
       {r.kind !== "wire" && (
         <>
           <div>
-            <label className="label" htmlFor={`${uid}-led-type`}>LED type</label>
+            <label className="label" htmlFor={`${uid}-led-type`}>{t("LED type")}</label>
             <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-led-type`} value={r.deviceTypeId ?? ""} onChange={(e) => updateRun(r.id, { deviceTypeId: e.target.value || null })}>
               {ledTypes.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -487,29 +497,35 @@ function RunInspector({ id }: { id: string }) {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Zone #" value={r.zone} inputMode="numeric" onCommit={(v) => updateRun(r.id, { zone: v.trim() })} />
-            <Field label="Switch" value={r.switchLabel} placeholder="S21" onCommit={(v) => updateRun(r.id, { switchLabel: v.trim() })} />
+            <Field label={t("Zone #")} value={r.zone} inputMode="numeric" onCommit={(v) => updateRun(r.id, { zone: v.trim() })} />
+            <Field label={t("Switch")} value={r.switchLabel} placeholder="S21" onCommit={(v) => updateRun(r.id, { switchLabel: v.trim() })} />
           </div>
         </>
       )}
       {r.kind === "stair" ? (
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Steps" value={r.steps} inputMode="numeric" onCommit={(v) => updateRun(r.id, { steps: v.trim() ? parseInt(v, 10) || 0 : null })} />
-          <Field label="LF per step" value={r.lfPerStep} inputMode="decimal" onCommit={(v) => updateRun(r.id, { lfPerStep: num(v) })} />
+          <Field label={t("Steps")} value={r.steps} inputMode="numeric" onCommit={(v) => updateRun(r.id, { steps: v.trim() ? parseInt(v, 10) || 0 : null })} />
+          <Field label={t("LF per step")} value={r.lfPerStep} inputMode="decimal" onCommit={(v) => updateRun(r.id, { lfPerStep: num(v) })} />
         </div>
       ) : (
         <div>
           <Field
-            label={r.kind === "wire" ? "Cable length override (ft)" : "Typed LF (from plan callout)"}
+            label={r.kind === "wire" ? t("Cable length override (ft)") : t("Typed LF (from plan callout)")}
             value={r.typedFt}
             inputMode="decimal"
-            placeholder={r.measuredFt != null ? `measured ${r.measuredFt.toFixed(1)}` : sheet?.pxPerFt ? "" : "no scale — type LF"}
+            placeholder={r.measuredFt != null ? t("measured {n}", { n: r.measuredFt.toFixed(1) }) : sheet?.pxPerFt ? "" : t("no scale — type LF")}
             onCommit={(v) => updateRun(r.id, { typedFt: num(v) })}
           />
           <p className="mt-1 text-xs text-slate-500">
             {r.measuredFt != null
-              ? `${r.kind === "wire" ? "Estimated" : "Measured"}: ${r.measuredFt.toFixed(1)} ft${r.typedFt != null ? " (typed value wins)" : ""}`
-              : "Set the sheet scale to measure, or type the length."}
+              ? r.kind === "wire"
+                ? r.typedFt != null
+                  ? t("Estimated: {n} ft (typed value wins)", { n: r.measuredFt.toFixed(1) })
+                  : t("Estimated: {n} ft", { n: r.measuredFt.toFixed(1) })
+                : r.typedFt != null
+                  ? t("Measured: {n} ft (typed value wins)", { n: r.measuredFt.toFixed(1) })
+                  : t("Measured: {n} ft", { n: r.measuredFt.toFixed(1) })
+              : t("Set the sheet scale to measure, or type the length.")}
           </p>
         </div>
       )}
@@ -530,16 +546,16 @@ function RunInspector({ id }: { id: string }) {
       )}
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={!!r.tentative} onChange={(e) => updateRun(r.id, { tentative: e.target.checked })} />
-        Tentative (?)
+        {t("Tentative (?)")}
       </label>
       <div>
-        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <label className="label" htmlFor={`${uid}-notes`}>{t("Notes")}</label>
         <NotesField id={`${uid}-notes`} value={r.notes ?? ""} onCommit={(v) => updateRun(r.id, { notes: v })} />
       </div>
       <DeviceInstallSection run={r} />
-      <p className="text-xs text-slate-500">Drag the white handles to reshape the run.</p>
+      <p className="text-xs text-slate-500">{t("Drag the white handles to reshape the run.")}</p>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("runs", r.id)}>
-        <Trash /> Delete run
+        <Trash /> {t("Delete run")}
       </button>
     </>
   );
@@ -547,15 +563,16 @@ function RunInspector({ id }: { id: string }) {
 
 /** Electrical circuit details on a run: number, breaker, voltage, poles, what it feeds. */
 function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo) => void }) {
+  const t = useT();
   const uid = useId();
   const c = run.circuit ?? {};
   const set = (patch: Partial<CircuitInfo>) => onChange({ ...c, ...patch });
   return (
     <div className="space-y-2 rounded-xl bg-orange-50/60 p-3 ring-1 ring-orange-200">
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Circuit #" value={c.number ?? ""} placeholder="e.g. 12 or 3/5" onCommit={(v) => set({ number: v.trim() || null })} />
+        <Field label={t("Circuit #")} value={c.number ?? ""} placeholder={t("e.g. 12 or 3/5")} onCommit={(v) => set({ number: v.trim() || null })} />
         <div>
-          <label className="label" htmlFor={`${uid}-breaker`}>Breaker</label>
+          <label className="label" htmlFor={`${uid}-breaker`}>{t("Breaker")}</label>
           <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-breaker`} value={c.breakerA ?? ""} onChange={(e) => set({ breakerA: e.target.value ? Number(e.target.value) : null })}>
             <option value="">—</option>
             {BREAKER_SIZES.map((a) => (
@@ -566,7 +583,7 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
           </select>
         </div>
         <div>
-          <label className="label" htmlFor={`${uid}-voltage`}>Voltage</label>
+          <label className="label" htmlFor={`${uid}-voltage`}>{t("Voltage")}</label>
           <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-voltage`} value={c.volts ?? 120} onChange={(e) => { const v = Number(e.target.value); set({ volts: v, poles: v >= 208 ? Math.max(2, c.poles ?? 2) : 1 }); }}>
             {[120, 240, 208, 277].map((v) => (
               <option key={v} value={v}>
@@ -576,23 +593,24 @@ function CircuitEditor({ run, onChange }: { run: Run; onChange: (c: CircuitInfo)
           </select>
         </div>
         <div>
-          <label className="label" htmlFor={`${uid}-poles`}>Poles</label>
+          <label className="label" htmlFor={`${uid}-poles`}>{t("Poles")}</label>
           <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-poles`} value={c.poles ?? 1} onChange={(e) => set({ poles: Number(e.target.value) })}>
             {[1, 2, 3].map((p) => (
               <option key={p} value={p}>
-                {p}-pole
+                {t("{n}-pole", { n: p })}
               </option>
             ))}
           </select>
         </div>
       </div>
-      <Field label="Feeds" value={c.description ?? ""} placeholder="e.g. Kitchen counter receptacles" onCommit={(v) => set({ description: v.trim() || null })} />
-      {c.breakerA ? <p className="text-xs text-slate-500">Usual wire for {c.breakerA} A: {wireForBreaker(c.breakerA, c.volts ?? 120)}</p> : null}
+      <Field label={t("Feeds")} value={c.description ?? ""} placeholder={t("e.g. Kitchen counter receptacles")} onCommit={(v) => set({ description: v.trim() || null })} />
+      {c.breakerA ? <p className="text-xs text-slate-500">{t("Usual wire for {a} A: {wire}", { a: c.breakerA, wire: wireForBreaker(c.breakerA, c.volts ?? 120) })}</p> : null}
     </div>
   );
 }
 
 function ClosetInspector({ id }: { id: string }) {
+  const t = useT();
   const uid = useId();
   const { closets, markers, updateCloset, deleteEntity } = useEditor();
   const trades = useTrades();
@@ -605,9 +623,9 @@ function ClosetInspector({ id }: { id: string }) {
   return (
     <>
       <h3 className="font-semibold">{c.name}</h3>
-      <Field label="Name" value={c.name} onCommit={(v) => updateCloset(c.id, { name: v })} />
+      <Field label={t("Name")} value={c.name} onCommit={(v) => updateCloset(c.id, { name: v })} />
       <div>
-        <label className="label" htmlFor={`${uid}-kind`}>Kind</label>
+        <label className="label" htmlFor={`${uid}-kind`}>{t("Kind")}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-kind`} value={c.kind} onChange={(e) => updateCloset(c.id, { kind: e.target.value as ClosetKind })}>
           {kinds.map((k) => (
             <option key={k.id} value={k.id}>
@@ -616,22 +634,23 @@ function ClosetInspector({ id }: { id: string }) {
           ))}
         </select>
       </div>
-      <p className="text-sm text-slate-600">{n} devices home-run here.</p>
+      <p className="text-sm text-slate-600">{t.tn("{n} device home-runs here.", "{n} devices home-run here.", n)}</p>
       <div>
-        <label className="label" htmlFor={`${uid}-notes`}>Notes</label>
+        <label className="label" htmlFor={`${uid}-notes`}>{t("Notes")}</label>
         <NotesField id={`${uid}-notes`} value={c.notes ?? ""} onCommit={(v) => updateCloset(c.id, { notes: v })} />
       </div>
       <button className="btn btn-danger w-full" onClick={() => deleteEntity("closets", c.id)}>
-        <Trash /> Delete closet
+        <Trash /> {t("Delete closet")}
       </button>
     </>
   );
 }
 
 function SiteThumb({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+  const t = useT();
   const url = useBlobUrl(photo.imageId);
   return (
-    <button onClick={onOpen} className="h-14 w-14 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={photo.caption || "Open photo"}>
+    <button onClick={onOpen} className="h-14 w-14 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={photo.caption || t("Open photo")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>
@@ -640,13 +659,14 @@ function SiteThumb({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
 
 /** Job photos linked to this device (the camera badge on the plan); add one straight from here. */
 function SitePhotos({ markerId, sheetId, room }: { markerId: string; sheetId: string; room: string }) {
+  const t = useT();
   const { photos, project, saveRow } = useEditor();
   const { email } = useSyncStatus();
   const [viewer, setViewer] = useState<string | null>(null);
   const list = photos.filter((p) => !p.deleted && p.markerId === markerId).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
   return (
     <div>
-      <div className="label">Site photos ({list.length})</div>
+      <div className="label">{t("Site photos ({n})", { n: list.length })}</div>
       {list.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {list.map((p) => (
@@ -655,7 +675,7 @@ function SitePhotos({ markerId, sheetId, room }: { markerId: string; sheetId: st
         </div>
       )}
       <label className="btn btn-sm cursor-pointer">
-        <Camera /> Add site photo
+        <Camera /> {t("Add site photo")}
         <input
           type="file"
           accept="image/*"
@@ -669,7 +689,7 @@ function SitePhotos({ markerId, sheetId, room }: { markerId: string; sheetId: st
               await saveRow("photos", p);
             }
             e.target.value = "";
-            toast("Photo added to this device", "success");
+            toast(t("Photo added to this device"), "success");
           }}
         />
       </label>

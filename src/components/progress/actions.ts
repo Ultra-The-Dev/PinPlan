@@ -2,6 +2,7 @@
 // Install status changes. In the editor they go through the store (updateMarker / updateRun → commit), so undo,
 // persistence and sync work as for every other edit; outside the editor (bulk actions) `put` is used directly.
 import { nowIso, put } from "@/lib/db";
+import { t } from "@/lib/i18n";
 import { applyInstall, canResetInstall, canSetInstall, markable, requiresPhoto, statusOf, type InstallOpts } from "@/lib/installProgress";
 import { getAuthor, importPhoto } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
@@ -20,19 +21,19 @@ export function findItem(ref: InstallRef): Marker | Run | undefined {
 }
 
 export function itemLabel(item: Marker | Run | undefined): string {
-  if (!item) return "Device";
+  if (!item) return t("Device");
   if ("points" in item) {
     const m = item.markerId ? useEditor.getState().markers.find((x) => x.id === item.markerId) : undefined;
-    return m ? `${m.label} cable` : item.switchLabel || (item.zone ? `Zone ${item.zone}` : item.wireType || "Run");
+    return m ? t("{label} cable", { label: m.label }) : item.switchLabel || (item.zone ? t("Zone {zone}", { zone: item.zone }) : item.wireType || t("Run"));
   }
-  return item.label || "Device";
+  return item.label || t("Device");
 }
 
 /** Why `to` can't be set on this item right now (null = it can). */
 export function blockedReason(item: Marker | Run | undefined, to: InstallStatus): string | null {
-  if (!item || item.deleted) return "That device is gone";
-  if (!markable({ tentative: !!item.tentative, deleted: item.deleted })) return "Optional (?) devices aren't tracked — confirm it first";
-  if (!canSetInstall(myRole(), to, statusOf(item))) return to === "verified" ? "Only the office can verify" : "Verified — only the office can change it";
+  if (!item || item.deleted) return t("That device is gone");
+  if (!markable({ tentative: !!item.tentative, deleted: item.deleted })) return t("Optional (?) devices aren't tracked — confirm it first");
+  if (!canSetInstall(myRole(), to, statusOf(item))) return to === "verified" ? t("Only the office can verify") : t("Verified — only the office can change it");
   return null;
 }
 
@@ -75,7 +76,7 @@ export async function attachPhoto(ref: InstallRef, photoId: string) {
 /** Office: clear the install record (status and history). */
 export async function resetInstall(ref: InstallRef): Promise<boolean> {
   if (!canResetInstall(myRole())) {
-    toast("Only the office can reset progress", "info");
+    toast(t("Only the office can reset progress"), "info");
     return false;
   }
   await write(ref, null);
@@ -102,7 +103,7 @@ export async function saveProofPhoto(file: File, ref: InstallRef): Promise<strin
  */
 export async function bulkVerify(markers: Marker[]): Promise<number> {
   if (!canSetInstall(myRole(), "verified")) {
-    toast("Only the office can verify", "info");
+    toast(t("Only the office can verify"), "info");
     return 0;
   }
   const by = me();

@@ -2,6 +2,7 @@
 // Following a plan hyperlink: switch sheets (with a back stack), open a job document, a photo or a web page.
 import { db } from "@/lib/db";
 import { downloadBlob } from "@/lib/download";
+import { t } from "@/lib/i18n";
 import { brokenReason } from "@/lib/sheetIndex";
 import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
@@ -16,7 +17,7 @@ export async function openJobDocument(d: JobDocument) {
   const rec = await db().images.get(d.fileId);
   if (!rec) {
     win?.close();
-    return toast("This file hasn't downloaded to this device yet — try again after sync.", "info");
+    return toast(t("This file hasn't downloaded to this device yet — try again after sync."), "info");
   }
   if (win) {
     const url = URL.createObjectURL(rec.blob);
@@ -44,26 +45,26 @@ export function goBack() {
 export function followLink(link: SheetLink, touch = false) {
   const st = useEditor.getState();
   const reason = brokenReason(link, { sheets: st.sheets, documents: st.documents, photos: st.photos });
-  if (reason) return toast(reason, "info");
-  const t = link.target;
+  if (reason) return toast(t(reason), "info");
+  const tg = link.target;
   const links = useSheetLinks.getState();
-  switch (t.kind) {
+  switch (tg.kind) {
     case "sheet": {
-      if (t.sheetId === st.activeSheetId) return;
+      if (tg.sheetId === st.activeSheetId) return;
       if (st.activeSheetId) links.pushBack(st.activeSheetId);
-      st.setActiveSheet(t.sheetId);
-      if (t.x != null && t.y != null) useEditor.setState((s) => ({ focus: { sheetId: t.sheetId, x: t.x!, y: t.y!, n: (s.focus?.n ?? 0) + 1 } }));
+      st.setActiveSheet(tg.sheetId);
+      if (tg.x != null && tg.y != null) useEditor.setState((s) => ({ focus: { sheetId: tg.sheetId, x: tg.x!, y: tg.y!, n: (s.focus?.n ?? 0) + 1 } }));
       return;
     }
     case "document": {
-      const d = st.documents.find((x) => x.id === t.documentId);
+      const d = st.documents.find((x) => x.id === tg.documentId);
       if (d) void openJobDocument(d);
       return;
     }
     case "photo":
-      return later(touch, () => links.setPhoto(t.photoId));
+      return later(touch, () => links.setPhoto(tg.photoId));
     case "url":
-      return later(touch, () => links.setConfirmUrl(t.url));
+      return later(touch, () => links.setConfirmUrl(tg.url));
   }
 }
 

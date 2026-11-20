@@ -9,6 +9,7 @@ import { toast } from "@/lib/toast";
 import type { Sheet } from "@/lib/types";
 import { TONE_HEX } from "@/lib/statusStyle";
 import { alignToPrevious, replaceCurrentImage, type CarryReport } from "./revisionActions";
+import { useT } from "@/lib/i18n";
 import { Dots, ImageState, Pin, Screen, useStoredImage, ZoomPane } from "./ui";
 
 export interface AlignSide {
@@ -25,6 +26,7 @@ const COLORS = ["#0B6FE0", "#0F2340"];
 
 /** Two drawings side by side; tap the same 2 spots on each. Reports the transform A → B once both have 2 points. */
 export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: AlignSide; onTransform: (T: Affine | null) => void; preview?: boolean; fitKey?: string }) {
+  const t = useT();
   const { a, b } = props;
   const [pts, setPts] = useState<{ a: Pt[]; b: Pt[] }>({ a: [], b: [] });
   const imgA = useStoredImage(a.imageId, props.projectId, a.width, a.height);
@@ -42,19 +44,19 @@ export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: Align
     }
     const all = { ...pts, [side]: next };
     setPts(all);
-    const t = all.a.length === 2 && all.b.length === 2 ? similarityFromPairs([[all.a[0], all.b[0]], [all.a[1], all.b[1]]], a, b) : null;
-    props.onTransform(t);
+    const tf = all.a.length === 2 && all.b.length === 2 ? similarityFromPairs([[all.a[0], all.b[0]], [all.a[1], all.b[1]]], a, b) : null;
+    props.onTransform(tf);
   };
   const reset = () => {
     setPts({ a: [], b: [] });
     props.onTransform(null);
   };
   const step =
-    pts.a.length < 1 ? `Tap a sharp corner or column on ${a.label}` :
-    pts.b.length < 1 ? `Tap the same spot on ${b.label}` :
-    pts.a.length < 2 ? `Tap a second spot far from the first on ${a.label}` :
-    pts.b.length < 2 ? `Tap the same second spot on ${b.label}` :
-    T ? "Aligned. Drag to check, tap again to adjust a point." : "Pick two different spots.";
+    pts.a.length < 1 ? t("Tap a sharp corner or column on {label}", { label: a.label }) :
+    pts.b.length < 1 ? t("Tap the same spot on {label}", { label: b.label }) :
+    pts.a.length < 2 ? t("Tap a second spot far from the first on {label}", { label: a.label }) :
+    pts.b.length < 2 ? t("Tap the same second spot on {label}", { label: b.label }) :
+    T ? t("Aligned. Drag to check, tap again to adjust a point.") : t("Pick two different spots.");
   const moved = props.preview && T && a.dots ? a.dots.map((d) => { const [x, y] = applyTransform(T, d.x, d.y); return { ...d, x, y }; }) : null;
 
   const pane = (side: "a" | "b", s: AlignSide, img: ReturnType<typeof useStoredImage>, dots: AlignSide["dots"] | null) => (
@@ -86,7 +88,7 @@ export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: Align
         <span className={`h-2 w-2 shrink-0 rounded-full ${T ? "bg-emerald-500" : "animate-pulse bg-amber-500"}`} />
         <span className="mr-auto min-w-0 truncate" data-testid="align-step">{step}</span>
         <button className="btn btn-sm btn-ghost" onClick={reset} disabled={!pts.a.length && !pts.b.length}>
-          <Undo2 /> Reset points
+          <Undo2 /> {t("Reset points")}
         </button>
       </div>
       <div className="grid min-h-0 flex-1 grid-rows-2 gap-px bg-slate-300 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1">
@@ -99,6 +101,7 @@ export function TwoPointAlign(props: { projectId: string; a: AlignSide; b: Align
 
 /** Align a sheet's new drawing to the previous one and move the carried markup. Office only (the caller checks). */
 export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClose: () => void }) {
+  const t = useT();
   const { markers, catalog } = useEditor();
   const live = useEditor((s) => s.sheets.find((x) => x.id === sheet.id)) ?? sheet;
   const prev = live.revisions?.[0];
@@ -123,10 +126,10 @@ export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClos
   if (!prev) return null;
 
   async function rotateNew() {
-    setBusy("Rotating");
+    setBusy(t("Rotating"));
     try {
       const rec = await db().images.get(live.imageId);
-      if (!rec) throw new Error("The new drawing isn't on this device yet");
+      if (!rec) throw new Error(t("The new drawing isn't on this device yet"));
       const bmp = await createImageBitmap(rec.blob);
       const c = document.createElement("canvas");
       c.width = bmp.height;
@@ -150,11 +153,11 @@ export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClos
 
   async function apply() {
     if (!T) return;
-    setBusy("Moving devices");
+    setBusy(t("Moving devices"));
     try {
       const r = await alignToPrevious(live.id, T);
       setReport(r);
-      toast(`Aligned — ${r.moved} item${r.moved === 1 ? "" : "s"} moved`);
+      toast(t.tn("Aligned — {n} item moved", "Aligned — {n} items moved", r.moved));
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
     } finally {
@@ -166,22 +169,22 @@ export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClos
 
   return (
     <Screen
-      label="Align revision"
-      title={`Align ${live.revisionLabel || "new drawing"} to ${prev.label}`}
-      subtitle={`${live.name} · tap the same 2 spots on each drawing; devices follow`}
+      label={t("Align revision")}
+      title={live.revisionLabel ? t("Align {label} to {prev}", { label: live.revisionLabel, prev: prev.label }) : t("Align the new drawing to {prev}", { prev: prev.label })}
+      subtitle={t("{sheet} · tap the same 2 spots on each drawing; devices follow", { sheet: live.name })}
       onClose={onClose}
       actions={
         report ? (
           <button className="btn btn-brand" onClick={onClose}>
-            <Check /> Done
+            <Check /> {t("Done")}
           </button>
         ) : (
           <>
-            <button className="btn btn-sm" onClick={rotateNew} disabled={!!busy} title="The new drawing came in sideways: rotate it (devices don't move)">
-              <RotateCw /> <span className="hidden sm:inline">Rotate new</span>
+            <button className="btn btn-sm" onClick={rotateNew} disabled={!!busy} title={t("The new drawing came in sideways: rotate it (devices don't move)")}>
+              <RotateCw /> <span className="hidden sm:inline">{t("Rotate new")}</span>
             </button>
             <button className="btn btn-brand" onClick={apply} disabled={!T || !!busy} data-testid="align-apply">
-              <Check /> {busy ?? "Apply"}
+              <Check /> {busy ?? t("Apply")}
             </button>
           </>
         )
@@ -191,16 +194,18 @@ export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClos
         <div className="mx-auto max-w-lg space-y-3 p-5">
           <div className="card space-y-2 p-4 text-sm">
             <p className="font-semibold">
-              {report.moved} item{report.moved === 1 ? "" : "s"} moved onto {live.revisionLabel || "the new drawing"}.
+              {live.revisionLabel
+                ? t.tn("{n} item moved onto {label}.", "{n} items moved onto {label}.", report.moved, { label: live.revisionLabel })
+                : t.tn("{n} item moved onto the new drawing.", "{n} items moved onto the new drawing.", report.moved)}
             </p>
-            {report.scaleFromAlignment && <p className="text-emerald-700">The plan scale was carried over from {prev.label} through the alignment.</p>}
+            {report.scaleFromAlignment && <p className="text-emerald-700">{t("The plan scale was carried over from {label} through the alignment.", { label: prev.label })}</p>}
             {warning && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800" data-testid="align-warning">
                 <p>{warning}</p>
                 {report.offDevices.length > 0 && <p className="mt-1 text-xs">{report.offDevices.slice(0, 12).join(", ")}{report.offDevices.length > 12 ? "…" : ""}</p>}
               </div>
             )}
-            <p className="text-slate-500">Undo from the Plan toolbar if it doesn&apos;t look right.</p>
+            <p className="text-slate-500">{t("Undo from the Plan toolbar if it doesn't look right.")}</p>
           </div>
         </div>
       ) : (
@@ -209,7 +214,7 @@ export default function AlignRevision({ sheet, onClose }: { sheet: Sheet; onClos
           projectId={live.projectId}
           fitKey={`${live.imageId}`}
           a={{ imageId: prev.imageId, width: prev.width, height: prev.height, label: prev.label, dots: oldDots }}
-          b={{ imageId: live.imageId, width: live.width, height: live.height, label: live.revisionLabel || "New drawing" }}
+          b={{ imageId: live.imageId, width: live.width, height: live.height, label: live.revisionLabel || t("New drawing") }}
           onTransform={setT}
           preview
         />

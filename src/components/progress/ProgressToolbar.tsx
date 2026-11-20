@@ -8,6 +8,7 @@ import { Camera, ChevronDown, ChevronUp, CircleDot, Footprints, Info, ListFilter
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { categoryOf } from "@/lib/catalog";
 import { STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, canSetInstall, countAtLeast } from "@/lib/installProgress";
+import { msg, useT } from "@/lib/i18n";
 import { claimPlanInput } from "@/lib/planOverlays";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
@@ -22,15 +23,16 @@ import { photoInput, showSnack, useProgressUi, type WalkTarget } from "./progres
 import { walkHit } from "./walk";
 
 const TARGETS: { id: WalkTarget; name: string }[] = [
-  { id: "next", name: "Next step" },
-  { id: "roughed", name: "Roughed" },
-  { id: "installed", name: "Installed" },
-  { id: "tested", name: "Tested" },
-  { id: "issue", name: "Issue" },
-  { id: "verified", name: "Verified" },
+  { id: "next", name: msg("Next step") },
+  { id: "roughed", name: msg("Roughed") },
+  { id: "installed", name: msg("Installed") },
+  { id: "tested", name: msg("Tested") },
+  { id: "issue", name: msg("Issue") },
+  { id: "verified", name: msg("Verified") },
 ];
 
 export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; viewport: PlanViewport }) {
+  const t = useT();
   const ui = useProgressUi();
   const role = useRole();
   const markers = useEditor((s) => s.markers);
@@ -46,7 +48,7 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
     return [...ids].map((id) => ({ id, name: categoryOf(id).name }));
   }, [markers, catalog, sheet.id]);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const targets = TARGETS.filter((t) => t.id !== "verified" || canSetInstall(role, "verified"));
+  const targets = TARGETS.filter((x) => x.id !== "verified" || canSetInstall(role, "verified"));
   const filtered = ui.statuses.length > 0 || !!ui.category;
 
   const phone = useMedia(PHONE_QUERY);
@@ -59,13 +61,13 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
       <div className={`pointer-events-auto max-w-full ${ui.on ? "w-[340px]" : ""}`} data-plan-ui data-testid="progress-toolbar">
         {!ui.on ? (
           <button className="btn h-10 rounded-xl bg-white/95 shadow-pop backdrop-blur" onClick={() => ui.set({ on: true, folded: false })} aria-pressed={false}>
-            <CircleDot /> Progress
+            <CircleDot /> {t("Progress")}
           </button>
         ) : (
           <div className="rounded-xl bg-white/95 p-1.5 shadow-pop ring-1 ring-black/5 backdrop-blur">
             <div className="flex items-center gap-1.5">
-              <button className="btn btn-sm btn-on" onClick={() => ui.set({ on: false, walk: false })} aria-pressed title="Hide progress">
-                <CircleDot /> Progress
+              <button className="btn btn-sm btn-on" onClick={() => ui.set({ on: false, walk: false })} aria-pressed title={t("Hide progress")}>
+                <CircleDot /> {t("Progress")}
               </button>
               <button className={`btn btn-sm ${ui.walk ? "btn-brand" : ""}`} onClick={() => {
                   // Start without a selection, so only a long-press from now on opens a device's sheet. Walking owns
@@ -76,13 +78,13 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
                   }
                   ui.set({ walk: !ui.walk, folded: false });
                 }} aria-pressed={ui.walk} data-testid="walk-toggle">
-                <Footprints /> Walk
+                <Footprints /> {t("Walk")}
               </button>
               <div className="min-w-0 flex-1 text-right text-xs leading-tight" data-testid="progress-counter">
                 <span className="font-semibold text-slate-900 tabular-nums">
                   {totals.n}/{totals.total}
                 </span>{" "}
-                <span className="text-slate-500">{STATUS_LABELS[counted].toLowerCase()}</span>
+                <span className="text-slate-500">{t(STATUS_LABELS[counted]).toLowerCase()}</span>
                 <div className="mt-0.5 ml-auto h-1.5 w-20 overflow-hidden rounded-full bg-slate-200">
                   <div className="h-full rounded-full transition-[width]" style={{ width: `${totals.pct}%`, background: STATUS_COLORS[counted] }} />
                 </div>
@@ -94,13 +96,13 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
                   ui.set({ folded: false });
                 }}
                 aria-expanded={filtersOpen}
-                aria-label={filtered ? "Progress filters (on)" : "Progress filters"}
-                title="Filter by status or category"
+                aria-label={filtered ? t("Progress filters (on)") : t("Progress filters")}
+                title={t("Filter by status or category")}
               >
                 <ListFilter />
               </button>
               {(ui.walk || filtersOpen) && (
-                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => ui.set({ folded: !ui.folded })} aria-label={ui.folded ? "Show progress options" : "Hide progress options"}>
+                <button className="btn btn-sm btn-icon btn-ghost" onClick={() => ui.set({ folded: !ui.folded })} aria-label={ui.folded ? t("Show progress options") : t("Hide progress options")}>
                   {ui.folded ? <ChevronDown /> : <ChevronUp />}
                 </button>
               )}
@@ -109,21 +111,21 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
               <OptionsShell phone={phone} onClose={() => (setFiltersOpen(false), ui.set({ folded: true }))}>
               <div className="space-y-1.5">
                 {ui.walk && (
-                  <div className="scroll-thin -mx-0.5 flex gap-1 overflow-x-auto px-0.5 pb-0.5" role="radiogroup" aria-label="A tap marks devices" title="Tap a device to mark it. Long-press (or right-click) for photos, tests and history.">
-                    {targets.map((t) => {
-                      const on = ui.target === t.id;
-                      const color = t.id === "next" ? "#0f172a" : STATUS_COLORS[t.id];
+                  <div className="scroll-thin -mx-0.5 flex gap-1 overflow-x-auto px-0.5 pb-0.5" role="radiogroup" aria-label={t("A tap marks devices")} title={t("Tap a device to mark it. Long-press (or right-click) for photos, tests and history.")}>
+                    {targets.map((x) => {
+                      const on = ui.target === x.id;
+                      const color = x.id === "next" ? "#0f172a" : STATUS_COLORS[x.id];
                       return (
                         <button
-                          key={t.id}
+                          key={x.id}
                           role="radio"
                           aria-checked={on}
                           className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold ring-1 transition ${on ? "text-white" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
                           style={on ? { background: color, boxShadow: `0 0 0 1px ${color}` } : undefined}
-                          onClick={() => ui.set({ target: t.id })}
+                          onClick={() => ui.set({ target: x.id })}
                         >
-                          {t.id !== "next" && <span className="h-2.5 w-2.5 rounded-full ring-2 ring-white/70" style={{ background: STATUS_COLORS[t.id as InstallStatus] }} />}
-                          {t.id === "next" ? t.name : `Mark ${t.name}`}
+                          {x.id !== "next" && <span className="h-2.5 w-2.5 rounded-full ring-2 ring-white/70" style={{ background: STATUS_COLORS[x.id as InstallStatus] }} />}
+                          {x.id === "next" ? t(x.name) : t("Mark {status}", { status: t(x.name) })}
                         </button>
                       );
                     })}
@@ -142,23 +144,23 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
                             aria-pressed={on}
                           >
                             <span className="h-2 w-2 rounded-full" style={{ background: STATUS_COLORS[s] }} />
-                            {STATUS_LABELS[s]}
+                            {t(STATUS_LABELS[s])}
                           </button>
                         );
                       })}
                     </div>
                     <div className="flex gap-2">
-                      <select className="input h-9" value={ui.category ?? ""} onChange={(e) => ui.set({ category: e.target.value || null })} aria-label="Category">
-                        <option value="">All categories</option>
+                      <select className="input h-9" value={ui.category ?? ""} onChange={(e) => ui.set({ category: e.target.value || null })} aria-label={t("Category")}>
+                        <option value="">{t("All categories")}</option>
                         {cats.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.name}
+                            {t(c.name)}
                           </option>
                         ))}
                       </select>
                       {filtered && (
                         <button className="btn btn-sm btn-ghost h-9" onClick={() => ui.set({ statuses: [], category: null })}>
-                          <X /> Clear
+                          <X /> {t("Clear")}
                         </button>
                       )}
                     </div>
@@ -182,13 +184,14 @@ export default function ProgressToolbar({ sheet, viewport }: { sheet: Sheet; vie
 
 /** Walk / filter options: under the Progress bar on sm+, a bottom sheet on phones (the rail stays one line there). */
 function OptionsShell({ phone, onClose, children }: { phone: boolean; onClose: () => void; children: ReactNode }) {
+  const t = useT();
   if (!phone) return <div className="mt-1.5">{children}</div>;
   return (
     <StatusSlot order={90}>
       <div className="pointer-events-auto w-full rounded-t-2xl bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-pop ring-1 ring-black/5 backdrop-blur-md" data-plan-ui data-plan-sheet data-testid="progress-options">
         <div className="mb-1.5 flex items-center gap-2 pl-1">
-          <span className="flex-1 text-sm font-semibold text-slate-900">Progress</span>
-          <button className="btn btn-sm btn-icon btn-ghost" onClick={onClose} aria-label="Hide progress options">
+          <span className="flex-1 text-sm font-semibold text-slate-900">{t("Progress")}</span>
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={onClose} aria-label={t("Hide progress options")}>
             <ChevronDown />
           </button>
         </div>
@@ -229,6 +232,7 @@ function useWalkGestures(viewport: PlanViewport, sheet: Sheet) {
 }
 
 function Snackbar() {
+  const t = useT();
   const snack = useProgressUi((s) => s.snack);
   if (!snack) return null;
   const undo = async () => {
@@ -236,7 +240,7 @@ function Snackbar() {
     const last = st.past[st.past.length - 1];
     useProgressUi.getState().set({ snack: null });
     if (!last?.some((c) => c.table === snack.ref.table && (c.after?.id ?? c.before?.id) === snack.ref.id)) {
-      toast("Something else changed since — use the plan's undo", "info");
+      toast(t("Something else changed since — use the plan's undo"), "info");
       return;
     }
     await st.undo();
@@ -252,9 +256,9 @@ function Snackbar() {
         <span className="font-semibold">{snack.label}</span> → {snack.text}
       </span>
       <button className="ml-2 flex h-9 items-center gap-1 rounded-lg bg-white/15 px-3 text-xs font-semibold hover:bg-white/25" onClick={undo}>
-        <Undo2 className="h-3.5 w-3.5" /> Undo
+        <Undo2 className="h-3.5 w-3.5" /> {t("Undo")}
       </button>
-      <button className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/15" onClick={() => useProgressUi.getState().set({ sheet: snack.ref, snack: null })} aria-label="Details">
+      <button className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/15" onClick={() => useProgressUi.getState().set({ sheet: snack.ref, snack: null })} aria-label={t("Details")}>
         <Info className="h-4 w-4" />
       </button>
     </div>
@@ -262,6 +266,7 @@ function Snackbar() {
 }
 
 function PhotoPrompt() {
+  const t = useT();
   const pending = useProgressUi((s) => s.pendingPhoto);
   const [busy, setBusy] = useState(false);
   const onFile = async (file: File | undefined) => {
@@ -271,7 +276,7 @@ function PhotoPrompt() {
     try {
       const photoId = await saveProofPhoto(file, p);
       if (!photoId) return;
-      if (await setInstall(p, p.to, { photoId })) showSnack(p, itemLabel(findItem(p)), `${STATUS_LABELS[p.to]} (photo)`);
+      if (await setInstall(p, p.to, { photoId })) showSnack(p, itemLabel(findItem(p)), t("{status} (photo)", { status: t(STATUS_LABELS[p.to]) }));
       useProgressUi.getState().set({ pendingPhoto: null });
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
@@ -299,12 +304,12 @@ function PhotoPrompt() {
         <StatusSlot order={41}>
         <div className="pointer-events-auto flex w-[min(420px,100%)] items-center gap-2 rounded-xl bg-white p-2 pl-3.5 text-sm shadow-pop ring-1 ring-slate-200" data-plan-ui>
           <span className="min-w-0 flex-1">
-            Photo needed to mark <span className="font-semibold">{pending.label}</span> {STATUS_LABELS[pending.to].toLowerCase()}
+            {t("Photo needed to mark {label} {status}", { label: pending.label, status: t(STATUS_LABELS[pending.to]).toLowerCase() })}
           </span>
           <button className="btn btn-brand h-11 px-4" onClick={() => photoInput.current?.click()} disabled={busy}>
-            <Camera /> {busy ? "Saving…" : "Take photo"}
+            <Camera /> {busy ? t("Saving…") : t("Take photo")}
           </button>
-          <button className="btn btn-icon btn-ghost h-11 w-11" onClick={() => useProgressUi.getState().set({ pendingPhoto: null })} aria-label="Cancel">
+          <button className="btn btn-icon btn-ghost h-11 w-11" onClick={() => useProgressUi.getState().set({ pendingPhoto: null })} aria-label={t("Cancel")}>
             <X />
           </button>
         </div>
