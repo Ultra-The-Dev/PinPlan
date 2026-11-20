@@ -502,7 +502,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@已确认布置图。下一步：在财务中定价并发送报价单。"
+            "value" : "%@已确认布置。下一步：在财务中定价并发送报价单。"
           }
         }
       }
@@ -548,7 +548,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@已确认报价单 — 工程已批准"
+            "value" : "%@已批准报价单 — 工程已批准"
           }
         }
       }
@@ -3256,7 +3256,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lợi nhuận cộng thêm %1$@%% · thuế %2$@%%"
+            "value" : "Cộng thêm %1$@%% · thuế %2$@%%"
           }
         },
         "zh-Hans" : {
@@ -6251,25 +6251,25 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld pozycja nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny kabli w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
+                  "value" : "%lld pozycja nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny przewodów w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
                 }
               },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld pozycje nie mają jeszcze ceny. Ustaw ceny w Cenniku i ceny kabli w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
+                  "value" : "%lld pozycje nie mają jeszcze ceny. Ustaw ceny w Cenniku i ceny przewodów w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld pozycji nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny kabli w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
+                  "value" : "%lld pozycji nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny przewodów w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld pozycji nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny kabli w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
+                  "value" : "%lld pozycji nie ma jeszcze ceny. Ustaw ceny w Cenniku i ceny przewodów w Ustawieniach albo stuknij pozycję, aby wpisać cenę."
                 }
               }
             }
@@ -9571,25 +9571,25 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld trasa kablowa nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
+                  "value" : "%lld trasa nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
                 }
               },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld trasy kablowe nie mają jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
+                  "value" : "%lld trasy nie mają jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld tras kablowych nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
+                  "value" : "%lld tras nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld trasy kablowej nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
+                  "value" : "%lld trasyj nie ma jeszcze długości. Ustaw skalę każdego planu albo wpisz LF na trasie."
                 }
               }
             }
@@ -9649,25 +9649,25 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld кабельна траса ще не має довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
+                  "value" : "%lld траса ще не має довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
                 }
               },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld кабельні траси ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
+                  "value" : "%lld траси ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
                 }
               },
               "many" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld кабельних трас ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
+                  "value" : "%lld трас ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld кабельних трас ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
+                  "value" : "%lld трас ще не мають довжини. Задайте масштаб кожного плану або введіть довжину на трасі."
                 }
               }
             }
@@ -14186,7 +14186,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Um proprietário ou admin conecta o Billdu no Northpin pela web, em Ajustes › Billdu."
+            "value" : "Um proprietário ou admin conecta o Billdu no Northpin pela web, em Configurações › Billdu."
           }
         },
         "ru" : {
@@ -15110,7 +15110,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Asigna a estos dispositivos un gabinete de retorno para numerar sus puertos."
+            "value" : "Asigna a estos dispositivos un cuarto de equipos para numerar sus puertos."
           }
         },
         "pl" : {
@@ -15146,7 +15146,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为这些设备指定回路所到的配线间，以便给端口编号。"
+            "value" : "为这些设备指定回路所到的设备间，以便给端口编号。"
           }
         }
       }
@@ -16382,7 +16382,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cáp được làm tròn lên theo thùng, HDMI theo độ dài có sẵn. Chi phí là giá của bạn, chưa cộng lợi nhuận."
+            "value" : "Cáp được làm tròn lên theo thùng, HDMI theo độ dài có sẵn. Chi phí là giá của bạn, chưa tính phần cộng thêm."
           }
         },
         "zh-Hans" : {
@@ -17048,7 +17048,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zlecenia zmian"
+            "value" : "Zlecenia zmiany"
           }
         },
         "pt-BR" : {
@@ -17094,7 +17094,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zlecenia zmian, wyceny, faktury, zapytania (RFI), szablony"
+            "value" : "Zlecenia zmiany, wyceny, faktury, zapytania (RFI), szablony"
           }
         },
         "pt-BR" : {
@@ -19358,7 +19358,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gabinete"
+            "value" : "Cuarto de equipos"
           }
         },
         "pl" : {
@@ -19388,13 +19388,13 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tủ"
+            "value" : "Tủ thiết bị"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "配线间"
+            "value" : "设备间"
           }
         }
       }
@@ -19404,7 +19404,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Puertos de gabinetes y etiquetas de cables"
+            "value" : "Puertos del cuarto de equipos y etiquetas de cables"
           }
         },
         "pl" : {
@@ -19440,7 +19440,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "配线间端口和线缆标签"
+            "value" : "设备间端口和线缆标签"
           }
         }
       }
@@ -19450,7 +19450,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gabinetes y tableros"
+            "value" : "Cuartos de equipos y tableros"
           }
         },
         "pl" : {
@@ -19480,13 +19480,13 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tủ kỹ thuật và tủ điện"
+            "value" : "Tủ thiết bị và tủ điện"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "配线间和配电箱"
+            "value" : "设备间和配电箱"
           }
         }
       }
@@ -20474,7 +20474,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conecte o Billdu pela web: Ajustes → Apps conectados"
+            "value" : "Conecte o Billdu pela web: Configurações → Apps conectados"
           }
         },
         "ru" : {
@@ -22078,7 +22078,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Liczone tylko z umieszczonych urządzeń i tras kablowych. (n?) = opcja, podana osobno."
+            "value" : "Liczone tylko z umieszczonych urządzeń i tras. (n?) = opcja, podana osobno."
           }
         },
         "pt-BR" : {
@@ -22096,7 +22096,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Рахується лише за розміщеними пристроями й кабельними трасами. (n?) — опції, наведені окремо."
+            "value" : "Рахується лише за розміщеними пристроями й трасами. (n?) — опції, наведені окремо."
           }
         },
         "vi" : {
@@ -22262,7 +22262,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Utwórz zlecenie, dodaj plany (PDF, zdjęcia lub skaner dokumentów), a potem stukaj, aby umieszczać urządzenia, trasy kablowe i rozdzielnice."
+            "value" : "Utwórz zlecenie, dodaj plany (PDF, zdjęcia lub skaner dokumentów), a potem stukaj, aby umieszczać urządzenia, trasy i rozdzielnice."
           }
         },
         "pt-BR" : {
@@ -22280,7 +22280,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Створіть об'єкт, додайте плани (PDF, фото або сканер документів), потім дотиками розміщуйте пристрої, кабельні траси й щити."
+            "value" : "Створіть об'єкт, додайте плани (PDF, фото або сканер документів), потім дотиками розміщуйте пристрої, траси й щити."
           }
         },
         "vi" : {
@@ -23808,7 +23808,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eliminar gabinete"
+            "value" : "Eliminar cuarto de equipos"
           }
         },
         "pl" : {
@@ -23838,13 +23838,13 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Xóa tủ"
+            "value" : "Xóa tủ thiết bị"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "删除配线间"
+            "value" : "删除设备间"
           }
         }
       }
@@ -26684,7 +26684,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "例如：市政检查员 — 粗装验收通过"
+            "value" : "例如：市政检查员 — 预埋验收通过"
           }
         }
       }
@@ -27844,7 +27844,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estimado"
+            "value" : "Presupuesto"
           }
         },
         "pl" : {
@@ -27890,7 +27890,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Términos del estimado"
+            "value" : "Condiciones del presupuesto"
           }
         },
         "pl" : {
@@ -31156,7 +31156,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El largo del retorno es el recorrido hasta el gabinete, más las alturas de piso, la holgura y el extra por tendido"
+            "value" : "El largo del retorno es el recorrido hasta el cuarto de equipos, más las alturas de piso, la holgura y el extra por tendido"
           }
         },
         "pl" : {
@@ -31192,7 +31192,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "回路长度 = 到配线间的路径，加上层高、余量和每条回路的额外长度"
+            "value" : "回路长度 = 到设备间的路径，加上层高、余量和每条回路的额外长度"
           }
         }
       }
@@ -33594,7 +33594,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las obras que te pertenecen, con sus planos, dispositivos, estimados, fotos, documentos, listas de verificación y bitácoras, y los enlaces que compartiste con clientes."
+            "value" : "Las obras que te pertenecen, con sus planos, dispositivos, presupuestos, fotos, documentos, listas de verificación y bitácoras, y los enlaces que compartiste con clientes."
           }
         },
         "pl" : {
@@ -34826,7 +34826,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "布置图已确认"
+            "value" : "布置已确认"
           }
         }
       }
@@ -36844,7 +36844,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lợi nhuận cộng thêm %"
+            "value" : "Cộng thêm %"
           }
         },
         "zh-Hans" : {
@@ -36890,7 +36890,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lợi nhuận cộng thêm được tính vào giá danh mục, sản phẩm và cáp. Giá bạn tự nhập trên một dòng được giữ nguyên."
+            "value" : "Cộng thêm được tính vào giá danh mục, sản phẩm và cáp. Giá bạn tự nhập trên một dòng được giữ nguyên."
           }
         },
         "zh-Hans" : {
@@ -36936,7 +36936,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lợi nhuận cộng thêm trên vật tư %"
+            "value" : "Cộng thêm trên vật tư %"
           }
         },
         "zh-Hans" : {
@@ -38700,7 +38700,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las obras nuevas empiezan con estos valores; cada obra puede cambiarlos en su pestaña Estimado"
+            "value" : "Las obras nuevas empiezan con estos valores; cada obra puede cambiarlos en su pestaña Presupuesto"
           }
         },
         "pl" : {
@@ -39436,7 +39436,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sin gabinete"
+            "value" : "Sin cuarto de equipos"
           }
         },
         "pl" : {
@@ -39472,7 +39472,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无配线间"
+            "value" : "无设备间"
           }
         }
       }
@@ -40954,7 +40954,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aún no hay calendario"
+            "value" : "Aún no hay cronograma"
           }
         },
         "pl" : {
@@ -40984,7 +40984,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chưa có lịch"
+            "value" : "Chưa có lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -42984,7 +42984,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Jeden plik ze wszystkimi planami, urządzeniami, trasami kabli, zdjęciami i zmianami cen. Otwiera się w tej aplikacji lub w wersji webowej Northpin."
+            "value" : "Jeden plik ze wszystkimi planami, urządzeniami, trasami, zdjęciami i zmianami cen. Otwiera się w tej aplikacji lub w wersji webowej Northpin."
           }
         },
         "pt-BR" : {
@@ -43002,7 +43002,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Один файл з усіма планами, пристроями, кабельними трасами, фото й правками цін. Відкривається в цьому застосунку або у веб-версії Northpin."
+            "value" : "Один файл з усіма планами, пристроями, трасами, фото й правками цін. Відкривається в цьому застосунку або у веб-версії Northpin."
           }
         },
         "vi" : {
@@ -43312,7 +43312,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Só o escritório pode excluir uma obra, por isso ela voltou para este dispositivo."
+            "value" : "Só o escritório pode excluir uma obra, por isso ela voltou para este aparelho."
           }
         },
         "ru" : {
@@ -45318,7 +45318,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sơ đồ tủ điện"
+            "value" : "Bảng phân mạch tủ điện"
           }
         },
         "zh-Hans" : {
@@ -45822,7 +45822,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Exclui permanentemente sua conta Northpin e os dados dela, e limpa este dispositivo."
+            "value" : "Exclui permanentemente sua conta Northpin e os dados dela, e limpa este aparelho."
           }
         },
         "ru" : {
@@ -46052,7 +46052,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Foto ainda não está neste dispositivo"
+            "value" : "Foto ainda não está neste aparelho"
           }
         },
         "ru" : {
@@ -47110,7 +47110,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Posicione primeiro um armário de equipamentos"
+            "value" : "Posicione primeiro um rack"
           }
         },
         "ru" : {
@@ -47932,7 +47932,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Planear el calendario"
+            "value" : "Planear el cronograma"
           }
         },
         "pl" : {
@@ -47962,7 +47962,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lên lịch"
+            "value" : "Lập lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -51681,13 +51681,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Remover %lld obra deste dispositivo?"
+                  "value" : "Remover %lld obra deste aparelho?"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Remover %lld obras deste dispositivo?"
+                  "value" : "Remover %lld obras deste aparelho?"
                 }
               }
             }
@@ -51888,7 +51888,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remover deste dispositivo"
+            "value" : "Remover deste aparelho"
           }
         },
         "ru" : {
@@ -52164,7 +52164,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remover estas obras deste dispositivo"
+            "value" : "Remover estas obras deste aparelho"
           }
         },
         "ru" : {
@@ -52348,7 +52348,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Removê-las só limpa este dispositivo. Entre com a outra conta para vê-las de novo."
+            "value" : "Removê-las só limpa este aparelho. Entre com a outra conta para vê-las de novo."
           }
         },
         "ru" : {
@@ -52762,7 +52762,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Substituir obras neste dispositivo"
+            "value" : "Substituir obras neste aparelho"
           }
         },
         "ru" : {
@@ -55726,7 +55726,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "calendario"
+            "value" : "cronograma"
           }
         },
         "pl" : {
@@ -55756,7 +55756,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "lịch"
+            "value" : "lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -55772,7 +55772,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calendario"
+            "value" : "Cronograma"
           }
         },
         "pl" : {
@@ -55802,7 +55802,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lịch"
+            "value" : "Lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -55818,7 +55818,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Avance del calendario"
+            "value" : "Avance del cronograma"
           }
         },
         "pl" : {
@@ -55848,7 +55848,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tiến độ lịch"
+            "value" : "Tiến độ lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -57232,7 +57232,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enviado pelo seu servidor Northpin; as chaves do Billdu nunca ficam neste dispositivo"
+            "value" : "Enviado pelo seu servidor Northpin; as chaves do Billdu nunca ficam neste aparelho"
           }
         },
         "ru" : {
@@ -57600,7 +57600,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Definir armário para todos os %lld"
+            "value" : "Definir rack para todos os %lld"
           }
         },
         "ru" : {
@@ -60774,7 +60774,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Assinatura ainda não está neste dispositivo"
+            "value" : "Assinatura ainda não está neste aparelho"
           }
         },
         "ru" : {
@@ -63304,7 +63304,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sincroniza alguns segundos depois de cada alteração e a cada minuto enquanto o app está aberto. Funciona offline — as alterações sobem quando você voltar a ficar online. Se o mesmo item for editado em dois dispositivos, vale a edição mais recente."
+            "value" : "Sincroniza alguns segundos depois de cada alteração e a cada minuto enquanto o app está aberto. Funciona offline — as alterações sobem quando você voltar a ficar online. Se o mesmo item for editado em dois aparelhos, vale a edição mais recente."
           }
         },
         "ru" : {
@@ -63764,7 +63764,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toque em um dispositivo, no caminho e depois em um armário"
+            "value" : "Toque em um dispositivo, no caminho e depois em um rack"
           }
         },
         "ru" : {
@@ -66190,7 +66190,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La cuenta no se puede eliminar desde este dispositivo. Inicia sesión en Northpin en la web y elige Ajustes › Cuenta › Eliminar cuenta, o contacta a soporte y la eliminamos por ti."
+            "value" : "La cuenta no se puede eliminar desde este dispositivo. Inicia sesión en Northpin en la web y elige Configuración › Cuenta › Eliminar cuenta, o contacta a soporte y la eliminamos por ti."
           }
         },
         "pl" : {
@@ -66202,7 +66202,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A conta não pode ser excluída por este dispositivo. Entre no Northpin pela web e escolha Ajustes › Conta › Excluir conta, ou fale com o suporte e nós excluímos para você."
+            "value" : "A conta não pode ser excluída por este aparelho. Entre no Northpin pela web e escolha Configurações › Conta › Excluir conta, ou fale com o suporte e nós excluímos para você."
           }
         },
         "ru" : {
@@ -66640,7 +66640,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "带图例的标注图纸，说明每个符号——不含价格——方便客户核对每样东西的位置。客户可以批准布置，或告诉你需要修改什么。"
+            "value" : "带图例的标注图纸，说明每个符号——不含价格——方便客户核对每样东西的位置。客户可以确认布置，或告诉你需要修改什么。"
           }
         }
       }
@@ -66846,7 +66846,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A conta Northpin %@ foi excluída e este dispositivo foi limpo."
+            "value" : "A conta Northpin %@ foi excluída e este aparelho foi limpo."
           }
         },
         "ru" : {
@@ -67064,7 +67064,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Luego cambia la habitación, el producto, los cables o el cuarto de equipos de todos a la vez."
+            "value" : "Luego cambia el cuarto, el producto, los cables o el cuarto de equipos de todos a la vez."
           }
         },
         "pl" : {
@@ -67076,7 +67076,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Depois altere ambiente, produto, cabos ou armário de todos de uma vez."
+            "value" : "Depois altere ambiente, produto, cabos ou rack de todos de uma vez."
           }
         },
         "ru" : {
@@ -67490,7 +67490,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Esta cópia do Northpin não está conectada às contas Northpin. Todo o resto funciona neste dispositivo sem conta."
+            "value" : "Esta cópia do Northpin não está conectada às contas Northpin. Todo o resto funciona neste aparelho sem conta."
           }
         },
         "ru" : {
@@ -67610,7 +67610,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Este dispositivo tem obras de outra conta (%2$@): %1$lld. Para sincronizar esta conta, primeiro remova-as deste dispositivo (elas continuam na nuvem da outra conta) ou saia."
+            "value" : "Este aparelho tem obras de outra conta (%2$@): %1$lld. Para sincronizar esta conta, primeiro remova-as deste aparelho (elas continuam na nuvem da outra conta) ou saia."
           }
         },
         "ru" : {
@@ -67713,13 +67713,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Este dispositivo tem %lld obra de outra conta. Para sincronizar esta conta, primeiro remova-a deste dispositivo (ela continua na nuvem da outra conta) ou saia."
+                  "value" : "Este aparelho tem %lld obra de outra conta. Para sincronizar esta conta, primeiro remova-a deste aparelho (ela continua na nuvem da outra conta) ou saia."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Este dispositivo tem %lld obras de outra conta. Para sincronizar esta conta, primeiro remova-as deste dispositivo (elas continuam na nuvem da outra conta) ou saia."
+                  "value" : "Este aparelho tem %lld obras de outra conta. Para sincronizar esta conta, primeiro remova-as deste aparelho (elas continuam na nuvem da outra conta) ou saia."
                 }
               }
             }
@@ -68506,13 +68506,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Título (p. ej. Obra negra, 2.º piso)"
+            "value" : "Título (p. ej. Instalación preliminar, 2.º piso)"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tytuł (np. okablowanie wstępne, 2. piętro)"
+            "value" : "Tytuł (np. montaż wstępny, 2. piętro)"
           }
         },
         "pt-BR" : {
@@ -68542,7 +68542,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "标题（例如：粗装布线，2 楼）"
+            "value" : "标题（例如：预埋，2 楼）"
           }
         }
       }
@@ -69576,7 +69576,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Duas etiquetas por cabo — ponta do dispositivo e ponta do armário — para Brady, Dymo ou Brother P-touch. O Cat6 termina em patch panels de %lld portas (PP1-01…); os outros cabos são numerados por tipo. Imprima as etiquetas quando a planta estiver finalizada: os números seguem a ordem dos pavimentos e das etiquetas."
+            "value" : "Duas etiquetas por cabo — ponta do dispositivo e ponta do rack — para Brady, Dymo ou Brother P-touch. O Cat6 termina em patch panels de %lld portas (PP1-01…); os outros cabos são numerados por tipo. Imprima as etiquetas quando a planta estiver finalizada: os números seguem a ordem dos pavimentos e das etiquetas."
           }
         },
         "ru" : {
@@ -70576,7 +70576,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Actualizar avance del calendario"
+            "value" : "Actualizar avance del cronograma"
           }
         },
         "pl" : {
@@ -70606,7 +70606,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cập nhật tiến độ lịch"
+            "value" : "Cập nhật tiến độ lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -73012,7 +73012,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dokąd idzie każdy kabel i jakiego typu — bez cen."
+            "value" : "Dokąd idzie każdy przewód i jakiego typu — bez cen."
           }
         },
         "pt-BR" : {
@@ -73380,7 +73380,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kabel"
+            "value" : "Przewód"
           }
         },
         "pt-BR" : {
@@ -73426,7 +73426,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kable i trasy do rozdzielnicy"
+            "value" : "Przewody i trasy do rozdzielnicy"
           }
         },
         "pt-BR" : {
@@ -73472,7 +73472,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trasa kablowa"
+            "value" : "Trasa"
           }
         },
         "pt-BR" : {
@@ -73490,7 +73490,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Кабельна траса"
+            "value" : "Траса"
           }
         },
         "vi" : {
@@ -73518,7 +73518,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dodano trasę kablową"
+            "value" : "Dodano trasę"
           }
         },
         "pt-BR" : {
@@ -73536,7 +73536,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Кабельну трасу додано"
+            "value" : "Трасу додано"
           }
         },
         "vi" : {
@@ -73610,7 +73610,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Arkusze okablowania"
+            "value" : "Zestawienia okablowania"
           }
         },
         "pt-BR" : {
@@ -73834,13 +73834,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calculado a partir del plano: circuitos, breakers, dispositivos, cable y carga. Sin precios."
+            "value" : "Calculado a partir del plano: circuitos, pastillas, dispositivos, cable y carga. Sin precios."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wyliczone z planu: obwody, wyłączniki, urządzenia, kable i obciążenie. Bez cen."
+            "value" : "Wyliczone z planu: obwody, wyłączniki, urządzenia, przewody i obciążenie. Bez cen."
           }
         },
         "pt-BR" : {
@@ -74214,7 +74214,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Você pode continuar usando o Northpin neste dispositivo sem conta, ou criar uma nova quando quiser."
+            "value" : "Você pode continuar usando o Northpin neste aparelho sem conta, ou criar uma nova quando quiser."
           }
         },
         "ru" : {
@@ -74628,7 +74628,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Você está conectado. Trocar o servidor desconecta você; as obras ficam neste dispositivo, ocultas até você entrar de novo."
+            "value" : "Você está conectado. Trocar o servidor desconecta você; as obras ficam neste aparelho, ocultas até você entrar de novo."
           }
         },
         "ru" : {
@@ -74766,7 +74766,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "As chaves Billdu da sua empresa ficam no servidor Northpin e nunca vêm para este dispositivo."
+            "value" : "As chaves Billdu da sua empresa ficam no servidor Northpin e nunca vêm para este aparelho."
           }
         },
         "ru" : {
@@ -75042,7 +75042,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sua conta Northpin foi excluída e este dispositivo foi limpo."
+            "value" : "Sua conta Northpin foi excluída e este aparelho foi limpo."
           }
         },
         "ru" : {
@@ -75198,7 +75198,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Giá của bạn trước lợi nhuận cộng thêm. Nhân công được cộng theo từng đơn vị khi nhân công đã tính trong giá thiết bị"
+            "value" : "Giá của bạn trước phần cộng thêm. Nhân công được cộng theo từng đơn vị khi nhân công đã tính trong giá thiết bị"
           }
         },
         "zh-Hans" : {

@@ -190,7 +190,7 @@ const dict: Dictionary = {
   "No incidents": "无事故",
   "Visitors & inspections": "访客和检查",
   "{n} visitor": { other: "{n} 位访客" },
-  "e.g. City inspector — rough-in passed": "例如：市检查员 — 预埋验收通过",
+  "e.g. City inspector — rough-in passed": "例如：市政检查员 — 预埋验收通过",
   "Add visitor": "添加访客",
   Photos: "照片",
   "Photos from this day — tap to include them.": "当天的照片 — 点按即可加入。",
@@ -899,7 +899,7 @@ const dict: Dictionary = {
   "Link to device…": "关联到设备…",
   Report: "报告",
   "Document the job: pre-wire before drywall, rack and closet, every device installed. Tag them, mark them up, link them to devices on the plan and send a photo report.":
-    "记录工程：封板前的预布线、机柜和弱电间、每个安装好的设备。加标签、做标注、关联到图纸上的设备，然后发送照片报告。",
+    "记录工程：封板前的预布线、机柜和设备间、每个安装好的设备。加标签、做标注、关联到图纸上的设备，然后发送照片报告。",
   "Select day": "选择日期",
   "Tip: open a photo and pick its device to see it from that device on the plan.": "提示：打开照片并选择对应设备，即可在图纸上从该设备查看照片。",
   "{label} ({n} photo)": { other: "{label}（{n} 张照片）" },

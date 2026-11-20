@@ -829,8 +829,8 @@ const dict: Dictionary = {
   "Markup on materials %": "Margen sobre materiales %",
   "Labor rate / hr": "Tarifa de mano de obra / h",
   "Labor rate per hour": "Tarifa de mano de obra por hora",
-  "Schedule impact (days)": "Impacto en el calendario (días)",
-  "Schedule impact in days": "Impacto en el calendario en días",
+  "Schedule impact (days)": "Impacto en el cronograma (días)",
+  "Schedule impact in days": "Impacto en el cronograma en días",
   "Catalog devices are priced like the estimate ({pct}% markup, installed).":
     "Los dispositivos del catálogo llevan precio igual que en los precios de la obra ({pct}% de margen, instalados).",
   "Catalog devices are priced like the estimate ({pct}% markup, labor listed separately).":

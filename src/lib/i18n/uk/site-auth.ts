@@ -243,7 +243,7 @@ const siteAuth: Dictionary = {
   // /start: first-run checklist, technicians' start, "Set up your company"
   "Your business": "Ваша компанія",
   "Name, phone and logo for your estimates and client proposals.": "Назва, телефон і логотип для кошторисів та інших документів для клієнтів.",
-  "Upload your first floor plan": "Завантажте перший план поверху",
+  "Upload your first floor plan": "Вивантажте перший план поверху",
   "Start a job and add the plan — a PDF or a photo of it.": "Створіть об'єкт і додайте план — PDF або його фото.",
   "Invite your team": "Запросіть команду",
   "Office staff and technicians each get their own login.": "Кожен працівник офісу й технік має власний акаунт.",
@@ -284,7 +284,7 @@ const siteAuth: Dictionary = {
   "Your logo": "Ваш логотип",
   "No logo": "Немає логотипа",
   "Change logo": "Змінити логотип",
-  "Upload logo": "Завантажити логотип",
+  "Upload logo": "Вивантажити логотип",
   Save: "Зберегти",
   "Address, colours and estimate terms →": "Адреса, кольори та умови кошторисів →",
   Client: "Клієнт",
@@ -329,7 +329,7 @@ const siteAuth: Dictionary = {
     "Кожен крок використовує результат попереднього, тож не треба двічі рахувати той самий план чи переписувати кошторис у рахунок.",
   "Pin devices on the plans": "Розставте пристрої на планах",
   "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.":
-    "Завантажте комплект PDF або фото креслень. Кожна сторінка стає поверхом, який можна збільшувати й гортати. Виберіть пристрій зі списку вашого виду робіт і торкніться місця, де він стоїть.",
+    "Вивантажте комплект PDF або фото креслень. Кожна сторінка стає поверхом, який можна збільшувати й гортати. Виберіть пристрій зі списку вашого виду робіт і торкніться місця, де він стоїть.",
   "Letters on the plan, like the legend on the drawings": "Літери на плані, як в умовних позначеннях на кресленнях",
   "Wire runs drawn back to the panel, rack or closet": "Траси кабелю до щита, стійки чи шафи",
   "Set the scale once from any known dimension": "Масштаб задається один раз за будь-яким відомим розміром",
@@ -452,14 +452,14 @@ const siteAuth: Dictionary = {
     "Об'єкти кожної компанії бачить лише її команда — це забезпечено на рівні бази даних. У налаштуваннях можна експортувати все або видалити акаунт.",
   "Bring your next set of plans": "Спробуйте на наступному комплекті планів",
   "Set up your company, upload a plan and send a real quote during the {n}-day trial. Bring the crew in when you’re ready.": {
-    one: "Налаштуйте компанію, завантажте план і надішліть справжній кошторис за {n} день пробного періоду. Бригаду підключите, коли будете готові.",
-    few: "Налаштуйте компанію, завантажте план і надішліть справжній кошторис за {n} дні пробного періоду. Бригаду підключите, коли будете готові.",
-    many: "Налаштуйте компанію, завантажте план і надішліть справжній кошторис за {n} днів пробного періоду. Бригаду підключите, коли будете готові.",
-    other: "Налаштуйте компанію, завантажте план і надішліть справжній кошторис за {n} дня пробного періоду. Бригаду підключите, коли будете готові.",
+    one: "Налаштуйте компанію, вивантажте план і надішліть справжній кошторис за {n} день пробного періоду. Бригаду підключите, коли будете готові.",
+    few: "Налаштуйте компанію, вивантажте план і надішліть справжній кошторис за {n} дні пробного періоду. Бригаду підключите, коли будете готові.",
+    many: "Налаштуйте компанію, вивантажте план і надішліть справжній кошторис за {n} днів пробного періоду. Бригаду підключите, коли будете готові.",
+    other: "Налаштуйте компанію, вивантажте план і надішліть справжній кошторис за {n} дня пробного періоду. Бригаду підключите, коли будете готові.",
   },
   // /welcome, Northpin redesign: trade strip, steps, features, crew
   "Starting device lists and prices for": "Готові списки пристроїв і ціни для",
-  "Upload the plans": "Завантажте плани",
+  "Upload the plans": "Вивантажте плани",
   "Drop in the PDF set or a photo of the drawings. Every page becomes a floor.":
     "Додайте комплект PDF або фото креслень. Кожна сторінка стає поверхом.",
   "Pin every device": "Розставте пристрої",
@@ -615,7 +615,7 @@ const siteAuth: Dictionary = {
     other: "{n} дня безкоштовно. Скасувати можна будь-коли, а об'єкти залишаються у вас для експорту.",
   },
   "Every feature from day one. Set up your company, upload a plan and send a real quote before you decide.":
-    "Усі функції з першого дня. Налаштуйте компанію, завантажте план і надішліть справжній кошторис, перш ніж вирішити.",
+    "Усі функції з першого дня. Налаштуйте компанію, вивантажте план і надішліть справжній кошторис, перш ніж вирішити.",
   "Prices stay with the office": "Ціни залишаються в офісі",
   "Techs get their own login for plans, devices, photos, checklists and tasks. Their logins hide prices, quotes and invoices in the app.":
     "Техніки мають власний акаунт для планів, пристроїв, фото, чек-листів і завдань. Ціни, кошториси й рахунки в застосунку в них приховані.",

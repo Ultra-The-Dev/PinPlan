@@ -439,7 +439,7 @@ const dict: Dictionary = {
   "Cloud sync isn't set up — see Settings → Account.": "A sincronização na nuvem não está configurada — veja Configurações → Conta.",
   "Uploading plans: {error}": "Enviando plantas: {error}",
   "Couldn't make a preview": "Não foi possível gerar a pré-visualização",
-  "This sheet's image is not on this device yet.": "A imagem desta folha ainda não está neste dispositivo.",
+  "This sheet's image is not on this device yet.": "A imagem desta folha ainda não está neste aparelho.",
   "You're offline. The AI scan needs a connection; place markers by hand meanwhile.":
     "Você está offline. A leitura por IA precisa de conexão; enquanto isso, posicione os dispositivos à mão.",
   "Scan failed ({status})": "A leitura falhou ({status})",

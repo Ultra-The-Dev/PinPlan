@@ -63,21 +63,21 @@ const siteAuth: Dictionary = {
   "That link has expired or was already used. Sign in with your password, or send a new link.":
     "Esse link expirou ou já foi usado. Entre com sua senha ou envie um novo link.",
   "Enter your email address first, then press “Email me a sign-in link”.":
-    "Digite primeiro seu e-mail e depois toque em “Enviar link de acesso por e-mail”.",
+    "Digite primeiro seu e-mail e depois toque em “Enviar link de login por e-mail”.",
   "Opening {product}…": "Abrindo o {product}…",
   "If {email} has a {product} account, a sign-in link is on its way. Open it on the device you want to use. It can take a few minutes — check spam too.":
-    "Se {email} tiver uma conta no {product}, um link de acesso está a caminho. Abra-o no aparelho que você quer usar. Pode levar alguns minutos — confira também o spam.",
+    "Se {email} tiver uma conta no {product}, um link de login está a caminho. Abra-o no aparelho que você quer usar. Pode levar alguns minutos — confira também o spam.",
   "New to {product}?": "Novo no {product}?",
   "Welcome back. Sign in to sync your jobs across iPad, iPhone and the web.":
     "Que bom ver você de novo. Entre para sincronizar suas obras entre iPad, iPhone e a web.",
   "Email confirmed. Sign in to finish setting up.": "E-mail confirmado. Entre para concluir a configuração.",
-  "Email me a sign-in link": "Enviar link de acesso por e-mail",
+  "Email me a sign-in link": "Enviar link de login por e-mail",
   "Got an invite from your company?": "Recebeu um convite da sua empresa?",
 
   "There’s already an account with this email. {signIn} or {reset}.": "Já existe uma conta com este e-mail. {signIn} ou {reset}.",
   "reset your password": "redefina sua senha",
   "Your login is ready, but setting up {company} didn’t finish: {error} Press the button to try again.":
-    "Seu acesso está pronto, mas a configuração de {company} não terminou: {error} Toque no botão para tentar de novo.",
+    "Seu login está pronto, mas a configuração de {company} não terminou: {error} Toque no botão para tentar de novo.",
   "Sign-up isn’t available here": "Cadastro não disponível aqui",
   "This copy of {product} isn’t connected to the cloud, so there are no accounts. You can still use it on this device.":
     "Esta cópia do {product} não está conectada à nuvem, então não há contas. Você ainda pode usá-la neste aparelho.",
@@ -180,7 +180,7 @@ const siteAuth: Dictionary = {
   "as {role}": "como {role}",
   "Please accept the Terms and Privacy Policy.": "Aceite os Termos e a Política de Privacidade.",
   "That email and password don’t match an account. Check them, or create a new login.":
-    "Esse e-mail e senha não correspondem a nenhuma conta. Confira os dados ou crie um novo acesso.",
+    "Esse e-mail e senha não correspondem a nenhuma conta. Confira os dados ou crie um novo login.",
   "You already have a {product} account with this email. Sign in with its password to join.":
     "Você já tem uma conta no {product} com este e-mail. Entre com a senha dela para participar.",
   "You already have an account with this email. Choose “I have an account” and sign in.":
@@ -194,7 +194,7 @@ const siteAuth: Dictionary = {
     "Sua equipe vê isso ao atribuir tarefas a você, e ele aparece nas fotos que você tira.",
   "You’ll join as {name}.": "Você vai entrar como {name}.",
   Change: "Alterar",
-  "Checking sign-in…": "Verificando acesso…",
+  "Checking sign-in…": "Verificando login…",
   "Joining as {email}.": "Entrando como {email}.",
   "Not you?": "Não é você?",
   "Join {team}": "Entrar em {team}",
@@ -207,15 +207,15 @@ const siteAuth: Dictionary = {
     other: "Pelo menos {n} caracteres",
   },
   "You’ll use this email and password on the iPad and iPhone app too.": "Você vai usar este e-mail e senha também no app para iPad e iPhone.",
-  "Creating your login…": "Criando seu acesso…",
-  "Create login & join": "Criar acesso e entrar",
+  "Creating your login…": "Criando seu login…",
+  "Create login & join": "Criar login e entrar",
   "Signing in…": "Entrando…",
   "Sign in & join": "Entrar e participar",
   "Use a different code": "Usar outro código",
   "You’re signed in and on {team}.": "Você está conectado e faz parte de {team}.",
   "Check your email to finish": "Confira seu e-mail para concluir",
   "Your login is made, but it won’t work until you confirm it. We sent a confirmation link to {email}.":
-    "Seu acesso foi criado, mas só vai funcionar depois que você confirmar. Enviamos um link de confirmação para {email}.",
+    "Seu login foi criado, mas só vai funcionar depois que você confirmar. Enviamos um link de confirmação para {email}.",
   "Open the email from {product} and tap the confirmation link.": "Abra o e-mail do {product} e toque no link de confirmação.",
   "Sign in with your password — you’ll join {team} automatically.": "Entre com sua senha — você vai entrar em {team} automaticamente.",
   "the team": "a equipe",
@@ -240,7 +240,7 @@ const siteAuth: Dictionary = {
   "Upload your first floor plan": "Envie sua primeira planta baixa",
   "Start a job and add the plan — a PDF or a photo of it.": "Crie uma obra e adicione a planta — um PDF ou uma foto dela.",
   "Invite your team": "Convide sua equipe",
-  "Office staff and technicians each get their own login.": "Cada pessoa do escritório e cada técnico tem seu próprio acesso.",
+  "Office staff and technicians each get their own login.": "Cada pessoa do escritório e cada técnico tem seu próprio login.",
   "Get the iPad and iPhone app": "Baixe o app para iPad e iPhone",
   "Walk the site with the plan; it all syncs to the office.": "Percorra a obra com a planta; tudo sincroniza com o escritório.",
   "Setting up {company}…": "Configurando {company}…",
@@ -289,7 +289,7 @@ const siteAuth: Dictionary = {
   "Get it on the App Store": "Baixar na App Store",
   "Or scan the code with your iPhone or iPad camera.": "Ou leia o código com a câmera do iPhone ou iPad.",
   "The iPhone and iPad app is coming to the App Store. Until then, use this website on any device: on iPhone or iPad, open it in Safari and tap Share → Add to Home Screen.":
-    "O app para iPhone e iPad está chegando à App Store. Até lá, use este site em qualquer dispositivo: no iPhone ou iPad, abra no Safari e toque em Compartilhar → Adicionar à Tela de Início.",
+    "O app para iPhone e iPad está chegando à App Store. Até lá, use este site em qualquer aparelho: no iPhone ou iPad, abra no Safari e toque em Compartilhar → Adicionar à Tela de Início.",
   "Sign in with {email} and the same password. Your jobs sync automatically.": "Entre com {email} e a mesma senha. Suas obras sincronizam automaticamente.",
   "QR code for the App Store page": "QR code da página na App Store",
   "Set up your company": "Configure sua empresa",
@@ -353,7 +353,7 @@ const siteAuth: Dictionary = {
   "{list} and more": "{list} e mais",
   "The office sees the money. The crew sees the work.": "O escritório vê o dinheiro. A equipe vê o trabalho.",
   "Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technician logins hide prices in the app.":
-    "Convide o pessoal do escritório e os técnicos com um código. Todos trabalham nas mesmas obras com seu próprio acesso, e o acesso de técnico esconde os preços no app.",
+    "Convide o pessoal do escritório e os técnicos com um código. Todos trabalham nas mesmas obras com seu próprio login, e o login de técnico esconde os preços no app.",
   "Owner and office": "Dono e escritório",
   "Plans, counts, prices, quotes, invoices and settings.": "Plantas, contagens, preços, orçamentos, faturas e configurações.",
   Technicians: "Técnicos",
@@ -414,7 +414,7 @@ const siteAuth: Dictionary = {
     "Baixa tensão e casa inteligente, elétrica, alarme de incêndio, climatização (HVAC), hidráulica, e energia solar e recarga de veículos elétricos. Escolha uma ou várias e adicione seus próprios dispositivos a qualquer lista.",
   "Can my technicians use it without seeing prices?": "Meus técnicos podem usar sem ver os preços?",
   "Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app.":
-    "Sim. Os técnicos têm seu próprio acesso para plantas, dispositivos, fotos, checklists e tarefas. Preços, orçamentos e faturas ficam ocultos para eles no app.",
+    "Sim. Os técnicos têm seu próprio login para plantas, dispositivos, fotos, checklists e tarefas. Preços, orçamentos e faturas ficam ocultos para eles no app.",
   "Does it work with my accounting?": "Funciona com minha contabilidade?",
   "Quotes, invoices and payments are built into {product}, so you don’t need anything else. You can also export counts, quotes and plan sheets as PDF or CSV.":
     "Orçamentos, faturas e pagamentos já vêm no {product}, então você não precisa de mais nada. Você também pode exportar contagens, orçamentos e folhas da planta em PDF ou CSV.",
@@ -565,7 +565,7 @@ const siteAuth: Dictionary = {
     other: "Inclui {n} usuários. Cada usuário extra custa {price} por mês. Em USD, mais impostos aplicáveis.",
   },
   "You, office staff and technicians each count as one user. Clients never need a login.":
-    "Você, o pessoal do escritório e os técnicos contam como um usuário cada. Clientes nunca precisam de acesso.",
+    "Você, o pessoal do escritório e os técnicos contam como um usuário cada. Clientes nunca precisam de login.",
   "{n} day free. Cancel any time, and your jobs stay yours to export.": {
     one: "{n} dia grátis. Cancele quando quiser, e suas obras continuam suas para exportar.",
     other: "{n} dias grátis. Cancele quando quiser, e suas obras continuam suas para exportar.",
@@ -574,7 +574,7 @@ const siteAuth: Dictionary = {
     "Todos os recursos desde o primeiro dia. Configure sua empresa, envie uma planta e mande um orçamento de verdade antes de decidir.",
   "Prices stay with the office": "Os preços ficam com o escritório",
   "Techs get their own login for plans, devices, photos, checklists and tasks. Their logins hide prices, quotes and invoices in the app.":
-    "Os técnicos têm seu próprio acesso para plantas, dispositivos, fotos, checklists e tarefas. O acesso deles esconde preços, orçamentos e faturas no app.",
+    "Os técnicos têm seu próprio login para plantas, dispositivos, fotos, checklists e tarefas. O login deles esconde preços, orçamentos e faturas no app.",
   "Your data, always": "Seus dados, sempre",
   "Export every job as a backup file any time: during the trial, after it, or after you cancel.":
     "Exporte todas as obras como arquivo de backup quando quiser: durante o teste, depois dele ou depois de cancelar.",
@@ -594,12 +594,12 @@ const siteAuth: Dictionary = {
   },
   "Who counts as a user?": "Quem conta como usuário?",
   "Anyone with their own login on your team: you, office staff and technicians. {n} is included; each extra person is {price} a month.": {
-    one: "Qualquer pessoa da sua equipe com acesso próprio: você, o pessoal do escritório e os técnicos. {n} está incluído; cada pessoa extra custa {price} por mês.",
-    other: "Qualquer pessoa da sua equipe com acesso próprio: você, o pessoal do escritório e os técnicos. {n} estão incluídos; cada pessoa extra custa {price} por mês.",
+    one: "Qualquer pessoa da sua equipe com login próprio: você, o pessoal do escritório e os técnicos. {n} está incluído; cada pessoa extra custa {price} por mês.",
+    other: "Qualquer pessoa da sua equipe com login próprio: você, o pessoal do escritório e os técnicos. {n} estão incluídos; cada pessoa extra custa {price} por mês.",
   },
   "What do technicians see?": "O que os técnicos veem?",
   "Plans, devices, wire runs, photos, checklists, daily logs and tasks on every team job. Prices, quotes and invoices are hidden from their logins in the app, and they can’t delete jobs.":
-    "Plantas, dispositivos, lances, fotos, checklists, diários de obra e tarefas em todas as obras da equipe. Preços, orçamentos e faturas ficam ocultos no acesso deles no app, e eles não podem excluir obras.",
+    "Plantas, dispositivos, lances, fotos, checklists, diários de obra e tarefas em todas as obras da equipe. Preços, orçamentos e faturas ficam ocultos no login deles no app, e eles não podem excluir obras.",
   "Do I need separate accounting software?": "Preciso de um software de contabilidade à parte?",
   "Not for quotes and invoices: quotes, invoices and payments are built in, and counts and quotes export as PDF or CSV for your bookkeeping.":
     "Não para orçamentos e faturas: orçamentos, faturas e pagamentos já vêm incluídos, e contagens e orçamentos são exportados em PDF ou CSV para sua contabilidade.",
@@ -613,13 +613,13 @@ const siteAuth: Dictionary = {
   "The crew reads it in their language. The client gets English.":
     "A equipe lê no idioma dela. O cliente recebe em inglês.",
   "Each person picks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese or Vietnamese, and the choice stays with their login. Plans, checklists, tasks and daily logs read in their language; quotes, invoices and client emails always go out in English.":
-    "Cada pessoa escolhe inglês, espanhol, russo, ucraniano, polonês, português, chinês ou vietnamita, e a escolha fica salva no acesso dela. Plantas, checklists, tarefas e diários de obra aparecem no idioma dela; orçamentos, faturas e e-mails para clientes sempre saem em inglês.",
+    "Cada pessoa escolhe inglês, espanhol, russo, ucraniano, polonês, português, chinês ou vietnamita, e a escolha fica salva no login dela. Plantas, checklists, tarefas e diários de obra aparecem no idioma dela; orçamentos, faturas e e-mails para clientes sempre saem em inglês.",
   "All eight languages work in the web app today, in any computer, tablet or phone browser, and on the iPad and iPhone app.":
     "Os oito idiomas já funcionam no app web, no navegador de qualquer computador, tablet ou celular, e no app para iPad e iPhone.",
   "Can my crew use it in their own language?":
     "Minha equipe pode usar no próprio idioma?",
   "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Sim. O Northpin fala inglês, espanhol, russo, ucraniano, polonês, português, chinês e vietnamita. Na web, qualquer pessoa pode trocar pelo menu ou pelo rodapé da página, e o app para iPad e iPhone segue o idioma do aparelho. A escolha fica salva no acesso. Orçamentos, faturas e tudo o que o cliente vê continuam em inglês.",
+    "Sim. O Northpin fala inglês, espanhol, russo, ucraniano, polonês, português, chinês e vietnamita. Na web, qualquer pessoa pode trocar pelo menu ou pelo rodapé da página, e o app para iPad e iPhone segue o idioma do aparelho. A escolha fica salva no login. Orçamentos, faturas e tudo o que o cliente vê continuam em inglês.",
 };
 
 export default siteAuth;

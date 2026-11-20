@@ -440,7 +440,7 @@ const dict: Dictionary = {
   "Brand & model": "品牌和型号",
   Device: "设备",
   "Wire run": "线路",
-  "Panel / closet": "配电箱 / 弱电间",
+  "Panel / closet": "配电箱 / 设备间",
   "Pricing line": "计价行",
   Photo: "照片",
   "Photo comment": "照片评论",

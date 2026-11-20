@@ -334,7 +334,7 @@ const dict: Dictionary = {
 
   // Install progress (installProgress.ts)
   Planned: "Zaplanowane",
-  Roughed: "Montaż wstępny",
+  Roughed: "Po montażu wstępnym",
   Tested: "Przetestowane",
   Verified: "Odebrane",
   Issue: "Problem",

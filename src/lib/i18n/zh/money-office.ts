@@ -121,7 +121,7 @@ const moneyOffice: Dictionary = {
   // Quote link for the client (src/components/ProposalPanel.tsx)
   "Sent — not opened yet": "已发送——尚未打开",
   "Opened by client": "客户已打开",
-  Approved: "已确认",
+  Approved: "已批准",
   Declined: "已拒绝",
   Withdrawn: "已撤回",
   "Quote for the client": "给客户的报价单",

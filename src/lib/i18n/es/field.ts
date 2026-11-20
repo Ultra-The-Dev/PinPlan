@@ -925,7 +925,7 @@ const dict: Dictionary = {
   "Link to device…": "Vincular a dispositivo…",
   Report: "Reporte",
   "Document the job: pre-wire before drywall, rack and closet, every device installed. Tag them, mark them up, link them to devices on the plan and send a photo report.":
-    "Documenta la obra: precableado antes de la tablaroca, rack y gabinete, cada dispositivo instalado. Etiquétalas, anótalas, vincúlalas a dispositivos del plano y envía un reporte de fotos.",
+    "Documenta la obra: precableado antes de la tablaroca, rack y cuarto de equipos, cada dispositivo instalado. Etiquétalas, anótalas, vincúlalas a dispositivos del plano y envía un reporte de fotos.",
   "Select day": "Seleccionar día",
   "Tip: open a photo and pick its device to see it from that device on the plan.": "Consejo: abre una foto y elige su dispositivo para verla desde ese dispositivo en el plano.",
   "{label} ({n} photo)": { one: "{label} ({n} foto)", other: "{label} ({n} fotos)" },

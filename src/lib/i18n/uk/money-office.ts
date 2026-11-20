@@ -127,7 +127,7 @@ const dict: Dictionary = {
   "Making the plans PDF…": "Створення PDF планів…",
   "Plans PDF (to attach in Billdu)": "PDF планів (для Billdu)",
   "Nothing is blocked — export the same lines and enter them in Billdu by hand:":
-    "Нічого страшного — вивантажте ті самі рядки й введіть їх у Billdu вручну:",
+    "Нічого страшного — експортуйте ті самі рядки й введіть їх у Billdu вручну:",
   "Sent to Billdu": "Надіслано в Billdu",
   "Syncing…": "Синхронізація…",
   "Sync price list to Billdu products": "Синхронізувати прайс-лист із товарами Billdu",
@@ -924,7 +924,7 @@ const dict: Dictionary = {
   "Accounts receivable account": "Рахунок дебіторської заборгованості",
   "Payments go to": "Куди зараховуються оплати",
   "Xero tax type": "Тип податку в Xero",
-  "Export for accountant": "Вивантаження для бухгалтера",
+  "Export for accountant": "Експорт для бухгалтера",
   "Downloaded {n} document.": {
     one: "Завантажено {n} документ.",
     few: "Завантажено {n} документи.",

@@ -161,7 +161,7 @@ const dict: Dictionary = {
   "Billdu client #{id}": "Cliente Billdu nº {id}",
   Backup: "Backup",
   "One file with all sheets ({sheets}), devices ({devices}), runs and pricing edits. Restore it from the Jobs page on any device.":
-    "Um arquivo com todas as folhas ({sheets}), dispositivos ({devices}), lances e ajustes de preço. Restaure-o pela página de Obras em qualquer dispositivo.",
+    "Um arquivo com todas as folhas ({sheets}), dispositivos ({devices}), lances e ajustes de preço. Restaure-o pela página de Obras em qualquer aparelho.",
   "Download backup": "Baixar backup",
   "Created {created} · Updated {updated}": "Criada em {created} · Atualizada em {updated}",
 
@@ -261,7 +261,7 @@ const dict: Dictionary = {
   "Wiring PDF (selected layers)": "PDF de cabeamento (camadas selecionadas)",
   "{layer} only": "Só {layer}",
   "Home-run CSV": "Retornos ao quadro CSV",
-  "Place an equipment closet first": "Posicione primeiro um rack/armário de equipamentos",
+  "Place an equipment closet first": "Posicione primeiro um rack",
   "Place a {closet} and assign devices to it first": "Posicione primeiro um {closet} e atribua dispositivos a ele",
   "Auto-draw all home runs": "Desenhar todos os retornos automaticamente",
   "{n} device has no home-run {closet} assigned.": {
@@ -319,7 +319,7 @@ const dict: Dictionary = {
   "Saving photo": "Salvando foto",
   "Photo added as a sheet": "Foto adicionada como folha",
   "Rotating {name}": "Girando {name}",
-  "Image not available on this device yet": "Imagem ainda não disponível neste dispositivo",
+  "Image not available on this device yet": "Imagem ainda não disponível neste aparelho",
   "Delete sheet “{name}”?": "Excluir a folha “{name}”?",
   "Delete sheet “{name}” and its {n} device?": {
     one: "Excluir a folha “{name}” e seu {n} dispositivo?",
@@ -421,7 +421,7 @@ const dict: Dictionary = {
   // Small shared pieces: error screen, office-only gate, uploads, trade picker
   "Something went wrong": "Algo deu errado",
   "Northpin hit an unexpected error. Your jobs are saved on this device, so reloading is safe. If it keeps happening, copy the details and send them to support.":
-    "O Northpin encontrou um erro inesperado. Suas obras estão salvas neste dispositivo, então é seguro recarregar. Se continuar acontecendo, copie os detalhes e envie ao suporte.",
+    "O Northpin encontrou um erro inesperado. Suas obras estão salvas neste aparelho, então é seguro recarregar. Se continuar acontecendo, copie os detalhes e envie ao suporte.",
   Reload: "Recarregar",
   Copied: "Copiado",
   "Copy details": "Copiar detalhes",
@@ -491,7 +491,7 @@ const dict: Dictionary = {
   "Create job and add the plan": "Criar obra e adicionar a planta",
   "Get it on the App Store": "Baixar na App Store",
   "The iPhone and iPad app is coming to the App Store. Until then, use this website on any device: on iPhone or iPad, open it in Safari and tap Share → Add to Home Screen.":
-    "O app para iPhone e iPad está chegando à App Store. Até lá, use este site em qualquer dispositivo: no iPhone ou iPad, abra no Safari e toque em Compartilhar → Adicionar à Tela de Início.",
+    "O app para iPhone e iPad está chegando à App Store. Até lá, use este site em qualquer aparelho: no iPhone ou iPad, abra no Safari e toque em Compartilhar → Adicionar à Tela de Início.",
   "Sign in with the same email and the same password. Your jobs sync automatically.":
     "Entre com o mesmo e-mail e a mesma senha. Suas obras sincronizam automaticamente.",
   "QR code for the App Store page": "QR code da página na App Store",

@@ -261,7 +261,7 @@ const dict: Dictionary = {
   "Wiring PDF (selected layers)": "PDF de cableado (capas seleccionadas)",
   "{layer} only": "Solo {layer}",
   "Home-run CSV": "Retornos al tablero en CSV",
-  "Place an equipment closet first": "Primero coloca un gabinete de equipos",
+  "Place an equipment closet first": "Primero coloca un cuarto de equipos",
   "Place a {closet} and assign devices to it first": "Primero coloca un {closet} y asígnale dispositivos",
   "Auto-draw all home runs": "Dibujar todos los retornos automáticamente",
   "{n} device has no home-run {closet} assigned.": {
@@ -289,10 +289,10 @@ const dict: Dictionary = {
   "{n} circuit": { one: "{n} circuito", other: "{n} circuitos" },
   "{n} device": { one: "{n} dispositivo", other: "{n} dispositivos" },
   "Give unnumbered circuits the next free breaker spaces (2-pole breakers take two)":
-    "Asignar a los circuitos sin número los siguientes espacios libres de breaker (las de 2 polos ocupan dos)",
+    "Asignar a los circuitos sin número los siguientes espacios libres de pastilla (las de 2 polos ocupan dos)",
   "Number circuits": "Numerar circuitos",
   Ckt: "Cto.",
-  Breaker: "Breaker",
+  Breaker: "Pastilla",
   Feeds: "Alimenta",
   "Typical size for these devices — set it on the circuit": "Capacidad típica para estos dispositivos — ponla en el circuito",
   "No circuits yet. Draw a circuit from a device to this panel, or set devices’ panel and circuit number.":

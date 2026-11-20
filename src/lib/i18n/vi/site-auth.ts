@@ -313,7 +313,7 @@ const siteAuth: Dictionary = {
   "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.":
     "Tải lên bộ PDF hoặc ảnh chụp bản vẽ. Mỗi trang thành một tầng mà bạn có thể chụm, phóng to và lật qua lại. Chạm một thiết bị trong danh sách ngành của bạn rồi chạm vào vị trí đặt nó.",
   "Letters on the plan, like the legend on the drawings": "Ký hiệu chữ trên bản vẽ, giống chú giải trên bản vẽ thiết kế",
-  "Wire runs drawn back to the panel, rack or closet": "Tuyến dây vẽ về tủ điện, tủ rack hoặc phòng kỹ thuật",
+  "Wire runs drawn back to the panel, rack or closet": "Tuyến dây vẽ về tủ điện, tủ rack hoặc tủ thiết bị",
   "Set the scale once from any known dimension": "Đặt tỷ lệ một lần từ bất kỳ kích thước đã biết nào",
   "Get the count for every floor": "Có khối lượng cho từng tầng",
   "Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule.":
@@ -322,7 +322,7 @@ const siteAuth: Dictionary = {
   "Export the count and marked-up sheets as PDF": "Xuất khối lượng và các tờ có ghi chú ra PDF",
   "Price it from your price list": "Tính giá từ bảng giá của bạn",
   "Your material and labor prices, markup and wire by the foot turn the count into a quote. Mark items optional and let the client decide.":
-    "Giá vật tư và nhân công, lợi nhuận cộng thêm và giá dây theo foot biến khối lượng thành báo giá. Đánh dấu hạng mục là tùy chọn để khách hàng tự quyết.",
+    "Giá vật tư và nhân công, phần cộng thêm và giá dây theo foot biến khối lượng thành báo giá. Đánh dấu hạng mục là tùy chọn để khách hàng tự quyết.",
   "Starting prices for your trade, all editable": "Giá khởi đầu cho ngành của bạn, sửa được hết",
   "Change the plan and the quote follows": "Đổi bản vẽ là báo giá đổi theo",
   "Your client approves on their phone": "Khách hàng duyệt ngay trên điện thoại",
@@ -443,7 +443,7 @@ const siteAuth: Dictionary = {
     "Chạm thiết bị, chạm bản vẽ. Số lượng thiết bị và dây được cộng dồn khi bạn ghim, chiều dài dây tính bằng feet và đã gồm phần dư. Công trình điện còn có mạch và bảng phân phối tủ điện.",
   "A quote your client signs on their phone": "Báo giá khách hàng ký trên điện thoại",
   "Your material and labor prices, markup and wire by the foot turn the count into a quote. Send the client a link: they tick the options they want, sign with a finger and approve. No account or app for them.":
-    "Giá vật tư và nhân công, lợi nhuận cộng thêm và giá dây theo foot biến khối lượng thành báo giá. Gửi cho khách hàng một liên kết: họ đánh dấu tùy chọn mình muốn, ký bằng ngón tay và duyệt. Họ không cần tài khoản hay ứng dụng.",
+    "Giá vật tư và nhân công, phần cộng thêm và giá dây theo foot biến khối lượng thành báo giá. Gửi cho khách hàng một liên kết: họ đánh dấu tùy chọn mình muốn, ký bằng ngón tay và duyệt. Họ không cần tài khoản hay ứng dụng.",
   "Change orders signed the same way as quotes": "Lệnh thay đổi được ký giống như báo giá",
 
   // Pictures of the app on /welcome (illustrations; names, sheet numbers and wire types stay as they are)
@@ -486,14 +486,14 @@ const siteAuth: Dictionary = {
   "1st fl": "T1",
   "2nd fl": "T2",
   Total: "Tổng",
-  "Panel schedule, {panel}": "Bảng phân phối tủ {panel}",
+  "Panel schedule, {panel}": "Bảng phân mạch tủ {panel}",
   "Kitchen counter receptacles": "Ổ cắm mặt bếp",
   "Kitchen and dining lights": "Đèn bếp và phòng ăn",
   "Laundry and garage": "Phòng giặt và gara",
   "From your price list": "Từ bảng giá của bạn",
   "{wire} wire": "Dây {wire}",
   "Optional: under-cabinet lights, {ft} ft": "Tùy chọn: đèn dưới tủ bếp, {ft} ft",
-  "Markup {pct}%, labor included": "Lợi nhuận cộng thêm {pct}%, đã gồm nhân công",
+  "Markup {pct}%, labor included": "Cộng thêm {pct}%, đã gồm nhân công",
   "Quote from your company": "Báo giá từ công ty của bạn",
   "Add under-cabinet lights": "Thêm đèn dưới tủ bếp",
   "Add EV outlet in garage": "Thêm ổ sạc xe điện ở gara",

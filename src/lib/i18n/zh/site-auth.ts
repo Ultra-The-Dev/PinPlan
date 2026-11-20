@@ -313,7 +313,7 @@ const dict: Dictionary = {
   "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.":
     "上传整套 PDF 图纸或图纸照片。每一页都会成为一个楼层，可以双指缩放、翻页查看。从你工种的列表中点选设备，再点它所在的位置。",
   "Letters on the plan, like the legend on the drawings": "图上用字母标注，和图纸图例一样",
-  "Wire runs drawn back to the panel, rack or closet": "线路一直画到配电箱、机柜或弱电间",
+  "Wire runs drawn back to the panel, rack or closet": "线路一直画到配电箱、机柜或设备间",
   "Set the scale once from any known dimension": "根据任一已知尺寸设置一次比例",
   "Get the count for every floor": "每个楼层的工程量",
   "Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule.":
@@ -325,14 +325,14 @@ const dict: Dictionary = {
     "用你的材料价、人工价、加价和每英尺线缆价，把工程量变成报价单。可将项目标为可选，由客户决定。",
   "Starting prices for your trade, all editable": "按工种预设的起始价格，均可修改",
   "Change the plan and the quote follows": "图纸一改，报价单跟着变",
-  "Your client approves on their phone": "客户在手机上确认",
+  "Your client approves on their phone": "客户在手机上批准",
   "Send the client a link. They read the quote, tick the options they want, sign with a finger and approve. No account or app for them.":
-    "给客户发一个链接。客户查看报价单，勾选想要的可选项，用手指签名并确认。客户无需账号或应用。",
-  "See when it’s opened and when it’s approved": "随时知道何时被打开、何时被确认",
-  "The approved options are added to the job": "已确认的可选项会加入工程",
+    "给客户发一个链接。客户查看报价单，勾选想要的可选项，用手指签名并批准。客户无需账号或应用。",
+  "See when it’s opened and when it’s approved": "随时知道何时被打开、何时被批准",
+  "The approved options are added to the job": "已批准的可选项会加入工程",
   "Bill the deposit, progress and final": "开具定金、进度款和尾款发票",
   "Invoices come straight from the approved quote, so nothing is typed twice. Record payments as they come in and see what’s left to collect on every job.":
-    "发票直接由已确认的报价单生成，无需重复录入。收到付款随时记录，每个工程还剩多少未收一目了然。",
+    "发票直接由已批准的报价单生成，无需重复录入。收到付款随时记录，每个工程还剩多少未收一目了然。",
   "Quote and invoice numbering, tax and terms set once": "报价单和发票编号、税率和条款只需设置一次",
   "See what’s paid and what’s left on every job": "每个工程已付多少、剩多少，一目了然",
   "Run the job in the field": "在现场管理工程",
@@ -437,19 +437,19 @@ const dict: Dictionary = {
     "你的价格把工程量变成报价单，客户在手机上签字。",
   "Bill and build": "开票和施工",
   "Invoice from the approved quote while the crew works from the same plans.":
-    "根据已确认的报价单开发票，班组同时按同一套图纸施工。",
+    "根据已批准的报价单开发票，班组同时按同一套图纸施工。",
   "Count from the plan, floor by floor": "按图纸逐层统计",
   "Tap a device, tap the plan. Device and wire counts add up as you pin, with wire lengths in feet and slack included. Electrical jobs also get circuits and a panel schedule.":
     "点选设备，再点图纸。边标注边累计设备和线缆数量，线缆长度以英尺计并含余量。电气工程还会生成回路和配电箱表。",
   "A quote your client signs on their phone": "客户在手机上签字的报价单",
   "Your material and labor prices, markup and wire by the foot turn the count into a quote. Send the client a link: they tick the options they want, sign with a finger and approve. No account or app for them.":
-    "用你的材料价、人工价、加价和每英尺线缆价，把工程量变成报价单。给客户发一个链接：客户勾选想要的可选项，用手指签名并确认。客户无需账号或应用。",
+    "用你的材料价、人工价、加价和每英尺线缆价，把工程量变成报价单。给客户发一个链接：客户勾选想要的可选项，用手指签名并批准。客户无需账号或应用。",
   "Change orders signed the same way as quotes": "变更单的签字方式与报价单相同",
 
   // Pictures of the app on /welcome (illustrations; names, sheet numbers and wire types stay as they are)
   "An electrical floor plan with {n} device pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {total} quote that the client signed and approved on their phone.":
     {
-      other: "一张电气平面图，上面标有 {n} 个设备，回路画到配电箱。旁边是该楼层的工程量，以及一份客户已在手机上签字确认的 {total} 报价单。",
+      other: "一张电气平面图，上面标有 {n} 个设备，回路画到配电箱。旁边是该楼层的工程量，以及一份客户已在手机上签字批准的 {total} 报价单。",
     },
   Receptacles: "插座",
   "GFCI receptacles": "GFCI 漏电保护插座",
@@ -470,7 +470,7 @@ const dict: Dictionary = {
     other: "另有 {n} 行",
   },
   "Signed by {name}": "签字人：{name}",
-  Approved: "已确认",
+  Approved: "已批准",
   Basement: "地下室",
   "First floor": "一楼",
   "Second floor": "二楼",
@@ -498,11 +498,11 @@ const dict: Dictionary = {
   "Add under-cabinet lights": "加装橱柜下灯带",
   "Add EV outlet in garage": "车库加装电动车充电插座",
   "Sign here": "在此签名",
-  "Approved by {name}": "确认人：{name}",
+  "Approved by {name}": "批准人：{name}",
   Money: "财务",
-  "Approved quote {total}": "已确认报价单 {total}",
+  "Approved quote {total}": "已批准报价单 {total}",
   "Deposit, 50%": "定金，50%",
-  "Progress, rough-in done": "进度款，粗装完成",
+  "Progress, rough-in done": "进度款，预埋完成",
   Final: "尾款",
   Paid: "已付款",
   Sent: "已发送",
@@ -511,8 +511,8 @@ const dict: Dictionary = {
   "Left to collect": "待收款",
   "Move box 6 in. left": "接线盒向左移 6 英寸",
   "Kitchen, island wall": "厨房，岛台旁墙面",
-  "Pinned to {sheet}, tagged rough-in": "固定在 {sheet}，标签：粗装",
-  "Rough-in checklist": "粗装检查清单",
+  "Pinned to {sheet}, tagged rough-in": "固定在 {sheet}，标签：预埋",
+  "Rough-in checklist": "预埋检查清单",
   "{done} of {total}": "{done}/{total}",
   "Boxes set at 16 in. to center": "接线盒中心高 16 英寸",
   "Home runs labelled at the panel": "回路已在配电箱处标记",

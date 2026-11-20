@@ -333,7 +333,7 @@ const dict: Dictionary = {
   // Markups (drawn on the plan)
   Pen: "Bút",
   Highlighter: "Bút dạ quang",
-  Line: "Đường thẳng",
+  Line: "Đường",
   Arrow: "Mũi tên",
   Cloud: "Đám mây",
   Rectangle: "Hình chữ nhật",
@@ -447,7 +447,7 @@ const dict: Dictionary = {
   Update: "Cập nhật",
   Add: "Thêm",
   "Price from {source}.": "Giá lấy từ {source}.",
-  "Line total {amount} before markup and tax.": "Thành tiền dòng {amount} trước lợi nhuận cộng thêm và thuế.",
+  "Line total {amount} before markup and tax.": "Thành tiền dòng {amount} trước phần cộng thêm và thuế.",
   "Whole job": "Cả công trình",
   "Totals for": "Tổng cho",
   Sheet: "Tờ",

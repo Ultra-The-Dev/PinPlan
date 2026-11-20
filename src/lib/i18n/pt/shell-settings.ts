@@ -264,10 +264,10 @@ const shellSettings: Dictionary = {
   // Team
   "Who’s on your company team.": "Quem faz parte da equipe da sua empresa.",
   "Give everyone in the company their own login. Technicians see every job, but not the prices.":
-    "Dê a cada pessoa da empresa seu próprio acesso. Os técnicos veem todas as obras, mas não os preços.",
+    "Dê a cada pessoa da empresa seu próprio login. Os técnicos veem todas as obras, mas não os preços.",
   "Teams need cloud sync, which isn’t set up on this server. Once Supabase is connected (see “Team accounts” in {file}), everyone signs in with their own account here.":
     "Equipes precisam de sincronização na nuvem, que não está configurada neste servidor. Depois que o Supabase for conectado (veja “Team accounts” em {file}), cada pessoa entra aqui com a própria conta.",
-  "Checking sign-in…": "Verificando acesso…",
+  "Checking sign-in…": "Verificando login…",
   "Sign in first to set up your company, or to join the company that invited you.":
     "Entre primeiro para configurar sua empresa ou para entrar na empresa que convidou você.",
   "Sign in below": "Entre abaixo",
@@ -422,7 +422,7 @@ const shellSettings: Dictionary = {
   "Sign in to sync plans across devices and share them with your crew.": "Entre para sincronizar plantas entre aparelhos e compartilhá-las com sua equipe.",
   Password: "Senha",
   "If there’s an account for this email, a sign-in link is on its way — check your email.":
-    "Se houver uma conta para este e-mail, um link de acesso está a caminho — confira seu e-mail.",
+    "Se houver uma conta para este e-mail, um link de login está a caminho — confira seu e-mail.",
   "Email me a link": "Enviar link por e-mail",
   "New company? {trial}": "Empresa nova? {trial}",
   "Start a free trial": "Comece um teste grátis",
@@ -434,7 +434,7 @@ const shellSettings: Dictionary = {
   "Remove and sync": "Remover e sincronizar",
   "Sign out instead": "Só sair",
   "Same company, new login? You can keep the jobs and add them to this account instead.":
-    "Mesma empresa, novo acesso? Você pode manter as obras e adicioná-las a esta conta.",
+    "Mesma empresa, novo login? Você pode manter as obras e adicioná-las a esta conta.",
   "Keep the jobs and add them to this account": "Manter as obras e adicioná-las a esta conta",
   "{n} change wasn’t accepted": {
     one: "{n} alteração não foi aceita",
@@ -448,7 +448,7 @@ const shellSettings: Dictionary = {
   "Brand & model": "Marca e modelo",
   Device: "Dispositivo",
   "Wire run": "Lance",
-  "Panel / closet": "Quadro / armário",
+  "Panel / closet": "Quadro / rack",
   "Pricing line": "Linha de preço",
   Photo: "Foto",
   "Photo comment": "Comentário de foto",
@@ -506,16 +506,16 @@ const shellSettings: Dictionary = {
   "Download all my data": "Baixar todos os meus dados",
   "Download every job on this device (plans, devices, photos and pricing) as one backup file. Restore it with “Restore backup” on the Jobs page.":
     "Baixe todas as obras deste aparelho (plantas, dispositivos, fotos e preços) num único arquivo de backup. Restaure com “Restaurar backup” na página Obras.",
-  "Permanently delete your {product} login and the jobs you own in the cloud.": "Excluir para sempre seu acesso ao {product} e as obras que são suas na nuvem.",
+  "Permanently delete your {product} login and the jobs you own in the cloud.": "Excluir para sempre seu login do {product} e as obras que são suas na nuvem.",
   "Delete account": "Excluir conta",
   "Delete your account?": "Excluir sua conta?",
   "your team": "sua equipe",
   "Settings › Team": "Configurações › Equipe",
   "You own {team} and {n} other person is on it. Remove them in {link} first (their own logins stay), then delete your account.": {
-    one: "Você é dono de {team} e há mais {n} pessoa nela. Remova-a primeiro em {link} (o acesso dela continua existindo) e depois exclua sua conta.",
+    one: "Você é dono de {team} e há mais {n} pessoa nela. Remova-a primeiro em {link} (o login dela continua existindo) e depois exclua sua conta.",
     other: "Você é dono de {team} e há mais {n} pessoas nela. Remova-as primeiro em {link} (os acessos delas continuam existindo) e depois exclua sua conta.",
   },
-  "Your login is deleted — it won’t sign in on any device again.": "Seu acesso é excluído — ele não vai mais entrar em nenhum aparelho.",
+  "Your login is deleted — it won’t sign in on any device again.": "Seu login é excluído — ele não vai mais entrar em nenhum aparelho.",
   "The jobs you created stay with {company}.": "As obras que você criou ficam com {company}.",
   "The jobs you created stay with your company.": "As obras que você criou ficam com sua empresa.",
   "The jobs you own, with their plans, photos, pricing, quotes and client links, are deleted from the cloud.":
@@ -668,7 +668,7 @@ const shellSettings: Dictionary = {
   Members: "Membros",
   "Trial / period end": "Fim do teste / período",
   Created: "Criada",
-  "Last sign-in": "Último acesso",
+  "Last sign-in": "Último login",
   "No company matches that search.": "Nenhuma empresa corresponde à busca.",
   "No companies yet.": "Ainda não há empresas.",
   "Recent errors": "Erros recentes",

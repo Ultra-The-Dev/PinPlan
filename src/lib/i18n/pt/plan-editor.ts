@@ -47,7 +47,7 @@ const planEditor: Dictionary = {
   "Tap both ends of a known dimension": "Toque nas duas pontas de uma cota conhecida",
   "Drew {n} home run": { one: "{n} retorno traçado", other: "{n} retornos traçados" },
   "No wired devices on this sheet": "Nenhum dispositivo com cabo nesta folha",
-  "Place an equipment closet first": "Posicione primeiro um rack/armário de equipamentos",
+  "Place an equipment closet first": "Posicione primeiro um rack",
   "Hide device menu": "Ocultar menu de dispositivos",
   "Show device menu": "Mostrar menu de dispositivos",
   Done: "Concluído",
@@ -310,7 +310,7 @@ const planEditor: Dictionary = {
   "Saving photo": "Salvando foto",
   "Photo added as a sheet": "Foto adicionada como folha",
   "Rotating {name}": "Girando {name}",
-  "Image not available on this device yet": "Imagem ainda não disponível neste dispositivo",
+  "Image not available on this device yet": "Imagem ainda não disponível neste aparelho",
   "Delete sheet “{name}” and its {n} device?": {
     one: "Excluir a folha “{name}” e seu {n} dispositivo?",
     other: "Excluir a folha “{name}” e seus {n} dispositivos?",

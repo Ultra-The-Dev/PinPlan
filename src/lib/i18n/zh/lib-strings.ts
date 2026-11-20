@@ -177,7 +177,7 @@ const dict: Dictionary = {
 
   // Job status (statusStyle.ts)
   Quoting: "报价中",
-  Approved: "已确认",
+  Approved: "已批准",
   Installed: "已安装",
 
   // Job health: the next step (jobSummary.ts)

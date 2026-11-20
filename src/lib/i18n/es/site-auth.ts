@@ -319,7 +319,7 @@ const dict: Dictionary = {
   "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.":
     "Sube el juego de planos en PDF o una foto de los planos. Cada página se convierte en un piso que puedes ampliar, acercar y hojear. Toca un dispositivo de la lista de tu oficio y toca dónde va.",
   "Letters on the plan, like the legend on the drawings": "Letras en el plano, como en la simbología de los planos",
-  "Wire runs drawn back to the panel, rack or closet": "Tendidos dibujados hasta el tablero, el rack o el cuarto técnico",
+  "Wire runs drawn back to the panel, rack or closet": "Tendidos dibujados hasta el tablero, el rack o el cuarto de equipos",
   "Set the scale once from any known dimension": "Fija la escala una sola vez con cualquier medida conocida",
   "Get the count for every floor": "Obtén el conteo de cada piso",
   "Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule.":

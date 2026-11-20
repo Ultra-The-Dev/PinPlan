@@ -239,7 +239,7 @@ const jobViews: Dictionary = {
   "Order list": "Danh sách đặt hàng",
   "What to buy, by supplier. Cable is rounded up to full boxes; HDMI to stock lengths.":
     "Cần mua gì, theo nhà cung cấp. Cáp được làm tròn lên thành thùng nguyên; HDMI theo độ dài có sẵn.",
-  "Costs are your prices, before markup.": "Chi phí theo giá của bạn, chưa cộng lợi nhuận.",
+  "Costs are your prices, before markup.": "Chi phí theo giá của bạn, chưa tính phần cộng thêm.",
   "Include “?” items": "Kèm hạng mục “?”",
   "Order list CSV": "CSV danh sách đặt hàng",
   "Place devices and draw home runs to build the order list.": "Đặt thiết bị và vẽ tuyến về tủ để lập danh sách đặt hàng.",
@@ -286,7 +286,7 @@ const jobViews: Dictionary = {
     "Chưa có mạch. Vẽ mạch từ thiết bị đến tủ này, hoặc đặt tủ và số mạch cho thiết bị.",
 
   // Port schedule and cable labels
-  "Closet port schedule": "Bảng cổng tủ mạng",
+  "Closet port schedule": "Bảng cổng tủ thiết bị",
   "Every cable and the port it lands on. Cat6 goes to {n}-port patch panels (PP1-01…); other cables are numbered by type. Print labels once the plan is final — numbers follow floor and label order.":
     "Mỗi sợi cáp và cổng mà nó đấu vào. Cat6 đi vào patch panel {n} cổng (PP1-01…); các loại cáp khác được đánh số theo loại. In nhãn khi bản vẽ đã chốt — số đi theo thứ tự tầng và ký hiệu.",
   "Port schedule CSV": "CSV bảng cổng",
@@ -362,7 +362,7 @@ const jobViews: Dictionary = {
   "Custom estimate lines": "Dòng dự toán tùy chỉnh",
   "{n} extra charge, plus price and wording edits": { other: "{n} khoản phụ thu, cùng các chỉnh sửa giá và câu chữ" },
   Prices: "Giá",
-  "Markup, wire prices and line prices. Technicians never see them.": "Lợi nhuận cộng thêm, giá dây và giá từng dòng. Kỹ thuật viên không bao giờ thấy.",
+  "Markup, wire prices and line prices. Technicians never see them.": "Cộng thêm, giá dây và giá từng dòng. Kỹ thuật viên không bao giờ thấy.",
   "Job notes": "Ghi chú công trình",
   "Off by default: notes are often about one site": "Mặc định tắt: ghi chú thường chỉ dành cho một công trình",
   "Save template": "Lưu mẫu",

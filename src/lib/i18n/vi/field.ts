@@ -899,7 +899,7 @@ const field: Dictionary = {
   "Link to device…": "Liên kết với thiết bị…",
   Report: "Báo cáo",
   "Document the job: pre-wire before drywall, rack and closet, every device installed. Tag them, mark them up, link them to devices on the plan and send a photo report.":
-    "Ghi lại công trình bằng ảnh: đi dây trước khi đóng thạch cao, tủ rack và phòng kỹ thuật, mọi thiết bị đã lắp. Gắn thẻ, vẽ ghi chú, liên kết với thiết bị trên bản vẽ và gửi báo cáo ảnh.",
+    "Ghi lại công trình bằng ảnh: đi dây trước khi đóng thạch cao, tủ rack và tủ thiết bị, mọi thiết bị đã lắp. Gắn thẻ, vẽ ghi chú, liên kết với thiết bị trên bản vẽ và gửi báo cáo ảnh.",
   "Select day": "Chọn ngày",
   "Tip: open a photo and pick its device to see it from that device on the plan.": "Mẹo: mở một ảnh và chọn thiết bị của nó để xem ảnh từ thiết bị đó trên bản vẽ.",
   "{label} ({n} photo)": { other: "{label} ({n} ảnh)" },

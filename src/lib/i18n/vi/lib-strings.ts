@@ -283,7 +283,7 @@ const libStrings: Dictionary = {
   hub: "điểm tập trung",
   Cable: "Cáp",
   Wire: "Dây",
-  Line: "Đường thẳng",
+  Line: "Đường",
   Pipe: "Ống",
 
   // Install progress (installProgress.ts)

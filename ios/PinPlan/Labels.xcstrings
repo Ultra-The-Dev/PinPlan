@@ -2848,7 +2848,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Obra negra"
+            "value" : "Instalación preliminar"
           }
         },
         "pl" : {
@@ -2884,7 +2884,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "粗装"
+            "value" : "预埋"
           }
         }
       },
@@ -2901,7 +2901,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "En obra negra"
+            "value" : "Instalación preliminar hecha"
           }
         },
         "pl" : {
@@ -2937,7 +2937,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已粗装"
+            "value" : "已预埋"
           }
         }
       },
@@ -5245,7 +5245,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calendario"
+            "value" : "Cronograma"
           }
         },
         "pl" : {
@@ -5275,7 +5275,7 @@
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lịch"
+            "value" : "Lịch thi công"
           }
         },
         "zh-Hans" : {
@@ -6616,7 +6616,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kabel"
+            "value" : "Przewód"
           }
         },
         "pt-BR" : {
