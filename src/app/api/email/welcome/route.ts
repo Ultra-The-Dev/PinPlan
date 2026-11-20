@@ -3,7 +3,8 @@
 // app_metadata (which only the server can write) remembers that it went out.
 import { welcomeEmail } from "@/lib/emailTemplates";
 import { requireUser } from "@/lib/server/auth";
-import { appOrigin, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { logNotification } from "@/lib/server/sendGuard";
 import { getAuthUser, mergeAppMetadata, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
 
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
@@ -13,6 +14,8 @@ const perUser = rateLimiter(60 * 60 * 1000, 5);
 export async function POST(req: Request) {
   if (!emailConfigured()) return emailUnavailable();
   if (!serviceConfigured()) return json({ error: "Welcome emails need SUPABASE_SERVICE_ROLE_KEY on the server.", code: "unavailable" }, 501);
+  const appUrl = appOrigin(req);
+  if (!appUrl) return appOriginMissing();
   const auth = await requireUser(req);
   if (!auth.ok) return auth.response;
   if (!auth.userId) return json({ error: "Sign in first.", code: "sign_in_required" }, 401);
@@ -47,11 +50,12 @@ export async function POST(req: Request) {
   const metaName = typeof user.user_metadata.name === "string" ? user.user_metadata.name : "";
   const name = (typeof body.name === "string" ? body.name.trim().slice(0, 80) : "") || metaName.trim();
 
-  const content = welcomeEmail({ name, companyName: company, appUrl: appOrigin(req) });
+  const content = welcomeEmail({ name, companyName: company, appUrl });
   // The idempotency key covers two calls racing before the flag is saved (Resend remembers it for 24 hours).
   const sent = await sendEmail({ to: user.email, ...content, idempotencyKey: `welcome/${auth.userId}`, tags: { type: "welcome" } });
   // "Duplicate": this key already sent a welcome (e.g. with a different company name), so it went out.
   if (!sent.ok && sent.code !== "email_duplicate") return sendFailure(sent);
+  if (sent.ok) await logNotification(auth.userId, user.email, sent.id, "welcome");
   try {
     await mergeAppMetadata(auth.userId, user.app_metadata, { [SENT_KEY]: new Date().toISOString() });
   } catch {

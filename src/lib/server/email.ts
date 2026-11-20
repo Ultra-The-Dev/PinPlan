@@ -2,8 +2,11 @@
 // Switched on by two environment variables on the server:
 //   RESEND_API_KEY  the Resend API key ("re_…")
 //   EMAIL_FROM      the sender on a domain verified in Resend, e.g. "PinPlan <noreply@yourdomain.com>"
-// Optional: EMAIL_REPLY_TO (where replies go), PINPLAN_APP_URL (the address used in links, e.g. https://app.example.com).
+// Also needed in production: PINPLAN_APP_URL (the address used in links, e.g. https://app.example.com). Links are never
+// built from the request's Host header, so a forged Host can't put someone else's site into an email.
+// Optional: EMAIL_REPLY_TO (where replies to PinPlan's own mail go; never used for mail to a company's clients).
 // Without the first two, emailConfigured() is false and routes answer 501 with a friendly message.
+// Sends on a company's behalf also go through sendGuard.ts (daily caps, confirmed email, active subscription).
 // Never log the key, the message body or the recipient.
 
 const RESEND_URL = "https://api.resend.com/emails";
@@ -24,11 +27,33 @@ export function validEmail(s: string): boolean {
   return s.length <= 254 && EMAIL_RE.test(s);
 }
 
-/** The site address for links in emails: PINPLAN_APP_URL when set (recommended), else the request's own origin. */
-export function appOrigin(request: Request): string {
+const isProduction = () => process.env.NODE_ENV === "production";
+
+/**
+ * The site address for links in emails: PINPLAN_APP_URL. In production it must be set (https), and null means "don't
+ * send": answer with appOriginMissing(). Outside production (local dev, tests) it falls back to the request's own URL.
+ */
+export function appOrigin(request: Request): string | null {
   const configured = process.env.PINPLAN_APP_URL?.trim();
-  if (configured && /^https?:\/\//i.test(configured)) return configured.replace(/\/+$/, "");
+  if (configured) {
+    try {
+      const u = new URL(configured);
+      if (u.protocol === "https:" || (u.protocol === "http:" && !isProduction())) return `${u.origin}${u.pathname.replace(/\/+$/, "")}`;
+    } catch {
+      /* not a URL: treated as unset */
+    }
+  }
+  if (isProduction()) return null;
   return new URL(request.url).origin;
+}
+
+/** 501 when PINPLAN_APP_URL isn't set in production. */
+export function appOriginMissing(): Response {
+  console.warn("[email] PINPLAN_APP_URL is not set (or not https): links in emails can't be built");
+  return Response.json(
+    { error: "Email links aren't set up on this PinPlan server yet. The site address (PINPLAN_APP_URL) is missing.", code: "app_url_unconfigured" },
+    { status: 501 },
+  );
 }
 
 export interface EmailMessage {
@@ -37,6 +62,8 @@ export interface EmailMessage {
   html: string;
   text: string;
   replyTo?: string;
+  /** false: never fall back to EMAIL_REPLY_TO (mail to a company's client must reply to the company, not PinPlan). */
+  platformReplyTo?: boolean;
   /** Resend keeps a key for 24 hours: the same key + same message is sent only once. */
   idempotencyKey?: string;
   /** Short labels for Resend's dashboard (letters, digits, _ and - only). */
@@ -75,7 +102,7 @@ export async function sendEmail(msg: EmailMessage, opts: { timeoutMs?: number } 
   const to = (Array.isArray(msg.to) ? msg.to : [msg.to]).map((t) => t.trim()).filter(Boolean);
   if (!to.length || to.length > 50 || !to.every(validEmail)) return fail(400, "bad_recipient", "Enter a valid email address.");
 
-  const replyTo = msg.replyTo?.trim() || process.env.EMAIL_REPLY_TO?.trim() || undefined;
+  const replyTo = msg.replyTo?.trim() || (msg.platformReplyTo === false ? undefined : process.env.EMAIL_REPLY_TO?.trim()) || undefined;
   const body: Record<string, unknown> = { from: oneLine(from), to, subject: oneLine(msg.subject).slice(0, 250), html: msg.html, text: msg.text };
   if (replyTo) body.reply_to = oneLine(replyTo);
   if (msg.tags) body.tags = Object.entries(msg.tags).map(([name, value]) => ({ name: clean(name), value: clean(value) }));

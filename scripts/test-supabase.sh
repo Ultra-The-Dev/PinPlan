@@ -9,7 +9,7 @@ psql -q -d postgres -c "drop database if exists $DB" -c "create database $DB"
 psql -q -d "$DB" -v ON_ERROR_STOP=1 -f supabase/tests/supabase_stubs.sql
 for f in supabase/migrations/*.sql; do psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "$f"; done
 status=0
-for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test security_test; do
+for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test security_test rate_limits_test billing_policy_test company_settings_test email_guard_test; do
   ok=1
   out=$(psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "supabase/tests/$t.sql" 2>&1) || ok=0
   printf '%s\n' "$out" | grep -E "^(NOTICE|psql|ERROR)|PASSED" | sed 's/^psql:[^ ]* //' || true
@@ -17,9 +17,5 @@ for t in rls_test teams_test billing_test documents_test daily_reports_test sche
     echo "FAILED: supabase/tests/$t.sql" >&2
     status=1
   fi
-for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test rate_limits_test; do
-for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test billing_policy_test; do
-for t in rls_test teams_test billing_test documents_test daily_reports_test schedule_test forms_test company_settings_test; do
-  psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "supabase/tests/$t.sql" 2>&1 | grep -E "^(NOTICE|psql|ERROR)|PASSED" | sed 's/^psql:[^ ]* //'
 done
 exit $status

@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { proposalResponseEmail } from "@/lib/emailTemplates";
 import type { ProposalSnapshot } from "@/lib/proposal";
+import { logNotification } from "@/lib/server/sendGuard";
 import { appOrigin, clientIp, emailConfigured, rateLimiter, sendEmail, validEmail } from "@/lib/server/email";
 import { getAuthUser, serviceConfigured, serviceFetch } from "@/lib/server/supabaseAdmin";
 
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
   // Quietly do nothing until email and the service key are both set up.
   if (!emailConfigured() || !serviceConfigured()) return nothing();
   if (perIp.limited(clientIp(req)) || perToken.limited(token)) return Response.json({ ok: false }, { status: 429 });
+  // Links in the email need the site address (PINPLAN_APP_URL in production): without it, don't claim or send.
+  const origin = appOrigin(req);
+  if (!origin) {
+    console.warn("[notify] PINPLAN_APP_URL is not set: answer email skipped");
+    return nothing();
+  }
 
   // Claim the notification atomically: only an answered proposal that hasn't been notified yet is stamped, so two calls
   // at once (or a reload) can't both send.
@@ -98,7 +105,7 @@ export async function POST(req: Request) {
     currency: s.currency,
     note: row.client_note,
     respondedAt: row.responded_at,
-    jobUrl: `${appOrigin(req)}/project?id=${encodeURIComponent(row.project_id)}&tab=${review ? "takeoff" : "estimate"}`,
+    jobUrl: `${origin}/project?id=${encodeURIComponent(row.project_id)}&tab=${review ? "takeoff" : "estimate"}`,
   });
   // Replying goes straight to the client, when the proposal has their email.
   const clientEmail = s.client?.email?.trim() ?? "";
@@ -114,5 +121,6 @@ export async function POST(req: Request) {
     await release();
     return Response.json({ ok: false }, { status: 502 });
   }
+  await logNotification(row.owner_id, to, sent.id);
   return Response.json({ ok: true });
 }

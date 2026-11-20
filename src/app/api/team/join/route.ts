@@ -221,8 +221,9 @@ export async function POST(req: Request) {
 
   // Ask Supabase to send its confirmation email, which brings them back to this invite.
   try {
-    const redirect = encodeURIComponent(joinUrl(appOrigin(req), code));
-    const r = await fetch(`${url}/auth/v1/resend?redirect_to=${redirect}`, {
+    const origin = appOrigin(req);
+    const redirect = origin ? `?redirect_to=${encodeURIComponent(joinUrl(origin, code))}` : "";
+    const r = await fetch(`${url}/auth/v1/resend${redirect}`, {
       method: "POST",
       headers: { apikey: anonKey()!, Authorization: `Bearer ${anonKey()}`, "Content-Type": "application/json" },
       body: JSON.stringify({ type: "signup", email }),

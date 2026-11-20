@@ -2,10 +2,14 @@
 // Emails a client their quote / invoice / credit note (a link to view it online, download the PDF, accept or pay), a
 // payment reminder or a receipt. Office only. The document and its link are read with the caller's own token, so
 // row-level security decides whether they may (technicians and other companies can't see them).
+// Abuse limits (sendGuard.ts): the sender's email must be confirmed, the company's subscription active and under its
+// daily cap; a free trial can't put links in the message. Replies go to the company's own business email, which is
+// required: client mail never replies to PinPlan.
 import { documentUrl, payUrl, PAYMENT_METHODS, type DocSnapshot } from "@/lib/documents";
-import { documentEmail } from "@/lib/emailTemplates";
+import { documentEmail, httpsUrl, stripLinks } from "@/lib/emailTemplates";
 import { requireOffice } from "@/lib/server/auth";
-import { appOrigin, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { finishSend, reserveSend } from "@/lib/server/sendGuard";
 import { anonKey, bearer, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
 
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
@@ -29,6 +33,8 @@ interface DocRow {
 
 export async function POST(req: Request) {
   if (!emailConfigured()) return emailUnavailable("Copy the client link and send it yourself instead.");
+  const origin = appOrigin(req);
+  if (!origin) return appOriginMissing();
   if (!supabaseUrl() || !anonKey()) return json({ error: "Client links need cloud sync, which isn't set up on this server.", code: "unavailable" }, 501);
   const auth = await requireOffice(req);
   if (!auth.ok) return auth.response;
@@ -72,9 +78,17 @@ export async function POST(req: Request) {
       if (p.ok) last = ((await p.json()) as { amount: number; paid_on: string; method: string }[])[0];
     }
   } catch {
+    console.warn("[documents/email] database unreachable");
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
   if (kind !== "document" && doc.kind !== "invoice") return json({ error: "Reminders and receipts are for invoices.", code: "bad_request" }, 400);
+  // Replies go to the company. Without its own email the client would reply to nobody (or to PinPlan): refuse.
+  const replyTo = snap.business?.email?.trim() ?? "";
+  if (!validEmail(replyTo))
+    return json({ error: "Add your business email in Settings → Business, then choose Update link on the document and send it again.", code: "business_email_required" }, 400);
+
+  const guard = await reserveSend(auth.userId, kind, to);
+  if (!guard.ok) return guard.response;
 
   const today = new Date().toISOString().slice(0, 10);
   const content = documentEmail({
@@ -91,14 +105,15 @@ export async function POST(req: Request) {
     dueDate: doc.due_date,
     validUntil: doc.valid_until,
     overdue: doc.kind === "invoice" && !!doc.due_date && doc.due_date < today && doc.balance_due > 0,
-    url: documentUrl(appOrigin(req), link),
-    payUrl: doc.kind === "invoice" ? payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency }) : null,
-    message,
+    url: documentUrl(origin, link),
+    // Only an https pay link, and the email names its site.
+    payUrl: doc.kind === "invoice" ? httpsUrl(payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency })) : null,
+    // A free trial can't send links in its own words (the client link and pay button are ours and checked).
+    message: guard.trial ? stripLinks(message) : message,
     lastPayment: last ? { amount: last.amount, date: last.paid_on, method: PAYMENT_METHODS.find((m) => m.id === last.method)?.label ?? last.method } : null,
   });
-  // Replies go to the company.
-  const replyTo = snap.business?.email?.trim() ?? "";
-  const sent = await sendEmail({ to, ...content, replyTo: validEmail(replyTo) ? replyTo : undefined, tags: { type: `document_${kind}` } });
+  const sent = await sendEmail({ to, ...content, replyTo, platformReplyTo: false, tags: { type: `document_${kind}` } });
+  await finishSend(guard, sent);
   if (!sent.ok) return sendFailure(sent);
   return json({ ok: true });
 }

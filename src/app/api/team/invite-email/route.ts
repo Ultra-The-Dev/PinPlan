@@ -1,10 +1,12 @@
 // POST /api/team/invite-email { code, email, name? }: emails a team invite.
 // Owner or admin only. The invite is read with the caller's own token, so row-level security decides whether they may
 // see it (only the owner and admins of its team can). Works for the web app and the iPad (Authorization: Bearer …).
+// Abuse limits (sendGuard.ts): confirmed sender email, active subscription and a daily invite cap per company.
 import { inviteState, joinUrl, memberLabel, normalizeCode } from "@/lib/teamLogic";
 import { teamInviteEmail } from "@/lib/emailTemplates";
 import { requireUser } from "@/lib/server/auth";
-import { appOrigin, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
+import { finishSend, reserveSend } from "@/lib/server/sendGuard";
 import { anonKey, bearer, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
 
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
@@ -15,6 +17,8 @@ const perUser = rateLimiter(60 * 60 * 1000, 20);
 export async function POST(req: Request) {
   if (!emailConfigured()) return emailUnavailable("Share the invite with Copy link or Text it instead.");
   if (!supabaseUrl() || !anonKey()) return json({ error: "Teams need cloud sync, which isn't set up on this server.", code: "unavailable" }, 501);
+  const origin = appOrigin(req);
+  if (!origin) return appOriginMissing();
 
   const auth = await requireUser(req);
   if (!auth.ok) return auth.response;
@@ -63,20 +67,25 @@ export async function POST(req: Request) {
     inviter = memberLabel(mine);
     inviterEmail = mine.email ?? "";
   } catch {
+    console.warn("[invite-email] database unreachable");
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
+
+  const guard = await reserveSend(auth.userId, "invite", email);
+  if (!guard.ok) return guard.response;
 
   const content = teamInviteEmail({
     inviterName: inviter,
     teamName,
     role: invite.role,
     code: invite.code,
-    joinUrl: joinUrl(appOrigin(req), invite.code),
+    joinUrl: joinUrl(origin, invite.code),
     inviteeName: name || invite.name,
     expiresAt: invite.expires_at,
   });
   // Replies go to whoever sent the invite.
   const sent = await sendEmail({ to: email, ...content, replyTo: validEmail(inviterEmail) ? inviterEmail : undefined, tags: { type: "team_invite" } });
+  await finishSend(guard, sent);
   if (!sent.ok) return sendFailure(sent);
   return json({ ok: true });
 }
