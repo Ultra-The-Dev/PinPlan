@@ -239,8 +239,12 @@ struct PhotosView: View {
                                 Text(t).font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                                     .background(on ? Color.accentColor : Color(.secondarySystemFill), in: Capsule())
                                     .foregroundStyle(on ? Color.white : Color.primary)
+                                    // The chip stays small; the touch area is a full 44 pt tall.
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityAddTraits(on ? .isSelected : [])
                         }
                     }
                 }
@@ -274,23 +278,48 @@ struct PhotosView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(p.caption ?? String(localized: "Photo"))
+        // Long-press (or right-click): the same actions as Select, for one photo.
+        .contextMenu {
+            if !selecting {
+                Button { viewer = PhotoViewerItem(ids: shown.map(\.id), start: p.id) } label: { Label("Open", systemImage: "photo") }
+                Button { selecting = true; selected = [p.id] } label: { Label("Select", systemImage: "checkmark.circle") }
+                Button { report = [p] } label: { Label("Report", systemImage: "doc.richtext") }
+                Divider()
+                Button(role: .destructive) { model.removeRows([p.id], in: \.photos); Haptics.remove() } label: { Label("Delete", systemImage: "trash") }
+            }
+        }
     }
 
+    /// Words and icons when they fit; on a phone (or in a long language) icons only, each a full 44 pt target.
     private var selectionBar: some View {
-        HStack {
-            Text("\(selected.count) selected").font(.subheadline.weight(.semibold))
-            Spacer()
-            Button { tagging = true } label: { Label("Tag", systemImage: "tag") }.disabled(selected.isEmpty)
-            editMenu.disabled(selected.isEmpty)
-            Button { report = all.filter { selected.contains($0.id) } } label: { Label("Report", systemImage: "doc.richtext") }.disabled(selected.isEmpty)
-            Button(role: .destructive) {
-                model.removeRows(selected, in: \.photos)
-                selected = []
-            } label: { Label("Delete", systemImage: "trash") }.disabled(selected.isEmpty)
+        ViewThatFits(in: .horizontal) {
+            selectionBarRow.labelStyle(.titleAndIcon)
+            selectionBarRow.labelStyle(.iconOnly)
         }
-        .labelStyle(.titleAndIcon)
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 6)
         .background(.bar)
+    }
+
+    private var selectionBarRow: some View {
+        HStack(spacing: 4) {
+            Text("\(selected.count) selected").font(.subheadline.weight(.semibold)).lineLimit(1).fixedSize()
+            Spacer(minLength: 8)
+            Group {
+                Button { tagging = true } label: { Label("Tag", systemImage: "tag") }.disabled(selected.isEmpty)
+                editMenu.disabled(selected.isEmpty)
+                Button { report = all.filter { selected.contains($0.id) } } label: { Label("Report", systemImage: "doc.richtext") }.disabled(selected.isEmpty)
+                Button(role: .destructive) {
+                    model.removeRows(selected, in: \.photos)
+                    selected = []
+                    Haptics.remove()
+                } label: { Label("Delete", systemImage: "trash") }.disabled(selected.isEmpty)
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
     }
 }
 

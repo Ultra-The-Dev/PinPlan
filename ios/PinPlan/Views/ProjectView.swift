@@ -66,10 +66,18 @@ struct ProjectView: View {
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .principal) {
-                                Picker("Section", selection: $tab) {
-                                    ForEach(tabs) { t in Text(t.title).tag(t) }   // words, not icon-only segments
+                                // Words, not icon-only segments — unless a narrow window (iPad mini portrait, Split
+                                // View, Stage Manager) or a long language leaves no room for them.
+                                ViewThatFits(in: .horizontal) {
+                                    Picker("Section", selection: $tab) {
+                                        ForEach(tabs) { t in Text(t.title).tag(t) }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    Picker("Section", selection: $tab) {
+                                        ForEach(tabs) { t in Image(systemName: t.icon).accessibilityLabel(t.title).tag(t) }
+                                    }
+                                    .pickerStyle(.segmented)
                                 }
-                                .pickerStyle(.segmented)
                                 .frame(maxWidth: 560)
                             }
                         }

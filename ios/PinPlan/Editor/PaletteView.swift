@@ -92,15 +92,18 @@ struct PaletteView: View {
             HStack(spacing: 10) {
                 icon()
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    // Two lines: device names run long in some languages and the iPad palette is narrow.
+                    Text(title).font(.subheadline.weight(.medium)).lineLimit(2)
                     if let subtitle { Text(subtitle).font(.caption2).foregroundStyle(.secondary) }
                 }
                 Spacer()
                 if count > 0 { Text("\(count)").font(.caption.bold()).monospacedDigit().padding(.horizontal, 6).padding(.vertical, 2).background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 5, style: .continuous)) }
             }
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? .isSelected : [])
         .listRowBackground(active ? Color.brand.opacity(0.12) : nil)
     }
 }

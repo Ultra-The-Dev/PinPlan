@@ -43,6 +43,13 @@ struct PlanGestureHandlers {
     var firstLayout: () -> Void = {}
     /// Panning / zooming came to rest.
     var settled: (PlanViewport) -> Void = { _ in }
+    /// Apple Pencil hovering over the plan (iPads with Pencil hover), or a trackpad / mouse pointer: the point under
+    /// it, nil when it leaves.
+    var hover: (CGPoint?) -> Void = { _ in }
+    /// Apple Pencil double-tap or squeeze (unless the user turned that off in Settings › Apple Pencil).
+    var pencilAction: () -> Void = {}
+    /// The editor's history for the system undo gestures (shake, three-finger swipe); nil outside Edit mode.
+    var undoManager: UndoManager?
 }
 
 /// UIScrollView hosting one sheet. Content coordinates are sheet pixels; `zoomScale` is points per sheet pixel.
@@ -56,6 +63,17 @@ final class PlanScrollView: UIScrollView {
     private(set) var didFirstLayout = false
     var onFirstLayout: (() -> Void)?
     var onResize: (() -> Void)?
+    /// The editor's history, so shake to undo and the three-finger undo gestures work on the plan (EditorUndoManager).
+    weak var editorUndo: UndoManager?
+
+    override var undoManager: UndoManager? { editorUndo ?? super.undoManager }
+    override var canBecomeFirstResponder: Bool { editorUndo != nil }
+
+    /// Takes first responder (when the editor's history is attached) so the system undo gestures reach it. Called on
+    /// a touch on the plan, never on its own: that would close the keyboard of a field someone is typing in.
+    func claimUndo() {
+        if editorUndo != nil && !isFirstResponder { becomeFirstResponder() }
+    }
 
     init(source: PlanTileSource) {
         self.source = source
@@ -195,6 +213,7 @@ struct PlanZoomView: UIViewRepresentable {
         c.controller = controller
         c.sheetId = sheetId
         c.install(on: sv)
+        sv.editorUndo = handlers.undoManager
         controller.attach(sv)
         sv.isAccessibilityElement = true
         sv.accessibilityLabel = accessibilityName
@@ -206,6 +225,8 @@ struct PlanZoomView: UIViewRepresentable {
 
     func updateUIView(_ sv: PlanScrollView, context: Context) {
         context.coordinator.handlers = handlers
+        sv.editorUndo = handlers.undoManager
+        if handlers.undoManager == nil && sv.isFirstResponder { sv.resignFirstResponder() }
         context.coordinator.controller = controller
         context.coordinator.apply(config)
         if controller.scrollView !== sv { controller.attach(sv) }
@@ -221,7 +242,7 @@ struct PlanZoomView: UIViewRepresentable {
 /// Scroll view delegate and the plan's gestures (tap, double-tap, two-finger tap, long-press lift, precision aim,
 /// edge swipe, Pencil detection).
 @MainActor
-final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecognizerDelegate {
+final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecognizerDelegate, UIPencilInteractionDelegate {
     var handlers = PlanGestureHandlers()
     weak var controller: PlanViewportController?
     weak var scrollView: PlanScrollView?
@@ -234,6 +255,7 @@ final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogn
     private let lift = UILongPressGestureRecognizer()
     private let aimPress = UILongPressGestureRecognizer()
     private let edgePan = UIPanGestureRecognizer()
+    private let hover = UIHoverGestureRecognizer()
     private var config = PlanZoomConfig()
     private var configured = false
     private var lastTouchWasPencil = false
@@ -278,6 +300,16 @@ final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogn
 
         let all: [UIGestureRecognizer] = [tap, doubleTap, twoFingerTap, lift, aimPress, edgePan]
         for g in all { sv.addGestureRecognizer(g) }
+
+        // Pencil hover (and a trackpad or mouse pointer) shows where a device would land. No delegate: it never
+        // competes with the touch gestures.
+        hover.addTarget(self, action: #selector(onHover(_:)))
+        sv.addGestureRecognizer(hover)
+
+        // Apple Pencil double-tap / squeeze switches between select and the last tool.
+        let pencil = UIPencilInteraction()
+        pencil.delegate = self
+        sv.addInteraction(pencil)
     }
 
     func apply(_ c: PlanZoomConfig) {
@@ -354,7 +386,38 @@ final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogn
 
     @objc private func onTap(_ g: UITapGestureRecognizer) {
         guard let sv = scrollView, g.state == .ended else { return }
+        sv.claimUndo()
         handlers.tap(sv.viewPoint(g.location(in: sv)), lastTouchWasPencil)
+    }
+
+    @objc private func onHover(_ g: UIHoverGestureRecognizer) {
+        guard let sv = scrollView else { return }
+        switch g.state {
+        case .began, .changed: handlers.hover(sv.viewPoint(g.location(in: sv)))
+        default: handlers.hover(nil)
+        }
+    }
+
+    // MARK: Apple Pencil double-tap / squeeze
+
+    /// iOS 17.0–17.4. From 17.5 UIKit calls the newer methods below instead.
+    func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+        if UIPencilInteraction.preferredTapAction != .ignore { handlers.pencilAction() }
+    }
+
+    @available(iOS 17.5, *)
+    func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
+        if UIPencilInteraction.preferredTapAction != .ignore { handlers.pencilAction() }
+    }
+
+    @available(iOS 17.5, *)
+    func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze) {
+        // Once, when the squeeze ends, and only when squeeze is set to switch tools (not a palette or a shortcut).
+        guard squeeze.phase == .ended else { return }
+        switch UIPencilInteraction.preferredSqueezeAction {
+        case .switchPrevious, .switchEraser: handlers.pencilAction()
+        default: break
+        }
     }
 
     @objc private func onDoubleTap(_ g: UITapGestureRecognizer) {
@@ -380,6 +443,7 @@ final class PlanZoomCoordinator: NSObject, UIScrollViewDelegate, UIGestureRecogn
         let p = sv.viewPoint(g.location(in: sv))
         switch g.state {
         case .began:
+            sv.claimUndo()
             liftStart = p
             liftMovedFar = false
             // While an item is held, the plan stays put.

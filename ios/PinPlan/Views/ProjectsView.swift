@@ -34,6 +34,13 @@ struct ProjectsView: View {
     /// they're given.
     private var office: Bool { app.cloud.can(.deleteJob) }
 
+    private var statusPicker: some View {
+        Picker("Status", selection: $status) {
+            Text("All").tag(ProjectStatus?.none)
+            ForEach(ProjectStatus.allCases, id: \.self) { s in Text(s.title).tag(Optional(s)) }
+        }
+    }
+
     private func openDemo() {
         Task { path.append(await app.createDemo().project.id) }
     }
@@ -56,12 +63,11 @@ struct ProjectsView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 16) {
                         if app.cloud.onTeam { TeamBadge { showTeam = true } }
-                        Picker("Status", selection: $status) {
-                            Text("All").tag(ProjectStatus?.none)
-                            ForEach(ProjectStatus.allCases, id: \.self) { s in Text(s.title).tag(Optional(s)) }
+                        // Segments when the words fit; a menu on a narrow phone or in a long language.
+                        ViewThatFits(in: .horizontal) {
+                            statusPicker.pickerStyle(.segmented).frame(maxWidth: 480)
+                            statusPicker.pickerStyle(.menu).frame(minHeight: 44)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 480)
                         let labels = Array(Set(app.projects.flatMap { $0.project.labels ?? [] })).sorted()
                         if !labels.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -72,8 +78,12 @@ struct ProjectsView: View {
                                             Label(l, systemImage: "tag").font(.subheadline.weight(.medium)).padding(.horizontal, 10).padding(.vertical, 5)
                                                 .background(on ? Color.ink : Color(.secondarySystemFill), in: Capsule())
                                                 .foregroundStyle(on ? Color.white : Color.primary)
+                                                // A small chip with a full 44 pt touch area.
+                                                .frame(minHeight: 44)
+                                                .contentShape(Rectangle())
                                         }
                                         .buttonStyle(.plain)
+                                        .accessibilityAddTraits(on ? .isSelected : [])
                                     }
                                 }
                             }
@@ -82,6 +92,7 @@ struct ProjectsView: View {
                             ForEach(filtered, id: \.project.id) { b in
                                 NavigationLink(value: b.project.id) { ProjectCard(bundle: b) }
                                     .buttonStyle(.plain)
+                                    .hoverEffect(.lift)
                                     .contextMenu {
                                         // Only the office deletes jobs on a team (the database refuses a technician's delete too).
                                         if app.cloud.can(.deleteJob) {
@@ -163,6 +174,10 @@ struct ProjectsView: View {
                     if let demo = app.projects.first(where: { $0.project.address.hasPrefix("Demo") }) { path.append(demo.project.id) }
                     else { path.append(await app.createDemo().project.id) }
                 }
+                // `--demo-list`: the demo job on the jobs list, not opened (layout screenshots of the list itself).
+                if args.contains("--demo-list"), !app.projects.contains(where: { $0.project.address.hasPrefix("Demo") }) {
+                    _ = await app.createDemo()
+                }
                 if args.contains("--arch-sample"), path.isEmpty {
                     if let s = app.projects.first(where: { $0.project.address.hasPrefix("Sample — architect") }) { path.append(s.project.id) }
                     else { path.append(await app.createArchitectSample().project.id) }
@@ -215,14 +230,20 @@ private struct EmptyProjects: View {
                  ? "Create a job, add its plans (PDF, photos or the document scanner), then tap to place devices, wire runs and panels."
                  : "Jobs your office adds show up here. Try the demo job to see how placing devices works.")
                 .multilineTextAlignment(.center).foregroundStyle(Color.pencil).frame(maxWidth: 420)
-            HStack(spacing: 12) {
-                if office { Button(action: onNew) { Label("New job", systemImage: "plus") }.buttonStyle(.borderedProminent) }
-                Button(action: onDemo) { Label("Try a demo job", systemImage: "wand.and.stars") }.buttonStyle(.bordered)
+            // Side by side when they fit; stacked on a narrow phone, in a long language or at large text sizes.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { emptyActions }
+                VStack(spacing: 10) { emptyActions }
             }
             .controlSize(.large)
         }
         .padding()
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder private var emptyActions: some View {
+        if office { Button(action: onNew) { Label("New job", systemImage: "plus") }.buttonStyle(.borderedProminent) }
+        Button(action: onDemo) { Label("Try a demo job", systemImage: "wand.and.stars") }.buttonStyle(.bordered)
     }
 }
 

@@ -130,8 +130,12 @@ always uses their company's connection. **Settings › Billdu** in the app shows
 - `ios.yml` runs the core tests and builds the app (Debug for the Simulator, and an unsigned Release build) on every
   change under `ios/`.
 - `ios-testflight.yml` archives, signs and uploads to TestFlight (on demand or on an `ios-v…` tag).
-- `ios-sim-screens.yml` (on demand) runs the XCUITests in `PinPlanUITests/` on an iPad simulator (English plus one
-  more language) and uploads screenshots of the newer features (Find similar).
+- `ios-sim-screens.yml` (on demand) runs the XCUITests in `PinPlanUITests/`. Suite **find-similar**: Find similar on an
+  iPad simulator (English plus one more language). Suite **layouts** (`LayoutScreens.swift`): jobs list, plan View and
+  Edit with the device palette, takeoff, a checklist, photos, daily logs and settings, each in portrait and landscape,
+  on every device in the `devices` input (default iPhone SE 3rd generation, iPhone 16, iPad Pro 13-inch) and every
+  variant in `layout_variants` (default `en,pl,en-dark`: English, Polish as the long language, English in Dark Mode).
+  Download the `ios-layout-screens` artifact; files are `<lang>[-dark]-<device>-<nn>-<screen>-<orientation>.png`.
 - `ios-screenshots.yml` (on demand) screenshots every screen on an iPhone and an iPad simulator.
 - `ios-real-plans.yml` (on demand) runs real plans from the internet through the app's import, scan cleanup and plan
   reader on both simulators.

@@ -83,28 +83,37 @@ struct FieldView: View {
     /// (nine sections don't fit in a row, and a scrolling chip strip hides most of them).
     @ViewBuilder private var sectionPicker: some View {
         if hSize == .compact {
-            Menu {
-                Picker("Section", selection: $section) {
-                    ForEach(parts) { p in Label(tr(p.rawValue), systemImage: p.icon).tag(p) }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: section.icon).foregroundStyle(Color.brand)
-                    Text(tr(section.rawValue)).font(.headline).foregroundStyle(Color.primary)
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
-                }
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
-                .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Field section")
-            .accessibilityValue(section.rawValue)
+            sectionMenu
         } else {
-            Picker("Section", selection: $section) { ForEach(parts) { Text(tr($0.rawValue)).tag($0) } }
-                .pickerStyle(.segmented)
+            // Labelled segments when they fit; a narrow iPad window (Split View, Stage Manager, iPad mini portrait)
+            // or a long language gets the menu instead of squeezed, truncated segments.
+            ViewThatFits(in: .horizontal) {
+                Picker("Section", selection: $section) { ForEach(parts) { Text(tr($0.rawValue)).tag($0) } }
+                    .pickerStyle(.segmented)
+                sectionMenu.frame(maxWidth: 420, alignment: .leading)
+            }
         }
+    }
+
+    private var sectionMenu: some View {
+        Menu {
+            Picker("Section", selection: $section) {
+                ForEach(parts) { p in Label(tr(p.rawValue), systemImage: p.icon).tag(p) }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: section.icon).foregroundStyle(Color.brand)
+                Text(tr(section.rawValue)).font(.headline).foregroundStyle(Color.primary)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.secondary)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Field section")
+        .accessibilityValue(tr(section.rawValue))
     }
 }
 
@@ -143,6 +152,9 @@ struct ChecklistsView: View {
                     .padding(.vertical, 4)
                 }
                 .swipeActions { Button("Delete", role: .destructive) { model.removeRows([c.id], in: \.checklists) } }
+                .contextMenu {
+                    Button(role: .destructive) { model.removeRows([c.id], in: \.checklists) } label: { Label("Delete", systemImage: "trash") }
+                }
             }
         }
         .navigationDestination(isPresented: $openFirst) { if let c = lists.first { ChecklistDetail(model: model, id: c.id) } }
@@ -291,8 +303,12 @@ struct ChecklistDetail: View {
             } label: {
                 Image(systemName: complete ? "checkmark.circle.fill" : needsPhoto ? "exclamationmark.circle.fill" : "circle")
                     .font(.title2).foregroundStyle(complete ? Color.green : needsPhoto ? Color.orange : Color.secondary)
+                    // A full 44 pt target (gloves), the circle drawn at the top of it, level with the first line.
+                    .frame(minWidth: 44, minHeight: 44, alignment: .top)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .sensoryFeedback(.selection, trigger: item.done == true)
             .accessibilityLabel(item.done == true ? "Mark not done" : "Mark done")
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.text).strikethrough(complete, color: .secondary)
@@ -326,12 +342,21 @@ struct ChecklistDetail: View {
                 p.tags = [c.name]
             }) {
                 Image(systemName: item.requiresPhoto == true ? "camera.badge.ellipsis" : "camera").foregroundStyle(item.requiresPhoto == true ? Color.accentColor : .secondary)
+                    .frame(minWidth: 44, minHeight: 44, alignment: .top)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Add photo")
         }
         .padding(.vertical, 2)
         .swipeActions(edge: .leading) {
             Button { assigning = item } label: { Label("Assign", systemImage: "person.crop.circle.badge.clock") }.tint(.accentColor)
+            // The photo rule without the long-press (the context menu below has it too).
+            Button {
+                change(c) { x in if let i = x.items.firstIndex(where: { $0.id == item.id }) { x.items[i].requiresPhoto = !(x.items[i].requiresPhoto ?? false) } }
+            } label: {
+                Label(item.requiresPhoto == true ? "Photo not required" : "Require a photo", systemImage: "camera.badge.ellipsis")
+            }
+            .tint(Color.orange)
         }
         .contextMenu {
             Button { assigning = item } label: { Label("Assign & due date…", systemImage: "person.crop.circle.badge.clock") }
@@ -388,6 +413,10 @@ struct DailyLogsView: View {
                 .contextMenu {
                     Button { editing = l } label: { Label("Edit", systemImage: "pencil") }
                     Button { exporting = LogExportItem(log: l) } label: { Label("Share PDF", systemImage: "doc.richtext") }
+                    if DailyReportLogic.editAccess(l, role: app.cloud.role, me: FieldAuthor.name(app)) != .denied {
+                        Divider()
+                        Button(role: .destructive) { model.removeRows([l.id], in: \.jobLogs) } label: { Label("Delete", systemImage: "trash") }
+                    }
                 }
             }
         }

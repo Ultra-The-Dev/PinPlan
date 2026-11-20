@@ -352,6 +352,30 @@ public enum PlanMarkerMetrics {
 
     /// Points around a symbol that still count as touching it.
     public static func hitRadius(symbolSize: Double) -> Double { max(22, symbolSize * 0.8) }
+
+    /// Points around a symbol where a press-and-hold still picks it up to drag. A little wider than a tap's reach:
+    /// a finger covers the symbol it is trying to grab, so the press lands beside it more often than on it. The
+    /// nearest symbol wins, so neighbours on a dense floor still get the one under the finger.
+    public static func liftRadius(symbolSize: Double) -> Double { max(28, hitRadius(symbolSize: symbolSize) + 4) }
+}
+
+/// Moving the selection with the arrow keys of a hardware keyboard (iPad): a fixed distance on screen, whatever the
+/// zoom, so one press is always a visible, small step.
+public enum PlanNudge {
+    /// Screen points per arrow press; with Shift, a bigger step.
+    public static let step = 2.0
+    public static let bigStep = 12.0
+
+    /// The relative (0…1) offset of a move by `dx`/`dy` screen points on a sheet shown at `zoom` points per pixel.
+    public static func offset(dx: Double, dy: Double, zoom: Double, sheet: PlanSize) -> PlanPoint {
+        guard zoom > 0, !sheet.isEmpty else { return .zero }
+        return PlanPoint(x: dx / (zoom * sheet.width), y: dy / (zoom * sheet.height))
+    }
+
+    /// A relative position moved by `offset`, kept on the sheet.
+    public static func moved(_ p: PlanPoint, by offset: PlanPoint) -> PlanPoint {
+        PlanPoint(x: min(1, max(0, p.x + offset.x)), y: min(1, max(0, p.y + offset.y)))
+    }
 }
 
 /// Finding the busiest part of a sheet (screenshots, "zoom to devices").

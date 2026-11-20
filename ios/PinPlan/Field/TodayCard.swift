@@ -12,6 +12,7 @@ struct TodayCard: View {
     /// Opens a Field section (checklists, schedule…).
     let open: (FieldView.Part) -> Void
     @AppStorage("pinplan.field.todayOpen") private var expanded = true
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var task: TaskRef?
     @State private var log: JobLog?
 
@@ -33,13 +34,16 @@ struct TodayCard: View {
                     Spacer()
                     Image(systemName: "chevron.down").rotationEffect(.degrees(expanded ? 0 : -90)).foregroundStyle(.secondary)
                 }
+                .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityValue(expanded ? "Expanded" : "Collapsed")
 
             if expanded {
-                HStack(spacing: 8) {
+                // Side by side; stacked at accessibility text sizes, where two labels no longer fit in a row.
+                let actions = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+                actions {
                     PhotoAddMenu(model: model) {
                         actionLabel(String(localized: "Take photo"), icon: "camera.fill", prominent: true)
                     }
@@ -62,7 +66,7 @@ struct TodayCard: View {
                                     Text(t.bucket == .overdue ? "Overdue" : "Today").font(.caption.weight(.semibold))
                                         .foregroundStyle(t.bucket == .overdue ? Color.red : Color.orange)
                                 }
-                                .frame(minHeight: 32)
+                                .frame(minHeight: 44)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -99,7 +103,7 @@ struct TodayCard: View {
                                     Spacer()
                                     Text("\(p.done)/\(p.total)").monospacedDigit().foregroundStyle(.secondary)
                                 }
-                                .frame(minHeight: 32)
+                                .frame(minHeight: 44)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -129,6 +133,9 @@ struct TodayCard: View {
     private func actionLabel(_ title: String, icon: String, prominent: Bool) -> some View {
         Label(title, systemImage: icon)
             .font(.subheadline.weight(.semibold))
+            // Long translations wrap to a second line instead of being cut off.
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 8).padding(.vertical, 6)
             .frame(maxWidth: .infinity, minHeight: 44)
             .background(prominent ? Color.brand : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
             .foregroundStyle(prominent ? Color.white : Color.primary)
@@ -142,8 +149,11 @@ struct TodayCard: View {
     }
 
     private func moreButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).font(.caption.weight(.semibold)) }
-            .frame(minHeight: 28)
+        Button(action: action) {
+            Text(title).font(.caption.weight(.semibold))
+                .frame(minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+        }
     }
 }
 
@@ -183,7 +193,7 @@ struct MoreOnWebRow: View {
                     Spacer(minLength: 0)
                 }
                 .font(.footnote)
-                .frame(minHeight: 32)
+                .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
             .foregroundStyle(Color.secondary)

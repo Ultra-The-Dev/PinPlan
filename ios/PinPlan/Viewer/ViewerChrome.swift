@@ -31,6 +31,7 @@ struct SheetPill: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
             .accessibilityLabel(a11yName(sheet, pos))
             .accessibilityHint("Shows all plans")
             stepButton(1, icon: "chevron.right", label: String(localized: "Next plan"))
@@ -53,6 +54,7 @@ struct SheetPill: View {
             Image(systemName: icon).font(.body.weight(.semibold)).frame(width: 40, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         .foregroundStyle(enabled ? Color.primary : Color.secondary.opacity(0.4))
         .disabled(!enabled)
         .accessibilityLabel(label)
@@ -89,12 +91,14 @@ struct ViewerModeSwitch: View {
                 if !compact || on { Text(title).font(.subheadline.weight(.semibold)) }
             }
             .padding(.horizontal, 12)
-            .frame(minHeight: 36)
+            // 38 + the switch's 3 pt padding = a 44 pt target.
+            .frame(minHeight: 38)
             .foregroundStyle(on ? Color.white : Color.primary)
             .background(on ? fill : Color.clear, in: Capsule())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.lift)
         .accessibilityLabel(title)
         .accessibilityValue(on ? "Selected" : "")
         .accessibilityHint(m == .view ? "Read the plan; nothing moves" : "Place, draw and move devices")
@@ -156,6 +160,7 @@ struct ViewerControls: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
         .accessibilityLabel(label)
     }
 }
@@ -191,6 +196,7 @@ struct SelectionPeek: View {
                 Spacer(minLength: 0)
                 Button { model.selection = nil } label: {
                     Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(Color.secondary)
+                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")

@@ -23,6 +23,7 @@ struct PlanEditorView: View {
     @State private var canvasHeight: CGFloat = 0
     @State private var overlayControlsHeight: CGFloat = 0
     @State private var viewerControlsHeight: CGFloat = 0
+    @State private var containerWidth: CGFloat = 0
     @AppStorage("viewer.minimap") private var savedMinimap = false
     @AppStorage("viewer.pencilDraws") private var pencilDraws = false
 
@@ -43,13 +44,14 @@ struct PlanEditorView: View {
     private var mainContent: some View {
         let bars: Visibility = fullScreen ? .hidden : .automatic
         return HStack(spacing: 0) {
-            if regular && showPalette && editing && !fullScreen {
-                PaletteView(model: model).frame(width: 290)
+            if regular && showPalette && editing && !fullScreen && paletteFits {
+                PaletteView(model: model).frame(width: Self.paletteWidth)
                 Divider()
             }
             canvasArea
             if !fullScreen { sidePanel }
         }
+        .measureWidth { containerWidth = $0 }
         .animation(.easeOut(duration: 0.22), value: model.selection)
         .animation(.easeOut(duration: 0.2), value: model.toast)
         .animation(.easeOut(duration: 0.2), value: model.viewerMode)
@@ -78,6 +80,23 @@ struct PlanEditorView: View {
                 if ViewerPrefs.launchFlag("layers") { showLayers = true }
             }
         }
+    }
+
+    static let paletteWidth: CGFloat = 290
+    /// The plan keeps at least this much width between the side panels.
+    static let minCanvasWidth: CGFloat = 400
+
+    /// The right-hand panel (inspector, plan reader or counts) is open on iPad.
+    private var sidePanelOpen: Bool {
+        regular && ((editing && model.selection != nil) || showReader || showCounts)
+    }
+
+    /// iPad mini in portrait, Split View and Stage Manager windows are regular width but too narrow for the device
+    /// palette and a right-hand panel together: the right-hand panel then takes the palette's place while it is open
+    /// (the palette comes back when it closes).
+    private var paletteFits: Bool {
+        guard containerWidth > 0, sidePanelOpen else { return true }
+        return containerWidth - Self.paletteWidth - 360 >= Self.minCanvasWidth
     }
 
     private func markerCount(_ sheetId: String) -> Int { model.bundle.liveMarkers.filter { $0.sheetId == sheetId }.count }
@@ -196,7 +215,10 @@ struct PlanEditorView: View {
             VStack {
                 Spacer()
                 Text(toast).font(.subheadline.weight(.medium)).foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 9).background(Color.ink.opacity(0.92), in: Capsule())
+                    .multilineTextAlignment(.center).lineLimit(3)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Color.ink.opacity(0.92), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 70)
             }
             // Rises a little from the bottom as it appears; leaves a bit faster than it arrives.
@@ -215,8 +237,12 @@ struct PlanEditorView: View {
                 HStack {
                     Text(model.isBulk ? "\(model.multi.count) devices" : "Edit").font(.headline)
                     Spacer()
-                    Button { model.clearSelection() } label: { Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary) }
-                        .accessibilityLabel("Close")
+                    Button { model.clearSelection() } label: {
+                        Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary)
+                            .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
                 .padding(.horizontal).padding(.vertical, 10)
                 if model.isBulk { BulkInspectorView(model: model) } else { InspectorView(model: model, selection: sel) }
@@ -272,23 +298,54 @@ struct PlanEditorView: View {
             .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
     }
 
-    // Hardware keyboard (iPad): Esc = select tool, Delete = delete selection, M = measure, F = fit, L = labels,
-    // E = View/Edit, B = sheet browser, [ and ] = previous / next sheet, + and − zoom.
+    // Hardware keyboard (iPad, and iPhone with a keyboard): ⌘Z / ⇧⌘Z = undo / redo, Esc = select tool, Delete =
+    // delete selection, arrows = move the selected device or closet (⇧ for a bigger step), M = measure, F = fit,
+    // L = labels, E = View/Edit, B = sheet browser, [ and ] = previous / next sheet, ⌘+ and ⌘− zoom. Undo and redo
+    // live here rather than on the toolbar buttons so they also work in full screen (no toolbar) and on iPhone.
     private var keyboardShortcuts: some View {
-        Group {
-            Button("") { model.use(.select); model.selection = nil }.keyboardShortcut(.escape, modifiers: [])
-            Button("") { if editing { model.deleteSelection() } }.keyboardShortcut(.delete, modifiers: [])
-            Button("") { model.use(.measure) }.keyboardShortcut("m", modifiers: [])
-            Button("") { viewport.fit() }.keyboardShortcut("f", modifiers: [])
-            Button("") { model.showLabels.toggle(); model.saveFilter() }.keyboardShortcut("l", modifiers: [])
-            Button("") { model.setViewerMode(editing ? .view : .edit); Haptics.select() }.keyboardShortcut("e", modifiers: [])
-            Button("") { showBrowser = true }.keyboardShortcut("b", modifiers: [])
-            Button("") { step(-1) }.keyboardShortcut("[", modifiers: [])
-            Button("") { step(1) }.keyboardShortcut("]", modifiers: [])
-            Button("") { viewport.zoom(by: 1.6) }.keyboardShortcut("=", modifiers: .command)
-            Button("") { viewport.zoom(by: 1 / 1.6) }.keyboardShortcut("-", modifiers: .command)
+        let canNudge: Bool = {
+            guard editing else { return false }
+            switch model.selection {
+            case .marker?, .closet?: return true
+            default: return false
+            }
+        }()
+        return Group {
+            Group {
+                Button("Undo") { model.undo() }.keyboardShortcut("z", modifiers: .command).disabled(!editing || !model.canUndo)
+                Button("Redo") { model.redo() }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!editing || !model.canRedo)
+                Button("") { model.use(.select); model.selection = nil }.keyboardShortcut(.escape, modifiers: [])
+                Button("Delete") { model.deleteSelection() }.keyboardShortcut(.delete, modifiers: []).disabled(!editing || model.selection == nil)
+            }
+            Group {
+                Button("") { nudge(-1, 0, big: false) }.keyboardShortcut(.leftArrow, modifiers: [])
+                Button("") { nudge(1, 0, big: false) }.keyboardShortcut(.rightArrow, modifiers: [])
+                Button("") { nudge(0, -1, big: false) }.keyboardShortcut(.upArrow, modifiers: [])
+                Button("") { nudge(0, 1, big: false) }.keyboardShortcut(.downArrow, modifiers: [])
+                Button("") { nudge(-1, 0, big: true) }.keyboardShortcut(.leftArrow, modifiers: .shift)
+                Button("") { nudge(1, 0, big: true) }.keyboardShortcut(.rightArrow, modifiers: .shift)
+                Button("") { nudge(0, -1, big: true) }.keyboardShortcut(.upArrow, modifiers: .shift)
+                Button("") { nudge(0, 1, big: true) }.keyboardShortcut(.downArrow, modifiers: .shift)
+            }
+            .disabled(!canNudge)
+            Group {
+                Button("") { model.use(.measure) }.keyboardShortcut("m", modifiers: [])
+                Button("") { viewport.fit() }.keyboardShortcut("f", modifiers: [])
+                Button("") { model.showLabels.toggle(); model.saveFilter() }.keyboardShortcut("l", modifiers: [])
+                Button("") { model.setViewerMode(editing ? .view : .edit); Haptics.select() }.keyboardShortcut("e", modifiers: [])
+                Button("") { showBrowser = true }.keyboardShortcut("b", modifiers: [])
+                Button("") { step(-1) }.keyboardShortcut("[", modifiers: [])
+                Button("") { step(1) }.keyboardShortcut("]", modifiers: [])
+                Button("") { viewport.zoom(by: 1.6) }.keyboardShortcut("=", modifiers: .command)
+                Button("") { viewport.zoom(by: 1 / 1.6) }.keyboardShortcut("-", modifiers: .command)
+            }
         }
         .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+    }
+
+    private func nudge(_ dx: Double, _ dy: Double, big: Bool) {
+        let d = big ? PlanNudge.bigStep : PlanNudge.step
+        model.nudgeSelection(dx: dx * d, dy: dy * d, zoom: viewport.viewport.zoom)
     }
 
     private var hint: String? {
@@ -314,8 +371,16 @@ struct PlanEditorView: View {
     private var compactBar: some View {
         HStack(spacing: 2) {
             if editing {
-                Button { showPalette = true } label: { Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).font(.subheadline.weight(.semibold)).lineLimit(1).fixedSize() }
-                    .buttonStyle(.borderedProminent).controlSize(.small).tint(Color.brand)
+                Button { showPalette = true } label: {
+                    // The word when it fits (long languages on an iPhone SE get the icon alone).
+                    ViewThatFits(in: .horizontal) {
+                        Label("Devices", systemImage: "plus.circle.fill").labelStyle(.titleAndIcon).lineLimit(1).fixedSize()
+                        Label("Devices", systemImage: "plus.circle.fill").labelStyle(.iconOnly)
+                    }
+                    .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent).controlSize(.small).tint(Color.brand)
+                .accessibilityIdentifier("plan-devices")
             }
             Spacer(minLength: 4)
             Group {
@@ -330,9 +395,12 @@ struct PlanEditorView: View {
                     Button { showScan = true } label: { Image(systemName: "sparkles") }.accessibilityLabel("AI scan")
                 }
             }
-            .frame(width: 38, height: 34)
+            // Full 44 pt touch targets: the bar is used with gloves on site.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+            .hoverEffect(.highlight)
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
+        .padding(.horizontal, 6)
         .background(.regularMaterial, in: Capsule())
         .shadow(color: .black.opacity(0.1), radius: 6, y: 2)
         .padding(.horizontal, 12)
@@ -370,7 +438,8 @@ struct PlanEditorView: View {
             Button(role: .cancel) { if model.draft.isEmpty { model.use(.select) } else { model.draft = [] } } label: { Label("Cancel", systemImage: "xmark") }
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
+        // Regular size: these are tapped mid-drawing, often with a glove.
+        .controlSize(.regular)
         .padding(6)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
@@ -385,9 +454,9 @@ struct PlanEditorView: View {
         ToolbarItemGroup(placement: .topBarTrailing) {
             if editing {
                 Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
-                    .disabled(!model.canUndo).keyboardShortcut("z", modifiers: .command)
+                    .disabled(!model.canUndo)
                 Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
-                    .disabled(!model.canRedo).keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!model.canRedo)
                 toolsMenu
             }
             Button { showReader.toggle(); showCounts = false; model.selection = nil } label: { Label("Read plan", systemImage: "doc.text.magnifyingglass") }
@@ -418,6 +487,7 @@ private struct QuickDock: View {
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(active ? Color.brand : .clear, lineWidth: 2))
                         }
                         .buttonStyle(.plain)
+                        .hoverEffect(.highlight)
                         .accessibilityLabel("Place \(t.name)")
                     }
                 }
@@ -435,12 +505,14 @@ private struct HintCapsule: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle().fill(Color.electric).frame(width: 6, height: 6)
-            Text(text).font(.subheadline).lineLimit(1)
+            // Two lines before truncating: hints run long in Polish, Ukrainian or Vietnamese on a phone.
+            Text(text).font(.subheadline).lineLimit(2).multilineTextAlignment(.leading)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 14).padding(.vertical, 8)
-        .background(Color.ink.opacity(0.88), in: Capsule())
+        .background(Color.ink.opacity(0.88), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.horizontal)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 
