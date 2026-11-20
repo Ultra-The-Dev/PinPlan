@@ -27,7 +27,7 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 | Pencil | `#526580` | Secondary text (5.6:1 on paper). |
 | Rule | `#C9D6E5` | Hairlines, sheet borders, table rules. Never text. |
 | Action blue (marker token) | `#0B6FE0` | Primary action and the final call band. Text on it is always white (4.8:1). |
-| Electric | `#33A9FF` | Bright accent on ink: the logo pin, step numbers, focus ring on dark (6.2:1 on ink). Never text on white. |
+| Electric | `#33A9FF` | Bright accent on ink: the north half of the logo's needle, step numbers, focus ring on dark (6.2:1 on ink). Never text on white. |
 | Highlight | `#CFE6FF` | The takeoff highlighter behind counted figures; ink text on it. |
 | Action deep | `#0958B5` | Primary button hover. |
 | Redline | `#C73A2C` | Mark-up on photos and plans only. Not for errors or decoration. |
@@ -43,7 +43,7 @@ In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so exis
 | App token | Hex | Brand colour / use |
 |---|---|---|
 | `brand-50` … `brand-300` | `#EEF6FF` `#DDEDFF` `#B9DAFF` `#84BFFF` | Action-blue tints: selected states, `.btn-on`, focus ring on inputs |
-| `brand-400` | `#33A9FF` | Electric (logo pin, focus on dark). Not for text on white |
+| `brand-400` | `#33A9FF` | Electric (logo needle, focus on dark). Not for text on white |
 | `brand-500` | `#1A86F0` | Small accents |
 | `brand-600` | `#0B6FE0` | Action blue: `.btn-brand`, links, focus outline, input focus border. White text 4.8:1 |
 | `brand-700` / `brand-800` | `#0958B5` / `#0A4690` | Action deep (hover), text on blue tints (6.3:1 on brand-50) |
@@ -82,7 +82,7 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
   lettering on panels and equipment labels.
 - Text and UI: width 100%, weight 400 / 600.
 - Figures: tabular lining numerals (`.mk-num`, `.mk-figure`). No monospace anywhere.
-- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title` and the auth pages' wordmark; the
+- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title` and the wordmark (87.5% width); the
   font variable is loaded once in `src/app/layout.tsx`. Everything else in the app stays Geist.
 
 | Role | Class | Size | Line height |
@@ -157,21 +157,82 @@ Paper gets a 1px rule border and a long, soft shadow like a sheet lying on a des
 
 ## Logo
 
-`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`: an ink rounded tile (7/32 radius) with the
-corner of a floor plan in white linework and an electric-blue (`#33A9FF`) pin. On ink grounds the tile flips to
-electric with ink linework. The wordmark is `PRODUCT_NAME` in Archivo 75% width, weight 750, 23px in the header.
-The app header (`AppHeader` `Logo`) uses `LogoMark` + the name; sign-in, sign-up and reset use the `Wordmark` on paper.
+The product is being renamed Northpin (northpin.app); the identity below is the Northpin one. Until the rename
+lands, `PRODUCT_NAME` still supplies the name shown beside the mark.
 
-- Keep clear space of half the tile's width around the lockup. Minimum tile size 20px.
-- Don't recolour the pin, add effects, or set the name in another face.
-- App icons are drawn from `LogoMark`: `public/icon.svg` (tile), `icon-192.png` / `icon-512.png` (tile, transparent
-  corners), `icon-maskable-512.png` (full-bleed ink, mark scaled to 80% for the safe zone) and `apple-touch-icon.png`
-  (180px, full bleed; iOS rounds it). Theme colour `#0F2340`, manifest background `#F2F6FA`. Regenerate all five
-  together if the mark changes.
+`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`. The app header (`AppHeader` `Logo`) uses
+`LogoMark` + the name; sign-in, sign-up and reset use the `Wordmark` on paper; the footer uses it `onDark`.
+
 - Share card: `src/app/opengraph-image.tsx` renders the 1200 × 630 link preview (Open Graph and Twitter) at build
   time: the on-dark mark and the name on ink, the tagline in on-dark grey, an electric rule, and a corner of a plan
   with lettered devices. It uses the default font (no external font fetch). `SHARE_IMAGE` in
   `src/components/marketing/seo.ts` points every page at it; never use the square app icon as a share image.
+
+## Northpin identity
+
+![Brand sheet](../public/brand/northpin-brand-sheet.png)
+
+### Concept
+
+An N drawn the way a plan is drawn. The two uprights are walls, solid like the poché on a floor plan. The diagonal
+is a compass needle set to plan north, the arrow every drawing carries: its north half (electric) points up the
+sheet, its south half is the pin that marks the spot, and the pivot is the pin's head. It is tilted because plan
+north rarely matches the page, and because that is where an N's diagonal goes. Location, north and the drawing in
+one letter, with nothing borrowed from map apps.
+
+### Construction
+
+- 64-unit square, 8-unit module. Tile radius 14 (22%).
+- Walls 8 × 40 units at x 12 and x 44, y 12 to 52. The N is 40 × 40, centred.
+- Needle: tips on the walls' inside corners (20, 12) and (44, 52), 14 units wide at the pivot (32, 32), split
+  across its width into a north and a south half. Pivot hole r 2.6.
+- One-colour drawings pull the halves 1 unit apart along the needle so it still reads as a needle.
+- Wordmark: "Northpin" in Archivo (SIL Open Font License), width 87.5, weight 700, tracking −10/1000, kerned and
+  outlined, so the logo files need no font. Cap height 30/64 of the tile, caps centred on it, 16 units from the tile.
+  In React the name is live text in Archivo at the same width and weight (`font-bold`, `font-stretch: 87.5%`).
+- Source of truth: `scripts/brand-icons.mjs` (geometry, colours, every file below). Change it there and run
+  `node scripts/brand-icons.mjs`; keep `Wordmark.tsx` and `opengraph-image.tsx` in step by hand.
+
+### Files
+
+| File | Use |
+|---|---|
+| `public/brand/northpin-logo.svg` | Horizontal logo, full colour, on paper or white |
+| `public/brand/northpin-logo-on-dark.svg` | Full colour on ink: white tile, action-blue north half, white name |
+| `public/brand/northpin-logo-mono.svg` / `-white.svg` | One colour, ink or white; the N is cut out of the tile |
+| `public/brand/northpin-mark.svg` (+ `-on-dark`, `-mono`, `-white`) | The square mark alone |
+| `public/brand/northpin-brand-sheet.png` | This page's overview for the owner |
+| `public/icon.svg`, `favicon.ico`, `favicon-16.png`, `favicon-32.png` | Browser tab |
+| `public/icon-192.png`, `icon-512.png` | PWA icon (tile, transparent corners) |
+| `public/icon-maskable-512.png` | PWA maskable: full-bleed ink, N at 85% so its corners sit inside the 80% safe circle |
+| `public/apple-touch-icon.png` | 180 px, full bleed, no alpha; iOS rounds it |
+| `ios/PinPlan/Assets.xcassets/AppIcon.appiconset/*` | 1024 px light, dark (black ground) and tinted (grey levels), no alpha |
+
+Theme colour `#0F2340`, manifest background `#F2F6FA`.
+
+### Clear space and size
+
+- Keep a quarter of the tile (two wall widths) clear on every side of the mark or the lockup.
+- Smallest mark 16 px (favicon); at 16 and 32 px the grid lands on whole pixels, so the walls stay sharp. The pivot
+  hole is dropped below 20 px. Smallest lockup 24 px tall.
+
+### Colour
+
+Blueprint Ink, unchanged. Ink tile, white walls and south half, electric (`#33A9FF`) north half. On ink grounds the
+tile turns white with ink walls and an action-blue (`#0B6FE0`) north half: electric on white is too faint (2.6:1) and
+an electric tile hides the needle, so the old electric-tile flip is retired.
+
+### Do
+
+- Use the files or `LogoMark` / `Wordmark` as they are; pick the on-dark or one-colour version for the ground.
+- Keep the needle two-toned (or cut, in one colour). It is what makes the N a Northpin.
+
+### Don't
+
+- Don't straighten, flip or recolour the needle, or point it anywhere else.
+- Don't put the mark on a gradient, add shadows or outlines, or set the tile on a ground of the same colour.
+- Don't redraw the wordmark in another face, add a tagline inside the lockup, or stack the name under the mark.
+- Don't use the mark as a map pin or a device symbol in the plan; devices keep their trade letters and colours.
 
 ## Voice
 

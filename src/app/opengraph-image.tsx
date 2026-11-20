@@ -12,9 +12,9 @@ const INK = "#0f2340";
 const ELECTRIC = "#33a9ff";
 const ON_DARK = "#a9bcd4";
 
-/** The logo mark (src/components/marketing/Wordmark.tsx, on-dark variant) as a data URL. */
+/** The logo mark (src/components/marketing/Wordmark.tsx, on-dark variant: white tile) as a data URL. */
 const MARK = `data:image/svg+xml;utf8,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${ELECTRIC}"/><path d="M7 25V7h18M7 16h7" fill="none" stroke="${INK}" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="square"/><path d="M21 10.5a5 5 0 0 0-5 5c0 3.9 5 9 5 9s5-5.1 5-9a5 5 0 0 0-5-5Z" fill="${INK}"/><circle cx="21" cy="15.4" r="1.9" fill="${ELECTRIC}"/></svg>`,
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#ffffff"/><path d="M12 12h8v40h-8ZM44 12h8v40h-8Z" fill="${INK}"/><path d="M20 12 38 28.4 26 35.6Z" fill="#0b6fe0"/><path d="M44 52 26 35.6 38 28.4Z" fill="${INK}"/><circle cx="32" cy="32" r="2.6" fill="#ffffff"/></svg>`,
 )}`;
 
 /** A few walls drawn faintly on the right, like the hero plan. Devices are laid over it as letters (see DEVICES). */
