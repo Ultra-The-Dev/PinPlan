@@ -14,6 +14,7 @@ import { buildSnapshot, newToken, proposalUrl, type ProposalSnapshot } from "@/l
 import { explainCloudError } from "@/lib/cloudCheck";
 import { fmtDate, msg, t as tr, useT } from "@/lib/i18n";
 import { listProposals, publishProposal, revokeProposal, type ProposalRow } from "@/lib/proposalCloud";
+import { safeSignature } from "@/lib/signatureImage";
 import { useEditor } from "@/lib/store";
 import { supabaseConfigured } from "@/lib/supabase";
 import { SYNCED_EVENT, useSyncStatus } from "@/lib/sync";
@@ -231,7 +232,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
                   </p>
                 )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {r.signature && <img src={r.signature} alt={t("Signature of {name}", { name: r.client_name ?? "" })} className="h-14 rounded bg-white ring-1 ring-slate-200" />}
+                {safeSignature(r.signature) && <img src={safeSignature(r.signature)!} alt={t("Signature of {name}", { name: r.client_name ?? "" })} className="h-14 rounded bg-white ring-1 ring-slate-200" />}
                 {r.client_note && <p className="text-xs text-slate-500">{t("Note: “{note}”", { note: r.client_note })}</p>}
                 {q ? (
                   <div className="flex flex-wrap items-center gap-2 pt-1">

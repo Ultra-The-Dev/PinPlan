@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { DOCS_EVENT, deleteDraft, issueDoc, linkIsStale, markSent, publishLink, recordPayment, saveDoc, voidDoc, voidPayment } from "@/lib/docActions";
 import { buildDocSnapshot, clientDirectory, displayStatus, docName, documentTotals, documentUrl, dueDateFor, formatDocDate, formatDocMoney, invoicesFromQuote, lineId, PAYMENT_METHODS, PAYMENT_TERMS, payUrl, termsLabel, today, wasSent, type InvoiceMode } from "@/lib/documents";
+import { safeSignature } from "@/lib/signatureImage";
 import { downloadBlob, slug } from "@/lib/download";
 import { emailEnabled } from "@/lib/emailClient";
 import { fmtDate, useT } from "@/lib/i18n";
@@ -136,7 +137,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
   // Void documents, and quotes the client approved (on its link or on a proposal), are read-only (duplicate to change).
   const approval = draft.options?.approval ?? null;
   const signerName = draft.signerName ?? approval?.signerName ?? null;
-  const signature = draft.signature ?? approval?.signature ?? null;
+  const signature = safeSignature(draft.signature ?? approval?.signature ?? null);
   const respondedAt = draft.respondedAt ?? approval?.respondedAt ?? null;
   const clientNote = draft.clientNote ?? approval?.clientNote ?? null;
   const signed = isQuote && draft.status === "accepted" && !!respondedAt;

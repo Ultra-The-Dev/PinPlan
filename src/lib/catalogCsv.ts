@@ -1,5 +1,6 @@
 // Price list CSV for the device catalog: export the catalog, edit prices in a spreadsheet, import it back.
 import { CATEGORIES } from "./catalog";
+import { csvUnescape } from "./csv";
 import { toCsv } from "./takeoff";
 import type { Category, DeviceType } from "./types";
 
@@ -68,7 +69,8 @@ export interface PriceImportResult {
  * Unknown rows with a valid category become new device types when `createMissing` is set.
  */
 export function applyPriceList(csv: string, catalog: DeviceType[], opts: { createMissing?: boolean; newId?: () => string; now?: string } = {}): PriceImportResult {
-  const rows = parseCsv(csv);
+  // Our own export prefixes formula-like text with ' (csvCell); take it off again so names round-trip.
+  const rows = parseCsv(csv).map((r) => r.map(csvUnescape));
   const res: PriceImportResult = { updated: [], created: [], unmatched: [], errors: [] };
   if (!rows.length) {
     res.errors.push("The file is empty.");

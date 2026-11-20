@@ -11,6 +11,7 @@
 import { documentTotals, lineAmounts, type TaxLine } from "./documents";
 import { money } from "./estimate";
 import type { DocPayment, PaymentMethod, SalesDoc } from "./types";
+import { csvCell } from "./csv";
 
 export type CsvFormat = "qbo" | "xero" | "generic";
 export type DateStyle = "mdy" | "dmy" | "iso";
@@ -146,12 +147,8 @@ export const exportTotal = (lines: ExportLine[]) => lines.reduce((s, l) => s + c
 
 // ---------------------------------------------------------------- formatting
 
-/** Spreadsheet-safe CSV cell: text starting with = + - @ (or a tab / CR) is prefixed with ' so it is never a formula. */
-export function csvCell(v: unknown): string {
-  const s = v == null ? "" : String(v);
-  const safe = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
+/** Spreadsheet-safe CSV cell (src/lib/csv.ts): every CSV export uses this one. */
+export { csvCell };
 const csv = (rows: unknown[][]) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 export function formatDay(day: string | null | undefined, style: DateStyle): string {
