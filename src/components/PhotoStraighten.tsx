@@ -2,11 +2,13 @@
 import { useMemo, useRef, useState } from "react";
 import { detectPageCorners, warpToRect, type Pt } from "@/lib/perspective";
 import Modal from "./ui/Modal";
+import { msg, useT } from "@/lib/i18n";
 
-const CORNER_NAMES = ["top left", "top right", "bottom right", "bottom left"];
+const CORNER_NAMES = [msg("Corner top left: arrow keys move it"), msg("Corner top right: arrow keys move it"), msg("Corner bottom right: arrow keys move it"), msg("Corner bottom left: arrow keys move it")];
 
 /** Straighten and crop a phone photo of a plan: auto-detect page edges, then adjust the 4 corners by hand. */
 export default function PhotoStraighten({ image, name, onDone }: { image: HTMLImageElement; name: string; onDone: (c: HTMLCanvasElement | null) => void }) {
+  const t = useT();
   const [rotation, setRotation] = useState(0);
   const source = useMemo(() => {
     const c = document.createElement("canvas");
@@ -39,7 +41,7 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
   const previewUrl = useMemo(() => source.toDataURL("image/jpeg", 0.7), [source]);
 
   async function auto() {
-    setStatus("Finding page edges…");
+    setStatus(t("Finding page edges…"));
     setBusy(true);
     try {
       const img = new Image();
@@ -49,8 +51,8 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
       if (found) {
         // detection ran on the preview (same pixel size as source)
         setCorners(found);
-        setStatus("Page found — adjust the corners if needed.");
-      } else setStatus("Couldn't find the page edges. Drag the corners onto the page corners.");
+        setStatus(t("Page found — adjust the corners if needed."));
+      } else setStatus(t("Couldn't find the page edges. Drag the corners onto the page corners."));
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
     } finally {
@@ -65,7 +67,7 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
 
   async function apply(whole = false) {
     setBusy(true);
-    setStatus("Straightening…");
+    setStatus(t("Straightening…"));
     await new Promise((r) => setTimeout(r, 20));
     const out = whole ? source : warpToRect(source, corners);
     onDone(out);
@@ -92,32 +94,32 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="mr-auto">
           <h2 id="straighten-title" className="font-semibold">
-            Straighten photo
+            {t("Straighten photo")}
           </h2>
           <div id="straighten-hint" className="text-xs text-slate-300">
-            {name} — drag the 4 corners onto the page corners (or Tab to a corner and use the arrow keys)
+            {t("{name} — drag the 4 corners onto the page corners (or Tab to a corner and use the arrow keys)", { name })}
           </div>
         </div>
-        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 270) % 360)} aria-label="Rotate left">
-          ⟲ Rotate
+        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 270) % 360)} aria-label={t("Rotate left")}>
+          ⟲ {t("Rotate")}
         </button>
-        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 90) % 360)} aria-label="Rotate right">
-          ⟳ Rotate
+        <button className="btn btn-sm" disabled={busy} onClick={() => setRotation((r) => (r + 90) % 360)} aria-label={t("Rotate right")}>
+          ⟳ {t("Rotate")}
         </button>
         <button className="btn btn-sm" disabled={busy} onClick={auto}>
-          Auto-detect edges
+          {t("Auto-detect edges")}
         </button>
         <button className="btn btn-sm" disabled={busy} onClick={() => setCorners(inset(0))}>
-          Reset
+          {t("Reset")}
         </button>
         <button className="btn btn-sm" disabled={busy} onClick={() => onDone(null)}>
-          Skip
+          {t("Skip")}
         </button>
         <button className="btn btn-sm" disabled={busy} onClick={() => apply(true)}>
-          Use as is
+          {t("Use as is")}
         </button>
         <button className="btn btn-sm btn-primary !border-amber-400 !bg-amber-500" disabled={busy} onClick={() => apply(false)}>
-          Straighten &amp; save
+          {t("Straighten & save")}
         </button>
       </div>
       <div className="mb-2 text-sm text-amber-200 empty:mb-0" role="status">
@@ -151,7 +153,7 @@ export default function PhotoStraighten({ image, name, onDone }: { image: HTMLIm
               style={{ cursor: "grab" }}
               tabIndex={0}
               role="button"
-              aria-label={`Corner ${CORNER_NAMES[i]}: arrow keys move it`}
+              aria-label={t(CORNER_NAMES[i])}
               className="outline-none focus-visible:stroke-sky-300"
               onKeyDown={(e) => nudge(i, e)}
               onPointerDown={(e) => {

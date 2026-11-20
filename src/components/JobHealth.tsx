@@ -11,16 +11,17 @@ import { jobSummary } from "@/lib/jobSummary";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
+import { fmtDate, t as tr, tn, useT } from "@/lib/i18n";
 import { useChangeOrders } from "./changeOrders/useChangeOrders";
 
 /** "today", "yesterday", "3 days ago" or a short date, for a YYYY-MM-DD day. */
 function dayAgo(day: string, today: string): string {
   const d = daysUntil(today, day);
-  if (d === 0) return "today";
-  if (d === 1) return "yesterday";
-  if (d > 1 && d < 14) return `${d} days ago`;
+  if (d === 0) return tr("today");
+  if (d === 1) return tr("yesterday");
+  if (d > 1 && d < 14) return tn("{n} day ago", "{n} days ago", d);
   const date = new Date(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10));
-  return Number.isNaN(date.getTime()) ? day : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d > 300 ? "numeric" : undefined });
+  return Number.isNaN(date.getTime()) ? day : fmtDate(date, { month: "short", day: "numeric", year: d > 300 ? "numeric" : undefined });
 }
 
 function Stat({ icon: Icon, label, value, sub, tone }: { icon: typeof Activity; label: string; value: string; sub?: string; tone?: "bad" | "ok" }) {
@@ -38,6 +39,7 @@ function Stat({ icon: Icon, label, value, sub, tone }: { icon: typeof Activity; 
 
 /** Job health at a glance with the next thing to do. Local data only (no cloud calls). */
 export default function JobHealth() {
+  const t = useT();
   const { project, sheets, markers, runs, closets, estimateLines, photos, checklists, jobLogs, catalog, products, settings, updateProject } = useEditor();
   const today = localDay(new Date().toISOString());
   const prices = can(useRole(), "prices");
@@ -59,36 +61,36 @@ export default function JobHealth() {
   const urgent = s.next.kind === "overdueTasks" || s.next.kind === "reviseProposal";
   const finished = s.next.kind === "done";
   return (
-    <section className="card p-5 lg:col-span-2" aria-label="Job health">
+    <section className="card p-5 lg:col-span-2" aria-label={t("Job health")}>
       <div className="mb-3 flex items-center gap-2">
         <Activity className="h-4 w-4 text-slate-400" />
-        <h2 className="font-semibold">Job health</h2>
+        <h2 className="font-semibold">{t("Job health")}</h2>
       </div>
       <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${prices ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
-        <Stat icon={MapPin} label="Devices" value={String(s.devices)} sub={[s.tentative ? `${s.tentative} tentative` : "", s.ledRuns ? `${s.ledRuns} LED run${s.ledRuns === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || `${s.sheets} plan${s.sheets === 1 ? "" : "s"}`} />
+        <Stat icon={MapPin} label={t("Devices")} value={String(s.devices)} sub={[s.tentative ? t("{n} tentative", { n: s.tentative }) : "", s.ledRuns ? t.tn("{n} LED run", "{n} LED runs", s.ledRuns) : ""].filter(Boolean).join(" · ") || t.tn("{n} plan", "{n} plans", s.sheets)} />
         <Stat
           icon={ClipboardCheck}
-          label="Checklists"
+          label={t("Checklists")}
           value={s.checklists.total ? `${s.checklists.pct}%` : "—"}
-          sub={s.checklists.total ? `${s.checklists.done} of ${s.checklists.total} done` : "None started"}
+          sub={s.checklists.total ? t("{done} of {total} done", { done: s.checklists.done, total: s.checklists.total }) : t("None started")}
           tone={s.checklists.total && s.checklists.done === s.checklists.total ? "ok" : undefined}
         />
-        <Stat icon={ListTodo} label="Open tasks" value={String(s.tasks.open)} sub={s.tasks.overdue ? `${s.tasks.overdue} overdue` : s.tasks.dueToday ? `${s.tasks.dueToday} due today` : s.tasks.open ? "None overdue" : "All clear"} tone={s.tasks.overdue ? "bad" : undefined} />
-        <Stat icon={Camera} label="Photos" value={String(s.photos.count)} sub={s.photos.lastAt ? `Last ${dayAgo(localDay(s.photos.lastAt), today)}` : s.photos.count ? undefined : "None yet"} />
-        <Stat icon={NotebookPen} label="Daily log" value={s.logs.lastDate ? dayAgo(s.logs.lastDate, today) : "—"} sub={s.logs.count ? `${s.logs.count} log${s.logs.count === 1 ? "" : "s"}` : "None yet"} />
+        <Stat icon={ListTodo} label={t("Open tasks")} value={String(s.tasks.open)} sub={s.tasks.overdue ? t("{n} overdue", { n: s.tasks.overdue }) : s.tasks.dueToday ? t("{n} due today", { n: s.tasks.dueToday }) : s.tasks.open ? t("None overdue") : t("All clear")} tone={s.tasks.overdue ? "bad" : undefined} />
+        <Stat icon={Camera} label={t("Photos")} value={String(s.photos.count)} sub={s.photos.lastAt ? t("Last: {when}", { when: dayAgo(localDay(s.photos.lastAt), today) }) : s.photos.count ? undefined : t("None yet")} />
+        <Stat icon={NotebookPen} label={t("Daily log")} value={s.logs.lastDate ? dayAgo(s.logs.lastDate, today) : "—"} sub={s.logs.count ? t.tn("{n} log", "{n} logs", s.logs.count) : t("None yet")} />
         {prices && (
           <Stat
             icon={Receipt}
-            label={money.quote ? "Money" : "Pricing"}
+            label={money.quote ? t("Money") : t("Pricing")}
             value={money.quote ? formatMoney(money.contract ?? 0, currency) : s.estimate ? formatMoney(s.estimate.total, currency) : "—"}
             sub={
               money.quote
-                ? `Quote approved · ${formatMoney(money.billed, currency)} of ${formatMoney(money.contract ?? 0, currency)} billed`
+                ? t("Quote approved · {billed} of {contract} billed", { billed: formatMoney(money.billed, currency), contract: formatMoney(money.contract ?? 0, currency) })
                 : s.estimate?.unpriced
-                  ? `${s.estimate.unpriced} unpriced line${s.estimate.unpriced === 1 ? "" : "s"}`
+                  ? t.tn("{n} unpriced line", "{n} unpriced lines", s.estimate.unpriced)
                   : money.billed
-                    ? `${formatMoney(money.billed, currency)} billed`
-                    : "No approved quote yet"
+                    ? t("{amount} billed", { amount: formatMoney(money.billed, currency) })
+                    : t("No approved quote yet")
             }
             tone={!money.quote && s.estimate?.unpriced ? "bad" : money.quote && money.leftToBill === 0 ? "ok" : undefined}
           />
@@ -100,8 +102,8 @@ export default function JobHealth() {
         }`;
         const inner = (icon: React.ReactNode) => (
           <>
-            <span className="text-xs font-semibold tracking-wide uppercase opacity-70">Next step</span>
-            <span className="min-w-0 flex-1 truncate">{s.next.text}</span>
+            <span className="text-xs font-semibold tracking-wide uppercase opacity-70">{t("Next step")}</span>
+            <span className="min-w-0 flex-1 truncate">{t(s.next.text)}</span>
             {icon}
           </>
         );
@@ -110,7 +112,7 @@ export default function JobHealth() {
         if (status)
           return (
             <button type="button" className={cls} onClick={() => void updateProject({ status })}>
-              {inner(<span className="chip shrink-0 bg-white capitalize">Mark {status}</span>)}
+              {inner(<span className="chip shrink-0 bg-white">{status === "approved" ? t("Mark approved") : t("Mark installed")}</span>)}
             </button>
           );
         if (finished) return <div className={cls}>{inner(<Check className="h-4 w-4 shrink-0" />)}</div>;

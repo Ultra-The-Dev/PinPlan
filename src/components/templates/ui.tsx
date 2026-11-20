@@ -3,8 +3,10 @@
 // on wider screens) and big, thumb-friendly switch rows.
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
+import { useT } from "@/lib/i18n";
 
 export function TemplateSheet(props: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; busy?: boolean; label?: string }) {
+  const t = useT();
   const { onClose, busy } = props;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && onClose();
@@ -26,7 +28,7 @@ export function TemplateSheet(props: { title: string; subtitle?: string; onClose
             <h2 className="text-base font-semibold">{props.title}</h2>
             {props.subtitle && <p className="mt-0.5 text-sm text-slate-500">{props.subtitle}</p>}
           </div>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={onClose} disabled={busy} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={onClose} disabled={busy} aria-label={t("Close")}>
             <X />
           </button>
         </div>
@@ -55,11 +57,12 @@ export function ToggleRow(props: { label: string; hint?: string; checked: boolea
 
 /** Things that were skipped while applying a template. */
 export function WarningList({ warnings }: { warnings: string[] }) {
+  const t = useT();
   if (!warnings.length) return null;
   return (
     <ul className="space-y-1.5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" data-testid="template-warnings">
       {warnings.map((w, i) => (
-        <li key={i}>• {w}</li>
+        <li key={i}>• {t(w)}</li>
       ))}
     </ul>
   );

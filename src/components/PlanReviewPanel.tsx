@@ -14,10 +14,11 @@ import { useSyncStatus } from "@/lib/sync";
 import { computeTakeoff } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
 import { useTrades } from "@/lib/useTrades";
+import { fmtDate, useT } from "@/lib/i18n";
 
 const when = (iso: string | null) =>
   iso
-    ? new Date(iso).toLocaleString(undefined, {
+    ? fmtDate(iso, {
         month: "short",
         day: "numeric",
         hour: "numeric",
@@ -27,6 +28,7 @@ const when = (iso: string | null) =>
 
 /** The client's note: free text, their numbered pins as a list, and the pins drawn over the plan they were dropped on. */
 function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["floors"] }) {
+  const t = useT();
   const { text, pins } = parseClientNote(note);
   const labels = floorLabels(floors.map((f) => f.name));
   const pinned = floors.map((f, i) => ({ name: labels[i], image: f.image })).filter((f) => f.image && pins.some((p) => p.floor === f.name));
@@ -40,7 +42,7 @@ function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["
               <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white">{p.n}</span>
               <span>
                 <span className="font-medium">{p.floor}</span>
-                {p.note ? ` — ${p.note}` : <span className="text-slate-500"> — (no note)</span>}
+                {p.note ? ` — ${p.note}` : <span className="text-slate-500"> — {t("(no note)")}</span>}
               </span>
             </li>
           ))}
@@ -50,12 +52,12 @@ function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["
         <figure key={f.name} className="overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={f.image!} alt={`${f.name} with the client's pins`} className="block w-full" loading="lazy" />
+            <img src={f.image!} alt={t("{name} with the client's pins", { name: f.name })} className="block w-full" loading="lazy" />
             {pins.map((p, i) =>
               p.floor === f.name ? (
                 <span
                   key={i}
-                  title={p.note || `Pin ${p.n}`}
+                  title={p.note || t("Pin {n}", { n: p.n })}
                   className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white shadow ring-2 ring-white"
                   style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                 >
@@ -72,6 +74,7 @@ function ClientNote({ note, floors }: { note: string; floors: ProposalSnapshot["
 }
 
 export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void; pdfBusy: string | null }) {
+  const t = useT();
   const { project, sheets, markers, runs, closets, catalog, settings } = useEditor();
   const trades = useTrades();
   const { signedIn, userId, authReady } = useSyncStatus();
@@ -94,10 +97,10 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
 
   useEffect(() => {
     const first = window.setTimeout(() => void refresh(), 0);
-    const t = window.setInterval(() => void refresh(), 30_000);
+    const timer = window.setInterval(() => void refresh(), 30_000);
     return () => {
       window.clearTimeout(first);
-      window.clearInterval(t);
+      window.clearInterval(timer);
     };
   }, [refresh]);
 
@@ -107,7 +110,7 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
   async function publish() {
     if (!project || !userId || !settings) return;
     const token = newToken();
-    setBusy("Preparing…");
+    setBusy(t("Preparing…"));
     try {
       // The client's current link is withdrawn only once the new one is published (a failed publish leaves it working).
       const open = (rows ?? []).filter((r) => r.status === "sent" || r.status === "viewed").map((r) => r.id);
@@ -155,9 +158,9 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
   async function copy(id: string) {
     try {
       await navigator.clipboard.writeText(link(id));
-      toast("Link copied — paste it into a text or email to the client", "success");
+      toast(t("Link copied — paste it into a text or email to the client"), "success");
     } catch {
-      window.prompt("Copy this link:", link(id));
+      window.prompt(t("Copy this link:"), link(id));
     }
   }
   const mailto = (r: ProposalRow) => {
@@ -178,15 +181,15 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
     <section className="card p-5">
       <div className="mb-1 flex items-center gap-2">
         <Eye className="h-4 w-4 text-brand-600" />
-        <h3 className="font-semibold">Plan review for the client</h3>
+        <h3 className="font-semibold">{t("Plan review for the client")}</h3>
         {cloud && rows && (
-          <button className="btn btn-sm btn-icon btn-ghost ml-auto" title="Refresh" aria-label="Refresh" onClick={() => void refresh()}>
+          <button className="btn btn-sm btn-icon btn-ghost ml-auto" title={t("Refresh")} aria-label={t("Refresh")} onClick={() => void refresh()}>
             <RefreshCw />
           </button>
         )}
       </div>
       <p className="mb-3 text-sm text-slate-500">
-        The marked-up plans with a legend of every symbol — no prices — so the client can check where everything goes before you price it.
+        {t("The marked-up plans with a legend of every symbol — no prices — so the client can check where everything goes before you price it.")}
       </p>
 
       {cloud &&
@@ -195,23 +198,23 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
             <div className="flex flex-wrap items-center gap-2">
               {r.status === "accepted" ? (
                 <span className="chip bg-emerald-50 text-emerald-700">
-                  <Check className="mr-1 h-3.5 w-3.5" /> Layout approved
+                  <Check className="mr-1 h-3.5 w-3.5" /> {t("Layout approved")}
                 </span>
               ) : r.status === "declined" ? (
                 <span className="chip bg-amber-50 text-amber-800">
-                  <MessageSquareWarning className="mr-1 h-3.5 w-3.5" /> Changes requested
+                  <MessageSquareWarning className="mr-1 h-3.5 w-3.5" /> {t("Changes requested")}
                 </span>
               ) : (
                 <span className={`chip ${r.status === "viewed" ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-600"}`}>
-                  {r.status === "viewed" ? "Opened by client" : "Sent — not opened yet"}
+                  {r.status === "viewed" ? t("Opened by client") : t("Sent — not opened yet")}
                 </span>
               )}
-              <span className="text-xs text-slate-400">sent {when(r.created_at)}</span>
+              <span className="text-xs text-slate-400">{t("sent {when}", { when: when(r.created_at) })}</span>
             </div>
             {r.status === "accepted" && (
               <>
                 <p className="text-sm">
-                  <strong>{r.client_name}</strong> approved the layout {when(r.responded_at)}. Next: price it and send the quote from the Pricing tab.
+                  {t("{name} approved the layout {when}. Next: price it and send the quote from the Pricing tab.", { name: r.client_name ?? "", when: when(r.responded_at) })}
                 </p>
                 {r.client_note && <ClientNote note={r.client_note} floors={r.snapshot.floors} />}
               </>
@@ -219,34 +222,36 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
             {r.status === "declined" && (
               <div className="space-y-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 <p>
-                  {r.client_name ?? "The client"} asked for changes {when(r.responded_at)}. Update the plan, then send a new review.
+                  {r.client_name
+                    ? t("{name} asked for changes {when}. Update the plan, then send a new review.", { name: r.client_name, when: when(r.responded_at) })
+                    : t("The client asked for changes {when}. Update the plan, then send a new review.", { when: when(r.responded_at) })}
                 </p>
                 {r.client_note && <ClientNote note={r.client_note} floors={r.snapshot.floors} />}
               </div>
             )}
             <div className="flex flex-wrap gap-1.5">
               <button className="btn btn-sm" onClick={() => void copy(r.id)}>
-                <Copy /> Copy link
+                <Copy /> {t("Copy link")}
               </button>
               <a className="btn btn-sm" href={mailto(r)}>
-                <Mail /> Email
+                <Mail /> {t("Email")}
               </a>
               <button className="btn btn-sm" onClick={() => void share(r)}>
-                <Share2 /> Share
+                <Share2 /> {t("Share")}
               </button>
               <a className="btn btn-sm" href={link(r.id)} target="_blank" rel="noreferrer">
-                <ExternalLink /> Open
+                <ExternalLink /> {t("Open")}
               </a>
               {(r.status === "sent" || r.status === "viewed") && (
                 <button
                   className="btn btn-sm btn-ghost text-slate-500"
                   onClick={async () => {
-                    if (!confirm("Withdraw this plan review? The link will stop working.")) return;
+                    if (!confirm(t("Withdraw this plan review? The link will stop working."))) return;
                     await revokeProposal(r.id).catch((e) => toast(e.message, "error"));
                     void refresh();
                   }}
                 >
-                  <Ban /> Withdraw
+                  <Ban /> {t("Withdraw")}
                 </button>
               )}
             </div>
@@ -256,28 +261,27 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
       {form && cloud ? (
         <div className="space-y-3">
           <label className="block text-sm">
-            <span className="label">Title</span>
+            <span className="label">{t("Title")}</span>
             <input className="input" placeholder={`Preliminary plan — ${project.address || project.clientName}`} value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
           <label className="block text-sm">
-            <span className="label">Message to the client</span>
+            <span className="label">{t("Message to the client")}</span>
             <textarea
               className="input min-h-20"
-              placeholder="Here's where we're planning to put everything. Let us know if anything should move…"
+              placeholder={t("Here's where we're planning to put everything. Let us know if anything should move…")}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
           </label>
           <p className="text-xs text-slate-500">
-            The client sees your business details, each floor’s plan with the devices, and the legend. They can approve the layout (name + signature) or ask for changes with a
-            note.
+            {t("The client sees your business details, each floor’s plan with the devices, and the legend. They can approve the layout (name + signature) or ask for changes with a note.")}
           </p>
           <div className="flex gap-2">
             <button className="btn" onClick={() => setForm(false)} disabled={!!busy}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button className="btn btn-brand flex-1" onClick={() => void publish()} disabled={!!busy}>
-              {busy ?? "Send & copy link"}
+              {busy ?? t("Send & copy link")}
             </button>
           </div>
         </div>
@@ -285,15 +289,15 @@ export default function PlanReviewPanel({ onPdf, pdfBusy }: { onPdf: () => void;
         <div className="flex flex-wrap gap-2">
           {cloud ? (
             <button className={`btn ${live.length ? "" : "btn-brand"}`} onClick={() => setForm(true)} disabled={!sheets.length || !markers.length}>
-              <Eye /> {live.length ? "Send an updated plan" : "Send plan for review"}
+              <Eye /> {live.length ? t("Send an updated plan") : t("Send plan for review")}
             </button>
           ) : !supabaseConfigured || !authReady ? null : (
             <Link href="/settings#account" className="btn">
-              Sign in to send a link
+              {t("Sign in to send a link")}
             </Link>
           )}
           <button className="btn" onClick={onPdf} disabled={!!pdfBusy || !sheets.length}>
-            <FileText /> {pdfBusy ?? "Client plan PDF"}
+            <FileText /> {pdfBusy ?? t("Client plan PDF")}
           </button>
         </div>
       )}

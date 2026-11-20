@@ -15,10 +15,11 @@ import AppHeader, { Logo } from "./AppHeader";
 import SyncBadge from "./SyncBadge";
 import { JobTabBar, JobTabStrip } from "./nav/JobTabs";
 import { useJobNav } from "./nav/useJobNav";
+import { t as tr, useT } from "@/lib/i18n";
 
 // Konva needs the browser. The plan is the heavy tab; every other tab loads only when it's opened.
-const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">Loading plan…</div> });
-const loading = () => <div className="p-6 text-slate-500">Loading…</div>;
+const PlanEditor = dynamic(() => import("./editor/PlanEditor"), { ssr: false, loading: () => <div className="p-6 text-slate-500">{tr("Loading plan…")}</div> });
+const loading = () => <div className="p-6 text-slate-500">{tr("Loading…")}</div>;
 const ProjectInfo = dynamic(() => import("./ProjectInfo"), { loading });
 const TakeoffTab = dynamic(() => import("./TakeoffTab"), { loading });
 const MoneyTab = dynamic(() => import("./money/MoneyTab"), { loading });
@@ -29,6 +30,7 @@ const ManageSheetsDrawer = dynamic(() => import("./SheetsTab").then((m) => m.Man
 const STATUS_STYLE: Record<ProjectStatus, string> = { estimate: statusChip("estimate"), approved: statusChip("approved"), installed: statusChip("installed") };
 
 export default function ProjectView() {
+  const t = useT();
   const params = useSearchParams();
   const router = useRouter();
   const { setTab, openManageSheets, closeManageSheets } = useJobNav();
@@ -48,7 +50,7 @@ export default function ProjectView() {
   const moneyStep = tab === "money" ? view.get("step") : null;
   // Remembered while rendering (React's "adjust state on prop change" pattern), not in an effect.
   if (moneyStep && moneyStep !== lastMoneyStep) setLastMoneyStep(moneyStep);
-  const tabs = office ? JOB_TABS : JOB_TABS.filter((t) => !OFFICE_ONLY_TABS.includes(t));
+  const tabs = office ? JOB_TABS : JOB_TABS.filter((x) => !OFFICE_ONLY_TABS.includes(x));
   // With no tab asked for, the default depends on the role: wait until it's known so a technician on a fresh device
   // isn't sent to Overview for good before their role loads.
   const teamReady = useTeam((s) => s.ready);
@@ -75,14 +77,14 @@ export default function ProjectView() {
         <>
           <AppHeader />
           <div className="p-6">
-            Job not found. <Link className="underline" href="/">Back to jobs</Link>
+            {t("Job not found.")} <Link className="underline" href="/">{t("Back to jobs")}</Link>
           </div>
         </>
       );
     return (
       <>
         <AppHeader />
-        <div className="p-6 text-slate-500">Loading…</div>
+        <div className="p-6 text-slate-500">{t("Loading…")}</div>
       </>
     );
   }
@@ -93,40 +95,40 @@ export default function ProjectView() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4">
-        <Link href="/" className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label="Back to jobs">
+        <Link href="/" className="flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900" aria-label={t("Back to jobs")}>
           <ChevronLeft className="h-4 w-4" />
-          Jobs
+          {t("Jobs")}
         </Link>
         <span className="max-lg:hidden">
           <Logo compact />
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
           <div className="min-w-0">
-            <div className="truncate text-sm leading-tight font-semibold text-slate-900">{project.address || "Untitled job"}</div>
-            <div className="truncate text-xs text-slate-500">{project.clientName || "No client"}</div>
+            <div className="truncate text-sm leading-tight font-semibold text-slate-900">{project.address || t("Untitled job")}</div>
+            <div className="truncate text-xs text-slate-500">{project.clientName || t("No client")}</div>
           </div>
           {/* Phones: a plain chip (the next step on Overview changes the status); a picker from sm up. */}
-          <span className={`chip shrink-0 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{projectStatusLabel(project.status)}</span>
+          <span className={`chip shrink-0 ring-1 sm:hidden ${STATUS_STYLE[project.status]}`}>{t(projectStatusLabel(project.status))}</span>
           <select
             className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
-            aria-label="Job status"
+            aria-label={t("Job status")}
           >
             {(Object.keys(PROJECT_STATUS_LABEL) as ProjectStatus[]).map((st) => (
               <option key={st} value={st}>
-                {PROJECT_STATUS_LABEL[st]}
+                {t(PROJECT_STATUS_LABEL[st])}
               </option>
             ))}
           </select>
         </div>
         <div className="flex-1 max-lg:hidden" />
-        <JobTabStrip tabs={tabs} active={tab} onSelect={(t) => setTab(t)} />
+        <JobTabStrip tabs={tabs} active={tab} onSelect={(x) => setTab(x)} />
         {tab === "plan" && sheets.length > 0 && (
           <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open">
             <FileText />
-            <span className="max-md:hidden">Manage sheets</span>
-            <span className="md:hidden">Sheets</span>
+            <span className="max-md:hidden">{t("Manage sheets")}</span>
+            <span className="md:hidden">{t("Sheets")}</span>
           </button>
         )}
         <SyncBadge />
@@ -141,10 +143,10 @@ export default function ProjectView() {
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
                   <FileText className="h-6 w-6" />
                 </div>
-                <p className="text-lg font-semibold">No plan sheets yet</p>
-                <p className="mt-1 text-sm text-slate-500">Upload the plan set (PDF or phone photos) to start placing devices.</p>
+                <p className="text-lg font-semibold">{t("No plan sheets yet")}</p>
+                <p className="mt-1 text-sm text-slate-500">{t("Upload the plan set (PDF or phone photos) to start placing devices.")}</p>
                 <button className="btn btn-brand mt-5" onClick={openManageSheets}>
-                  Upload plans
+                  {t("Upload plans")}
                 </button>
               </div>
             </div>
@@ -157,12 +159,12 @@ export default function ProjectView() {
           <div className="flex h-full flex-col">
             {/* Photos live under Field (old ?tab=photos links land here). */}
             <div className="flex shrink-0 justify-center border-b border-slate-200 bg-white px-3 py-2">
-              <div className="seg" role="tablist" aria-label="Field view">
+              <div className="seg" role="tablist" aria-label={t("Field view")}>
                 <button type="button" role="tab" aria-selected={!fieldPhotos} className={`tab ${!fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field")}>
-                  Field work
+                  {t("Field work")}
                 </button>
                 <button type="button" role="tab" aria-selected={fieldPhotos} className={`tab ${fieldPhotos ? "tab-active" : ""}`} onClick={() => setTab("field", { section: "photos" })}>
-                  Photos
+                  {t("Photos")}
                   {photoCount > 0 && <span className="text-xs text-slate-400">{photoCount}</span>}
                 </button>
               </div>
@@ -171,7 +173,7 @@ export default function ProjectView() {
           </div>
         )}
       </main>
-      <JobTabBar tabs={tabs} active={tab} onSelect={(t) => setTab(t)} />
+      <JobTabBar tabs={tabs} active={tab} onSelect={(x) => setTab(x)} />
     </>
   );
 }
