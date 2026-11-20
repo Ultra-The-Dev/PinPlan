@@ -6,10 +6,10 @@ export const metadata: Metadata = { title: "Photo report", robots: { index: fals
 
 export default function PhotoReportPage() {
   return (
-    <main className="flex-1 overflow-auto">
+    <div className="flex-1">
       <Suspense fallback={<p className="p-10 text-center text-slate-500">Loading photos…</p>}>
         <ClientPhotoReport />
       </Suspense>
-    </main>
+    </div>
   );
 }

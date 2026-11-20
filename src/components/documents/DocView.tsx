@@ -1,6 +1,6 @@
 // A quote / invoice / credit note as the client sees it (the client link, and the live preview in the editor).
 // Renders a DocSnapshot in one of three looks: classic, modern, compact. No browser APIs: safe to prerender.
-import { docBrand } from "@/lib/brandDefaults";
+import { clientTheme } from "@/lib/clientTheme";
 import { formatDocDate, formatDocMoney, lineAmounts, type DocSnapshot } from "@/lib/documents";
 import { fmtPct } from "@/lib/percent";
 
@@ -19,7 +19,11 @@ const pctText = (n: number) => `${fmtPct(n)}%`;
 export default function DocView({ snap, live, payLink, className = "" }: { snap: DocSnapshot; live?: DocLive; payLink?: string | null; className?: string }) {
   const money = (n: number) => formatDocMoney(n, snap.currency, snap.locale);
   const date = (d: string | null | undefined) => formatDocDate(d, snap.locale);
-  const brand = docBrand(snap.business.brandColor);
+  // Contrast-checked colours from the company's brand (src/lib/clientTheme.ts): `brand` for rules and fills,
+  // `ink` wherever the brand colour is text, so a pale brand (yellow, sky blue) stays readable.
+  const theme = clientTheme(snap.business.brandColor, snap.business.accentColor);
+  const brand = theme.brand;
+  const ink = theme.brandInk;
   const accent = snap.business.accentColor || brand;
   const c = snap.columns;
   const sections = snap.detail === "sections";
@@ -74,19 +78,19 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
       style={{ "--doc-brand": brand, "--doc-accent": accent } as React.CSSProperties}
     >
       {!modern && <div className="h-1.5" style={{ background: brand }} />}
-      <header className={modern ? "px-5 py-7 text-white sm:px-10" : pad} style={modern ? { background: `linear-gradient(135deg, ${brand} 0%, ${brand}e6 70%, ${accent} 160%)` } : undefined}>
+      <header className={modern ? "px-5 py-7 sm:px-10" : pad} style={modern ? { background: theme.band, color: theme.onBand } : undefined}>
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0 max-w-sm">
             {snap.business.logo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={snap.business.logo} alt={snap.business.name} className={`mb-2 h-12 w-auto max-w-[220px] object-contain ${modern ? "rounded bg-white p-1" : ""}`} />
             ) : (
-              <div className={`text-xl font-extrabold tracking-tight ${modern ? "" : ""}`} style={modern ? undefined : { color: brand }}>
+              <div className="text-xl font-extrabold tracking-tight" style={modern ? undefined : { color: ink }}>
                 {snap.business.name || "Your company"}
               </div>
             )}
-            <div className={`mt-1 space-y-0.5 text-xs leading-relaxed ${modern ? "text-white/80" : "text-slate-500"}`}>
-              {snap.business.logo && snap.business.name ? <div className={`font-semibold ${modern ? "text-white" : "text-slate-700"}`}>{snap.business.name}</div> : null}
+            <div className={`mt-1 space-y-0.5 text-xs leading-relaxed ${modern ? "" : "text-slate-500"}`} style={modern ? { color: theme.onBandMuted } : undefined}>
+              {snap.business.logo && snap.business.name ? <div className={`font-semibold ${modern ? "" : "text-slate-700"}`} style={modern ? { color: theme.onBand } : undefined}>{snap.business.name}</div> : null}
               {[snap.business.address, snap.business.phone, snap.business.email, snap.business.website].filter(Boolean).map((x) => (
                 <div key={x} className="break-words whitespace-pre-line">
                   {x}
@@ -95,13 +99,15 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
             </div>
           </div>
           <div className="ml-auto text-right">
-            <div className={`font-extrabold tracking-[0.12em] uppercase ${compact ? "text-xl" : "text-2xl sm:text-3xl"}`} style={modern ? undefined : { color: brand }}>
+            <div className={`font-extrabold tracking-tight ${compact ? "text-xl" : "text-2xl sm:text-3xl"}`} style={modern ? undefined : { color: ink }}>
               {snap.title}
             </div>
             <dl className="mt-2 space-y-0.5 text-xs">
               {meta.map(([k, v]) => (
                 <div key={k} className="flex justify-end gap-3">
-                  <dt className={modern ? "text-white/70" : "text-slate-500"}>{k}</dt>
+                  <dt className={modern ? "" : "text-slate-500"} style={modern ? { color: theme.onBandMuted } : undefined}>
+                    {k}
+                  </dt>
                   <dd className="min-w-24 font-semibold tabular-nums">{v || "—"}</dd>
                 </div>
               ))}
@@ -113,7 +119,7 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
       <div className={pad + (modern ? "" : " pt-0 sm:pt-0")}>
         <div className={`grid gap-3 sm:grid-cols-2 ${compact ? "mb-4" : "mb-7"}`}>
           <div className={compact ? "" : "rounded-xl bg-slate-50 p-4"}>
-            <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">{isInvoice ? "Bill to" : "Prepared for"}</div>
+            <div className="mb-1 text-xs font-semibold text-slate-500">{isInvoice ? "Bill to" : "Prepared for"}</div>
             <div className="font-semibold">{snap.client.name || "—"}</div>
             {snap.client.company ? <div>{snap.client.company}</div> : null}
             {[snap.client.billingAddress, snap.client.email, snap.client.phone].filter(Boolean).map((x) => (
@@ -124,7 +130,7 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
           </div>
           {snap.client.siteAddress && snap.client.siteAddress !== snap.client.billingAddress ? (
             <div className={compact ? "" : "rounded-xl bg-slate-50 p-4"}>
-              <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Job site</div>
+              <div className="mb-1 text-xs font-semibold text-slate-500">Job site</div>
               <div className="font-semibold break-words whitespace-pre-line">{snap.client.siteAddress}</div>
             </div>
           ) : null}
@@ -138,14 +144,14 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
           </div>
         )}
 
-        <div className="flex items-end justify-between border-b-2 pb-1.5 text-[11px] font-semibold tracking-wider text-slate-500 uppercase" style={{ borderColor: brand }}>
+        <div className="flex items-end justify-between border-b-2 pb-1.5 text-xs font-semibold text-slate-500" style={{ borderColor: brand }}>
           <span>Description</span>
           {showPriceCols && c.lineTotal ? <span>Amount</span> : sections ? <span>Amount</span> : null}
         </div>
         {counted.map((l) =>
           (l.kind ?? "item") === "section" ? (
             <div key={l.id} className={`flex items-baseline justify-between gap-3 ${compact ? "pt-3 pb-1" : "pt-5 pb-1.5"}`}>
-              <div className="text-xs font-bold tracking-wider uppercase" style={{ color: brand }}>
+              <div className="text-sm font-bold" style={{ color: ink }}>
                 {l.description}
               </div>
               {sections && <div className="font-semibold tabular-nums">{money(sectionTotal.get(l.id) ?? 0)}</div>}
@@ -180,14 +186,14 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
           ) : null}
           <div className="flex items-baseline justify-between border-t-2 pt-2" style={{ borderColor: brand }}>
             <span className="font-semibold">{snap.deductions?.length ? "This invoice" : "Total"}</span>
-            <span className="text-xl font-extrabold tabular-nums" style={{ color: brand }}>
+            <span className="text-xl font-extrabold tabular-nums" style={{ color: ink }}>
               {money(snap.totals.total)}
             </span>
           </div>
           {snap.totals.deposit != null && snap.kind === "quote" ? <Row label="Deposit due on approval" value={money(snap.totals.deposit)} strong /> : null}
           {isInvoice && paid ? <Row label="Paid" value={`−${money(paid)}`} /> : null}
           {isInvoice ? (
-            <div className="mt-1 flex items-baseline justify-between rounded-lg px-3 py-2" style={{ background: `${brand}10` }}>
+            <div className="mt-1 flex items-baseline justify-between rounded-lg px-3 py-2" style={{ background: theme.brandTint }}>
               <span className="font-semibold">Balance due</span>
               <span className="text-lg font-extrabold tabular-nums">{money(balance)}</span>
             </div>
@@ -196,14 +202,14 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
 
         {optional.length > 0 && (
           <section className="mt-7">
-            <div className="mb-1 text-xs font-bold tracking-wider text-slate-500 uppercase">Optional items (not included in the total)</div>
+            <div className="mb-1 text-sm font-bold text-slate-600">Optional items (not included in the total)</div>
             {optional.map((l) => lineRow(l, true))}
           </section>
         )}
 
         {isInvoice && (snap.payment.instructions || snap.payment.bank || snap.payment.zelle || snap.payment.checkPayable || payLink) && balance > 0 && live?.status !== "void" && (
           <section className="mt-7 rounded-xl p-4 ring-1 ring-slate-200">
-            <div className="mb-2 text-xs font-bold tracking-wider uppercase" style={{ color: brand }}>
+            <div className="mb-2 text-sm font-bold" style={{ color: ink }}>
               How to pay
             </div>
             <div className="space-y-1.5 text-sm text-slate-700">
@@ -229,7 +235,7 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
               {number ? <p className="text-xs text-slate-500">Please include {number} with your payment.</p> : null}
             </div>
             {payLink ? (
-              <a href={payLink} target="_blank" rel="noreferrer noopener" className="btn mt-3 h-11 rounded-full px-6 font-bold text-white print:hidden" style={{ background: brand }}>
+              <a href={payLink} target="_blank" rel="noreferrer noopener" className="btn mt-3 h-12 rounded-[10px] px-6 font-bold print:hidden" style={{ background: theme.action, color: theme.onAction, borderColor: theme.actionEdge }}>
                 Pay {money(balance)} online
               </a>
             ) : null}
@@ -238,7 +244,7 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
 
         {snap.plansUrl ? (
           <p className="mt-5 text-sm">
-            <a href={snap.plansUrl} target="_blank" rel="noreferrer noopener" className="font-semibold underline" style={{ color: brand }}>
+            <a href={snap.plansUrl} target="_blank" rel="noreferrer noopener" className="font-semibold underline" style={{ color: ink }}>
               View the plans (PDF)
             </a>
           </p>
@@ -265,7 +271,7 @@ function TextBlock({ title, body }: { title: string; body: string }) {
   if (!body?.trim()) return null;
   return (
     <section className="mt-6 text-sm leading-relaxed text-slate-600">
-      <h3 className="mb-1 text-xs font-bold tracking-wider text-slate-500 uppercase">{title}</h3>
+      <h3 className="mb-1 text-sm font-bold text-slate-700">{title}</h3>
       <p className="whitespace-pre-line">{body}</p>
     </section>
   );

@@ -6,10 +6,10 @@ export const metadata: Metadata = { title: "Proposal", robots: { index: false, f
 
 export default function ProposalPage() {
   return (
-    <main className="flex-1 overflow-auto">
-      <Suspense fallback={<p className="p-10 text-center text-slate-500">Loading your proposal…</p>}>
+    <div className="flex-1">
+      <Suspense fallback={<p className="p-10 text-center text-slate-500">Loading…</p>}>
         <ClientProposal />
       </Suspense>
-    </main>
+    </div>
   );
 }

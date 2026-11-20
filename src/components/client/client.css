@@ -1,0 +1,871 @@
+/* Pages a contractor's client opens by link (/p quote and plan review, /d documents, /co change orders, /r photo
+   reports, /q questions). They wear the company's colours, set as --cp-* variables on .cp by clientThemeVars()
+   (src/lib/clientTheme.ts, contrast-checked). Neutrals are Blueprint Ink (docs/brand.md). One brand moment per page:
+   the cover band. Everything else is ink on paper; the primary button takes the company's accent. */
+
+/* The page scrolls as a whole (not an inner box): phone browsers then shrink their toolbars, tapping the status bar
+   goes to the top, and printing gets every page. */
+html:has(.cp),
+body:has(.cp) {
+  height: auto;
+  min-height: 100%;
+}
+
+/* In the components layer so Tailwind utilities on the same elements (hidden, sm:inline, mt-0…) still win. */
+@layer components {
+.cp {
+  --cp-ink: #0f2340;
+  --cp-text: #24364f;
+  --cp-pencil: #526580;
+  --cp-rule: #c9d6e5;
+  --cp-hair: #e3eaf2;
+  --cp-paper: #f2f6fa;
+  --cp-ok: #096b60;
+  --cp-ok-bg: #e7f6f3;
+  --cp-ok-rule: #9fd6cc;
+  --cp-warn: #7f5300;
+  --cp-warn-bg: #fff6e0;
+  --cp-warn-rule: #f0d58f;
+  --cp-bad: #a32d21;
+  --cp-redline: #c73a2c;
+  --cp-shadow: 0 18px 40px -24px rgb(15 35 64 / 0.35);
+  min-height: 100%;
+  background: var(--cp-paper);
+  color: var(--cp-ink);
+  font-size: 16px;
+  line-height: 1.55;
+  font-feature-settings: "tnum" 0;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-wrap: anywhere;
+}
+.cp :focus-visible {
+  outline: 2px solid var(--cp-focus);
+  outline-offset: 2px;
+}
+.cp .num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.cp-wrap {
+  margin-inline: auto;
+  max-width: 50rem;
+  padding-inline: 16px;
+}
+.cp-wrap-wide {
+  max-width: 70rem;
+}
+@media (min-width: 640px) {
+  .cp-wrap {
+    padding-inline: 24px;
+  }
+}
+
+/* ---------- letterhead: the company's logo and how to reach them ---------- */
+.cp-letterhead {
+  background: #fff;
+  border-bottom: 1px solid var(--cp-hair);
+}
+.cp-letterhead > div {
+  display: flex;
+  align-items: center;
+  gap: 12px 20px;
+  min-height: 72px;
+  padding-block: 12px;
+}
+.cp-logo {
+  display: block;
+  height: 44px;
+  width: auto;
+  max-width: min(200px, 48vw);
+  object-fit: contain;
+  object-position: left center;
+}
+@media (min-width: 640px) {
+  .cp-logo {
+    height: 56px;
+    max-width: 260px;
+  }
+}
+.cp-company {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--cp-brand-ink);
+}
+.cp-tagline {
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: var(--cp-pencil);
+}
+.cp-reach {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px 16px;
+  text-align: right;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--cp-pencil);
+}
+.cp-reach a {
+  color: inherit;
+  text-decoration: none;
+}
+.cp-reach a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cp-reach .cp-phone {
+  font-weight: 700;
+  color: var(--cp-ink);
+}
+
+/* Small quiet buttons (print, PDF) and icon buttons. 44px to the touch. */
+.cp-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-rule);
+  background: #fff;
+  color: var(--cp-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cp-tool:hover {
+  border-color: var(--cp-pencil);
+}
+.cp-tool:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.cp-tool svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- cover: the one brand moment ---------- */
+.cp-cover {
+  background: var(--cp-band);
+  color: var(--cp-on-band);
+  padding-top: 36px;
+  padding-bottom: 64px;
+}
+.cp[data-band-light="true"] .cp-cover {
+  border-bottom: 1px solid rgb(15 35 64 / 0.14);
+}
+@media (min-width: 640px) {
+  .cp-cover {
+    padding-top: 52px;
+    padding-bottom: 80px;
+  }
+}
+.cp-kind {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--cp-on-band-muted);
+}
+.cp-title {
+  margin-top: 6px;
+  max-width: 22em;
+  font-size: clamp(1.875rem, 1.2rem + 3vw, 2.875rem);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+.cp-sub {
+  margin-top: 12px;
+  max-width: 40em;
+  font-size: 1.0625rem;
+  color: var(--cp-on-band-muted);
+}
+.cp-sub strong {
+  color: var(--cp-on-band);
+  font-weight: 700;
+}
+
+/* ---------- title block: like the one in the corner of a drawing ---------- */
+.cp-tb {
+  position: relative;
+  margin-top: -40px;
+  background: #fff;
+  border: 1px solid var(--cp-rule);
+  border-radius: 4px;
+  box-shadow: var(--cp-shadow);
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .cp-tb {
+    margin-top: -52px;
+  }
+}
+.cp-tb-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--cp-hair);
+}
+@media (min-width: 640px) {
+  .cp-tb-grid {
+    grid-template-columns: repeat(var(--cp-tb-cols, 4), minmax(0, 1fr));
+  }
+}
+.cp-cell {
+  background: #fff;
+  padding: 12px 16px 14px;
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .cp-cell {
+    padding: 14px 20px 16px;
+  }
+}
+.cp-cell dt {
+  font-size: 0.8125rem;
+  color: var(--cp-pencil);
+}
+.cp-cell dd {
+  margin-top: 2px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.cp-cell-wide {
+  grid-column: 1 / -1;
+}
+@media (max-width: 639px) {
+  .cp-cell-lone {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 640px) {
+  .cp-cell-half {
+    grid-column: span 2;
+  }
+}
+.cp-cell-key dd {
+  font-size: clamp(1.625rem, 1.2rem + 1.6vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.cp-cell-key dd small {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--cp-pencil);
+}
+/* The next step, or what already happened. */
+.cp-tb-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  border-top: 1px solid var(--cp-hair);
+  padding: 14px 16px;
+}
+@media (min-width: 640px) {
+  .cp-tb-foot {
+    padding: 16px 20px;
+  }
+}
+.cp-tb-foot p {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+  color: var(--cp-text);
+}
+.cp-tb-foot[data-tone="ok"] {
+  background: var(--cp-ok-bg);
+  color: var(--cp-ok);
+}
+.cp-tb-foot[data-tone="warn"] {
+  background: var(--cp-warn-bg);
+  color: var(--cp-warn);
+}
+.cp-tb-foot[data-tone="neutral"] {
+  background: var(--cp-paper);
+}
+.cp-tb-foot[data-tone] p {
+  color: inherit;
+}
+.cp-tb-foot strong {
+  font-weight: 700;
+}
+
+/* ---------- buttons ---------- */
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: 10px;
+  border: 1px solid var(--cp-action-edge);
+  background: var(--cp-action);
+  color: var(--cp-on-action);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.16);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cp-btn:hover {
+  background: var(--cp-action-hover);
+}
+.cp-btn:active {
+  transform: translateY(1px);
+}
+.cp-btn:disabled {
+  cursor: not-allowed;
+  background: #e6edf5;
+  border-color: #d5dfeb;
+  color: #5f718b;
+  box-shadow: none;
+  transform: none;
+}
+.cp-btn svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.cp-btn-line {
+  background: #fff;
+  color: var(--cp-ink);
+  border-color: var(--cp-rule);
+  box-shadow: none;
+}
+.cp-btn-line:hover {
+  background: var(--cp-paper);
+  border-color: var(--cp-pencil);
+}
+.cp-btn-quiet {
+  background: transparent;
+  color: var(--cp-text);
+  border-color: transparent;
+  box-shadow: none;
+  font-weight: 650;
+  padding-inline: 16px;
+  text-decoration: underline;
+  text-decoration-color: var(--cp-rule);
+  text-underline-offset: 4px;
+}
+.cp-btn-quiet:hover {
+  background: transparent;
+  color: var(--cp-ink);
+  text-decoration-color: currentColor;
+}
+.cp-btn-danger {
+  background: var(--cp-bad);
+  border-color: var(--cp-bad);
+  color: #fff;
+}
+.cp-btn-danger:hover {
+  background: #8a251b;
+}
+.cp-btn-sm {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.9375rem;
+}
+@media (max-width: 639px) {
+  .cp-btn-block-sm {
+    width: 100%;
+  }
+}
+
+/* ---------- body: one sheet of paper with ruled sections ---------- */
+.cp-body {
+  padding-block: 24px 40px;
+}
+@media (min-width: 640px) {
+  .cp-body {
+    padding-block: 32px 64px;
+  }
+}
+.cp-sheet {
+  background: #fff;
+  border: 1px solid var(--cp-rule);
+  border-radius: 4px;
+  box-shadow: var(--cp-shadow);
+}
+.cp-sheet + .cp-sheet {
+  margin-top: 20px;
+}
+.cp-sec {
+  padding: 24px 20px;
+}
+@media (min-width: 640px) {
+  .cp-sec {
+    padding: 32px 40px;
+  }
+}
+.cp-sec + .cp-sec {
+  border-top: 1px solid var(--cp-hair);
+}
+.cp-h2 {
+  font-size: 1.3125rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--cp-ink);
+}
+.cp-intro {
+  margin-top: 4px;
+  max-width: 40em;
+  color: var(--cp-pencil);
+  font-size: 0.9375rem;
+}
+.cp-h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--cp-ink);
+}
+
+/* The company's note: a short letter, signed with the company name. */
+.cp-letter {
+  max-width: 38em;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--cp-text);
+  white-space: pre-line;
+}
+.cp-letter-sign {
+  margin-top: 12px;
+  font-weight: 700;
+  color: var(--cp-ink);
+}
+
+/* Ruled rows: price lines, legend entries, change lines. */
+.cp-rows > * {
+  border-bottom: 1px solid var(--cp-hair);
+}
+.cp-rows > *:last-child {
+  border-bottom: 0;
+}
+.cp-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-block: 10px;
+}
+.cp-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cp-row .cp-amt {
+  flex: none;
+  text-align: right;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.cp-meta {
+  font-size: 0.8125rem;
+  color: var(--cp-pencil);
+  font-variant-numeric: tabular-nums;
+}
+.cp-group + .cp-group {
+  margin-top: 20px;
+}
+.cp-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--cp-ink);
+}
+
+/* Totals: the final figure is the largest number on the sheet. */
+.cp-totals {
+  margin-top: 20px;
+  margin-left: auto;
+  max-width: 22rem;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.cp-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 4px;
+}
+.cp-totals dt {
+  color: var(--cp-pencil);
+}
+.cp-totals .cp-grand {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 2px solid var(--cp-ink);
+  align-items: baseline;
+}
+.cp-totals .cp-grand dt {
+  color: var(--cp-ink);
+  font-weight: 700;
+}
+.cp-totals .cp-grand dd {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Optional items: big tick rows. */
+.cp-options {
+  margin-top: 24px;
+  border: 1px solid var(--cp-rule);
+  border-radius: 4px;
+}
+.cp-options-head {
+  padding: 14px 16px 10px;
+}
+.cp-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--cp-hair);
+  cursor: pointer;
+}
+.cp-option[data-on="true"] {
+  background: var(--cp-brand-tint);
+}
+.cp-option[aria-disabled="true"] {
+  cursor: default;
+}
+.cp input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--cp-action-edge);
+  cursor: inherit;
+}
+
+/* Plans and the symbol legend. */
+.cp-plan {
+  margin-top: 16px;
+  border: 1px solid var(--cp-rule);
+  border-radius: 4px;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.cp-plan img {
+  display: block;
+  width: 100%;
+  background: #fff;
+}
+.cp-plan figcaption {
+  border-top: 1px solid var(--cp-hair);
+  padding: 12px 16px 14px;
+}
+.cp-plan-items {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 2px 24px;
+  font-size: 0.875rem;
+}
+.cp-plan-items > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px dotted var(--cp-rule);
+  padding-block: 3px;
+}
+.cp-plan-items dt {
+  color: var(--cp-text);
+}
+.cp-plan-items dd {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cp-legend {
+  margin-top: 16px;
+  display: grid;
+  gap: 0 32px;
+}
+@media (min-width: 640px) {
+  .cp-legend {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.cp-legend li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--cp-hair);
+}
+.cp-symbol {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cp-hair);
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* Status notes outside the title block (errors, small confirmations). */
+.cp-note {
+  border-radius: 4px;
+  border: 1px solid var(--cp-hair);
+  padding: 12px 16px;
+  font-size: 0.9375rem;
+}
+.cp-note[data-tone="ok"] {
+  background: var(--cp-ok-bg);
+  border-color: var(--cp-ok-rule);
+  color: var(--cp-ok);
+}
+.cp-note[data-tone="warn"] {
+  background: var(--cp-warn-bg);
+  border-color: var(--cp-warn-rule);
+  color: var(--cp-warn);
+}
+.cp-note[data-tone="bad"] {
+  background: #fdeeec;
+  border-color: #f3c4be;
+  color: var(--cp-bad);
+}
+
+/* ---------- respond: approve, sign, answer ---------- */
+.cp-respond {
+  scroll-margin-top: 16px;
+  border-top: 4px solid var(--cp-action-edge);
+}
+.cp-field + .cp-field {
+  margin-top: 18px;
+}
+.cp-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--cp-ink);
+}
+.cp .input {
+  min-height: 48px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+.cp textarea.input {
+  padding-block: 12px;
+  line-height: 1.5;
+}
+.cp .input:focus {
+  border-color: var(--cp-action-edge);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-focus) 30%, transparent);
+}
+.cp-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--cp-rule);
+  border-radius: 4px;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+.cp-agree[data-on="true"] {
+  background: var(--cp-brand-tint);
+  border-color: var(--cp-action-edge);
+}
+.cp-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.cp-hint {
+  margin-top: 10px;
+  font-size: 0.875rem;
+  color: var(--cp-pencil);
+}
+
+/* ---------- footer: how to reach the company ---------- */
+.cp-footer {
+  border-top: 1px solid var(--cp-rule);
+  background: #fff;
+}
+.cp-footer > div {
+  padding-block: 28px 32px;
+}
+.cp-footer-ask {
+  font-size: 1.125rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.cp-footer-links {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.cp-footer-fine {
+  margin-top: 16px;
+  font-size: 0.8125rem;
+  color: var(--cp-pencil);
+  white-space: pre-line;
+}
+
+/* ---------- phone: the next step stays in reach ---------- */
+.cp-dock {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid var(--cp-rule);
+  box-shadow: 0 -10px 30px -20px rgb(15 35 64 / 0.4);
+}
+.cp-dock .cp-btn {
+  flex: 1 1 auto;
+  min-height: 48px;
+}
+.cp-dock-fig {
+  flex: none;
+  line-height: 1.2;
+}
+.cp-dock-fig span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--cp-pencil);
+}
+.cp-dock-fig strong {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 640px) {
+  .cp-dock {
+    display: none;
+  }
+}
+
+/* Photo viewer (photo report, questions). */
+.cp-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 12px 24px;
+  background: rgb(8 22 42 / 0.94);
+}
+.cp-viewer-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-btn:active {
+    transform: none;
+  }
+}
+
+/* ---------- paper ---------- */
+@media print {
+  .cp {
+    background: #fff;
+    font-size: 11pt;
+  }
+  .cp-noprint,
+  .cp-dock {
+    display: none !important;
+  }
+  .cp-letterhead {
+    border-bottom: 0;
+  }
+  .cp-letterhead > div {
+    min-height: 0;
+    padding-block: 0 8pt;
+  }
+  .cp-cover {
+    background: #fff;
+    color: var(--cp-ink);
+    padding-block: 12pt 8pt;
+    border-top: 5pt solid var(--cp-band);
+    border-bottom: 0;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .cp-kind,
+  .cp-sub {
+    color: var(--cp-pencil);
+  }
+  .cp-sub strong {
+    color: var(--cp-ink);
+  }
+  .cp-title {
+    font-size: 22pt;
+  }
+  .cp-tb {
+    margin-top: 8pt;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  .cp-tb-foot[data-tone="ok"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .cp-body {
+    padding-block: 12pt 0;
+  }
+  .cp-sheet {
+    border: 0;
+    box-shadow: none;
+  }
+  .cp-sec {
+    padding: 14pt 0;
+  }
+  .cp-h2,
+  .cp-h3 {
+    break-after: avoid;
+  }
+  .cp-plan,
+  .cp-legend li,
+  .cp-totals,
+  .cp-group {
+    break-inside: avoid;
+  }
+  .cp-footer {
+    border-top: 1px solid var(--cp-rule);
+  }
+  .cp-footer > div {
+    padding-block: 10pt 0;
+  }
+  .cp-wrap {
+    max-width: none;
+    padding-inline: 0;
+  }
+}
+}

@@ -6,10 +6,10 @@ export const metadata: Metadata = { title: "Change order", robots: { index: fals
 
 export default function ChangeOrderPage() {
   return (
-    <main className="flex-1 overflow-auto">
+    <div className="flex-1">
       <Suspense fallback={<p className="p-10 text-center text-slate-500">Loading your change order…</p>}>
         <PublicChangeOrder />
       </Suspense>
-    </main>
+    </div>
   );
 }

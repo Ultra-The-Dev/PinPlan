@@ -1,7 +1,7 @@
 "use client";
-// What the client sees: the installer's proposal by link — plans, scope, price, optional add-ons, sign and accept.
-import { docAccent, docBrand } from "@/lib/brandDefaults";
-import { Check, Printer, X } from "lucide-react";
+// What the client sees by link (/p): the installer's quote (plans, scope, price, optional items, sign and approve), or a
+// plan review (plans and symbols only: approve the layout or ask for changes). Frame and colours: ./client/ClientPage.
+import { Check, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
@@ -10,9 +10,10 @@ import { notifyProposalResponse } from "@/lib/emailClient";
 import { fetchPublicProposal, respondToProposal, type PublicProposal } from "@/lib/proposalCloud";
 import { supabaseConfigured } from "@/lib/supabase";
 import SignaturePad from "./SignaturePad";
-import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
 import { fmtPct } from "@/lib/percent";
+import { ClientLoading, ClientNotice, ClientPage, ContactFooter, Cover, Dock, Letterhead, PrintButton, scrollToId, TitleBlock, type TbCell } from "./client/ClientPage";
 
+const shortDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "");
 const fmtDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
 
 /** Where a keyboard pin goes after an arrow key (Shift moves further), kept on the plan. */
@@ -46,16 +47,16 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
   if (!withImage.length) return null;
   const set = (i: number, note: string) => onChange(pins.map((p, j) => (j === i ? { ...p, note } : p)));
   return (
-    <div className="mt-4">
-      <span className="label">Point at the plan (optional)</span>
-      <p id={hintId} className="-mt-0.5 mb-2 text-xs text-slate-500">
+    <div className="cp-field">
+      <span className="cp-label">Point at the plan (optional)</span>
+      <p id={hintId} className="mb-3 text-sm text-[var(--cp-pencil)]">
         Tap a spot to drop a numbered pin, then say what should change there. Tap a pin’s × to remove it. With a keyboard: Tab to the plan, move with the arrow keys (Shift for bigger steps) and press Enter.
       </p>
       <div className="space-y-3">
         {withImage.map((f) => (
-          <figure key={f.name} className="overflow-hidden rounded-xl ring-1 ring-slate-200">
+          <figure key={f.name} className="cp-plan">
             <div
-              className="relative cursor-crosshair select-none focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-400 focus-visible:ring-inset"
+              className="relative cursor-crosshair select-none focus:outline-none focus-visible:ring-4 focus-visible:ring-[var(--cp-focus)] focus-visible:ring-inset"
               tabIndex={0}
               role="application"
               aria-label={`${f.name} plan: tap a spot, or move the crosshair with the arrow keys and press Enter to drop a pin`}
@@ -86,15 +87,15 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
               <img src={f.image!} alt={`${f.name} plan — tap to add a pin`} className="block w-full bg-white" draggable={false} />
               {cross?.floor === f.name && (
                 <span aria-hidden className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2" style={{ left: `${cross.x * 100}%`, top: `${cross.y * 100}%` }}>
-                  <span className="absolute top-1/2 left-0 h-0.5 w-full -translate-y-1/2 bg-brand-600 shadow-[0_0_0_1px_white]" />
-                  <span className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 bg-brand-600 shadow-[0_0_0_1px_white]" />
+                  <span className="absolute top-1/2 left-0 h-0.5 w-full -translate-y-1/2 bg-[var(--cp-redline)] shadow-[0_0_0_1px_white]" />
+                  <span className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 bg-[var(--cp-redline)] shadow-[0_0_0_1px_white]" />
                 </span>
               )}
               {pins.map((p, i) =>
                 p.floor === f.name ? (
                   <span
                     key={i}
-                    className="pointer-events-none absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white shadow-md ring-2 ring-white"
+                    className="pointer-events-none absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cp-redline)] text-xs font-bold text-white shadow-md ring-2 ring-white"
                     style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                   >
                     {i + 1}
@@ -102,7 +103,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
                 ) : null,
               )}
             </div>
-            <figcaption className="border-t border-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">{f.name}</figcaption>
+            <figcaption className="text-sm font-semibold">{f.name}</figcaption>
             <span className="sr-only" aria-live="polite">
               {cross?.floor === f.name ? `Crosshair ${Math.round(cross.x * 100)}% across, ${Math.round(cross.y * 100)}% down` : ""}
             </span>
@@ -113,7 +114,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
         <ol className="mt-3 space-y-2">
           {pins.map((p, i) => (
             <li key={i} className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">{i + 1}</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--cp-redline)] text-xs font-bold text-white">{i + 1}</span>
               <input
                 ref={(el) => {
                   inputs.current[i] = el;
@@ -124,7 +125,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
                 value={p.note}
                 onChange={(e) => set(i, e.target.value)}
               />
-              <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-500" aria-label={`Remove pin ${i + 1}`} title="Remove pin" onClick={() => onChange(pins.filter((_, j) => j !== i))}>
+              <button type="button" className="cp-tool border-transparent" aria-label={`Remove pin ${i + 1}`} title="Remove pin" onClick={() => onChange(pins.filter((_, j) => j !== i))}>
                 <X />
               </button>
             </li>
@@ -147,7 +148,7 @@ export default function ClientProposal() {
   const [note, setNote] = useState("");
   const [pins, setPins] = useState<ClientPin[]>([]);
   const [busy, setBusy] = useState(false);
-  const topRef = useRef<HTMLElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token || !supabaseConfigured) return;
@@ -157,7 +158,7 @@ export default function ClientProposal() {
         if (r) setChosen(r.status === "accepted" ? r.chosenOptions : r.snapshot.lines.filter((l) => l.optional && l.included).map((l) => l.key));
         if (r?.snapshot.client.name) setName(r.snapshot.client.name);
       })
-      .catch((e) => setError(/does not exist|schema cache|could not find/i.test(e.message) ? "This proposal link isn't available right now. Please contact the company that sent it." : e.message));
+      .catch((e) => setError(/does not exist|schema cache|could not find/i.test(e.message) ? "This link isn't available right now. Please contact the company that sent it." : e.message));
   }, [token]);
 
   const s = p?.snapshot;
@@ -165,9 +166,9 @@ export default function ClientProposal() {
   const sections = useMemo(() => (s ? sectionTotals(s.lines, chosen) : null), [s, chosen]);
 
   if (!token || !supabaseConfigured || p === null)
-    return <Notice title="This link isn't available" body="It may have been withdrawn or replaced by an updated proposal. Please contact the company that sent it." />;
-  if (error) return <Notice title="Couldn't open the proposal" body={error} />;
-  if (!p || !s || !totals || !sections) return <p className="p-10 text-center text-slate-500">Loading your proposal…</p>;
+    return <ClientNotice title="This link isn't available" body="It may have been withdrawn or replaced by an updated quote. Please contact the company that sent it." />;
+  if (error && !p) return <ClientNotice title="Couldn't open this page" body={error} />;
+  if (!p || !s || !totals || !sections) return <ClientLoading text="Loading…" />;
 
   const cur = s.currency;
   const review = s.kind === "review";
@@ -176,6 +177,8 @@ export default function ClientProposal() {
   const base = s.lines.filter((l) => !l.optional);
   const options = s.lines.filter((l) => l.optional);
   const groups = (Object.keys(GROUP_LABELS) as ProposalLine["group"][]).filter((g) => base.some((l) => l.group === g));
+  const company = s.business.name || "We";
+  const total = formatMoney(totals.total, cur);
 
   async function respond(accept: boolean) {
     setBusy(true);
@@ -184,7 +187,8 @@ export default function ClientProposal() {
       setP(await respondToProposal(token, { accept, name, signature: accept ? signature : null, options: chosen, note: review && !accept ? packClientNote(note, pins) : note }));
       // Lets the installer know by email (when the server has email set up).
       notifyProposalResponse(token);
-      topRef.current?.scrollIntoView({ behavior: "smooth" });
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      topRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -192,343 +196,345 @@ export default function ClientProposal() {
     }
   }
 
-  const brand = docBrand(s.business.brandColor);
-  const accent = docAccent(s.business.accentColor);
-  const theme = {
-    "--brand": brand,
-    "--accent": accent,
-    fontFamily: CLIENT_FONT_FAMILY,
-  } as React.CSSProperties;
+  // Title block: the facts, then the key numbers.
+  const approved = p.status === "accepted";
+  const cells: TbCell[] = [
+    { label: "Date", value: shortDate(s.createdAt) },
+    ...(s.validUntil ? [{ label: "Valid until", value: shortDate(s.validUntil) }] : []),
+    // A plan review's key numbers are its counts; a quote's is the price (the counts are in the plans section).
+    ...(review ? s.scope.map((x) => ({ label: x.label, value: <span className="num">{x.value}</span>, key: true })) : []),
+  ];
+  if (!review)
+    cells.push({
+      label: approved ? "Approved total" : "Total",
+      value: (
+        <>
+          {formatMoney(approved ? (p.acceptedTotal ?? totals.total) : totals.total, cur)}
+          {totals.deposit != null && (
+            <small className="mt-1 block">
+              {s.depositPct}% deposit on approval: {formatMoney(totals.deposit, cur)}
+            </small>
+          )}
+        </>
+      ),
+      key: true,
+      wide: true,
+    });
+
+  let foot: React.ReactNode;
+  let footTone: "ok" | "warn" | "neutral" | undefined;
+  if (approved) {
+    footTone = "ok";
+    foot = (
+      <p>
+        <Check className="mr-1.5 inline h-5 w-5 align-[-4px]" />
+        <strong>
+          {review ? "Layout approved" : "Approved"} by {p.clientName} on {fmtDate(p.respondedAt)}.
+        </strong>{" "}
+        {review
+          ? `Thank you. ${company} will follow up with pricing for this layout.`
+          : `${company} will be in touch to schedule the work${s.depositPct ? ` and send the ${s.depositPct}% deposit invoice` : ""}. You can print this page for your records.`}
+      </p>
+    );
+  } else if (answered) {
+    footTone = "neutral";
+    foot = review ? (
+      <p>
+        <strong>We got your change request ({fmtDate(p.respondedAt)}).</strong> {company} will update the plan and send you a new version to review.
+      </p>
+    ) : (
+      <p>
+        <X className="mr-1.5 inline h-5 w-5 align-[-4px]" />
+        <strong>You declined this quote on {fmtDate(p.respondedAt)}.</strong> Thank you for letting us know.
+      </p>
+    );
+  } else if (p.expired) {
+    footTone = "warn";
+    foot = (
+      <p>
+        <strong>This quote expired on {fmtDate(p.validUntil)}.</strong> Please ask {s.business.name || "us"} for an updated one.
+      </p>
+    );
+  } else {
+    foot = (
+      <>
+        <p>{review ? "Check where everything goes, then approve the layout or tell us what to change." : "Read it through, then sign at the bottom to approve."}</p>
+        <button type="button" className="cp-btn cp-btn-block-sm cp-noprint" onClick={() => scrollToId("respond", "input")}>
+          {review ? "Review the layout" : "Review and approve"}
+        </button>
+      </>
+    );
+  }
+
+  const missing = [!name.trim() && "type your name", !signature && "sign", !agree && "tick the box"].filter(Boolean) as string[];
 
   return (
-    <div className="proposal min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={theme}>
-      {/* Letterhead */}
-      <header ref={topRef} className="border-b border-[#e3e7f1] bg-white">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-5 sm:px-6">
-          <div className="mr-auto flex items-center">
-            {s.business.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.business.logo} alt={s.business.name} className="h-14 w-auto max-w-[240px] object-contain sm:h-16" />
-            ) : (
-              <div className="text-xl font-extrabold tracking-tight text-[var(--brand)]">{s.business.name || "Proposal"}</div>
-            )}
-          </div>
-          <div className="min-w-0 text-right text-sm leading-relaxed break-words text-slate-500">
-            {s.business.phone && (
-              <a href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`} className="block font-semibold text-[var(--brand)]">
-                {s.business.phone}
-              </a>
-            )}
-            <div>{[s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
-          </div>
-          <button className="btn btn-sm print:hidden" onClick={() => window.print()}>
-            <Printer /> Print / PDF
-          </button>
-        </div>
-      </header>
+    <ClientPage brandColor={s.business.brandColor} accentColor={s.business.accentColor}>
+      <div ref={topRef}>
+        <Letterhead business={s.business} tools={<PrintButton label="Print or save PDF" />} />
+      </div>
+      <Cover
+        kind={review ? "Plan for your review" : "Quote"}
+        title={s.title}
+        sub={
+          s.client.name || s.client.address ? (
+            <>
+              For {s.client.name ? <strong>{s.client.name}</strong> : null}
+              {s.client.name && s.client.address ? ", " : ""}
+              {s.client.address}
+            </>
+          ) : null
+        }
+      />
+      <TitleBlock id="cp-next" cells={cells} cols={review ? Math.min(4, cells.length) : Math.max(1, cells.length - 1)} foot={foot} footTone={footTone} />
 
-      {/* Title band in the brand colours, like the company site */}
-      <section className="relative overflow-hidden bg-[var(--brand)] text-white print:bg-white print:text-black" style={{ backgroundImage: `radial-gradient(60% 120% at 100% 0%, ${accent}33 0%, transparent 60%), linear-gradient(180deg, #13294f 0%, ${brand} 100%)` }}>
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
-          {s.business.tagline && <div className="text-xs font-semibold tracking-[0.14em] text-[var(--accent)] uppercase">{s.business.tagline}</div>}
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight break-words text-balance sm:text-4xl">{s.title}</h1>
-          <dl className="mt-5 grid gap-x-8 gap-y-1.5 text-sm text-white/80 sm:grid-cols-2 print:text-slate-600">
-            <div className="flex gap-2">
-              <dt className="text-white/55">Prepared for</dt>
-              <dd className="font-semibold text-white print:text-black">{s.client.name || "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-white/55">Date</dt>
-              <dd>{fmtDate(s.createdAt)}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-white/55">Project</dt>
-              <dd>{s.client.address || "—"}</dd>
-            </div>
-            {s.validUntil && (
-              <div className="flex gap-2">
-                <dt className="text-white/55">Valid until</dt>
-                <dd>{fmtDate(s.validUntil)}</dd>
-              </div>
-            )}
-          </dl>
-          <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-3">
-            {s.scope.map((x) => (
-              <div key={x.label} className="min-w-0 rounded-2xl bg-white/[0.07] px-3 py-3 ring-1 ring-white/15 sm:px-4 print:ring-slate-300">
-                <div className="truncate text-xs text-white/60 print:text-slate-500">{x.label}</div>
-                <div className="mt-0.5 text-lg font-extrabold break-words text-[var(--accent)] tabular-nums sm:text-2xl print:text-black">{x.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <main className="cp-wrap cp-body">
+        <div className="cp-sheet">
+          {s.message && (
+            <section className="cp-sec" aria-label={`Note from ${s.business.name || "the company"}`}>
+              <p className="cp-letter">{s.message}</p>
+              {s.business.name && <p className="cp-letter-sign">{s.business.name}</p>}
+            </section>
+          )}
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {answered && (
-          <div className={`mb-6 rounded-2xl px-5 py-4 ring-1 ${p.status === "accepted" ? "bg-emerald-50 text-emerald-900 ring-emerald-200" : "bg-slate-100 text-slate-700 ring-slate-200"}`}>
-            {review ? (
-              p.status === "accepted" ? (
-                <div>
-                  <div className="flex items-center gap-2 font-bold">
-                    <Check className="h-5 w-5" /> Layout approved by {p.clientName} on {fmtDate(p.respondedAt)}
-                  </div>
-                  <p className="mt-1 text-sm">Thank you! {s.business.name || "We"} will follow up with pricing for this layout.</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="font-bold">Thanks — we got your change request ({fmtDate(p.respondedAt)}).</div>
-                  <p className="mt-1 text-sm">{s.business.name || "We"} will update the plan and send you a new version to review.</p>
-                </div>
-              )
-            ) : p.status === "accepted" ? (
-              <>
-                <div className="flex items-center gap-2 font-bold">
-                  <Check className="h-5 w-5" /> Accepted by {p.clientName} on {fmtDate(p.respondedAt)}
-                </div>
-                <p className="mt-1 text-sm">
-                  Total {formatMoney(p.acceptedTotal ?? totals.total, cur)}. {s.business.name || "We"} will be in touch to schedule the work{s.depositPct ? ` and send the ${s.depositPct}% deposit invoice` : ""}. You can print this page for your records.
-                </p>
-              </>
-            ) : (
-              <div className="flex items-center gap-2 font-bold">
-                <X className="h-5 w-5" /> You declined this proposal on {fmtDate(p.respondedAt)}. Thank you for letting us know.
-              </div>
-            )}
-          </div>
-        )}
-        {!answered && p.expired && (
-          <div className="mb-6 rounded-2xl bg-amber-50 px-5 py-4 text-amber-900 ring-1 ring-amber-200">
-            This proposal expired on {fmtDate(p.validUntil)}. Please ask {s.business.name || "us"} for an updated one.
-          </div>
-        )}
-
-        {s.message && (
-          <section className="card mb-6 border-l-4 border-[var(--accent)] p-6 text-[15px] leading-relaxed whitespace-pre-line text-slate-700">{s.message}</section>
-        )}
-
-        {s.legend && s.legend.length > 0 && (
-          <section className="card mt-6 break-inside-avoid p-6 sm:p-8">
-            <h2 className="text-lg font-extrabold text-[var(--brand)]">What the symbols mean</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Each symbol on the plans below is one item.{s.legend.some((l) => /optional/.test(l.count)) ? " Items marked “?” are optional — tell us if you want them." : ""}
-            </p>
-            <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              {s.legend.map((l) => (
-                <li key={l.key} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center">
-                    {l.icon ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={l.icon} alt="" className="h-8 w-8" />
-                    ) : l.key.startsWith("led:") ? (
-                      <span className="h-1.5 w-8 rounded-full" style={{ background: l.color }} />
-                    ) : (
-                      <span className="h-6 w-6 rounded" style={{ background: l.color }} />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm">
-                    <span className="flex items-baseline justify-between gap-2">
-                      <span className="font-semibold">{l.name}</span>
-                      <span className="shrink-0 font-semibold text-[var(--brand)] tabular-nums">{l.count}</span>
+          {s.legend && s.legend.length > 0 && (
+            <section className="cp-sec">
+              <h2 className="cp-h2">What the symbols mean</h2>
+              <p className="cp-intro">
+                Each symbol on the plans is one item.{s.legend.some((l) => /optional/.test(l.count)) ? " Items marked “?” are optional: tell us if you want them." : ""}
+              </p>
+              <ul className="cp-legend">
+                {s.legend.map((l) => (
+                  <li key={l.key}>
+                    <span className="cp-symbol" aria-hidden>
+                      {l.icon ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={l.icon} alt="" className="h-8 w-8" />
+                      ) : l.key.startsWith("led:") ? (
+                        <span className="h-1.5 w-7 rounded-full" style={{ background: l.color }} />
+                      ) : (
+                        <span className="h-5 w-5 rounded-sm" style={{ background: l.color }} />
+                      )}
                     </span>
-                    <span className="block text-slate-500">{l.description}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="font-bold">{l.name}</span>
+                        <span className="num shrink-0 font-bold">{l.count}</span>
+                      </span>
+                      <span className="mt-0.5 block text-[15px] text-[var(--cp-pencil)]">{l.description}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-        {s.floors.some((f) => f.image || f.items.length) && (
-          <section className="mt-6">
-            <h2 className="mb-3 px-1 text-lg font-extrabold text-[var(--brand)]">{review ? "Where everything goes" : "Your plans"}</h2>
-            {review && <p className="-mt-2 mb-3 px-1 text-sm text-slate-500">Tap a plan to open it full size and zoom in.</p>}
-            <div className="space-y-5">
+          {s.floors.some((f) => f.image || f.items.length) && (
+            <section className="cp-sec">
+              <h2 className="cp-h2">{review ? "Where everything goes" : "Your plans"}</h2>
+              <p className="cp-intro">
+                {!review && s.scope.length > 0 ? `${s.scope.map((x) => `${x.label}: ${x.value}`).join(", ")}. ` : ""}
+                {s.floors.some((f) => f.image) ? <span className="cp-noprint">Tap a plan to open it full size and zoom in.</span> : null}
+              </p>
               {s.floors.map((f) => (
-                <figure key={f.name} className="card overflow-hidden break-inside-avoid">
+                <figure key={f.name} className="cp-plan">
                   {f.image && (
                     <a href={f.image} target="_blank" rel="noreferrer" title="Open full size">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={f.image} alt={`${f.name} plan with device locations`} className="w-full bg-white" loading="lazy" />
+                      <img src={f.image} alt={`${f.name} plan with device locations`} loading="lazy" />
                     </a>
                   )}
-                  <figcaption className="border-t border-slate-100 px-5 py-3">
-                    <div className="font-medium">{f.name}</div>
+                  <figcaption>
+                    <div className="cp-h3">{f.name}</div>
                     {f.items.length > 0 && (
-                      <div className="mt-1 text-sm text-slate-500">{f.items.map((i) => `${i.name} ${i.count}`).join(" · ")}</div>
+                      <dl className="cp-plan-items">
+                        {f.items.map((i) => (
+                          <div key={i.name}>
+                            <dt>{i.name}</dt>
+                            <dd>{i.count}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     )}
                   </figcaption>
                 </figure>
               ))}
-            </div>
-          </section>
-        )}
-
-        {!review && (
-        <section className="card mt-6 p-6 sm:p-8">
-          <h2 className="text-lg font-extrabold text-[var(--brand)]">Investment</h2>
-          <div className="mt-3 divide-y divide-slate-100">
-            {groups.map((g) => (
-              <div key={g} className="py-3">
-                <div className="flex items-baseline justify-between">
-                  <div className="text-sm font-semibold text-slate-500">{GROUP_LABELS[g]}</div>
-                  {s.detail === "sections" && <div className="font-medium tabular-nums">{formatMoney(sections.get(g) ?? 0, cur)}</div>}
-                </div>
-                <ul className="mt-1.5 space-y-1.5">
-                  {base
-                    .filter((l) => l.group === g)
-                    .map((l) => (
-                      <li key={l.key} className="flex gap-3 text-sm">
-                        <span className="min-w-0 flex-1 break-words">
-                          {l.description}
-                          {s.detail === "lines" && (
-                            <span className="block text-xs text-slate-500 tabular-nums sm:hidden">
-                              {+l.qty.toFixed(2)} {l.unit}
-                              {l.unitPrice ? ` × ${formatMoney(l.unitPrice, cur)}` : ""}
-                            </span>
-                          )}
-                        </span>
-                        {s.detail === "lines" ? (
-                          <>
-                            <span className="hidden text-slate-500 tabular-nums whitespace-nowrap sm:inline">
-                              {+l.qty.toFixed(2)} {l.unit}
-                              {l.unitPrice ? ` × ${formatMoney(l.unitPrice, cur)}` : ""}
-                            </span>
-                            <span className="w-24 text-right font-medium tabular-nums">{l.total ? formatMoney(l.total, cur) : <span className="font-normal text-slate-500">Included</span>}</span>
-                          </>
-                        ) : (
-                          <span className="text-slate-500 tabular-nums">
-                            {+l.qty.toFixed(2)} {l.unit}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {options.length > 0 && (
-            <div className="mt-4 rounded-xl p-4 ring-1" style={{ background: `${accent}14`, borderColor: accent, boxShadow: `inset 0 0 0 1px ${accent}55` }}>
-              <div className="font-bold text-[var(--brand)]">Optional add-ons</div>
-              <p className="text-sm text-slate-600">{locked ? "Add-ons included in your total are ticked." : "Tick any you'd like included — the total updates."}</p>
-              <ul className="mt-2 space-y-1">
-                {options.map((l) => (
-                  <li key={l.key}>
-                    <label className={`flex items-center gap-3 rounded-lg px-2 py-2 text-sm ${locked ? "" : "cursor-pointer hover:bg-amber-100/50"}`}>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-brand-600"
-                        disabled={locked}
-                        checked={chosen.includes(l.key)}
-                        onChange={(e) => setChosen((c) => (e.target.checked ? [...c, l.key] : c.filter((k) => k !== l.key)))}
-                      />
-                      <span className="min-w-0 flex-1">
-                        {l.description}
-                        <span className="text-slate-500"> · {+l.qty.toFixed(2)} {l.unit}</span>
-                      </span>
-                      <span className="font-medium tabular-nums">+{formatMoney(l.total, cur)}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            </section>
           )}
 
-          <dl className="mt-5 space-y-1.5 border-t border-slate-200 pt-4 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Subtotal</dt>
-              <dd className="tabular-nums">{formatMoney(totals.subtotal, cur)}</dd>
-            </div>
-            {s.taxPct > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Tax ({fmtPct(s.taxPct)}%)</dt>
-                <dd className="tabular-nums">{formatMoney(totals.tax, cur)}</dd>
+          {!review && (
+            <section className="cp-sec">
+              <h2 className="cp-h2">Price</h2>
+              <div className="mt-5">
+                {groups.map((g) => (
+                  <div key={g} className="cp-group">
+                    <div className="cp-group-head">
+                      <h3 className="cp-h3">{GROUP_LABELS[g]}</h3>
+                      {s.detail === "sections" && <div className="num font-bold">{formatMoney(sections.get(g) ?? 0, cur)}</div>}
+                    </div>
+                    <ul className="cp-rows">
+                      {base
+                        .filter((l) => l.group === g)
+                        .map((l) => (
+                          <li key={l.key} className="cp-row">
+                            <span>
+                              {l.description}
+                              <span className="cp-meta block">
+                                {+l.qty.toFixed(2)} {l.unit}
+                                {s.detail === "lines" && l.unitPrice ? ` × ${formatMoney(l.unitPrice, cur)}` : ""}
+                              </span>
+                            </span>
+                            {s.detail === "lines" && (
+                              <span className="cp-amt">{l.total ? formatMoney(l.total, cur) : <span className="font-normal text-[var(--cp-pencil)]">Included</span>}</span>
+                            )}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                ))}
               </div>
-            )}
-            <div className="flex items-baseline justify-between pt-1">
-              <dt className="text-base font-semibold">Total</dt>
-              <dd className="text-3xl font-extrabold text-[var(--brand)] tabular-nums">{formatMoney(totals.total, cur)}</dd>
-            </div>
-            {totals.deposit != null && (
-              <div className="flex justify-between text-slate-600">
-                <dt>Deposit due on approval ({s.depositPct}%)</dt>
-                <dd className="tabular-nums">{formatMoney(totals.deposit, cur)}</dd>
-              </div>
-            )}
-          </dl>
-        </section>
-        )}
 
-        {s.terms && (
-          <section className="mt-6 px-1 text-sm leading-relaxed text-slate-600">
-            <h2 className="mb-1.5 font-semibold text-slate-800">Terms</h2>
-            <p className="whitespace-pre-line">{s.terms}</p>
-          </section>
-        )}
+              {options.length > 0 && (
+                <div className="cp-options">
+                  <div className="cp-options-head">
+                    <h3 className="cp-h3">Optional items</h3>
+                    <p className="text-sm text-[var(--cp-pencil)]">{locked ? "Ticked items are in your total." : "Tick any you’d like included. The total updates."}</p>
+                  </div>
+                  <ul>
+                    {options.map((l) => {
+                      const on = chosen.includes(l.key);
+                      return (
+                        <li key={l.key}>
+                          <label className="cp-option" data-on={on} aria-disabled={locked || undefined}>
+                            <input
+                              type="checkbox"
+                              disabled={locked}
+                              checked={on}
+                              onChange={(e) => setChosen((c) => (e.target.checked ? [...c, l.key] : c.filter((k) => k !== l.key)))}
+                            />
+                            <span className="min-w-0 flex-1">
+                              {l.description}
+                              <span className="cp-meta block">
+                                {+l.qty.toFixed(2)} {l.unit}
+                              </span>
+                            </span>
+                            <span className="num shrink-0 font-semibold">+{formatMoney(l.total, cur)}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              <dl className="cp-totals">
+                <div>
+                  <dt>Subtotal</dt>
+                  <dd>{formatMoney(totals.subtotal, cur)}</dd>
+                </div>
+                {s.taxPct > 0 && (
+                  <div>
+                    <dt>Tax ({fmtPct(s.taxPct)}%)</dt>
+                    <dd>{formatMoney(totals.tax, cur)}</dd>
+                  </div>
+                )}
+                <div className="cp-grand">
+                  <dt>Total</dt>
+                  <dd>{total}</dd>
+                </div>
+                {totals.deposit != null && (
+                  <div>
+                    <dt>Deposit due on approval ({s.depositPct}%)</dt>
+                    <dd>{formatMoney(totals.deposit, cur)}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {s.terms && (
+            <section className="cp-sec">
+              <h2 className="cp-h3">Terms</h2>
+              <p className="mt-2 max-w-[42em] text-[15px] whitespace-pre-line text-[var(--cp-text)]">{s.terms}</p>
+            </section>
+          )}
+        </div>
 
         {!locked && (
-          <section className="card mt-6 p-6 sm:p-8 print:hidden">
+          <section id="respond" className="cp-sheet cp-respond cp-sec cp-noprint">
             {!declining ? (
               <>
-                <h2 className="text-lg font-extrabold text-[var(--brand)]">{review ? "Does this layout look right?" : "Approve this proposal"}</h2>
-                {review && <p className="mt-1 text-sm text-slate-500">Approve it, or ask for changes — move a camera, add a speaker, anything.</p>}
-                <label className="mt-4 block text-sm">
-                  <span className="label">Your full name</span>
-                  <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-                </label>
-                <div className="mt-4">
-                  <span className="label">Signature</span>
-                  <SignaturePad onChange={setSignature} name={name} />
+                <h2 className="cp-h2">{review ? "Does this layout look right?" : "Approve this quote"}</h2>
+                <p className="cp-intro">{review ? "Approve it, or ask for changes: move a camera, add a speaker, anything." : `Sign below to approve the work for ${total}.`}</p>
+                <div className="mt-6">
+                  <label className="cp-field block">
+                    <span className="cp-label">Your full name</span>
+                    <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                  </label>
+                  <div className="cp-field">
+                    <span className="cp-label">Signature</span>
+                    <SignaturePad onChange={setSignature} name={name} />
+                  </div>
                 </div>
-                <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
-                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <label className="cp-agree" data-on={agree}>
+                  <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
                   {review ? (
                     <span>I’ve reviewed the plan and approve where everything is placed. I understand pricing will follow.</span>
                   ) : (
                     <span>
-                      I approve the work described above for <strong>{formatMoney(totals.total, cur)}</strong>
+                      I approve the work described above for <strong className="num">{total}</strong>
                       {s.terms ? " and agree to the terms" : ""}.
                     </span>
                   )}
                 </label>
-                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <button
-                    className="btn h-12 rounded-full px-7 text-[15px] font-bold disabled:opacity-50"
-                    style={{ background: accent, color: brand }}
-                    disabled={busy || !name.trim() || !signature || !agree}
-                    onClick={() => void respond(true)}
-                  >
-                    <Check /> {busy ? "Sending…" : review ? "Approve layout" : `Accept — ${formatMoney(totals.total, cur)}`}
+                {error && (
+                  <p className="cp-note mt-4" data-tone="bad" role="alert">
+                    {error}
+                  </p>
+                )}
+                <div className="cp-actions">
+                  <button className="cp-btn cp-btn-block-sm" disabled={busy || missing.length > 0} onClick={() => void respond(true)}>
+                    <Check /> {busy ? "Sending…" : review ? "Approve layout" : `Approve ${total}`}
                   </button>
-                  <button className={review ? "btn" : "btn btn-ghost text-slate-500"} onClick={() => setDeclining(true)}>
+                  <button className={`cp-btn ${review ? "cp-btn-line" : "cp-btn-quiet"} cp-btn-block-sm`} onClick={() => setDeclining(true)}>
                     {review ? "Request changes" : "Decline"}
                   </button>
                 </div>
+                {missing.length > 0 && !busy && <p className="cp-hint">To approve, {missing.join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>}
               </>
             ) : (
               <>
-                <h2 className="text-lg font-semibold">{review ? "What would you like changed?" : "Decline this proposal"}</h2>
-                {review && (
-                  <label className="mt-4 block text-sm">
-                    <span className="label">Your name</span>
-                    <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                <h2 className="cp-h2">{review ? "What would you like changed?" : "Decline this quote"}</h2>
+                {review && <p className="cp-intro">Say it in your own words. Naming the floor and room helps, or pin it on the plan.</p>}
+                <div className="mt-6">
+                  {review && (
+                    <label className="cp-field block">
+                      <span className="cp-label">Your name</span>
+                      <input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                    </label>
+                  )}
+                  <label className="cp-field block">
+                    <span className="cp-label">{review ? "Changes" : "Anything we should know? (optional)"}</span>
+                    <textarea
+                      className="input min-h-32"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder={review ? "e.g. 2nd floor: move the bedroom TV to the other wall; add a speaker in the office…" : "Timing, budget, scope changes…"}
+                    />
                   </label>
+                  {review && <PinPad floors={s.floors} pins={pins} onChange={setPins} />}
+                </div>
+                {error && (
+                  <p className="cp-note mt-4" data-tone="bad" role="alert">
+                    {error}
+                  </p>
                 )}
-                <label className="mt-4 block text-sm">
-                  <span className="label">{review ? "Changes (by floor and room helps — or pin them on the plan below)" : "Anything we should know? (optional)"}</span>
-                  <textarea
-                    className="input min-h-28"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder={review ? "e.g. 2nd floor: move the bedroom TV to the other wall; add a speaker in the office…" : "Timing, budget, scope changes…"}
-                  />
-                </label>
-                {review && <PinPad floors={s.floors} pins={pins} onChange={setPins} />}
-                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-                <div className="mt-4 flex gap-3">
+                <div className="cp-actions">
+                  <button className={`cp-btn cp-btn-block-sm ${review ? "" : "cp-btn-danger"}`} disabled={busy || (review && !note.trim() && !pins.length)} onClick={() => void respond(false)}>
+                    {busy ? "Sending…" : review ? "Send change request" : "Decline quote"}
+                  </button>
                   <button
-                    className="btn"
+                    className="cp-btn cp-btn-quiet cp-btn-block-sm"
                     onClick={() => {
                       // The signature pad comes back empty, so don't keep a signature the client can't see.
                       setSignature(null);
@@ -537,43 +543,28 @@ export default function ClientProposal() {
                   >
                     Back
                   </button>
-                  <button className={review ? "btn btn-brand" : "btn btn-danger"} disabled={busy || (review && !note.trim() && !pins.length)} onClick={() => void respond(false)}>
-                    {busy ? "Sending…" : review ? "Send change request" : "Decline proposal"}
-                  </button>
                 </div>
               </>
             )}
           </section>
         )}
-      </div>
-      <footer className="bg-[var(--brand)] text-white/70 print:bg-white print:text-slate-500">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-6 text-sm sm:px-6">
-          <div className="mr-auto">
-            <div className="font-bold text-white print:text-black">{s.business.name}</div>
-            {s.business.serviceArea && <div>{s.business.serviceArea}</div>}
-          </div>
-          <div className="min-w-0 text-right break-words">
-            Questions? {s.business.phone ? <a className="font-semibold text-[var(--accent)]" href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`}>{s.business.phone}</a> : null}
-            {s.business.email ? (
-              <>
-                {" · "}
-                <a className="text-white/80 underline-offset-2 hover:underline" href={`mailto:${s.business.email}`}>
-                  {s.business.email}
-                </a>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
+      </main>
 
-function Notice({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="text-xl font-semibold">{title}</h1>
-      <p className="mt-2 text-slate-500">{body}</p>
-    </div>
+      <ContactFooter business={s.business} ask={review ? "Questions about the plan?" : "Questions about this quote?"} />
+
+      {!locked && (
+        <Dock watch="cp-next" target="respond">
+          {!review && (
+            <div className="cp-dock-fig">
+              <span>Total</span>
+              <strong>{total}</strong>
+            </div>
+          )}
+          <button type="button" className="cp-btn" onClick={() => scrollToId("respond", "input")}>
+            {review ? "Approve or ask for changes" : "Review and approve"}
+          </button>
+        </Dock>
+      )}
+    </ClientPage>
   );
 }

@@ -110,10 +110,18 @@ describe("pricing JSON-LD", () => {
 
 describe("no Google requests from client pages", () => {
   it("client link pages use the self-hosted font", () => {
-    for (const f of ["src/components/rfis/PublicRfi.tsx", "src/components/ClientProposal.tsx", "src/components/photos/ClientPhotoReport.tsx"]) {
+    // Every client page is framed by ClientPage, which sets the self-hosted font.
+    expect(read("src/components/client/ClientPage.tsx")).toContain("CLIENT_FONT_FAMILY");
+    for (const f of [
+      "src/components/rfis/PublicRfi.tsx",
+      "src/components/ClientProposal.tsx",
+      "src/components/photos/ClientPhotoReport.tsx",
+      "src/components/documents/ClientDocument.tsx",
+      "src/components/changeOrders/PublicChangeOrder.tsx",
+    ]) {
       const src = read(f);
       expect(src, f).not.toContain("fonts.googleapis.com");
-      expect(src, f).toContain("CLIENT_FONT_FAMILY");
+      expect(src, f).toMatch(/client\/ClientPage"/);
     }
   });
 

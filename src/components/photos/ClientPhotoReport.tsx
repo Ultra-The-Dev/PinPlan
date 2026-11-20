@@ -1,19 +1,18 @@
 "use client";
 // What the client sees from a photo report link: branded, grouped photos with captions; tap to enlarge; print.
-import { docAccent, docBrand } from "@/lib/brandDefaults";
-import { Printer, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { readSnapshotSections } from "@/lib/photoReport";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
-import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
+import { ClientLoading, ClientNotice, ClientPage, ContactFooter, Cover, Letterhead, PrintButton, TitleBlock, type TbCell } from "../client/ClientPage";
 
 interface Snap {
   title: string;
   notes?: string;
   dateRange?: string;
   client: { name: string; address: string };
-  business: { name: string; phone?: string; email?: string; website?: string; logo?: string; brandColor?: string; accentColor?: string; tagline?: string };
+  business: { name: string; phone?: string; email?: string; website?: string; logo?: string; brandColor?: string; accentColor?: string; tagline?: string; address?: string };
   photos: { url: string; width: number; height: number; caption: string; meta: string; tags: string[]; label: string; comments?: { author?: string; text: string; at?: string }[] }[];
   /** v2: headings and before/after pairs as indexes into `photos`. Missing on v1 reports. */
   sections?: unknown;
@@ -50,100 +49,79 @@ export default function ClientPhotoReport() {
     return () => window.removeEventListener("keydown", key);
   }, [open, s]);
 
-  if (!token || !supabaseConfigured || s === null)
-    return (
-      <div className="mx-auto max-w-md px-6 py-24 text-center">
-        <h1 className="text-xl font-semibold">This link isn’t available</h1>
-        <p className="mt-2 text-slate-500">It may have been withdrawn. Please contact the company that sent it.</p>
-      </div>
-    );
-  if (!s) return <p className="p-10 text-center text-slate-500">Loading photos…</p>;
-  const brand = docBrand(s.business.brandColor);
-  const accent = docAccent(s.business.accentColor);
+  if (!token || !supabaseConfigured || s === null) return <ClientNotice title="This link isn’t available" body="It may have been withdrawn. Please contact the company that sent it." />;
+  if (!s) return <ClientLoading text="Loading photos…" />;
+  const sections = readSnapshotSections(s.photos.length, s.sections);
+  const titled = sections.filter((x) => x.title).length;
+  const cells: TbCell[] = [
+    ...(s.dateRange ? [{ label: "Taken", value: s.dateRange }] : []),
+    ...(s.client.address ? [{ label: "Job site", value: s.client.address }] : []),
+    ...(titled > 1 ? [{ label: "Areas", value: <span className="num">{titled}</span>, key: true }] : []),
+    { label: "Photos", value: <span className="num">{s.photos.length}</span>, key: true },
+  ];
   return (
-    <div className="min-h-full bg-[#f4f6fb] text-[#111a33] print:bg-white" style={{ fontFamily: CLIENT_FONT_FAMILY }}>
-      <header className="border-b border-[#e3e7f1] bg-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-5 sm:px-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {s.business.logo ? <img src={s.business.logo} alt={s.business.name} className="mr-auto h-14 w-auto max-w-[240px] object-contain" /> : <div className="mr-auto text-xl font-extrabold" style={{ color: brand }}>{s.business.name}</div>}
-          <div className="min-w-0 text-right text-sm break-words text-slate-500">
-            {s.business.phone && <a className="block font-semibold" style={{ color: brand }} href={`tel:${s.business.phone.replace(/[^+\d]/g, "")}`}>{s.business.phone}</a>}
-            <div>{[s.business.email, s.business.website].filter(Boolean).join(" · ")}</div>
+    <ClientPage brandColor={s.business.brandColor} accentColor={s.business.accentColor}>
+      <Letterhead business={s.business} tools={<PrintButton label="Print or save PDF" />} wide />
+      <Cover kind="Photo report" title={s.title} sub={s.client.name ? <>For <strong>{s.client.name}</strong></> : null} wide />
+      <TitleBlock cells={cells} cols={cells.length} wide />
+      <main className="cp-wrap cp-wrap-wide cp-body">
+        {s.notes && (
+          <div className="cp-sheet cp-sec mb-5">
+            <p className="cp-letter">{s.notes}</p>
+            {s.business.name && <p className="cp-letter-sign">{s.business.name}</p>}
           </div>
-          <button className="btn btn-sm print:hidden" onClick={() => window.print()}>
-            <Printer /> Print / PDF
-          </button>
-        </div>
-      </header>
-      <section className="text-white" style={{ background: `radial-gradient(60% 120% at 100% 0%, ${accent}33 0%, transparent 60%), linear-gradient(180deg, #13294f 0%, ${brand} 100%)` }}>
-        <div className="mx-auto max-w-5xl px-4 py-9 sm:px-6">
-          {s.business.tagline && <div className="text-xs font-semibold tracking-[0.14em] uppercase" style={{ color: accent }}>{s.business.tagline}</div>}
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight break-words">{s.title}</h1>
-          <p className="mt-2 text-white/75">{[s.client.name, s.client.address, s.dateRange, `${s.photos.length} photo${s.photos.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}</p>
-        </div>
-      </section>
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {s.notes && <p className="card mb-6 border-l-4 p-5 leading-relaxed whitespace-pre-line text-slate-700" style={{ borderLeftColor: accent }}>{s.notes}</p>}
-        {readSnapshotSections(s.photos.length, s.sections).map((sec, si) => (
-          <section key={si} className="mb-8 last:mb-0">
-            {sec.title && (
-              <h2 className="mb-3 border-b border-[#e3e7f1] pb-2 text-lg font-bold break-after-avoid" style={{ color: brand }}>
-                {sec.title}
-              </h2>
-            )}
-            <div className="grid gap-5 sm:grid-cols-2">
+        )}
+        {sections.map((sec, si) => (
+          <section key={si} className="mt-8 first:mt-0">
+            {sec.title && <h2 className="cp-h2 mb-3 break-after-avoid">{sec.title}</h2>}
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
               {sec.cells.map((cell, ci) =>
                 cell.length > 1 ? (
-                  <div key={ci} className="card grid grid-cols-2 gap-px overflow-hidden break-inside-avoid bg-[#e3e7f1] sm:col-span-2">
+                  <div key={ci} className="cp-sheet grid grid-cols-2 gap-px overflow-hidden bg-[var(--cp-hair)] break-inside-avoid sm:col-span-2">
                     {cell.map((i) => (
-                      <PhotoFigure key={i} p={s.photos[i]} brand={brand} onOpen={() => setOpen(i)} bare />
+                      <PhotoFigure key={i} p={s.photos[i]} onOpen={() => setOpen(i)} bare />
                     ))}
                   </div>
                 ) : (
-                  <PhotoFigure key={ci} p={s.photos[cell[0]]} brand={brand} onOpen={() => setOpen(cell[0])} />
+                  <PhotoFigure key={ci} p={s.photos[cell[0]]} onOpen={() => setOpen(cell[0])} />
                 ),
               )}
             </div>
           </section>
         ))}
       </main>
-      <footer className="text-sm text-white/70 print:hidden" style={{ background: brand }}>
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-          <span className="font-bold text-white">{s.business.name}</span>
-          {s.business.phone ? ` · ${s.business.phone}` : ""}
-        </div>
-      </footer>
+      <ContactFooter business={s.business} ask="Questions about these photos?" wide />
       {open != null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Photo" onClick={() => setOpen(null)}>
-          <button className="absolute top-4 right-4 text-white" aria-label="Close" autoFocus>
+        <div className="cp-viewer" role="dialog" aria-modal="true" aria-label="Photo" onClick={() => setOpen(null)}>
+          <button className="cp-viewer-close" aria-label="Close" autoFocus>
             <X className="h-7 w-7" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={s.photos[open].url} alt={s.photos[open].caption || "Job photo"} className="max-h-full max-w-full object-contain" />
         </div>
       )}
-    </div>
+    </ClientPage>
   );
 }
 
-function PhotoFigure({ p, brand, onOpen, bare }: { p: Snap["photos"][number]; brand: string; onOpen: () => void; bare?: boolean }) {
+function PhotoFigure({ p, onOpen, bare }: { p: Snap["photos"][number]; onOpen: () => void; bare?: boolean }) {
   const comments = Array.isArray(p.comments) ? p.comments.filter((c) => c && typeof c.text === "string" && c.text.trim()) : [];
   return (
-    <figure className={`${bare ? "bg-white" : "card overflow-hidden break-inside-avoid"} flex flex-col`}>
-      <button className="block w-full bg-slate-100" onClick={onOpen} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ""}`}>
+    <figure className={`${bare ? "bg-white" : "cp-sheet overflow-hidden break-inside-avoid"} flex flex-col`}>
+      <button className="block w-full bg-[var(--cp-paper)]" onClick={onOpen} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={p.url} alt={p.caption || "Job photo"} loading="lazy" className="w-full object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
       </button>
-      <figcaption className="px-4 py-3 text-sm">
-        {p.label && <div className="text-[11px] font-bold tracking-wide uppercase" style={{ color: brand }}>{p.label}</div>}
+      <figcaption className="px-4 pt-3 pb-4 text-[15px]">
+        {p.label && <div className="text-sm font-bold text-[var(--cp-brand-ink)]">{p.label}</div>}
         {p.caption && <div className="font-semibold">{p.caption}</div>}
-        <div className="text-slate-500">{p.meta}</div>
-        {p.tags?.length > 0 && <div className="mt-1 text-xs text-slate-500">{p.tags.join(" · ")}</div>}
+        {p.meta && <div className="cp-meta mt-0.5">{p.meta}</div>}
+        {p.tags?.length > 0 && <div className="cp-meta mt-1">{p.tags.join(", ")}</div>}
         {comments.length > 0 && (
-          <ul className="mt-2 space-y-1 border-l-2 border-[#e3e7f1] pl-3 text-[13px] text-slate-700">
+          <ul className="mt-3 space-y-1.5 border-l-2 border-[var(--cp-rule)] pl-3 text-sm text-[var(--cp-text)]">
             {comments.map((c, i) => (
               <li key={i}>
-                <span className="font-semibold">{[c.author, shortDate(c.at)].filter(Boolean).join(" · ") || "Comment"}:</span> {c.text}
+                <span className="font-semibold">{[c.author, shortDate(c.at)].filter(Boolean).join(", ") || "Comment"}:</span> {c.text}
               </li>
             ))}
           </ul>

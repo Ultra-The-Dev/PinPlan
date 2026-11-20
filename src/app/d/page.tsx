@@ -6,10 +6,10 @@ export const metadata: Metadata = { title: "Document", robots: { index: false, f
 
 export default function DocumentPage() {
   return (
-    <main className="flex-1 overflow-auto">
+    <div className="flex-1">
       <Suspense fallback={<p className="p-10 text-center text-slate-500">Loading…</p>}>
         <ClientDocument />
       </Suspense>
-    </main>
+    </div>
   );
 }
