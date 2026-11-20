@@ -1,6 +1,6 @@
 "use client";
 import { X } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Modal from "./ui/Modal";
 
 export interface DialogField {
@@ -25,9 +25,18 @@ export default function Dialog(props: {
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(props.fields.map((f) => [f.name, f.initial ?? ""])));
   const id = useId();
+  // Mark the native <dialog> (opened modal by Modal) aria-modal, so the plan's shortcuts and Escape handlers, which
+  // look for [aria-modal='true'] (planKeyBlocked / modalOpen), stand down while this form is open, focus on its buttons too.
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const dlg = form.current?.closest("dialog");
+    dlg?.setAttribute("aria-modal", "true");
+    return () => dlg?.removeAttribute("aria-modal");
+  }, []);
   return (
     <Modal onClose={props.onCancel} labelledBy={`${id}-title`} describedBy={props.description ? `${id}-desc` : undefined}>
       <form
+        ref={form}
         className="card animate-in w-full max-w-sm space-y-4 p-5 shadow-pop"
         onSubmit={(e) => {
           e.preventDefault();

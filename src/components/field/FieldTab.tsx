@@ -1,8 +1,9 @@
 "use client";
-// Field: Today (default for technicians) · Tasks · Checklists & forms · Daily log · Photos · Files · More (RFIs,
-// Schedule, Install progress, History). The section lives in the address (&section=…) so a reload, the back button and
-// links from /tasks land on the same place.
-import { BookOpen, Camera, ClipboardCheck, Ellipsis, FileStack, ListTodo, Sun } from "lucide-react";
+// Field: Today (default for technicians) · Tasks · Checklists & forms · Daily log · Files · More (RFIs, Schedule,
+// Install progress, History). The section lives in the address (&section=…) so a reload, the back button and links from
+// /tasks land on the same place. Photos is not a section here: the job page's "Field work | Photos" switch above this
+// view is the one way in (section=photos shows the photo gallery in place of this view).
+import { BookOpen, ClipboardCheck, Ellipsis, FileStack, ListTodo, Sun } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pickFieldSection, type FieldSection } from "@/lib/fieldDocs";
 import { useEditor } from "@/lib/store";
@@ -16,7 +17,6 @@ import TodayCard from "./TodayCard";
 import RfiList from "../rfis/RfiList";
 import FormsList from "../forms/FormsList";
 import TaskList from "../tasks/TaskList";
-import PhotosTab from "../photos/PhotosTab";
 import ProgressPanel from "../progress/ProgressPanel";
 
 const NAV: { id: string; label: string; icon: typeof Sun; sections: FieldSection[] }[] = [
@@ -24,7 +24,6 @@ const NAV: { id: string; label: string; icon: typeof Sun; sections: FieldSection
   { id: "tasks", label: "Tasks", icon: ListTodo, sections: ["tasks"] },
   { id: "checklists", label: "Checklists & forms", icon: ClipboardCheck, sections: ["checklists", "forms"] },
   { id: "logs", label: "Daily log", icon: BookOpen, sections: ["logs"] },
-  { id: "photos", label: "Photos", icon: Camera, sections: ["photos"] },
   { id: "files", label: "Files", icon: FileStack, sections: ["files"] },
   { id: "more", label: "More", icon: Ellipsis, sections: ["rfis", "schedule", "progress", "timeline"] },
 ];
@@ -64,11 +63,11 @@ export default function FieldTab() {
   if (!project) return null;
   return (
     <div className="h-full overflow-auto">
-      <div className={`mx-auto ${section === "schedule" || section === "photos" ? "max-w-6xl" : "max-w-4xl"} space-y-5 px-4 py-6 sm:px-6`}>
+      <div className={`mx-auto ${section === "schedule" ? "max-w-6xl" : "max-w-4xl"} space-y-5 px-4 py-6 sm:px-6`}>
         <div className="space-y-3">
           <div>
             <h2 className="page-title">Field</h2>
-            <p className="mt-1 text-sm text-slate-500">What to do today, tasks, checklists, the daily log, photos and files for this job.</p>
+            <p className="mt-1 text-sm text-slate-500">What to do today, tasks, checklists, the daily log and files for this job.</p>
           </div>
           {/* Labelled at every width; scrolls sideways on narrow phones. */}
           <nav className="seg scroll-thin max-w-full overflow-x-auto" aria-label="Field sections">
@@ -94,11 +93,6 @@ export default function FieldTab() {
         {section === "checklists" && <Checklists />}
         {section === "forms" && <FormsList />}
         {section === "logs" && <DailyLogs />}
-        {section === "photos" && (
-          <div className="-mx-4 -my-6 sm:-mx-6">
-            <PhotosTab />
-          </div>
-        )}
         {section === "files" && <Documents />}
         {section === "rfis" && <RfiList />}
         {section === "schedule" && <ScheduleView />}
