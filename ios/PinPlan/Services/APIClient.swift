@@ -7,15 +7,54 @@ import PinPlanCore
 ///
 /// Who is asking: when signed in, every call carries the user's own session (`Authorization: Bearer …`), so Billdu
 /// uses their company's connection. Only when signed out does a self-hosted server's access code go along instead.
+///
+/// Only https addresses are used (plain http only in debug builds, for a server on the developer's machine), and the
+/// session only goes to the server built into the app or one the person confirmed under Settings › More › Advanced:
+/// a server address typed or pasted by mistake never receives it.
 struct APIClient {
     let baseURL: URL
     let accessCode: String
 
+    /// Plain http is accepted only in debug builds.
+    static var allowsHTTP: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
     init?(settings: AppSettings) {
-        let raw = settings.serverURL.trimmingCharacters(in: .whitespaces)
-        guard !raw.isEmpty, let url = URL(string: raw.hasPrefix("http") ? raw : "https://\(raw)") else { return nil }
+        guard let url = Self.url(settings.serverURL) else { return nil }
         baseURL = url
         accessCode = settings.accessCode
+    }
+
+    /// The server address as a URL when it can be used (https; http only in debug builds), else nil.
+    static func url(_ raw: String) -> URL? { CloudEndpoint.url(raw, allowHTTP: allowsHTTP) }
+
+    // MARK: which servers get the sign-in
+
+    private static let trustedHostsKey = "pinplan.trustedServers"
+
+    /// Servers (hosts) the person confirmed their sign-in may be used with, besides the built-in one.
+    static var trustedHosts: Set<String> { Set(UserDefaults.standard.stringArray(forKey: trustedHostsKey) ?? []) }
+
+    /// Remember that the person confirmed this server (Settings › More › Advanced).
+    static func trust(_ raw: String) {
+        let h = CloudEndpoint.host(raw)
+        guard !h.isEmpty else { return }
+        UserDefaults.standard.set(Array(trustedHosts.union([h])).sorted(), forKey: trustedHostsKey)
+    }
+
+    /// Whether the person's sign-in may be sent to the server at this address.
+    static func mayCarrySession(_ raw: String) -> Bool {
+        CloudEndpoint.mayCarrySession(host: CloudEndpoint.host(raw), builtIn: AppSettings.builtInServerURL, confirmed: trustedHosts)
+    }
+
+    /// Whether this server gets the person's sign-in.
+    var mayCarrySession: Bool {
+        CloudEndpoint.mayCarrySession(host: baseURL.host, builtIn: AppSettings.builtInServerURL, confirmed: Self.trustedHosts)
     }
 
     struct APIError: LocalizedError {
@@ -33,10 +72,11 @@ struct APIClient {
 
     @MainActor private static func currentSessionToken() async -> String? { await sessionToken?() }
 
-    /// The session when signed in; otherwise the access code (if one is set under Advanced).
+    /// The session when signed in (and this server may have it); otherwise the access code (if one is set under
+    /// Advanced).
     private func identify(_ req: inout URLRequest, token: String? = nil) async {
-        var tok = token
-        if tok == nil { tok = await Self.currentSessionToken() }
+        var tok = mayCarrySession ? token : nil
+        if tok == nil, mayCarrySession { tok = await Self.currentSessionToken() }
         if let tok, !tok.isEmpty {
             req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
         } else if !accessCode.isEmpty {
@@ -117,8 +157,8 @@ struct APIClient {
     /// The support page on this server ("https://…/support").
     var supportURL: String { baseURL.absoluteString.hasSuffix("/") ? baseURL.absoluteString + "support" : baseURL.absoluteString + "/support" }
 
-    // Account deletion (DELETE /api/account) is CloudSync.deleteAccount(api:confirmEmail:): it sends the typed email
-    // and reads the server's 403 reauth_required through PinPlanCore's AccountDeletionResult.
+    // Account deletion (DELETE /api/account) is CloudSync.deleteAccount(api:): it needs a fresh sign-in and reads the
+    // server's 401 reauth_required through PinPlanCore's AccountDeletionResult.
 
     /// Can this server send email (team invites)? False when it can't, or can't be reached.
     func emailConfigured() async -> Bool {

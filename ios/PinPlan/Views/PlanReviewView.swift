@@ -86,7 +86,7 @@ struct PlanReviewView: View {
             ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here’s the preliminary plan showing where everything will go — the legend explains each symbol. Let us know if it looks right or what you’d like changed:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
-            Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
+            Button { PrivateClipboard.copy(url); model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
             Link(destination: url) { Label("Open", systemImage: "safari") }
         }
         if r.status == "sent" || r.status == "viewed" {
@@ -160,7 +160,7 @@ struct PlanReviewView: View {
                                    review: true, legend: legend)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say(String(localized: "Client link ready — copied")) }
+            if let url = link(token) { PrivateClipboard.copy(url); model.say(String(localized: "Client link ready — copied")) }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }

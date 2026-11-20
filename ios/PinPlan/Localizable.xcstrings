@@ -1017,6 +1017,58 @@
         }
       }
     },
+    "%lld changes haven't synced yet and would be lost if you remove the data. Kept jobs stay hidden until you sign in again with this account." : {
+      "localizations" : {
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld изменение ещё не синхронизировано и пропадёт, если удалить данные. Оставленные объекты скрыты, пока вы снова не войдёте в этот аккаунт."
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld изменения ещё не синхронизированы и пропадут, если удалить данные. Оставленные объекты скрыты, пока вы снова не войдёте в этот аккаунт."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld изменений ещё не синхронизировано и пропадут, если удалить данные. Оставленные объекты скрыты, пока вы снова не войдёте в этот аккаунт."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld изменения ещё не синхронизированы и пропадут, если удалить данные. Оставленные объекты скрыты, пока вы снова не войдёте в этот аккаунт."
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld change hasn't synced yet and would be lost if you remove the data. Kept jobs stay hidden until you sign in again with this account."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld changes haven't synced yet and would be lost if you remove the data. Kept jobs stay hidden until you sign in again with this account."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld checklists" : {
       "localizations" : {
         "ru" : {
@@ -1411,6 +1463,58 @@
         }
       }
     },
+    "%lld items from the cloud weren't taken: their ids aren't one PinPlan makes." : {
+      "localizations" : {
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld запись из облака не принята: её идентификатор не похож на идентификаторы PinPlan."
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы PinPlan."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld записей из облака не принято: их идентификаторы не похожи на идентификаторы PinPlan."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld записи из облака не приняты: их идентификаторы не похожи на идентификаторы PinPlan."
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item from the cloud wasn't taken: its id isn't one PinPlan makes."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items from the cloud weren't taken: their ids aren't one PinPlan makes."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld jobs" : {
       "localizations" : {
         "ru" : {
@@ -1438,6 +1542,24 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld объекта"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld job"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld jobs"
                 }
               }
             }
@@ -3537,6 +3659,16 @@
         }
       }
     },
+    "An invite code saved on this device was for another sign-in, so it wasn't used. To join, enter the code under Settings › Team." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код приглашения, сохранённый на этом устройстве, был для другого аккаунта, поэтому он не использован. Чтобы присоединиться, введите код в «Настройки» › «Команда»."
+          }
+        }
+      }
+    },
     "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu." : {
       "localizations" : {
         "ru" : {
@@ -4151,6 +4283,16 @@
         }
       }
     },
+    "Change and sign out" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сменить и выйти"
+          }
+        }
+      }
+    },
     "Change orders" : {
       "localizations" : {
         "ru" : {
@@ -4197,6 +4339,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Изменить место"
+          }
+        }
+      }
+    },
+    "Change the server?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сменить сервер?"
           }
         }
       }
@@ -4725,6 +4877,16 @@
         }
       }
     },
+    "Code from the email" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код из письма"
+          }
+        }
+      }
+    },
     "Collapsed" : {
       "localizations" : {
         "ru" : {
@@ -4851,6 +5013,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подтвердить"
+          }
+        }
+      }
+    },
+    "Confirm it's you to delete your PinPlan account" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подтвердите, что это вы, чтобы удалить аккаунт PinPlan"
           }
         }
       }
@@ -5111,6 +5283,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не удалось присоединиться по сохранённому коду: %@"
+          }
+        }
+      }
+    },
+    "Couldn't keep your sign-in on this device, so you'll need to sign in again after closing the app." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось сохранить вход на этом устройстве, поэтому после закрытия приложения нужно будет войти снова."
           }
         }
       }
@@ -5713,6 +5895,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Удалено — нажмите «Отменить», чтобы вернуть"
+          }
+        }
+      }
+    },
+    "Deleting the account needs your device passcode." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для удаления аккаунта нужен код-пароль устройства."
           }
         }
       }
@@ -6389,12 +6581,32 @@
         }
       }
     },
+    "Enter the code from the email." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите код из письма."
+          }
+        }
+      }
+    },
     "Enter the server address first" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сначала введите адрес сервера"
+          }
+        }
+      }
+    },
+    "Enter the server's https:// address first" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала введите адрес сервера (https://)"
           }
         }
       }
@@ -6435,6 +6647,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сначала введите адрес эл. почты."
+          }
+        }
+      }
+    },
+    "Enter your password." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите пароль."
           }
         }
       }
@@ -9169,6 +9391,16 @@
         }
       }
     },
+    "No password? Email me a code" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет пароля? Пришлите код по email"
+          }
+        }
+      }
+    },
     "No phases in these dates." : {
       "localizations" : {
         "ru" : {
@@ -9755,6 +9987,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Меняйте, только если ваша компания использует собственную копию PinPlan. Код доступа нужен только для копии без входа; когда вы вошли, используется ваш аккаунт."
+          }
+        }
+      }
+    },
+    "Only change this if your company runs its own copy of PinPlan. The address must start with https://. The access code is only for a copy without sign-in; when you're signed in, your account is used instead." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Меняйте это, только если ваша компания запускает собственную копию PinPlan. Адрес должен начинаться с https://. Код доступа нужен только для копии без входа; если вы вошли в аккаунт, используется он."
+          }
+        }
+      }
+    },
+    "Only do this if your company runs this copy of PinPlan. The server will act as you: it can read and change your jobs." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Делайте это, только если эту копию PinPlan запускает ваша компания. Сервер будет действовать от вашего имени: он сможет читать и менять ваши объекты."
           }
         }
       }
@@ -10603,6 +10855,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "PinPlan найден"
+          }
+        }
+      }
+    },
+    "PinPlan invite code" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код приглашения в PinPlan"
           }
         }
       }
@@ -11775,6 +12037,16 @@
         }
       }
     },
+    "Removing the data clears jobs, plans, photos and settings from this %@; what's synced stays in your account. Kept jobs stay hidden until you sign in again with this account." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удаление данных стирает объекты, планы, фото и настройки с этого %@; синхронизированное остаётся в вашем аккаунте. Оставленные объекты скрыты, пока вы снова не войдёте в этот аккаунт."
+          }
+        }
+      }
+    },
     "Removing them only clears this device. Sign in with the other account to see them again." : {
       "localizations" : {
         "ru" : {
@@ -12379,6 +12651,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сохранить"
+          }
+        }
+      }
+    },
+    "Save address" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить адрес"
           }
         }
       }
@@ -13207,6 +13489,16 @@
         }
       }
     },
+    "Share code" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поделиться кодом"
+          }
+        }
+      }
+    },
     "Share CSV" : {
       "localizations" : {
         "ru" : {
@@ -13587,6 +13879,26 @@
         }
       }
     },
+    "Sign out and keep jobs on this %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти и оставить объекты на этом %@"
+          }
+        }
+      }
+    },
+    "Sign out and remove data from this %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти и удалить данные с этого %@"
+          }
+        }
+      }
+    },
     "Sign out and sign in again." : {
       "localizations" : {
         "ru" : {
@@ -13613,6 +13925,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Выйдите, чтобы переключиться на другой облачный проект."
+          }
+        }
+      }
+    },
+    "Sign out?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти?"
+          }
+        }
+      }
+    },
+    "Sign out…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти…"
           }
         }
       }
@@ -14787,12 +15119,32 @@
         }
       }
     },
+    "That PinPlan server gave a cloud address that isn't secure (https), so it wasn't used." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот сервер PinPlan передал небезопасный адрес облака (не https), поэтому он не использован."
+          }
+        }
+      }
+    },
     "That plan was deleted" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Этот план удалён"
+          }
+        }
+      }
+    },
+    "That's a different account. Sign in again with the account you want to delete." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это другой аккаунт. Войдите снова в тот аккаунт, который хотите удалить."
           }
         }
       }
@@ -15367,6 +15719,26 @@
         }
       }
     },
+    "To keep your account safe, enter your password again (or get a code by email), then delete your account." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы защитить аккаунт, введите пароль ещё раз (или получите код по email), затем удалите аккаунт."
+          }
+        }
+      }
+    },
+    "To sign in through this server, choose “Use my sign-in with this server” under Settings › More › Advanced first." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы входить через этот сервер, сначала выберите «Использовать мой вход с этим сервером» в «Настройки» › «Ещё» › «Дополнительно»."
+          }
+        }
+      }
+    },
     "today" : {
       "localizations" : {
         "ru" : {
@@ -15567,12 +15939,32 @@
         }
       }
     },
+    "Type DELETE in capitals and your password to confirm it's you." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для подтверждения введите DELETE заглавными буквами и ваш пароль."
+          }
+        }
+      }
+    },
     "Type DELETE in capitals to confirm." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Для подтверждения введите DELETE заглавными буквами."
+          }
+        }
+      }
+    },
+    "Type DELETE in capitals, and your password or the code we emailed to %@." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите DELETE заглавными буквами и ваш пароль или код, который мы отправили на %@."
           }
         }
       }
@@ -15847,12 +16239,52 @@
         }
       }
     },
+    "Use my sign-in with this server" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать мой вход с этим сервером"
+          }
+        }
+      }
+    },
+    "Use my sign-in with this server…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать мой вход с этим сервером…"
+          }
+        }
+      }
+    },
+    "Use the project's https:// address." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Укажите адрес проекта, начинающийся с https://."
+          }
+        }
+      }
+    },
     "Use the same account as on the web." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Используйте тот же аккаунт, что и в веб-версии."
+          }
+        }
+      }
+    },
+    "Use the server's https:// address." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Укажите адрес сервера, начинающийся с https://."
           }
         }
       }
@@ -15873,6 +16305,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Всё фото целиком"
+          }
+        }
+      }
+    },
+    "Use your sign-in with %@?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать ваш вход с %@?"
           }
         }
       }
@@ -16605,6 +17047,26 @@
         }
       }
     },
+    "You're signed in. Changing the server signs you out; jobs stay on this device, hidden until you sign in again." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы вошли в аккаунт. При смене сервера вы выйдете; объекты останутся на этом устройстве и будут скрыты, пока вы снова не войдёте."
+          }
+        }
+      }
+    },
+    "your address" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ваш адрес"
+          }
+        }
+      }
+    },
     "Your business" : {
       "localizations" : {
         "ru" : {
@@ -16661,6 +17123,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ваше имя: %@"
+          }
+        }
+      }
+    },
+    "Your password" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш пароль"
           }
         }
       }
@@ -16731,6 +17203,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ваш вход принят"
+          }
+        }
+      }
+    },
+    "Your sign-in isn't sent to this server until you choose to use it here." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш вход не передаётся этому серверу, пока вы не выберете это здесь."
+          }
+        }
+      }
+    },
+    "Your sign-in isn't used with this PinPlan server. Delete your account on the web instead, or contact support." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш вход не используется с этим сервером PinPlan. Удалите аккаунт в веб-версии или обратитесь в поддержку."
           }
         }
       }

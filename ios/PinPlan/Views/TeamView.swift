@@ -135,7 +135,7 @@ struct TeamBadge: View {
     @Environment(AppModel.self) private var app
     let action: () -> Void
     var body: some View {
-        if let t = app.cloud.team?.team, let r = app.cloud.role {
+        if let t = app.cloud.team?.team, let r = app.cloud.teamRole {
             Button(action: action) {
                 HStack(spacing: 6) {
                     Image(systemName: "person.2.fill").font(.caption)
@@ -714,19 +714,18 @@ private struct InviteShareButtons: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            // The code goes straight to the person it's for (Messages, Mail…) rather than through the clipboard; a
+            // copied link stays on this device and clears itself after 10 minutes.
             HStack(spacing: 10) {
-                Button {
-                    UIPasteboard.general.string = TeamLogic.formatCode(code)
-                    copied = true
-                } label: {
-                    Label(copied ? "Copied" : "Copy code", systemImage: copied ? "checkmark" : "doc.on.doc").frame(maxWidth: .infinity)
+                ShareLink(item: TeamLogic.formatCode(code), subject: Text("PinPlan invite code")) {
+                    Label("Share code", systemImage: "number").frame(maxWidth: .infinity)
                 }
                 if let link {
                     Button {
-                        UIPasteboard.general.string = link
+                        PrivateClipboard.copy(link)
                         copied = true
                     } label: {
-                        Label("Copy link", systemImage: "link").frame(maxWidth: .infinity)
+                        Label(copied ? "Copied" : "Copy link", systemImage: copied ? "checkmark" : "link").frame(maxWidth: .infinity)
                     }
                 }
             }

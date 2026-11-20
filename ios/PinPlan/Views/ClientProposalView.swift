@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import PinPlanCore
 
 /// Send the client a link to review the plans and price, pick options and sign online (opens the web app's /p page).
@@ -93,7 +94,7 @@ struct ClientProposalView: View {
             ShareLink(item: url, subject: Text(r.snapshot.title), message: Text(verbatim: "Here is your quote — you can review it and approve it online:")) {
                 Label("Share link", systemImage: "square.and.arrow.up")
             }
-            Button { UIPasteboard.general.url = url; model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
+            Button { PrivateClipboard.copy(url); model.say(String(localized: "Link copied")) } label: { Label("Copy link", systemImage: "doc.on.doc") }
             Link(destination: url) { Label("Open", systemImage: "safari") }
         }
         if r.status == "sent" || r.status == "viewed" {
@@ -147,7 +148,7 @@ struct ClientProposalView: View {
                                    taxPct: pricing.taxPct, title: title, message: message, validDays: validDays, detail: detail, depositPct: dep, images: urls, origin: origin)
             }, withdraw: open, progress: { busy = $0 })
             showForm = false
-            if let url = link(token) { UIPasteboard.general.url = url; model.say(String(localized: "Client link ready — copied")) }
+            if let url = link(token) { PrivateClipboard.copy(url); model.say(String(localized: "Client link ready — copied")) }
             await refresh()
         } catch { problem = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
     }
@@ -170,5 +171,23 @@ struct ClientProposalView: View {
             if let d = img.jpegData(compressionQuality: 0.82) { out[s.id] = d }
         }
         return out
+    }
+}
+
+/// Copies client links and invite codes for this device only: never to the person's other devices (Universal
+/// Clipboard), and gone from the clipboard after 10 minutes, so a link that opens a client's quote doesn't linger.
+enum PrivateClipboard {
+    static let lifetime: TimeInterval = 10 * 60
+
+    private static var options: [UIPasteboard.OptionsKey: Any] {
+        [.localOnly: true, .expirationDate: Date().addingTimeInterval(lifetime)]
+    }
+
+    static func copy(_ url: URL) {
+        UIPasteboard.general.setItems([[UTType.url.identifier: url, UTType.plainText.identifier: url.absoluteString]], options: options)
+    }
+
+    static func copy(_ text: String) {
+        UIPasteboard.general.setItems([[UTType.plainText.identifier: text]], options: options)
     }
 }
