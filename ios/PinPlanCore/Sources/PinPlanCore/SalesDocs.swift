@@ -19,7 +19,7 @@ public enum SalesDocKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// Stored status. "overdue" and "expired" are never stored: see `SalesDocs.displayStatus`.
+/// Stored status. "ready", "overdue" and "expired" are never stored: see `SalesDocs.displayStatus`.
 public enum SalesDocStatus: String, Codable, CaseIterable, Sendable {
     case draft, sent, viewed, accepted, declined
     case partiallyPaid = "partially_paid"
@@ -209,16 +209,18 @@ public struct SalesPayment: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// What the list shows: the stored status, or "overdue" / "expired" worked out from the dates.
+/// What the list shows: the stored status, or "ready" (finalized, not sent yet) / "overdue" / "expired" worked out.
+/// Labels are STATUS_LABEL in src/lib/documents.ts.
 public enum SalesDocDisplayStatus: String, Sendable, Equatable {
-    case draft, sent, viewed, accepted, declined, partiallyPaid, paid, void, overdue, expired
+    case draft, ready, sent, viewed, accepted, declined, partiallyPaid, paid, void, overdue, expired
 
     public var label: String {
         switch self {
         case .draft: return "Draft"
+        case .ready: return "Ready to send"
         case .sent: return "Sent"
         case .viewed: return "Viewed"
-        case .accepted: return "Accepted"
+        case .accepted: return "Approved"
         case .declined: return "Declined"
         case .partiallyPaid: return "Partly paid"
         case .paid: return "Paid"
@@ -235,7 +237,15 @@ public enum SalesDocs {
         return s.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
     }
 
+    /// True once the client has it: a link was shared, it was emailed or marked sent, or the client opened or answered
+    /// it. Finalizing alone sends nothing ("Ready to send"). Same as `wasSent` in src/lib/documents.ts.
+    public static func wasSent(_ d: SalesDoc) -> Bool {
+        if d.status == .viewed || d.status == .accepted || d.status == .declined { return true }
+        return [d.sentAt, d.shareToken, d.viewedAt, d.respondedAt].contains { !($0 ?? "").isEmpty }
+    }
+
     /// Same as `displayStatus` in src/lib/documents.ts. `day` is today, YYYY-MM-DD.
+    /// Overdue and expired only start once the document was sent.
     public static func displayStatus(_ d: SalesDoc, day: String) -> SalesDocDisplayStatus {
         let st = d.status
         switch st {
@@ -243,12 +253,63 @@ public enum SalesDocs {
         case .void: return .void
         default: break
         }
+        let sent = wasSent(d)
         if d.kind == .invoice {
             if st == .paid { return .paid }
-            if isDay(d.dueDate), let due = d.dueDate, due < day, d.balanceDue > 0 { return .overdue }
+            if sent, isDay(d.dueDate), let due = d.dueDate, due < day, d.balanceDue > 0 { return .overdue }
+            return st == .sent && !sent ? .ready : plain(st)
         }
+        if st == .sent && !sent { return .ready }
         if d.kind == .quote, st == .sent || st == .viewed, isDay(d.validUntil), let v = d.validUntil, v < day { return .expired }
         return plain(st)
+    }
+
+    /// What kind of invoice it is, as the web document editor says it: "Deposit invoice · 30% of the quote",
+    /// "Progress invoice · 12.5% of the quote" (a custom amount is billed as progress), "Final invoice".
+    /// Nil for quotes, credit notes and plain invoices.
+    public static func invoiceTypeText(_ d: SalesDoc) -> String? {
+        guard d.kind == .invoice, let t = d.invoiceType else { return nil }
+        let name: String
+        switch t {
+        case "deposit": name = "Deposit"
+        case "progress": name = "Progress"
+        case "final": name = "Final"
+        default: return nil
+        }
+        guard let pct = d.billedPct, pct > 0 else { return "\(name) invoice" }
+        let n = (pct * 100).rounded() / 100
+        let pctText = n == n.rounded() ? String(Int(n)) : String(n)
+        return "\(name) invoice · \(pctText)% of the quote"
+    }
+
+    // MARK: numbering (mirrors formatDocNumber in src/lib/documents.ts and public.format_document_number)
+
+    /// Default number formats (docs/documents.md, Numbering). Quotes are Q-{0000}; EST-{0000} is the old default.
+    public static func defaultNumberFormat(_ kind: SalesDocKind) -> String {
+        switch kind {
+        case .quote: return "Q-{0000}"
+        case .invoice: return "INV-{YYYY}-{0000}"
+        case .creditNote: return "CN-{0000}"
+        }
+    }
+
+    /// "INV-{YYYY}-{0000}" + 42 on 2026-03-05 → "INV-2026-0042". Tokens: {YYYY} {YY} {MM}; {0…0} pads the counter to
+    /// that many digits (never cuts it); {#} is the bare counter. A format without a counter token gets {0000} at the end.
+    /// The server gives the real numbers; this is for previews only.
+    public static func formatNumber(_ format: String, seq: Int, day: String) -> String {
+        var out = format.trimmingCharacters(in: .whitespacesAndNewlines)
+        if out.isEmpty { out = "{0000}" }
+        if out.range(of: #"\{(0+|#)\}"#, options: .regularExpression) == nil { out += "{0000}" }
+        let d = Array(day)
+        func part(_ a: Int, _ b: Int) -> String { d.count >= b ? String(d[a..<b]) : "" }
+        out = out.replacingOccurrences(of: "{YYYY}", with: part(0, 4)).replacingOccurrences(of: "{YY}", with: part(2, 4))
+            .replacingOccurrences(of: "{MM}", with: part(5, 7)).replacingOccurrences(of: "{#}", with: String(seq))
+        while let r = out.range(of: #"\{0+\}"#, options: .regularExpression) {
+            let width = out.distance(from: r.lowerBound, to: r.upperBound) - 2
+            let n = String(seq)
+            out.replaceSubrange(r, with: String(repeating: "0", count: max(0, width - n.count)) + n)
+        }
+        return out
     }
 
     static func plain(_ s: SalesDocStatus) -> SalesDocDisplayStatus {

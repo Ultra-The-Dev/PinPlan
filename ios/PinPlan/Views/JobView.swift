@@ -192,10 +192,11 @@ struct JobHealthSection: View {
         let today = FieldDocs.localDay(isoNow())
         let e = model.bundle.estimate(catalog: app.catalog, products: app.products, pricing: model.pricing)
         let unpriced = e.lines.filter { $0.included && $0.unitPrice == 0 && $0.qty > 0 }.count
-        let s = JobSummary.make(model.bundle, estimate: (total: e.total, unpriced: unpriced), today: today)
-        let urgent = s.next.kind == .overdueTasks || s.next.kind == .reviseProposal
         let showPrices = app.cloud.can(.prices)
-        // Technicians don't have the Money tab or plan review: those steps are the office's.
+        // Technicians (no prices) get field-work next steps, like the web job summary.
+        let s = JobSummary.make(model.bundle, estimate: (total: e.total, unpriced: unpriced), today: today, prices: showPrices)
+        let urgent = s.next.kind == .overdueTasks || s.next.kind == .reviseProposal
+        // Technicians don't have the Money tab or plan review: any step still pointing there is the office's.
         let officeStep = !showPrices && (s.next.tab == "estimate" || s.next.kind == .sendReview)
         Section {
             if s.next.kind == .done {

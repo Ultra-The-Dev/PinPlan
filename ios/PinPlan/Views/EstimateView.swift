@@ -36,7 +36,7 @@ struct EstimateView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Estimate total").font(.subheadline).foregroundStyle(.secondary)
+                            Text(pricing.taxPct > 0 ? "Total with \(pricing.taxPct.clean)% tax" : "Total").font(.subheadline).foregroundStyle(.secondary)
                             Text(Money.format(e.total, currency: cur)).font(.system(size: 38, weight: .bold)).monospacedDigit()
                                 .contentTransition(.numericText())
                         }
@@ -66,7 +66,7 @@ struct EstimateView: View {
             }
             if !unpriced.isEmpty {
                 Section {
-                    Label("\(unpriced.count) line\(unpriced.count == 1 ? " has" : "s have") no price yet. Set prices in the Catalog and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
+                    Label("\(unpriced.count) line\(unpriced.count == 1 ? " has" : "s have") no price yet. Set prices in the Price list and wire prices in Settings, or tap a line to type one.", systemImage: "exclamationmark.triangle.fill")
                         .font(.callout).foregroundStyle(.orange)
                 }
             }
@@ -77,7 +77,7 @@ struct EstimateView: View {
                     } label: { Label("Products for this job", systemImage: "tag") }
                 }
             }
-            Section(sentence: "Pricing (this project)") {
+            Section(sentence: "Adjust pricing (this job)") {
                 LabeledContent("Markup %") { numberField(pricing.markupPct) { v in setPricing { $0.markupPct = v } } }
                 LabeledContent("Tax %") { numberField(pricing.taxPct) { v in setPricing { $0.taxPct = v } } }
                 Picker("Labor", selection: Binding(get: { pricing.laborMode }, set: { v in setPricing { $0.laborMode = v } })) {
@@ -130,7 +130,7 @@ struct EstimateView: View {
                 }
             }
             Section {
-                NavigationLink { ClientProposalView(model: model) } label: { Label("Client proposal link", systemImage: "signature") }
+                NavigationLink { ClientProposalView(model: model) } label: { Label("Get client link", systemImage: "signature") }
             } footer: { Text("The client reviews the plans and price, picks options and signs online.") }
             Section(sentence: "Summary") {
                 LabeledContent("Subtotal", value: Money.format(e.subtotal, currency: cur))
@@ -309,7 +309,7 @@ struct EstimateView: View {
     }
 
     private func pdfButton(_ e: Estimate) -> some View {
-        Button { pdf(e) } label: { iconLabel("Estimate PDF", "doc.richtext") }
+        Button { pdf(e) } label: { iconLabel("Client PDF", "doc.richtext") }
             .buttonStyle(.bordered)
     }
 

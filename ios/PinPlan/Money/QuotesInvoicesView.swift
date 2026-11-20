@@ -43,7 +43,7 @@ struct QuotesInvoicesView: View {
                 Section {
                     webButton
                 } footer: {
-                    Text("Quotes and invoices are made, sent and paid on the web. This list is read-only.")
+                    Text("Quotes and invoices are made, finalized, sent and paid on the web — including deposits, the remaining balance and custom amounts. This list is read-only.")
                 }
             }
         }
@@ -69,6 +69,9 @@ private struct DocRow: View {
                 Text(SalesDocs.name(doc)).font(.body.weight(.semibold)).monospacedDigit()
                 (Text(doc.kind.label + " · ").foregroundColor(.secondary) + Text(status.label).foregroundColor(tone) + Text(dateText).foregroundColor(.secondary))
                     .font(.caption)
+                if let t = SalesDocs.invoiceTypeText(doc) {
+                    Text(t).font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
@@ -87,6 +90,7 @@ private struct DocRow: View {
         switch status {
         case .overdue, .declined: return .red
         case .paid, .accepted: return .green
+        case .ready: return .orange
         default: return .secondary
         }
     }
