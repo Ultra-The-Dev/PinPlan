@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { db, ensureSeeded } from "@/lib/db";
+import { markHydrated } from "@/lib/i18n";
 import { startLocaleSync } from "@/lib/i18n/account";
 import { startSync } from "@/lib/sync";
 import Toaster from "./ui/Toaster";
@@ -31,6 +32,8 @@ function warmPlanEditor() {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    // A language still loading when the page started may now be shown (src/lib/i18n).
+    markHydrated();
     ensureSeeded().catch(console.error);
     // Persist IndexedDB so the browser doesn't evict plans on low storage.
     navigator.storage?.persist?.().catch(() => undefined);

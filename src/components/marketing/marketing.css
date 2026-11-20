@@ -58,8 +58,31 @@
   letter-spacing: -0.02em;
 }
 /* Russian runs about 15% longer: the display size steps down so the hero's three sentences keep to three lines. */
-html[lang="ru"] .mk .mk-display {
+html[lang="ru"] .mk .mk-display,
+html[lang="uk"] .mk .mk-display,
+html[lang="pl"] .mk .mk-display,
+html[lang="es"] .mk .mk-display,
+html[lang="pt"] .mk .mk-display,
+html[lang="vi"] .mk .mk-display {
   font-size: clamp(2.625rem, 1.4rem + 4.7vw, 5.5rem);
+}
+/* Vietnamese stacks accents above and below: a little more room between lines. */
+html[lang="vi"] .mk .mk-display {
+  line-height: 1.05;
+}
+html[lang="vi"] .mk .mk-h2 {
+  line-height: 1.12;
+}
+/* Chinese has no condensed face and no ascender/descender gap: normal width, open leading, no negative tracking. */
+html[lang="zh"] .mk .mk-display,
+html[lang="zh"] .mk .mk-h2,
+html[lang="zh"] .mk .mk-h3 {
+  font-stretch: 100%;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+html[lang="zh"] .mk .mk-display {
+  font-size: clamp(2.5rem, 1.5rem + 4vw, 5rem);
 }
 .mk .mk-h2 {
   font-size: clamp(2.125rem, 1.45rem + 2.5vw, 3.5rem);

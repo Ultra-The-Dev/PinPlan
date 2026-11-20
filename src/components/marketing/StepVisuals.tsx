@@ -343,11 +343,12 @@ export function FieldVisual() {
   );
 }
 
-/** The same checklist on two phones, in English and in Russian. The text comes from the app's own dictionaries, so the
- *  Russian side is what a crew member actually reads, whatever language the page is in. */
+/** The same checklist on two phones: English, and the visitor's language (Russian when the page is in English). The text
+ *  comes from the app's own dictionaries, so the second phone is what a crew member actually reads. */
 export function CrewVisual() {
   const t = useT();
-  const sides = LOCALES.map((l) => ({ ...l, tr: makeT(l.code) }));
+  const second = t.locale === "en" ? "ru" : t.locale;
+  const sides = LOCALES.filter((l) => l.code === "en" || l.code === second).map((l) => ({ ...l, tr: makeT(l.code) }));
   return (
     <div className="grid grid-cols-2 items-start gap-3 sm:gap-6">
       {sides.map(({ code, label, tr }, i) => (

@@ -20,6 +20,17 @@ export const useLocaleStore = create<{ locale: Locale; loaded: number }>(() => (
 
 /** Show `locale` once its translations are in memory (they're fetched on first use, except Russian). The last choice wins. */
 let wanted: Locale = SOURCE_LOCALE;
+// A language that arrives while React is still hydrating the server HTML waits until hydration is done (Providers calls
+// markHydrated): changing text mid-hydration makes React throw away the page. Russian is in memory before hydration
+// starts, so it never waits.
+let hydrated = false;
+let pendingApply: (() => void) | null = null;
+export function markHydrated(): void {
+  hydrated = true;
+  const apply = pendingApply;
+  pendingApply = null;
+  apply?.();
+}
 function show(locale: Locale): void {
   wanted = locale;
   applyDocumentLang(locale);
@@ -29,7 +40,11 @@ function show(locale: Locale): void {
   }
   loadDictionary(locale).then(
     () => {
-      if (wanted === locale) useLocaleStore.setState((st) => ({ locale, loaded: st.loaded + 1 }));
+      const apply = () => {
+        if (wanted === locale) useLocaleStore.setState((st) => ({ locale, loaded: st.loaded + 1 }));
+      };
+      if (hydrated || typeof window === "undefined") apply();
+      else pendingApply = apply;
     },
     () => {
       // Offline before this language was ever loaded: stay in the current language.
