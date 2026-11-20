@@ -33,6 +33,9 @@ export default defineConfig({
         url: `http://localhost:${PORT}/welcome`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: { NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_ANON_KEY: "" },
+        // Local-only and deliberately open: a production `next start` with no auth configured answers 503 on every
+        // protected API route unless PINPLAN_ALLOW_OPEN=1 (src/lib/server/auth.ts). The money screens ask
+        // /api/billdu/credentials whether Billdu is connected, and that 503 would show up as a console error.
+        env: { NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_ANON_KEY: "", PINPLAN_ALLOW_OPEN: "1" },
       },
 });

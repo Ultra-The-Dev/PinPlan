@@ -90,8 +90,9 @@ test("money path: job → plans → devices → takeoff → pricing → quote �
   await expect(page.getByText(/finalized/).first()).toBeVisible();
 
   // 7. Invoice from the quote.
+  // "More" is a disclosure list of plain buttons (not an ARIA menu).
   await page.getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Create invoice/ }).click();
+  await page.getByRole("button", { name: "Create invoice…", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: /^Create invoice$/ }).click();
   await expect(page.getByRole("button", { name: "Finalize", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Finalize", exact: true }).click();
