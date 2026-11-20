@@ -238,4 +238,35 @@ describe("POST /api/team/join", () => {
     const verify = calls.find((c) => c.url.startsWith("https://challenges.cloudflare.com/"))!;
     expect(verify.body).toMatchObject({ secret: "ts-secret", remoteip: "1.2.3.4" });
   });
+
+  it("reads the token under the name the join page sends it (captchaToken)", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "ts-secret");
+    const { joinRequestBody } = await import("@/lib/teamLogic");
+    const { POST } = await import("@/app/api/team/join/route");
+    const page = (token: string) => joinRequestBody({ code: good.code, email: good.email, password: good.password, name: good.name, captchaToken: token, termsVersion: "2026-11" });
+    expect(page("x")).toHaveProperty("captchaToken", "x");
+    const bad = await POST(req(page("bad-token"), "1.2.3.5"));
+    expect((await bad.json()).code).toBe("captcha_failed");
+    expect(created()).toHaveLength(0);
+    const ok = await POST(req(page("good-token"), "1.2.3.5"));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ ok: true, confirmEmail: true });
+    const verify = calls.filter((c) => c.url.startsWith("https://challenges.cloudflare.com/")).at(-1)!;
+    expect(verify.body).toMatchObject({ secret: "ts-secret", response: "good-token" });
+    // The page's body also records the terms the person ticked.
+    expect((created()[0].body.user_metadata as Record<string, unknown>).terms_version).toBe("2026-11");
+  });
+
+  it("refuses an oversized token without asking Cloudflare, and skips the check when no secret is set", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "ts-secret");
+    let { POST } = await import("@/app/api/team/join/route");
+    const r = await POST(req({ ...good, captchaToken: "x".repeat(2049) }));
+    expect((await r.json()).code).toBe("captcha_failed");
+    expect(calls.some((c) => c.url.startsWith("https://challenges.cloudflare.com/"))).toBe(false);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    vi.resetModules();
+    ({ POST } = await import("@/app/api/team/join/route"));
+    expect((await POST(req(good, "1.2.3.6"))).status).toBe(200);
+    expect(calls.some((c) => c.url.startsWith("https://challenges.cloudflare.com/"))).toBe(false);
+  });
 });

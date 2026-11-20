@@ -3,6 +3,7 @@ import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { passwordStrength } from "@/lib/onboardingLogic";
+import { PASSWORD_MIN } from "@/lib/teamLogic";
 import { Wordmark } from "../marketing/Wordmark";
 
 /** A centred card under a slim header with the wordmark, on blueprint paper, for /signup, /login, /reset. */
@@ -72,7 +73,7 @@ export function PasswordField(props: { id: string; label: string; value: string;
           className="input h-11 pr-11"
           type={show ? "text" : "password"}
           autoComplete={props.isNew ? "new-password" : "current-password"}
-          minLength={props.isNew ? 8 : undefined}
+          minLength={props.isNew ? PASSWORD_MIN : undefined}
           maxLength={72}
           required
           autoFocus={props.autoFocus}

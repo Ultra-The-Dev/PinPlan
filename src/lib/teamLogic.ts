@@ -115,3 +115,44 @@ export function signupProblem(f: { email: string; password: string; name?: strin
   if (f.password.length > 72) return "Use a password of 72 characters or fewer.";
   return null;
 }
+
+/** The body the join page posts to /api/team/join. `captchaToken` is the Turnstile token (the same name Supabase Auth
+ *  uses); `acceptedTerms` is sent because the page only gets here once the person ticked the terms box. */
+export function joinRequestBody(f: { code: string; email: string; password: string; name: string; captchaToken?: string; termsVersion: string }) {
+  return {
+    code: normalizeCode(f.code),
+    email: f.email.trim(),
+    password: f.password,
+    name: f.name.trim(),
+    ...(f.captchaToken ? { captchaToken: f.captchaToken } : {}),
+    acceptedTerms: true as const,
+    termsVersion: f.termsVersion,
+  };
+}
+
+/** What the join page does with /api/team/join's answer. */
+export type JoinReply =
+  | { kind: "checkEmail" } // account made, unconfirmed: Supabase emailed the confirmation link
+  | { kind: "signIn" } // account made and usable now
+  | { kind: "exists" } // the email already has an account: sign in to join
+  | { kind: "fallback" } // the server can't make accounts here: use the normal sign-up
+  | { kind: "error"; message: string };
+export function joinReply(status: number, body: { ok?: boolean; confirmEmail?: boolean; error?: string; code?: string } | null | undefined): JoinReply {
+  const b = body ?? {};
+  if (status >= 200 && status < 300) return b.confirmEmail ? { kind: "checkEmail" } : { kind: "signIn" };
+  if (b.code === "exists") return { kind: "exists" };
+  if (status === 501 || status === 404 || status >= 500) return { kind: "fallback" };
+  return { kind: "error", message: b.error || "Couldn’t create your login." };
+}
+
+/** What the delete-account dialog does with DELETE /api/account's answer. `reauth` asks the person to prove it's
+ *  them: enter their password (a fresh sign-in) or type their email, then try again. */
+export type AccountDeleteReply = { kind: "deleted" } | { kind: "reauth"; message: string } | { kind: "error"; message: string };
+export function accountDeleteReply(status: number, body: { ok?: boolean; error?: string; code?: string } | null | undefined): AccountDeleteReply {
+  const b = body ?? {};
+  if (status >= 200 && status < 300 && b.ok !== false) return { kind: "deleted" };
+  if (status === 403 && b.code === "reauth_required")
+    return { kind: "reauth", message: b.error || "To keep your account safe, enter your password again, then delete your account." };
+  if (status === 401) return { kind: "reauth", message: b.error || "Your sign-in has expired. Enter your password again, then delete your account." };
+  return { kind: "error", message: b.error || `Couldn’t delete your account (${status}).` };
+}

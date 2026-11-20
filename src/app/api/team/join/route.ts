@@ -10,7 +10,8 @@
 //   { ok: true, confirmEmail: true }). Never pre-confirmed, even for an invite with an email: the team's owner and
 //   admins choose that address and can see the code, so a matching email doesn't prove the person owns the inbox.
 // - Shared rate limits per IP and per code (src/lib/server/rateLimit.ts durableRateLimit), and a Cloudflare
-//   Turnstile check when TURNSTILE_SECRET_KEY is set.
+//   Turnstile check when TURNSTILE_SECRET_KEY is set: the page sends the widget's token as `captchaToken` (the name
+//   Supabase Auth uses too; `turnstileToken` is still read for older pages), and it is checked with Cloudflare.
 // Terms: when the page sends acceptedTerms: true, the time and terms version are kept in the user's metadata.
 import { connection } from "next/server";
 import { joinUrl, normalizeCode, PASSWORD_MIN, signupProblem } from "@/lib/teamLogic";
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
   if (!url || !anonKey() || !service) return json({ error: "Instant sign-up isn't set up on this server.", code: "unavailable" }, 501);
   const admin = { apikey: service, Authorization: `Bearer ${service}` };
 
-  let body: { code?: unknown; email?: unknown; password?: unknown; name?: unknown; acceptedTerms?: unknown; termsVersion?: unknown; turnstileToken?: unknown };
+  let body: { code?: unknown; email?: unknown; password?: unknown; name?: unknown; acceptedTerms?: unknown; termsVersion?: unknown; captchaToken?: unknown; turnstileToken?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -103,7 +104,8 @@ export async function POST(req: Request) {
   }
 
   if (process.env.TURNSTILE_SECRET_KEY) {
-    const token = typeof body.turnstileToken === "string" ? body.turnstileToken.slice(0, 2048) : "";
+    const raw = typeof body.captchaToken === "string" && body.captchaToken ? body.captchaToken : body.turnstileToken;
+    const token = typeof raw === "string" && raw.length <= 2048 ? raw : "";
     if (!token || !(await turnstileOk(token, ip))) return json({ error: "Finish the security check, then try again.", code: "captcha_failed" }, 400);
   }
 

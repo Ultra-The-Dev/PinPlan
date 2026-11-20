@@ -12,6 +12,7 @@ import { getSupabase } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { toast } from "@/lib/toast";
+import { useAccountDelete } from "./auth/DeleteAccountReauth";
 
 export default function AccountData() {
   const [exporting, setExporting] = useState(false);
@@ -85,6 +86,8 @@ function DeleteAccountDialog({ onClose, onExport, exporting }: { onClose: () => 
   const owner = t.role === "owner";
   const others = t.members.filter((m) => m.userId !== t.userId).length;
   const blocked = owner && others > 0;
+  // The server may ask the person to prove it's them (password or email again): see auth/DeleteAccountReauth.tsx.
+  const account = useAccountDelete(email);
 
   const del = async () => {
     const sb = getSupabase();
@@ -92,11 +95,10 @@ function DeleteAccountDialog({ onClose, onExport, exporting }: { onClose: () => 
     setBusy(true);
     setError(null);
     try {
-      const token = (await sb.auth.getSession()).data.session?.access_token;
-      if (!token) throw new Error("Your sign-in has expired. Sign in again, then delete your account.");
-      const r = await fetch("/api/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (!r.ok) throw new Error(j.error || `Couldn’t delete your account (${r.status}).`);
+      if (!(await account.request())) {
+        setBusy(false);
+        return;
+      }
       // The login is gone: forget it and everything on this device, then leave.
       await sb.auth.signOut({ scope: "local" }).catch(() => undefined);
       await clearLocalData();
@@ -179,6 +181,7 @@ function DeleteAccountDialog({ onClose, onExport, exporting }: { onClose: () => 
             </div>
           </>
         )}
+        {!blocked && account.fields}
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>

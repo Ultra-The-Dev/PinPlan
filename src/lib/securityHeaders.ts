@@ -34,7 +34,7 @@ export interface HeaderEnv {
   dev?: boolean;
   vercelPreview?: boolean;
   reportOnly?: boolean;
-  /** Cloudflare Turnstile is set up (NEXT_PUBLIC_TURNSTILE_SITE_KEY): allow its script and frame. */
+  /** Cloudflare Turnstile is set up: allow its script and frame. Defaults to NEXT_PUBLIC_TURNSTILE_SITE_KEY being set. */
   turnstile?: boolean;
   /** Policy for the public client pages: no 'unsafe-eval' (outside `next dev`). */
   publicPage?: boolean;
@@ -59,7 +59,9 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
   const sbWs = sb ? sb.replace(/^http/, "ws") : null;
   // Vercel's preview-deployment toolbar (comments/feedback) only exists on preview URLs.
   const live = env.vercelPreview;
-  const cf = env.turnstile && "https://challenges.cloudflare.com";
+  // Defaults to the build's NEXT_PUBLIC_TURNSTILE_SITE_KEY (trimmed, as src/lib/captcha.ts reads it).
+  const turnstile = env.turnstile ?? !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  const cf = turnstile && "https://challenges.cloudflare.com";
   const evalOk = !env.publicPage || env.dev;
   const weather = weatherOrigin(env.weatherUrl ?? process.env.NEXT_PUBLIC_WEATHER_URL);
   const list = (...xs: (string | null | false | undefined)[]) => xs.filter(Boolean).join(" ");

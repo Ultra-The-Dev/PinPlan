@@ -2,10 +2,12 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useCaptcha } from "@/lib/captcha";
 import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
 import { getSupabase } from "@/lib/supabase";
 import type { RefusedChange, SyncTable } from "@/lib/db";
 import { discardRefused, keepPreviousAccountData, listRefused, removePreviousAccountData, retryRefused, signOut, useSyncStatus } from "@/lib/sync";
+import { PASSWORD_MIN } from "@/lib/teamLogic";
 import AccountData from "./AccountData";
 
 /** Account + sync settings. Local-only mode when Supabase env vars are missing. */
@@ -15,6 +17,8 @@ export default function AccountPanel() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Bot check (when NEXT_PUBLIC_TURNSTILE_SITE_KEY is set): Supabase Auth may require a token on every sign-in.
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("login");
 
   if (!s.configured) {
     return (
@@ -36,6 +40,8 @@ export default function AccountPanel() {
     try {
       const { error } = await fn();
       setMsg(error ? error.message : ok);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -82,7 +88,7 @@ export default function AccountPanel() {
           className="max-w-sm space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => sb!.auth.signInWithPassword({ email, password }), "Signed in.");
+            void run(async () => sb!.auth.signInWithPassword({ email, password, options: { captchaToken: await takeCaptcha() } }), "Signed in.");
           }}
         >
           <p className="text-sm text-slate-600">Sign in to sync plans across devices and share them with your crew.</p>
@@ -96,12 +102,20 @@ export default function AccountPanel() {
               type="button"
               disabled={busy || !email}
               className="btn"
-              onClick={() => run(() => sb!.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/settings` } }), "Magic link sent — check your email.")}
+              // Sign-in only: new accounts go through /signup, which records the terms they accept.
+              onClick={() =>
+                run(
+                  async () =>
+                    sb!.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/settings`, captchaToken: await takeCaptcha() } }),
+                  "If there’s an account for this email, a sign-in link is on its way — check your email.",
+                )
+              }
             >
               Email me a link
             </button>
           </div>
-          {msg && <p className="text-sm text-slate-700">{msg}</p>}
+          <div ref={captchaMount} className="flex justify-center empty:hidden" />
+          {(msg ?? captchaError) && <p className="text-sm text-slate-700">{msg ?? captchaError}</p>}
           <p className="text-xs text-slate-500">
             New company? <Link href="/signup" className="font-medium text-slate-700 underline underline-offset-2">Start a free trial</Link> ·{" "}
             <Link href="/reset" className="font-medium text-slate-700 underline underline-offset-2">Forgot password?</Link>
@@ -327,7 +341,7 @@ function SetPassword() {
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const valid = pw.length >= 8 && pw === pw2;
+  const valid = pw.length >= PASSWORD_MIN && pw.length <= 72 && pw === pw2;
   return (
     <form
       className="space-y-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
@@ -348,12 +362,13 @@ function SetPassword() {
       <div className="text-sm font-medium">Set or change password</div>
       <p className="text-xs text-slate-500">Signed in with a magic link? Set a password here to sign in on the iPad and iPhone app.</p>
       <div className="flex flex-wrap gap-2">
-        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="New password (8+ characters)" aria-label="New password" value={pw} onChange={(e) => setPw(e.target.value)} />
+        <input className="input max-w-56" type="password" autoComplete="new-password" placeholder={`New password (${PASSWORD_MIN}+ characters)`} aria-label="New password" value={pw} onChange={(e) => setPw(e.target.value)} />
         <input className="input max-w-56" type="password" autoComplete="new-password" placeholder="Repeat password" aria-label="Repeat new password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
         <button className="btn" disabled={busy || !valid}>
           {busy ? "Saving…" : "Set password"}
         </button>
       </div>
+      {pw && pw.length < PASSWORD_MIN && <p className="text-xs text-slate-500">Use at least {PASSWORD_MIN} characters.</p>}
       {pw2 && pw !== pw2 && <p className="text-xs text-amber-700">The two passwords don’t match.</p>}
       {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
     </form>

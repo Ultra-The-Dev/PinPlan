@@ -227,7 +227,7 @@ describe("DELETE /api/account", () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ keptJobsWithTeam: true, deletedJobs: 0 });
     const patches = calls.filter((c) => c.method === "PATCH");
-    expect(patches.map((c) => c.url.split("?")[0].split("/").pop())).toEqual(["projects", "proposals", "photo_reports"]);
+    expect(patches.map((c) => c.url.split("?")[0].split("/").pop())).toEqual(["projects", "proposals", "photo_reports", "document_links"]);
     expect(patches[0].body).toEqual({ owner_id: "boss" });
     // Their proposal renders belong to the moved proposals now: kept.
     expect(calls.some((c) => c.url.includes("/storage/v1/object/list/proposals"))).toBe(false);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { contentSecurityPolicy, headerRules, publicPageHeaders, securityHeaders } from "@/lib/securityHeaders";
 
 const get = (h: { key: string; value: string }[], k: string) => h.find((x) => x.key === k)?.value;
@@ -72,5 +72,19 @@ describe("cross-origin isolation and the public client pages", () => {
     const csp = contentSecurityPolicy({ turnstile: true });
     expect(csp).toMatch(/script-src [^;]*https:\/\/challenges\.cloudflare\.com/);
     expect(csp).toMatch(/frame-src [^;]*https:\/\/challenges\.cloudflare\.com/);
+  });
+
+  it("follows NEXT_PUBLIC_TURNSTILE_SITE_KEY when not told", () => {
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "0x4AAA-site");
+    try {
+      const csp = contentSecurityPolicy({});
+      expect(csp).toMatch(/script-src [^;]*https:\/\/challenges\.cloudflare\.com/);
+      expect(csp).toMatch(/frame-src [^;]*https:\/\/challenges\.cloudflare\.com/);
+      expect(contentSecurityPolicy({ turnstile: false })).not.toContain("challenges.cloudflare.com");
+      vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "  ");
+      expect(contentSecurityPolicy({})).not.toContain("challenges.cloudflare.com");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

@@ -136,10 +136,11 @@ export async function DELETE(req: Request) {
       }
     }
 
-    // 2. A team member's jobs (and the proposals and photo reports on them) stay with the company.
+    // 2. A team member's jobs (and the proposals, photo reports and document links on them) stay with the company,
+    //    as remove_team_member does. A table this project doesn't have yet answers 404 and is skipped.
     if (plan.transferJobsTo) {
       const to = JSON.stringify({ owner_id: plan.transferJobsTo });
-      for (const table of ["projects", "proposals", "photo_reports"])
+      for (const table of ["projects", "proposals", "photo_reports", "document_links"])
         await rest(`${table}?owner_id=eq.${id}`, { method: "PATCH", body: to, headers: { Prefer: "return=minimal" } });
     }
 

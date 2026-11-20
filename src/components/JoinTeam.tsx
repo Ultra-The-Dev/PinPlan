@@ -12,7 +12,7 @@ import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import { acceptInvite, inviteInfo, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
-import { formatCode, joinUrl, normalizeCode, PASSWORD_MIN, ROLE_INFO, signupProblem, type TeamRole } from "@/lib/teamLogic";
+import { formatCode, joinReply, joinRequestBody, joinUrl, normalizeCode, PASSWORD_MIN, ROLE_INFO, signupProblem, type TeamRole } from "@/lib/teamLogic";
 import { Logo } from "./AppHeader";
 import RoleBadge from "./RoleBadge";
 
@@ -252,21 +252,29 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
     if (problem) throw new Error(problem);
     needTerms();
     const sb = getSupabase()!;
-    // Best: the server makes the account already confirmed (no email round trip). Falls back when it can't.
+    // Best: the server makes the account for this invite (one per code, rate limited, bot-checked). It's created
+    // unconfirmed, so the usual answer is { ok: true, confirmEmail: true }: Supabase has emailed a confirmation link.
+    // Falls back to the normal sign-up when the server can't make accounts.
     let fallback = true;
     try {
       const r = await fetch("/api/team/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, email: email.trim(), password, name: name.trim(), captchaToken: await takeCaptcha(), termsVersion: TERMS_VERSION }),
+        body: JSON.stringify(joinRequestBody({ code, email, password, name, captchaToken: await takeCaptcha(), termsVersion: TERMS_VERSION })),
       });
-      const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
-      if (r.ok) fallback = false;
-      else if (j.code === "exists") {
+      const reply = joinReply(r.status, (await r.json().catch(() => ({}))) as Parameters<typeof joinReply>[1]);
+      if (reply.kind === "checkEmail") {
+        // Join automatically after they confirm and sign in on this device (the email's link comes back to this invite).
+        rememberPendingInvite(code, name.trim());
+        props.onCheckEmail(email.trim());
+        return;
+      }
+      if (reply.kind === "signIn") fallback = false;
+      else if (reply.kind === "exists") {
         setMode("existing");
         setNotice(`You already have a ${PRODUCT_NAME} account with this email. Sign in with its password to join.`);
         return;
-      } else if (r.status !== 501 && r.status !== 404 && r.status < 500) throw new Error(j.error || "Couldn’t create your login.");
+      } else if (reply.kind === "error") throw new Error(reply.message);
     } catch (e) {
       if (!(e instanceof TypeError)) throw e; // network trouble: try the normal sign-up
     }
@@ -498,11 +506,16 @@ function CheckEmail({ info, email, code, onJoined }: { info: InviteInfo; email: 
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
           <Mail className="h-6 w-6" />
         </div>
-        <h1 className="text-xl font-semibold">Check your email</h1>
+        <h1 className="text-xl font-semibold">Check your email to finish</h1>
         <p className="mt-1 text-sm text-slate-600">
-          We sent a confirmation link to <span className="font-medium break-all">{email}</span>. Open it, then sign in here — you’ll join{" "}
-          <span className="font-medium">{info.team}</span> automatically.
+          Your login is made, but it won’t work until you confirm it. We sent a confirmation link to <span className="font-medium break-all">{email}</span>.
         </p>
+        <ol className="mx-auto mt-3 max-w-xs list-decimal space-y-1 pl-5 text-left text-sm text-slate-600">
+          <li>Open the email from {PRODUCT_NAME} and tap the confirmation link.</li>
+          <li>
+            Sign in with your password — you’ll join <span className="font-medium">{info.team || "the team"}</span> automatically.
+          </li>
+        </ol>
         <p className="mt-2 text-xs text-slate-500">Nothing after a few minutes? Check spam. Already had a {PRODUCT_NAME} account with this email? Just sign in below with its password.</p>
       </div>
       <form

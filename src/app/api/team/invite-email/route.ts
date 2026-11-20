@@ -2,6 +2,8 @@
 // Owner or admin only. The invite is read with the caller's own token, so row-level security decides whether they may
 // see it (only the owner and admins of its team can). Works for the web app and the iPad (Authorization: Bearer …).
 // Abuse limits (sendGuard.ts): confirmed sender email, active subscription and a daily invite cap per company.
+// Once sent, the address is saved on the invite (team_invites.email, as the caller, so RLS applies): /api/team/join then
+// only creates an account for that address. Sending again to another address moves the invite to it.
 import { inviteState, joinUrl, memberLabel, normalizeCode } from "@/lib/teamLogic";
 import { teamInviteEmail } from "@/lib/emailTemplates";
 import { requireUser } from "@/lib/server/auth";
@@ -87,5 +89,23 @@ export async function POST(req: Request) {
   const sent = await sendEmail({ to: email, ...content, replyTo: validEmail(inviterEmail) ? inviterEmail : undefined, tags: { type: "team_invite" } });
   await finishSend(guard, sent);
   if (!sent.ok) return sendFailure(sent);
-  return json({ ok: true });
+  const saved = await saveInviteEmail(token, invite.code, email);
+  return json({ ok: true, savedEmail: saved });
+}
+
+/** Remembers who the invite went to. A failure (e.g. the column's migration not run yet) doesn't undo the send: the
+ *  code then works for any address, as before. */
+async function saveInviteEmail(token: string, code: string, email: string): Promise<boolean> {
+  try {
+    const r = await userFetch(token, `/rest/v1/team_invites?code=eq.${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ email }),
+    });
+    if (!r.ok) console.warn("[invite-email] couldn't save the invite's email", r.status);
+    return r.ok;
+  } catch {
+    console.warn("[invite-email] couldn't save the invite's email");
+    return false;
+  }
 }
