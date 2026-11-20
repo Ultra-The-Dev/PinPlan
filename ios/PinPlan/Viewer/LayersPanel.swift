@@ -44,6 +44,7 @@ struct LayersPanel: View {
                 }
                 RoomsSection(model: model, rooms: PlanFilter.rooms(in: markers), counts: counts)
                 TypesSection(model: model, types: types, counts: counts)
+                OfficeDrawingsSection(model: model, sheet: sheet)
             }
         }
     }
