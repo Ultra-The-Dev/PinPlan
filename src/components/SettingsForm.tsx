@@ -23,6 +23,7 @@ import OnlinePaymentsPanel from "./documents/OnlinePaymentsPanel";
 import TeamPanel from "./TeamPanel";
 import TemplatesSettings from "./templates/TemplatesSettings";
 import TradeSettings from "./TradeSettings";
+import HelpSettings from "./tour/HelpSettings";
 import InstallSettings from "./progress/InstallSettings";
 import { roundPct } from "@/lib/percent";
 
@@ -38,7 +39,8 @@ function Group({ id, title, children }: { id?: string; title: string; children: 
 }
 
 /**
- * Settings, in sections: Company · Team · Plan & billing · Quotes & invoices · Connected apps · Templates · More.
+ * Settings, in sections: Company · Team · Plan & billing · Quotes & invoices · Connected apps · Templates · More (Help & tips,
+ * access code, account).
  * Older anchors (#trades, #business, #pricing, #wire, #invoicing, #payments, #billdu, #checklists, #forms, #account, …) still
  * land on their card.
  */
@@ -352,6 +354,7 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
         </Group>
 
         <Group id="more" title={msg("More")}>
+          <HelpSettings />
           <AccessCodePanel />
           <div className="card scroll-mt-6 p-6">
             <AccountPanel />

@@ -19,6 +19,7 @@ import OrderList from "./OrderList";
 import PlanReviewPanel from "./PlanReviewPanel";
 import { CLIENT_LAYERS } from "@/lib/proposalCloud";
 import { useJobNav } from "./nav/useJobNav";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 // Wiring sheets (home-run schedule and crew PDFs, no prices) used to be the Crew tab.
 const CrewTab = dynamic(() => import("./CrewTab"), { loading: () => <div className="p-6 text-slate-500">{tr("Loading…")}</div> });
@@ -184,14 +185,14 @@ function TakeoffCounts() {
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <SummaryCard icon={Camera} label={t("Cameras")} value={countOf(takeoff.total, ["cam-indoor", "cam-outdoor"])} sub={t("{n} outdoor", { n: takeoff.total.counts["cam-outdoor"] ?? 0 })} color="text-red-600 bg-red-50" />
           <SummaryCard icon={Wifi} label={t("Wi-Fi APs")} value={takeoff.total.counts["wap"] ?? 0} color="text-blue-600 bg-blue-50" />
-          <SummaryCard icon={Speaker} label={t("Speakers")} value={takeoff.total.counts["speaker"] ?? 0} sub={takeoff.total.tentative["speaker"] ? t("{n} tentative", { n: takeoff.total.tentative["speaker"] }) : undefined} color="text-violet-600 bg-violet-50" />
+          <SummaryCard icon={Speaker} label={t("Speakers")} value={takeoff.total.counts["speaker"] ?? 0} sub={takeoff.total.tentative["speaker"] ? t("{n} optional", { n: takeoff.total.tentative["speaker"] }) : undefined} color="text-violet-600 bg-violet-50" />
           <SummaryCard icon={Tv} label={t("TVs")} value={takeoff.total.counts["tv"] ?? 0} color="text-cyan-600 bg-cyan-50" />
           <SummaryCard icon={Lightbulb} label="LED" value={`${takeoff.total.ledTotalFt}`} unit={t("LF")} sub={t.tn("{n} zone", "{n} zones", takeoff.total.ledZones)} color="text-amber-600 bg-amber-50" />
           <SummaryCard icon={Cable} label={t("Cable")} value={`${Math.round(Object.values(takeoff.total.wireFt).reduce((a, b) => a + b, 0))}`} unit={t("ft")} sub={t.tn("{n} wire run", "{n} wire runs", Object.values(takeoff.total.wireRuns).reduce((a, b) => a + b, 0))} color="text-slate-600 bg-slate-100" />
         </div>
         ) : primaryTrade(trades).id === "electrical" ? (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <SummaryCard icon={Plug} label={t(tradeCategory("power", trades).name)} value={catCount("power")} sub={catTentative("power") ? t("{n} tentative", { n: catTentative("power") }) : undefined} color="text-orange-700 bg-orange-50" />
+          <SummaryCard icon={Plug} label={t(tradeCategory("power", trades).name)} value={catCount("power")} sub={catTentative("power") ? t("{n} optional", { n: catTentative("power") }) : undefined} color="text-orange-700 bg-orange-50" />
           <SummaryCard icon={ToggleRight} label={t("Switches")} value={catCount("switching")} color="text-indigo-600 bg-indigo-50" />
           <SummaryCard icon={Lightbulb} label={t("Fixtures")} value={catCount("lighting")} sub={takeoff.total.ledTotalFt ? t("+ {n} LF linear", { n: takeoff.total.ledTotalFt }) : undefined} color="text-amber-600 bg-amber-50" />
           <SummaryCard icon={Flame} label={t("Life safety")} value={catCount("fire")} color="text-rose-600 bg-rose-50" />
@@ -201,7 +202,7 @@ function TakeoffCounts() {
         ) : (
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {primaryTrade(trades).categories.slice(0, 4).map((c) => (
-            <SummaryCard key={c.id} icon={Zap} label={t(c.name)} value={catCount(c.id)} sub={catTentative(c.id) ? t("{n} tentative", { n: catTentative(c.id) }) : undefined} color="text-slate-700 bg-slate-100" />
+            <SummaryCard key={c.id} icon={Zap} label={t(c.name)} value={catCount(c.id)} sub={catTentative(c.id) ? t("{n} optional", { n: catTentative(c.id) }) : undefined} color="text-slate-700 bg-slate-100" />
           ))}
           <SummaryCard icon={Cable} label={t(vocab.wire)} value={`${wireFt}`} unit={t("ft")} sub={t("{n} {runs}", { n: wireRunCount, runs: t(vocab.runs).toLowerCase() })} color="text-slate-600 bg-slate-100" />
         </div>
@@ -209,7 +210,7 @@ function TakeoffCounts() {
 
         <OpeningsCard takeoff={takeoff} catalog={catalog} />
 
-        <div className="card overflow-x-auto">
+        <div className="card overflow-x-auto" {...tourAnchor("takeoff-table")}>
           <table className="tbl">
             <thead>
               <tr>

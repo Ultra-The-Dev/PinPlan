@@ -6,6 +6,7 @@ import { msg, useT } from "@/lib/i18n";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
+import { tourAnchor, type TourAnchorId } from "@/lib/tour/anchors";
 import AccountMenu from "./AccountMenu";
 import BillingBanner from "./BillingBanner";
 import { LogoMark } from "./marketing/Wordmark";
@@ -25,10 +26,10 @@ export function Logo({ compact }: { compact?: boolean }) {
  * Main sections. Older pages stay reachable and light up the section they now belong to: the jobs map and recent
  * photos are views of Jobs, the crew board sits under Tasks, Products is part of the Price list.
  */
-export const MAIN_NAV: { href: string; label: string; icon: typeof FolderOpen; match: string[]; office?: boolean }[] = [
-  { href: "/jobs", label: msg("Jobs"), icon: FolderOpen, match: ["/jobs", "/map", "/photos", "/project"] },
-  { href: "/tasks", label: msg("Tasks"), icon: ClipboardList, match: ["/tasks", "/schedule"] },
-  { href: "/invoices", label: msg("Money"), icon: ReceiptText, match: ["/invoices"], office: true },
+export const MAIN_NAV: { href: string; label: string; icon: typeof FolderOpen; match: string[]; office?: boolean; tour?: TourAnchorId }[] = [
+  { href: "/jobs", label: msg("Jobs"), icon: FolderOpen, match: ["/jobs", "/map", "/photos", "/project"], tour: "nav-jobs" },
+  { href: "/tasks", label: msg("Tasks"), icon: ClipboardList, match: ["/tasks", "/schedule"], tour: "nav-tasks" },
+  { href: "/invoices", label: msg("Money"), icon: ReceiptText, match: ["/invoices"], office: true, tour: "nav-money" },
   { href: "/catalog", label: msg("Price list"), icon: Tags, match: ["/catalog", "/products"], office: true },
 ];
 
@@ -54,6 +55,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
                 active ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
               aria-current={active ? "page" : undefined}
+              {...(n.tour ? tourAnchor(n.tour) : {})}
             >
               <n.icon />
               {t(n.label)}

@@ -1,6 +1,6 @@
 "use client";
 import { projectStatusLabel, statusChip } from "@/lib/statusStyle";
-import { FileText, Loader2, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
+import { Compass, FileText, LifeBuoy, Loader2, MapPin, Plus, Search, Trash, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +17,8 @@ import { useThumbUrl } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
 import JobsViewToggle from "./nav/JobsViewToggle";
 import { useTemplateStart } from "./templates/TemplatePicker";
+import { startTour } from "./tour/startTour";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 const STATUS_STYLE: Record<ProjectStatus, string> = { estimate: statusChip("estimate"), approved: statusChip("approved"), installed: statusChip("installed") };
 
@@ -142,7 +144,7 @@ export default function ProjectsList() {
             <button className="btn max-sm:hidden" onClick={() => restoreRef.current?.click()} title={t("Restore a job backup")}>
               <Upload /> {t("Restore backup")}
             </button>
-            <button className="btn btn-brand" onClick={() => setCreating(true)}>
+            <button className="btn btn-brand" onClick={() => setCreating(true)} {...tourAnchor("jobs-new")}>
               <Plus /> {t("New job")}
             </button>
           </>
@@ -238,6 +240,9 @@ export default function ProjectsList() {
           </div>
           <h2 className="text-xl font-semibold">{t("Your office's jobs will show up here")}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{t("When the office adds a job, its plans, devices, tasks and checklists appear on this page.")}</p>
+          <Link href="/help/crew" className="btn mt-6">
+            <LifeBuoy /> {t("Crew guide: tasks, photos, checklists and daily logs")}
+          </Link>
         </div>
       ) : rows.length === 0 ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center">
@@ -256,9 +261,19 @@ export default function ProjectsList() {
               </div>
             ))}
           </div>
-          <button className="btn btn-brand mt-6" onClick={() => setCreating(true)}>
-            <Plus /> {t("New job")}
-          </button>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <button className="btn btn-brand" onClick={() => setCreating(true)}>
+              <Plus /> {t("New job")}
+            </button>
+            <button className="btn" onClick={() => void startTour("first-job")} data-testid="empty-start-tour">
+              <Compass /> {t("Start the tour")}
+            </button>
+          </div>
+          <p className="mt-4 text-sm text-slate-500">
+            <Link href="/help" className="font-medium text-brand-700 hover:underline">
+              {t("Help and tutorials")}
+            </Link>
+          </p>
         </div>
       ) : filtered!.length === 0 ? (
         <p className="py-10 text-center text-slate-500">{t("No jobs match.")}</p>
@@ -306,7 +321,8 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Mini label={t("Devices")} value={p.markerCount} />
             <Mini label={t("Photos")} value={p.photoCount} />
-            <Mini label={t("LED LF")} value={p.ledFt} />
+            {/* LED footage only where there is some (most trades never draw LED runs). */}
+            {p.ledFt > 0 ? <Mini label={t("LED LF")} value={p.ledFt} /> : <Mini label={t("Sheets")} value={p.sheetCount} />}
           </div>
           <div className="mt-3 flex items-center text-xs text-slate-400">
             {t("Updated {date}", { date: fmtDate(p.updatedAt) })}

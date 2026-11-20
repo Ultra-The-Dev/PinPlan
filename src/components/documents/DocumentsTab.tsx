@@ -43,6 +43,7 @@ import { useChangeOrders } from "../changeOrders/useChangeOrders";
 import { ConvertDialog, NewQuoteDialog } from "./DocDialogs";
 import DocEditor from "./DocEditor";
 import { KindChip, StatusChip } from "./ui";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 type ConvertMode = InvoiceMode["mode"];
 
@@ -202,7 +203,7 @@ export default function DocumentsTab() {
             <h2 className="page-title">{label("quote")}</h2>
             <p className="mt-1 text-sm text-slate-500">{t("What the client approves and signs online, built from the job’s pricing.")} {settingsLink}</p>
           </div>
-          <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : t("Place devices and price the job first")}>
+          <button className="btn btn-brand" onClick={() => setDialog("quote")} disabled={!estimate?.lines.length} title={estimate?.lines.length ? undefined : t("Place devices and price the job first")} {...tourAnchor("quote-new")}>
             <FilePlus2 /> {t("New {label} from job pricing", { label: quoteLabel })}
           </button>
           <button className="btn" onClick={() => newBlank("quote")}>

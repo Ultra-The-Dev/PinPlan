@@ -2,6 +2,7 @@
 import { Eye, PencilLine } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { ViewerMode } from "@/lib/viewerStore";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 /** View only ↔ Edit. Edit is orange (and the plan gets an orange frame) so it's never on by accident. */
 export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMode; onChange: (m: ViewerMode) => void; compact?: boolean }) {
@@ -24,7 +25,7 @@ export default function ModeToggle({ mode, onChange, compact }: { mode: ViewerMo
     );
   };
   return (
-    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop pointer-coarse:h-[52px] ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label={t("Mode")} data-plan-ui>
+    <div className="flex h-11 shrink-0 items-center gap-0.5 rounded-xl bg-white/90 p-1 shadow-pop pointer-coarse:h-[52px] ring-1 ring-black/5 backdrop-blur-md" role="group" aria-label={t("Mode")} data-plan-ui {...tourAnchor("plan-mode")}>
       {btn("view", t("View"), Eye)}
       {btn("edit", t("Edit"), PencilLine)}
     </div>

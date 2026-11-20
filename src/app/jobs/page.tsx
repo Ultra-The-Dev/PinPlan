@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import FirstRunGate from "@/components/FirstRunGate";
 import { OnboardingCard } from "@/components/Onboarding";
 import ProjectsList from "@/components/ProjectsList";
+import TourOffer from "@/components/tour/TourOffer";
 import { PRODUCT_NAME } from "@/lib/plans";
 
 // /jobs is the app's home: the jobs list (a local-first app shell). The marketing site is "/".
@@ -14,6 +15,7 @@ export default function JobsPage() {
       <AppHeader />
       <main className="flex-1 overflow-auto">
         <OnboardingCard />
+        <TourOffer />
         <ProjectsList />
       </main>
     </FirstRunGate>

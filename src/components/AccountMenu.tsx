@@ -1,12 +1,14 @@
 "use client";
-// The avatar in the header: who you are and your role, plus Settings, Team, Plan & billing, the language and Sign out.
-import { CreditCard, LogOut, Settings, Users } from "lucide-react";
+// The avatar in the header: who you are and your role, plus Settings, Team, Plan & billing, Help & tutorials, the
+// language and Sign out.
+import { CreditCard, LifeBuoy, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { signOut, useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { ROLE_INFO } from "@/lib/teamLogic";
+import { tourAnchor } from "@/lib/tour/anchors";
 import LanguageSwitcher from "./LanguageSwitcher";
 import RoleBadge from "./RoleBadge";
 
@@ -48,6 +50,7 @@ export default function AccountMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("Account menu")}
+        {...tourAnchor("account-menu")}
         title={t("Account")}
         onClick={() => setOpen((o) => !o)}
       >
@@ -76,6 +79,9 @@ export default function AccountMenu() {
           </Link>
           <Link role="menuitem" href="/settings#billing" className={item} onClick={() => setOpen(false)}>
             <CreditCard /> {t("Plan & billing")}
+          </Link>
+          <Link role="menuitem" href="/help" className={item} onClick={() => setOpen(false)}>
+            <LifeBuoy /> {t("Help & tutorials")}
           </Link>
           <div className="border-t border-slate-100 px-3 py-2">
             <LanguageSwitcher />

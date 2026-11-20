@@ -20,6 +20,7 @@ const NAV = [
   { href: "/#trades", label: msg("Trades") },
   { href: "/pricing", label: msg("Pricing") },
   { href: "/#faq", label: msg("Questions") },
+  { href: "/help", label: msg("Help") },
 ];
 
 /**

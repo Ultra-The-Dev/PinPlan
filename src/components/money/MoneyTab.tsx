@@ -12,6 +12,7 @@ import { useEditor } from "@/lib/store";
 import { isMoneyStep, MONEY_STEPS, type MoneyStep } from "@/lib/tabRoutes";
 import { useApprovedProposalQuote } from "../documents/useApprovedProposalQuote";
 import { useJobNav } from "../nav/useJobNav";
+import { tourAnchor } from "@/lib/tour/anchors";
 
 function Loading() {
   const t = useT();
@@ -54,6 +55,7 @@ export default function MoneyTab({ step: asked }: { step?: string | null }) {
               // Also the way back to the step's list from an open document (the document isn't part of another step).
               onClick={() => setTab("money", { step: s })}
               aria-current={on ? "step" : undefined}
+              {...tourAnchor(`money-step-${s}` as const)}
               className={`flex h-11 shrink-0 items-center gap-2 border-b-2 px-2 text-sm max-sm:flex-auto max-sm:justify-center font-medium whitespace-nowrap transition sm:px-3 ${on ? "border-brand-600 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-900"}`}
             >
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold max-sm:hidden ${on ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-500"}`}>{i + 1}</span>
