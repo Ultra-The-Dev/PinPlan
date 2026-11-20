@@ -150,6 +150,7 @@ select pg_temp.check(public.answer_rate_hit('ip:test-key-2', 3600, 3), 'other ke
 update public.answer_rate_hits set created_at = now() - interval '2 hours' where key = 'ip:test-key-1';
 select pg_temp.check(public.answer_rate_hit('ip:test-key-1', 3600, 3), 'the window rolls over');
 select pg_temp.check(not public.answer_rate_hit('short', 3600, 3), 'junk keys are refused');
+select pg_temp.check(not public.answer_rate_hit('ip:test-key-3', 700000, 3), 'windows over a week are refused');
 
 -- ---------- the notification stamp is the server's ----------
 reset role;

@@ -131,6 +131,7 @@ create table if not exists public.answer_rate_hits (
   created_at timestamptz not null default now()
 );
 create index if not exists answer_rate_hits_key_idx on public.answer_rate_hits (key, created_at);
+create index if not exists answer_rate_hits_created_idx on public.answer_rate_hits (created_at);
 alter table public.answer_rate_hits enable row level security;
 revoke all on public.answer_rate_hits from anon, authenticated;
 grant select, insert, delete on public.answer_rate_hits to service_role;
@@ -139,11 +140,17 @@ create or replace function public.answer_rate_hit(p_key text, p_window_seconds i
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
-  if p_key is null or char_length(p_key) not between 8 and 200 or p_window_seconds is null or p_window_seconds < 1 or p_max is null or p_max < 1 then
+  -- Windows up to a week (the routes use an hour).
+  if p_key is null or char_length(p_key) not between 8 and 200 or p_window_seconds is null or p_window_seconds < 1
+     or p_window_seconds > 604800 or p_max is null or p_max < 1 then
     return false;
   end if;
   perform pg_advisory_xact_lock(hashtext('pinplan_answer_rate'), hashtext(p_key));
   delete from public.answer_rate_hits where key = p_key and created_at <= now() - make_interval(secs => greatest(p_window_seconds, 86400));
+  -- Keys that never come back (one-off IPs, answered links) would stay forever: now and then clear everything a week old.
+  if random() < 0.01 then
+    delete from public.answer_rate_hits where created_at <= now() - interval '7 days';
+  end if;
   select count(*) into n from public.answer_rate_hits where key = p_key and created_at > now() - make_interval(secs => p_window_seconds);
   if n >= p_max then return false; end if;
   insert into public.answer_rate_hits (key) values (p_key);
