@@ -1,5 +1,6 @@
 "use client";
 // Plan import: PDF pages -> sheet images (PDF.js), photos -> straightened sheet images.
+import { parseFloorName } from "./floorName";
 
 /** Keep canvases under iPad Safari's ~16.7M pixel limit while staying sharp. */
 const MAX_SIDE = 4800;
@@ -125,26 +126,9 @@ export async function renderPdf(file: File | Blob, onProgress?: (done: number, t
   return pages;
 }
 
-/** Guess a floor name from a page's text layer, e.g. "ATTIC", "1ST. FL", "CELLAR". */
+/** Guess a floor name from a page's text, e.g. "ATTIC" → "Attic", "1ST. FL" → "1st Fl", "LEVEL 2". See `parseFloorName`. */
 export function guessFloorName(text: string, fallback: string): string {
-  const t = text.toUpperCase();
-  const patterns: [RegExp, string][] = [
-    [/\bATTIC\b/, "Attic"],
-    [/\bCELLAR\b/, "Cellar"],
-    [/\bBASEMENT\b/, "Basement"],
-    [/\b(1ST|FIRST)\.?\s*(FL|FLOOR)\b/, "1st Fl"],
-    [/\b(2ND|SECOND)\.?\s*(FL|FLOOR)\b/, "2nd Fl"],
-    [/\b(3RD|THIRD)\.?\s*(FL|FLOOR)\b/, "3rd Fl"],
-    [/\bGROUND\s*(FL|FLOOR)\b/, "Ground Fl"],
-    [/\bROOF\b/, "Roof"],
-    [/\bSITE\s*PLAN\b/, "Site plan"],
-  ];
-  // A sheet title ("2ND FLOOR PLAN", "ATTIC PLAN") beats a passing mention in the notes ("ATTIC ACCESS", "STAIRS TO BASEMENT").
-  // Patterns that already end in PLAN ("SITE PLAN") are titles as they stand.
-  const title = (re: RegExp) => (/PLAN\\b$/.test(re.source) ? re : new RegExp(`${re.source}\\.?\\s*(?:FLOOR\\s*)?PLAN\\b`));
-  for (const [re, name] of patterns) if (title(re).test(t)) return name;
-  for (const [re, name] of patterns) if (re.test(t)) return name;
-  return fallback;
+  return parseFloorName(text) ?? fallback;
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement, type = "image/jpeg", quality = 0.9): Promise<Blob> {

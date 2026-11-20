@@ -90,7 +90,7 @@ final class RoomSizeTests: XCTestCase {
     }
 }
 
-final class FloorNameTests: XCTestCase {
+final class PlanReaderFloorNameTests: XCTestCase {
     func testTitleBeatsMentionInNotes() {
         let text = """
         GENERAL NOTES
@@ -99,7 +99,7 @@ final class FloorNameTests: XCTestCase {
         FIRST FLOOR PLAN
         SCALE: 1/4" = 1'-0"
         """
-        XCTAssertEqual(PlanReader.floorName(in: text), "1st Fl")
+        XCTAssertEqual(PlanReader.floorName(in: text), "First Floor")
     }
 
     func testStandaloneLabel() {
@@ -109,7 +109,7 @@ final class FloorNameTests: XCTestCase {
     }
 
     func testOtherNamesAndNone() {
-        XCTAssertEqual(PlanReader.floorName(in: "A-102\nMAIN LEVEL PLAN"), "1st Fl")
+        XCTAssertEqual(PlanReader.floorName(in: "A-102\nMAIN LEVEL PLAN"), "Main Level")
         XCTAssertEqual(PlanReader.floorName(in: "BASEMENT PLAN"), "Basement")
         XCTAssertNil(PlanReader.floorName(in: "ELECTRICAL LEGEND"))
     }

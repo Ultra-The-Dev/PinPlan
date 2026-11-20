@@ -69,17 +69,17 @@ describe("calibration", () => {
 
 describe("guessFloorName", () => {
   it("prefers the sheet title over a passing mention in the notes", () => {
-    expect(guessFloorName("NOTES: PROVIDE ATTIC ACCESS HATCH. 2ND FLOOR PLAN SCALE 1/4\" = 1'-0\"", "Sheet 1")).toBe("2nd Fl");
-    expect(guessFloorName("STAIR DOWN TO BASEMENT FIRST FLOOR PLAN", "Sheet 1")).toBe("1st Fl");
+    expect(guessFloorName("NOTES: PROVIDE ATTIC ACCESS HATCH. 2ND FLOOR PLAN SCALE 1/4\" = 1'-0\"", "Sheet 1")).toBe("2nd Floor");
+    expect(guessFloorName("STAIR DOWN TO BASEMENT FIRST FLOOR PLAN", "Sheet 1")).toBe("First Floor");
     expect(guessFloorName("BASEMENT FLOOR PLAN", "Sheet 1")).toBe("Basement");
     // A site plan that mentions the attic in its notes is still the site plan.
-    expect(guessFloorName("NOTE: ATTIC VENTS BY OTHERS. SITE PLAN", "Sheet 1")).toBe("Site plan");
+    expect(guessFloorName("NOTE: ATTIC VENTS BY OTHERS. SITE PLAN", "Sheet 1")).toBe("Site Plan");
     expect(guessFloorName("ROOF PLAN. SEE BASEMENT FOR PANEL", "Sheet 1")).toBe("Roof");
   });
 
   it("falls back to any floor word, then the fallback", () => {
     expect(guessFloorName("A-101 ATTIC", "Sheet 1")).toBe("Attic");
-    expect(guessFloorName("SITE PLAN", "Sheet 1")).toBe("Site plan");
+    expect(guessFloorName("SITE PLAN", "Sheet 1")).toBe("Site Plan");
     expect(guessFloorName("DETAILS", "Sheet 4")).toBe("Sheet 4");
   });
 });
