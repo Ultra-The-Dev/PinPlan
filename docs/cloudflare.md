@@ -20,7 +20,27 @@ paid plan allows 10 MB.
 does on Vercel: required settings are checked, `/api/health` answers 503 until they're all set, and open mode is
 refused.
 
-## Set it up (about 20 minutes)
+## Easiest: deploy from GitHub (about 15 minutes, all in two websites)
+
+`.github/workflows/cloudflare-deploy.yml` builds and deploys on every push, and copies your server settings from
+GitHub into the Worker. You only ever edit settings in one place: GitHub → Settings → Secrets and variables → Actions.
+
+1. **Cloudflare:** sign up, turn on two-factor sign-in, Workers & Pages → Plans → **Workers Paid** ($5 a month).
+2. **Cloudflare API token:** My Profile → API Tokens → Create Token → template **Edit Cloudflare Workers** → your
+   account → Create. Copy the token. Your **Account ID** is on Workers & Pages → Overview (right side).
+3. **GitHub → Settings → Secrets and variables → Actions:**
+   - **Secrets:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SUPABASE_SERVICE_ROLE_KEY`,
+     `PINPLAN_ENCRYPTION_KEY`, `CRON_SECRET`, and later `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+     `RESEND_API_KEY`, `PLATFORM_ADMIN_EMAILS` (plus the optional ones listed in the workflow file).
+   - **Variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `PINPLAN_APP_URL` (the Worker's
+     address, see step 5), and later `EMAIL_FROM`, `STRIPE_PRICE_BASE`, `STRIPE_PRICE_SEAT`, `PINPLAN_SERVER_URL`
+     (same address, built into the iPad app).
+4. **Run it:** GitHub → Actions → Deploy to Cloudflare → Run workflow (or push anything).
+5. **First address:** the run's Deploy step prints the Worker's address, `https://pinplan.<your-subdomain>.workers.dev`.
+   Put it in the `PINPLAN_APP_URL` and `PINPLAN_SERVER_URL` variables and run the workflow again. When your own
+   domain is ready, add it as a custom domain (step 6 below) and change both variables to it.
+
+## Or set it up in the Cloudflare dashboard (about 20 minutes)
 
 1. **Cloudflare account.** Sign up at cloudflare.com and turn on two-factor sign-in. Workers & Pages → Plans →
    **Workers Paid** ($5 a month).

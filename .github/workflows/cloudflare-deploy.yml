@@ -1,0 +1,115 @@
+name: Deploy to Cloudflare
+
+# Builds the app with OpenNext and deploys it to Cloudflare Workers (docs/cloudflare.md), then copies the server
+# settings from this repository's secrets into the Worker, so they live in one place.
+#
+# Needs (Settings → Secrets and variables → Actions):
+#   secrets   CLOUDFLARE_API_TOKEN (template "Edit Cloudflare Workers"), CLOUDFLARE_ACCOUNT_ID
+#   variables NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, PINPLAN_APP_URL (and the optional ones below)
+# Until CLOUDFLARE_API_TOKEN is set, the run does nothing and passes.
+on:
+  push:
+    branches: [main, claude/quirky-clarke-gjz5h1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_TELEMETRY_DISABLED: 1
+      # Built into the app (public values): repository variables.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || vars.PINPLAN_APP_URL }}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+      NEXT_PUBLIC_MAP_TILE_URL: ${{ vars.NEXT_PUBLIC_MAP_TILE_URL }}
+      NEXT_PUBLIC_MAP_TILE_KEY: ${{ vars.NEXT_PUBLIC_MAP_TILE_KEY }}
+      NEXT_PUBLIC_MAP_TILE_ATTRIBUTION: ${{ vars.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION }}
+      NEXT_PUBLIC_WEATHER_URL: ${{ vars.NEXT_PUBLIC_WEATHER_URL }}
+      NEXT_PUBLIC_APP_STORE_URL: ${{ vars.NEXT_PUBLIC_APP_STORE_URL }}
+      LEGAL_CHECK: ${{ vars.LEGAL_CHECK }}
+    steps:
+      - name: Cloudflare token set?
+        id: ready
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID aren't set yet: skipping the deploy (docs/cloudflare.md)."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.go == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.ready.outputs.go == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        if: steps.ready.outputs.go == 'true'
+        run: npm ci
+      - name: Build (OpenNext)
+        if: steps.ready.outputs.go == 'true'
+        run: npx opennextjs-cloudflare build
+      - name: Deploy
+        if: steps.ready.outputs.go == 'true'
+        run: npx opennextjs-cloudflare deploy
+
+      - name: Copy server settings into the Worker
+        if: steps.ready.outputs.go == 'true'
+        env:
+          # Server-side settings: repository secrets (or variables for the non-secret ones). Empty ones are skipped,
+          # so a setting removed here stays on the Worker until you delete it there.
+          S_NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          S_NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          S_PINPLAN_APP_URL: ${{ vars.PINPLAN_APP_URL }}
+          S_EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+          S_EMAIL_REPLY_TO: ${{ vars.EMAIL_REPLY_TO }}
+          S_STRIPE_PRICE_BASE: ${{ vars.STRIPE_PRICE_BASE }}
+          S_STRIPE_PRICE_SEAT: ${{ vars.STRIPE_PRICE_SEAT }}
+          S_STRIPE_TERMS_CONSENT: ${{ vars.STRIPE_TERMS_CONSENT }}
+          S_STRIPE_TAX: ${{ vars.STRIPE_TAX }}
+          S_QBO_ENV: ${{ vars.QBO_ENV }}
+          S_PINPLAN_FOUNDER_TEAM_ID: ${{ vars.PINPLAN_FOUNDER_TEAM_ID }}
+          S_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          S_PINPLAN_ENCRYPTION_KEY: ${{ secrets.PINPLAN_ENCRYPTION_KEY }}
+          S_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          S_STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          S_CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          S_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          S_PLATFORM_ADMIN_EMAILS: ${{ secrets.PLATFORM_ADMIN_EMAILS }}
+          S_TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          S_OPEN_METEO_API_KEY: ${{ secrets.OPEN_METEO_API_KEY }}
+          S_QBO_CLIENT_ID: ${{ secrets.QBO_CLIENT_ID }}
+          S_QBO_CLIENT_SECRET: ${{ secrets.QBO_CLIENT_SECRET }}
+          S_XERO_CLIENT_ID: ${{ secrets.XERO_CLIENT_ID }}
+          S_XERO_CLIENT_SECRET: ${{ secrets.XERO_CLIENT_SECRET }}
+          S_BILLDU_API_KEY: ${{ secrets.BILLDU_API_KEY }}
+          S_BILLDU_API_SECRET: ${{ secrets.BILLDU_API_SECRET }}
+        run: |
+          umask 077
+          node -e '
+            const out = {};
+            for (const [k, v] of Object.entries(process.env)) if (k.startsWith("S_") && v && v.trim()) out[k.slice(2)] = v.trim();
+            require("fs").writeFileSync("worker-secrets.json", JSON.stringify(out));
+            console.log("Settings to copy:", Object.keys(out).sort().join(", ") || "(none)");
+          '
+          if [ "$(cat worker-secrets.json)" != "{}" ]; then npx wrangler secret bulk worker-secrets.json; fi
+          rm -f worker-secrets.json
+
+      - name: Health check
+        if: steps.ready.outputs.go == 'true' && vars.PINPLAN_APP_URL != ''
+        run: |
+          sleep 10
+          curl -s "${{ vars.PINPLAN_APP_URL }}/api/health" | head -c 600; echo
