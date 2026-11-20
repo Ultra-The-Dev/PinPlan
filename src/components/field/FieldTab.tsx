@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { pickFieldSection, type FieldSection } from "@/lib/fieldDocs";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
+import { msg, useT } from "@/lib/i18n";
 import ScheduleView from "../schedule/ScheduleView";
 import Checklists from "./Checklists";
 import DailyLogs from "./DailyLogs";
@@ -20,24 +21,24 @@ import TaskList from "../tasks/TaskList";
 import ProgressPanel from "../progress/ProgressPanel";
 
 const NAV: { id: string; label: string; icon: typeof Sun; sections: FieldSection[] }[] = [
-  { id: "today", label: "Today", icon: Sun, sections: ["today"] },
-  { id: "tasks", label: "Tasks", icon: ListTodo, sections: ["tasks"] },
-  { id: "checklists", label: "Checklists & forms", icon: ClipboardCheck, sections: ["checklists", "forms"] },
-  { id: "logs", label: "Daily log", icon: BookOpen, sections: ["logs"] },
-  { id: "files", label: "Files", icon: FileStack, sections: ["files"] },
-  { id: "more", label: "More", icon: Ellipsis, sections: ["rfis", "schedule", "progress", "timeline"] },
+  { id: "today", label: msg("Today"), icon: Sun, sections: ["today"] },
+  { id: "tasks", label: msg("Tasks"), icon: ListTodo, sections: ["tasks"] },
+  { id: "checklists", label: msg("Checklists & forms"), icon: ClipboardCheck, sections: ["checklists", "forms"] },
+  { id: "logs", label: msg("Daily log"), icon: BookOpen, sections: ["logs"] },
+  { id: "files", label: msg("Files"), icon: FileStack, sections: ["files"] },
+  { id: "more", label: msg("More"), icon: Ellipsis, sections: ["rfis", "schedule", "progress", "timeline"] },
 ];
 
 const SUB: Partial<Record<string, { id: FieldSection; label: string }[]>> = {
   checklists: [
-    { id: "checklists", label: "Checklists" },
-    { id: "forms", label: "Forms" },
+    { id: "checklists", label: msg("Checklists") },
+    { id: "forms", label: msg("Forms") },
   ],
   more: [
-    { id: "rfis", label: "RFIs" },
-    { id: "schedule", label: "Schedule" },
-    { id: "progress", label: "Install progress" },
-    { id: "timeline", label: "History" },
+    { id: "rfis", label: msg("RFIs") },
+    { id: "schedule", label: msg("Schedule") },
+    { id: "progress", label: msg("Install progress") },
+    { id: "timeline", label: msg("History") },
   ],
 };
 
@@ -45,6 +46,7 @@ export default function FieldTab() {
   const params = useSearchParams();
   const router = useRouter();
   const role = useRole();
+  const t = useT();
   const project = useEditor((s) => s.project);
   const section = pickFieldSection(params.get("section"), { taskLink: params.has("tf") || params.has("task"), tech: role === "tech" });
   // "photos" is shown by the job page in place of this view; fall back rather than crash if it ever lands here.
@@ -67,23 +69,23 @@ export default function FieldTab() {
       <div className={`mx-auto ${section === "schedule" ? "max-w-6xl" : "max-w-4xl"} space-y-5 px-4 py-6 sm:px-6`}>
         <div className="space-y-3">
           <div>
-            <h2 className="page-title">Field</h2>
-            <p className="mt-1 text-sm text-slate-500">What to do today, tasks, checklists, the daily log and files for this job.</p>
+            <h2 className="page-title">{t("Field")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("What to do today, tasks, checklists, the daily log and files for this job.")}</p>
           </div>
           {/* Labelled at every width; scrolls sideways on narrow phones. */}
-          <nav className="seg scroll-thin max-w-full overflow-x-auto" aria-label="Field sections">
+          <nav className="seg scroll-thin max-w-full overflow-x-auto" aria-label={t("Field sections")}>
             {NAV.map((n) => (
               <button key={n.id} className={`tab shrink-0 ${nav.id === n.id ? "tab-active" : ""}`} onClick={() => open(n.sections[0])} aria-current={nav.id === n.id ? "page" : undefined}>
                 <n.icon />
-                <span>{n.label}</span>
+                <span>{t(n.label)}</span>
               </button>
             ))}
           </nav>
           {sub && (
-            <nav className="flex flex-wrap gap-1.5" aria-label={`${nav.label} sections`}>
+            <nav className="flex flex-wrap gap-1.5" aria-label={t("{name} sections", { name: t(nav.label) })}>
               {sub.map((s) => (
                 <button key={s.id} className={`btn btn-sm h-9 ${section === s.id ? "btn-on" : "btn-ghost"}`} onClick={() => open(s.id)} aria-pressed={section === s.id}>
-                  {s.label}
+                  {t(s.label)}
                 </button>
               ))}
             </nav>

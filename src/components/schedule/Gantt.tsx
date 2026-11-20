@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, dayNum, dayStr, isWeekend, mergeRows, moveItem, resizeItem, weekday } from "@/lib/schedule";
 import type { ScheduleItem } from "@/lib/types";
 import { CrewAvatars, DEFAULT_BAR, fmtDay, fmtRange } from "./shared";
+import { useT } from "@/lib/i18n";
 
 export type Zoom = "day" | "week";
 const DAY_W: Record<Zoom, number> = { day: 36, week: 14 };
@@ -46,6 +47,7 @@ export default function Gantt(props: {
   const height = Math.max(1, items.length) * ROW_H;
   const scroller = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const t = useT();
 
   // While dragging: the moved item and everything it pushes.
   const preview = useMemo(() => {
@@ -142,7 +144,7 @@ export default function Gantt(props: {
       {/* Names */}
       <div className="w-40 shrink-0 border-r border-slate-200 sm:w-56">
         <div className="flex items-end border-b border-slate-200 px-3 pb-1.5 text-xs font-medium text-slate-500" style={{ height: HEAD_H }}>
-          Phase
+          {t("Phase")}
         </div>
         {shown.map((i) => (
           <button
@@ -154,10 +156,10 @@ export default function Gantt(props: {
           >
             <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: i.color || DEFAULT_BAR }} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-slate-800">{i.name || "Untitled"}</span>
+              <span className="block truncate text-sm font-medium text-slate-800">{i.name || t("Untitled")}</span>
               <span className="block truncate text-[11px] text-slate-500">
                 {fmtRange(i.start, i.end)}
-                {critical.has(i.id) && <span className="ml-1 font-medium text-red-600">· critical</span>}
+                {critical.has(i.id) && <span className="ml-1 font-medium text-red-600">· {t("critical")}</span>}
               </span>
             </span>
             <span className="hidden sm:flex">
@@ -235,7 +237,7 @@ export default function Gantt(props: {
                   key={i.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${i.name}, ${fmtRange(i.start, i.end)}, ${Math.round(p)}% done${draggable ? ". Drag or use arrow keys to move; Shift+arrow changes length" : ""}`}
+                  aria-label={draggable ? t("{name}, {dates}, {pct}% done. Drag or use arrow keys to move; Shift+arrow changes length", { name: i.name, dates: fmtRange(i.start, i.end), pct: Math.round(p) }) : t("{name}, {dates}, {pct}% done", { name: i.name, dates: fmtRange(i.start, i.end), pct: Math.round(p) })}
                   data-testid={`bar-${i.name}`}
                   data-start={i.start}
                   data-end={i.end}
@@ -286,11 +288,11 @@ export default function Gantt(props: {
 const active = (d: Drag | null) => !!d?.moved && d.delta !== 0;
 
 function DragHint({ drag, item }: { drag: Drag; item?: ScheduleItem }) {
+  const t = useT();
   if (!item) return null;
   return (
     <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-ink/90 px-3 py-1.5 text-xs font-medium text-white shadow-pop">
-      {drag.kind === "move" ? "Move" : "Ends"} {fmtRange(item.start, item.end)} ({drag.delta > 0 ? "+" : ""}
-      {drag.delta} d)
+      {drag.kind === "move" ? t("Move") : t("Ends")} {fmtRange(item.start, item.end)} ({t("{n} d", { n: `${drag.delta > 0 ? "+" : ""}${drag.delta}` })})
     </div>
   );
 }

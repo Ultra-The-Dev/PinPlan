@@ -17,6 +17,7 @@ import type { FormTemplate, JobForm } from "@/lib/types";
 import { useTrades } from "@/lib/useTrades";
 import FormFill from "./FormFill";
 import { useDialog } from "./useDialog";
+import { fmtDate, t, useT } from "@/lib/i18n";
 
 const CAT_ICON: Record<FormTemplate["category"], React.ComponentType<{ className?: string }>> = {
   inspection: ClipboardCheck,
@@ -25,11 +26,13 @@ const CAT_ICON: Record<FormTemplate["category"], React.ComponentType<{ className
   safety: HardHat,
   other: Signature,
 };
-const catName = (c: FormTemplate["category"]) => FORM_CATEGORIES.find((x) => x.id === c)?.name ?? "Form";
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const catName = (c: FormTemplate["category"]) => t(FORM_CATEGORIES.find((x) => x.id === c)?.name ?? "Form");
+const shortDate = (iso: string) => fmtDate(iso, { month: "short", day: "numeric" });
 
-function TemplateRow({ t, onPick }: { t: FormTemplate; onPick: () => void }) {
-  const Icon = CAT_ICON[t.category] ?? ClipboardList;
+function TemplateRow({ tpl, onPick }: { tpl: FormTemplate; onPick: () => void }) {
+  const Icon = CAT_ICON[tpl.category] ?? ClipboardList;
+  const t = useT();
+  const nFields = tpl.fields.filter((f) => f.type !== "heading").length;
   return (
     <li>
       <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100" onClick={onPick}>
@@ -37,9 +40,9 @@ function TemplateRow({ t, onPick }: { t: FormTemplate; onPick: () => void }) {
           <Icon className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-slate-900">{t.name}</span>
+          <span className="block truncate text-sm font-medium text-slate-900">{tpl.name}</span>
           <span className="block text-xs text-slate-500">
-            {catName(t.category)} · {t.fields.filter((f) => f.type !== "heading").length} fields{t.builtin ? "" : " · your company"}
+            {catName(tpl.category)} · {t.tn("{n} field", "{n} fields", nFields)}{tpl.builtin ? "" : ` · ${t("your company")}`}
           </span>
         </span>
       </button>
@@ -47,47 +50,48 @@ function TemplateRow({ t, onPick }: { t: FormTemplate; onPick: () => void }) {
   );
 }
 
-function TemplatePicker({ onPick, onClose }: { onPick: (t: FormTemplate) => void; onClose: () => void }) {
+function TemplatePicker({ onPick, onClose }: { onPick: (tpl: FormTemplate) => void; onClose: () => void }) {
   const dialog = useDialog(onClose);
   const { templates } = useFormTemplates();
   const trades = useTrades();
   const [q, setQ] = useState("");
   const all = searchTemplates(allFormTemplates(templates), q);
   const { suggested, others } = templatesForTrades(all, trades);
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label="New form" className="card animate-in flex max-h-[90dvh] w-full max-w-lg flex-col rounded-b-none shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("New form")} className="card animate-in flex max-h-[90dvh] w-full max-w-lg flex-col rounded-b-none shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-slate-100 p-4">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input h-11 pl-9 text-base" autoFocus placeholder="Search forms" aria-label="Search forms" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input h-11 pl-9 text-base" autoFocus placeholder={t("Search forms")} aria-label={t("Search forms")} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-          <button className="btn btn-icon btn-ghost" aria-label="Close" onClick={onClose}>
+          <button className="btn btn-icon btn-ghost" aria-label={t("Close")} onClick={onClose}>
             <X />
           </button>
         </div>
         <div className="overflow-auto p-2">
           {suggested.length > 0 && (
             <>
-              <p className="section-title px-2 pt-2 pb-1">{q ? "Matches" : "For your work"}</p>
+              <p className="section-title px-2 pt-2 pb-1">{q ? t("Matches") : t("For your work")}</p>
               <ul>
-                {suggested.map((t) => (
-                  <TemplateRow key={t.id} t={t} onPick={() => onPick(t)} />
+                {suggested.map((tpl) => (
+                  <TemplateRow key={tpl.id} tpl={tpl} onPick={() => onPick(tpl)} />
                 ))}
               </ul>
             </>
           )}
           {others.length > 0 && (
             <>
-              <p className="section-title px-2 pt-3 pb-1">Other trades</p>
+              <p className="section-title px-2 pt-3 pb-1">{t("Other trades")}</p>
               <ul>
-                {others.map((t) => (
-                  <TemplateRow key={t.id} t={t} onPick={() => onPick(t)} />
+                {others.map((tpl) => (
+                  <TemplateRow key={tpl.id} tpl={tpl} onPick={() => onPick(tpl)} />
                 ))}
               </ul>
             </>
           )}
-          {!suggested.length && !others.length && <p className="p-4 text-center text-sm text-slate-500">No form matches “{q}”.</p>}
+          {!suggested.length && !others.length && <p className="p-4 text-center text-sm text-slate-500">{t("No form matches “{query}”.", { query: q })}</p>}
         </div>
       </div>
     </div>
@@ -104,6 +108,7 @@ export default function FormsList() {
   const [picking, setPicking] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [tpl, setTpl] = useState("");
+  const t = useT();
   // Field → Today's "Draft forms" links here with &form=<id>: open that form once it has loaded.
   const asked = useSearchParams().get("form");
   const handled = useRef<string | null>(null);
@@ -112,20 +117,20 @@ export default function FormsList() {
     handled.current = asked;
     const f = forms.find((x) => x.id === asked);
     if (!f) return;
-    const t = window.setTimeout(() => setOpen(f), 0);
-    return () => window.clearTimeout(t);
+    const tpl = window.setTimeout(() => setOpen(f), 0);
+    return () => window.clearTimeout(tpl);
   }, [asked, loaded, forms]);
 
   if (!project) return null;
   if (open) return <FormFill key={open.id} initial={open} onBack={() => setOpen(null)} />;
 
-  async function start(t: FormTemplate) {
+  async function start(tpl: FormTemplate) {
     setPicking(false);
     try {
-      const f = await saveForm(newJobForm(t, project!.id, newId, nowIso(), getAuthor(email), localDay(nowIso())));
+      const f = await saveForm(newJobForm(tpl, project!.id, newId, nowIso(), getAuthor(email), localDay(nowIso())));
       setOpen(f);
     } catch {
-      toast("Couldn't start the form", "error");
+      toast(t("Couldn't start the form"), "error");
     }
   }
 
@@ -136,12 +141,12 @@ export default function FormsList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <nav className="seg" aria-label="Form status">
+        <nav className="seg" aria-label={t("Form status")}>
           {(
             [
-              ["all", `All ${forms.length}`],
-              ["draft", `Drafts ${drafts}`],
-              ["submitted", `Submitted ${forms.length - drafts}`],
+              ["all", t("All {n}", { n: forms.length })],
+              ["draft", t("Drafts {n}", { n: drafts })],
+              ["submitted", t("Submitted {n}", { n: forms.length - drafts })],
             ] as const
           ).map(([id, label]) => (
             <button key={id} className={`tab ${status === id ? "tab-active" : ""}`} aria-pressed={status === id} onClick={() => setStatus(id)}>
@@ -150,8 +155,8 @@ export default function FormsList() {
           ))}
         </nav>
         {used.length > 1 && (
-          <select className="input h-9 w-auto max-w-48" aria-label="Filter by form" value={tpl} onChange={(e) => setTpl(e.target.value)}>
-            <option value="">Every form</option>
+          <select className="input h-9 w-auto max-w-48" aria-label={t("Filter by form")} value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <option value="">{t("Every form")}</option>
             {used.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
@@ -160,17 +165,17 @@ export default function FormsList() {
           </select>
         )}
         <button className="btn btn-brand ml-auto h-10" onClick={() => setPicking(true)}>
-          <Plus /> New form
+          <Plus /> {t("New form")}
         </button>
       </div>
 
       {loaded && forms.length === 0 && (
         <div className="card p-6 text-center">
           <ClipboardCheck className="mx-auto h-9 w-9 text-slate-300" />
-          <p className="mt-2 font-medium text-slate-900">No forms on this job yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Inspections, test records and signed T&amp;M tags — filled on site, signed on the spot and saved as a PDF.</p>
+          <p className="mt-2 font-medium text-slate-900">{t("No forms on this job yet")}</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{t("Inspections, test records and signed T&M tags — filled on site, signed on the spot and saved as a PDF.")}</p>
           <button className="btn btn-brand mt-4 h-11" onClick={() => setPicking(true)}>
-            <Plus /> Start a form
+            <Plus /> {t("Start a form")}
           </button>
         </div>
       )}
@@ -191,7 +196,7 @@ export default function FormsList() {
                     <span className="block truncate text-sm font-medium text-slate-900">{f.name}</span>
                     <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
                       {f.name !== f.template.name && <span>{f.template.name} ·</span>}
-                      <span>{f.status === "submitted" && f.submittedAt ? `Submitted ${shortDate(f.submittedAt)}${f.submittedBy ? ` by ${f.submittedBy}` : ""}` : `Updated ${shortDate(f.updatedAt)}`}</span>
+                      <span>{f.status === "submitted" && f.submittedAt ? (f.submittedBy ? t("Submitted {date} by {name}", { date: shortDate(f.submittedAt), name: f.submittedBy }) : t("Submitted {date}", { date: shortDate(f.submittedAt) })) : t("Updated {date}", { date: shortDate(f.updatedAt) })}</span>
                       {sheet && (
                         <span className="inline-flex items-center gap-0.5">
                           · <MapPin className="h-3 w-3" /> {sheet.name}
@@ -201,11 +206,11 @@ export default function FormsList() {
                   </span>
                   {f.status === "submitted" ? (
                     <span className="chip bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-                      <Lock className="h-3 w-3" /> Submitted
+                      <Lock className="h-3 w-3" /> {t("Submitted")}
                     </span>
                   ) : (
-                    <span className="flex w-20 shrink-0 flex-col items-end gap-1">
-                      <span className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200">Draft</span>
+                    <span className="flex w-24 shrink-0 flex-col items-end gap-1">
+                      <span className="chip bg-amber-50 text-amber-800 ring-1 ring-amber-200">{t("Draft")}</span>
                       <span className="h-1 w-full overflow-hidden rounded-full bg-slate-100">
                         <span className="block h-full rounded-full bg-brand-500" style={{ width: `${p.pct}%` }} />
                       </span>
@@ -217,9 +222,9 @@ export default function FormsList() {
           })}
         </ul>
       )}
-      {loaded && forms.length > 0 && shown.length === 0 && <p className="text-center text-sm text-slate-500">No forms match.</p>}
+      {loaded && forms.length > 0 && shown.length === 0 && <p className="text-center text-sm text-slate-500">{t("No forms match.")}</p>}
 
-      {picking && <TemplatePicker onPick={(t) => void start(t)} onClose={() => setPicking(false)} />}
+      {picking && <TemplatePicker onPick={(tpl) => void start(tpl)} onClose={() => setPicking(false)} />}
     </div>
   );
 }

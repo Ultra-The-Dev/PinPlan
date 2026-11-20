@@ -12,6 +12,7 @@ import { useSyncStatus } from "@/lib/sync";
 import type { Project, ScheduleItem } from "@/lib/types";
 import { TONE_CHIP } from "@/lib/statusStyle";
 import { Avatar, fmtDay, jobColor } from "./shared";
+import { useT } from "@/lib/i18n";
 
 const DAYS = 14;
 
@@ -24,6 +25,7 @@ export default function CrewBoard() {
   const [me, setMe] = useState("");
   const [who, setWho] = useState("__all");
   const scroller = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const load = useCallback(async () => {
     const ps = (await db().projects.toArray()).filter((p) => !p.deleted);
@@ -36,7 +38,7 @@ export default function CrewBoard() {
   }, []);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       const d = localDay(new Date().toISOString());
       setToday(d);
       setFrom((f) => f || weekStart(d));
@@ -46,7 +48,7 @@ export default function CrewBoard() {
     const reload = () => void load();
     window.addEventListener("pinplan:synced", reload);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       window.removeEventListener("pinplan:synced", reload);
     };
   }, [load, email]);
@@ -83,18 +85,18 @@ export default function CrewBoard() {
 
   const jobName = (id: string) => {
     const p = projects.get(id);
-    return p?.clientName || p?.address || "Job";
+    return p?.clientName || p?.address || t("Job");
   };
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Crew board</h1>
-          <p className="mt-1 text-sm text-slate-500">Who is on which job, day by day, across every job. Red means double-booked or more than 8 hours.</p>
+          <h1 className="page-title">{t("Crew board")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("Who is on which job, day by day, across every job. Red means double-booked or more than 8 hours.")}</p>
         </div>
-        <select className="input h-9 w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Person">
-          <option value="__all">Everyone</option>
+        <select className="input h-9 w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label={t("Person")}>
+          <option value="__all">{t("Everyone")}</option>
           {(board?.people ?? []).map((p) => (
             <option key={p} value={p}>
               {p}
@@ -102,13 +104,13 @@ export default function CrewBoard() {
           ))}
         </select>
         <div className="flex items-center gap-1">
-          <button className="btn btn-sm btn-icon" onClick={() => setFrom((f) => addDays(f, -7))} aria-label="Previous week">
+          <button className="btn btn-sm btn-icon" onClick={() => setFrom((f) => addDays(f, -7))} aria-label={t("Previous week")}>
             <ChevronLeft />
           </button>
           <button className="btn btn-sm" onClick={() => setFrom(weekStart(today))} disabled={!today}>
-            This week
+            {t("This week")}
           </button>
-          <button className="btn btn-sm btn-icon" onClick={() => setFrom((f) => addDays(f, 7))} aria-label="Next week">
+          <button className="btn btn-sm btn-icon" onClick={() => setFrom((f) => addDays(f, 7))} aria-label={t("Next week")}>
             <ChevronRight />
           </button>
         </div>
@@ -116,19 +118,19 @@ export default function CrewBoard() {
 
       {board && (overbooked > 0 || unstaffed > 0) && (
         <div className="flex flex-wrap gap-2 text-xs">
-          {overbooked > 0 && <span className={`chip ${TONE_CHIP.bad}`}>{overbooked} overbooked day{overbooked === 1 ? "" : "s"}</span>}
-          {unstaffed > 0 && <span className={`chip ${TONE_CHIP.warn}`}>{unstaffed} phase{unstaffed === 1 ? "" : "s"} with no crew</span>}
+          {overbooked > 0 && <span className={`chip ${TONE_CHIP.bad}`}>{t.tn("{n} overbooked day", "{n} overbooked days", overbooked)}</span>}
+          {unstaffed > 0 && <span className={`chip ${TONE_CHIP.warn}`}>{t.tn("{n} phase with no crew", "{n} phases with no crew", unstaffed)}</span>}
         </div>
       )}
 
-      {!board && <div className="p-6 text-sm text-slate-500">Loading…</div>}
+      {!board && <div className="p-6 text-sm text-slate-500">{t("Loading…")}</div>}
 
       {board && board.people.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <Users className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">No one is scheduled these two weeks</div>
+          <div className="font-medium">{t("No one is scheduled these two weeks")}</div>
           <p className="max-w-md text-sm text-slate-500">
-            On a job, open <strong>Field → Schedule</strong>, add phases (or start from a template) and pick the crew for each. They show up here.
+            {t("On a job, open Field → Schedule, add phases (or start from a template) and pick the crew for each. They show up here.")}
           </p>
         </div>
       )}
@@ -138,7 +140,7 @@ export default function CrewBoard() {
           <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 min-w-12 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-500"><span className="hidden sm:inline">Person</span></th>
+                <th className="sticky left-0 z-10 min-w-12 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-500"><span className="hidden sm:inline">{t("Person")}</span></th>
                 {board.days.map((d) => (
                   <th
                     key={d}
@@ -157,7 +159,7 @@ export default function CrewBoard() {
                     <span className="flex items-center gap-2">
                       <Avatar name={p} size="md" />
                       <span className="hidden truncate sm:inline">{p}</span>
-                      {p.toLowerCase() === me.toLowerCase() && <span className="hidden text-xs font-normal text-slate-400 sm:inline">(you)</span>}
+                      {p.toLowerCase() === me.toLowerCase() && <span className="hidden text-xs font-normal text-slate-400 sm:inline">{t("(you)")}</span>}
                     </span>
                   </th>
                   {board.days.map((d) => {
@@ -167,7 +169,7 @@ export default function CrewBoard() {
                       <td
                         key={d}
                         data-testid={cell?.overbooked ? "overbooked" : undefined}
-                        title={cell ? `${cell.jobs.map((j) => `${jobName(j.projectId)} — ${j.name}`).join("\n")}${cell.hours ? `\n${cell.hours} h planned` : ""}` : undefined}
+                        title={cell ? `${cell.jobs.map((j) => `${jobName(j.projectId)} — ${j.name}`).join("\n")}${cell.hours ? `\n${t("{n} h planned", { n: cell.hours })}` : ""}` : undefined}
                         className={`h-14 border-b border-l border-slate-100 p-1 align-top ${cell?.overbooked ? "bg-red-50 ring-1 ring-red-300 ring-inset" : isWeekend(d) ? "bg-slate-50/70" : ""}`}
                       >
                         <div className="flex flex-col gap-0.5">
@@ -182,7 +184,7 @@ export default function CrewBoard() {
                               <span className="block truncate font-normal opacity-85">{j.name}</span>
                             </Link>
                           ))}
-                          {cell && cell.hours > 0 && <span className={`px-1 text-[10px] tabular-nums ${cell.hours > 8 ? "font-semibold text-red-700" : "text-slate-400"}`}>{cell.hours} h</span>}
+                          {cell && cell.hours > 0 && <span className={`px-1 text-[10px] tabular-nums ${cell.hours > 8 ? "font-semibold text-red-700" : "text-slate-400"}`}>{t("{n} h", { n: cell.hours })}</span>}
                         </div>
                       </td>
                     );
@@ -195,7 +197,7 @@ export default function CrewBoard() {
       )}
 
       <p className="flex items-center gap-1.5 text-xs text-slate-500">
-        <CalendarRange className="h-3.5 w-3.5" /> Planned hours are spread evenly over a phase’s workdays and its crew. Holidays aren’t counted.
+        <CalendarRange className="h-3.5 w-3.5" /> {t("Planned hours are spread evenly over a phase’s workdays and its crew. Holidays aren’t counted.")}
       </p>
     </div>
   );

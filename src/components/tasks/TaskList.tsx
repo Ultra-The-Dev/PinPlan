@@ -39,6 +39,7 @@ import TaskQuickCreate from "./TaskQuickCreate";
 import type { TaskPdfData, TaskPdfEntry } from "./TaskReportPdf";
 import { Chip, DueText, PriorityPill, TaskBadge, useTaskOptions } from "./TaskUi";
 import { useProjectTasks, useTasks, type QuickDraft } from "./taskStore";
+import { useT } from "@/lib/i18n";
 
 const toDataUrl = (b: Blob) =>
   new Promise<string>((r, j) => {
@@ -52,6 +53,7 @@ export default function TaskList() {
   const { project, sheets, photos, settings, setActiveSheet } = useEditor();
   const params = useSearchParams();
   const router = useRouter();
+  const t = useT();
   const tasks = useProjectTasks(project?.id);
   const { me, myNames, role, people, categories } = useTaskOptions(tasks);
   const filter = useMemo(() => decodeTaskFilter(params.get("tf")), [params]);
@@ -77,7 +79,7 @@ export default function TaskList() {
   const shown = useMemo(() => sortTasks(filterTasks(tasks, filter, today), sort), [tasks, filter, today, sort]);
   const counts = useMemo(() => statusCounts(tasks), [tasks]);
   const sheetName = (id: string | null | undefined) => sheets.find((s) => s.id === id)?.name;
-  const picked = shown.filter((t) => selected.has(t.id));
+  const picked = shown.filter((tk) => selected.has(tk.id));
   const toggle = <T,>(list: T[] | undefined, v: T) => (list?.includes(v) ? list.filter((x) => x !== v) : [...(list ?? []), v]);
   const mine = isMineFilter(filter, myNames);
   const mineCount = useMemo(() => filterTasks(tasks, mineOpenFilter(myNames), today).length, [tasks, myNames, today]);
@@ -107,39 +109,39 @@ export default function TaskList() {
 
   if (!project) return null;
 
-  async function bulk(label: string, patch: (t: PlanTask) => Partial<PlanTask>, allowed: (t: PlanTask) => boolean = () => true) {
+  async function bulk(label: string, patch: (tk: PlanTask) => Partial<PlanTask>, allowed: (tk: PlanTask) => boolean = () => true) {
     const ok = picked.filter(allowed);
     const n = await useTasks.getState().changeMany(
-      ok.map((t) => t.id),
+      ok.map((tk) => tk.id),
       patch,
       me,
     );
     const skipped = picked.length - ok.length;
-    toast(`${label}: ${n} task${n === 1 ? "" : "s"}${skipped ? ` (${skipped} not allowed)` : ""}`, "success");
+    toast(`${t.tn("{label}: {n} task", "{label}: {n} tasks", n, { label })}${skipped ? ` ${t.tn("({n} not allowed)", "({n} not allowed)", skipped)}` : ""}`, "success");
   }
 
   async function bulkDelete() {
-    const ok = picked.filter((t) => canDeleteTask(role, t, me));
-    await useTasks.getState().softDelete(ok.map((t) => t.id));
+    const ok = picked.filter((tk) => canDeleteTask(role, tk, me));
+    await useTasks.getState().softDelete(ok.map((tk) => tk.id));
     setSelected(new Set());
-    toast(`Deleted ${ok.length} task${ok.length === 1 ? "" : "s"}${picked.length - ok.length ? ` (${picked.length - ok.length} made by others kept)` : ""}`);
+    toast(`${t.tn("Deleted {n} task", "Deleted {n} tasks", ok.length)}${picked.length - ok.length ? ` ${t.tn("({n} made by others kept)", "({n} made by others kept)", picked.length - ok.length)}` : ""}`);
   }
 
-  function showOnPlan(t: PlanTask, move: boolean) {
-    const sheetId = t.sheetId ?? useEditor.getState().activeSheetId ?? sheets[0]?.id;
-    if (!sheetId) return toast("Add a plan sheet first", "error");
+  function showOnPlan(tk: PlanTask, move: boolean) {
+    const sheetId = tk.sheetId ?? useEditor.getState().activeSheetId ?? sheets[0]?.id;
+    if (!sheetId) return toast(t("Add a plan sheet first"), "error");
     setActiveSheet(sheetId);
-    useTasks.getState().set({ selectedId: t.id, showPins: true, detailId: null });
-    if (move || taskPlacement(t) !== "pin") useTasks.getState().arm({ kind: "move", id: t.id });
+    useTasks.getState().set({ selectedId: tk.id, showPins: true, detailId: null });
+    if (move || taskPlacement(tk) !== "pin") useTasks.getState().arm({ kind: "move", id: tk.id });
     router.replace(`/project?id=${project!.id}&tab=plan`);
   }
 
-  async function duplicate(t: PlanTask) {
+  async function duplicate(tk: PlanTask) {
     const at = nowIso();
     const st = useTasks.getState();
-    const copy = { ...duplicateTask(t, at, { id: newId(), number: st.nextNumber(), by: me, newItemId: newId }), sheetId: t.sheetId ?? null, room: t.room ?? null };
-    const saved = await st.save({ ...copy, activity: [{ id: newId(), at, by: me, kind: "created", text: `copied from #${t.number}` }] });
-    toast(`Task #${saved.number} added${saved.sheetId ? " — place it on the plan" : ""}`, "success");
+    const copy = { ...duplicateTask(tk, at, { id: newId(), number: st.nextNumber(), by: me, newItemId: newId }), sheetId: tk.sheetId ?? null, room: tk.room ?? null };
+    const saved = await st.save({ ...copy, activity: [{ id: newId(), at, by: me, kind: "created", text: `copied from #${tk.number}` }] });
+    toast(saved.sheetId ? t("Task #{number} added — place it on the plan", { number: saved.number }) : t("Task #{number} added", { number: saved.number }), "success");
     setDetailId(saved.id);
   }
 
@@ -148,46 +150,46 @@ export default function TaskList() {
     setPdfOpen(false);
     try {
       const list = shown;
-      if (!list.length) return toast("No tasks to export", "error");
-      const entries: { t: PlanTask; e: TaskPdfEntry }[] = [];
+      if (!list.length) return toast(t("No tasks to export"), "error");
+      const entries: { tk: PlanTask; e: TaskPdfEntry }[] = [];
       const sheetImages = new Map<string, Blob | null>();
       let i = 0;
-      for (const t of list) {
-        setPdfBusy(`Preparing task ${++i} of ${list.length}…`);
+      for (const tk of list) {
+        setPdfBusy(t("Preparing task {n} of {total}…", { n: ++i, total: list.length }));
         let crop: string | null = null;
-        const sheet = sheets.find((s) => s.id === t.sheetId);
-        if (sheet && taskPlacement(t) === "pin") {
+        const sheet = sheets.find((s) => s.id === tk.sheetId);
+        if (sheet && taskPlacement(tk) === "pin") {
           if (!sheetImages.has(sheet.id)) sheetImages.set(sheet.id, (await db().images.get(sheet.imageId))?.blob ?? null);
           const blob = sheetImages.get(sheet.id);
-          if (blob) crop = await cropPlanAroundPin(blob, t.x!, t.y!, { color: statusInfo(t.status).color, label: String(t.number) }).catch(() => null);
+          if (blob) crop = await cropPlanAroundPin(blob, tk.x!, tk.y!, { color: statusInfo(tk.status).color, label: String(tk.number) }).catch(() => null);
         }
         let photo: TaskPdfEntry["photo"] = null;
-        const p = photos.find((x) => x.id === t.photoIds?.[0] && !x.deleted);
+        const p = photos.find((x) => x.id === tk.photoIds?.[0] && !x.deleted);
         const rec = p ? await db().images.get(p.imageId) : null;
         if (p && rec) photo = { src: await toDataUrl(await renderPhoto(rec.blob, p.annotations, 900)), width: p.width, height: p.height };
-        const cl = t.checklist ?? [];
+        const cl = tk.checklist ?? [];
         entries.push({
-          t,
+          tk,
           e: {
-            number: t.number,
-            title: t.title,
-            status: statusInfo(t.status).label,
-            statusColor: statusInfo(t.status).color,
-            priority: priorityInfo(t.priority)?.label ?? null,
-            category: t.category,
-            assignee: t.assignee,
-            due: t.due ? new Date(`${t.due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null,
-            overdue: isOverdue(t, today),
-            where: [sheet?.name ?? "General", t.room].filter(Boolean).join(" · "),
-            description: t.description,
+            number: tk.number,
+            title: tk.title,
+            status: statusInfo(tk.status).label,
+            statusColor: statusInfo(tk.status).color,
+            priority: priorityInfo(tk.priority)?.label ?? null,
+            category: tk.category,
+            assignee: tk.assignee,
+            due: tk.due ? new Date(`${tk.due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null,
+            overdue: isOverdue(tk, today),
+            where: [sheet?.name ?? "General", tk.room].filter(Boolean).join(" · "),
+            description: tk.description,
             checklist: cl.length ? { done: cl.filter((c) => c.done).length, total: cl.length, items: cl.slice(0, 8).map((c) => ({ text: c.text, done: !!c.done })) } : null,
-            tags: t.tags ?? [],
+            tags: tk.tags ?? [],
             meta: [
-              t.createdBy ? `Opened by ${t.createdBy}` : "Opened",
-              new Date(t.createdAt).toLocaleDateString(),
-              t.closedAt ? `completed ${new Date(t.closedAt).toLocaleDateString()}` : "",
-              t.verifiedBy ? `verified by ${t.verifiedBy}` : "",
-              (t.photoIds?.length ?? 0) > 1 ? `${t.photoIds!.length} photos` : "",
+              tk.createdBy ? `Opened by ${tk.createdBy}` : "Opened",
+              new Date(tk.createdAt).toLocaleDateString(),
+              tk.closedAt ? `completed ${new Date(tk.closedAt).toLocaleDateString()}` : "",
+              tk.verifiedBy ? `verified by ${tk.verifiedBy}` : "",
+              (tk.photoIds?.length ?? 0) > 1 ? `${tk.photoIds!.length} photos` : "",
             ]
               .filter(Boolean)
               .join(" · "),
@@ -196,11 +198,11 @@ export default function TaskList() {
           },
         });
       }
-      setPdfBusy("Building the PDF…");
+      setPdfBusy(t("Building the PDF…"));
       const groups = new Map<string, TaskPdfEntry[]>();
       const order = groupBy === "sheet" ? [...sheets.map((s) => s.name), "General"] : [];
-      for (const { t, e } of entries) {
-        const key = groupBy === "sheet" ? (sheetName(t.sheetId) ?? "General") : t.assignee?.trim() || "Unassigned";
+      for (const { tk, e } of entries) {
+        const key = groupBy === "sheet" ? (sheetName(tk.sheetId) ?? "General") : tk.assignee?.trim() || "Unassigned";
         groups.set(key, [...(groups.get(key) ?? []), e]);
       }
       const names = [...groups.keys()].sort((a, b) =>
@@ -221,13 +223,13 @@ export default function TaskList() {
       const out = await renderTaskReportPdf(data);
       downloadBlob(out, `${slug(project!.address || project!.clientName || "job")}-tasks-${today}.pdf`);
     } catch (e) {
-      toast(`PDF failed: ${(e as Error).message}`, "error");
+      toast(t("PDF failed: {error}", { error: (e as Error).message }), "error");
     } finally {
       setPdfBusy(null);
     }
   }
 
-  const allPicked = shown.length > 0 && shown.every((t) => selected.has(t.id));
+  const allPicked = shown.length > 0 && shown.every((tk) => selected.has(tk.id));
 
   return (
     <div className="space-y-4">
@@ -236,7 +238,7 @@ export default function TaskList() {
         <div className="mr-auto flex flex-wrap gap-1.5">
           {STATUSES.map((s) => (
             <Chip small key={s.id} on={!!filter.status?.includes(s.id)} color={s.color} onClick={() => setFilter({ ...filter, status: toggle(filter.status, s.id) })}>
-              {s.short} <span className="tabular-nums opacity-80">{counts[s.id]}</span>
+              {t(s.short)} <span className="tabular-nums opacity-80">{counts[s.id]}</span>
             </Chip>
           ))}
         </div>
@@ -246,37 +248,37 @@ export default function TaskList() {
           </button>
           {pdfOpen && (
             <div className="card animate-in absolute top-10 right-0 z-30 w-56 p-1.5 shadow-pop">
-              <div className="px-2 py-1 text-xs text-slate-500">{shown.length} tasks (the current filter), grouped by</div>
+              <div className="px-2 py-1 text-xs text-slate-500">{t.tn("{n} task (the current filter), grouped by", "{n} tasks (the current filter), grouped by", shown.length)}</div>
               <button className="btn btn-ghost w-full justify-start" onClick={() => void exportPdf("sheet")}>
-                Sheet
+                {t("Sheet")}
               </button>
               <button className="btn btn-ghost w-full justify-start" onClick={() => void exportPdf("assignee")}>
-                Assignee
+                {t("Assignee")}
               </button>
             </div>
           )}
         </div>
         <button className="btn btn-brand" onClick={() => setQuick({ sheetId: filter.sheetId || null, x: null, y: null })}>
-          <Plus /> Add task
+          <Plus /> {t("Add task")}
         </button>
       </div>
 
       {/* Quick filters; the rest behind "Filter" */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <Chip on={mine} onClick={() => setFilter(mine ? { ...filter, assignee: [], status: [] } : { ...filter, ...mineOpenFilter(myNames) })} title={`Open tasks assigned to ${me}`}>
-          Mine <span className="tabular-nums opacity-80">{mineCount}</span>
+        <Chip on={mine} onClick={() => setFilter(mine ? { ...filter, assignee: [], status: [] } : { ...filter, ...mineOpenFilter(myNames) })} title={t("Open tasks assigned to {name}", { name: me })}>
+          {t("Mine")} <span className="tabular-nums opacity-80">{mineCount}</span>
         </Chip>
         <Chip on={filter.due === "overdue"} color="#dc2626" onClick={() => setFilter({ ...filter, due: filter.due === "overdue" ? null : "overdue" })}>
-          Overdue
+          {t("Overdue")}
         </Chip>
         <button className={`btn h-10 ${filtersOpen || moreFilters ? "btn-on" : ""}`} onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="task-filters">
-          <SlidersHorizontal /> Filter{moreFilters ? ` · ${moreFilters}` : ""}
+          <SlidersHorizontal /> {t("Filter")}{moreFilters ? ` · ${moreFilters}` : ""}
         </button>
-        <select className="input ml-auto h-10 w-auto" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label="Sort">
-          <option value="due">Sort: due date</option>
-          <option value="number">Sort: number</option>
-          <option value="priority">Sort: priority</option>
-          <option value="status">Sort: status</option>
+        <select className="input ml-auto h-10 w-auto" value={sort} onChange={(e) => setSort(e.target.value as TaskSort)} aria-label={t("Sort")}>
+          <option value="due">{t("Sort: due date")}</option>
+          <option value="number">{t("Sort: number")}</option>
+          <option value="priority">{t("Sort: priority")}</option>
+          <option value="status">{t("Sort: status")}</option>
         </select>
       </div>
 
@@ -291,7 +293,7 @@ export default function TaskList() {
           }}
         >
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search tasks or #number" value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (filter.text ?? "") && setFilter({ ...filter, text })} aria-label="Search tasks" />
+          <input className="input pl-9" placeholder={t("Search tasks or #number")} value={text} onChange={(e) => setText(e.target.value)} onBlur={() => text !== (filter.text ?? "") && setFilter({ ...filter, text })} aria-label={t("Search tasks")} />
         </form>
         <div className="flex flex-wrap items-center gap-1.5">
           {PRIORITIES.map((p) => (
@@ -301,38 +303,38 @@ export default function TaskList() {
           ))}
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <select className="input h-9" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label="Assigned to">
-            <option value="">Anyone</option>
-            <option value="__none">Unassigned</option>
+          <select className="input h-9" value={filter.assignee?.length === 1 ? filter.assignee[0] : ""} onChange={(e) => setFilter({ ...filter, assignee: e.target.value === "" ? [] : e.target.value === "__none" ? [""] : [e.target.value] })} aria-label={t("Assigned to")}>
+            <option value="">{t("Anyone")}</option>
+            <option value="__none">{t("Unassigned")}</option>
             {people.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
             ))}
           </select>
-          <select className="input h-9" value={filter.category?.[0] ?? ""} onChange={(e) => setFilter({ ...filter, category: e.target.value ? [e.target.value] : [] })} aria-label="Category">
-            <option value="">Any category</option>
+          <select className="input h-9" value={filter.category?.[0] ?? ""} onChange={(e) => setFilter({ ...filter, category: e.target.value ? [e.target.value] : [] })} aria-label={t("Category")}>
+            <option value="">{t("Any category")}</option>
             {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
-          <select className="input h-9" value={filter.sheetId ?? "__all"} onChange={(e) => setFilter({ ...filter, sheetId: e.target.value === "__all" ? null : e.target.value })} aria-label="Sheet">
-            <option value="__all">All sheets</option>
-            <option value="">General (no sheet)</option>
+          <select className="input h-9" value={filter.sheetId ?? "__all"} onChange={(e) => setFilter({ ...filter, sheetId: e.target.value === "__all" ? null : e.target.value })} aria-label={t("Sheet")}>
+            <option value="__all">{t("All sheets")}</option>
+            <option value="">{t("General (no sheet)")}</option>
             {sheets.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
           </select>
-          <select className="input h-9" value={filter.due ?? ""} onChange={(e) => setFilter({ ...filter, due: (e.target.value || null) as TaskFilter["due"] })} aria-label="Due">
-            <option value="">Any due date</option>
-            <option value="overdue">Overdue</option>
-            <option value="today">Due today</option>
-            <option value="week">Due this week</option>
-            <option value="none">No due date</option>
+          <select className="input h-9" value={filter.due ?? ""} onChange={(e) => setFilter({ ...filter, due: (e.target.value || null) as TaskFilter["due"] })} aria-label={t("Due")}>
+            <option value="">{t("Any due date")}</option>
+            <option value="overdue">{t("Overdue")}</option>
+            <option value="today">{t("Due today")}</option>
+            <option value="week">{t("Due this week")}</option>
+            <option value="none">{t("No due date")}</option>
           </select>
         </div>
       </div>
@@ -340,7 +342,7 @@ export default function TaskList() {
       {!filterIsEmpty(filter) && (
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="min-w-0 flex-1 truncate">
-              {shown.length} of {tasks.length} · {filterSummary(filter, sheetName)}
+              {t("{shown} of {total}", { shown: shown.length, total: tasks.length })} · {filterSummary(filter, sheetName, t)}
             </span>
             <button
               className="btn btn-sm btn-ghost"
@@ -349,7 +351,7 @@ export default function TaskList() {
                 setFilter({});
               }}
             >
-              <X /> Clear
+              <X /> {t("Clear")}
             </button>
           </div>
         )}
@@ -358,52 +360,52 @@ export default function TaskList() {
       {tasks.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <ListTodo className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">No tasks yet</div>
+          <div className="font-medium">{t("No tasks yet")}</div>
           <p className="max-w-md text-sm text-slate-500">
-            Tap <strong>Add task</strong> for something to do on this job, or on the <strong>Plan</strong> tap the pin button (Shift+T) and tap the spot.
+            {t("Tap Add task for something to do on this job, or on the Plan tap the pin button (Shift+T) and tap the spot.")}
           </p>
         </div>
       ) : (
         <section className="card overflow-hidden">
           <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
-            <button className="flex h-8 w-8 items-center justify-center" onClick={() => setSelected(allPicked ? new Set() : new Set(shown.map((t) => t.id)))} aria-label={allPicked ? "Select none" : "Select all"}>
+            <button className="flex h-8 w-8 items-center justify-center" onClick={() => setSelected(allPicked ? new Set() : new Set(shown.map((tk) => tk.id)))} aria-label={allPicked ? t("Select none") : t("Select all")}>
               {allPicked ? <CheckSquare className="h-5 w-5 text-brand-600" /> : <Square className="h-5 w-5" />}
             </button>
-            <span>{selected.size ? `${picked.length} selected` : `${shown.length} task${shown.length === 1 ? "" : "s"}`}</span>
+            <span>{selected.size ? t.tn("{n} selected", "{n} selected", picked.length) : t.tn("{n} task", "{n} tasks", shown.length)}</span>
           </div>
           <ul className="divide-y divide-slate-100">
-            {shown.map((t) => (
-              <li key={t.id} className={`flex items-center gap-2 px-3 py-2 ${selected.has(t.id) ? "bg-brand-50/60" : ""}`}>
+            {shown.map((tk) => (
+              <li key={tk.id} className={`flex items-center gap-2 px-3 py-2 ${selected.has(tk.id) ? "bg-brand-50/60" : ""}`}>
                 <button
                   className="flex h-10 w-8 shrink-0 items-center justify-center"
-                  onClick={() => setSelected((s) => (s.has(t.id) ? new Set([...s].filter((x) => x !== t.id)) : new Set([...s, t.id])))}
-                  aria-label={`Select #${t.number}`}
-                  aria-pressed={selected.has(t.id)}
+                  onClick={() => setSelected((s) => (s.has(tk.id) ? new Set([...s].filter((x) => x !== tk.id)) : new Set([...s, tk.id])))}
+                  aria-label={t("Select #{number}", { number: tk.number })}
+                  aria-pressed={selected.has(tk.id)}
                 >
-                  {selected.has(t.id) ? <CheckSquare className="h-5 w-5 text-brand-600" /> : <Square className="h-5 w-5 text-slate-400" />}
+                  {selected.has(tk.id) ? <CheckSquare className="h-5 w-5 text-brand-600" /> : <Square className="h-5 w-5 text-slate-400" />}
                 </button>
-                <button className="flex min-w-0 flex-1 items-center gap-3 py-1 text-left" onClick={() => setDetailId(t.id)}>
-                  <TaskBadge task={t} size={30} />
+                <button className="flex min-w-0 flex-1 items-center gap-3 py-1 text-left" onClick={() => setDetailId(tk.id)}>
+                  <TaskBadge task={tk} size={30} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{t.title}</span>
-                      <PriorityPill priority={t.priority} />
+                      <span className="truncate text-sm font-medium">{tk.title}</span>
+                      <PriorityPill priority={tk.priority} />
                     </span>
                     <span className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-slate-500">
-                      <span style={{ color: statusInfo(t.status).color }} className="font-medium">
-                        {statusInfo(t.status).short}
+                      <span style={{ color: statusInfo(tk.status).color }} className="font-medium">
+                        {t(statusInfo(tk.status).short)}
                       </span>
                       <span>
-                        {sheetName(t.sheetId) ?? "General"}
-                        {t.room ? ` · ${t.room}` : ""}
+                        {sheetName(tk.sheetId) ?? t("General")}
+                        {tk.room ? ` · ${tk.room}` : ""}
                       </span>
-                      {t.assignee && <span>{t.assignee}</span>}
-                      {t.category && <span>{t.category}</span>}
-                      <DueText task={t} today={today} />
-                      {(t.photoIds?.length ?? 0) > 0 && <span>{t.photoIds!.length} photo{t.photoIds!.length === 1 ? "" : "s"}</span>}
-                      {(t.checklist?.length ?? 0) > 0 && (
+                      {tk.assignee && <span>{tk.assignee}</span>}
+                      {tk.category && <span>{tk.category}</span>}
+                      <DueText task={tk} today={today} />
+                      {(tk.photoIds?.length ?? 0) > 0 && <span>{t.tn("{n} photo", "{n} photos", tk.photoIds!.length)}</span>}
+                      {(tk.checklist?.length ?? 0) > 0 && (
                         <span>
-                          {t.checklist!.filter((c) => c.done).length}/{t.checklist!.length}
+                          {tk.checklist!.filter((c) => c.done).length}/{tk.checklist!.length}
                         </span>
                       )}
                     </span>
@@ -411,7 +413,7 @@ export default function TaskList() {
                 </button>
               </li>
             ))}
-            {shown.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-500">No tasks match the filter.</li>}
+            {shown.length === 0 && <li className="px-4 py-8 text-center text-sm text-slate-500">{t("No tasks match the filter.")}</li>}
           </ul>
         </section>
       )}
@@ -420,34 +422,34 @@ export default function TaskList() {
       {picked.length > 0 && (
         <div className="sticky bottom-3 z-20">
           <div className="card flex flex-wrap items-center gap-2 p-2 shadow-pop ring-1 ring-slate-200">
-            <span className="px-1 text-sm font-semibold">{picked.length} selected</span>
+            <span className="px-1 text-sm font-semibold">{t.tn("{n} selected", "{n} selected", picked.length)}</span>
             <select
               className="input h-9 w-auto"
               value=""
-              aria-label="Set status"
+              aria-label={t("Set status")}
               onChange={(e) => {
                 const s = e.target.value as TaskStatus;
-                if (s) void bulk(`Status ${statusInfo(s).label}`, () => ({ status: s }), (t) => canSetStatus(role, t.status, s));
+                if (s) void bulk(t("Status {status}", { status: t(statusInfo(s).label) }), () => ({ status: s }), (tk) => canSetStatus(role, tk.status, s));
               }}
             >
-              <option value="">Status…</option>
+              <option value="">{t("Status…")}</option>
               {STATUSES.map((s) => (
                 <option key={s.id} value={s.id} disabled={role === "tech" && s.id === "verified"}>
-                  {s.label}
+                  {t(s.label)}
                 </option>
               ))}
             </select>
             <select
               className="input h-9 w-auto"
               value=""
-              aria-label="Assign"
+              aria-label={t("Assign")}
               onChange={(e) => {
                 const v = e.target.value;
-                if (v) void bulk(v === "__none" ? "Unassigned" : `Assigned to ${v}`, () => ({ assignee: v === "__none" ? null : v }));
+                if (v) void bulk(v === "__none" ? t("Unassigned") : t("Assigned to {name}", { name: v }), () => ({ assignee: v === "__none" ? null : v }));
               }}
             >
-              <option value="">Assign…</option>
-              <option value="__none">Unassigned</option>
+              <option value="">{t("Assign…")}</option>
+              <option value="__none">{t("Unassigned")}</option>
               {people.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -457,31 +459,31 @@ export default function TaskList() {
             <select
               className="input h-9 w-auto"
               value=""
-              aria-label="Set priority"
+              aria-label={t("Set priority")}
               onChange={(e) => {
                 const v = e.target.value;
-                if (v) void bulk(v === "0" ? "Priority cleared" : `Priority P${v}`, () => ({ priority: v === "0" ? null : (Number(v) as TaskPriority) }));
+                if (v) void bulk(v === "0" ? t("Priority cleared") : t("Priority P{n}", { n: v }), () => ({ priority: v === "0" ? null : (Number(v) as TaskPriority) }));
               }}
             >
-              <option value="">Priority…</option>
+              <option value="">{t("Priority…")}</option>
               {PRIORITIES.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label} · {p.name}
+                  {p.label} · {t(p.name)}
                 </option>
               ))}
-              <option value="0">None</option>
+              <option value="0">{t("None")}</option>
             </select>
             <label className="flex items-center gap-1 text-sm text-slate-600">
-              Due
-              <input type="date" className="input h-9 w-auto" value="" aria-label="Set due date" onChange={(e) => e.target.value && void bulk(`Due ${e.target.value}`, () => ({ due: e.target.value }))} />
+              {t("Due")}
+              <input type="date" className="input h-9 w-auto" value="" aria-label={t("Set due date")} onChange={(e) => e.target.value && void bulk(t("Due {date}", { date: e.target.value }), () => ({ due: e.target.value }))} />
             </label>
             <button className="btn" onClick={() => setConfirm("category")}>
-              Category…
+              {t("Category…")}
             </button>
             <button className="btn btn-danger" onClick={() => setConfirm("delete")}>
-              <Trash2 /> Delete
+              <Trash2 /> {t("Delete")}
             </button>
-            <button className="btn btn-ghost btn-icon ml-auto" onClick={() => setSelected(new Set())} aria-label="Clear selection">
+            <button className="btn btn-ghost btn-icon ml-auto" onClick={() => setSelected(new Set())} aria-label={t("Clear selection")}>
               <X />
             </button>
           </div>
@@ -490,10 +492,10 @@ export default function TaskList() {
 
       {confirm === "delete" && (
         <Dialog
-          title={`Delete ${picked.length} task${picked.length === 1 ? "" : "s"}?`}
-          description={role === "tech" ? "Tasks made by other people are kept." : "They disappear from the plan and the list for everyone on the job."}
+          title={t.tn("Delete {n} task?", "Delete {n} tasks?", picked.length)}
+          description={role === "tech" ? t("Tasks made by other people are kept.") : t("They disappear from the plan and the list for everyone on the job.")}
           fields={[]}
-          submitLabel="Delete"
+          submitLabel={t("Delete")}
           onCancel={() => setConfirm(null)}
           onSubmit={() => {
             setConfirm(null);
@@ -503,16 +505,16 @@ export default function TaskList() {
       )}
       {confirm === "category" && (
         <Dialog
-          title="Set category"
-          description={categories.length ? `For example: ${categories.slice(0, 4).join(", ")}. Leave empty to clear.` : "Leave empty to clear."}
-          fields={[{ name: "category", label: "Category", placeholder: categories[0] ?? "Electrical" }]}
-          submitLabel="Apply"
+          title={t("Set category")}
+          description={categories.length ? t("For example: {list}. Leave empty to clear.", { list: categories.slice(0, 4).join(", ") }) : t("Leave empty to clear.")}
+          fields={[{ name: "category", label: t("Category"), placeholder: categories[0] ?? t("Electrical") }]}
+          submitLabel={t("Apply")}
           onCancel={() => setConfirm(null)}
           onSubmit={(v) => {
             setConfirm(null);
             const typed = v.category.trim();
             const c = categories.find((x) => x.toLowerCase() === typed.toLowerCase()) ?? typed;
-            void bulk(c ? `Category ${c}` : "Category cleared", () => ({ category: c || null }));
+            void bulk(c ? t("Category {name}", { name: c }) : t("Category cleared"), () => ({ category: c || null }));
           }}
         />
       )}
@@ -530,23 +532,23 @@ export default function TaskList() {
               router.replace(`/project?${q.toString()}`, { scroll: false });
             }
           }}
-onPlace={(t) => showOnPlan(t, false)} onDuplicate={(t) => void duplicate(t)} placeLabel="Show on plan" />
+onPlace={(tk) => showOnPlan(tk, false)} onDuplicate={(tk) => void duplicate(tk)} placeLabel={t("Show on plan")} />
       )}
     </div>
   );
 }
 
-/** "Open, Ready · Mike · Overdue · “cover”" for the list and the PDF. */
-function filterSummary(f: TaskFilter, sheetName: (id: string) => string | undefined): string {
+/** "Open, Ready · Mike · Overdue · “cover”" for the list and the PDF (the PDF stays English: no `tr`). */
+function filterSummary(f: TaskFilter, sheetName: (id: string) => string | undefined, tr: (s: string) => string = (s) => s): string {
   return [
-    f.status?.map((s) => statusInfo(s).label).join(", "),
+    f.status?.map((s) => tr(statusInfo(s).label)).join(", "),
     f.priority?.map((p) => `P${p}`).join(", "),
     f.category?.join(", "),
-    f.assignee?.map((a) => a || "Unassigned").join(", "),
-    f.sheetId != null ? (f.sheetId === "" ? "General" : (sheetName(f.sheetId) ?? "Sheet")) : "",
-    f.due ? { overdue: "Overdue", today: "Due today", week: "Due this week", none: "No due date" }[f.due] : "",
+    f.assignee?.map((a) => a || tr("Unassigned")).join(", "),
+    f.sheetId != null ? (f.sheetId === "" ? tr("General") : (sheetName(f.sheetId) ?? tr("Sheet"))) : "",
+    f.due ? tr({ overdue: "Overdue", today: "Due today", week: "Due this week", none: "No due date" }[f.due]) : "",
     f.text?.trim() ? `“${f.text.trim()}”` : "",
-    f.tags?.map((t) => `#${t}`).join(" "),
+    f.tags?.map((tk) => `#${tk}`).join(" "),
   ]
     .filter(Boolean)
     .join(" · ");

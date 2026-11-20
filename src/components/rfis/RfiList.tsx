@@ -4,7 +4,7 @@
 import { CalendarDays, FileDown, ImageIcon, MapPin, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { getAuthor } from "@/lib/photos";
-import { ageText, canRfi, filterRfis, isOverdue, nextRfiNumber, rfiCode, rfiSummary, type RfiFilter } from "@/lib/rfis";
+import { canRfi, daysBetween, filterRfis, RFI_STATUS_LABEL, isOverdue, nextRfiNumber, rfiCode, rfiSummary, type RfiFilter } from "@/lib/rfis";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole } from "@/lib/team";
@@ -15,12 +15,14 @@ import RfiEditor, { draftRfi } from "./RfiEditor";
 import { markerName } from "./PlanSpotPicker";
 import { downloadRfiLogPdf } from "./rfiPdfData";
 import { BallChip, dayLabel, localToday, StatusChip } from "./ui";
+import { msg, useT } from "@/lib/i18n";
 
 const FILTERS: { id: RfiFilter; label: string }[] = [
-  { id: "open", label: "Open" },
-  { id: "them", label: "With them" },
-  { id: "overdue", label: "Overdue" },
-  { id: "all", label: "All" },
+  // The status word itself (translated with the other status labels, src/lib/rfis.ts).
+  { id: "open", label: RFI_STATUS_LABEL.open },
+  { id: "them", label: msg("With them") },
+  { id: "overdue", label: msg("Overdue") },
+  { id: "all", label: msg("All") },
 ];
 
 function Stat({ n, label, tone = "" }: { n: number | string; label: string; tone?: string }) {
@@ -36,12 +38,15 @@ export default function RfiList() {
   const { project, settings, photos, sheets, documents, markers, catalog } = useEditor();
   const { email } = useSyncStatus();
   const role = useRole();
+  const t = useT();
   const { rfis, all } = useRfis(project?.id);
   const [filter, setFilter] = useState<RfiFilter>("open");
   const [editing, setEditing] = useState<{ id: string; draft: Rfi | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const today = localToday();
   const now = new Date().toISOString();
+  // Same as ageText() in src/lib/rfis.ts, in the active language.
+  const ageLabel = (d: number) => (d === 0 ? t("today") : t.tn("{n} day", "{n} days", d));
   const summary = useMemo(() => rfiSummary(rfis ?? [], today), [rfis, today]);
   const shown = useMemo(() => filterRfis(rfis ?? [], filter, today), [rfis, filter, today]);
   if (!project) return null;
@@ -57,7 +62,7 @@ export default function RfiList() {
         return m ? markerName(m, catalog) : null;
       } });
     } catch (e) {
-      toast(`PDF failed: ${(e as Error).message}`, "error");
+      toast(t("PDF failed: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(false);
     }
@@ -66,10 +71,10 @@ export default function RfiList() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-auto max-w-md text-sm text-slate-500">An RFI is a question for the GC, architect or owner when the plans don’t say. Send it with the spot and a photo; they answer from a link, no account.</p>
+        <p className="mr-auto max-w-md text-sm text-slate-500">{t("An RFI is a question for the GC, architect or owner when the plans don’t say. Send it with the spot and a photo; they answer from a link, no account.")}</p>
         {!!rfis?.length && (
           <button className="btn btn-sm" onClick={() => void logPdf()} disabled={busy}>
-            <FileDown /> {busy ? "Building…" : "Log PDF"}
+            <FileDown /> {busy ? t("Building…") : t("Log PDF")}
           </button>
         )}
         {canRfi(role, "create") && (
@@ -77,25 +82,25 @@ export default function RfiList() {
             const d = draftRfi(project.id, nextRfiNumber(all), getAuthor(email));
             setEditing({ id: d.id, draft: d });
           }}>
-            <Plus /> New RFI
+            <Plus /> {t("New RFI")}
           </button>
         )}
       </div>
 
       {!!rfis?.length && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat n={summary.open} label="Open" />
-          <Stat n={summary.withThem} label="With them" tone={summary.withThem ? "text-amber-700" : ""} />
-          <Stat n={summary.overdue} label="Overdue" tone={summary.overdue ? "text-red-600" : ""} />
-          <Stat n={summary.avgDaysToAnswer == null ? "—" : summary.avgDaysToAnswer < 1 ? "< 1 d" : `${summary.avgDaysToAnswer} d`} label="Avg. to answer" />
+          <Stat n={summary.open} label={t(RFI_STATUS_LABEL.open)} />
+          <Stat n={summary.withThem} label={t("With them")} tone={summary.withThem ? "text-amber-700" : ""} />
+          <Stat n={summary.overdue} label={t("Overdue")} tone={summary.overdue ? "text-red-600" : ""} />
+          <Stat n={summary.avgDaysToAnswer == null ? "—" : summary.avgDaysToAnswer < 1 ? t("< 1 d") : t("{n} d", { n: summary.avgDaysToAnswer })} label={t("Avg. to answer")} />
         </div>
       )}
 
       {!!rfis?.length && (
-        <nav className="seg" aria-label="Filter RFIs">
+        <nav className="seg" aria-label={t("Filter RFIs")}>
           {FILTERS.map((f) => (
             <button key={f.id} className={`tab ${filter === f.id ? "tab-active" : ""}`} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </nav>
@@ -103,13 +108,13 @@ export default function RfiList() {
 
       {rfis === null ? null : !rfis.length ? (
         <div className="card p-8 text-center">
-          <p className="font-semibold">No RFIs on this job yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Need an answer before you can finish? Snap a photo, mark the spot on the plan and send it — they answer from a link, no login.</p>
+          <p className="font-semibold">{t("No RFIs on this job yet")}</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{t("Need an answer before you can finish? Snap a photo, mark the spot on the plan and send it — they answer from a link, no login.")}</p>
         </div>
       ) : !shown.length ? (
-        <p className="py-6 text-center text-sm text-slate-500">Nothing here. {filter !== "all" && "Try “All”."}</p>
+        <p className="py-6 text-center text-sm text-slate-500">{t("Nothing here.")} {filter !== "all" && t("Try “All”.")}</p>
       ) : (
-        <ul className="card divide-y divide-slate-100 overflow-hidden" aria-label="RFIs">
+        <ul className="card divide-y divide-slate-100 overflow-hidden" aria-label={t("RFIs")}>
           {shown.map((r) => {
             const late = isOverdue(r, today);
             return (
@@ -117,12 +122,12 @@ export default function RfiList() {
                 <button className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 active:bg-slate-100" onClick={() => setEditing({ id: r.id, draft: null })}>
                   <span className="mt-0.5 w-16 shrink-0 font-mono text-xs font-bold text-slate-600">{rfiCode(r.number)}</span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate font-medium ${r.status === "void" ? "text-slate-400 line-through" : ""}`}>{r.subject || r.question || "Untitled"}</span>
+                    <span className={`block truncate font-medium ${r.status === "void" ? "text-slate-400 line-through" : ""}`}>{r.subject || r.question || t("Untitled")}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <StatusChip status={r.status} />
                       <BallChip rfi={r} />
                       {r.toCompany || r.toName ? <span className="truncate">{r.toCompany || r.toName}</span> : null}
-                      {r.sheetId && r.x != null && <MapPin className="h-3.5 w-3.5" aria-label="Has a plan location" />}
+                      {r.sheetId && r.x != null && <MapPin className="h-3.5 w-3.5" aria-label={t("Has a plan location")} />}
                       {(r.photoIds?.length ?? 0) > 0 && (
                         <span className="inline-flex items-center gap-0.5">
                           <ImageIcon className="h-3.5 w-3.5" aria-hidden /> {r.photoIds!.length}
@@ -133,11 +138,10 @@ export default function RfiList() {
                   <span className="shrink-0 text-right text-xs">
                     {r.due && r.status !== "closed" && r.status !== "void" && (
                       <span className={`flex items-center justify-end gap-1 ${late ? "font-semibold text-red-600" : "text-slate-600"}`}>
-                        <CalendarDays className="h-3.5 w-3.5" /> {late ? "Overdue · " : "Due "}
-                        {dayLabel(r.due)}
+                        <CalendarDays className="h-3.5 w-3.5" /> {late ? t("Overdue · {date}", { date: dayLabel(r.due) }) : t("Due {date}", { date: dayLabel(r.due) })}
                       </span>
                     )}
-                    <span className="mt-0.5 block text-slate-400">{r.status === "draft" ? "draft" : ageText(r.sentAt ?? r.createdAt, now)}</span>
+                    <span className="mt-0.5 block text-slate-400">{r.status === "draft" ? t("draft") : ageLabel(daysBetween(r.sentAt ?? r.createdAt, now))}</span>
                   </span>
                 </button>
               </li>

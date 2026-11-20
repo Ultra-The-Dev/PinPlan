@@ -13,10 +13,12 @@ import type { Photo, Project } from "@/lib/types";
 import { useThumbUrl } from "@/lib/useImage";
 import DateRange from "./DateRange";
 import MorePhotos from "./MorePhotos";
+import { fmtDate, fmtTime, useT } from "@/lib/i18n";
 
 function Thumb({ photo, job }: { photo: Photo; job?: Project }) {
   const url = useThumbUrl(photo.imageId, PHOTO_THUMB);
   const labels = job ? jobLabelList(job) : [];
+  const t = useT();
   return (
     <Link href={`/project?id=${photo.projectId}&tab=photos&photo=${photo.id}`} className="group relative block aspect-square overflow-hidden rounded-xl bg-slate-100 hover:ring-2 hover:ring-slate-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -32,8 +34,8 @@ function Thumb({ photo, job }: { photo: Photo; job?: Project }) {
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pt-6 pb-1.5 text-[11px] leading-tight text-white">
-        <div className="truncate font-semibold">{job ? jobTitle(job, "Job") : "Job"}</div>
-        <div className="truncate opacity-80">{[photo.takenBy, new Date(photo.takenAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })].filter(Boolean).join(" · ")}</div>
+        <div className="truncate font-semibold">{job ? jobTitle(job, t("Job")) : t("Job")}</div>
+        <div className="truncate opacity-80">{[photo.takenBy, fmtTime(photo.takenAt)].filter(Boolean).join(" · ")}</div>
       </div>
     </Link>
   );
@@ -49,6 +51,7 @@ export default function PhotoFeed() {
   const [text, setText] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const t = useT();
   useEffect(() => {
     void (async () => {
       const ps = (await db().projects.toArray()).filter((p) => !p.deleted);
@@ -76,7 +79,7 @@ export default function PhotoFeed() {
   // Keep selected tags visible even when a job/label change drops them from the options, so they can still be cleared.
   const options = useMemo(() => {
     const top = tagOptions(live).slice(0, 14);
-    return [...top, ...tags.filter((t) => !top.includes(t))];
+    return [...top, ...tags.filter((tg) => !top.includes(tg))];
   }, [live, tags]);
   const people = useMemo(() => [...new Set((photos ?? []).map((p) => p.takenBy).filter((x): x is string => !!x))].sort(), [photos]);
   const withPhotos = useMemo(() => new Set((photos ?? []).map((p) => p.projectId)), [photos]);
@@ -92,17 +95,17 @@ export default function PhotoFeed() {
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <h1 className="page-title">Photos</h1>
-        <p className="mt-1 text-sm text-slate-500">Every job’s photos in one place, newest first. Open one to see it on its job.</p>
+        <h1 className="page-title">{t("Photos")}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t("Every job’s photos in one place, newest first. Open one to see it on its job.")}</p>
       </div>
       {photos && photos.length > 0 && (
         <div className="card flex flex-wrap items-center gap-2 p-3">
           <div className="relative min-w-48 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input h-9 pl-9" type="search" placeholder="Search captions, rooms, tags" aria-label="Search photos" value={text} onChange={(e) => setText(e.target.value)} />
+            <input className="input h-9 pl-9" type="search" placeholder={t("Search captions, rooms, tags")} aria-label={t("Search photos")} value={text} onChange={(e) => setText(e.target.value)} />
           </div>
-          <select className="input h-9 w-auto max-w-56" value={job} onChange={(e) => setJob(e.target.value)} aria-label="Job">
-            <option value="">All jobs</option>
+          <select className="input h-9 w-auto max-w-56" value={job} onChange={(e) => setJob(e.target.value)} aria-label={t("Job")}>
+            <option value="">{t("All jobs")}</option>
             {jobList.map((j) => (
               <option key={j.id} value={j.id}>
                 {jobTitle(j)}
@@ -110,8 +113,8 @@ export default function PhotoFeed() {
             ))}
           </select>
           {labels.length > 0 && (
-            <select className="input h-9 w-auto max-w-48" value={label} onChange={(e) => pickLabel(e.target.value)} aria-label="Job label">
-              <option value="">All labels</option>
+            <select className="input h-9 w-auto max-w-48" value={label} onChange={(e) => pickLabel(e.target.value)} aria-label={t("Job label")}>
+              <option value="">{t("All labels")}</option>
               {labels.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -120,8 +123,8 @@ export default function PhotoFeed() {
             </select>
           )}
           {people.length > 1 && (
-            <select className="input h-9 w-auto" value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Taken by">
-              <option value="">Everyone</option>
+            <select className="input h-9 w-auto" value={person} onChange={(e) => setPerson(e.target.value)} aria-label={t("Taken by")}>
+              <option value="">{t("Everyone")}</option>
               {people.map((p) => (
                 <option key={p}>{p}</option>
               ))}
@@ -129,34 +132,34 @@ export default function PhotoFeed() {
           )}
           <DateRange from={from} to={to} setFrom={setFrom} setTo={setTo} />
           <div className="flex basis-full flex-wrap gap-1.5">
-            {options.map((t) => (
-              <button key={t} className={`chip ${tags.includes(t) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} aria-pressed={tags.includes(t)} onClick={() => setTags((ts) => (ts.includes(t) ? ts.filter((x) => x !== t) : [...ts, t]))}>
-                {t}
+            {options.map((tg) => (
+              <button key={tg} className={`chip ${tags.includes(tg) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`} aria-pressed={tags.includes(tg)} onClick={() => setTags((ts) => (ts.includes(tg) ? ts.filter((x) => x !== tg) : [...ts, tg]))}>
+                {tg}
               </button>
             ))}
           </div>
         </div>
       )}
       {photos === null ? (
-        <p className="text-slate-500">Loading…</p>
+        <p className="text-slate-500">{t("Loading…")}</p>
       ) : photos.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-16 text-center">
           <Camera className="h-10 w-10 text-slate-300" />
-          <p className="mt-3 font-medium">No photos yet</p>
-          <p className="mt-1 text-sm text-slate-500">Open a job and use its Photos tab to take or add photos.</p>
+          <p className="mt-3 font-medium">{t("No photos yet")}</p>
+          <p className="mt-1 text-sm text-slate-500">{t("Open a job and use its Photos tab to take or add photos.")}</p>
         </div>
       ) : shown.length === 0 ? (
         <div className="px-1 py-10 text-center text-sm text-slate-500">
-          <p>No photos match these filters.</p>
+          <p>{t("No photos match these filters.")}</p>
           <button className="mt-2 font-medium text-brand-600 hover:underline" onClick={() => { setJob(""); setLabel(""); setTags([]); setPerson(""); setText(""); setFrom(""); setTo(""); }}>
-            Clear filters
+            {t("Clear filters")}
           </button>
         </div>
       ) : (
         groups.map((g) => (
           <section key={g.day}>
             <h3 className="mb-2 px-1 font-semibold">
-              {new Date(`${g.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +g.day.slice(0, 4) ? undefined : "numeric" })} <span className="text-xs font-normal text-slate-400">{g.all.length}</span>
+              {fmtDate(`${g.day}T12:00:00`, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +g.day.slice(0, 4) ? undefined : "numeric" })} <span className="text-xs font-normal text-slate-400">{g.all.length}</span>
             </h3>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               {g.photos.map((p) => (

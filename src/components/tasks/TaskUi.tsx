@@ -11,6 +11,7 @@ import { isOverdue, priorityInfo, statusInfo, taskCategoryOptions, taskPlacement
 import { tradeCategories, tradePack } from "@/lib/trades";
 import type { Photo, PlanTask } from "@/lib/types";
 import { useTrades } from "@/lib/useTrades";
+import { fmtDate, useT } from "@/lib/i18n";
 
 /** Me (name on photos and comments) and all my names (for "Mine"), my team role, the people to assign and the categories to offer. */
 export function useTaskOptions(tasks: PlanTask[]) {
@@ -21,12 +22,12 @@ export function useTaskOptions(tasks: PlanTask[]) {
   const { me, names: myNames } = useMe();
   const people = useMemo(() => {
     const names = teamNames({ photos, jobLogs, checklists, members }, me);
-    for (const t of tasks) if (t.assignee?.trim() && !names.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) names.push(t.assignee.trim());
+    for (const task of tasks) if (task.assignee?.trim() && !names.some((n) => n.toLowerCase() === task.assignee!.trim().toLowerCase())) names.push(task.assignee.trim());
     // Me first, then everyone else A–Z.
     return [me, ...names.filter((n) => n.toLowerCase() !== me.toLowerCase()).sort((a, b) => a.localeCompare(b))];
   }, [photos, jobLogs, checklists, members, me, tasks]);
   const categories = useMemo(
-    () => taskCategoryOptions([...trades.map((t) => tradePack(t).short), ...tradeCategories(trades).map((c) => c.name)], tasks),
+    () => taskCategoryOptions([...trades.map((tr) => tradePack(tr).short), ...tradeCategories(trades).map((c) => c.name)], tasks),
     [trades, tasks],
   );
   return { me, myNames, role, people, categories };
@@ -36,11 +37,12 @@ export function useTaskOptions(tasks: PlanTask[]) {
  * Pick a team member (no free text): the team, then names already on the job. "Unassigned" clears it. A name that is
  * set but not in the list (an older task) stays selectable so it isn't lost.
  */
-export function PersonSelect({ value, onChange, people, className = "input h-11", label = "Assign" }: { value: string; onChange: (v: string) => void; people: string[]; className?: string; label?: string }) {
+export function PersonSelect({ value, onChange, people, className = "input h-11", label }: { value: string; onChange: (v: string) => void; people: string[]; className?: string; label?: string }) {
   const list = value && !people.some((p) => p.toLowerCase() === value.toLowerCase()) ? [value, ...people] : people;
+  const t = useT();
   return (
-    <select className={className} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
-      <option value="">Unassigned</option>
+    <select className={className} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label ?? t("Assign")}>
+      <option value="">{t("Unassigned")}</option>
       {list.map((p) => (
         <option key={p} value={p}>
           {p}
@@ -70,8 +72,9 @@ export function TaskBadge({ task, size = 28 }: { task: Pick<PlanTask, "number" |
   const place = taskPlacement(task);
   const label = String(task.number);
   const fs = label.length > 3 ? size * 0.32 : size * 0.4;
+  const t = useT();
   return (
-    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} title={statusInfo(task.status).label}>
+    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} title={t(statusInfo(task.status).label)}>
       <svg viewBox="0 0 28 28" width={size} height={size} className="absolute inset-0" aria-hidden>
         {place === "pin" ? (
           <path d="M14 27 C 9 20, 3.5 16, 3.5 10.5 A 10.5 10.5 0 1 1 24.5 10.5 C 24.5 16, 19 20, 14 27 Z" fill={color} stroke="#fff" strokeWidth="1.5" />
@@ -90,28 +93,31 @@ export function TaskBadge({ task, size = 28 }: { task: Pick<PlanTask, "number" |
 
 export function StatusPill({ status }: { status: PlanTask["status"] }) {
   const s = statusInfo(status);
+  const t = useT();
   return (
     <span className="chip text-white" style={{ background: s.color }}>
-      {s.label}
+      {t(s.label)}
     </span>
   );
 }
 
 export function PriorityPill({ priority }: { priority: PlanTask["priority"] }) {
   const p = priorityInfo(priority);
+  const t = useT();
   if (!p) return null;
   return (
     <span className="chip ring-1" style={{ color: p.color, boxShadow: `inset 0 0 0 1px ${p.color}55` }}>
-      {p.label}
+      {t(p.label)}
     </span>
   );
 }
 
-export const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+export const dueText = (due: string) => fmtDate(`${due}T12:00:00`, { month: "short", day: "numeric" });
 
 export function DueText({ task, today }: { task: Pick<PlanTask, "due" | "status">; today: string }) {
+  const t = useT();
   if (!task.due) return null;
-  return <span className={today && isOverdue(task, today) ? "font-semibold text-red-600" : ""}>Due {dueText(task.due)}</span>;
+  return <span className={today && isOverdue(task, today) ? "font-semibold text-red-600" : ""}>{t("Due {date}", { date: dueText(task.due) })}</span>;
 }
 
 /** A big, glove-friendly toggle chip. */

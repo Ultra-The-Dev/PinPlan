@@ -18,8 +18,9 @@ import { useMe } from "@/lib/useMe";
 import TodayCard from "./field/TodayCard";
 import { PersonSelect } from "./tasks/TaskUi";
 import { TASKS_EVENT, tasksChanged } from "./tasks/taskStore";
+import { fmtDate, t, useT } from "@/lib/i18n";
 
-const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const dueText = (due: string) => fmtDate(`${due}T12:00:00`, { weekday: "short", month: "short", day: "numeric" });
 const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
   overdue: TONE_TEXT.bad,
   today: TONE_TEXT.warn,
@@ -27,14 +28,15 @@ const BUCKET_STYLE: Record<OpenTask["bucket"], string> = {
   later: "text-slate-500",
   none: "text-slate-500",
 };
-const jobName = (p?: Project) => p?.address || p?.clientName || "Job";
-const itemHref = (t: OpenTask) => `/project?id=${t.project.id}&tab=field&section=checklists&cl=${t.checklist.id}&item=${t.item.id}`;
+const jobName = (p?: Project) => p?.address || p?.clientName || t("Job");
+const itemHref = (tk: OpenTask) => `/project?id=${tk.project.id}&tab=field&section=checklists&cl=${tk.checklist.id}&item=${tk.item.id}`;
 
 /** Thumbnail of the photo a task was made from; opens the job's photos. */
 function TaskPhoto({ photo, href }: { photo: Photo; href: string }) {
   const url = useBlobUrl(photo.imageId);
+  const t = useT();
   return (
-    <Link href={href} className="block h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label="Open the job's photos" title={photo.caption ?? "Photo this task came from"}>
+    <Link href={href} className="block h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={t("Open the job's photos")} title={photo.caption ?? t("Photo this task came from")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </Link>
@@ -45,6 +47,7 @@ export default function TasksBoard() {
   const { me, names: myNames } = useMe();
   const members = useTeam((s) => s.members);
   const role = useRole();
+  const t = useT();
   const [projects, setProjects] = useState<Project[]>([]);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
   // Tasks on jobs (src/lib/tasks.ts), and older assigned checklist items next to them.
@@ -67,7 +70,7 @@ export default function TasksBoard() {
     setChecklists(cs);
   }, []);
   useEffect(() => {
-    const t = window.setTimeout(() => void load(), 0);
+    const tk = window.setTimeout(() => void load(), 0);
     // Pick up synced changes, and roll "today" over when the tab comes back after midnight.
     const reload = () => void load();
     const onVisible = () => document.visibilityState === "visible" && reload();
@@ -75,7 +78,7 @@ export default function TasksBoard() {
     window.addEventListener(TASKS_EVENT, reload);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(tk);
       window.removeEventListener("pinplan:synced", reload);
       window.removeEventListener(TASKS_EVENT, reload);
       document.removeEventListener("visibilitychange", onVisible);
@@ -85,12 +88,12 @@ export default function TasksBoard() {
   const mode = who === "__auto" ? (role === "tech" ? "__me" : "__all") : who;
   const filter: string[] | string | null = mode === "__me" ? myNames : mode === "__all" ? null : mode;
   const jobs = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
-  const liveTasks = useMemo(() => planTasks.filter((t) => !t.deleted && jobs.has(t.projectId)), [planTasks, jobs]);
+  const liveTasks = useMemo(() => planTasks.filter((tk) => !tk.deleted && jobs.has(tk.projectId)), [planTasks, jobs]);
   const tasks = useMemo(() => (checklists && today ? openTasks({ projects, checklists }, { today, who: filter }) : []), [projects, checklists, today, filter]);
   const planOpen = useMemo(() => (today ? sortOverdueFirst(openPlanTasksFor(filter, liveTasks, today)) : []), [liveTasks, today, filter]);
   const names = useMemo(() => {
     const ns = teamNames({ checklists: checklists ?? [], members }, me);
-    for (const t of liveTasks) if (t.assignee?.trim() && !ns.some((n) => n.toLowerCase() === t.assignee!.trim().toLowerCase())) ns.push(t.assignee.trim());
+    for (const tk of liveTasks) if (tk.assignee?.trim() && !ns.some((n) => n.toLowerCase() === tk.assignee!.trim().toLowerCase())) ns.push(tk.assignee.trim());
     return ns.sort((a, b) => a.localeCompare(b));
   }, [checklists, members, me, liveTasks]);
   // Same count as the job's "Mine" chip (mineOpenFilter), plus older assigned checklist items.
@@ -99,28 +102,28 @@ export default function TasksBoard() {
     [projects, checklists, today, myNames, liveTasks],
   );
 
-  async function completePlanTask(t: OpenPlanTask) {
+  async function completePlanTask(tk: OpenPlanTask) {
     // Fresh copy, so a quick second tick doesn't overwrite the first.
-    const cur = (await db().tasks.get(t.task.id)) ?? t.task;
+    const cur = (await db().tasks.get(tk.task.id)) ?? tk.task;
     await put("tasks", applyTaskChange(cur, { status: "done" }, me, nowIso(), newId));
-    toast(`Completed: #${t.task.number} ${t.task.title}`, "success");
+    toast(t("Completed: #{number} {title}", { number: tk.task.number, title: tk.task.title }), "success");
     tasksChanged();
   }
 
-  const whoLabel = mode === "__me" ? "you" : mode === "__all" ? "" : mode;
+  const whoLabel = mode === "__me" ? t("you") : mode === "__all" ? "" : mode;
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Tasks</h1>
-          <p className="mt-1 text-sm text-slate-500">Open tasks on every job, overdue first.</p>
+          <h1 className="page-title">{t("Tasks")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("Open tasks on every job, overdue first.")}</p>
         </div>
-        <Link href="/schedule" className="btn h-10" title="Crew board: who is on which job each day">
-          <HardHat /> Crew
+        <Link href="/schedule" className="btn h-10" title={t("Crew board: who is on which job each day")}>
+          <HardHat /> {t("Crew")}
         </Link>
-        <select className="input h-10 w-auto" value={mode} onChange={(e) => setWho(e.target.value)} aria-label="Whose tasks">
-          <option value="__me">Mine · {mineCount}</option>
-          <option value="__all">Everyone</option>
+        <select className="input h-10 w-auto" value={mode} onChange={(e) => setWho(e.target.value)} aria-label={t("Whose tasks")}>
+          <option value="__me">{t("Mine")} · {mineCount}</option>
+          <option value="__all">{t("Everyone")}</option>
           {names
             .filter((n) => !myNames.some((m) => m.toLowerCase() === n.toLowerCase()))
             .map((n) => (
@@ -129,8 +132,8 @@ export default function TasksBoard() {
               </option>
             ))}
         </select>
-        <button className="btn btn-brand h-10" onClick={() => setAdding(true)} disabled={!projects.length} title={projects.length ? undefined : "Add a job first"}>
-          <Plus /> Add task
+        <button className="btn btn-brand h-10" onClick={() => setAdding(true)} disabled={!projects.length} title={projects.length ? undefined : t("Add a job first")}>
+          <Plus /> {t("Add task")}
         </button>
       </div>
 
@@ -139,60 +142,60 @@ export default function TasksBoard() {
       {checklists && tasks.length === 0 && planOpen.length === 0 && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <ClipboardList className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">{whoLabel ? `No open tasks for ${whoLabel}` : "No open tasks"}</div>
+          <div className="font-medium">{whoLabel ? t("No open tasks for {name}", { name: whoLabel }) : t("No open tasks")}</div>
           <p className="max-w-md text-sm text-slate-500">
-            Tap <strong>Add task</strong> to give someone something to do on a job. Tasks also come from the plan, photo comments, checklists and forms.
+            {t("Tap Add task to give someone something to do on a job. Tasks also come from the plan, photo comments, checklists and forms.")}
           </p>
         </div>
       )}
 
       {TASK_BUCKETS.map((b) => {
-        const list = tasks.filter((t) => t.bucket === b.id);
-        const plan = planOpen.filter((t) => t.bucket === b.id);
+        const list = tasks.filter((tk) => tk.bucket === b.id);
+        const plan = planOpen.filter((tk) => tk.bucket === b.id);
         if (!list.length && !plan.length) return null;
         return (
           <section key={b.id}>
             <h2 className={`mb-2 px-1 text-xs font-semibold tracking-wide uppercase ${BUCKET_STYLE[b.id]}`}>
-              {b.name} · {list.length + plan.length}
+              {t(b.name)} · {list.length + plan.length}
             </h2>
             <ul className="card divide-y divide-slate-100">
-              {plan.map((t) => (
-                <PlanTaskRow key={t.task.id} t={t} project={jobs.get(t.task.projectId)!} onComplete={() => void completePlanTask(t)} />
+              {plan.map((tk) => (
+                <PlanTaskRow key={tk.task.id} tk={tk} project={jobs.get(tk.task.projectId)!} onComplete={() => void completePlanTask(tk)} />
               ))}
-              {list.map((t) => (
+              {list.map((tk) => (
                 // Older checklist item assigned on the checklist: read-only here, opens the item on its job.
-                <li key={`${t.checklist.id}:${t.item.id}`} className="flex items-start gap-2 px-2 py-1.5 sm:px-3">
+                <li key={`${tk.checklist.id}:${tk.item.id}`} className="flex items-start gap-2 px-2 py-1.5 sm:px-3">
                   <Link
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-50"
-                    href={itemHref(t)}
-                    aria-label={`Open on the job's checklist: ${t.item.text}`}
-                    title={t.item.requiresPhoto ? "Needs a photo — tick it on the job's checklist" : "Tick it on the job's checklist"}
+                    href={itemHref(tk)}
+                    aria-label={t("Open on the job's checklist: {item}", { item: tk.item.text })}
+                    title={tk.item.requiresPhoto ? t("Needs a photo — tick it on the job's checklist") : t("Tick it on the job's checklist")}
                   >
-                    {t.item.requiresPhoto ? <Camera className="h-5 w-5 text-amber-600" /> : <ExternalLink className="h-5 w-5" />}
+                    {tk.item.requiresPhoto ? <Camera className="h-5 w-5 text-amber-600" /> : <ExternalLink className="h-5 w-5" />}
                   </Link>
                   <div className="min-w-0 flex-1 py-2">
-                    <Link href={itemHref(t)} className="text-sm font-medium hover:underline">
-                      {t.item.text}
+                    <Link href={itemHref(tk)} className="text-sm font-medium hover:underline">
+                      {tk.item.text}
                     </Link>
                     <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
-                      <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${t.project.id}&tab=field`}>
-                        {jobName(t.project)}
+                      <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${tk.project.id}&tab=field`}>
+                        {jobName(tk.project)}
                       </Link>
-                      <span>On checklist “{t.checklist.name}”</span>
-                      {t.item.assignee && (
+                      <span>{t("On checklist “{name}”", { name: tk.checklist.name })}</span>
+                      {tk.item.assignee && (
                         <span className="inline-flex items-center gap-1">
-                          <UserRound className="h-3 w-3" /> {t.item.assignee}
+                          <UserRound className="h-3 w-3" /> {tk.item.assignee}
                         </span>
                       )}
-                      {t.item.due && (
-                        <span className={`inline-flex items-center gap-1 ${BUCKET_STYLE[t.bucket]}`}>
-                          <CalendarDays className="h-3 w-3" /> {dueText(t.item.due)}
+                      {tk.item.due && (
+                        <span className={`inline-flex items-center gap-1 ${BUCKET_STYLE[tk.bucket]}`}>
+                          <CalendarDays className="h-3 w-3" /> {dueText(tk.item.due)}
                         </span>
                       )}
-                      {t.item.requiresPhoto && <span className="text-amber-700">Photo required</span>}
+                      {tk.item.requiresPhoto && <span className="text-amber-700">{t("Photo required")}</span>}
                     </div>
                   </div>
-                  {t.item.photoId && photos.get(t.item.photoId) && <TaskPhoto photo={photos.get(t.item.photoId)!} href={`/project?id=${t.project.id}&tab=photos`} />}
+                  {tk.item.photoId && photos.get(tk.item.photoId) && <TaskPhoto photo={photos.get(tk.item.photoId)!} href={`/project?id=${tk.project.id}&tab=photos`} />}
                 </li>
               ))}
             </ul>
@@ -206,13 +209,14 @@ export default function TasksBoard() {
 }
 
 /** A task ticks to Completed (the office verifies it); the title opens it on the job. */
-function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Project; onComplete: () => void }) {
-  const s = statusInfo(t.task.status);
-  const p = priorityInfo(t.task.priority);
-  const href = `/project?id=${project.id}&tab=field&section=tasks&tf=&task=${t.task.id}`;
+function PlanTaskRow({ tk, project, onComplete }: { tk: OpenPlanTask; project: Project; onComplete: () => void }) {
+  const s = statusInfo(tk.task.status);
+  const p = priorityInfo(tk.task.priority);
+  const href = `/project?id=${project.id}&tab=field&section=tasks&tf=&task=${tk.task.id}`;
+  const t = useT();
   return (
     <li className="flex items-start gap-2 px-2 py-1.5 sm:px-3">
-      <button className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" onClick={onComplete} aria-label={`Mark completed: #${t.task.number} ${t.task.title}`} title="Mark completed">
+      <button className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" onClick={onComplete} aria-label={t("Mark completed: #{number} {title}", { number: tk.task.number, title: tk.task.title })} title={t("Mark completed")}>
         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white ring-1 ring-slate-300 group-hover:bg-emerald-50 group-hover:ring-emerald-500 group-focus-visible:ring-emerald-500">
           <Check className="h-4 w-4 text-transparent group-hover:text-emerald-600 group-focus-visible:text-emerald-600" />
         </span>
@@ -220,27 +224,27 @@ function PlanTaskRow({ t, project, onComplete }: { t: OpenPlanTask; project: Pro
       <div className="min-w-0 flex-1 py-2">
         <Link href={href} className="text-sm font-medium hover:underline">
           <span className="mr-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white tabular-nums" style={{ background: s.color }}>
-            {t.task.number}
+            {tk.task.number}
           </span>
-          {t.task.title}
+          {tk.task.title}
         </Link>
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
           <Link className="font-medium text-brand-600 hover:underline" href={`/project?id=${project.id}&tab=field`}>
             {jobName(project)}
           </Link>
           <span className="inline-flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> {s.label}
-            {t.task.room ? ` · ${t.task.room}` : ""}
+            <MapPin className="h-3 w-3" /> {t(s.label)}
+            {tk.task.room ? ` · ${tk.task.room}` : ""}
           </span>
           {p && <span style={{ color: p.color }}>{p.label}</span>}
-          {t.task.assignee && (
+          {tk.task.assignee && (
             <span className="inline-flex items-center gap-1">
-              <UserRound className="h-3 w-3" /> {t.task.assignee}
+              <UserRound className="h-3 w-3" /> {tk.task.assignee}
             </span>
           )}
-          {t.task.due && (
-            <span className={`inline-flex items-center gap-1 ${BUCKET_STYLE[t.bucket]}`}>
-              <CalendarDays className="h-3 w-3" /> {dueText(t.task.due)}
+          {tk.task.due && (
+            <span className={`inline-flex items-center gap-1 ${BUCKET_STYLE[tk.bucket]}`}>
+              <CalendarDays className="h-3 w-3" /> {dueText(tk.task.due)}
             </span>
           )}
         </div>
@@ -257,6 +261,7 @@ function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Proj
   const [assignee, setAssignee] = useState(defaultWho);
   const [due, setDue] = useState("");
   const [saving, setSaving] = useState(false);
+  const t = useT();
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
@@ -269,13 +274,13 @@ function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Proj
     try {
       // Number after every task on that job on this device (deleted ones too, so a number isn't reused).
       const all = await db().tasks.where("projectId").equals(projectId).toArray();
-      const t = newTask({ id: newId(), projectId, number: nextTaskNumber(all), title, assignee: assignee || null, due: due || null, checklist: [], photoIds: [] }, me, nowIso(), newId);
-      await put("tasks", t);
+      const tk = newTask({ id: newId(), projectId, number: nextTaskNumber(all), title, assignee: assignee || null, due: due || null, checklist: [], photoIds: [] }, me, nowIso(), newId);
+      await put("tasks", tk);
       tasksChanged();
-      toast(`Task #${t.number} added${t.assignee ? ` for ${t.assignee}` : ""}`, "success");
+      toast(tk.assignee ? t("Task #{number} added for {name}", { number: tk.number, name: tk.assignee }) : t("Task #{number} added", { number: tk.number }), "success");
       onClose();
     } catch (e) {
-      toast(`Couldn't add the task: ${(e as Error).message}`, "error");
+      toast(t("Couldn't add the task: {error}", { error: (e as Error).message }), "error");
       setSaving(false);
     }
   }
@@ -285,7 +290,7 @@ function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Proj
       <form
         role="dialog"
         aria-modal="true"
-        aria-label="Add task"
+        aria-label={t("Add task")}
         className="card animate-in w-full max-w-md space-y-3 rounded-b-none p-4 shadow-pop sm:rounded-b-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
@@ -294,13 +299,13 @@ function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Proj
         }}
       >
         <div className="flex items-start gap-3">
-          <h2 className="min-w-0 flex-1 text-base font-semibold">Add task</h2>
-          <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+          <h2 className="min-w-0 flex-1 text-base font-semibold">{t("Add task")}</h2>
+          <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
         <label className="block">
-          <span className="label">Job</span>
+          <span className="label">{t("Job")}</span>
           <select className="input h-11" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
             {sorted.map((p) => (
               <option key={p.id} value={p.id}>
@@ -310,25 +315,25 @@ function AddTask({ projects, people, me, defaultWho, onClose }: { projects: Proj
           </select>
         </label>
         <label className="block">
-          <span className="label">What needs doing</span>
-          <input className="input h-11" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Replace cracked cover plate in kitchen" />
+          <span className="label">{t("What needs doing")}</span>
+          <input className="input h-11" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("e.g. Replace cracked cover plate in kitchen")} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="label">Assign</span>
+            <span className="label">{t("Assign")}</span>
             <PersonSelect value={assignee} onChange={setAssignee} people={people} />
           </label>
           <label className="block">
-            <span className="label">Due</span>
+            <span className="label">{t("Due")}</span>
             <input type="date" className="input h-11" value={due} onChange={(e) => setDue(e.target.value)} />
           </label>
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" className="btn h-11" onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand h-11 px-5" disabled={!title.trim() || !projectId || saving}>
-            {saving ? "Saving…" : "Add task"}
+            {saving ? t("Saving…") : t("Add task")}
           </button>
         </div>
       </form>

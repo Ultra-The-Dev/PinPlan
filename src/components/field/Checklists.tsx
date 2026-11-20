@@ -22,61 +22,64 @@ import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
 import { tradeChecklists } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
 import { useBlobUrl } from "@/lib/useImage";
+import { fmtDate, useT } from "@/lib/i18n";
 import Dialog from "../Dialog";
 import PhotoViewer from "../photos/PhotoViewer";
 
 function Mini({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
   const url = useBlobUrl(photo.imageId);
+  const t = useT();
   return (
-    <button onClick={onOpen} className="h-12 w-12 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label="Open photo">
+    <button onClick={onOpen} className="h-12 w-12 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200" aria-label={t("Open photo")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>
   );
 }
 
-const dueText = (due: string) => new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const dueText = (due: string) => fmtDate(`${due}T12:00:00`, { weekday: "short", month: "short", day: "numeric" });
 
 /** "Make task": a task on the job from this item, for a team member (picked, not typed) with a due date. */
 function MakeTaskFields({ c, item, photoIds, people, me, onClose }: { c: Checklist; item: ChecklistItem; photoIds: string[]; people: string[]; me: string; onClose: () => void }) {
   const [who, setWho] = useState("");
   const [due, setDue] = useState(item.due ?? "");
   const [saving, setSaving] = useState(false);
+  const t = useT();
   async function make() {
     if (saving) return;
     setSaving(true);
     try {
       const st = useTasks.getState();
       if (st.projectId !== c.projectId) await st.load(c.projectId);
-      const t = newTask(
+      const task = newTask(
         { id: newId(), projectId: c.projectId, number: useTasks.getState().nextNumber(), ...taskFromChecklistItem(c, { ...item, due: due || null }, photoIds), assignee: who || null },
         me,
         nowIso(),
         newId,
       );
-      const saved = await useTasks.getState().save(t);
-      toast(`Task #${saved.number} added${saved.assignee ? ` for ${saved.assignee}` : ""}`, "success");
+      const saved = await useTasks.getState().save(task);
+      toast(saved.assignee ? t("Task #{number} added for {name}", { number: saved.number, name: saved.assignee }) : t("Task #{number} added", { number: saved.number }), "success");
       onClose();
     } catch (e) {
-      toast(`Couldn't add the task: ${(e as Error).message}`, "error");
+      toast(t("Couldn't add the task: {error}", { error: (e as Error).message }), "error");
       setSaving(false);
     }
   }
   return (
     <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-2.5">
       <label className="text-xs">
-        <span className="label">Assign</span>
-        <PersonSelect value={who} onChange={setWho} people={people} className="input h-11 w-44" />
+        <span className="label">{t("Assign")}</span>
+        <PersonSelect value={who} onChange={setWho} people={people} className="input h-11 w-44 max-w-full" />
       </label>
       <label className="text-xs">
-        <span className="label">Due</span>
+        <span className="label">{t("Due")}</span>
         <input type="date" className="input h-11 w-40" value={due} onChange={(e) => setDue(e.target.value)} />
       </label>
       <button className="btn btn-brand h-11" disabled={saving} onClick={() => void make()}>
-        <ListPlus /> {saving ? "Adding…" : "Make task"}
+        <ListPlus /> {saving ? t("Adding…") : t("Make task")}
       </button>
       <button className="btn btn-ghost h-11" onClick={onClose}>
-        Cancel
+        {t("Cancel")}
       </button>
     </div>
   );
@@ -97,11 +100,12 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
   const names = teamNames({ photos, jobLogs, checklists, members }, me);
   const people = [me, ...names.filter((n) => n.toLowerCase() !== me.toLowerCase())];
   const [open, setOpen] = useState(true);
+  const t = useT();
   // A link to one item (from /tasks) scrolls to it and marks it for a moment.
   useEffect(() => {
     if (!focusItem || !c.items.some((i) => i.id === focusItem)) return;
-    const t = window.setTimeout(() => document.getElementById(`cl-item-${focusItem}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => document.getElementById(`cl-item-${focusItem}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+    return () => window.clearTimeout(timer);
   }, [focusItem, c.items]);
   const [adding, setAdding] = useState("");
   const [viewer, setViewer] = useState<{ list: Photo[]; id: string } | null>(null);
@@ -114,18 +118,18 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
   async function saveAsTemplate(name: string) {
     if (savingRef.current) return; // a double tap on "Save template" must not save it twice ("X" and "X (2)")
     savingRef.current = true;
-    const t = templateFromChecklist(c, name, newId);
-    let saved = t.name;
+    const tpl = templateFromChecklist(c, name, newId);
+    let saved = tpl.name;
     try {
       await saveChecklistTemplates((cur) => {
-        const next = addTemplate(cur, t);
+        const next = addTemplate(cur, tpl);
         saved = next[next.length - 1].name;
         return next;
       });
       setSavingTemplate(false);
-      toast(`Saved “${saved}” as a template`, "success");
+      toast(t("Saved “{name}” as a template", { name: saved }), "success");
     } catch {
-      toast("Couldn't save the template", "error");
+      toast(t("Couldn't save the template"), "error");
     } finally {
       savingRef.current = false;
     }
@@ -140,7 +144,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
   const tick = (i: ChecklistItem) => {
     const before = { done: i.done ?? false, doneBy: i.doneBy ?? null, doneAt: i.doneAt ?? null };
     void setItem(i.id, i.done ? { done: false, doneBy: null, doneAt: null } : { done: true, doneBy: me, doneAt: nowIso() });
-    onTicked({ label: `${i.done ? "Unticked" : "Ticked"}: ${i.text}`, undo: () => void setItem(i.id, before) });
+    onTicked({ label: i.done ? t("Unticked: {item}", { item: i.text }) : t("Ticked: {item}", { item: i.text }), undo: () => void setItem(i.id, before) });
   };
 
   async function addPhotos(files: FileList | null) {
@@ -150,7 +154,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
       const p = await importPhoto(f, { projectId: project.id, author, extra: { checklistId: c.id, checklistItemId: photoFor, tags: [c.name.split(" ")[0]] } });
       await saveRow("photos", p);
     }
-    toast("Photo added to the checklist", "success");
+    toast(t("Photo added to the checklist"), "success");
     setPhotoFor(null);
   }
 
@@ -167,7 +171,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
               {prog.done}/{prog.total}
             </span>
           </div>
-          {prog.missingPhotos > 0 && <div className="mt-1 text-xs text-amber-700">{prog.missingPhotos} ticked item{prog.missingPhotos > 1 ? "s need" : " needs"} a photo</div>}
+          {prog.missingPhotos > 0 && <div className="mt-1 text-xs text-amber-700">{t.tn("{n} ticked item needs a photo", "{n} ticked items need a photo", prog.missingPhotos)}</div>}
         </div>
         <ChevronDown className={`h-5 w-5 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
@@ -186,7 +190,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                   <button
                     className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
                     onClick={() => tick(i)}
-                    aria-label={`${i.done ? "Mark not done" : "Mark done"}: ${i.text}`}
+                    aria-label={i.done ? t("Mark not done: {item}", { item: i.text }) : t("Mark done: {item}", { item: i.text })}
                     aria-pressed={!!i.done}
                   >
                     <span className={`flex h-6 w-6 items-center justify-center rounded-md ring-1 transition ${i.done ? (complete ? "bg-emerald-500 text-white ring-emerald-500" : "bg-amber-400 text-white ring-amber-400") : "bg-white ring-slate-300 group-hover:ring-slate-400"}`}>
@@ -196,7 +200,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                   <div className="min-w-0 flex-1 py-2.5">
                     <div className={`text-sm ${i.done ? "text-slate-500" : ""}`}>{i.text}</div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
-                      {i.requiresPhoto && <span className={ps.length ? "text-emerald-700" : "text-amber-700"}>{ps.length ? `${ps.length} photo${ps.length > 1 ? "s" : ""}` : "Photo required"}</span>}
+                      {i.requiresPhoto && <span className={ps.length ? "text-emerald-700" : "text-amber-700"}>{ps.length ? t.tn("{n} photo", "{n} photos", ps.length) : t("Photo required")}</span>}
                       {i.assignee && (
                         <span className="inline-flex items-center gap-1 text-slate-600">
                           <UserRound className="h-3 w-3" /> {i.assignee}
@@ -218,7 +222,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                     {(ps.length > 0 || from) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {from && !ps.some((p) => p.id === from.id) && (
-                          <span className="relative" title="Photo this task came from">
+                          <span className="relative" title={t("Photo this task came from")}>
                             <Mini photo={from} onOpen={() => setViewer({ list: [from], id: from.id })} />
                             <MessageSquare className="pointer-events-none absolute -right-1 -bottom-1 h-4 w-4 rounded-full bg-white p-0.5 text-brand-600 ring-1 ring-slate-200" />
                           </span>
@@ -231,8 +235,8 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                   </div>
                   <button
                     className="btn btn-ghost h-11 w-11 shrink-0 px-0 text-slate-500"
-                    title="Make a task from this item"
-                    aria-label={`Make task: ${i.text}`}
+                    title={t("Make a task from this item")}
+                    aria-label={t("Make task: {item}", { item: i.text })}
                     aria-expanded={editing === i.id}
                     onClick={() => setEditing(editing === i.id ? null : i.id)}
                   >
@@ -240,8 +244,8 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                   </button>
                   <button
                     className="btn btn-ghost h-11 w-11 shrink-0 px-0 text-slate-500"
-                    title="Take or add a photo for this item"
-                    aria-label={`Add a photo: ${i.text}`}
+                    title={t("Take or add a photo for this item")}
+                    aria-label={t("Add a photo: {item}", { item: i.text })}
                     onClick={() => {
                       setPhotoFor(i.id);
                       setTimeout(() => fileRef.current?.click(), 0);
@@ -264,15 +268,15 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
               setAdding("");
             }}
           >
-            <input className="input h-9" placeholder="Add an item" aria-label={`Add an item to ${c.name}`} value={adding} onChange={(e) => setAdding(e.target.value)} />
+            <input className="input h-9" placeholder={t("Add an item")} aria-label={t("Add an item to {name}", { name: c.name })} value={adding} onChange={(e) => setAdding(e.target.value)} />
             <button className="btn btn-sm" disabled={!adding.trim()}>
-              <Plus /> Add
+              <Plus /> {t("Add")}
             </button>
             <button
               type="button"
               className="btn btn-sm btn-ghost text-slate-500"
-              title="Save as template"
-              aria-label="Save as template"
+              title={t("Save as template")}
+              aria-label={t("Save as template")}
               disabled={c.items.length === 0}
               onClick={() => setSavingTemplate(true)}
             >
@@ -281,9 +285,9 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
             <button
               type="button"
               className="btn btn-sm btn-ghost text-slate-400 hover:text-red-600"
-              title="Delete checklist"
-              aria-label="Delete checklist"
-              onClick={() => confirm(`Delete “${c.name}”?`) && void removeRows("checklists", [c.id])}
+              title={t("Delete checklist")}
+              aria-label={t("Delete checklist")}
+              onClick={() => confirm(t("Delete “{name}”?", { name: c.name })) && void removeRows("checklists", [c.id])}
             >
               <Trash />
             </button>
@@ -293,10 +297,10 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
       {viewer && <PhotoViewer photos={viewer.list} startId={viewer.id} onClose={() => setViewer(null)} />}
       {savingTemplate && (
         <Dialog
-          title="Save as template"
-          description={`Saves the ${c.items.length} item${c.items.length === 1 ? "" : "s"} and their photo rules (not ticks, photos, assignees or due dates) so you can start this checklist on any job.`}
-          fields={[{ name: "name", label: "Template name", initial: c.name }]}
-          submitLabel="Save template"
+          title={t("Save as template")}
+          description={t.tn("Saves the {n} item and its photo rule (not ticks, photos, assignees or due dates) so you can start this checklist on any job.", "Saves the {n} items and their photo rules (not ticks, photos, assignees or due dates) so you can start this checklist on any job.", c.items.length)}
+          fields={[{ name: "name", label: t("Template name"), initial: c.name }]}
+          submitLabel={t("Save template")}
           onSubmit={(v) => void saveAsTemplate(v.name ?? "")}
           onCancel={() => setSavingTemplate(false)}
         />
@@ -311,6 +315,7 @@ export default function Checklists() {
   // /tasks links to one item: &item=<id>.
   const focusItem = useSearchParams().get("item");
   const [undo, setUndo] = useState<TickUndo | null>(null);
+  const t = useT();
   const undoTimer = useRef<number | null>(null);
   const showUndo = (u: TickUndo) => {
     if (undoTimer.current) window.clearTimeout(undoTimer.current);
@@ -328,16 +333,16 @@ export default function Checklists() {
   return (
     <div className="space-y-4">
       <div className="card p-4">
-        <div className="text-sm font-medium">Start a checklist</div>
+        <div className="text-sm font-medium">{t("Start a checklist")}</div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {templates.map((t) => (
+          {templates.map((tpl) => (
             <button
-              key={`${t.custom ? "c" : "b"}-${t.id}`}
-              className={`btn btn-sm ${t.custom ? "btn-on" : ""}`}
-              title={t.custom ? `Your template · ${t.items.length} item${t.items.length === 1 ? "" : "s"}` : undefined}
-              onClick={() => add(checklistFromTemplate(t, project.id, newId))}
+              key={`${tpl.custom ? "c" : "b"}-${tpl.id}`}
+              className={`btn btn-sm ${tpl.custom ? "btn-on" : ""}`}
+              title={tpl.custom ? t.tn("Your template · {n} item", "Your template · {n} items", tpl.items.length) : undefined}
+              onClick={() => add(checklistFromTemplate(tpl, project.id, newId))}
             >
-              {t.custom ? <BookmarkPlus /> : <Plus />} {t.name}
+              {tpl.custom ? <BookmarkPlus /> : <Plus />} {tpl.name}
             </button>
           ))}
         </div>
@@ -351,13 +356,13 @@ export default function Checklists() {
             setName("");
           }}
         >
-          <input className="input h-9" placeholder="Or name your own (e.g. Theater room)" aria-label="New checklist name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="input h-9" placeholder={t("Or name your own (e.g. Theater room)")} aria-label={t("New checklist name")} value={name} onChange={(e) => setName(e.target.value)} />
           <button className="btn btn-sm" disabled={!name.trim()}>
-            Create
+            {t("Create")}
           </button>
         </form>
       </div>
-      {live.length === 0 && <p className="text-center text-sm text-slate-500">No checklists yet. Start with a template above — photo-required items make sure the proof is there.</p>}
+      {live.length === 0 && <p className="text-center text-sm text-slate-500">{t("No checklists yet. Start with a template above — photo-required items make sure the proof is there.")}</p>}
       {live.map((c) => (
         <ChecklistCard key={c.id} c={c} photos={photos} focusItem={focusItem} onTicked={showUndo} />
       ))}
@@ -372,7 +377,7 @@ export default function Checklists() {
                 setUndo(null);
               }}
             >
-              Undo
+              {t("Undo")}
             </button>
           </div>
         </div>

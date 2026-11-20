@@ -43,15 +43,16 @@ import { useTrades } from "@/lib/useTrades";
 import Gantt, { type Zoom } from "./Gantt";
 import ScheduleItemEditor from "./ScheduleItemEditor";
 import { CrewAvatars, DEFAULT_BAR, fmtDay, fmtRange, ProgressBar } from "./shared";
+import { msg, useT } from "@/lib/i18n";
 
 const sortItems = (xs: ScheduleItem[]) => [...xs].sort((a, b) => a.start.localeCompare(b.start) || (a.sort ?? 0) - (b.sort ?? 0) || a.createdAt.localeCompare(b.createdAt));
 
 const STATUS: Record<ReturnType<typeof itemStatus>, { label: string; cls: string }> = {
-  done: { label: "Done", cls: TONE_CHIP.ok },
-  late: { label: "Late", cls: TONE_CHIP.bad },
-  behind: { label: "Behind", cls: TONE_CHIP.warn },
-  active: { label: "Under way", cls: TONE_CHIP.info },
-  upcoming: { label: "Upcoming", cls: TONE_CHIP.neutral },
+  done: { label: msg("Done"), cls: TONE_CHIP.ok },
+  late: { label: msg("Late"), cls: TONE_CHIP.bad },
+  behind: { label: msg("Behind"), cls: TONE_CHIP.warn },
+  active: { label: msg("Under way"), cls: TONE_CHIP.info },
+  upcoming: { label: msg("Upcoming"), cls: TONE_CHIP.neutral },
 };
 
 export default function ScheduleView() {
@@ -64,6 +65,7 @@ export default function ScheduleView() {
   const role = useRole();
   const trades = useTrades();
   const narrow = useMedia("(max-width: 639px)");
+  const t = useT();
 
   const [stored, setStored] = useState<ScheduleItem[] | null>(null);
   const [today, setToday] = useState("");
@@ -84,7 +86,7 @@ export default function ScheduleView() {
   }, [pid]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const tm = window.setTimeout(() => {
       const d = localDay(new Date().toISOString());
       setToday(d);
       setTplStart((s) => s || rollToWorkday(d));
@@ -93,7 +95,7 @@ export default function ScheduleView() {
     const reload = () => void load();
     window.addEventListener("pinplan:synced", reload);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(tm);
       window.removeEventListener("pinplan:synced", reload);
     };
   }, [load]);
@@ -101,8 +103,8 @@ export default function ScheduleView() {
   // The undo bar goes away on its own after a while.
   useEffect(() => {
     if (!undo) return;
-    const t = window.setTimeout(() => setUndo((u) => (u?.id === undo.id ? null : u)), 9000);
-    return () => window.clearTimeout(t);
+    const tm = window.setTimeout(() => setUndo((u) => (u?.id === undo.id ? null : u)), 9000);
+    return () => window.clearTimeout(tm);
   }, [undo]);
 
   const items = useMemo(() => sortItems((stored ?? []).filter((i) => !i.deleted)), [stored]);
@@ -141,13 +143,13 @@ export default function ScheduleView() {
     setUndo(null);
     const saved = await putMany("scheduleItems", prev);
     setStored((cur) => mergeRows(cur ?? [], saved));
-    toast("Schedule restored", "info");
+    toast(t("Schedule restored"), "info");
   }
 
   function moved(rows: ScheduleItem[], prev: ScheduleItem[]) {
     const n = rows.length - 1;
     const first = rows[0];
-    const text = n > 0 ? `Moved ${n} dependent phase${n === 1 ? "" : "s"}` : `${first.name}: ${fmtRange(first.start, first.end)}`;
+    const text = n > 0 ? t.tn("Moved {n} dependent phase", "Moved {n} dependent phases", n) : `${first.name}: ${fmtRange(first.start, first.end)}`;
     void save(rows, prev, text);
   }
 
@@ -164,25 +166,25 @@ export default function ScheduleView() {
     const rows = applyAndCascade(before.filter((i) => !i.deleted), item);
     const prev = rows.map((r) => before.find((b) => b.id === r.id)).filter((x): x is ScheduleItem => !!x);
     const pushed = rows.length - 1;
-    await save(rows, prev, pushed > 0 ? `Moved ${pushed} dependent phase${pushed === 1 ? "" : "s"}` : undefined);
-    if (isNew) toast(`Added ${item.name}`);
+    await save(rows, prev, pushed > 0 ? t.tn("Moved {n} dependent phase", "Moved {n} dependent phases", pushed) : undefined);
+    if (isNew) toast(t("Added {name}", { name: item.name }));
   }
 
   async function del(item: ScheduleItem) {
-    if (!window.confirm(`Delete “${item.name}” from the schedule?`)) return;
+    if (!window.confirm(t("Delete “{name}” from the schedule?", { name: item.name }))) return;
     setEditing(null);
     // Also drop the links that waited on it (Undo puts them back).
     const before = stored ?? [];
     const rows = deleteItem(before, item.id);
     const prev = rows.map((r) => before.find((b) => b.id === r.id)).filter((x): x is ScheduleItem => !!x);
-    await save(rows, prev.map((r) => ({ ...r, deleted: false })), `Deleted ${item.name}`);
+    await save(rows, prev.map((r) => ({ ...r, deleted: false })), t("Deleted {name}", { name: item.name }));
   }
 
   async function cleanMissing() {
     const bad = new Set(problems.missing.map((m) => m.id));
     const live = new Set(items.map((i) => i.id));
     const rows = items.filter((i) => bad.has(i.id)).map((i) => ({ ...i, dependsOn: (i.dependsOn ?? []).filter((d) => live.has(d.id)) }));
-    await save(rows, items.filter((i) => bad.has(i.id)), "Removed links to deleted phases");
+    await save(rows, items.filter((i) => bad.has(i.id)), t("Removed links to deleted phases"));
   }
 
   async function fromTemplate() {
@@ -192,7 +194,7 @@ export default function ScheduleView() {
     const saved = await putMany("scheduleItems", rows);
     setStored((cur) => mergeRows(cur ?? [], saved));
     setShowTpl(false);
-    toast(`Added ${rows.length} phases`);
+    toast(t.tn("Added {n} phase", "Added {n} phases", rows.length));
   }
 
   function addPhase() {
@@ -209,7 +211,7 @@ export default function ScheduleView() {
     downloadText(toIcs(items, project), `${slug(project.address || project.clientName || "job")}-schedule.ics`, "text/calendar;charset=utf-8");
   }
 
-  if (!stored || !today || !range) return <div className="p-6 text-sm text-slate-500">Loading schedule…</div>;
+  if (!stored || !today || !range) return <div className="p-6 text-sm text-slate-500">{t("Loading schedule…")}</div>;
 
   const empty = items.length === 0;
   const tplOpen = office && (showTpl || empty);
@@ -221,18 +223,18 @@ export default function ScheduleView() {
         {!empty && (
           <div className="mr-auto flex min-w-0 items-center gap-3">
             <div className="w-28">
-              <div className="flex items-baseline justify-between text-xs text-slate-500">
-                <span>Complete</span>
+              <div className="flex items-baseline justify-between gap-1 text-xs text-slate-500">
+                <span className="truncate">{t("Complete")}</span>
                 <span className="font-semibold text-slate-800 tabular-nums">{percent}%</span>
               </div>
               <ProgressBar value={percent} />
             </div>
             <div className="text-xs text-slate-500">
               <div>
-                {items.length} phase{items.length === 1 ? "" : "s"}
+                {t.tn("{n} phase", "{n} phases", items.length)}
               </div>
               <div>
-                Finish <span className="font-medium text-slate-700">{finish ? fmtDay(finish) : "—"}</span>
+                {t("Finish")} <span className="font-medium text-slate-700">{finish ? fmtDay(finish) : "—"}</span>
               </div>
             </div>
           </div>
@@ -240,43 +242,43 @@ export default function ScheduleView() {
         {empty && <div className="mr-auto" />}
         {office && (
           <button className="btn btn-brand btn-sm" onClick={addPhase}>
-            <Plus /> Add phase
+            <Plus /> {t("Add phase")}
           </button>
         )}
         {office && empty && !tplOpen && (
           <button className="btn btn-sm" onClick={() => setShowTpl(true)}>
-            <LayoutTemplate /> Start from template
+            <LayoutTemplate /> {t("Start from template")}
           </button>
         )}
         {!empty && (
           <>
-            <div className="seg" role="group" aria-label="Range">
+            <div className="seg" role="group" aria-label={t("Range")}>
               <button className={`tab h-7 px-2 text-xs ${view === "lookahead" ? "tab-active" : ""}`} aria-pressed={view === "lookahead"} onClick={() => setView("lookahead")}>
-                <CalendarRange className="h-3.5 w-3.5" /> 3 weeks
+                <CalendarRange className="h-3.5 w-3.5" /> {t("3 weeks")}
               </button>
               <button className={`tab h-7 px-2 text-xs ${view === "all" ? "tab-active" : ""}`} aria-pressed={view === "all"} onClick={() => setView("all")}>
-                All
+                {t("All")}
               </button>
             </div>
             {!narrow && (
               <>
                 <button className="btn btn-sm" onClick={() => setTodaySignal((n) => n + 1)}>
-                  <CalendarDays /> Today
+                  <CalendarDays /> {t("Today")}
                 </button>
-                <div className="seg" role="group" aria-label="Zoom">
+                <div className="seg" role="group" aria-label={t("Zoom")}>
                   <button className={`tab h-7 px-2 text-xs ${zoom === "day" ? "tab-active" : ""}`} aria-pressed={zoom === "day"} onClick={() => setZoom("day")}>
-                    Days
+                    {t("Days")}
                   </button>
                   <button className={`tab h-7 px-2 text-xs ${zoom === "week" ? "tab-active" : ""}`} aria-pressed={zoom === "week"} onClick={() => setZoom("week")}>
-                    Weeks
+                    {t("Weeks")}
                   </button>
                 </div>
               </>
             )}
-            <button className="btn btn-sm btn-icon" onClick={exportIcs} title="Export to calendar (.ics)" aria-label="Export to calendar (.ics)">
+            <button className="btn btn-sm btn-icon" onClick={exportIcs} title={t("Export to calendar (.ics)")} aria-label={t("Export to calendar (.ics)")}>
               <Download />
             </button>
-            <Link className="btn btn-sm btn-icon" href="/schedule" title="Crew board — who is where, across jobs" aria-label="Crew board">
+            <Link className="btn btn-sm btn-icon" href="/schedule" title={t("Crew board — who is where, across jobs")} aria-label={t("Crew board")}>
               <Users />
             </Link>
           </>
@@ -290,20 +292,20 @@ export default function ScheduleView() {
               <CalendarPlus className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">{empty ? "Plan this job’s schedule" : "Start from template"}</div>
-              <p className="text-sm text-slate-500">Lay out the usual phases with typical lengths and waits — then drag them to fit. Each one waits for the one before it.</p>
+              <div className="font-medium">{empty ? t("Plan this job’s schedule") : t("Start from template")}</div>
+              <p className="text-sm text-slate-500">{t("Lay out the usual phases with typical lengths and waits — then drag them to fit. Each one waits for the one before it.")}</p>
             </div>
             {!empty && (
-              <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setShowTpl(false)} aria-label="Close">
+              <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setShowTpl(false)} aria-label={t("Close")}>
                 <X />
               </button>
             )}
           </div>
           {templates.length > 1 && (
-            <div className="seg flex-wrap" role="group" aria-label="Template">
-              {templates.map((t, i) => (
-                <button key={t.trade} className={`tab h-7 px-2 text-xs ${tplIdx === i ? "tab-active" : ""}`} onClick={() => setTplIdx(i)} aria-pressed={tplIdx === i}>
-                  {t.name}
+            <div className="seg flex-wrap" role="group" aria-label={t("Template")}>
+              {templates.map((tm, i) => (
+                <button key={tm.trade} className={`tab h-7 px-2 text-xs ${tplIdx === i ? "tab-active" : ""}`} onClick={() => setTplIdx(i)} aria-pressed={tplIdx === i}>
+                  {t(tm.name)}
                 </button>
               ))}
             </div>
@@ -314,18 +316,18 @@ export default function ScheduleView() {
                 {i > 0 && <span className="text-slate-300">→</span>}
                 <span className="chip bg-slate-50 ring-1 ring-slate-200">
                   <span className="h-2 w-2 rounded-sm" style={{ background: p.color }} />
-                  {p.name} · {p.days}d
+                  {t(p.name)} · {t("{n} d", { n: p.days })}
                 </span>
               </li>
             ))}
           </ol>
           <div className="flex flex-wrap items-end gap-2">
             <label className="text-xs">
-              <span className="label">Starts</span>
-              <input type="date" className="input h-9 w-44" value={tplStart} onChange={(e) => setTplStart(e.target.value)} />
+              <span className="label">{t("Starts")}</span>
+              <input type="date" className="input h-9 w-44 max-w-full" value={tplStart} onChange={(e) => setTplStart(e.target.value)} />
             </label>
             <button className="btn btn-brand" onClick={() => void fromTemplate()} disabled={!tplStart}>
-              <LayoutTemplate /> Start from template
+              <LayoutTemplate /> {t("Start from template")}
             </button>
           </div>
         </div>
@@ -334,8 +336,8 @@ export default function ScheduleView() {
       {empty && !office && (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
           <CalendarRange className="h-8 w-8 text-slate-300" />
-          <div className="font-medium">No schedule yet</div>
-          <p className="max-w-sm text-sm text-slate-500">The office plans the phases for this job. They’ll show up here — with you on the crew — once they’re set.</p>
+          <div className="font-medium">{t("No schedule yet")}</div>
+          <p className="max-w-sm text-sm text-slate-500">{t("The office plans the phases for this job. They’ll show up here — with you on the crew — once they’re set.")}</p>
         </div>
       )}
 
@@ -343,12 +345,12 @@ export default function ScheduleView() {
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-warn-50 px-4 py-2.5 text-sm text-warn-700 ring-1 ring-warn-200" role="status">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            {problems.cycle.length > 0 && <>Some phases wait on each other in a loop, so they aren’t pushed automatically. </>}
-            {problems.missing.length > 0 && <>{problems.missing.length === 1 ? "A phase waits" : `${problems.missing.length} links wait`} on a phase that was deleted — ignored.</>}
+            {problems.cycle.length > 0 && <>{t("Some phases wait on each other in a loop, so they aren’t pushed automatically.")} </>}
+            {problems.missing.length > 0 && (problems.missing.length === 1 ? t("A phase waits on a phase that was deleted — ignored.") : t.tn("{n} link waits on a phase that was deleted — ignored.", "{n} links wait on a phase that was deleted — ignored.", problems.missing.length))}
           </span>
           {office && problems.missing.length > 0 && (
             <button className="btn btn-sm" onClick={() => void cleanMissing()}>
-              Clean up
+              {t("Clean up")}
             </button>
           )}
         </div>
@@ -356,9 +358,9 @@ export default function ScheduleView() {
 
       {!empty && shownItems.length === 0 && (
         <div className="card p-6 text-center text-sm text-slate-500">
-          Nothing scheduled in the next 3 weeks.{" "}
+          {t("Nothing scheduled in the next 3 weeks.")}{" "}
           <button className="font-medium text-brand-600 underline" onClick={() => setView("all")}>
-            Show all
+            {t("Show all")}
           </button>
         </div>
       )}
@@ -382,10 +384,10 @@ export default function ScheduleView() {
               onCommit={moved}
             />
             <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-              {office && <span>Drag a bar to move it, its right edge to change its length. Phases that wait on it move too.</span>}
+              {office && <span>{t("Drag a bar to move it, its right edge to change its length. Phases that wait on it move too.")}</span>}
               {critical.size > 0 && (
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-2.5 w-4 rounded-sm ring-2 ring-red-500/70" /> Critical path — a slip here moves the finish
+                  <span className="h-2.5 w-4 rounded-sm ring-2 ring-red-500/70" /> {t("Critical path — a slip here moves the finish")}
                 </span>
               )}
             </p>
@@ -412,9 +414,9 @@ export default function ScheduleView() {
           <div className="animate-in flex max-w-md items-center gap-3 rounded-xl bg-ink/95 py-2 pr-2 pl-4 text-sm text-white shadow-pop">
             <span className="min-w-0 truncate">{undo.text}</span>
             <button className="inline-flex h-8 items-center gap-1 rounded-lg bg-white/10 px-3 text-sm font-medium hover:bg-white/20" onClick={() => void restore()}>
-              <Undo2 className="h-4 w-4" /> Undo
+              <Undo2 className="h-4 w-4" /> {t("Undo")}
             </button>
-            <button className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => setUndo(null)} aria-label="Dismiss">
+            <button className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => setUndo(null)} aria-label={t("Dismiss")}>
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -428,12 +430,13 @@ export default function ScheduleView() {
 function Agenda({ items, today, critical, me, onOpen }: { items: ScheduleItem[]; today: string; critical: Set<string>; me: string; onOpen: (i: ScheduleItem) => void }) {
   const weeks = groupByWeek(items, today);
   const thisWeek = weekStart(today);
+  const t = useT();
   return (
     <div className="space-y-4" data-testid="schedule-agenda">
       {weeks.map((w) => (
         <section key={w.week}>
           <h3 className="mb-1.5 px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            {w.week === thisWeek ? "This week" : dayNum(w.week) - dayNum(thisWeek) === 7 ? "Next week" : `Week of ${fmtDay(w.week, { month: "short", day: "numeric" })}`}
+            {w.week === thisWeek ? t("This week") : dayNum(w.week) - dayNum(thisWeek) === 7 ? t("Next week") : t("Week of {date}", { date: fmtDay(w.week, { month: "short", day: "numeric" }) })}
           </h3>
           <ul className="card divide-y divide-slate-100">
             {w.items.map((i) => {
@@ -446,12 +449,12 @@ function Agenda({ items, today, critical, me, onOpen }: { items: ScheduleItem[];
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium">{i.name}</span>
-                        <span className={`chip shrink-0 ${st.cls}`}>{st.label}</span>
-                        {critical.has(i.id) && <span className="chip shrink-0 bg-red-50 text-red-700">Critical</span>}
+                        <span className={`chip shrink-0 ${st.cls}`}>{t(st.label)}</span>
+                        {critical.has(i.id) && <span className="chip shrink-0 bg-red-50 text-red-700">{t("Critical")}</span>}
                       </span>
                       <span className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
                         <span>{fmtRange(i.start, i.end)}</span>
-                        {mine && <span className="font-medium text-brand-700">You’re on it</span>}
+                        {mine && <span className="font-medium text-brand-700">{t("You’re on it")}</span>}
                       </span>
                       <span className="mt-2 flex items-center gap-2">
                         <span className="flex-1">

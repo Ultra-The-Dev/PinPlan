@@ -5,6 +5,7 @@ import { Check, Minus, Plus, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DeviceType, Marker, Sheet } from "@/lib/types";
 import { useSheetImage } from "@/lib/useImage";
+import { useT } from "@/lib/i18n";
 
 export interface PlanSpot {
   sheetId: string;
@@ -45,6 +46,7 @@ export default function PlanSpotPicker({
   const scroller = useRef<HTMLDivElement>(null);
   const pending = useRef<{ cx: number; cy: number } | null>(spot ? { cx: spot.x, cy: spot.y } : null);
   const onSheet = markers.filter((m) => m.sheetId === sheetId && !m.deleted);
+  const t = useT();
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
@@ -97,12 +99,12 @@ export default function PlanSpotPicker({
   const linked = spot?.markerId ? markers.find((m) => m.id === spot.markerId) : null;
   const zi = ZOOMS.indexOf(zoom);
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-slate-900" role="dialog" aria-modal="true" aria-label="Pick the spot on the plan">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-slate-900" role="dialog" aria-modal="true" aria-label={t("Pick the spot on the plan")}>
       <div className="flex items-center gap-2 bg-white px-3 py-2 shadow-sm">
-        <button className="btn btn-icon btn-ghost" onClick={onCancel} aria-label="Close">
+        <button className="btn btn-icon btn-ghost" onClick={onCancel} aria-label={t("Close")}>
           <X />
         </button>
-        <select className="input h-9 w-auto min-w-0 flex-1 sm:max-w-xs" value={sheetId} onChange={(e) => (setSheetId(e.target.value), setZoom(1))} aria-label="Sheet">
+        <select className="input h-9 w-auto min-w-0 flex-1 sm:max-w-xs" value={sheetId} onChange={(e) => (setSheetId(e.target.value), setZoom(1))} aria-label={t("Sheet")}>
           {sheets.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -110,23 +112,23 @@ export default function PlanSpotPicker({
           ))}
         </select>
         <div className="seg">
-          <button className="tab" onClick={() => zoomTo(ZOOMS[Math.max(0, zi - 1)])} disabled={zi <= 0} aria-label="Zoom out">
+          <button className="tab" onClick={() => zoomTo(ZOOMS[Math.max(0, zi - 1)])} disabled={zi <= 0} aria-label={t("Zoom out")}>
             <Minus />
           </button>
           <span className="w-10 text-center text-xs font-semibold text-slate-600 tabular-nums">{zoom}×</span>
-          <button className="tab" onClick={() => zoomTo(ZOOMS[Math.min(ZOOMS.length - 1, zi + 1)])} disabled={zi >= ZOOMS.length - 1} aria-label="Zoom in">
+          <button className="tab" onClick={() => zoomTo(ZOOMS[Math.min(ZOOMS.length - 1, zi + 1)])} disabled={zi >= ZOOMS.length - 1} aria-label={t("Zoom in")}>
             <Plus />
           </button>
         </div>
       </div>
       <p className="bg-slate-800 px-3 py-1.5 text-center text-xs text-white/85" aria-live="polite">
-        {spot && spot.sheetId === sheetId ? (linked ? `Linked to ${markerName(linked, catalog)} — tap elsewhere to move` : "Spot marked — tap elsewhere to move it") : "Tap the plan where the question is (tap a device to link it)"}
+        {spot && spot.sheetId === sheetId ? (linked ? t("Linked to {name} — tap elsewhere to move", { name: linked.label || catalog.find((d) => d.id === linked.deviceTypeId)?.name || t("Device") }) : t("Spot marked — tap elsewhere to move it")) : t("Tap the plan where the question is (tap a device to link it)")}
       </p>
       <div ref={scroller} className="relative flex-1 overflow-auto overscroll-contain">
         {!sheet ? (
-          <p className="p-10 text-center text-white/70">This job has no plan sheets yet.</p>
+          <p className="p-10 text-center text-white/70">{t("This job has no plan sheets yet.")}</p>
         ) : !img ? (
-          <p className="p-10 text-center text-white/70">Loading the plan…</p>
+          <p className="p-10 text-center text-white/70">{t("Loading the plan…")}</p>
         ) : (
           <div className="p-3" style={{ width: `${zoom * 100}%`, minWidth: "100%" }}>
             <div
@@ -136,7 +138,7 @@ export default function PlanSpotPicker({
               onKeyDown={key}
               tabIndex={0}
               role="application"
-              aria-label={`${sheet.name}: tap the spot, or use the arrow keys to move it`}
+              aria-label={t("{name}: tap the spot, or use the arrow keys to move it", { name: sheet.name })}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img.url} alt={sheet.name} draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none" />
@@ -161,10 +163,10 @@ export default function PlanSpotPicker({
       <div className="flex items-center gap-2 bg-white px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <span className="min-w-0 flex-1 truncate text-xs text-slate-500">{sheet?.name}</span>
         <button className="btn" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
         <button className="btn btn-brand" disabled={!spot} onClick={() => spot && onPick(spot)}>
-          <Check /> Use this spot
+          <Check /> {t("Use this spot")}
         </button>
       </div>
     </div>
