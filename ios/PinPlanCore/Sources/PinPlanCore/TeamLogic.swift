@@ -348,3 +348,52 @@ extension TeamLogic {
         return nil
     }
 }
+
+// MARK: - account sign-up (mirrors signupProblem / PASSWORD_MIN in src/lib/teamLogic.ts)
+
+/// Checks for creating an account in the app, and the App Store rule for the web account link.
+public enum SignupLogic {
+    /// Same minimum as the web sign-up and password reset.
+    public static let passwordMin = 10
+    /// Supabase (bcrypt) only reads the first 72 characters.
+    public static let passwordMax = 72
+
+    /// The first problem with a new account, or nil when it's fine. `needsCompany` is false when the person is
+    /// joining a team from an invite (the team already exists).
+    public static func problem(email: String, password: String, name: String, company: String, needsCompany: Bool, acceptedTerms: Bool) -> String? {
+        if needsCompany && company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Enter your company name." }
+        if company.trimmingCharacters(in: .whitespacesAndNewlines).count > 80 { return "Keep the company name under 80 characters." }
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).count > 80 { return "Keep your name under 80 characters." }
+        if !isEmail(email) { return "Enter a valid email address." }
+        if password.count < passwordMin { return "Use a password of at least \(passwordMin) characters." }
+        if password.count > passwordMax { return "Use a password of \(passwordMax) characters or fewer." }
+        if !acceptedTerms { return "Agree to the Terms of Service and Privacy Policy to create an account." }
+        return nil
+    }
+
+    /// Like the web's check: something@something.something, no spaces, at most 254 characters.
+    public static func isEmail(_ raw: String) -> Bool {
+        let e = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard e.count <= 254, !e.contains(where: \.isWhitespace) else { return false }
+        let parts = e.split(separator: "@", omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty else { return false }
+        let domain = parts[1].split(separator: ".", omittingEmptySubsequences: false)
+        return domain.count >= 2 && domain.allSatisfy { !$0.isEmpty }
+    }
+
+    /// Profile details saved with the account (Supabase `user_metadata`), like the web sign-up.
+    /// `terms_accepted_at` records when the Terms of Service and Privacy Policy were agreed to.
+    public static func metadata(name: String, company: String, acceptedAt: Date) -> [String: String] {
+        var m = ["terms_accepted_at": ISO8601DateFormatter().string(from: acceptedAt)]
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines), c = company.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !n.isEmpty { m["name"] = n }
+        if !c.isEmpty { m["company"] = c }
+        return m
+    }
+
+    /// Whether the app may show a link to manage the account on the web: only on the United States storefront
+    /// (App Store country code "USA"). Elsewhere the app says it in plain text with no link (guideline 3.1.3(f)).
+    public static func mayLinkToWebAccount(storefrontCountry: String?) -> Bool {
+        storefrontCountry?.uppercased() == "USA"
+    }
+}

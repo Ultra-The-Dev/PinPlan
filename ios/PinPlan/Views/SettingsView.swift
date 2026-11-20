@@ -1,33 +1,28 @@
 import SwiftUI
 import PinPlanCore
 
-/// Settings, grouped by what you're doing: connect the server, then business details, pricing and wire.
+/// Settings, grouped by what you're doing: your account and team, then business details, pricing and wire.
+/// Connection details (server address, access code, cloud project) live under More › Advanced.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    // Screenshot/automation hook: `--server` opens the server page directly.
+    #if DEBUG
+    // Screenshot/automation hook: `--server` opens the Advanced page directly.
     @State private var openServer = ProcessInfo.processInfo.arguments.contains("--server")
     // Screenshot hook: `--delete-account` opens the Delete account screen.
     @State private var openDelete = ProcessInfo.processInfo.arguments.contains("--delete-account")
+    #else
+    @State private var openServer = false
+    @State private var openDelete = false
+    #endif
 
     var body: some View {
         @Bindable var app = app
         SentenceForm {
             Section {
-                NavigationLink { ServerSetupView() } label: {
-                    LabeledContent {
-                        Text(app.settings.serverURL.isEmpty ? "Not set up" : host(app.settings.serverURL))
-                    } label: {
-                        Label("PinPlan server", systemImage: "server.rack")
-                    }
-                }
-            } footer: {
-                Text("Needed for sending to Billdu, account tools and the legal pages. Everything else works offline.")
-            }
-            Section {
                 NavigationLink { CloudSyncView() } label: {
                     LabeledContent {
-                        Text(app.cloud.signedIn ? (app.cloud.session?.email ?? "On") : "Off")
+                        Text(app.cloud.signedIn ? (app.cloud.session?.email ?? "On") : "Sign in")
                     } label: { Label("Account and cloud sync", systemImage: "arrow.triangle.2.circlepath.icloud") }
                 }
             } footer: {
@@ -72,6 +67,20 @@ struct SettingsView: View {
                         Text(app.checklistTemplates.isEmpty ? "Built-in only" : "\(app.checklistTemplates.count) saved")
                     } label: { Label("Checklist templates", systemImage: "checklist") }
                 }
+                if app.cloud.can(.prices) {
+                    NavigationLink { BillduSettingsView() } label: { Label("Billdu", systemImage: "paperplane") }
+                }
+            }
+            Section {
+                NavigationLink { ServerSetupView() } label: {
+                    LabeledContent {
+                        Text(app.settings.usesBuiltInServer ? "" : "Custom")
+                    } label: { Label("Advanced", systemImage: "gearshape.2") }
+                }
+            } header: {
+                Text("More").textCase(nil)
+            } footer: {
+                Text("Connection details. You only need these if your company runs its own copy of PinPlan.")
             }
             AboutSection()
         }
@@ -86,9 +95,59 @@ struct SettingsView: View {
         if let t = app.cloud.team?.team, let r = app.cloud.role { return "\(t.name.isEmpty ? "Team" : t.name) · \(r.short)" }
         return app.cloud.signedIn ? "Working alone" : "Off"
     }
+}
 
-    private func host(_ raw: String) -> String {
-        URL(string: raw.hasPrefix("http") ? raw : "https://\(raw)")?.host() ?? raw
+/// Settings › Billdu: is the company's Billdu connected, and what Send to Billdu creates first. The keys themselves
+/// are entered on the web (they never come to this device).
+struct BillduSettingsView: View {
+    @Environment(AppModel.self) private var app
+    @State private var status: APIClient.BillduStatus?
+    @State private var problem: String?
+    @State private var checking = false
+
+    var body: some View {
+        @Bindable var app = app
+        SentenceForm {
+            Section {
+                if checking && status == nil {
+                    HStack { Text("Checking…").foregroundStyle(.secondary); Spacer(); ProgressView() }
+                } else if let s = status {
+                    StatusRow(title: s.configured ? "Connected" : "Not connected", ok: s.configured,
+                              detail: s.configured ? s.teamName.map { "For \($0)" } : "An owner or admin connects Billdu in PinPlan on the web, under Settings › Billdu.")
+                } else if let problem {
+                    Text(problem).font(.callout).foregroundStyle(.secondary)
+                } else if !app.cloud.signedIn {
+                    Text("Sign in to see your company's Billdu connection.").font(.callout).foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Connection").textCase(nil)
+            } footer: {
+                Text("Your company's Billdu keys stay on the PinPlan server and never come to this device.")
+            }
+            Section {
+                Picker("First document", selection: $app.settings.billduDocType) {
+                    Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
+                }
+            } footer: { Text("What Send to Billdu creates the first time for a job") }
+        }
+        .navigationTitle("Billdu")
+        .task { await check() }
+        .refreshable { await check() }
+        .onDisappear { app.saveSettings() }
+    }
+
+    private func check() async {
+        guard let api = APIClient(settings: app.settings) else { problem = "This copy of PinPlan isn't connected yet."; return }
+        guard app.cloud.signedIn || !app.settings.accessCode.isEmpty else { status = nil; problem = nil; return }
+        checking = true
+        defer { checking = false }
+        do {
+            status = try await api.billduStatus()
+            problem = nil
+        } catch {
+            status = nil
+            problem = (error as? LocalizedError)?.errorDescription ?? "Couldn't check Billdu. Try again in a moment."
+        }
     }
 }
 
@@ -249,22 +308,37 @@ struct WireSettingsView: View {
     }
 }
 
-/// Connect to the hosted PinPlan server and see, item by item, what is ready.
+/// Settings › More › Advanced: where this copy of PinPlan connects (the server address, an access code for a
+/// self-hosted server, and the cloud project for sign-in), with a connection check. Most people never open it:
+/// the app ships with its server built in.
 struct ServerSetupView: View {
     @Environment(AppModel.self) private var app
     @State private var checking = false
     @State private var health: APIClient.Health?
     @State private var problem: String?
+    @State private var manualURL = ""
+    @State private var manualKey = ""
+    @State private var showManual = false
+    @State private var cloudProblem: String?
 
     var body: some View {
         @Bindable var app = app
+        let builtIn = AppSettings.builtInServerURL
         SentenceForm {
             Section {
-                TextField("pinplan.vercel.app", text: $app.settings.serverURL)
+                TextField(builtIn.isEmpty ? "your-server.example.com" : builtIn, text: $app.settings.serverURL)
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                SecureField("Team access code", text: $app.settings.accessCode)
+                SecureField("Access code (self-hosted only)", text: $app.settings.accessCode)
+                if !builtIn.isEmpty && !app.settings.usesBuiltInServer {
+                    Button("Use the standard PinPlan server") {
+                        app.settings.serverURL = builtIn
+                        app.settings.accessCode = ""
+                        health = nil; problem = nil
+                        app.saveSettings()
+                    }
+                }
             } header: { Text("Server").textCase(nil) } footer: {
-                Text("The web address of your PinPlan deployment and the access code you set on it")
+                Text("Only change this if your company runs its own copy of PinPlan. The access code is only for a copy without sign-in; when you're signed in, your account is used instead.")
             }
             Section {
                 Button {
@@ -279,30 +353,34 @@ struct ServerSetupView: View {
                 .disabled(checking || app.settings.serverURL.trimmingCharacters(in: .whitespaces).isEmpty)
                 if let problem { Text(problem).font(.callout).foregroundStyle(.red) }
                 if let h = health {
-                    StatusRow(title: "Server found", ok: true, detail: nil)
-                    StatusRow(title: "Access code accepted", ok: h.authorized,
-                              detail: h.authorized ? nil : "Type the PINPLAN_ACCESS_CODE value exactly")
-                    if h.authorized {
-                        if Features.ai {
-                            StatusRow(title: "AI plan reader", ok: h.ai == true, detail: h.ai == true ? nil : "Add ANTHROPIC_API_KEY on the server")
-                        }
-                        StatusRow(title: "Billdu", ok: h.billdu == true, detail: h.billdu == true ? nil : "Add BILLDU_API_KEY and BILLDU_API_SECRET on the server")
-                    }
+                    StatusRow(title: "PinPlan found", ok: true, detail: nil)
+                    StatusRow(title: app.cloud.signedIn ? "Your sign-in is accepted" : "Access accepted", ok: h.authorized,
+                              detail: h.authorized ? nil : (app.cloud.signedIn ? "Sign out and sign in again." : "Sign in, or check the access code."))
                 }
             }
-            if app.cloud.can(.prices) {
-                Section {
-                    Picker("First document", selection: $app.settings.billduDocType) {
-                        Text("Estimate").tag("estimate"); Text("Order").tag("order"); Text("Invoice").tag("invoice")
-                    }
-                } header: { Text("Billdu").textCase(nil) } footer: { Text("What Send to Billdu creates the first time for a job") }
-            }
             Section {
-                Text("Keys stay on the server. This device only stores the address and access code.")
-                    .font(.callout).foregroundStyle(.secondary)
+                if let c = app.cloud.config {
+                    LabeledContent("Project", value: URL(string: c.url)?.host() ?? c.url)
+                    if !app.cloud.signedIn {
+                        Button("Use a different cloud project") { app.cloud.setConfig(url: "", anonKey: "") }
+                    }
+                } else {
+                    Button("Get cloud settings from the server") { Task { await connect() } }
+                        .disabled(APIClient(settings: app.settings) == nil)
+                    DisclosureGroup("Enter them by hand", isExpanded: $showManual) {
+                        TextField("https://xxxx.supabase.co", text: $manualURL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        TextField("Public key", text: $manualKey).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Button("Save") { app.cloud.setConfig(url: manualURL, anonKey: manualKey) }.disabled(manualURL.isEmpty || manualKey.isEmpty)
+                    }
+                }
+                if let cloudProblem { Text(cloudProblem).font(.callout).foregroundStyle(.red) }
+            } header: {
+                Text("Cloud project").textCase(nil)
+            } footer: {
+                Text(app.cloud.signedIn ? "Sign out to switch to a different cloud project." : "Where accounts and synced jobs live. Filled in from the server automatically.")
             }
         }
-        .navigationTitle("PinPlan server")
+        .navigationTitle("Advanced")
         .onDisappear { app.saveSettings() }
         .animation(.easeOut(duration: 0.2), value: health?.authorized)
     }
@@ -317,6 +395,11 @@ struct ServerSetupView: View {
         do { health = try await api.health() } catch {
             problem = (error as? APIClient.APIError)?.message ?? "Couldn't reach the server. Check the address and your connection."
         }
+    }
+
+    private func connect() async {
+        app.saveSettings()
+        cloudProblem = await app.cloud.connectIfNeeded(settings: app.settings)
     }
 }
 
@@ -351,8 +434,8 @@ struct ServerSetupPrompt: View {
     @State private var open = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(feature) needs your PinPlan server").font(.subheadline.weight(.medium))
-            Button("Set up server") { open = true }.buttonStyle(.bordered)
+            Text("\(feature) needs a connection to PinPlan").font(.subheadline.weight(.medium))
+            Button("Connection settings") { open = true }.buttonStyle(.bordered)
         }
         .padding(.vertical, 4)
         .sheet(isPresented: $open) {

@@ -2,8 +2,11 @@ import Foundation
 import UIKit
 import PinPlanCore
 
-/// Talks to the hosted PinPlan server (the web app's API) for Billdu and AI scan.
+/// Talks to the hosted PinPlan server (the web app's API) for Billdu, account tools and AI scan.
 /// Billdu credentials and the Anthropic key live only on that server.
+///
+/// Who is asking: when signed in, every call carries the user's own session (`Authorization: Bearer …`), so Billdu
+/// uses their company's connection. Only when signed out does a self-hosted server's access code go along instead.
 struct APIClient {
     let baseURL: URL
     let accessCode: String
@@ -22,18 +25,37 @@ struct APIClient {
         var errorDescription: String? { message }
     }
 
+    // MARK: who is asking
+
+    /// Hands out the signed-in user's access token (renewed first when it is about to run out), or nil when signed
+    /// out. Installed by `CloudSync.prepareAtLaunch(settings:)`.
+    @MainActor static var sessionToken: (@MainActor () async -> String?)?
+
+    @MainActor private static func currentSessionToken() async -> String? { await sessionToken?() }
+
+    /// The session when signed in; otherwise the access code (if one is set under Advanced).
+    private func identify(_ req: inout URLRequest, token: String? = nil) async {
+        var tok = token
+        if tok == nil { tok = await Self.currentSessionToken() }
+        if let tok, !tok.isEmpty {
+            req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
+        } else if !accessCode.isEmpty {
+            req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access")
+        }
+    }
+
     private func post<T: Decodable>(_ path: String, body: [String: Any], as: T.Type) async throws -> T {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        await identify(&req)
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 300
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
-            throw APIError(message: msg ?? "Server returned \(status)")
+            throw APIError(message: msg ?? (status == 401 ? "Sign in first (Settings › Account and cloud sync)." : "Server returned \(status)"), status: status)
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
@@ -45,7 +67,8 @@ struct APIClient {
 
     // MARK: Connection check
 
-    /// What the server reports about itself; feature flags only arrive once the access code is accepted.
+    /// What the server reports about itself; feature flags only arrive once the caller is accepted (signed in, or
+    /// the access code on a self-hosted server).
     struct Health: Decodable {
         let ok: Bool
         let app: String?
@@ -57,7 +80,7 @@ struct APIClient {
 
     func health() async throws -> Health {
         var req = URLRequest(url: baseURL.appendingPathComponent("api/health"))
-        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        await identify(&req)
         req.timeoutInterval = 20
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
@@ -73,8 +96,7 @@ struct APIClient {
     private func authed(_ method: String, _ path: String, body: [String: Any]?, token: String) async throws -> (Int, Data) {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = method
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        await identify(&req, token: token)
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -114,7 +136,7 @@ struct APIClient {
     /// Can this server send email (team invites)? False when it can't, or can't be reached.
     func emailConfigured() async -> Bool {
         var req = URLRequest(url: baseURL.appendingPathComponent("api/email/status"))
-        if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
+        await identify(&req)
         req.timeoutInterval = 20
         guard let res = try? await URLSession.shared.data(for: req),
               let status = (res.1 as? HTTPURLResponse)?.statusCode, (200..<300).contains(status),
@@ -135,6 +157,35 @@ struct APIClient {
     }
 
     // MARK: Billdu
+
+    /// The caller's own Billdu connection (`GET /api/billdu/credentials`): signed in, that is their company's keys
+    /// (entered on the web, Settings › Billdu). Never contains the secret.
+    struct BillduStatus: Decodable, Equatable {
+        /// "team", "solo" (signed in, not on a team) or "single_company" (a self-hosted server with one shared key).
+        let mode: String?
+        let teamName: String?
+        let configured: Bool
+    }
+
+    func billduStatus() async throws -> BillduStatus {
+        var req = URLRequest(url: baseURL.appendingPathComponent("api/billdu/credentials"))
+        await identify(&req)
+        req.timeoutInterval = 20
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            let fallback: String
+            switch status {
+            case 401: fallback = "Sign in to see your company's Billdu connection."
+            case 403: fallback = "Billdu is handled by the office. Ask an admin on your team."
+            default: fallback = "Couldn't check Billdu (\(status)). Try again in a moment."
+            }
+            throw APIError(message: Self.errorText(data) ?? fallback, status: status)
+        }
+        do { return try JSONDecoder().decode(BillduStatus.self, from: data) } catch {
+            throw APIError(message: "This PinPlan server needs the latest version to show the Billdu connection.", status: status)
+        }
+    }
 
     struct SendResult: Decodable {
         struct Doc: Decodable { let id: Int; let type: String; let serial: String?; let amount: Double; let percent: Double?; let updated: Bool? }

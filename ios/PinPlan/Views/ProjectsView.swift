@@ -15,6 +15,15 @@ struct ProjectsView: View {
     @State private var showAllPhotos = ProjectsView.launchFlag("--all-photos")
     @State private var showMap = ProjectsView.launchFlag("--jobs-map")
     @State private var showTasks = ProjectsView.launchFlag("--tasks")
+    #if DEBUG
+    @State private var showAllPhotos = ProcessInfo.processInfo.arguments.contains("--all-photos")
+    @State private var showMap = ProcessInfo.processInfo.arguments.contains("--jobs-map")
+    @State private var showTasks = ProcessInfo.processInfo.arguments.contains("--tasks")
+    #else
+    @State private var showAllPhotos = false
+    @State private var showMap = false
+    @State private var showTasks = false
+    #endif
     @State private var showRestore = false
     @State private var showTeam = false
     @State private var path: [String] = []
@@ -148,6 +157,9 @@ struct ProjectsView: View {
                 } catch { message = error.localizedDescription }
             }
             .task {
+                #if DEBUG
+                // Server calls carry the user's session; a fresh install connects to the built-in server (AccountViews.swift).
+                await app.cloud.prepareAtLaunch(settings: app.settings)
                 #if DEBUG
                 // Screenshot/automation hook: `--demo` opens (creating if needed) the demo job.
                 let args = ProcessInfo.processInfo.arguments

@@ -1,16 +1,25 @@
 name: iOS screenshots
 
+# Screenshots of every screen on an iPhone and an iPad simulator (QA and App Store listing). Run on demand
+# (Actions → iOS screenshots → Run workflow): it is slow and shares the Mac runners with every push.
 on:
   workflow_dispatch:
-  push:
-    paths: ["ios/PinPlan/**", ".github/workflows/ios-screenshots.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-screenshots
+  cancel-in-progress: true
 
 jobs:
   screenshots:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
+      - name: Use Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
       - name: Build for simulator
         working-directory: ios

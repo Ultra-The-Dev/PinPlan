@@ -7,8 +7,10 @@ struct AppSettings: Codable, Equatable {
     var business = BusinessSettings()
     var pricing = Catalog.defaultPricing
     var billduDocType = "estimate"
-    /// Hosted PinPlan server (the web app) used for Billdu and AI scan; secrets stay on that server.
-    var serverURL = ""
+    /// Hosted PinPlan server (the web app) used for sign-in setup, Billdu and the legal pages; secrets stay on that server.
+    /// Starts as the address built into the app (`PinPlanServerURL`); Settings › More › Advanced can change it.
+    var serverURL = AppSettings.builtInServerURL
+    /// Only for a self-hosted server that uses an access code instead of sign-in (Settings › More › Advanced).
     var accessCode = ""
     /// Company checklist templates saved from jobs ("Save as template"). Optional so older settings.json files still decode.
     var checklistTemplates: [ChecklistTemplate]? = nil
@@ -16,6 +18,19 @@ struct AppSettings: Codable, Equatable {
     var trades: [String]? = nil
     /// Company form templates (same JSON as the web app's settings `formTemplates`). Optional so older settings still decode.
     var formTemplates: [FormTemplate]? = nil
+
+    /// The PinPlan server this build ships with: the `PINPLAN_SERVER_URL` build setting, written into the Info.plist as
+    /// `PinPlanServerURL`. Empty when the build didn't set one (a developer build without a server).
+    static var builtInServerURL: String {
+        let raw = (Bundle.main.object(forInfoDictionaryKey: "PinPlanServerURL") as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // An unexpanded "$(PINPLAN_SERVER_URL)" means the setting wasn't defined at all.
+        return raw.hasPrefix("$(") ? "" : raw
+    }
+
+    /// True while the app talks to the server it was built with (nothing changed under Advanced).
+    var usesBuiltInServer: Bool {
+        serverURL.trimmingCharacters(in: .whitespaces) == Self.builtInServerURL && accessCode.isEmpty
+    }
 }
 
 /// File-based, offline-first storage in the app's Documents folder:
@@ -162,7 +177,9 @@ final class Store: @unchecked Sendable {
             if jobs.isEmpty { fresh.business.brandDefaults = BusinessSettings.neutralMarker }
             return fresh
         }
-        guard let data = try? Data(contentsOf: url), let s = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
+        guard let data = try? Data(contentsOf: url), var s = try? JSONDecoder().decode(AppSettings.self, from: data) else { return AppSettings() }
+        // No server address saved (older versions, or cleared under Advanced): use the one built into the app.
+        if s.serverURL.trimmingCharacters(in: .whitespaces).isEmpty { s.serverURL = AppSettings.builtInServerURL }
         return s
     }
 
