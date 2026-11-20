@@ -1,0 +1,111 @@
+name: Web app
+
+# Every push and pull request, no path filter: lint, types, unit tests with coverage gates, a production build and
+# the money-path browser test, plus secret and forbidden-string scans.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Local-only build: no accounts, no sync, no paid services.
+  NEXT_PUBLIC_SUPABASE_URL: ""
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  checks:
+    name: Lint, types, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -- --quiet
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests (coverage gates on takeoff, estimate, documents)
+        run: npm run test:coverage
+      - name: Coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  build-e2e:
+    name: Build + money-path e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Production build (Supabase env unset)
+        run: npm run build
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: E2E smoke (new job → plans → devices → takeoff → estimate → quote → invoice → PDF) and a11y scan
+        run: npm run e2e
+        env:
+          CI: "true"
+      - name: Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright
+          path: e2e/.output/
+          retention-days: 14
+
+  audit:
+    name: npm audit (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Production dependencies, high and critical
+        run: npm audit --omit=dev --audit-level=high
+
+  secrets:
+    name: Secrets and forbidden strings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only needed when the repository belongs to an organization (free for personal accounts).
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Forbidden strings and model identifiers
+        # The denylist is a repository secret (one entry per line), so it is never in the repo or the logs and
+        # pull requests from forks don't get it (the denylist part is skipped there; the model check still runs).
+        env:
+          FORBIDDEN_STRINGS: ${{ secrets.FORBIDDEN_STRINGS }}
+        run: bash scripts/forbidden-strings.sh

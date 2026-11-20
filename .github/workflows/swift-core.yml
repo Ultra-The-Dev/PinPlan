@@ -1,0 +1,42 @@
+name: Swift core (Linux)
+
+# PinPlanCore's tests (takeoff, estimate, documents, backup format…) on Linux, which is cheaper and quicker than the
+# macOS runner in ios.yml. Also runs when the web logic or shared fixtures change, since the Swift tests check parity.
+on:
+  push:
+    paths:
+      - "ios/**"
+      - "src/lib/**"
+      - "tests/fixtures/**"
+      - ".github/workflows/swift-core.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - "src/lib/**"
+      - "tests/fixtures/**"
+      - ".github/workflows/swift-core.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: PinPlanCore swift test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: swift:6.0.3-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ios/PinPlanCore/.build
+          key: swiftpm-${{ runner.os }}-6.0.3-${{ hashFiles('ios/PinPlanCore/Package.swift', 'ios/PinPlanCore/Package.resolved') }}
+          restore-keys: swiftpm-${{ runner.os }}-6.0.3-
+      - name: swift test
+        working-directory: ios/PinPlanCore
+        run: swift test --parallel

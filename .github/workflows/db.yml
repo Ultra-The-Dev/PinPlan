@@ -1,0 +1,76 @@
+name: Database
+
+# Migrations: names and order (scripts/check-migrations.mjs), then applied from scratch to Postgres with the
+# Supabase stand-ins and the RLS / RPC tests run against them (scripts/test-supabase.sh). Never touches a live DB.
+on:
+  push:
+    paths:
+      - "supabase/**"
+      - "scripts/test-supabase.sh"
+      - "scripts/check-migrations.mjs"
+      - ".github/workflows/db.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "scripts/test-supabase.sh"
+      - "scripts/check-migrations.mjs"
+      - ".github/workflows/db.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  migrations:
+    name: Migration names and order
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Checker self-test
+        run: node scripts/check-migrations.mjs --self-test
+      - name: Unique, valid, strictly ascending timestamps
+        run: node scripts/check-migrations.mjs
+      - name: New migrations are newer than the base branch's
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/check-migrations.mjs --base "origin/$BASE_REF"
+
+  rls:
+    name: Apply migrations + RLS tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Supabase's current Postgres major (new hosted projects run 17); match the project if it differs.
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Postgres client
+        run: psql --version
+      - name: Migrations + tests
+        run: bash scripts/test-supabase.sh
