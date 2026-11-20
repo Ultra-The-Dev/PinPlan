@@ -1,6 +1,7 @@
 "use client";
 // What the client sees: a change order by link — what changes and why, the price, photos — then sign and approve
 // (or reject with a note). Answers go through /api/change-orders/public; the page never touches the database.
+import { docAccent, docBrand } from "@/lib/brandDefaults";
 import { CalendarClock, Check, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -86,8 +87,8 @@ export default function PublicChangeOrder() {
 
   const v = data.view;
   const cur = v.currency || "USD";
-  const brand = v.business.brandColor || "#0a1b54";
-  const accent = v.business.accentColor || "#13e57c";
+  const brand = docBrand(v.business.brandColor);
+  const accent = docAccent(v.business.accentColor);
   const theme = { "--brand": brand, "--accent": accent } as React.CSSProperties;
   const schedule = scheduleText(v.scheduleDays);
   const answered = data.status !== "sent";

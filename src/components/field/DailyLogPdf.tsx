@@ -1,5 +1,6 @@
 // Branded daily log PDF (@react-pdf/renderer): one log or a date range, each with that day's photos (with mark-up).
 // Loaded with a dynamic import so it stays out of SSR. Same look as the photo report (PhotoReportPdf.tsx).
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf, type Styles } from "@react-pdf/renderer";
 import type { ReportPdfSections, RangeSummaryRow } from "@/lib/dailyLogReport";
 import type { BusinessSettings } from "@/lib/types";
@@ -49,7 +50,7 @@ const CELL_W = (CONTENT_W - 12) / 2;
 const IMG_H = 190;
 
 export function DailyLogDocument({ d }: { d: DailyLogPdfData }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
     page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },

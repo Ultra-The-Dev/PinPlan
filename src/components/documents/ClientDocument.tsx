@@ -1,6 +1,7 @@
 "use client";
 // What the client sees at /d?t=…: the company's quote / invoice / credit note, PDF download, accept (sign) or decline a
 // quote, and how to pay an invoice. No account needed: the link token is the key.
+import { docBrand } from "@/lib/brandDefaults";
 import { Check, Download, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -47,7 +48,7 @@ export default function ClientDocument() {
 
   const s = d.snapshot;
   const money = (n: number) => formatDocMoney(n, s.currency, s.locale);
-  const brand = s.business.brandColor || "#0a1b54";
+  const brand = docBrand(s.business.brandColor);
   const live = { status: d.status, number: d.number, amountPaid: d.amountPaid, balanceDue: d.balanceDue, paidAt: d.paidAt, overdue: d.overdue, expired: d.expired };
   const pay = d.kind === "invoice" && d.status !== "void" && d.balanceDue > 0 ? payUrl(s.payment.payUrl, { number: d.number, balanceDue: d.balanceDue, currency: s.currency }) : null;
   const answered = d.status === "accepted" || d.status === "declined";

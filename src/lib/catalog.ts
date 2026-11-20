@@ -1,3 +1,4 @@
+import { DOC_DEFAULT_ACCENT, DOC_DEFAULT_BRAND } from "./brandDefaults";
 import type { AppSettings, BusinessSettings, Category, ClosetKind, DeviceType, Layer, Mount } from "./types";
 
 export const CATEGORIES: { id: Category; name: string; color: string }[] = [
@@ -125,24 +126,12 @@ export function seedCatalog(): DeviceType[] {
   }));
 }
 
-/** The founder's company (Smart Living Solutions, smartlivingny.com): the fallback for blank fields on the founder's
- *  own devices and team only. Customers never see it. */
-export const FOUNDER_BUSINESS: BusinessSettings = {
-    name: "Smart Living Solutions",
-    address: "New York, NY",
-    phone: "(646) 290-1922",
-    email: "smartlivingny@gmail.com",
-    website: "smartlivingny.com",
-    tagline: "Smart Home · Lighting · AV & Home Theater · Security",
-    logo: "/brand/smart-living-logo.png",
-    brandColor: "#0a1b54",
-    accentColor: "#13e57c",
-    serviceArea: "Serving New York City, Long Island, Westchester & the Tri-State Area",
-    estimateTerms:
-      "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates.",
-  };
+/** Starting estimate terms for every company (editable in Settings → Your business). */
+export const DEFAULT_ESTIMATE_TERMS =
+  "Estimate valid for 30 days. 50% deposit due on approval, balance on completion. Quantities are based on the marked-up plans; changes on site are billed at the same unit rates.";
 
-/** What a new customer's blank fields fall back to: nothing of anyone else's, PinPlan colours, generic terms. */
+/** What a new company's blank fields fall back to: nothing of anyone else's, the default document colours
+ *  (src/lib/brandDefaults.ts), generic terms. */
 export const NEUTRAL_BUSINESS: BusinessSettings = {
   name: "",
   address: "",
@@ -151,11 +140,16 @@ export const NEUTRAL_BUSINESS: BusinessSettings = {
   website: "",
   tagline: "",
   logo: "",
-  brandColor: "#c2410c",
-  accentColor: "#f59e0b",
+  brandColor: DOC_DEFAULT_BRAND,
+  accentColor: DOC_DEFAULT_ACCENT,
   serviceArea: "",
-  estimateTerms: FOUNDER_BUSINESS.estimateTerms,
+  estimateTerms: DEFAULT_ESTIMATE_TERMS,
 };
+
+/** The fallback for installs saved before `brandDefaults` existed and for comped teams. It used to hold the founder's
+ *  company details; the app ships no one's details now, so it is the same blank set. Kept so older settings rows
+ *  (`brandDefaults: "founder"`) still resolve. */
+export const FOUNDER_BUSINESS: BusinessSettings = NEUTRAL_BUSINESS;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   id: "app",

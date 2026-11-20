@@ -1,6 +1,7 @@
 // Task / punch report PDF (@react-pdf/renderer), same look as the daily log PDF: the company header, then the filtered
 // tasks grouped by sheet or assignee, each with a plan crop around its pin, its first photo and a checklist summary.
 // Loaded with a dynamic import so it stays out of SSR. No prices, ever.
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { BusinessSettings } from "@/lib/types";
 
@@ -41,7 +42,7 @@ const MUTED = "#64748b";
 const IMG = 150;
 
 export function TaskReportDocument({ d }: { d: TaskPdfData }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
     page: { paddingTop: 28, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9.5, fontFamily: "Helvetica", color: "#111827" },
     bar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: brand },

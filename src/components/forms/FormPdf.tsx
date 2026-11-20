@@ -1,5 +1,6 @@
 // Branded form PDF (@react-pdf/renderer): every field, tables with totals, calcs, photos and signatures with times and
 // "signed on behalf" text, and the template version. Same header as the daily log PDF. Loaded with a dynamic import.
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import { answerText, columnTotals, computeCalcs, formatNumber, formHistory, tableRows } from "@/lib/forms/forms";
 import { signatureLines } from "@/lib/forms/signature";
@@ -35,7 +36,7 @@ const CELL_W = (CONTENT_W - 12) / 2;
 const IMG_H = 170;
 
 export function FormDocument({ d }: { d: FormPdfData }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const f = d.form;
   const calcs = computeCalcs(f.template, f.values);
   const s = StyleSheet.create({

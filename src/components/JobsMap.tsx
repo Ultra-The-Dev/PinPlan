@@ -2,6 +2,7 @@
 // Jobs on a map (Leaflet; tiles from NEXT_PUBLIC_MAP_TILE_URL, else OpenStreetMap — src/lib/endpoints.ts). A job's
 // location comes from its first geotagged photo, or is set on its Job tab. Filter by status and label; the list beside
 // the map flies to a job's pin. Offline, the pins and the list still work; only the background map is missing.
+import { PROJECT_STATUS_HEX } from "@/lib/statusStyle";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Link from "next/link";
@@ -11,7 +12,7 @@ import { mapTiles } from "@/lib/endpoints";
 import { filterJobs, isPlaced, jobLabelList, jobTitle, labelOptions, statusCounts } from "@/lib/jobFilters";
 import type { Project, ProjectStatus } from "@/lib/types";
 
-const COLOR: Record<ProjectStatus, string> = { estimate: "#d97706", approved: "#c2410c", installed: "#059669" };
+const COLOR: Record<ProjectStatus, string> = { ...PROJECT_STATUS_HEX };
 const STATUSES = Object.keys(COLOR) as ProjectStatus[];
 
 /** Popup body built with DOM nodes (job text is user input, so never innerHTML). */

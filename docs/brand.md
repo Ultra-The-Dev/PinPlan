@@ -1,8 +1,9 @@
 <!-- Palette: Blueprint Ink (chosen Nov 2026): ink navy + electric blue, teal for approved. -->
 # Brand and design system
 
-The public site (`/welcome`, `/pricing`, the site footer) uses this system today. The app still uses its own look
-(Geist, stone neutrals, safety orange in `src/app/globals.css`); adopt this when the app is redesigned.
+The public site (`/welcome`, `/pricing`, the site footer) and the app both use Blueprint Ink. The site has its own
+`.mk` tokens and Archivo everywhere; the app maps the same colours onto its Tailwind tokens in `src/app/globals.css`
+(see "In the app" below) and keeps Geist for body text.
 
 The product name always comes from `PRODUCT_NAME` in `src/lib/plans.ts`, including the wordmark. Never type it.
 
@@ -25,8 +26,8 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 | Ink (graphite token) | `#0F2340` | Text, linework, the dark band and footer, secondary buttons. Ink navy. |
 | Pencil | `#526580` | Secondary text (5.6:1 on paper). |
 | Rule | `#C9D6E5` | Hairlines, sheet borders, table rules. Never text. |
-| Action blue (marker token) | `#0B6FE0` | Primary action and the final call band. Text on it is always white (4.9:1). |
-| Electric | `#33A9FF` | Bright accent on the ink band: pins, step numbers, focus ring on dark. |
+| Action blue (marker token) | `#0B6FE0` | Primary action and the final call band. Text on it is always white (4.8:1). |
+| Electric | `#33A9FF` | Bright accent on ink: the logo pin, step numbers, focus ring on dark (6.2:1 on ink). Never text on white. |
 | Highlight | `#CFE6FF` | The takeoff highlighter behind counted figures; ink text on it. |
 | Action deep | `#0958B5` | Primary button hover. |
 | Redline | `#C73A2C` | Mark-up on photos and plans only. Not for errors or decoration. |
@@ -35,6 +36,35 @@ All tokens live under the `.mk` wrapper (`src/components/marketing/marketing.css
 
 Device symbol colours are not brand colours: they come from the trade packs (`src/lib/trades.ts`) so the site
 shows what the app shows. Trade colours appear only as the 2px rule above each trade in the trades section.
+
+In the app (`src/app/globals.css`) the same colours are Tailwind tokens, so existing class names (`bg-brand-600`,
+`text-slate-500`, …) pick them up with no renames. Contrast values are checked in `tests/statusStyle.test.ts`.
+
+| App token | Hex | Brand colour / use |
+|---|---|---|
+| `brand-50` … `brand-300` | `#EEF6FF` `#DDEDFF` `#B9DAFF` `#84BFFF` | Action-blue tints: selected states, `.btn-on`, focus ring on inputs |
+| `brand-400` | `#33A9FF` | Electric (logo pin, focus on dark). Not for text on white |
+| `brand-500` | `#1A86F0` | Small accents |
+| `brand-600` | `#0B6FE0` | Action blue: `.btn-brand`, links, focus outline, input focus border. White text 4.8:1 |
+| `brand-700` / `brand-800` | `#0958B5` / `#0A4690` | Action deep (hover), text on blue tints (6.3:1 on brand-50) |
+| `ink` | `#0F2340` | `.btn-primary`, page titles, theme colour (14.5:1 on paper) |
+| `slate-50` | `#F2F6FA` | Paper: page background |
+| `slate-100` … `slate-300` | `#E6EDF5` `#D5DFEB` `#BBC8D8` | Fills, rules, borders. Never text |
+| `slate-400` | `#5F718B` | Faint text, icons (5.0:1 on white, 4.6:1 on paper) |
+| `slate-500` | `#526580` | Pencil: secondary text, labels, placeholders (6.0:1 white, 5.5:1 paper) |
+| `slate-600` … `slate-950` | `#3E506A` … `#08162A` | Body text and dark surfaces (`slate-900` = ink) |
+| `ok-*` | 50 `#E7F6F3`, 600 `#0B7F72`, 700 `#096B60` | Approved teal: approved, accepted, paid, installed, answered |
+| `info-*` | 50 `#EEF6FF`, 600 `#0B6FE0`, 700 `#0958B5` | Sent, viewed, open |
+| `warn-*` | 50 `#FFF6E0`, 600 `#B7791F`, 700 `#7F5300` | Estimate, partly paid, expired, due today |
+| `bad-*` | 50 `#FDEEEC`, 600 `#C73A2C`, 700 `#A32D21` | Declined, overdue, errors |
+
+Status chips all come from `src/lib/statusStyle.ts` (`statusChip(status)`): 50 ground, 200 ring, 700 text. Draft and
+closed are neutral grey; void is grey and struck through. The jobs map uses `PROJECT_STATUS_HEX` (estimate amber,
+approved teal, installed deep teal).
+
+Customer documents (quotes, invoices, PDFs, share pages) use the company's own colours from Settings; when those are
+blank or not a hex colour they fall back to `DOC_DEFAULT_BRAND` (ink) and `DOC_DEFAULT_ACCENT` (action blue) in
+`src/lib/brandDefaults.ts`. Never hard-code a fallback colour in a component.
 
 Rules: one marker element per view where possible (button or highlighted figure, not both fighting). No gradients,
 no tinted washes. Light only for now (`color-scheme: light`); a dark scheme should invert to graphite paper with
@@ -49,6 +79,8 @@ One family: **Archivo** (Google Fonts, variable, `wdth` 62–125 and `wght` 100�
   lettering on panels and equipment labels.
 - Text and UI: width 100%, weight 400 / 600.
 - Figures: tabular lining numerals (`.mk-num`, `.mk-figure`). No monospace anywhere.
+- In the app, Archivo (75% width, weight 700, ink) is used only for `.page-title` and the auth pages' wordmark; the
+  font variable is loaded once in `src/app/layout.tsx`. Everything else in the app stays Geist.
 
 | Role | Class | Size | Line height |
 |---|---|---|---|
@@ -109,20 +141,30 @@ Paper gets a 1px rule border and a long, soft shadow like a sheet lying on a des
 
 ## Focus and accessibility
 
-- `:focus-visible` is a 3px graphite outline, 3px offset; on graphite grounds it's marker yellow.
+- Site: `:focus-visible` is a 3px ink outline, 3px offset; on ink grounds it's electric blue.
+- App: every focusable element gets a 2px action-blue outline with 2px offset (`:focus-visible` in `globals.css`);
+  inputs draw their own blue ring instead.
+- Touch screens (`pointer: coarse`): `.btn` and `.tab` keep their drawn size but get a 44px hit area.
+- Pages can always be pinch-zoomed (no `maximum-scale` / `user-scalable=no` in the viewport).
+- `prefers-reduced-motion: reduce` turns off the app's entrance animation, button press scale, pulse/ping and
+  control transitions.
 - AA contrast for all text (checked values above). Device badges are graphics with a text label beside them.
 - Drawings are `aria-hidden` with a written `figcaption`/`aria-label` describing what they show.
 - Works from 360px wide with no horizontal scroll.
 
 ## Logo
 
-`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`: a graphite rounded tile (7/32 radius) with the
-corner of a floor plan in white linework and a marker-yellow pin. On graphite grounds the tile flips to marker with
-graphite linework. The wordmark is `PRODUCT_NAME` in Archivo 75% width, weight 750, 23px in the header.
+`LogoMark` + `Wordmark` in `src/components/marketing/Wordmark.tsx`: an ink rounded tile (7/32 radius) with the
+corner of a floor plan in white linework and an electric-blue (`#33A9FF`) pin. On ink grounds the tile flips to
+electric with ink linework. The wordmark is `PRODUCT_NAME` in Archivo 75% width, weight 750, 23px in the header.
+The app header (`AppHeader` `Logo`) uses `LogoMark` + the name; sign-in, sign-up and reset use the `Wordmark` on paper.
 
 - Keep clear space of half the tile's width around the lockup. Minimum tile size 20px.
 - Don't recolour the pin, add effects, or set the name in another face.
-- `public/icon.svg` (app icon) still uses the older navy/amber mark; update it with the app redesign.
+- App icons are drawn from `LogoMark`: `public/icon.svg` (tile), `icon-192.png` / `icon-512.png` (tile, transparent
+  corners), `icon-maskable-512.png` (full-bleed ink, mark scaled to 80% for the safe zone) and `apple-touch-icon.png`
+  (180px, full bleed; iOS rounds it). Theme colour `#0F2340`, manifest background `#F2F6FA`. Regenerate all five
+  together if the mark changes.
 
 ## Voice
 

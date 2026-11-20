@@ -1,4 +1,5 @@
 // Branded photo report PDF (@react-pdf/renderer). Loaded with a dynamic import so it stays out of SSR.
+import { docBrand } from "@/lib/brandDefaults";
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import { reportPages, type ReportComment, type ReportSection } from "@/lib/photoReport";
 import type { BusinessSettings } from "@/lib/types";
@@ -35,7 +36,7 @@ const shortDate = (iso: string) => {
 const MUTED = "#64748b";
 
 export function PhotoReportDocument({ d }: { d: PhotoReportData }) {
-  const brand = d.business.brandColor || "#0a1b54";
+  const brand = docBrand(d.business.brandColor);
   const s = StyleSheet.create({
     page: { paddingTop: 0, paddingBottom: 42, paddingHorizontal: 36, fontSize: 9, fontFamily: "Helvetica", color: "#111827" },
     bar: { height: 6, backgroundColor: brand, marginHorizontal: -36, marginBottom: 22 },
