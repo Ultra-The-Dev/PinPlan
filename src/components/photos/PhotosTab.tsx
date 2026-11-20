@@ -1,18 +1,21 @@
 "use client";
 // Job photos: take or upload, grouped by day, filter by tag / person / dates / text, select many to tag, set room or device, report or delete.
+// Tiles show small previews (src/lib/thumbs.ts), newest first, a page at a time.
 import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, Square, Tag, Trash, UserRound, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { bulkEditPhotos, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
-import { currentPosition, getAuthor, importPhoto, setAuthor } from "@/lib/photos";
+import { currentPosition, firstPhotos, getAuthor, importPhoto, PHOTO_PAGE, setAuthor } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
+import { PHOTO_THUMB } from "@/lib/thumbs";
 import { toast } from "@/lib/toast";
 import type { Photo } from "@/lib/types";
-import { useBlobUrl } from "@/lib/useImage";
+import { useThumbUrl } from "@/lib/useImage";
 import PhotoViewer from "./PhotoViewer";
 import PhotoReport from "./PhotoReport";
 import DateRange from "./DateRange";
+import MorePhotos from "./MorePhotos";
 import UploadStatus from "../UploadStatus";
 
 const GPS_KEY = "pinplan.photoLocation";
@@ -23,7 +26,7 @@ const dayLabel = (day: string) =>
   new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +day.slice(0, 4) ? undefined : "numeric" });
 
 function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { photo: Photo; comments: number; selected: boolean; selecting: boolean; onOpen: () => void; onToggle: () => void }) {
-  const url = useBlobUrl(photo.imageId);
+  const url = useThumbUrl(photo.imageId, PHOTO_THUMB);
   return (
     <button
       className={`group relative aspect-square overflow-hidden rounded-xl bg-slate-100 ring-offset-2 transition ${selected ? "ring-2 ring-brand-500" : "hover:ring-2 hover:ring-slate-300"}`}
@@ -32,7 +35,7 @@ function Thumb({ photo, comments, selected, selecting, onOpen, onToggle }: { pho
       aria-pressed={selecting ? selected : undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url && <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+      {url && <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />}
       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/60 to-transparent px-1.5 pt-5 pb-1 text-[11px] text-white">
         {!!photo.annotations?.length && <PenLine className="h-3 w-3" />}
         {comments > 0 && (
@@ -81,7 +84,12 @@ export default function PhotosTab() {
 
   const live = useMemo(() => photos.filter((p) => !p.deleted), [photos]);
   const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
-  const groups = useMemo(() => photosByDay(shown), [shown]);
+  const allGroups = useMemo(() => photosByDay(shown), [shown]);
+  // A page at a time; changing a filter starts again from the newest.
+  const filterKey = JSON.stringify([tags, person, text, from, to]);
+  const [page, setPage] = useState({ key: filterKey, n: PHOTO_PAGE });
+  const limit = page.key === filterKey ? page.n : PHOTO_PAGE;
+  const groups = useMemo(() => firstPhotos(allGroups, limit), [allGroups, limit]);
   const options = useMemo(() => tagOptions(live), [live]);
   const rooms = useMemo(() => roomOptions(live, markers), [live, markers]);
   const devices = useMemo(
@@ -364,9 +372,9 @@ export default function PhotosTab() {
             <section key={g.day}>
               <div className="mb-2 flex items-baseline gap-2 px-1">
                 <h3 className="font-semibold">{dayLabel(g.day)}</h3>
-                <span className="text-xs text-slate-400">{g.photos.length}</span>
+                <span className="text-xs text-slate-400">{g.all.length}</span>
                 {selecting && (
-                  <button className="ml-auto text-xs font-medium text-brand-600" onClick={() => setSel((s) => [...new Set([...s, ...g.photos.map((p) => p.id)])])}>
+                  <button className="ml-auto text-xs font-medium text-brand-600" onClick={() => setSel((s) => [...new Set([...s, ...g.all.map((p) => p.id)])])}>
                     Select day
                   </button>
                 )}
@@ -379,6 +387,7 @@ export default function PhotosTab() {
             </section>
           ))
         )}
+        {shown.length > 0 && <MorePhotos remaining={shown.length - limit} onMore={() => setPage({ key: filterKey, n: limit + PHOTO_PAGE })} />}
         {markers.length > 0 && live.length > 0 && <p className="text-center text-xs text-slate-400">Tip: open a photo and pick its device to see it from that device on the plan.</p>}
       </div>
       {openId && <PhotoViewer photos={shown} startId={openId} onClose={() => setOpenId(null)} />}

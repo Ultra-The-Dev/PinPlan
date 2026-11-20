@@ -85,6 +85,16 @@ export interface RefusedChange {
   at: string;
 }
 
+/** A small JPEG preview of a stored image (src/lib/thumbs.ts). Local only: never synced, rebuilt on demand. */
+export interface StoredThumb {
+  /** `${imageId}@${maxSide}` */
+  id: string;
+  imageId: string;
+  blob: Blob;
+  width: number;
+  height: number;
+}
+
 class PinPlanDB extends Dexie {
   projects!: EntityTable<Project, "id">;
   sheets!: EntityTable<Sheet, "id">;
@@ -123,6 +133,8 @@ class PinPlanDB extends Dexie {
   forms!: EntityTable<JobForm, "id">;
   /** Local changes the cloud refused (see RefusedChange). Never synced. */
   syncRefused!: EntityTable<RefusedChange, "id">;
+  /** Local-only image previews for job cards and photo grids (src/lib/thumbs.ts). */
+  thumbs!: EntityTable<StoredThumb, "id">;
 
   constructor() {
     super("pinplan");
@@ -175,6 +187,8 @@ class PinPlanDB extends Dexie {
     // v43: changes the cloud refused, set aside so one bad row never stops syncing (src/lib/sync.ts). Local only.
     // v49 is reserved for a local-only thumbnails table (perf); don't reuse it.
     this.version(43).stores({ syncRefused: "id, table, at" });
+    // v49: local-only thumbnails of sheet and photo images (src/lib/thumbs.ts; not synced, safe to clear).
+    this.version(49).stores({ thumbs: "id, imageId" });
   }
 }
 

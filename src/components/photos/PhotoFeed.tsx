@@ -1,22 +1,26 @@
 "use client";
 // Every job's photos in one feed (newest first): filter by job, job label, tag, person or dates; open one on its job.
+// Tiles show small previews (src/lib/thumbs.ts) and the feed loads a page at a time, so hundreds of photos stay light.
 import { Camera, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/db";
 import { filterPhotos, photosByDay, tagOptions } from "@/lib/fieldDocs";
 import { hasLabel, jobLabelList, jobTitle, labelOptions } from "@/lib/jobFilters";
+import { firstPhotos, PHOTO_PAGE } from "@/lib/photos";
+import { PHOTO_THUMB } from "@/lib/thumbs";
 import type { Photo, Project } from "@/lib/types";
-import { useBlobUrl } from "@/lib/useImage";
+import { useThumbUrl } from "@/lib/useImage";
 import DateRange from "./DateRange";
+import MorePhotos from "./MorePhotos";
 
 function Thumb({ photo, job }: { photo: Photo; job?: Project }) {
-  const url = useBlobUrl(photo.imageId);
+  const url = useThumbUrl(photo.imageId, PHOTO_THUMB);
   const labels = job ? jobLabelList(job) : [];
   return (
     <Link href={`/project?id=${photo.projectId}&tab=photos&photo=${photo.id}`} className="group relative block aspect-square overflow-hidden rounded-xl bg-slate-100 hover:ring-2 hover:ring-slate-300">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url && <img src={url} alt={photo.caption ?? ""} loading="lazy" className="h-full w-full object-cover" />}
+      {url && <img src={url} alt={photo.caption ?? ""} loading="lazy" decoding="async" className="h-full w-full object-cover" />}
       {labels.length > 0 && (
         <div className="absolute inset-x-0 top-0 flex flex-wrap gap-1 p-1.5">
           {labels.slice(0, 2).map((l) => (
@@ -63,7 +67,12 @@ export default function PhotoFeed() {
     return (photos ?? []).filter((p) => ok(p.projectId));
   }, [photos, jobs, job, label]);
   const shown = useMemo(() => filterPhotos(live, { tags, takenBy: person || null, text, from: from || null, to: to || null }), [live, tags, person, text, from, to]);
-  const groups = useMemo(() => photosByDay(shown), [shown]);
+  const allGroups = useMemo(() => photosByDay(shown), [shown]);
+  // A page at a time; changing a filter starts again from the newest.
+  const filterKey = JSON.stringify([job, label, tags, person, text, from, to]);
+  const [page, setPage] = useState({ key: filterKey, n: PHOTO_PAGE });
+  const limit = page.key === filterKey ? page.n : PHOTO_PAGE;
+  const groups = useMemo(() => firstPhotos(allGroups, limit), [allGroups, limit]);
   // Keep selected tags visible even when a job/label change drops them from the options, so they can still be cleared.
   const options = useMemo(() => {
     const top = tagOptions(live).slice(0, 14);
@@ -147,7 +156,7 @@ export default function PhotoFeed() {
         groups.map((g) => (
           <section key={g.day}>
             <h3 className="mb-2 px-1 font-semibold">
-              {new Date(`${g.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +g.day.slice(0, 4) ? undefined : "numeric" })} <span className="text-xs font-normal text-slate-400">{g.photos.length}</span>
+              {new Date(`${g.day}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: new Date().getFullYear() === +g.day.slice(0, 4) ? undefined : "numeric" })} <span className="text-xs font-normal text-slate-400">{g.all.length}</span>
             </h3>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               {g.photos.map((p) => (
@@ -157,6 +166,7 @@ export default function PhotoFeed() {
           </section>
         ))
       )}
+      {shown.length > 0 && <MorePhotos remaining={shown.length - limit} onMore={() => setPage({ key: filterKey, n: limit + PHOTO_PAGE })} />}
     </div>
   );
 }

@@ -114,7 +114,8 @@ export function warpToRect(img: HTMLImageElement | HTMLCanvasElement, corners: P
 
 // ---- OpenCV.js page detection (optional; loaded on demand) ----
 
-const OPENCV_URL = "https://docs.opencv.org/4.10.0/opencv.js";
+/** Self-hosted (public/vendor/README.md): works offline once cached and needs no third-party script host. */
+const OPENCV_URL = "/vendor/opencv-4.10.0.js";
 
 type CV = {
   Mat: new () => CvMat;
@@ -155,7 +156,7 @@ function loadOpenCV(): Promise<CV> {
     s.onload = finish;
     s.onerror = () => {
       cvPromise = null;
-      reject(new Error("Could not load OpenCV.js (offline?). Adjust the corners by hand."));
+      reject(new Error("Couldn’t load page detection (offline?). Adjust the corners by hand."));
     };
     document.head.appendChild(s);
   });

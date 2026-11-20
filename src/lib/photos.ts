@@ -2,6 +2,7 @@
 // Taking/importing job photos and drawing their mark-up.
 import { readExif } from "./exif";
 import { newId, nowIso, saveImage } from "./db";
+import { PHOTO_THUMB, saveThumb, thumbFromSource } from "./thumbs";
 import type { Photo, PhotoShape } from "./types";
 
 const AUTHOR_KEY = "pinplan.author";
@@ -60,6 +61,13 @@ export async function importPhoto(
   bmp.close();
   const blob: Blob = await new Promise((r, j) => c.toBlob((b) => (b ? r(b) : j(new Error("Couldn't read the photo"))), "image/jpeg", 0.85));
   const imageId = await saveImage(blob, w, h);
+  // The grid preview, from the canvas already drawn (no second decode). Optional: the grid makes it later if this fails.
+  try {
+    await saveThumb(imageId, PHOTO_THUMB, await thumbFromSource(c, w, h, PHOTO_THUMB));
+  } catch {
+    /* made on first view instead */
+  }
+  c.width = c.height = 0;
   const now = nowIso();
   const pos = exif.lat != null && exif.lng != null ? { lat: exif.lat, lng: exif.lng } : (opts.position ?? null);
   return {
@@ -159,3 +167,21 @@ export async function renderPhoto(blob: Blob, shapes: PhotoShape[] | null | unde
 }
 
 export const mapsLink = (lat: number, lng: number) => `https://maps.google.com/?q=${lat},${lng}`;
+
+/** Photos shown per "page" in the photo grids (the next page loads as you scroll). */
+export const PHOTO_PAGE = 60;
+
+/**
+ * The first `limit` photos of day groups that are already newest first, keeping each day's full list (`all`) for
+ * "Select day" and its true count. Days past the limit are left out.
+ */
+export function firstPhotos<T>(groups: { day: string; photos: T[] }[], limit: number): { day: string; photos: T[]; all: T[] }[] {
+  const out: { day: string; photos: T[]; all: T[] }[] = [];
+  let left = Math.max(0, limit);
+  for (const g of groups) {
+    if (left <= 0) break;
+    out.push({ day: g.day, photos: g.photos.slice(0, left), all: g.photos });
+    left -= g.photos.length;
+  }
+  return out;
+}

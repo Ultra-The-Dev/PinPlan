@@ -8,7 +8,8 @@ import { importBackup } from "@/lib/backup";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
-import { useSheetImage } from "@/lib/useImage";
+import { SHEET_THUMB } from "@/lib/thumbs";
+import { useThumbUrl } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
 import { useTemplateStart } from "./templates/TemplatePicker";
 
@@ -244,14 +245,15 @@ export default function ProjectsList() {
 }
 
 function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; prices: boolean }) {
-  const img = useSheetImage(p.coverImageId);
+  // A small preview, not the full sheet: a dozen full-size sheets would exhaust an iPad's memory (src/lib/thumbs.ts).
+  const img = useThumbUrl(p.coverImageId, SHEET_THUMB);
   return (
     <li className="card group relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
       <Link href={`/project?id=${p.id}`} className="block">
         <div className="relative aspect-[16/9] overflow-hidden border-b border-slate-100 bg-slate-50">
           {img ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={img.url} alt="" className="h-full w-full object-cover object-center opacity-90 transition group-hover:scale-[1.02] group-hover:opacity-100" />
+            <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover object-center opacity-90 transition group-hover:scale-[1.02] group-hover:opacity-100" />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-300">
               <FileText className="h-10 w-10" />

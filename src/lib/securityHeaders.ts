@@ -9,19 +9,25 @@
 //   The public client pages (/d, /p, /r, /co, /q: documents, proposals, photo reports, change orders, RFIs) load
 //   neither, so they get a stricter policy without it (publicPageHeaders below). `next dev` still needs it there.
 // - 'wasm-unsafe-eval': PDF.js image decoders, react-pdf's layout engine and OpenCV run WebAssembly.
-// - https://docs.opencv.org: OpenCV.js is loaded on demand from there (src/lib/perspective.ts).
-// - worker-src blob:: PDF.js runs from /pdf.worker.min.mjs; heic2any starts its worker from a blob: URL.
+// - OpenCV.js is self-hosted (public/vendor), so no third-party script host is allowed.
+// - worker-src blob:: PDF.js runs from /pdf.worker.<version>.min.mjs; heic2any starts its worker from a blob: URL.
 // - img-src: sheet/photo blobs and data: URLs, OpenStreetMap tiles (Leaflet map), Supabase public proposal images, and
 //   any https: image: proposal/report snapshots store absolute logo/image URLs, which must keep working after a domain
 //   change (e.g. a proposal published on *.vercel.app, opened after moving to the custom domain). Images can't run code.
 // - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather).
 // - style/font: inline styles (Konva, react-pdf, Leaflet). Fonts are self-hosted by next/font (no Google Fonts, so
 //   client pages send no request to Google).
+// - connect-src: Supabase REST/auth/storage (https) and realtime (wss); Open-Meteo forecast + archive (daily log weather),
+//   plus the NEXT_PUBLIC_WEATHER_URL origin when weather goes to another https host (src/lib/endpoints.ts). Map tiles
+//   (NEXT_PUBLIC_MAP_TILE_URL) are images, already covered by img-src https:.
+// - style/font: inline styles (Konva, react-pdf, Leaflet) and Google Fonts on the client proposal/report pages.
 // - object-src/frame-src blob:: generated PDFs and documents open from blob: URLs.
 // - https://challenges.cloudflare.com (script + frame), only when Turnstile is set up: the bot check on sign-up pages.
 // Cross-Origin-Opener-Policy same-origin: a page we open in a new window (or that opens us) can't reach our window
 // object, which closes cross-window attacks on the signed-in app. Nothing here relies on window.opener across origins.
 // Set CSP_REPORT_ONLY=1 to send the policy as Content-Security-Policy-Report-Only instead (debugging a regression).
+
+import { weatherOrigin } from "./endpoints";
 
 export interface HeaderEnv {
   supabaseUrl?: string;
@@ -32,6 +38,8 @@ export interface HeaderEnv {
   turnstile?: boolean;
   /** Policy for the public client pages: no 'unsafe-eval' (outside `next dev`). */
   publicPage?: boolean;
+  /** NEXT_PUBLIC_WEATHER_URL (defaults to the build's env). */
+  weatherUrl?: string;
 }
 
 /** The public pages a customer opens from a link (no sign-in). They get publicPageHeaders(). */
@@ -53,6 +61,7 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
   const live = env.vercelPreview;
   const cf = env.turnstile && "https://challenges.cloudflare.com";
   const evalOk = !env.publicPage || env.dev;
+  const weather = weatherOrigin(env.weatherUrl ?? process.env.NEXT_PUBLIC_WEATHER_URL);
   const list = (...xs: (string | null | false | undefined)[]) => xs.filter(Boolean).join(" ");
   const directives: Record<string, string> = {
     "default-src": "'self'",
@@ -61,14 +70,13 @@ export function contentSecurityPolicy(env: HeaderEnv): string {
       "'unsafe-inline'",
       evalOk && "'unsafe-eval'",
       "'wasm-unsafe-eval'",
-      !env.publicPage && "https://docs.opencv.org",
       cf,
       live && "https://vercel.live",
     ),
     "style-src": list("'self'", "'unsafe-inline'", live && "https://vercel.live"),
     "img-src": list("'self'", "blob:", "data:", "https:", sb),
     "font-src": list("'self'", "data:", live && "https://vercel.live https://assets.vercel.com"),
-    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, "https://api.open-meteo.com https://archive-api.open-meteo.com", env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
+    "connect-src": list("'self'", "blob:", "data:", sb, sbWs, "https://api.open-meteo.com https://archive-api.open-meteo.com", weather, env.dev && "ws: wss:", live && "https://vercel.live wss://ws-us3.pusher.com"),
     "worker-src": "'self' blob:",
     "media-src": "'self' blob: data:",
     "object-src": "'self' blob:",
