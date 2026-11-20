@@ -538,18 +538,34 @@ public struct SyncState: Sendable {
         }
     }
 
-    /// Techs: forget the catalog's and products' prices on this device (they never come back for a technician), without
-    /// sending anything. True when something changed.
+    /// Techs: forget every price on this device (they never come back for a technician), without sending anything: the
+    /// catalog's and products' prices, each job's pricing and Billdu links, its estimate lines, quotes, invoices and
+    /// payments (left over when an office member becomes a technician). The pull watermarks of the price tables are
+    /// reset, so moving back to the office brings them all down again. True when something changed.
     @discardableResult
     public mutating func dropPrices(ledger: inout SyncLedger) -> Bool {
         var changed = false
-        for i in catalog.indices where catalog[i].unitPrice != 0 || catalog[i].laborPrice != 0 {
-            catalog[i].unitPrice = 0; catalog[i].laborPrice = 0; changed = true
+        for i in catalog.indices where catalog[i].unitPrice != 0 || catalog[i].laborPrice != 0 || catalog[i].billduProductId != nil {
+            catalog[i].unitPrice = 0; catalog[i].laborPrice = 0; catalog[i].billduProductId = nil; changed = true
         }
         for i in products.indices where products[i].unitPrice != 0 || products[i].laborPrice != 0 {
             products[i].unitPrice = 0; products[i].laborPrice = 0; changed = true
         }
-        markSynced(rows().filter { $0.table == .deviceTypePrices || $0.table == .productPrices }, ledger: &ledger)
+        for id in bundles.keys {
+            var b = bundles[id]!
+            guard b.project.pricing != nil || !b.project.billduDocs.isEmpty || b.project.billduClientId != nil
+                || !b.estimateLines.isEmpty || !b.salesDocs.isEmpty || !b.salesPayments.isEmpty else { continue }
+            b.project.pricing = nil; b.project.billduDocs = []; b.project.billduClientId = nil
+            b.estimateLines = []; b.salesDocs = []; b.salesPayments = []
+            bundles[id] = b
+            changed = true
+        }
+        let priceTables: Set<SyncTable> = [.deviceTypePrices, .productPrices, .projectFinance]
+        markSynced(rows().filter { priceTables.contains($0.table) }, ledger: &ledger)
+        for t in SyncMap.pricesOnly {
+            ledger.watermarks.removeValue(forKey: t.rawValue)
+            ledger.retry.removeValue(forKey: t.rawValue)
+        }
         return changed
     }
 

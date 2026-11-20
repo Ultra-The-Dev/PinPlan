@@ -22,7 +22,8 @@ extension APIClient {
     func billduStatus(token: String?) async -> BilldStatus {
         var req = URLRequest(url: baseURL.appendingPathComponent("api/billdu/credentials"))
         if !accessCode.isEmpty { req.setValue(accessCode, forHTTPHeaderField: "x-pinplan-access") }
-        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        // The sign-in only goes to the built-in server or one the person confirmed (APIClient.mayCarrySession).
+        if let token, mayCarrySession { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         req.timeoutInterval = 20
         guard let (data, resp) = try? await URLSession.shared.data(for: req) else { return .unknown }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0

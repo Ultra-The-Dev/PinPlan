@@ -521,6 +521,11 @@ extension CloudSync {
     @discardableResult
     func connectIfNeeded(settings: AppSettings) async -> String? {
         guard config == nil, let api = APIClient(settings: settings) else { return nil }
+        // The cloud project named by the server gets the person's password and sign-in: only take it from the built-in
+        // server or one the person confirmed (a mistyped or planted address mustn't choose where passwords go).
+        guard api.mayCarrySession else {
+            return "To sign in through this server, choose “Use my sign-in with this server” under Settings › More › Advanced first."
+        }
         do {
             try await configure(from: api)
             return nil

@@ -130,14 +130,29 @@ final class SyncPricesTests: XCTestCase {
     }
 
     func testTechniciansDropPricesWithoutSendingAnything() {
-        var s = SyncState(bundles: [job()], catalog: [type()], products: [product()])
+        var b = job()
+        var line = EstimateLine(id: "e1", projectId: "p1", key: "dev:tv")
+        line.unitPrice = 99
+        b.estimateLines = [line]
+        var s = SyncState(bundles: [b], catalog: [type()], products: [product()])
         var ledger = SyncLedger()
         s.markSynced(s.rows(), ledger: &ledger)
+        ledger.watermarks[SyncTable.deviceTypePrices.rawValue] = "2026-11-10T10:00:00.000Z"
+        ledger.watermarks[SyncTable.estimateLines.rawValue] = "2026-11-10T10:00:00.000Z"
+        ledger.watermarks[SyncTable.markers.rawValue] = "2026-11-10T10:00:00.000Z"
         XCTAssertTrue(s.dropPrices(ledger: &ledger))
         XCTAssertEqual(s.catalog[0].unitPrice, 0)
         XCTAssertEqual(s.catalog[0].laborPrice, 0)
         XCTAssertEqual(s.products[0].unitPrice, 0)
+        // A former office member's job keeps no pricing, Billdu links or estimate lines either.
+        XCTAssertNil(s.bundles["p1"]!.project.pricing)
+        XCTAssertNil(s.bundles["p1"]!.project.billduClientId)
+        XCTAssertTrue(s.bundles["p1"]!.estimateLines.isEmpty)
         XCTAssertTrue(s.changes(since: ledger).isEmpty)
+        // Back in the office later, the price tables come down again from the start; other tables keep their place.
+        XCTAssertNil(ledger.watermarks[SyncTable.deviceTypePrices.rawValue])
+        XCTAssertNil(ledger.watermarks[SyncTable.estimateLines.rawValue])
+        XCTAssertNotNil(ledger.watermarks[SyncTable.markers.rawValue])
         XCTAssertFalse(s.dropPrices(ledger: &ledger))
         XCTAssertTrue(TeamLogic.mayPull(.deviceTypePrices, role: .admin))
         for t in [SyncTable.deviceTypePrices, .productPrices, .projectFinance] {

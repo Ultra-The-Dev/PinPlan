@@ -170,7 +170,8 @@ struct SupabaseClient {
 
     /// End this session on the server (`POST /auth/v1/logout?scope=local`): its refresh token stops working.
     func logout(token: String) async throws {
-        let r = request("/auth/v1/logout", query: "scope=local", method: "POST", token: token)
+        var r = request("/auth/v1/logout", query: "scope=local", method: "POST", token: token)
+        r.timeoutInterval = 10   // signing out mustn't hang on a bad connection
         _ = try await send(r)
     }
 
@@ -1537,8 +1538,9 @@ extension CloudSync {
     }
 
     /// The person is signing in (or creating an account) with this email to use the remembered invite.
+    /// The latest attempt counts (a mistyped email corrected on the same screen still joins).
     func notePendingInviteEmail(_ email: String) {
-        guard var p = pendingInvite, p.email == nil else { return }
+        guard var p = pendingInvite else { return }
         let e = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !e.isEmpty else { return }
         p.email = e
