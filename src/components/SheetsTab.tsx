@@ -15,6 +15,7 @@ import { SheetIndexButton, SheetMetaChips } from "./sheetIndex/SheetIndexPanel";
 import SheetNamesReview, { hasProposals, type ReviewPage } from "./sheetIndex/SheetNamesReview";
 import { rotateSheetMarkups } from "./markups/useMarkups";
 import { RevisionBadge, UploadRevisedSetButton, UploadRevisionButton } from "./revisions/SheetRevisionControls";
+import { saveImportedSheetText } from "@/lib/findSimilar/sheetText";
 
 export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) {
   const { project, sheets, load, updateSheet, setActiveSheet, markers, runs, rotateSheetCW } = useEditor();
@@ -63,6 +64,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
           for (const p of pages) {
             const sheetId = await addSheet(p.blob, p.width, p.height, guessFloorName(p.text, `Sheet ${order + 1}`), p.pageNumber, p.pxPerInch, order++, p.text);
             imported.push({ sheetId, pageNumber: p.pageNumber, items: p.items ?? [], text: p.text });
+            void saveImportedSheetText(sheetId, p.items ?? []); // Find similar → Read tags
             added++;
           }
         } else {
