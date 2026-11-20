@@ -1,6 +1,6 @@
 // Small, believable pictures of each step of a job, drawn in code. Figures come from the electrical trade pack so the
 // names, symbols and prices are the ones a new company actually starts with.
-import { msg, useT } from "@/lib/i18n";
+import { LOCALES, makeT, msg, useT } from "@/lib/i18n";
 import { TRADE_PACKS, tradePack } from "@/lib/trades";
 import { HERO_TOTAL } from "./HeroPlan";
 import { Symbol } from "./Symbol";
@@ -116,7 +116,7 @@ export function CountVisual() {
               <td className="truncate px-4 py-2">14/2 NM-B</td>
               <td className="mk-num px-2 py-2 text-right">286</td>
               <td className="mk-num px-2 py-2 text-right">341</td>
-              <td className="mk-num px-4 py-2 text-right font-semibold">
+              <td className="mk-num py-2 pr-3 pl-0 text-right font-semibold whitespace-nowrap sm:px-4">
                 <span className="mk-hl">{t("{ft} ft", { ft: 627 })}</span>
               </td>
             </tr>
@@ -195,7 +195,7 @@ export function ApproveVisual() {
       <div className="mk-phone">
         <div className="mk-screen text-[13px]">
           <div className="px-5 pt-6 pb-4">
-            <div className="text-mk-pencil">{t("Quote from {company}", { company: "Northline Electric" })}</div>
+            <div className="text-mk-pencil">{t("Quote from your company")}</div>
             <div className="mk-figure mt-1 text-[30px]">{money(HERO_TOTAL)}</div>
             <div className="text-mk-pencil">{t("First floor power and lighting")}</div>
           </div>
@@ -339,6 +339,72 @@ export function FieldVisual() {
           </div>
         </Panel>
       </div>
+    </div>
+  );
+}
+
+/** The same checklist on two phones, in English and in Russian. The text comes from the app's own dictionaries, so the
+ *  Russian side is what a crew member actually reads, whatever language the page is in. */
+export function CrewVisual() {
+  const t = useT();
+  const sides = LOCALES.map((l) => ({ ...l, tr: makeT(l.code) }));
+  return (
+    <div className="grid grid-cols-2 items-start gap-3 sm:gap-6">
+      {sides.map(({ code, label, tr }, i) => (
+        <figure key={code} className={i === 1 ? "mt-10 sm:mt-14" : ""}>
+          <div className="mk-phone" lang={code}>
+            <div className="mk-screen text-[12px] leading-snug sm:text-[13px]">
+              <div className="border-b border-mk-rule px-3.5 pt-5 pb-3 sm:px-4">
+                <div className="text-mk-pencil">Harbor View Rd, unit 2</div>
+                <div className="mt-0.5 text-[15px] leading-tight font-semibold sm:text-[16px]" style={{ fontStretch: "85%" }}>
+                  {tr("Rough-in checklist")}
+                </div>
+              </div>
+              <ul className="space-y-2.5 px-3.5 py-3 sm:px-4">
+                {(
+                  [
+                    [msg("Boxes set at 16 in. to center"), true],
+                    [msg("Home runs labelled at the panel"), true],
+                    [msg("Photo every wall before drywall"), false],
+                  ] as const
+                ).map(([item, done]) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span
+                      className={`mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] ${done ? "bg-mk-graphite" : "border-[1.5px] border-mk-graphite"}`}
+                      aria-hidden="true"
+                    >
+                      {done && (
+                        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5">
+                          <path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="#33a9ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={done ? "text-mk-pencil" : ""}>{tr(item)}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mx-3.5 mb-5 rounded-[6px] bg-mk-paper px-3 py-2.5 ring-1 ring-mk-rule sm:mx-4">
+                <div className="text-mk-pencil">{tr("Task")}</div>
+                <div className="font-semibold">{tr("Pull circuits {from} to {to} to {panel}", { from: 7, to: 12, panel: "MP" })}</div>
+              </div>
+              {/* The app's bottom bar, in the same language */}
+              <div className="grid grid-cols-3 border-t border-mk-rule px-0.5 pt-2 pb-3 text-center text-[10px] sm:text-[11px] text-mk-pencil">
+                {[msg("Plan"), msg("Checklists"), msg("Photos")].map((tab, k) => (
+                  <span key={tab} className={`min-w-0 [overflow-wrap:anywhere] ${k === 1 ? "font-semibold text-mk-marker" : ""}`}>
+                    {tr(tab)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <figcaption className="mt-3 text-center text-[13px] text-mk-pencil">
+            <span lang={code} className="block font-semibold text-mk-graphite">
+              {label}
+            </span>
+            {i === 0 ? t("Office") : t("Technician")}
+          </figcaption>
+        </figure>
+      ))}
     </div>
   );
 }

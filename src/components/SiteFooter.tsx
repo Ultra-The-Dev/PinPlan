@@ -44,7 +44,7 @@ export const FOOTER_COLUMNS: { title: string; links: { href: string; label: stri
 export default function SiteFooter({ className = "" }: { className?: string }) {
   return (
     <footer className={`${MK_ROOT} ${className}`}>
-      <div className="mk-dark">
+      <div className="mk-dark mk-table">
         <div className="mx-auto grid max-w-[1240px] gap-10 px-4 pt-14 pb-10 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)]">
           <div className="space-y-4">
             <Wordmark onDark />
