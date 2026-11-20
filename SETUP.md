@@ -1,282 +1,265 @@
-# Set up the PinPlan server and API keys
+# Set up PinPlan
 
-The iPad app works offline on its own. Two features need the server (the web app, hosted for free on Vercel):
-sending estimates to **Billdu** and the **AI plan reader**. The keys live only on the server, never on the iPad.
+There are two ways to run PinPlan:
 
-You need four values. Set them up in this order (about 20 minutes).
+- **[Part A — Hosted service](#part-a--hosted-service-default)** (the default): one PinPlan address that many
+  companies sign up to and pay for. Accounts, companies and sync run on Supabase, billing on Stripe, email on Resend.
+- **[Part B — Self-host for one company](#part-b--self-host-for-one-company)**: your own server for your own crew,
+  with no public sign-up or billing.
 
-## 1. Anthropic API key (AI plan reader)
-1. Go to **console.anthropic.com** and sign in.
-2. **Billing**: add a payment method and some credit (a plan read costs cents).
-3. **API Keys → Create Key**, name it `PinPlan`, copy it. It starts with `sk-ant-`.
-   You only see it once; paste it somewhere safe for step 4.
+For a launch, follow the order in **[docs/launch-checklist.md](docs/launch-checklist.md)** (what to buy, decide and
+switch on, with costs). This file gives the click-by-click steps behind it. Every setting is described in
+[.env.example](.env.example). Running the live service (monitoring, key rotation, incidents) is in
+[docs/production-checklist.md](docs/production-checklist.md).
 
-## 2. Billdu API key and secret
-Only the Billdu **account owner** can do this.
-1. Sign in to Billdu on the web.
-2. **Settings → API** (in some accounts: Settings → Integrations → API).
-3. Create / show the **API key** and **API secret**, copy both.
+`https://<your-domain>` below is your PinPlan address. Keys and passwords go only into the service dashboards and
+your password manager, never into this repo (it is public), an issue, a chat or an email.
 
-**With accounts (Supabase) enabled, each company connects its own Billdu account** in the web app: an owner or
-admin opens **Settings → Billdu**, pastes their key and secret, and presses **Test connection**. Technicians don't
-see it. The server stores them encrypted per company, so it needs `PINPLAN_ENCRYPTION_KEY` (any long random string)
-and `SUPABASE_SERVICE_ROLE_KEY`, plus the migration `20261122010000_team_secrets.sql`. The `BILLDU_API_KEY` /
-`BILLDU_API_SECRET` below are server-wide: they only serve your own (founder) company and devices that sign in with
-just the access code — never other companies. Details and moving off them: `docs/billdu.md`.
+AI features are switched off. Leave `NEXT_PUBLIC_AI_ENABLED`, `AI_ENABLED`, `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`
+unset in both setups.
 
-## 3. Team access code
-Make one up: a long phrase nobody would guess, e.g. `copper-ladder-91-orchard`.
-Anyone with this code and the server address can use your Billdu and AI from the app, so treat it like a password.
+---
 
-## 4. Deploy on Vercel and add the keys
-1. Go to **vercel.com**, sign in with GitHub.
-2. **Add New → Project**, pick **Ultra-The-Dev/PinPlan**, press **Deploy**. Wait for it to finish (about 2 minutes).
-3. Open the project → **Settings → Environment Variables**. Add these four (Environment: Production):
+# Part A — Hosted service (default)
 
-   | Name | Value |
-   | --- | --- |
-   | `ANTHROPIC_API_KEY` | the `sk-ant-…` key from step 1 |
-   | `BILLDU_API_KEY` | the Billdu API key from step 2 |
-   | `BILLDU_API_SECRET` | the Billdu API secret from step 2 |
-   | `PINPLAN_ACCESS_CODE` | your code from step 3 |
+## A1. Supabase: database, sign-in, files and cloud sync
+1. [supabase.com](https://supabase.com) → **New project** on the **Pro** plan. Pick the region on purpose; it goes into
+   the Privacy Policy (`COMPANY.dataRegion` in `src/lib/legal.ts`). Add point-in-time recovery.
+2. **Run the migrations with the Supabase CLI** (test them first on a local database with
+   `PGPASSWORD=postgres PGHOST=127.0.0.1 PGPORT=54322 PGUSER=postgres bash scripts/test-supabase.sh`):
+   ```
+   supabase login
+   supabase link --project-ref <project-ref>
+   supabase migration list
+   supabase db push
+   ```
+   This runs every file in `supabase/migrations/` in name order, up to `20261124100800_ops_hardening.sql`. The files
+   are safe to run again. Run them **before** deploying new code: `/api/health` answers 503 while the database is
+   behind the code, and the app shows "needs the latest migration" in its sync status.
+3. **Project Settings → API**: copy the **Project URL**, the **anon public** key and the **service_role** key for A4.
+   The service role key stays on the server only.
+4. **Authentication → URL Configuration**:
+   - **Site URL**: `https://<your-domain>`
+   - **Redirect URLs**: `https://<your-domain>/**` (covers `/login?confirmed=1`, `/reset`, `/join` and `/settings`,
+     used by the web app and by the iPad and iPhone app). Remove `localhost`.
+5. **Authentication → Sign In / Providers → Email**: **Confirm email ON** (the email limits depend on it), minimum
+   password length **10**, leaked-password protection on. Turn off anonymous sign-ins.
+6. **Storage**: keep the `plans` bucket private, with a file size limit of at least 25 MB.
+7. **Advisors → Security and Performance**: fix every error and warning.
+8. After the security migration, withdraw and publish again every live client quote link and photo report link, so old
+   links stop working. See [launch-checklist.md](docs/launch-checklist.md) §4 for the billing rows to check
+   (`billing_settings.comp_owner_ids`, `launched_at`, `enforce`).
 
-4. **Deployments →** the latest one **→ ⋯ → Redeploy** (keys only take effect after a redeploy).
-5. Note the address Vercel shows, e.g. `pinplan-abc123.vercel.app`.
-
-## 5. Connect the iPad
-1. Open PinPlan → gear icon (**Settings**) → **PinPlan server**.
-2. Enter the address from step 4.5 and your access code.
-3. Tap **Check connection**. You should see four green checks:
-   Server found · Access code accepted · AI plan reader · Billdu.
-   An orange item tells you exactly which value is missing.
-
-The web app works too: open the same address in Safari, go to **Settings**, enter the access code.
-
-## 6. Cloud sync between iPhone, iPad and the web app (optional)
-Without this, each device keeps its own jobs (move them with **Job → Share backup**). With it, every device
-signed in to the same account sees the same jobs, catalog and products.
-
-1. Create a free project at [supabase.com](https://supabase.com) → **New project**.
-2. In the project: **SQL Editor** → run each file in `supabase/migrations/` in name order (oldest first).
-3. **Project Settings → API**: copy the **Project URL** and the **anon public** key.
-4. In Vercel → **Settings → Environment Variables** add `NEXT_PUBLIC_SUPABASE_URL` (the URL) and
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the anon key), then **Redeploy**. These two are public by design;
-   row-level security keeps each account's data private. Never paste the `service_role` key into the app.
-5. Web app: **Settings → Account** → create an account (confirm the email), then sign in.
-6. iPad / iPhone: **Settings → Cloud sync → Get cloud settings from my PinPlan server** → sign in with the same
-   email and password. The first sync uploads this device's jobs; after that it syncs a few seconds after each change
-   and every minute while the app is open. Works offline; if the same item is edited on two devices, the later edit wins.
-
-## 7. Client proposal links
-Needs step 6 (cloud sync) — make sure you ran every file in `supabase/migrations/`, including
-`20261116000000_proposals.sql`, `20261117000000_fix_project_upsert.sql` and `20261118000000_estimate_line_sort.sql`.
-
-**Not working?** Web app → **Settings → Account → Check cloud setup**. It tests each piece on your Supabase project
-(keys, sign-in, tables, proposal functions, image storage, saving a job) and tells you which file to run if one is missing.
-
-1. Fill in **Settings → Your business** (name, phone, email, terms). The client sees these.
-2. Open a job → **Estimate** → **Client proposal** → **Create proposal link**: add a message, validity, deposit %,
-   choose whether to show every line or section totals, then **Publish**. The link is copied — text or email it.
-3. The client opens it on any phone or computer (no account), ticks any optional add-ons, types their name, signs
-   and taps **Accept** (or declines with a note).
-4. You see *Opened* / *Accepted* / *Declined* on the same card. When accepted, the job turns **Approved** and the
-   add-ons they picked are switched on in the estimate. Then send the deposit invoice with **Send to Billdu**.
-
-Sending an updated proposal withdraws the previous link. You can withdraw a link any time.
-
-## 8. Job photos, checklists, daily logs and photo reports
-Run `supabase/migrations/20261119000000_field_docs.sql` in the Supabase **SQL Editor** (safe to run again).
-It adds the photos, comments, checklists, daily logs and documents tables, plus photo report links.
-Without it, those stay on the device they were made on and **Share link** on a photo report won't work.
-
-- **Photos** tab: take or add photos. Each one records the time, who took it and (if allowed) where.
-  Then mark it up, caption and tag it, link it to a device, pair before/after photos and comment.
-  **AI caption** needs the server's Anthropic key.
-- **Field** tab (web: **Field**): checklists from templates (an item can require a photo), daily logs
-  (with **Draft from photos**), documents and a timeline of everything on the job.
-- **Photo report**: pick photos, then **Download PDF** or **Share link** (the client opens `/r?t=…`, no account).
-- Web header: **Photos** shows every job's photos; **Map** shows jobs placed from photo GPS or the Job tab.
-- To set the name stamped on your photos: on the web, Photos tab → name; on iPad, Photos tab → ⋯ → Your name.
-
-## 9. Team accounts (office staff and technicians)
-Needs step 6 (cloud sync). Everyone gets their own login; everyone on the team works on the owner's jobs and catalog.
-
-| Role | Can do |
-| --- | --- |
-| **Owner** (you) | Everything, including the team. One per company. |
-| **Office / admin** | Everything: estimates, proposals, Billdu, catalog, inviting people. |
-| **Technician** | Field work on every job: plans, devices, photos, checklists, logs and tasks. No prices, estimates, proposals or Billdu, and can't delete jobs. |
-
-1. Supabase **SQL Editor** → run `supabase/migrations/20261120000000_teams.sql` (safe to run again).
-2. Make sign-up painless for workers — pick **one**:
-   - **Recommended:** in Supabase **Project Settings → API**, copy the **service_role** key and add it in Vercel →
-     **Settings → Environment Variables** as `SUPABASE_SERVICE_ROLE_KEY` (Production), then **Redeploy**.
-     Invited workers then get a working login straight away, with no confirmation email. The key stays on the
-     server — never put it in the app, a chat or an email.
-   - Or in Supabase **Authentication → Sign In / Providers → Email**, turn off **Confirm email**.
-   - Otherwise each worker must open Supabase's confirmation email first. Supabase's built-in mailer only sends a
-     few emails an hour, so invites may stall.
-3. Web app → **Settings → Team** → **Start your team** (company name, your name).
-4. **Invite someone** → their name (optional) and role (Technician or Office / admin) → **Create invite**.
-   Send the code with **Share**, **Text it** or **Copy link**. Each code works once, for 14 days; revoke it any time.
-5. The worker opens the link (or goes to `/join` on your PinPlan address and types the code), enters their name,
-   email and a password, and they're in. On the iPad or iPhone they sign in with the same email and password.
-
-Change someone between Technician and Office / admin, or remove them, under **Settings → Team**. Prices are also
-protected in the database and on the server, not just hidden in the app.
-
-## 10. Email (Resend)
-Optional, and off until you set it up. Without it everything works as before (invites go by text or link, and you
-see proposal answers in the app). With it, PinPlan emails:
-- **team invites** (Settings → Team → an invite → **Email invite**),
-- **you, when a client answers** a proposal (accepted / declined) or a plan review (approved / changes requested),
-- a **welcome email** after a company signs up,
-- and Supabase's own **sign-up, sign-in link, password reset and invite** emails, branded, without Supabase's
-  built-in limit of a few emails an hour.
-
-You need your own domain (e.g. `acmelowvoltage.com` or a domain for PinPlan) — email services won't send for
+## A2. Email (Resend)
+PinPlan emails quotes and invoices to clients, team invites, answer notifications, trial and payment reminders, and
+Supabase's own sign-up, sign-in link and password emails. You need your own domain: email services won't send for
 `vercel.app` or a Gmail address.
 
-1. **Resend account**: sign up at [resend.com](https://resend.com).
-2. **Verify your domain**: Resend → **Domains → Add domain**. Use a subdomain such as `mail.yourdomain.com` so your
-   normal mailbox isn't affected. Resend shows DNS records; add each one at your domain registrar (GoDaddy,
-   Namecheap, Cloudflare…), exactly as shown:
-   - **SPF** (a `TXT` record, and an `MX` record for bounces) — says Resend may send for the domain.
-   - **DKIM** (a `TXT` record named like `resend._domainkey`) — signs each email.
-   - **DMARC** (recommended): a `TXT` record named `_dmarc` with value `v=DMARC1; p=none;` to start. Gmail and Yahoo
-     expect one for bulk senders.
-   Press **Verify**. DNS can take from minutes to a few hours; wait until the domain shows **Verified**.
-3. **API key**: Resend → **API Keys → Create API key**, permission **Sending access**, limited to that domain. It
-   starts with `re_` and is shown once. Keep it in your password manager — never paste it into a chat, email or the app.
-4. **Vercel → Settings → Environment Variables** (Production), then **Redeploy**:
+1. Sign up at [resend.com](https://resend.com) (Pro plan).
+2. **Domains → Add domain**: use a subdomain such as `mail.<your-domain>` so your normal mailbox isn't affected. Add
+   each DNS record Resend shows at your DNS host, exactly as shown:
+   - **SPF** (a `TXT` record, and an `MX` record for bounces).
+   - **DKIM** (a `TXT` record named like `resend._domainkey`).
+   - **DMARC**: a `TXT` record named `_dmarc` with `v=DMARC1; p=none; rua=mailto:dmarc-reports@<your-domain>`. Move to
+     `p=quarantine` after 2–4 weeks.
+   Press **Verify** and wait until the domain shows **Verified**.
+3. **API Keys → Create API key**, permission **Sending access**, limited to that domain. It starts with `re_` and is
+   shown once.
+4. In A4 you set `RESEND_API_KEY`, `EMAIL_FROM` (for example `PinPlan <noreply@mail.<your-domain>>`, on the verified
+   domain) and optionally `EMAIL_REPLY_TO` (for example `support@<your-domain>`).
 
-   | Name | Value |
-   | --- | --- |
-   | `RESEND_API_KEY` | the `re_…` key from step 3 |
-   | `EMAIL_FROM` | the sender, e.g. `PinPlan <noreply@mail.yourdomain.com>` (must be on the verified domain) |
-   | `EMAIL_REPLY_TO` | optional: where replies go, e.g. `office@yourdomain.com` |
-   | `PINPLAN_APP_URL` | recommended: your PinPlan address, e.g. `https://app.yourdomain.com`, used for links in emails |
-
-   Proposal-answer and welcome emails also need `SUPABASE_SERVICE_ROLE_KEY` (step 9) and the Supabase migration
-   `supabase/migrations/20261121010000_email.sql` (run it in the **SQL Editor**; safe to run again).
-5. **Check**: open `https://<your address>/api/email/status` — it should say `"configured":true` (and
-   `"notifications":true` when the service key is set). Then Settings → Team → create an invite → **Email invite** to
-   yourself.
+Each company has daily email limits (trial: 20 client emails, 10 invites, 5 to one address; paid: 300 / 50 / 25),
+and client emails need the company's business email (Settings → Company) and a confirmed account.
 
 ### Supabase sign-up and password emails through Resend
-1. Supabase → **Authentication → Emails → SMTP Settings** (older dashboards: Project Settings → Authentication →
-   SMTP) → **Enable custom SMTP**:
+1. Supabase → **Authentication → Emails → SMTP Settings → Enable custom SMTP**:
 
    | Field | Value |
    | --- | --- |
-   | Sender email | `noreply@mail.yourdomain.com` (the verified domain) |
-   | Sender name | `PinPlan` (or your company) |
+   | Sender email | `noreply@mail.<your-domain>` (the verified domain) |
+   | Sender name | `PinPlan` |
    | Host | `smtp.resend.com` |
    | Port | `465` |
    | Username | `resend` |
-   | Password | your Resend API key (typed into Supabase's form directly) |
+   | Password | a Resend API key (typed into Supabase's form directly) |
 
-2. Supabase → **Authentication → Rate Limits**: raise **Rate limit for sending emails** (Supabase keeps it at a few an
-   hour until custom SMTP is on; 30–100 an hour is plenty for a team).
-3. Supabase → **Authentication → Emails → Templates**: for each template, set the subject and paste the HTML from
-   this repo (they keep Supabase's `{{ .ConfirmationURL }}` and `{{ .Email }}` placeholders):
+2. **Authentication → Rate Limits**: raise **Rate limit for sending emails** to 30–100 an hour.
+3. **Authentication → Emails → Templates**: for each template, set the subject and paste the HTML file:
 
    | Template | Subject | File |
    | --- | --- | --- |
    | Confirm signup | Confirm your PinPlan email | `supabase/templates/confirm-signup.html` |
+   | Invite user | You're invited to PinPlan | `supabase/templates/invite.html` |
    | Magic link | Your PinPlan sign-in link | `supabase/templates/magic-link.html` |
    | Reset password | Reset your PinPlan password | `supabase/templates/reset-password.html` |
-   | Invite user | You're invited to PinPlan | `supabase/templates/invite.html` |
+   | Change email address | Confirm your new PinPlan email | `supabase/templates/change-email.html` |
+   | Reauthentication | Your PinPlan confirmation code | `supabase/templates/reauthentication.html` |
 
-4. Supabase → **Authentication → URL Configuration**: set **Site URL** to your PinPlan address so links point there.
+**Not arriving?** Resend → **Emails** lists every send with its status. A `403` there means the key or the sender
+domain is wrong. `https://<your-domain>/api/email/status` should say `"configured":true`.
 
-**Not arriving?** Resend → **Emails** lists every send with its status (delivered, bounced, failed). Check spam once,
-mark it "not spam", and make sure the domain still shows Verified. A `403` in Resend's log means the key or the
-sender domain is wrong.
-## 11. Billing (Stripe)
-Optional: without it PinPlan works as before (self-hosted / founder mode) and the billing buttons say billing isn't
-set up. Needs step 9 (teams): a paying customer is a company team. New teams get a 14-day free trial; teams that
-existed before the billing update are **comped** (free for good, no seat limit, never locked).
+## A3. Billing (Stripe)
+A paying customer is a company. New companies get a 14-day free trial. The base price includes 3 users; each extra
+user is a seat the owner or office adds in **Settings → Plan & billing**. After an unpaid trial ends, or when a subscription is
+cancelled or unpaid, the company becomes **read-only**: everyone can still open and export every job, but changes
+stay on their device until the subscription restarts. Past due keeps working while Stripe retries the card.
 
-How it behaves:
-- **Trial / active / past due**: everything works. Past due keeps working while Stripe retries the card.
-- **Trial ended without paying, canceled, unpaid**: the team is **read-only**: everyone can still open and export
-  every job, but changes stay on their device until the subscription is restarted (the database refuses them).
-- **Seats**: the base price includes 3 users; each extra user is a seat. When all seats are taken, a new invite can't
-  be accepted — the owner presses **Settings → Billing → Add a seat** first (Stripe prorates it). Removing someone
-  gives their seat back. Solo users (not on a team) are never billed or locked.
+Work in **Test mode** first, then repeat steps 1–4 in **Live mode** (test products, prices, webhooks and portal
+settings don't carry over).
 
-1. Supabase **SQL Editor** → run `supabase/migrations/20261121000000_billing.sql` (safe to run again).
-2. Create a Stripe account at stripe.com. Work in **Test mode** first (the toggle at the top of the dashboard).
-3. Stripe → **Product catalog → Add product**, e.g. "PinPlan Team", with **two recurring monthly prices**:
-   - a **flat** price (e.g. $49/month) — the base, which includes 3 users;
-   - a **per-unit** price (e.g. $15/month) — one per extra user.
-   Copy each price's ID (`price_…`). Keep the display prices in `src/lib/plans.ts` in step with these.
-4. Stripe → **Developers → API keys**: copy the **Secret key** (`sk_test_…`).
-5. Stripe → **Developers → Webhooks → Add endpoint**:
-   - URL: `https://<your PinPlan address>/api/billing/webhook`
-   - Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
-     `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`
-   - Copy the endpoint's **Signing secret** (`whsec_…`).
-6. Stripe → **Settings → Billing → Customer portal**: turn on updating payment methods, viewing invoices and
-   cancelling. Leave **changing quantities and switching plans off** (seats are changed from PinPlan). Save.
-   Also in **Settings → Billing → Subscriptions and emails**, turn on Stripe's emails for failed payments and
-   card updates.
-7. Vercel → **Settings → Environment Variables** (Production), then **Redeploy**:
+1. **Product catalog → Add product** (for example "PinPlan Team") with **two recurring monthly USD prices**: a **flat**
+   base price and a **per-unit** price per extra user. Copy each price id (`price_…`). They must match
+   `src/lib/plans.ts`; Settings → Plan & billing shows a warning to the owner when they don't, and
+   `/api/billing/check` lists the differences.
+2. **Developers → Webhooks → Add endpoint**: URL `https://<your-domain>/api/billing/webhook`, events
+   `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`,
+   `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`. Copy the **Signing secret** (`whsec_…`).
+3. **Settings → Billing → Customer portal**: allow updating the payment method, viewing invoices and cancelling at the
+   end of the period. Leave **changing quantities and switching plans off**. In **Subscriptions and emails**: Smart
+   Retries on; after all retries fail, cancel or mark unpaid; turn on the failed-payment and expiring-card emails.
+4. **Settings → Public details**: Terms of Service URL `https://<your-domain>/terms`, Privacy Policy URL
+   `https://<your-domain>/privacy`. Then `STRIPE_TERMS_CONSENT=1` makes customers tick "I agree to the Terms".
+   If you collect sales tax: turn on Stripe Tax, add your registrations, then set `STRIPE_TAX=1`.
+5. **Developers → API keys**: the **Secret key** (`sk_test_…`, later `sk_live_…`).
+6. **Trial and payment reminders** run daily from Vercel Cron (`vercel.json`: `/api/cron/billing-reminders` at 15:17
+   UTC). They need `CRON_SECRET` (A4), Resend (A2) and `billing_settings.enforce = true`.
+7. **Test**: Settings → Plan & billing → start the subscription, pay with `4242 4242 4242 4242`, any future date, any
+   CVC. The status turns **Active**; in Stripe → Webhooks every delivery shows **200**. Try adding a user and
+   **Manage billing**, and cancel from the portal to see the read-only banner.
+8. **Switch billing on** after one real live purchase worked end to end (SQL editor):
+   `update public.billing_settings set enforce = true;` Until then an unpaid trial never locks anyone and no trial
+   reminders are sent.
+
+To give a company free access for good, add its owner's user id to `billing_settings.comp_owner_ids` before they set
+up their company, or set the team's `plan_status` to `comped` in the SQL editor.
+
+## A4. Deploy on Vercel
+1. [vercel.com](https://vercel.com) → **Add New → Project** → import this repository (Pro plan). Keep the build
+   command `npm run build`.
+2. **Settings → Environment Variables → Production**. Required:
 
    | Name | Value |
    | --- | --- |
-   | `STRIPE_SECRET_KEY` | the secret key from step 4 |
-   | `STRIPE_WEBHOOK_SECRET` | the signing secret from step 5 |
-   | `STRIPE_PRICE_BASE` | the flat monthly price ID |
-   | `STRIPE_PRICE_SEAT` | the per-user monthly price ID |
-   | `SUPABASE_SERVICE_ROLE_KEY` | from step 9 (the webhook writes the team's plan with it) |
+   | `PINPLAN_APP_URL` | `https://<your-domain>` |
+   | `NEXT_PUBLIC_SITE_URL` | `https://<your-domain>` |
+   | `NEXT_PUBLIC_SUPABASE_URL` | the Project URL (A1.3) |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon public key (A1.3) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | the service role key (A1.3) |
+   | `PINPLAN_ENCRYPTION_KEY` | `openssl rand -base64 32`; keep a copy in your password manager |
+   | `STRIPE_SECRET_KEY` | A3.5 |
+   | `STRIPE_WEBHOOK_SECRET` | A3.2 |
+   | `STRIPE_PRICE_BASE`, `STRIPE_PRICE_SEAT` | A3.1 |
+   | `STRIPE_TERMS_CONSENT` | `1` (after A3.4) |
+   | `CRON_SECRET` | `openssl rand -hex 32` |
+   | `RESEND_API_KEY`, `EMAIL_FROM` | A2 |
+   | `PLATFORM_ADMIN_EMAILS` | your confirmed account email, for `/admin` |
+   | `NEXT_PUBLIC_MAP_TILE_URL`, `NEXT_PUBLIC_MAP_TILE_KEY`, `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` | A5 |
+   | `NEXT_PUBLIC_WEATHER_URL`, `OPEN_METEO_API_KEY` | A5 |
 
-   These stay on the server. Never put them in the app, a chat, an email or a `NEXT_PUBLIC_` variable.
-8. Test: web app → **Settings → Billing → Start subscription** → pay with card `4242 4242 4242 4242`, any future
-   date, any CVC. Back in PinPlan the status turns **Active** (or **Trial** with the remaining days carried over).
-   In Stripe → **Webhooks** → your endpoint, the deliveries should all show **200**.
-   Try **Add a seat** and **Manage billing & invoices**, and cancel from the portal to see the read-only banner.
+   Optional: `EMAIL_REPLY_TO`, `STRIPE_TAX`, `NEXT_PUBLIC_APP_STORE_URL`, the Turnstile, accounting app and Billdu
+   settings (A6).
 
-**Going live** (test mode → live mode checklist):
-- [ ] Activate the Stripe account (business details, bank account).
-- [ ] Switch to **Live mode** and create the same product and two prices again (test prices don't exist in live mode).
-- [ ] Add the webhook endpoint again in live mode (same URL and events) — it has a new signing secret.
-- [ ] Set up the customer portal again in live mode.
-- [ ] Replace all four `STRIPE_*` variables in Vercel with the live values (`sk_live_…`, new `whsec_…`, live
-      `price_…` IDs), then **Redeploy**.
-- [ ] Make one real subscription with your own card, check the webhook shows 200, then cancel and refund it.
+   **Leave unset** on the hosted service: `PINPLAN_ACCESS_CODE`, `PINPLAN_ALLOW_ACCESS_CODE`, `PINPLAN_ALLOW_OPEN`,
+   `PINPLAN_DATA_DIR`, `CSP_REPORT_ONLY` and the AI settings.
+3. **Settings → Environment Variables**: turn on "Automatically expose System Environment Variables". Set the
+   Functions region near your Supabase region. Turn on Deployment Protection for previews and spend alerts.
+4. **Settings → Domains**: add `<your-domain>`.
+5. **Deployments → ⋯ → Redeploy** after any change: settings only take effect after a redeploy, and `NEXT_PUBLIC_`
+   values are built into the app.
+6. The production build **stops** while `src/lib/legal.ts` or `public/.well-known/security.txt` still has a
+   `[placeholder]` (run `npm run check:legal` locally to list them).
 
-To give a company free access (a friend, a partner), set its row in Supabase **Table Editor → teams** to
-`plan_status = comped` and clear `seat_limit`. Only the server and the dashboard can change billing columns.
-## 12. Public sign-up, sign-in links and account deletion
-New companies sign up at `/signup` (landing page `/welcome`, pricing `/pricing`). Sign-in is `/login`, password
-reset `/reset`, and the first-run checklist `/start`. Supabase's emails (confirm address, sign-in link, reset
-password) only open pages it allows:
+## A5. Map tiles and weather
+- **Map tiles** (jobs map): OpenStreetMap's public tiles aren't allowed for a commercial app. Make an account with
+  MapTiler, Stadia Maps or Mapbox, restrict the browser key to `<your-domain>`, and set `NEXT_PUBLIC_MAP_TILE_URL`
+  (a Leaflet template such as `https://<provider>/{z}/{x}/{y}.png?key={key}`), `NEXT_PUBLIC_MAP_TILE_KEY` and
+  `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION`.
+- **Weather** (daily logs): Open-Meteo's free API is non-commercial only. Buy an Open-Meteo API subscription and set
+  `OPEN_METEO_API_KEY` (server only) and `NEXT_PUBLIC_WEATHER_URL=/api/weather`.
 
-1. Supabase → **Authentication → URL Configuration**.
-2. **Site URL**: your Vercel address, e.g. `https://pinplan-abc123.vercel.app`.
-3. **Redirect URLs**: add each of these (with your address):
-   `https://pinplan-abc123.vercel.app/login`, `https://pinplan-abc123.vercel.app/reset`,
-   `https://pinplan-abc123.vercel.app/settings`, `https://pinplan-abc123.vercel.app/join` (or `https://pinplan-abc123.vercel.app/**`).
-   Add your own domain too if you use one.
-4. **Confirm email** (Authentication → Sign In / Providers → Email) can be on or off. Off: new accounts work straight
-   away. On: the person confirms their address first, and their company is created the first time they sign in on
-   the device they signed up on.
-5. **Delete account** (Settings → Account; required by Apple for apps with sign-up) needs `SUPABASE_SERVICE_ROLE_KEY`
-   on Vercel (step 9). Without it the button explains that deletion isn't switched on and to contact support.
-   Owners must remove their team members first; a member's jobs stay with the company (moved to the owner).
+## A6. Optional services
+- **Bot check (Cloudflare Turnstile, free)**: create a widget for `<your-domain>`. `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+  shows it on web sign-up, sign-in, reset and join and opens the CSP for it; `TURNSTILE_SECRET_KEY` makes
+  `/api/team/join` check it (see the note in launch-checklist.md before setting it). Turn on Supabase
+  **Authentication → Attack Protection → CAPTCHA** only once the iPad and iPhone app sends captcha tokens.
+- **QuickBooks Online and Xero (Beta)**: Export for accountant works without setup. To connect directly, create an
+  Intuit developer app (redirect URI `https://<your-domain>/api/integrations/quickbooks/callback`; set
+  `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`, and `QBO_ENVIRONMENT=sandbox` only with development keys) and/or a Xero app
+  (redirect URI `https://<your-domain>/api/integrations/xero/callback`; set `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`).
+  Until then both show "Not available yet".
+- **Billdu**: each company connects its own Billdu account under **Settings → Connected apps** (an owner or office user
+  pastes the key and secret from Billdu → Settings → API and presses **Test connection**). They are stored encrypted
+  with `PINPLAN_ENCRYPTION_KEY`. Server-wide `BILLDU_API_KEY` / `BILLDU_API_SECRET` serve only your own company, named
+  by `PINPLAN_FOUNDER_TEAM_ID` (its id in the `teams` table). Details: [docs/billdu.md](docs/billdu.md).
 
-## Optional, later
-- `PINPLAN_ENCRYPTION_KEY`: only if you'd rather type the Billdu keys into the web app's Settings than use
-  environment variables (needs Supabase storage on Vercel).
+## A7. The iPad and iPhone app
+The App Store build has the server address built in (the GitHub variable `PINPLAN_SERVER_URL`, see
+[docs/app-store.md](docs/app-store.md)). People sign in with the same email and password as on the web, or sign up in
+the app. Development builds: **Settings → PinPlan server** → `https://<your-domain>` → **Check connection**.
+
+The app needs `https://<your-domain>` to answer `/api/config`, `/terms`, `/privacy`, `/support`, `/reset`, and
+`DELETE /api/account` for account deletion.
+
+## A8. Companies and team members (team accounts)
+Everyone has their own login and belongs to one company. Someone who signs up without an invite sets up their own
+company (company name, their name, trades) and starts the trial.
+
+| Role | Can do |
+| --- | --- |
+| **Owner** | Everything. One per company. |
+| **Office** | All field work, plus pricing, quotes, invoices, price list, connected apps, Plan & billing and inviting people. |
+| **Technician** | Field work on every job: plans, devices, photos, checklists, daily logs and tasks. No prices, quotes or invoices, and can't delete jobs. |
+
+**Settings → Team → Invite someone**: their name and role → send the code by email, text or link. Each code works
+once, for 14 days. The person opens the link (or `/join` and types the code), agrees to the terms and sets a
+password. Change a role or remove someone under **Settings → Team**; prices are protected in the database too.
+
+**Delete account** (Settings → Account) uses `SUPABASE_SERVICE_ROLE_KEY`. Owners remove their team first; a member's
+jobs stay with the company.
+
+## A9. Check it works
+1. `https://<your-domain>/api/health` returns `200` with `"database": "ok"`. A 503 means the database is down, the
+   database is behind the code (run A1.2), or a required setting is missing (the Vercel log names it).
+2. Sign up on a laptop, confirm the email on a phone, sign in with an emailed link, reset a password.
+3. Set up your company in **Settings → Company** (name, phone, email, logo, colours), then **Settings → Quotes &
+   invoices** (tax, payment terms, payment instructions).
+4. Invite a technician by email and have them join on the web and in the app.
+5. Make a quote, **Get client link**, open it signed out and approve it. Send an invoice by email to a Gmail and an
+   Outlook address and check SPF, DKIM and DMARC pass in the message headers.
+6. The full list is in [launch-checklist.md](docs/launch-checklist.md) §11.
+
+---
+
+# Part B — Self-host for one company
+
+For your own crew on your own server, without public sign-up or billing. Skip Stripe, the cron and the email limits.
+
+1. **Without Supabase** the web app runs local-only: each device keeps its own jobs (move them with **Job → Share
+   backup**).
+2. **With Supabase** (recommended, for sync between devices and team logins): follow A1 (any plan), A2 if you want
+   email, and the Supabase and encryption settings from A4. Without Stripe settings nothing is billed or locked.
+   Start your company in **Settings → Team** and invite your crew as in A8.
+3. **Protecting the server.** With Supabase, the server routes need a signed-in user. Without Supabase, set a shared
+   team access code: make up a long phrase nobody would guess and set `PINPLAN_ACCESS_CODE`; each device enters it
+   once in Settings. A production server with neither refuses those routes (503) unless `PINPLAN_ALLOW_OPEN=1` says it
+   is meant to be open; use that only on a private network. To accept the access code alongside Supabase sign-in (for
+   example older iPad builds), set `PINPLAN_ALLOW_ACCESS_CODE=1`. Never use these on a server other companies use.
+4. **Billdu**: set `BILLDU_API_KEY` and `BILLDU_API_SECRET` (Billdu → Settings → API, account owner only). With
+   Supabase, also set `PINPLAN_FOUNDER_TEAM_ID` to your company's id in the `teams` table, or connect Billdu under
+   **Settings → Connected apps** instead.
+5. **Encrypted credentials** need `PINPLAN_ENCRYPTION_KEY`, and either `SUPABASE_SERVICE_ROLE_KEY` (stored in Supabase)
+   or a persistent folder in `PINPLAN_DATA_DIR` (default `./.data`).
+6. **Hosting**: Vercel works as in A4 (use your own domain or the `vercel.app` address), or any Node host with
+   `npm run build` and `npm start`. Redeploy after changing a setting.
+7. **iPad and iPhone**: **Settings → PinPlan server** → your address (and the access code when you use one) →
+   **Check connection**. With Supabase: **Settings → Cloud sync** → sign in with the same email and password.
 
 ## If something's wrong
+- **`/api/health` answers 503**: see A9.1.
 - **"That address isn't a PinPlan server"**: check the address; redeploy if the project is older than this guide.
-- **Access code not accepted**: it must match `PINPLAN_ACCESS_CODE` exactly (case-sensitive); redeploy after changing it.
-- **AI or Billdu orange after adding keys**: you added them but didn't redeploy.
-- **Billdu send fails**: the key/secret must come from the account owner; check them in Billdu → Settings → API.
-
-## Going live as a service
-See [docs/production-checklist.md](docs/production-checklist.md) (legal pages, Supabase/Vercel/Stripe/Apple setup,
-monitoring with `/api/health` and `/admin`, key rotation) and [docs/backups.md](docs/backups.md).
+- **Access code not accepted** (Part B): it must match `PINPLAN_ACCESS_CODE` exactly (case-sensitive), and with
+  Supabase it's ignored unless `PINPLAN_ALLOW_ACCESS_CODE=1`. Redeploy after changing it.
+- **A setting has no effect**: redeploy; `NEXT_PUBLIC_` values only change with a new build.
+- **Billdu send fails**: the key and secret must come from the Billdu account owner (Billdu → Settings → API).
+- **Checkout, billing portal or emails answer 501**: `PINPLAN_APP_URL` or a Stripe or Resend setting is missing.
+- **Settings → Account → Check cloud setup** tests each Supabase piece and names the migration to run if one is missing.

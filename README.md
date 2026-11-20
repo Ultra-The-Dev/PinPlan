@@ -65,3 +65,9 @@ Billdu credentials are encrypted with `PINPLAN_ENCRYPTION_KEY` and never sent to
 
 ## Deploy
 Vercel: import the repo, set the variables above, deploy. On the iPad, open the site in Safari → Share → Add to Home Screen.
+
+### Launching the hosted service
+Follow [docs/launch-checklist.md](docs/launch-checklist.md): the ordered list of what to buy, decide and configure, with
+costs. Every setting is described in [.env.example](.env.example) (the table above is only a summary), the click-by-click
+steps are in [SETUP.md](SETUP.md), and running the live service is in [docs/production-checklist.md](docs/production-checklist.md).
+AI features are off for launch: leave the AI settings unset.
