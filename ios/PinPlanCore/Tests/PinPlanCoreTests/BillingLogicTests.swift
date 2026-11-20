@@ -316,6 +316,8 @@ final class BillingLogicTests: XCTestCase {
         XCTAssertEqual(answer(409, #"{"error":"Remove them first.","code":"team_has_members"}"#), .teamInTheWay(message: "Remove them first."))
         XCTAssertEqual(answer(501, #"{"error":"x","code":"unavailable"}"#), .unavailable)
         XCTAssertEqual(answer(404, "<html>"), .unavailable)
+        XCTAssertEqual(answer(501, #"{"error":"Email support and we'll delete it.","code":"billing_not_configured"}"#),
+                       .failed(message: "Email support and we'll delete it."))
         XCTAssertEqual(answer(401, #"{"error":"Your sign-in has expired.","code":"unauthorized"}"#), .failed(message: "Your sign-in has expired."))
         XCTAssertEqual(answer(502, ""), .failed(message: "The server answered 502. Try again in a moment."))
 

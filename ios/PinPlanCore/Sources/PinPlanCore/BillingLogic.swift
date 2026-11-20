@@ -406,7 +406,7 @@ public enum AccountDeletionResult: Equatable, Sendable {
     case needsEmail(message: String)
     /// The person owns a team that still has other people on it (409).
     case teamInTheWay(message: String)
-    /// Deletion isn't switched on for this server (501 / 404).
+    /// Deletion isn't switched on for this server (501 / 404, except a team subscription that can't be changed).
     case unavailable
     case failed(message: String)
 
@@ -421,7 +421,10 @@ public enum AccountDeletionResult: Equatable, Sendable {
         if code == "reauth_required" || (status == 403 && code == nil) { return .needsEmail(message: message ?? needsEmailFallback) }
         switch status {
         case 409: return .teamInTheWay(message: message ?? "You own a team that still has other people on it. Remove them (or hand the team over) first, then try again.")
-        case 501, 404: return .unavailable
+        case 501, 404:
+            // The team's subscription can't be changed right now: the server says what to do instead.
+            if code == "billing_not_configured", let message { return .failed(message: message) }
+            return .unavailable
         case 401: return .failed(message: message ?? "Your sign-in has expired. Sign in again, then delete the account.")
         default: return .failed(message: message ?? "The server answered \(status). Try again in a moment.")
         }

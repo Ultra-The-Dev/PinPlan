@@ -165,12 +165,19 @@ final class EditorModel {
     /// Why, shown as an alert the first time a change is refused in this job (later attempts get a short toast).
     var readOnlyNotice: String?
     @ObservationIgnored private var toldReadOnly = false
+    /// A change was refused in this turn of the run loop: the caller's own toast ("Added…", "Scale set") is dropped so
+    /// it doesn't claim a change that never happened.
+    @ObservationIgnored private var justRefused = false
 
     /// True (and says why) when changes are refused right now.
     func refuseIfReadOnly() -> Bool {
         guard readOnly else { return false }
+        if !justRefused {
+            justRefused = true
+            Task { @MainActor in self.justRefused = false }
+        }
         if toldReadOnly {
-            say("Read-only — you can view and export, not change")
+            say(Self.readOnlyToast)
         } else {
             toldReadOnly = true
             readOnlyNotice = app.cloud.editBlockedMessage ?? "Jobs are read-only right now — you can still view and export everything."
@@ -227,7 +234,10 @@ final class EditorModel {
         if activeSheetId == nil || !sheets.contains(where: { $0.id == activeSheetId }) { activeSheetId = sheets.first?.id }
     }
 
+    static let readOnlyToast = "Read-only — you can view and export, not change"
+
     func say(_ text: String) {
+        if justRefused && text != Self.readOnlyToast { return }
         toast = text
         let current = text
         Task { @MainActor in
@@ -255,11 +265,12 @@ final class EditorModel {
             guard let t = app.type(typeId) else { return }
             // No room typed in? Use the room name printed on the plan where the device lands.
             let r = room.isEmpty ? (PlanReader.room(atX: x, y: y, details: planDetails[sheet.id] ?? []) ?? "") : room
-            edit { $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if edit({ $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }) {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         case .closet(let kind):
             var newId = ""
-            edit { newId = $0.addCloset(kind: kind, sheetId: sheet.id, x: x, y: y).id }
+            guard edit({ newId = $0.addCloset(kind: kind, sheetId: sheet.id, x: x, y: y).id }) else { return }
             use(.select)
             selection = .closet(newId)
         case .led:
