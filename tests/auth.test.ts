@@ -117,6 +117,9 @@ describe("health endpoint", () => {
     vi.stubEnv("PINPLAN_ACCESS_CODE", "s3cret");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-secret-value");
     vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_value");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_value");
+    vi.stubEnv("STRIPE_PRICE_BASE", "price_base");
+    vi.stubEnv("STRIPE_PRICE_SEAT", "price_seat");
     vi.stubEnv("RESEND_API_KEY", "");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
     const stranger = await GET(get());

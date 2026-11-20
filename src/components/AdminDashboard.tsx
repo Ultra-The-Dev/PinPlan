@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [q, setQ] = useState("");
   const [openError, setOpenError] = useState<string | null>(null);
+  const [errorSource, setErrorSource] = useState<"all" | "server" | "apps">("all");
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -169,12 +170,26 @@ export default function AdminDashboard() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-base font-semibold text-slate-900">Recent app errors</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-slate-900">Recent errors</h2>
+              <div className="flex gap-1" role="group" aria-label="Show errors from">
+                {(["all", "server", "apps"] as const).map((k) => (
+                  <button key={k} type="button" className={`btn btn-sm ${errorSource === k ? "btn-primary" : "btn-ghost"}`} aria-pressed={errorSource === k} onClick={() => setErrorSource(k)}>
+                    {k === "all" ? "All" : k === "server" ? `Server (${state.data.errors.filter((e) => e.platform === "server").length})` : "Apps"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="card divide-y divide-slate-100">
-              {state.data.errors.map((e) => (
+              {state.data.errors
+                .filter((e) => errorSource === "all" || (errorSource === "server") === (e.platform === "server"))
+                .map((e) => (
                 <div key={e.id} className="px-4 py-3 text-sm">
                   <button className="w-full text-left" onClick={() => setOpenError(openError === e.id ? null : e.id)} aria-expanded={openError === e.id}>
-                    <p className="font-mono text-[13px] break-words text-slate-900">{e.message}</p>
+                    <p className="font-mono text-[13px] break-words text-slate-900">
+                      {e.platform === "server" && <span className="chip mr-2 bg-red-50 align-middle font-sans text-red-700 ring-1 ring-red-200">Server</span>}
+                      {e.message}
+                    </p>
                     <p className="mt-1 text-xs text-slate-500">
                       {fmtTime(e.created_at)} · {e.platform ?? "?"} {e.app_version ?? ""} · {e.email ?? "signed out"} · {e.url ?? "—"}
                     </p>

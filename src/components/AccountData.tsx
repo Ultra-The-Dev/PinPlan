@@ -1,7 +1,9 @@
 "use client";
-// Settings › Account: "Export my data" and "Delete account" (required by the App Store for apps with sign-up).
-import { Download, Loader2, Trash2, TriangleAlert, X } from "lucide-react";
+// Settings › Account: "Download all my data", "Export my data" and "Delete account" (required by the App Store for
+// apps with sign-up). Both downloads read this device only, so they keep working while the account is read-only.
+import { Archive, Download, Loader2, Trash2, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { downloadAccountExport } from "@/lib/accountExport";
 import { exportAllBackup } from "@/lib/backup";
 import { clearLocalData } from "@/lib/onboarding";
 import { DELETE_WORD, deleteConfirmed } from "@/lib/onboardingLogic";
@@ -14,6 +16,22 @@ import { toast } from "@/lib/toast";
 export default function AccountData() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [zipping, setZipping] = useState(false);
+  const t = useTeam();
+  // Office roles (and people without a team): the full download includes prices and invoices.
+  const office = t.role !== "tech";
+  const downloadAll = async () => {
+    setZipping(true);
+    try {
+      const team = t.team ? { name: t.team.name, myRole: t.role, members: t.members.map((m) => ({ name: m.name, role: m.role, email: m.email })) } : null;
+      const n = await downloadAccountExport(team);
+      toast(`Downloaded your data (${n} job${n === 1 ? "" : "s"})`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      setZipping(false);
+    }
+  };
   const exportAll = async () => {
     setExporting(true);
     try {
@@ -28,6 +46,17 @@ export default function AccountData() {
   return (
     <div className="space-y-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
       <div className="text-sm font-medium">Your data</div>
+      {office && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="min-w-0 flex-1 text-xs text-slate-500">
+            Everything on this device in one .zip: a backup of every job, all quotes, invoices and payments (also as spreadsheets), your price list,
+            products and company settings. Works offline and when your account is read-only.
+          </span>
+          <button type="button" className="btn btn-sm" disabled={zipping} onClick={() => void downloadAll()}>
+            {zipping ? <Loader2 className="animate-spin" /> : <Archive />} Download all my data
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <span className="min-w-0 flex-1 text-xs text-slate-500">
           Download every job on this device (plans, devices, photos and estimates) as one backup file. Restore it with “Restore backup” on the Projects page.

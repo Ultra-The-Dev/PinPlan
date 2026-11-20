@@ -10,6 +10,7 @@ import { connection } from "next/server";
 import { accountDeletionPlan } from "@/lib/onboardingLogic";
 import type { TeamRole } from "@/lib/teamLogic";
 import { billingConfig, getStripe } from "@/lib/server/billing";
+import { reportServerError } from "@/lib/server/serverErrors";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 const anonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -107,6 +108,7 @@ export async function DELETE(req: Request) {
     return json({ ok: true, deletedTeam: !!plan.deleteTeamId, keptJobsWithTeam: !!plan.transferJobsTo, deletedJobs: plan.transferJobsTo ? 0 : projects.length });
   } catch (e) {
     console.error("[account delete]", e);
+    await reportServerError(e, { where: "account delete", path: "/api/account", method: "DELETE", userId });
     return json({ error: "Your account wasn’t deleted — something went wrong on the server. Try again in a minute, or email support.", code: "upstream" }, 502);
   }
 }
