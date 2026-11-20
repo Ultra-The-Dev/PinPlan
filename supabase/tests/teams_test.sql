@@ -62,7 +62,11 @@ select pg_temp.check((select count(*) from public.estimate_lines where project_i
 select pg_temp.check(pg_temp.fails($$insert into public.estimate_lines (id, project_id, key) values ('tel2', 'tp1', 'custom:x')$$), 'tech cannot write estimate lines');
 select pg_temp.check(pg_temp.fails($$update public.projects set deleted = true where id = 'tp1'$$), 'tech cannot delete a job');
 update public.projects set pricing = '{"markup": 0}', notes = 'gate code 1234' where id = 'tp1';
-select pg_temp.check((select pricing ->> 'markup' from public.projects where id = 'tp1') = '20', 'tech cannot change pricing');
+-- Job pricing lives in project_finance, which technicians can't read (20261124300100_price_split_stale_writes.sql).
+select pg_temp.check((select pricing from public.projects where id = 'tp1') is null, 'tech reads no pricing on the job');
+reset role;
+select pg_temp.check((select pricing ->> 'markup' from public.project_finance where project_id = 'tp1') = '20', 'tech cannot change pricing');
+set role authenticated;
 select pg_temp.check((select notes from public.projects where id = 'tp1') = 'gate code 1234', 'tech can edit job notes');
 select pg_temp.check(pg_temp.fails($$update public.team_members set role = 'admin' where user_id = auth.uid()$$), 'tech cannot promote themselves');
 select pg_temp.check(pg_temp.fails($$update public.team_members set email = 'boss@example.com' where user_id = auth.uid()$$), 'member cannot change their email on the team');

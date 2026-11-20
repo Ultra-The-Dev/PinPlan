@@ -171,7 +171,7 @@ function OtherAccountData({ previous }: { previous: string | null }) {
         >
           {busy ? t("Removing…") : t("Remove and sync")}
         </button>
-        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void signOut()}>
+        <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void signOut({ removeData: false })}>
           {t("Sign out instead")}
         </button>
         <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => setMore((v) => !v)} aria-expanded={more}>

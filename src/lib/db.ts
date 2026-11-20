@@ -241,6 +241,47 @@ export async function saveImage(blob: Blob, width: number, height: number): Prom
   return id;
 }
 
+// ---------------- recently opened jobs ----------------
+// Sync downloads photos, documents and plans only for these (and each job's cover plan for the job list), so a big
+// company's files don't fill a phone that has never opened most of its jobs. Per user: cleared at sign-out.
+
+export const RECENT_JOBS_KEY = "pinplan.recentJobs";
+/** How long an opened job keeps its files downloading. */
+export const RECENT_JOB_MS = 30 * 86_400_000;
+const RECENT_JOBS_MAX = 25;
+
+function readRecentJobs(): Record<string, number> {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_JOBS_KEY) ?? "{}") as unknown;
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** A job was opened on this device (its files are wanted here). */
+export function noteJobOpened(projectId: string, now = Date.now()): void {
+  try {
+    const all = { ...readRecentJobs(), [projectId]: now };
+    const keep = Object.entries(all).sort((a, b) => b[1] - a[1]).slice(0, RECENT_JOBS_MAX);
+    localStorage.setItem(RECENT_JOBS_KEY, JSON.stringify(Object.fromEntries(keep)));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Jobs opened here lately, and when the latest was opened (0 when none). */
+export function recentJobs(now = Date.now()): { ids: Set<string>; lastOpenedAt: number } {
+  const ids = new Set<string>();
+  let lastOpenedAt = 0;
+  for (const [id, at] of Object.entries(readRecentJobs())) {
+    if (typeof at !== "number" || now - at > RECENT_JOB_MS) continue;
+    ids.add(id);
+    lastOpenedAt = Math.max(lastOpenedAt, at);
+  }
+  return { ids, lastOpenedAt };
+}
+
 /** The founder's company details on the founder's own installs and team (comped); nothing for everyone else. */
 export function businessDefaults(s: Pick<AppSettings, "brandDefaults">, founderTeam = isFounderTeam()): BusinessSettings {
   return s.brandDefaults !== "neutral" || founderTeam ? FOUNDER_BUSINESS : NEUTRAL_BUSINESS;

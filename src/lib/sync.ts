@@ -4,11 +4,14 @@
 // (permission, constraint, bad value) is set aside in `syncRefused` so the rest keeps syncing.
 // Pull: fetch rows changed on the server since the last pull (server `synced_at` watermark),
 // last-write-wins by `updatedAt`, written straight into Dexie without re-queuing. Pull runs even when push failed.
+// The server keeps the newer copy too: an older write is ignored there (20261124300100_price_split_stale_writes.sql).
+// Prices live in office-only tables (syncMap PRICE_TABLES): only the office pulls and pushes them; every pull names its
+// columns (never '*'), and the catalog is the billing owner's only.
 // Cost: only visible tabs tick, one tab syncs at a time, the team/billing is re-read every few minutes, and the sweep
 // for files that never arrived runs only after a pull changed something.
 import { create } from "zustand";
 import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
-import { db, type RefusedChange, type SyncItem, type SyncTable } from "./db";
+import { db, recentJobs, RECENT_JOBS_KEY, type RefusedChange, type SyncItem, type SyncTable } from "./db";
 import { reportError } from "./errorReporting";
 import { t } from "./i18n";
 import { adoptLocalData, checkLocalOwner, readLocalOwner, removeLocalData } from "./localOwner";
@@ -16,19 +19,29 @@ import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import {
   dedupeQueue,
   gapTag,
+  isCompanyCatalogRow,
   isRowRefusal,
+  keepLocalPrices,
+  mergePriceRow,
   mergeServerNumber,
   nextPullPage,
+  priceRowFromLocal,
+  priceSelectColumns,
+  priceSpecFor,
   pullStart,
   PUSH_ORDER,
   refusedKey,
   remoteWins,
+  safeUploadType,
   schemaGap,
+  selectColumns,
   TABLES,
   TECH_SKIPPED_TABLES,
   toLocal,
   toRemote,
   withoutColumns,
+  withoutPriceColumns,
+  type PriceSpec,
   type TableSpec,
 } from "./syncMap";
 import { markupsToPush } from "./markups";
@@ -207,7 +220,7 @@ async function push(changed: PullResult): Promise<void> {
     let skipped = false;
     for (let i = 0; i < rows.length && !skipped; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
-      const payload = chunk.map((r) => toRemote(table, r));
+      const payload = chunk.map((r) => remoteRow(table, r, tech));
       const res = await upsertRows(sb, spec, payload);
       if (res.tableGap) {
         skipped = true;
@@ -224,6 +237,8 @@ async function push(changed: PullResult): Promise<void> {
       if (r.tableGap) skipped = true;
     }
     if (skipped) continue;
+    // The office also writes the price tables (the database copies the old price columns too, for older builds).
+    if (!tech) await pushPrices(sb, table, rows.filter((r) => !setAside.has(String(r.id))));
     const gaps = [...(schemaGaps.columns.get(spec.remote) ?? [])];
     if (!gaps.length) {
       await db().syncQueue.bulkDelete(seqsFor(table, handled));
@@ -238,6 +253,25 @@ async function push(changed: PullResult): Promise<void> {
     await db().syncQueue.bulkDelete(seqsFor(table, handled).filter((s) => !latestSeqs.has(s)));
     const tag = gaps.map((c) => gapTag(spec.remote, c)).join(",");
     await db().syncQueue.where("seq").anyOf([...latestSeqs]).modify({ retryWhenColumn: tag });
+  }
+}
+
+/** A local row as sent: a technician's device never sends prices. */
+function remoteRow(table: SyncTable, row: Record<string, unknown>, tech: boolean): Record<string, unknown> {
+  const out = toRemote(table, row);
+  return tech ? withoutPriceColumns(table, out) : out;
+}
+
+/** The office's prices for rows that just went up, into the office-only price tables. A price table the cloud doesn't
+ *  have yet (migration not run) or a refusal is let go: the old price columns carried the same prices. */
+async function pushPrices(sb: Client, table: SyncTable, rows: Record<string, unknown>[]): Promise<void> {
+  const ps = priceSpecFor(table);
+  if (!ps || !rows.length || schemaGaps.tables.has(ps.remote)) return;
+  const spec: TableSpec = { remote: ps.remote, conflict: ps.conflict, columns: {} };
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const res = await upsertRows(sb, spec, rows.slice(i, i + CHUNK).map((r) => priceRowFromLocal(ps, r)));
+    if (res.tableGap) return;
+    if (res.error && !isRowRefusal(res.error, res.status)) throw new Error(`${ps.remote}: ${res.error.message}`);
   }
 }
 
@@ -269,7 +303,7 @@ async function pushOneByOne(sb: Client, table: SyncTable, rows: Record<string, u
   const spec = TABLES[table];
   const setAside: string[] = [];
   for (const row of rows) {
-    const res = await upsertRows(sb, spec, [toRemote(table, row)]);
+    const res = await upsertRows(sb, spec, [remoteRow(table, row, tech)]);
     if (res.tableGap) return { setAside, tableGap: true };
     if (!res.error) {
       await clearRefused(table, [row]);
@@ -299,14 +333,26 @@ async function clearRefused(table: SyncTable, rows: Record<string, unknown>[]) {
 /** Replace the local row with the server's copy. Without one: drop the local row when `removeIfMissing`, else keep it. */
 async function restoreFromServer(sb: Client, table: SyncTable, id: string, changed: PullResult, removeIfMissing: boolean): Promise<void> {
   const spec = TABLES[table];
-  const { data, error } = await sb.from(spec.remote).select("*").eq("id", id).limit(1);
+  const { data, error } = await sb.from(spec.remote).select(selectColumns(table, schemaGaps.columns.get(spec.remote))).eq("id", id).limit(10);
   if (error) throw new Error(`${spec.remote}: ${error.message}`);
-  const raw = (data as Record<string, unknown>[] | null)?.[0];
+  // Catalog rows are per owner: only the company's (the billing owner's) row counts.
+  const owner = await billingOwner(sb);
+  // Whose catalog this is can't be told right now: leave the local row as it is (it is looked at again later).
+  if (!owner && (table === "deviceTypes" || table === "products")) return;
+  const raw = ((data ?? []) as unknown as Record<string, unknown>[]).find((r) => isCompanyCatalogRow(table, r, owner));
   const tbl = db().table(table);
   const have = (await tbl.get(id)) as Record<string, unknown> | undefined;
   if (raw) {
-    const local = toLocal(table, raw);
-    if (table === "sheets" && have?.imageUrl) local.imageUrl = have.imageUrl;
+    let local = localFromRemote(table, raw, have);
+    // The office takes the server's prices too.
+    const ps = priceSpecFor(table);
+    if (ps && officeRole() && !schemaGaps.tables.has(ps.remote)) {
+      let q = sb.from(ps.remote).select(priceSelectColumns(ps)).eq(ps.key, id);
+      if (ps.owned) q = q.eq("owner_id", raw.owner_id);
+      const pr = await q.limit(1);
+      const priceRow = (pr.data as unknown as Record<string, unknown>[] | null)?.[0];
+      if (!pr.error && priceRow) local = mergePriceRow(ps, local, priceRow, { pending: false, billingOwner: owner }) ?? local;
+    }
     await tbl.put(local);
   } else if (removeIfMissing && have) {
     await tbl.delete(id);
@@ -377,7 +423,8 @@ async function pushImage(sb: Client, imageId: string, owners: Map<string, ImageO
     const owner = owners.get(imageId);
     if (!owner) return "waiting";
     const path = `${owner.projectId}/${imageId}`;
-    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, img.blob, { upsert: true, contentType: img.mime || "image/jpeg" });
+    // Only known-safe file types keep their content type: an SVG, HTML or XML file is stored as a plain download.
+    const { error } = await sb.storage.from(PLANS_BUCKET).upload(path, img.blob, { upsert: true, contentType: safeUploadType(img.mime || img.blob.type || "image/jpeg") });
     if (error) return "failed";
     // Only a sheet's current image is named on its row.
     if (owner.sheet) {
@@ -415,8 +462,69 @@ interface FileNeeded {
   width: number;
   height: number;
   mime: string;
+  /** The job the file belongs to (files are downloaded for recently opened jobs only). */
+  projectId: string;
   /** A sheet's plan image (the page showing it refreshes when it arrives). */
   sheetProject?: string;
+}
+
+/** Technicians never pull (or push) prices; the database gives them none anyway. */
+const officeRole = () => useTeam.getState().role !== "tech";
+
+/** The company whose catalog this device uses: the team owner, or the person working alone (my_billing_owner),
+ *  else the cached team owner. */
+let billingOwnerCache: { key: string; owner: string } | null = null;
+async function billingOwner(sb: Client): Promise<string | null> {
+  const userId = useSyncStatus.getState().userId;
+  if (!userId) return null;
+  // Asked again after joining or leaving a team.
+  const key = `${userId}:${useTeam.getState().team?.id ?? ""}`;
+  if (billingOwnerCache?.key === key) return billingOwnerCache.owner;
+  let owner: string | null = null;
+  try {
+    const { data, error } = await sb.rpc("my_billing_owner");
+    if (!error && typeof data === "string" && data) owner = data;
+  } catch {
+    /* offline: fall back to the cached team */
+  }
+  if (owner) {
+    billingOwnerCache = { key, owner };
+    return owner;
+  }
+  // Not cached: the database is asked again next time.
+  const t = useTeam.getState();
+  return t.userId === userId ? (t.team?.ownerId ?? userId) : null;
+}
+
+/** A pulled row as stored here: local-only fields and the prices this device has are kept (the server's are blank). */
+function localFromRemote(table: SyncTable, raw: Record<string, unknown>, have: Record<string, unknown> | undefined): Record<string, unknown> {
+  let local = toLocal(table, raw);
+  // Catalog rows are keyed by (owner, id) on the server.
+  if ((table === "deviceTypes" || table === "products") && typeof raw.owner_id === "string") local.ownerId = raw.owner_id;
+  if (priceSpecFor(table)) local = keepLocalPrices(table, local, have);
+  if (table === "sheets" && have?.imageUrl) local.imageUrl = have.imageUrl;
+  return local;
+}
+
+/** One page of a pull, naming its columns; a column the cloud database doesn't have yet is left out and asked again. */
+async function selectPage(sb: Client, table: SyncTable, cur: { since: string; skip: number }) {
+  const spec = TABLES[table];
+  for (;;) {
+    const res = await sb
+      .from(spec.remote)
+      .select(selectColumns(table, schemaGaps.columns.get(spec.remote)))
+      .gte("synced_at", cur.since)
+      .order("synced_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(cur.skip, cur.skip + PAGE - 1);
+    const gap = schemaGap(res.error);
+    const cols = schemaGaps.columns.get(spec.remote) ?? new Set<string>();
+    if (gap?.kind === "column" && gap.column !== "synced_at" && gap.column !== "id" && !cols.has(gap.column)) {
+      schemaGaps.columns.set(spec.remote, cols.add(gap.column));
+      continue;
+    }
+    return res;
+  }
 }
 
 async function pull(userId: string, changed: PullResult): Promise<void> {
@@ -424,42 +532,41 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
   const changedTables = changed.tables;
   const projectIds = changed.projectIds;
   const filesNeeded: FileNeeded[] = [];
+  const office = officeRole();
+  const owner = await billingOwner(sb);
 
   for (const table of PUSH_ORDER) {
     const spec = TABLES[table];
     if (schemaGaps.tables.has(spec.remote)) continue;
+    // Whose catalog to keep can't be told yet (team not loaded, offline): pull it next time rather than skip its rows
+    // and move the watermark past them for good.
+    if (!owner && (table === "deviceTypes" || table === "products")) continue;
     let cur = { since: pullStart(getWatermark(userId, table)), skip: 0 };
     for (;;) {
-      const { data, error } = await sb
-        .from(spec.remote)
-        .select("*")
-        .gte("synced_at", cur.since)
-        .order("synced_at", { ascending: true })
-        .order("id", { ascending: true })
-        .range(cur.skip, cur.skip + PAGE - 1);
+      const { data, error } = await selectPage(sb, table, cur);
       if (error && schemaGap(error)?.kind === "table") {
         schemaGaps.tables.add(spec.remote);
         break;
       }
       if (error) throw new Error(`pull ${spec.remote}: ${error.message}`);
-      const rows = (data ?? []) as Record<string, unknown>[];
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
       if (!rows.length) break;
+      // Another owner's catalog rows (same ids as the company's) are not this company's catalog.
+      const mine = rows.filter((r) => isCompanyCatalogRow(table, r, owner));
       const tbl = db().table(table);
       const writes: Record<string, unknown>[] = [];
       // Read and write in one transaction so a local edit made meanwhile isn't overwritten by an older remote row.
       await db().transaction("rw", tbl, async () => {
-        const existing = (await tbl.bulkGet(rows.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
-        rows.forEach((raw, i) => {
-          const local = toLocal(table, raw);
+        const existing = (await tbl.bulkGet(mine.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
+        mine.forEach((raw, i) => {
           const have = existing[i];
+          const local = localFromRemote(table, raw, have);
           if (!remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) {
             // The server numbered a document this device issued: take the number even if the device's copy looks newer.
             const merged = table === "salesDocs" ? mergeServerNumber(have, local) : null;
             if (merged) writes.push(merged);
             return;
           }
-          // Keep local-only fields.
-          if (table === "sheets" && have?.imageUrl) local.imageUrl = have.imageUrl;
           writes.push(local);
         });
         if (writes.length) await tbl.bulkPut(writes);
@@ -471,19 +578,19 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
           // A new revision's row can arrive before its image_path moves on: only take a path that names this image.
           if (typeof raw.image_path === "string" && !raw.deleted && raw.image_path.endsWith(`/${raw.image_id}`)) {
             const sheet = toLocal("sheets", raw) as unknown as Sheet;
-            filesNeeded.push({ id: sheet.imageId, path: raw.image_path, width: sheet.width, height: sheet.height, mime: "image/jpeg", sheetProject: sheet.projectId });
+            filesNeeded.push({ id: sheet.imageId, path: raw.image_path, width: sheet.width, height: sheet.height, mime: "image/jpeg", projectId: sheet.projectId, sheetProject: sheet.projectId });
           }
       for (const local of writes) {
         if (typeof local.projectId === "string") projectIds.add(local.projectId);
         if (table === "projects") projectIds.add(local.id as string);
         // Job photos and documents are stored at <project>/<file id>.
         if (table === "photos" && !local.deleted)
-          filesNeeded.push({ id: String(local.imageId), path: `${local.projectId}/${local.imageId}`, width: Number(local.width) || 0, height: Number(local.height) || 0, mime: "image/jpeg" });
+          filesNeeded.push({ id: String(local.imageId), path: `${local.projectId}/${local.imageId}`, width: Number(local.width) || 0, height: Number(local.height) || 0, mime: "image/jpeg", projectId: String(local.projectId) });
         if (table === "documents" && !local.deleted)
-          filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream") });
+          filesNeeded.push({ id: String(local.fileId), path: `${local.projectId}/${local.fileId}`, width: 0, height: 0, mime: String(local.mime || "application/octet-stream"), projectId: String(local.projectId) });
         // Daily report signatures are stored at <project>/<image id> too.
         const sig = table === "jobLogs" && !local.deleted ? (local as unknown as JobLog).report?.signature?.imageId : null;
-        if (sig) filesNeeded.push({ id: sig, path: `${local.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg" });
+        if (sig) filesNeeded.push({ id: sig, path: `${local.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg", projectId: String(local.projectId) });
       }
       if (writes.length) changedTables.add(table);
       const next = nextPullPage(cur, rows, PAGE);
@@ -492,60 +599,157 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
       if (!(Date.parse(cur.since) < Date.parse(getWatermark(userId, table)))) setWatermark(userId, table, cur.since);
       if (next.done) break;
     }
+    // The office's prices for what was just pulled (office-only tables; a technician's device never asks).
+    const ps = priceSpecFor(table);
+    if (ps && office) await pullPrices(sb, userId, ps, owner, changed);
   }
 
-  // Files that weren't uploaded yet the last time they were looked at: swept on the first sync of the page and then
-  // only after a pull changed rows, at most every few minutes (reading every job's rows each tick costs too much).
-  if (lastSweepAt === 0 || (changedTables.size > 0 && Date.now() - lastSweepAt > SWEEP_MS)) {
+  // Files that weren't uploaded yet the last time they were looked at: swept on the first sync of the page, after a
+  // job was opened, and after a pull changed rows, at most every few minutes (reading every job's rows costs too much).
+  const recent = recentJobs();
+  if (lastSweepAt === 0 || recent.lastOpenedAt > lastSweepAt || (changedTables.size > 0 && Date.now() - lastSweepAt > SWEEP_MS)) {
     lastSweepAt = Date.now();
     filesNeeded.push(...(await missingFileCandidates()));
   }
-  await downloadFiles(sb, filesNeeded, changed);
+  await downloadFiles(sb, filesNeeded, changed, recent.ids);
+}
+
+/** Pull one price table and put the prices on the local rows they belong to. */
+async function pullPrices(sb: Client, userId: string, ps: PriceSpec, owner: string | null, changed: PullResult): Promise<void> {
+  if (schemaGaps.tables.has(ps.remote)) return;
+  const wm = `prices.${ps.remote}`;
+  let cur = { since: pullStart(getWatermark(userId, wm)), skip: 0 };
+  for (;;) {
+    const { data, error } = await sb
+      .from(ps.remote)
+      .select(priceSelectColumns(ps))
+      .gte("synced_at", cur.since)
+      .order("synced_at", { ascending: true })
+      .order(ps.key, { ascending: true })
+      .range(cur.skip, cur.skip + PAGE - 1);
+    if (error && schemaGap(error)?.kind === "table") {
+      // Migration 20261124300100 not run yet: the old price columns still carry the prices (pushed above).
+      schemaGaps.tables.add(ps.remote);
+      return;
+    }
+    if (error) throw new Error(`pull ${ps.remote}: ${error.message}`);
+    const rows = (data ?? []) as unknown as Record<string, unknown>[];
+    if (!rows.length) return;
+    const d = db();
+    const tbl = d.table(ps.parent);
+    const writes: Record<string, unknown>[] = [];
+    await d.transaction("rw", tbl, d.syncQueue, async () => {
+      const ids = rows.map((r) => String(r[ps.key]));
+      const existing = (await tbl.bulkGet(ids)) as (Record<string, unknown> | undefined)[];
+      // A local edit still waiting to go up carries its own prices.
+      const queued = new Set((await d.syncQueue.where("rowId").anyOf(ids).toArray()).filter((q) => q.table === ps.parent).map((q) => q.rowId));
+      rows.forEach((raw, i) => {
+        const merged = mergePriceRow(ps, existing[i], raw, { pending: queued.has(ids[i]), billingOwner: owner });
+        if (merged) writes.push(merged);
+      });
+      if (writes.length) await tbl.bulkPut(writes);
+    });
+    if (writes.length) {
+      changed.tables.add(ps.parent);
+      for (const w of writes) {
+        if (typeof w.projectId === "string") changed.projectIds.add(w.projectId);
+        if (ps.parent === "projects") changed.projectIds.add(String(w.id));
+      }
+    }
+    const next = nextPullPage(cur, rows, PAGE);
+    cur = { since: next.since, skip: next.skip };
+    if (!(Date.parse(cur.since) < Date.parse(getWatermark(userId, wm)))) setWatermark(userId, wm, cur.since);
+    if (next.done) return;
+  }
 }
 
 /** Every file a live row on this device points at (the download step skips the ones already here). */
 async function missingFileCandidates(): Promise<FileNeeded[]> {
   const d = db();
   const out: FileNeeded[] = [];
-  for (const p of await d.photos.filter((x) => !x.deleted).toArray()) out.push({ id: p.imageId, path: `${p.projectId}/${p.imageId}`, width: p.width, height: p.height, mime: "image/jpeg" });
-  for (const doc of await d.documents.filter((x) => !x.deleted).toArray()) out.push({ id: doc.fileId, path: `${doc.projectId}/${doc.fileId}`, width: 0, height: 0, mime: doc.mime });
+  for (const p of await d.photos.filter((x) => !x.deleted).toArray()) out.push({ id: p.imageId, path: `${p.projectId}/${p.imageId}`, width: p.width, height: p.height, mime: "image/jpeg", projectId: p.projectId });
+  for (const doc of await d.documents.filter((x) => !x.deleted).toArray()) out.push({ id: doc.fileId, path: `${doc.projectId}/${doc.fileId}`, width: 0, height: 0, mime: doc.mime, projectId: doc.projectId });
   // Plan images whose download failed earlier (a pulled sheet is only looked at again when its row changes).
   for (const sh of await d.sheets.filter((x) => !x.deleted && !!x.imageId).toArray())
-    out.push({ id: sh.imageId, path: `${sh.projectId}/${sh.imageId}`, width: sh.width, height: sh.height, mime: "image/jpeg", sheetProject: sh.projectId });
+    out.push({ id: sh.imageId, path: `${sh.projectId}/${sh.imageId}`, width: sh.width, height: sh.height, mime: "image/jpeg", projectId: sh.projectId, sheetProject: sh.projectId });
   // Device photos (marker.photoId) are uploaded to <project>/<image id> too.
-  for (const m of await d.markers.filter((x) => !x.deleted && !!x.photoId).toArray()) out.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg" });
+  for (const m of await d.markers.filter((x) => !x.deleted && !!x.photoId).toArray()) out.push({ id: m.photoId!, path: `${m.projectId}/${m.photoId}`, width: 0, height: 0, mime: "image/jpeg", projectId: m.projectId });
   // Daily report signatures.
   for (const l of await d.jobLogs.filter((x) => !x.deleted && !!x.report?.signature?.imageId).toArray()) {
     const sig = l.report!.signature!.imageId;
-    out.push({ id: sig, path: `${l.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg" });
+    out.push({ id: sig, path: `${l.projectId}/${sig}`, width: 0, height: 0, mime: "image/jpeg", projectId: l.projectId });
   }
   // Change order signatures (uploaded by the client link's server route, or by the device that took them).
   for (const c of await d.changeOrders.filter((x) => !x.deleted && !!x.signatureImageId).toArray())
-    out.push({ id: c.signatureImageId!, path: `${c.projectId}/${c.signatureImageId}`, width: 0, height: 0, mime: "image/png" });
+    out.push({ id: c.signatureImageId!, path: `${c.projectId}/${c.signatureImageId}`, width: 0, height: 0, mime: "image/png", projectId: c.projectId });
   // Form signatures (PNG).
   for (const f of await d.forms.filter((x) => !x.deleted && !!x.signatures?.length).toArray())
-    for (const sg of f.signatures ?? []) if (sg.imageId) out.push({ id: sg.imageId, path: `${f.projectId}/${sg.imageId}`, width: 0, height: 0, mime: "image/png" });
+    for (const sg of f.signatures ?? []) if (sg.imageId) out.push({ id: sg.imageId, path: `${f.projectId}/${sg.imageId}`, width: 0, height: 0, mime: "image/png", projectId: f.projectId });
   return out;
 }
 
-/** Download the files not on this device yet (a few per sync; the rest wait for a later one). */
-async function downloadFiles(sb: Client, files: FileNeeded[], changed: PullResult): Promise<void> {
+/** Each job's cover plan (the first sheet), shown on the job list: downloaded for every job. */
+async function coverImageIds(): Promise<Set<string>> {
+  const first = new Map<string, { order: number; imageId: string }>();
+  for (const s of await db().sheets.filter((x) => !x.deleted && !!x.imageId).toArray()) {
+    const cur = first.get(s.projectId);
+    if (!cur || s.order < cur.order) first.set(s.projectId, { order: s.order, imageId: s.imageId });
+  }
+  return new Set([...first.values()].map((v) => v.imageId));
+}
+
+const STORAGE_FULL_MESSAGE = "This device's storage is full: some plans and photos weren't downloaded. Free up space, or remove jobs you don't need here.";
+/** A download ran out of space on this device: shown on the sync badge until a later sync gets everything in. */
+let storageFull = false;
+
+function isQuotaError(e: unknown): boolean {
+  const err = e as { name?: string; message?: string; inner?: { name?: string } } | null;
+  return err?.name === "QuotaExceededError" || err?.inner?.name === "QuotaExceededError" || /quota/i.test(err?.message ?? "");
+}
+
+/**
+ * Download the files not on this device yet (a few per sync; the rest wait for a later one): only for jobs opened here
+ * lately (`recent`), plus every job's cover plan for the job list. A file that fails is retried later; when the device
+ * is out of space, downloading stops for this sync and the badge says so; the sync itself carries on.
+ */
+async function downloadFiles(sb: Client, files: FileNeeded[], changed: PullResult, recent: Set<string>): Promise<void> {
+  if (!files.length) {
+    storageFull = false;
+    return;
+  }
+  const covers = await coverImageIds();
   const byId = new Map<string, FileNeeded>();
-  for (const f of files) if (f.id && !byId.has(f.id)) byId.set(f.id, f);
-  if (!byId.size) return;
+  for (const f of files) if (f.id && !byId.has(f.id) && (recent.has(f.projectId) || covers.has(f.id))) byId.set(f.id, f);
+  if (!byId.size) {
+    storageFull = false;
+    return;
+  }
   const have = new Set((await db().images.where(":id").anyOf([...byId.keys()]).primaryKeys()) as string[]);
   let tries = 0;
+  let full = false;
   for (const f of byId.values()) {
     if (have.has(f.id)) continue;
     if (++tries > 40) break;
-    const { data, error } = await sb.storage.from(PLANS_BUCKET).download(f.path);
-    if (error || !data) continue; // may still be uploading from the other device; retried later
-    await db().images.put({ id: f.id, blob: data, width: f.width, height: f.height, mime: data.type || f.mime });
-    if (f.sheetProject) {
-      changed.tables.add("sheets");
-      changed.projectIds.add(f.sheetProject);
+    try {
+      const { data, error } = await sb.storage.from(PLANS_BUCKET).download(f.path);
+      if (error || !data) continue; // may still be uploading from the other device; retried later
+      // Stored as a plain download (not a safe type) on the server: keep the type the row says.
+      const mime = data.type && data.type !== "application/octet-stream" ? data.type : f.mime;
+      await db().images.put({ id: f.id, blob: data, width: f.width, height: f.height, mime });
+      if (f.sheetProject) {
+        changed.tables.add("sheets");
+        changed.projectIds.add(f.sheetProject);
+      }
+    } catch (e) {
+      if (isQuotaError(e)) {
+        full = true;
+        break;
+      }
+      // Anything else (a dropped connection, a bad file): this one waits for a later sync.
     }
   }
+  if (full && !storageFull) toast(STORAGE_FULL_MESSAGE, "error");
+  storageFull = full;
 }
 
 /** A note for the sync badge when the cloud database is behind the app (its rows stay queued, nothing is lost). */
@@ -611,10 +815,39 @@ export function keepPreviousAccountData(): void {
   void runSync(true);
 }
 
-/** Sign out; optionally also remove this device's jobs, photos and settings (then the page reloads). */
+/** Per-user keys that never outlive a sign-in (an invite or company sign-up waiting for this person, their company's
+ *  settings marks, billing cache, recently opened jobs…). `pinplan.team` and `pinplan.localOwner` stay: they say whose
+ *  jobs are on this device (the owner check on the next sign-in), and pull watermarks are per user id. */
+export const SIGN_OUT_KEYS = ["pinplan.pendingInvite", "pinplan.pendingCompany", "pinplan.companySettings", "pinplan.soloBilling", RECENT_JOBS_KEY, "pinplan.author", "pinplan.errorReports", "pinplan.exportAccounts"];
+
+function clearSignedInKeys(): void {
+  try {
+    for (const k of SIGN_OUT_KEYS) localStorage.removeItem(k);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Changes on this device the cloud doesn't have yet (queued or refused). */
+async function unsyncedCount(): Promise<number> {
+  try {
+    const [queued, refused] = await Promise.all([db().syncQueue.count(), db().syncRefused.count()]);
+    return queued + refused;
+  } catch {
+    return 1; // can't tell: keep the data
+  }
+}
+
+/**
+ * Sign out. `removeData`: also remove this device's jobs, photos and settings (then the page reloads). Not given: they
+ * are removed when everything here is already in the cloud, and kept when changes still wait to sync.
+ */
 export async function signOut(opts: { removeData?: boolean } = {}): Promise<void> {
+  const removeData = opts.removeData ?? (await unsyncedCount()) === 0;
   await getSupabase()?.auth.signOut();
-  if (!opts.removeData) return;
+  billingOwnerCache = null;
+  clearSignedInKeys();
+  if (!removeData) return;
   await clearLocalData();
   window.location.reload();
 }
@@ -629,8 +862,23 @@ async function checkOwner(userId: string, email: string | null): Promise<boolean
 
 // ---------------- orchestration ----------------
 
+/** A sync that hasn't finished by then gives up its place (and the lock), so the next one can start. */
+export const SYNC_TIME_LIMIT_MS = 5 * 60_000;
+let syncTimeLimitMs = SYNC_TIME_LIMIT_MS;
+
+/** Resolves with `p`, or rejects after `ms` (the work itself carries on; nothing waits for it any more). */
+function withTimeLimit(p: Promise<void>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<void>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Sync took longer than ${Math.round(ms / 60_000)} minutes; it will try again.`)), ms);
+  });
+  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
+}
+
 async function runSync(force = false): Promise<void> {
-  if (running) return running;
+  // "Sync now" while a background sync runs: run again once it is done (the running one may have started before the
+  // change the person wants sent, or given way to another tab's lock).
+  if (running) return force ? running.catch(() => undefined).then(() => runSync(true)) : running;
   running = (async () => {
     await refreshPending();
     const sb = getSupabase();
@@ -645,7 +893,11 @@ async function runSync(force = false): Promise<void> {
     if (ownerCheckedFor !== st.userId || st.ownerMismatch) return;
     if (!force && Date.now() < nextAttemptAt) return;
     const userId = st.userId;
-    await withSyncLock(force, () => syncOnce(userId, force));
+    await withSyncLock(force, () =>
+      withTimeLimit(syncOnce(userId, force), syncTimeLimitMs).catch((e) => {
+        setStatus({ syncing: false, error: e instanceof Error ? e.message : String(e) });
+      }),
+    );
   })().finally(() => {
     running = null;
   });
@@ -705,7 +957,7 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
       schemaReported = true;
       reportError(new Error(warning), "manual", { area: "sync", kind: "schema" });
     }
-    setStatus({ lastSyncAt: new Date().toISOString(), error: warning, readOnly });
+    setStatus({ lastSyncAt: new Date().toISOString(), error: warning ?? (storageFull ? STORAGE_FULL_MESSAGE : null), readOnly });
   } catch (e) {
     failures += 1;
     nextAttemptAt = Date.now() + Math.min(5 * 60_000, 5_000 * 2 ** failures);
@@ -794,6 +1046,8 @@ export function startSync(): () => void {
     const afterSignIn = (u: { id: string; email?: string | null } | undefined) => {
       void loadTeam(u?.id ?? null).then(() => (u ? finishPendingInvite() : null)).then(joined).then(() => (u ? finishPendingCompany(u.email ?? null) : null)).then(companyReady).catch(() => undefined);
       if (!u) return;
+      // Ask the browser not to clear this site's storage under pressure: unsynced jobs and plans live there.
+      void navigator.storage?.persist?.().catch(() => false);
       void checkOwner(u.id, u.email ?? null)
         .then((ok) => (ok ? runSync(true) : undefined))
         .catch(() => undefined);
@@ -855,4 +1109,12 @@ export function __resetSyncForTests(): void {
   imageBackoff.clear();
   lastSweepAt = 0;
   ownerCheckedFor = null;
+  billingOwnerCache = null;
+  storageFull = false;
+  syncTimeLimitMs = SYNC_TIME_LIMIT_MS;
+}
+
+/** Test hook: a shorter overall time limit for one sync. */
+export function __setSyncTimeLimitForTests(ms: number): void {
+  syncTimeLimitMs = ms;
 }
