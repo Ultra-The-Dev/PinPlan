@@ -26,7 +26,7 @@ jobs:
     env:
       PINPLAN_SERVER_URL: ${{ inputs.server_url || vars.PINPLAN_SERVER_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
@@ -48,11 +48,11 @@ jobs:
           cp -R build/Build/Products/Release-iphoneos/PinPlan.app ipa/Payload/
           cd ipa && zip -qry ../PinPlan.ipa Payload && cd ..
           ls -la PinPlan.ipa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: PinPlan-ipa
           path: ios/PinPlan.ipa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ipa-build-log
