@@ -12,8 +12,8 @@ const SECTIONS = [
 ];
 
 export default function PriceListNav() {
-  const path = usePathname();
   const t = useT();
+  const path = usePathname();
   return (
     <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
       <span className="text-sm font-semibold text-slate-900">{t("Price list")}</span>

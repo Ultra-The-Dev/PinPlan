@@ -286,10 +286,8 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
                 <input id="set-markup-on-materials" className="input" type="number" step="0.1" value={p.markupPct} onChange={(e) => setP("markupPct", Number(e.target.value) || 0)} />
               </div>
               <div>
-                <label className="label" htmlFor="set-sales-tax">Sales tax %</label>
-                <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", roundPct(Number(e.target.value) || 0))} />
                 <label className="label" htmlFor="set-sales-tax">{t("Sales tax %")}</label>
-                <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
+                <input id="set-sales-tax" className="input" type="number" step="0.001" value={p.taxPct} onChange={(e) => setP("taxPct", roundPct(Number(e.target.value) || 0))} />
               </div>
               <div>
                 <label className="label" htmlFor="set-currency">{t("Currency")}</label>

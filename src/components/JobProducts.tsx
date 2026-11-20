@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { formatMoney } from "@/lib/estimate";
+import { useT } from "@/lib/i18n";
 import { cableKey, productTitle, withProductChoice } from "@/lib/products";
 import { useEditor } from "@/lib/store";
 import { wireColor } from "@/lib/symbols";
@@ -17,6 +18,7 @@ import { jobPriceSources, productJobPrice, type PriceSource } from "./products/p
 const NEW = "__new__";
 
 export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pricing: PricingSettings }) {
+  const t = useT();
   const total = takeoff.total;
   const project = useEditor((s) => s.project);
   const catalog = useEditor((s) => s.catalog);
@@ -32,8 +34,8 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
 
   const cur = pricing.currency;
   const noProduct = (p: PriceSource | undefined, fallback: number, per = "") => {
-    const { price, source } = p ?? { price: fallback, source: fallback ? "price list" : "no price yet" };
-    return `No product · ${formatMoney(price, cur)}${per} (${source})`;
+    const { price, source } = p ?? { price: fallback, source: fallback ? t("price list") : t("no price yet") };
+    return t("No product · {price} ({source})", { price: `${formatMoney(price, cur)}${per}`, source });
   };
   const choose = (key: string, productId: string | null) => updateProject({ productChoices: withProductChoice(project, key, productId) });
   const rows = [
@@ -53,8 +55,8 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
       .sort()
       .map((w) => ({
         key: cableKey(w),
-        name: `${w} cable`,
-        qty: `${total.wireFt[w]} ft`,
+        name: t("{wire} cable", { wire: w }),
+        qty: t("{n} ft", { n: total.wireFt[w] }),
         icon: <span className="block h-1 w-5 rounded" style={{ background: wireColor(w) }} />,
         fallback: noProduct(prices.get(cableKey(w)), pricing.wirePrices[w] ?? 0, "/ft"),
         per: "/ft",
@@ -66,14 +68,14 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
     <section className="card p-4">
       <div className="mb-1 flex items-center gap-2">
         <Tags className="h-4 w-4 text-slate-500" />
-        <h3 className="font-semibold">Products for this job</h3>
+        <h3 className="font-semibold">{t("Products for this job")}</h3>
         <Link href="/products" className="ml-auto text-sm font-medium text-brand-600 hover:underline">
-          Product library
+          {t("Product library")}
         </Link>
       </div>
-      <p className="mb-3 text-sm text-slate-500">Choose the brand and model for each item. With no product, an item uses the price shown, the same as in the table below. A single device can use another product from its inspector on the plan.</p>
+      <p className="mb-3 text-sm text-slate-500">{t("Choose the brand and model for each item. With no product, an item uses the price shown, the same as in the table below. A single device can use another product from its inspector on the plan.")}</p>
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-400">Place devices or draw home runs to choose products.</p>
+        <p className="text-sm text-slate-400">{t("Place devices or draw home runs to choose products.")}</p>
       ) : (
         <div className="divide-y divide-slate-100">
           {rows.map((r) => {
@@ -87,11 +89,11 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
                   <div className="truncate text-sm font-medium">{r.name}</div>
                   <div className="text-xs text-slate-400">
                     {r.qty}
-                    {r.overrides ? ` · ${r.overrides} with their own product` : ""}
+                    {r.overrides ? ` · ${t.tn("{n} with its own product", "{n} with their own product", r.overrides)}` : ""}
                   </div>
                 </div>
                 <select
-                  aria-label={`Product for ${r.name}`}
+                  aria-label={t("Product for {name}", { name: r.name })}
                   className="input h-9 w-full sm:w-72"
                   value={valid ? chosen : ""}
                   onChange={(e) => {
@@ -106,7 +108,7 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
                       {r.per}
                     </option>
                   ))}
-                  <option value={NEW}>+ New product…</option>
+                  <option value={NEW}>{t("+ New product…")}</option>
                 </select>
               </div>
             );

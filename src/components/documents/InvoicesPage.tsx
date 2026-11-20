@@ -26,6 +26,7 @@ import {
   type AgingBucket,
 } from "@/lib/documents";
 import { downloadText } from "@/lib/download";
+import { msg, useT } from "@/lib/i18n";
 import { SYNCED_EVENT } from "@/lib/sync";
 import type { DocKind, Project, SalesDoc } from "@/lib/types";
 import { KindChip, Modal, StatusChip } from "./ui";
@@ -33,14 +34,15 @@ import ExportForAccountant from "../integrations/ExportForAccountant";
 
 type View = "unpaid" | "overdue" | "paid" | "drafts" | "all";
 const VIEWS: { id: View; label: string }[] = [
-  { id: "unpaid", label: "Unpaid" },
-  { id: "overdue", label: "Overdue" },
-  { id: "paid", label: "Paid" },
-  { id: "drafts", label: "Drafts" },
-  { id: "all", label: "All" },
+  { id: "unpaid", label: msg("Unpaid") },
+  { id: "overdue", label: msg("Overdue") },
+  { id: "paid", label: msg("Paid") },
+  { id: "drafts", label: msg("Drafts") },
+  { id: "all", label: msg("All") },
 ];
 
 export default function InvoicesPage() {
+  const t = useT();
   const router = useRouter();
   const ds = useDocSettings();
   const { docs, payments } = useAllDocs();
@@ -65,10 +67,10 @@ export default function InvoicesPage() {
         .projects.toArray()
         .then((ps) => setProjects(ps.filter((p) => !p.deleted)));
     };
-    const t = window.setTimeout(load, 0);
+    const timer = window.setTimeout(load, 0);
     window.addEventListener(SYNCED_EVENT, load);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       window.removeEventListener(SYNCED_EVENT, load);
     };
   }, []);
@@ -77,7 +79,7 @@ export default function InvoicesPage() {
   const all = useMemo(() => (docs ?? []).filter((d) => byProject.has(d.projectId)), [docs, byProject]);
   const directory = useMemo(() => clientDirectory(projects ?? [], all), [projects, all]);
 
-  if (!ds || docs === null || projects === null || !day) return <p className="p-6 text-slate-500">Loading…</p>;
+  if (!ds || docs === null || projects === null || !day) return <p className="p-6 text-slate-500">{t("Loading…")}</p>;
   const money = (n: number) => formatDocMoney(n, ds.currency, ds.locale);
 
   const r = receivables(all, payments, day);
@@ -145,33 +147,33 @@ export default function InvoicesPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Money</h1>
-          <p className="mt-1 text-sm text-slate-500">Every quote, invoice and credit note across your jobs.</p>
+          <h1 className="page-title">{t("Money")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t("Every quote, invoice and credit note across your jobs.")}</p>
         </div>
         <button className="btn" onClick={() => downloadText(documentsCsv(rows, byProject, day), `pinplan-documents-${day}.csv`)}>
           <Download /> CSV
         </button>
         <button className="btn" onClick={() => downloadText(paymentsCsv(payments.filter((p) => byProject.has(p.projectId)), new Map(all.map((d) => [d.id, d]))), `pinplan-payments-${day}.csv`)}>
-          <Download /> Payments CSV
+          <Download /> {t("Payments CSV")}
         </button>
         <ExportForAccountant docs={all} payments={payments.filter((p) => byProject.has(p.projectId))} />
         <button className="btn btn-brand" onClick={() => setPicking(true)}>
-          <FilePlus2 /> New invoice
+          <FilePlus2 /> {t("New invoice")}
         </button>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Unpaid" value={money(r.outstanding)} onClick={() => show("unpaid")} />
-        <Stat label="Overdue" value={money(r.overdue)} tone={r.overdue > 0 ? "red" : undefined} onClick={() => show("overdue")} />
-        <Stat label="Paid this month" value={money(r.paidThisMonth)} tone="green" onClick={() => show("paid")} />
-        <Stat label="Draft invoices" value={money(r.drafts)} onClick={() => show("drafts")} />
+        <Stat label={t("Unpaid")} value={money(r.outstanding)} onClick={() => show("unpaid")} />
+        <Stat label={t("Overdue")} value={money(r.overdue)} tone={r.overdue > 0 ? "red" : undefined} onClick={() => show("overdue")} />
+        <Stat label={t("Paid this month")} value={money(r.paidThisMonth)} tone="green" onClick={() => show("paid")} />
+        <Stat label={t("Draft invoices")} value={money(r.drafts)} onClick={() => show("drafts")} />
       </div>
 
-      <details className="card group mb-4" aria-label="Aging details">
+      <details className="card group mb-4" aria-label={t("Aging details")}>
         <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
           <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-          Aging details
-          <span className="ml-auto text-xs font-normal text-slate-500">how late unpaid invoices are · {money(ag.total)}</span>
+          {t("Aging details")}
+          <span className="ml-auto text-xs font-normal text-slate-500">{t("how late unpaid invoices are · {amount}", { amount: money(ag.total) })}</span>
         </summary>
         <div className="border-t border-slate-100 p-4">
           <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
@@ -188,7 +190,7 @@ export default function InvoicesPage() {
                   setView("unpaid");
                 }}
               >
-                <div className="text-xs text-slate-500">{b === "current" ? "Not due yet" : `${AGING_LABELS[b]} late`}</div>
+                <div className="text-xs text-slate-500">{b === "current" ? t("Not due yet") : t("{range} late", { range: t(AGING_LABELS[b]) })}</div>
                 <div className="font-semibold tabular-nums">{money(ag[b])}</div>
               </button>
             ))}
@@ -205,29 +207,29 @@ export default function InvoicesPage() {
             setBucket(null);
           }}
         >
-          <Bell className="h-4 w-4" /> {due.length} invoice{due.length > 1 ? "s are" : " is"} due for a payment reminder — show {due.length > 1 ? "them" : "it"}
+          <Bell className="h-4 w-4" /> {t.tn("{n} invoice is due for a payment reminder — show it", "{n} invoices are due for a payment reminder — show them", due.length)}
         </button>
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="seg max-w-full overflow-x-auto" role="group" aria-label="Show">
+        <div className="seg max-w-full overflow-x-auto" role="group" aria-label={t("Show")}>
           {VIEWS.map((v) => (
             <button key={v.id} className={`tab ${view === v.id ? "tab-active" : ""}`} aria-pressed={view === v.id} onClick={() => show(v.id)}>
-              {v.label}
+              {t(v.label)}
             </button>
           ))}
         </div>
         <label className="relative min-w-48 flex-1 text-sm">
-          <span className="sr-only">Search</span>
+          <span className="sr-only">{t("Search")}</span>
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Number, client, job…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9" placeholder={t("Number, client, job…")} value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
         <button className={`btn ${filtersOn ? "ring-brand-200" : ""}`} aria-expanded={filtersOpen} onClick={() => setFiltersOpen((o) => !o)}>
-          <Filter /> Filter{filtersOn ? ` (${filtersOn})` : ""}
+          <Filter /> {filtersOn ? t("Filter ({n})", { n: filtersOn }) : t("Filter")}
         </button>
         {(filtersOn > 0 || q) && (
           <button className="btn btn-sm btn-ghost" onClick={clearFilters}>
-            Clear
+            {t("Clear")}
           </button>
         )}
       </div>
@@ -235,18 +237,18 @@ export default function InvoicesPage() {
       {filtersOpen && (
         <div className="card mb-3 flex flex-wrap items-end gap-3 p-3">
           <label className="text-sm">
-            <span className="label">Type</span>
+            <span className="label">{t("Type")}</span>
             <select className="input" value={kind} onChange={(e) => setKind(e.target.value as DocKind | "all")}>
-              <option value="all">All</option>
-              <option value="quote">{ds.kinds.quote.label}s</option>
-              <option value="invoice">Invoices</option>
-              <option value="credit_note">Credit notes</option>
+              <option value="all">{t("All")}</option>
+              <option value="quote">{ds.kinds.quote.label === "Quote" ? t("Quotes") : `${ds.kinds.quote.label}s`}</option>
+              <option value="invoice">{t("Invoices")}</option>
+              <option value="credit_note">{t("Credit notes")}</option>
             </select>
           </label>
           <label className="text-sm">
-            <span className="label">Client</span>
+            <span className="label">{t("Client")}</span>
             <select className="input max-w-48" value={client} onChange={(e) => setClient(e.target.value)}>
-              <option value="">All clients</option>
+              <option value="">{t("All clients")}</option>
               {directory.map((c) => (
                 <option key={`${c.email}-${c.name}`} value={c.email?.toLowerCase() || c.name.toLowerCase()}>
                   {c.name || c.email}
@@ -255,35 +257,45 @@ export default function InvoicesPage() {
             </select>
           </label>
           <label className="text-sm">
-            <span className="label">From</span>
+            <span className="label">{t("From")}</span>
             <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label className="text-sm">
-            <span className="label">To</span>
+            <span className="label">{t("To")}</span>
             <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
           <label className="flex h-10 items-center gap-2 text-sm">
-            <input type="checkbox" className="accent-brand-600" checked={reminders} onChange={(e) => setReminders(e.target.checked)} /> Reminder due
+            <input type="checkbox" className="accent-brand-600" checked={reminders} onChange={(e) => setReminders(e.target.checked)} /> {t("Reminder due")}
           </label>
         </div>
       )}
 
       {rows.length === 0 ? (
         <div className="card p-10 text-center text-sm text-slate-500">
-          {!all.length ? "No quotes or invoices yet. Open a job’s Money tab, or start a new invoice here." : filtersOn || q ? "Nothing matches these filters." : view === "unpaid" ? "Nothing unpaid. Nice." : view === "overdue" ? "Nothing overdue." : view === "drafts" ? "No drafts." : "Nothing here yet."}
+          {!all.length
+            ? t("No quotes or invoices yet. Open a job’s Money tab, or start a new invoice here.")
+            : filtersOn || q
+              ? t("Nothing matches these filters.")
+              : view === "unpaid"
+                ? t("Nothing unpaid. Nice.")
+                : view === "overdue"
+                  ? t("Nothing overdue.")
+                  : view === "drafts"
+                    ? t("No drafts.")
+                    : t("Nothing here yet.")}
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="hidden bg-slate-50/60 text-left text-[11px] font-semibold text-slate-500 md:table-header-group">
               <tr>
-                <th className="px-4 py-2.5">Number</th>
-                <th className="px-3 py-2.5">Client / job</th>
-                <th className="px-3 py-2.5">Date</th>
-                <th className="px-3 py-2.5">Due</th>
-                <th className="px-3 py-2.5">Status</th>
-                <th className="px-3 py-2.5 text-right">Total</th>
-                <th className="px-4 py-2.5 text-right">Unpaid</th>
+                <th className="px-4 py-2.5">{t("Number")}</th>
+                <th className="px-3 py-2.5">{t("Client / job")}</th>
+                <th className="px-3 py-2.5">{t("Date")}</th>
+                <th className="px-3 py-2.5">{t("Due")}</th>
+                <th className="px-3 py-2.5">{t("Status")}</th>
+                <th className="px-3 py-2.5 text-right">{t("Total")}</th>
+                <th className="px-4 py-2.5 text-right">{t("Unpaid")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -332,7 +344,7 @@ export default function InvoicesPage() {
             <tfoot className="border-t border-slate-200 bg-slate-50/60 text-sm">
               <tr>
                 <td className="px-4 py-2.5 font-medium" colSpan={1}>
-                  {rows.length} shown
+                  {t("{n} shown", { n: rows.length })}
                 </td>
                 <td className="hidden md:table-cell" colSpan={4} />
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{money(sum(rows, (d) => d.total))}</td>
@@ -359,6 +371,7 @@ function Stat({ label, value, tone, onClick }: { label: string; value: string; t
 }
 
 function PickJob({ projects, directory, onClose, onPick, onNewJob }: { projects: Project[]; directory: ReturnType<typeof clientDirectory>; onClose: () => void; onPick: (p: Project) => void; onNewJob: (c: { name: string; email?: string | null; phone?: string | null; address: string }) => void }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -371,23 +384,23 @@ function PickJob({ projects, directory, onClose, onPick, onNewJob }: { projects:
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 50);
   return (
-    <Modal title="New invoice" description="Invoices belong to a job. Pick one, or start a job for a client." onClose={onClose}>
+    <Modal title={t("New invoice")} description={t("Invoices belong to a job. Pick one, or start a job for a client.")} onClose={onClose}>
       {!creating ? (
         <>
-          <input className="input mb-2" placeholder="Search jobs and clients" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <input className="input mb-2" placeholder={t("Search jobs and clients")} value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
           <ul className="max-h-[50vh] divide-y divide-slate-100 overflow-auto rounded-lg ring-1 ring-slate-200">
             {list.map((p) => (
               <li key={p.id}>
                 <button className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50" onClick={() => onPick(p)}>
-                  <div className="font-medium">{p.address || "Untitled job"}</div>
-                  <div className="text-xs text-slate-500">{p.clientName || "No client"}</div>
+                  <div className="font-medium">{p.address || t("Untitled job")}</div>
+                  <div className="text-xs text-slate-500">{p.clientName || t("No client")}</div>
                 </button>
               </li>
             ))}
-            {!list.length && <li className="px-3 py-4 text-center text-sm text-slate-500">No matching jobs.</li>}
+            {!list.length && <li className="px-3 py-4 text-center text-sm text-slate-500">{t("No matching jobs.")}</li>}
           </ul>
           <button className="btn mt-3 w-full" onClick={() => setCreating(true)}>
-            <FilePlus2 /> New job for a client
+            <FilePlus2 /> {t("New job for a client")}
           </button>
         </>
       ) : (
@@ -399,7 +412,7 @@ function PickJob({ projects, directory, onClose, onPick, onNewJob }: { projects:
           }}
         >
           <label className="block text-sm">
-            <span className="label">Client</span>
+            <span className="label">{t("Client")}</span>
             <input className="input" list="pp-clients" value={name} required onChange={(e) => {
               const v = e.target.value;
               setName(v);
@@ -418,24 +431,24 @@ function PickJob({ projects, directory, onClose, onPick, onNewJob }: { projects:
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="label">Email</span>
+              <span className="label">{t("Email")}</span>
               <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </label>
             <label className="text-sm">
-              <span className="label">Phone</span>
+              <span className="label">{t("Phone")}</span>
               <input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </label>
           </div>
           <label className="block text-sm">
-            <span className="label">Job address</span>
+            <span className="label">{t("Job address")}</span>
             <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="12 Maple Ridge Rd" />
           </label>
           <div className="flex gap-2">
             <button type="button" className="btn" onClick={() => setCreating(false)}>
-              Back
+              {t("Back")}
             </button>
             <button className="btn btn-brand flex-1" disabled={!name.trim()}>
-              Create job & invoice
+              {t("Create job & invoice")}
             </button>
           </div>
         </form>

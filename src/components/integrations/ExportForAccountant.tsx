@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_ACCOUNTS, exportableDocs, exportFileName, iifExport, invoiceLinesCsv, type AccountNames } from "@/lib/accountingExport";
 import { today } from "@/lib/documents";
 import { downloadText } from "@/lib/download";
+import { msg, useT } from "@/lib/i18n";
 import type { DocPayment, SalesDoc } from "@/lib/types";
 import { Modal } from "../documents/ui";
 import { FORMATS, listIntegrations, loadAccounts, pushDocument, rememberFormat, saveAccounts, savedFormat, type ExportFormat, type ProviderStatus } from "./accountingClient";
@@ -19,21 +20,22 @@ function lastMonth(day: string): { from: string; to: string } {
 }
 
 const ACCOUNT_FIELDS: { key: keyof AccountNames; label: string; formats: ExportFormat[] }[] = [
-  { key: "defaultItem", label: "Product/service for job lines", formats: ["qbo", "iif"] },
-  { key: "taxItem", label: "Sales tax item", formats: ["qbo", "iif"] },
-  { key: "incomeAccount", label: "Income account (Xero: account code)", formats: ["xero", "iif"] },
-  { key: "taxAccount", label: "Sales tax account (Xero: account code)", formats: ["xero", "iif"] },
-  { key: "arAccount", label: "Accounts receivable account", formats: ["iif"] },
-  { key: "depositAccount", label: "Payments go to", formats: ["iif"] },
-  { key: "xeroTaxType", label: "Xero tax type", formats: ["xero"] },
+  { key: "defaultItem", label: msg("Product/service for job lines"), formats: ["qbo", "iif"] },
+  { key: "taxItem", label: msg("Sales tax item"), formats: ["qbo", "iif"] },
+  { key: "incomeAccount", label: msg("Income account (Xero: account code)"), formats: ["xero", "iif"] },
+  { key: "taxAccount", label: msg("Sales tax account (Xero: account code)"), formats: ["xero", "iif"] },
+  { key: "arAccount", label: msg("Accounts receivable account"), formats: ["iif"] },
+  { key: "depositAccount", label: msg("Payments go to"), formats: ["iif"] },
+  { key: "xeroTaxType", label: msg("Xero tax type"), formats: ["xero"] },
 ];
 
 export default function ExportForAccountant({ docs, payments }: { docs: SalesDoc[]; payments: DocPayment[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <>
       <button className="btn" onClick={() => setOpen(true)}>
-        <FileSpreadsheet /> Export for accountant
+        <FileSpreadsheet /> {t("Export for accountant")}
       </button>
       {open && <ExportDialog docs={docs} payments={payments} onClose={() => setOpen(false)} />}
     </>
@@ -41,6 +43,7 @@ export default function ExportForAccountant({ docs, payments }: { docs: SalesDoc
 }
 
 function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments: DocPayment[]; onClose: () => void }) {
+  const t = useT();
   const day = today();
   const [from, setFrom] = useState(monthStart(day));
   const [to, setTo] = useState(day);
@@ -50,7 +53,7 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
   const [shared, setShared] = useState(false);
   const [connected, setConnected] = useState<ProviderStatus[]>([]);
   const [sending, setSending] = useState<{ done: number; total: number } | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -82,19 +85,24 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
     rememberFormat(format);
     const text = format === "iif" ? iifExport(docs, payments, { ...accounts, range }) : invoiceLinesCsv(docs, format, { range, accounts });
     downloadText(text, exportFileName(format, range, day), format === "iif" ? "text/plain;charset=utf-8" : "text/csv;charset=utf-8");
-    setMsg({ ok: true, text: `Downloaded ${picked.length} document${picked.length === 1 ? "" : "s"}.` });
+    setMessage({ ok: true, text: t.tn("Downloaded {n} document.", "Downloaded {n} documents.", picked.length) });
   }
 
   async function saveNames() {
     const ok = await saveAccounts(accounts);
     setShared(ok);
-    setMsg({ ok: true, text: ok ? "Saved for your company." : "Saved on this device (sign in to share it with your team)." });
+    setMessage({ ok: true, text: ok ? t("Saved for your company.") : t("Saved on this device (sign in to share it with your team).") });
   }
 
   async function send(p: ProviderStatus) {
     const voids = sendable.length - picked.length;
-    if (!confirm(`Send ${picked.length} document${picked.length === 1 ? "" : "s"} (invoices and credit notes) to ${p.label}?${voids ? ` ${voids} void one${voids === 1 ? " is" : "s are"} voided there too.` : ""} Ones already sent and unchanged are skipped.`)) return;
-    setMsg(null);
+    const question = [
+      t.tn("Send {n} document (invoices and credit notes) to {app}?", "Send {n} documents (invoices and credit notes) to {app}?", picked.length, { app: p.label }),
+      voids ? t.tn("{n} void one is voided there too.", "{n} void ones are voided there too.", voids) : "",
+      t("Ones already sent and unchanged are skipped."),
+    ];
+    if (!confirm(question.filter(Boolean).join(" "))) return;
+    setMessage(null);
     setSending({ done: 0, total: sendable.length });
     const problems: string[] = [];
     let sent = 0;
@@ -102,75 +110,79 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
       try {
         const r = await pushDocument(p.id, d, payments);
         if (r.status === "sent" || r.status === "voided") sent++;
-        problems.push(...r.warnings, ...r.payments.filter((x) => x.status === "error").map((x) => `${d.number ?? "Invoice"}: ${x.message}`));
+        problems.push(...r.warnings, ...r.payments.filter((x) => x.status === "error").map((x) => `${d.number ?? t("Invoice")}: ${x.message}`));
       } catch (e) {
-        problems.push(`${d.number ?? "Invoice"}: ${(e as Error).message}`);
+        problems.push(`${d.number ?? t("Invoice")}: ${(e as Error).message}`);
         if ((e as { status?: number }).status === 402 || (e as { status?: number }).status === 409) break;
       }
       setSending({ done: i + 1, total: sendable.length });
     }
     setSending(null);
-    setMsg(problems.length ? { ok: false, text: `${sent} sent. ${problems.slice(0, 5).join(" ")}${problems.length > 5 ? ` (+${problems.length - 5} more)` : ""}` } : { ok: true, text: `${sent} sent to ${p.label}; the rest were already up to date.` });
+    setMessage(
+      problems.length
+        ? { ok: false, text: `${t("{n} sent.", { n: sent })} ${problems.slice(0, 5).join(" ")}${problems.length > 5 ? ` ${t("(+{n} more)", { n: problems.length - 5 })}` : ""}` }
+        : { ok: true, text: t("{n} sent to {app}; the rest were already up to date.", { n: sent, app: p.label }) },
+    );
   }
 
   return (
-    <Modal title="Export for accountant" description="Issued invoices and credit notes (never drafts or void ones), one row per line. Totals match to the cent." onClose={onClose} wide>
+    <Modal title={t("Export for accountant")} description={t("Issued invoices and credit notes (never drafts or void ones), one row per line. Totals match to the cent.")} onClose={onClose} wide>
       <div className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
-            <span className="label">From</span>
+            <span className="label">{t("From")}</span>
             <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label className="text-sm">
-            <span className="label">To</span>
+            <span className="label">{t("To")}</span>
             <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
           <div className="flex gap-1.5">
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setFrom(monthStart(day)); setTo(day); }}>
-              This month
+              {t("This month")}
             </button>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = lastMonth(day); setFrom(r.from); setTo(r.to); }}>
-              Last month
+              {t("Last month")}
             </button>
           </div>
         </div>
 
         <p className="text-sm text-slate-600">
-          {picked.length} document{picked.length === 1 ? "" : "s"} in this range
-          {drafts > 0 && <span className="text-slate-400"> · {drafts} draft{drafts === 1 ? "" : "s"} left out</span>}
+          {t.tn("{n} document in this range", "{n} documents in this range", picked.length)}
+          {drafts > 0 && <span className="text-slate-400"> · {t.tn("{n} draft left out", "{n} drafts left out", drafts)}</span>}
         </p>
 
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-brand" disabled={!picked.length} onClick={download}>
-            <FileSpreadsheet /> Download for {fmt.label.replace(/ \(.*\)$/, "")}
+            <FileSpreadsheet /> {t("Download for {app}", { app: t(fmt.label).replace(/ \(.*\)$/, "") })}
           </button>
           {connected.map((p) => (
             <button key={p.id} className="btn" disabled={!sendable.length || !!sending} onClick={() => void send(p)}>
-              Send to {p.label}
+              {t("Send to {app}", { app: p.label })}
             </button>
           ))}
           <button type="button" className="btn btn-ghost" onClick={() => setMore(!more)} aria-expanded={more}>
-            {more ? "Less" : "More"}
+            {more ? t("Less") : t("More")}
           </button>
         </div>
         {sending && (
           <p className="text-sm text-slate-500" role="status">
-            Sending {sending.done} of {sending.total}…
+            {t("Sending {done} of {total}…", { done: sending.done, total: sending.total })}
           </p>
         )}
-        {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+        {message && <p className={`text-sm ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{message.text}</p>}
 
         {more && (
           <div className="space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
             <fieldset>
-              <legend className="label">Format</legend>
+              <legend className="label">{t("Format")}</legend>
               <div className="space-y-1.5">
                 {FORMATS.map((f) => (
                   <label key={f.id} className="flex items-start gap-2 text-sm">
                     <input type="radio" name="pp-export-format" className="mt-1" checked={format === f.id} onChange={() => setFormat(f.id)} />
                     <span>
-                      <span className="font-medium">{f.label}</span>
-                      <span className="block text-xs text-slate-500">{f.hint}</span>
+                      <span className="font-medium">{t(f.label)}</span>
+                      <span className="block text-xs text-slate-500">{t(f.hint)}</span>
                     </span>
                   </label>
                 ))}
@@ -178,18 +190,18 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
             </fieldset>
             {format !== "generic" && (
               <div>
-                <div className="label">Names in your books</div>
-                <p className="mb-2 text-xs text-slate-500">Use the names exactly as they appear in {format === "xero" ? "Xero" : "QuickBooks"}. Tax is sent as its own line, so nothing is taxed twice.</p>
+                <div className="label">{t("Names in your books")}</div>
+                <p className="mb-2 text-xs text-slate-500">{t("Use the names exactly as they appear in {app}. Tax is sent as its own line, so nothing is taxed twice.", { app: format === "xero" ? "Xero" : "QuickBooks" })}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {ACCOUNT_FIELDS.filter((f) => f.formats.includes(format)).map((f) => (
                     <label key={f.key} className="text-sm">
-                      <span className="label">{f.label}</span>
+                      <span className="label">{t(f.label)}</span>
                       <input className="input" value={accounts[f.key]} placeholder={DEFAULT_ACCOUNTS[f.key]} onChange={(e) => setAccounts({ ...accounts, [f.key]: e.target.value })} />
                     </label>
                   ))}
                   {format !== "iif" && (
                     <label className="text-sm">
-                      <span className="label">Date format</span>
+                      <span className="label">{t("Date format")}</span>
                       <select className="input" value={accounts.dateStyle} onChange={(e) => setAccounts({ ...accounts, dateStyle: e.target.value as AccountNames["dateStyle"] })}>
                         <option value="mdy">MM/DD/YYYY</option>
                         <option value="dmy">DD/MM/YYYY</option>
@@ -200,9 +212,9 @@ function ExportDialog({ docs, payments, onClose }: { docs: SalesDoc[]; payments:
                 </div>
                 <div className="mt-3 flex items-center gap-3">
                   <button type="button" className="btn btn-sm" onClick={() => void saveNames()}>
-                    Save names
+                    {t("Save names")}
                   </button>
-                  <span className="text-xs text-slate-500">{shared ? "Shared with your company." : "Kept on this device."}</span>
+                  <span className="text-xs text-slate-500">{shared ? t("Shared with your company.") : t("Kept on this device.")}</span>
                 </div>
               </div>
             )}

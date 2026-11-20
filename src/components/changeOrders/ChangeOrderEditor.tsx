@@ -50,6 +50,7 @@ import {
 import { db, newId, nowIso, saveImage } from "@/lib/db";
 import { downloadBlob, slug } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
+import { fmtDate, useT } from "@/lib/i18n";
 import { newToken } from "@/lib/proposal";
 import { productIdFor } from "@/lib/products";
 import { useEditor } from "@/lib/store";
@@ -98,6 +99,7 @@ function NumField({ value, onCommit, label, className = "", allowEmpty, disabled
 const KIND_ICON: Record<ChangeOrderLine["kind"], typeof Package> = { device: MapPin, labor: Hammer, material: Package, custom: FilePen };
 
 function LineRow({ line, sell, cur, editable, onChange, onRemove }: { line: ChangeOrderLine; sell: number; cur: string; editable: boolean; onChange: (patch: Partial<ChangeOrderLine>) => void; onRemove: () => void }) {
+  const t = useT();
   const Icon = KIND_ICON[line.kind] ?? FilePen;
   if (!editable)
     return (
@@ -107,7 +109,7 @@ function LineRow({ line, sell, cur, editable, onChange, onRemove }: { line: Chan
           <div className="break-words">{line.description || "—"}</div>
           <div className="text-xs text-slate-500 tabular-nums">
             {line.qty} {line.unit} × {formatMoney(line.unitPrice, cur)}
-            {line.kind === "material" ? " + markup" : ""}
+            {line.kind === "material" ? ` ${t("+ markup")}` : ""}
           </div>
         </div>
         <div className="shrink-0 font-medium tabular-nums">{formatMoney(sell, cur)}</div>
@@ -116,14 +118,14 @@ function LineRow({ line, sell, cur, editable, onChange, onRemove }: { line: Chan
   return (
     <li className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1.5 px-3 py-2.5 sm:grid-cols-[1.25rem_1fr_4.5rem_4rem_6rem_6rem_2rem] sm:items-center sm:px-4" data-testid="co-line">
       <Icon className="hidden h-4 w-4 text-slate-400 sm:block" aria-label={line.kind} />
-      <input key={`d${line.description}`} className="input" defaultValue={line.description} placeholder="Description" aria-label="Description" onBlur={(e) => e.target.value !== line.description && onChange({ description: e.target.value })} />
-      <button className="btn btn-icon btn-ghost sm:order-last" onClick={onRemove} aria-label="Remove line">
+      <input key={`d${line.description}`} className="input" defaultValue={line.description} placeholder={t("Description")} aria-label={t("Description")} onBlur={(e) => e.target.value !== line.description && onChange({ description: e.target.value })} />
+      <button className="btn btn-icon btn-ghost sm:order-last" onClick={onRemove} aria-label={t("Remove line")}>
         <Trash />
       </button>
       <div className="col-span-2 grid grid-cols-[4.5rem_4rem_1fr_auto] items-center gap-2 sm:contents">
-        <NumField key={`q${line.qty}`} value={line.qty} label="Quantity" onCommit={(n) => onChange({ qty: n ?? 0 })} />
-        <input key={`u${line.unit}`} className="input text-center" defaultValue={line.unit} aria-label="Unit" onBlur={(e) => e.target.value !== line.unit && onChange({ unit: e.target.value || "each" })} />
-        <NumField key={`p${line.unitPrice}`} value={line.unitPrice} label={line.kind === "material" ? "Unit cost" : "Unit price"} onCommit={(n) => onChange({ unitPrice: n ?? 0 })} />
+        <NumField key={`q${line.qty}`} value={line.qty} label={t("Quantity")} onCommit={(n) => onChange({ qty: n ?? 0 })} />
+        <input key={`u${line.unit}`} className="input text-center" defaultValue={line.unit} aria-label={t("Unit")} onBlur={(e) => e.target.value !== line.unit && onChange({ unit: e.target.value || "each" })} />
+        <NumField key={`p${line.unitPrice}`} value={line.unitPrice} label={line.kind === "material" ? t("Unit cost") : t("Unit price")} onCommit={(n) => onChange({ unitPrice: n ?? 0 })} />
         <div className={`text-right text-sm font-medium tabular-nums ${sell < 0 ? "text-emerald-700" : ""}`}>{formatMoney(sell, cur)}</div>
       </div>
     </li>
@@ -131,6 +133,7 @@ function LineRow({ line, sell, cur, editable, onChange, onRemove }: { line: Chan
 }
 
 function PhotoThumb({ photo, on, onToggle }: { photo: Photo; on: boolean; onToggle: () => void }) {
+  const t = useT();
   const url = useBlobUrl(photo.imageId);
   return (
     <button
@@ -141,7 +144,7 @@ function PhotoThumb({ photo, on, onToggle }: { photo: Photo; on: boolean; onTogg
       title={photo.caption ?? ""}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url && <img src={url} alt={photo.caption ?? "Job photo"} className="h-full w-full object-cover" />}
+      {url && <img src={url} alt={photo.caption ?? t("Job photo")} className="h-full w-full object-cover" />}
       {on && (
         <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-white">
           <Check className="h-3 w-3" />
@@ -157,7 +160,7 @@ function useRfis(projectId: string): { id: string; label: string }[] | null {
   useEffect(() => {
     let cancelled = false;
     const d = db();
-    if (!d.tables.some((t) => t.name === "rfis")) return;
+    if (!d.tables.some((tb) => tb.name === "rfis")) return;
     d.table("rfis")
       .where("projectId")
       .equals(projectId)
@@ -191,6 +194,7 @@ async function blobToDataUrl(b: Blob): Promise<string> {
 }
 
 function ApproveDialog({ code, onDone, onCancel }: { code: string; onDone: (r: { name: string; signature: string | null; comment: string }) => Promise<void>; onCancel: () => void }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
   const [sign, setSign] = useState(false);
@@ -200,7 +204,7 @@ function ApproveDialog({ code, onDone, onCancel }: { code: string; onDone: (r: {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onCancel}>
       <form
         role="dialog"
-        aria-label="Mark approved"
+        aria-label={t("Mark approved")}
         className="card animate-in w-full max-w-md space-y-3 rounded-b-none p-5 shadow-pop sm:rounded-b-xl"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && onCancel()}
@@ -214,30 +218,30 @@ function ApproveDialog({ code, onDone, onCancel }: { code: string; onDone: (r: {
           }
         }}
       >
-        <h2 className="text-base font-semibold">Mark {code} approved</h2>
-        <p className="text-sm text-slate-500">For a verbal or paper OK — or hand the tablet to the client to sign here.</p>
+        <h2 className="text-base font-semibold">{t("Mark {code} approved", { code })}</h2>
+        <p className="text-sm text-slate-500">{t("For a verbal or paper OK — or hand the tablet to the client to sign here.")}</p>
         <div>
           <label className="label" htmlFor="co-approver">
-            Approved by
+            {t("Approved by")}
           </label>
-          <input id="co-approver" className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Client's name" />
+          <input id="co-approver" className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Client's name")} />
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={sign} onChange={(e) => setSign(e.target.checked)} /> Client signs on this device
+          <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={sign} onChange={(e) => setSign(e.target.checked)} /> {t("Client signs on this device")}
         </label>
         {sign && <SignaturePad onChange={setSignature} />}
         <div>
           <label className="label" htmlFor="co-approve-note">
-            Note (optional)
+            {t("Note (optional)")}
           </label>
-          <input id="co-approve-note" className="input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="e.g. OK'd by phone with Pat" />
+          <input id="co-approve-note" className="input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("e.g. OK'd by phone with Pat")} />
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" className="btn" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand" disabled={busy || !name.trim() || (sign && !signature)}>
-            <Check /> Mark approved
+            <Check /> {t("Mark approved")}
           </button>
         </div>
       </form>
@@ -254,6 +258,7 @@ export default function ChangeOrderEditor(props: {
   onOpen: (id: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const { pricing, onSave } = props;
   const project = useEditor((s) => s.project)!;
   const sheets = useEditor((s) => s.sheets);
@@ -294,7 +299,7 @@ export default function ChangeOrderEditor(props: {
       const saved = await saveDoc(inv);
       openDoc(saved.id);
     } catch (e) {
-      toast(`Couldn't make the invoice: ${(e as Error).message}`, "error");
+      toast(t("Couldn't make the invoice: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(null);
     }
@@ -417,9 +422,9 @@ export default function ChangeOrderEditor(props: {
       const url = changeOrderUrl(window.location.origin, co.shareToken);
       try {
         await navigator.clipboard.writeText(url);
-        toast(`${code} link copied — paste it in a text or email`, "success");
+        toast(t("{code} link copied — paste it in a text or email", { code }), "success");
       } catch {
-        toast(`${code} is ready to send`, "success");
+        toast(t("{code} is ready to send", { code }), "success");
       }
       void useSyncStatus.getState().syncNow().catch(() => undefined);
     } finally {
@@ -436,7 +441,7 @@ export default function ChangeOrderEditor(props: {
     const co = await act("approve", { name: r.name, signatureImageId, comment: r.comment });
     if (co) {
       setApproving(false);
-      toast(`${code} approved`, "success");
+      toast(t("{code} approved", { code }), "success");
     }
   }
 
@@ -452,14 +457,14 @@ export default function ChangeOrderEditor(props: {
       const blob = await renderChangeOrderPdf({ co: draft, project, business: settings.business, currency: cur, signature });
       downloadBlob(blob, `${slug(project.address || project.clientName || "job")}-${code}.pdf`);
     } catch (e) {
-      toast(`Couldn't make the PDF: ${(e as Error).message}`, "error");
+      toast(t("Couldn't make the PDF: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(null);
     }
   }
 
   async function remove() {
-    if (!window.confirm(`Delete draft ${code}?`)) return;
+    if (!window.confirm(t("Delete draft {code}?", { code }))) return;
     dirty.current = false;
     await onSave({ ...latest.current, deleted: true });
     props.onClose();
@@ -478,7 +483,7 @@ export default function ChangeOrderEditor(props: {
         <div className="flex items-center gap-2">
           <button
             className="btn btn-icon btn-ghost"
-            aria-label="Back to change orders"
+            aria-label={t("Back to change orders")}
             onClick={async () => {
               await flush();
               props.onClose();
@@ -490,7 +495,7 @@ export default function ChangeOrderEditor(props: {
           <StatusChip status={draft.status} />
           <div className="flex-1" />
           <button className="btn btn-sm" onClick={() => void pdf()} disabled={busy === "pdf"}>
-            <Download /> PDF
+            <Download /> {t("PDF")}
           </button>
         </div>
 
@@ -499,16 +504,21 @@ export default function ChangeOrderEditor(props: {
           <section className={`card space-y-2 p-4 ring-1 ${draft.status === "approved" ? "ring-emerald-200" : "ring-red-200"}`}>
             <h2 className="flex items-center gap-2 font-semibold">
               {draft.status === "approved" ? <CheckCheck className="h-5 w-5 text-emerald-600" /> : <X className="h-5 w-5 text-red-600" />}
-              {draft.status === "approved" ? "Approved" : "Rejected"}
-              {draft.approvedName ? ` by ${draft.approvedName}` : ""}
-              {draft.respondedAt ? ` · ${new Date(draft.respondedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
+              {draft.approvedName
+                ? draft.status === "approved"
+                  ? t("Approved by {name}", { name: draft.approvedName })
+                  : t("Rejected by {name}", { name: draft.approvedName })
+                : draft.status === "approved"
+                  ? t("Approved")
+                  : t("Rejected")}
+              {draft.respondedAt ? ` · ${fmtDate(draft.respondedAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
             </h2>
             {draft.clientComment && <p className="text-sm whitespace-pre-line text-slate-600">“{draft.clientComment}”</p>}
             {draft.status === "approved" && (
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {billedOn ? (
                   <>
-                    <span className="text-slate-600">Billed on</span>
+                    <span className="text-slate-600">{t("Billed on")}</span>
                     <button className="font-medium text-brand-600 hover:underline" onClick={() => openDoc(billedOn.id)}>
                       {docName(billedOn, docSettings)}
                     </button>
@@ -516,20 +526,20 @@ export default function ChangeOrderEditor(props: {
                 ) : (
                   <>
                     <button className="btn btn-sm btn-brand" onClick={() => void billThis()} disabled={busy === "bill" || jobDocs === null}>
-                      <HandCoins /> Bill this change
+                      <HandCoins /> {t("Bill this change")}
                     </button>
-                    <span className="text-xs text-slate-500">Or include it on the next invoice from the quote.</span>
+                    <span className="text-xs text-slate-500">{t("Or include it on the next invoice from the quote.")}</span>
                   </>
                 )}
               </div>
             )}
             {sigUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={sigUrl} alt="Signature" className="h-16 w-auto rounded bg-white p-1 ring-1 ring-slate-200" />
+              <img src={sigUrl} alt={t("Signature")} className="h-16 w-auto rounded bg-white p-1 ring-1 ring-slate-200" />
             )}
             {draft.status === "approved" && stillTentative.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <span className="flex-1">Mark these devices as confirmed in the plan ({stillTentative.length} still tentative).</span>
+                <span className="flex-1">{t("Mark these devices as confirmed in the plan ({n} still tentative).", { n: stillTentative.length })}</span>
                 <button
                   className="btn btn-sm"
                   onClick={async () => {
@@ -537,10 +547,10 @@ export default function ChangeOrderEditor(props: {
                       stillTentative.map((m) => m.id),
                       () => ({ tentative: false }),
                     );
-                    toast(`${stillTentative.length} device${stillTentative.length === 1 ? "" : "s"} confirmed — undo on the plan if needed`, "success");
+                    toast(t.tn("{n} device confirmed — undo on the plan if needed", "{n} devices confirmed — undo on the plan if needed", stillTentative.length), "success");
                   }}
                 >
-                  <Check /> Confirm {stillTentative.length} device{stillTentative.length === 1 ? "" : "s"}
+                  <Check /> {t.tn("Confirm {n} device", "Confirm {n} devices", stillTentative.length)}
                 </button>
               </div>
             )}
@@ -551,7 +561,7 @@ export default function ChangeOrderEditor(props: {
         <section className="card space-y-3 p-4">
           <div>
             <label className="label" htmlFor="co-title">
-              Title
+              {t("Title")}
             </label>
             <input
               id="co-title"
@@ -559,13 +569,13 @@ export default function ChangeOrderEditor(props: {
               className="input text-base font-semibold"
               defaultValue={draft.title}
               disabled={!editable}
-              placeholder="e.g. Two extra exterior cameras"
+              placeholder={t("e.g. Two extra exterior cameras")}
               onBlur={(e) => e.target.value !== draft.title && change({ title: e.target.value })}
             />
           </div>
           <div>
-            <span className="label">Reason</span>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Reason">
+            <span className="label">{t("Reason")}</span>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("Reason")}>
               {CO_REASONS.map((r) => (
                 <button
                   key={r.id}
@@ -575,14 +585,14 @@ export default function ChangeOrderEditor(props: {
                   onClick={() => change({ reason: r.id })}
                   className={`h-8 rounded-full px-3 text-sm ring-1 ${draft.reason === r.id ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-600 ring-slate-200"}`}
                 >
-                  {r.label}
+                  {t(r.label)}
                 </button>
               ))}
             </div>
           </div>
           <div>
             <label className="label" htmlFor="co-desc">
-              Description (the client sees this)
+              {t("Description (the client sees this)")}
             </label>
             <textarea
               id="co-desc"
@@ -590,7 +600,7 @@ export default function ChangeOrderEditor(props: {
               className="input min-h-[64px]"
               defaultValue={draft.description ?? ""}
               disabled={!editable}
-              placeholder="What changes, and why"
+              placeholder={t("What changes, and why")}
               onBlur={(e) => e.target.value !== (draft.description ?? "") && change({ description: e.target.value })}
             />
           </div>
@@ -599,8 +609,8 @@ export default function ChangeOrderEditor(props: {
         {/* Lines */}
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
-            <h2 className="section-title">Lines</h2>
-            {editable && <span className="text-xs text-slate-400">Negative qty = credit</span>}
+            <h2 className="section-title">{t("Lines")}</h2>
+            {editable && <span className="text-xs text-slate-400">{t("Negative qty = credit")}</span>}
           </div>
           {draft.lines.length ? (
             <ul className="divide-y divide-slate-100">
@@ -617,24 +627,24 @@ export default function ChangeOrderEditor(props: {
               ))}
             </ul>
           ) : (
-            <p className="px-4 py-6 text-center text-sm text-slate-500">No lines yet. Add devices from the catalog or straight from the plan.</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-500">{t("No lines yet. Add devices from the catalog or straight from the plan.")}</p>
           )}
           {editable && (
             <div className="grid grid-cols-2 gap-2 border-t border-slate-100 p-3 sm:flex sm:flex-wrap">
               <button className="btn btn-brand" onClick={() => setFromPlan(true)}>
-                <MapPin /> Add from plan
+                <MapPin /> {t("Add from plan")}
               </button>
               <button className="btn" onClick={() => setPicker(true)}>
-                <Plus /> Device
+                <Plus /> {t("Device")}
               </button>
               <button className="btn" onClick={() => setLines([...latest.current.lines, laborHoursLine(1, pricing, "Labor", newId())])}>
-                <Hammer /> Labor hours
+                <Hammer /> {t("Labor hours")}
               </button>
               <button className="btn" onClick={() => setLines([...latest.current.lines, { id: newId(), kind: "material", description: "", qty: 1, unit: "each", unitPrice: 0, taxable: true }])}>
-                <Package /> Material
+                <Package /> {t("Material")}
               </button>
               <button className="btn col-span-2 sm:col-span-1" onClick={() => setLines([...latest.current.lines, { id: newId(), kind: "custom", description: "", qty: 1, unit: "each", unitPrice: 0, taxable: true }])}>
-                <FilePen /> Other
+                <FilePen /> {t("Other")}
               </button>
             </div>
           )}
@@ -643,22 +653,22 @@ export default function ChangeOrderEditor(props: {
         {/* Pricing + totals */}
         <section className="grid gap-4 sm:grid-cols-2">
           <div className="card space-y-3 p-4">
-            <h2 className="section-title">Pricing</h2>
+            <h2 className="section-title">{t("Pricing")}</h2>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <span className="label">Markup on materials %</span>
-                <NumField key={`m${draft.markupPct}`} value={draft.markupPct ?? 0} label="Markup %" disabled={!editable} onCommit={(n) => change({ markupPct: n ?? 0 })} />
+                <span className="label">{t("Markup on materials %")}</span>
+                <NumField key={`m${draft.markupPct}`} value={draft.markupPct ?? 0} label={t("Markup %")} disabled={!editable} onCommit={(n) => change({ markupPct: n ?? 0 })} />
               </div>
               <div>
-                <span className="label">Tax %</span>
-                <NumField key={`x${draft.taxPct}`} value={draft.taxPct ?? 0} label="Tax %" disabled={!editable} onCommit={(n) => change({ taxPct: roundPct(n ?? 0) })} />
+                <span className="label">{t("Tax %")}</span>
+                <NumField key={`x${draft.taxPct}`} value={draft.taxPct ?? 0} label={t("Tax %")} disabled={!editable} onCommit={(n) => change({ taxPct: roundPct(n ?? 0) })} />
               </div>
               <div>
-                <span className="label">Labor rate / hr</span>
+                <span className="label">{t("Labor rate / hr")}</span>
                 <NumField
                   key={`r${laborRate}`}
                   value={laborRate}
-                  label="Labor rate per hour"
+                  label={t("Labor rate per hour")}
                   onCommit={(n) => {
                     const rate = n ?? 0;
                     void updateProject({ pricing: { ...(project.pricing ?? {}), laborRate: rate } as typeof project.pricing });
@@ -668,33 +678,36 @@ export default function ChangeOrderEditor(props: {
                 />
               </div>
               <div>
-                <span className="label">Schedule impact (days)</span>
-                <NumField key={`s${draft.scheduleDays}`} value={draft.scheduleDays ?? null} allowEmpty disabled={!editable} label="Schedule impact in days" onCommit={(n) => change({ scheduleDays: n })} />
+                <span className="label">{t("Schedule impact (days)")}</span>
+                <NumField key={`s${draft.scheduleDays}`} value={draft.scheduleDays ?? null} allowEmpty disabled={!editable} label={t("Schedule impact in days")} onCommit={(n) => change({ scheduleDays: n })} />
               </div>
             </div>
             <p className="text-xs text-slate-500">
-              Catalog devices are priced like the estimate ({pricing.markupPct}% markup{pricing.laborMode === "combined" ? ", installed" : ", labor listed separately"}). The markup here applies to material lines only.
+              {pricing.laborMode === "combined"
+                ? t("Catalog devices are priced like the estimate ({pct}% markup, installed).", { pct: pricing.markupPct })
+                : t("Catalog devices are priced like the estimate ({pct}% markup, labor listed separately).", { pct: pricing.markupPct })}{" "}
+              {t("The markup here applies to material lines only.")}
             </p>
           </div>
           <div className="card p-4">
-            <h2 className="section-title">Total</h2>
+            <h2 className="section-title">{t("Total")}</h2>
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between">
-                <dt className="text-slate-500">Lines</dt>
+                <dt className="text-slate-500">{t("Lines")}</dt>
                 <dd className="tabular-nums">{formatMoney(totals.subtotal, cur)}</dd>
               </div>
               {(hasMaterial || totals.markup !== 0) && (
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">Markup ({draft.markupPct ?? 0}% on materials)</dt>
+                  <dt className="text-slate-500">{t("Markup ({pct}% on materials)", { pct: draft.markupPct ?? 0 })}</dt>
                   <dd className="tabular-nums">{formatMoney(totals.markup, cur)}</dd>
                 </div>
               )}
               <div className="flex justify-between">
-                <dt className="text-slate-500">Tax ({draft.taxPct ?? 0}%)</dt>
+                <dt className="text-slate-500">{t("Tax ({pct}%)", { pct: draft.taxPct ?? 0 })}</dt>
                 <dd className="tabular-nums">{formatMoney(totals.tax, cur)}</dd>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 text-lg font-bold">
-                <dt>Change order total</dt>
+                <dt>{t("Change order total")}</dt>
                 <dd className="tabular-nums" data-testid="co-editor-total">
                   {formatMoney(totals.total, cur)}
                 </dd>
@@ -705,10 +718,10 @@ export default function ChangeOrderEditor(props: {
 
         {/* Evidence */}
         <section className="card space-y-3 p-4">
-          <h2 className="section-title">Evidence</h2>
+          <h2 className="section-title">{t("Evidence")}</h2>
           {linked.length > 0 && (
             <div className="text-sm">
-              <span className="text-slate-500">Plan devices: </span>
+              <span className="text-slate-500">{t("Plan devices:")} </span>
               {linked.map((m) => m.label || catalog.find((d) => d.id === m.deviceTypeId)?.name).join(", ")}
               {draft.sheetIds?.length ? <span className="text-slate-500"> · {sheets.filter((s) => draft.sheetIds?.includes(s.id)).map((s) => s.name).join(", ")}</span> : null}
             </div>
@@ -719,7 +732,7 @@ export default function ChangeOrderEditor(props: {
                 RFI
               </label>
               <select id="co-rfi" className="input" disabled={!editable} value={draft.rfiId ?? ""} onChange={(e) => change({ rfiId: e.target.value || null })}>
-                <option value="">None</option>
+                <option value="">{t("None")}</option>
                 {rfis.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.label}
@@ -729,9 +742,9 @@ export default function ChangeOrderEditor(props: {
             </div>
           )}
           <div>
-            <span className="label">Photos {editable ? "(tap to attach — the client sees them)" : ""}</span>
+            <span className="label">{editable ? t("Photos (tap to attach — the client sees them)") : t("Photos")}</span>
             {jobPhotos.length === 0 ? (
-              <p className="text-sm text-slate-500">No job photos yet. Take them on the Photos tab.</p>
+              <p className="text-sm text-slate-500">{t("No job photos yet. Take them on the Photos tab.")}</p>
             ) : editable ? (
               <>
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
@@ -742,7 +755,7 @@ export default function ChangeOrderEditor(props: {
                 </div>
                 {jobPhotos.length > photoList.length && (
                   <button className="btn btn-sm btn-ghost mt-2" onClick={() => setShowAllPhotos(true)}>
-                    Show all {jobPhotos.length} photos
+                    {t("Show all {n} photos", { n: jobPhotos.length })}
                   </button>
                 )}
               </>
@@ -753,7 +766,7 @@ export default function ChangeOrderEditor(props: {
                   .map((p) => (
                     <PhotoThumb key={p.id} photo={p} on={false} onToggle={() => undefined} />
                   ))}
-                {!draft.photoIds?.length && <p className="col-span-full text-sm text-slate-500">None attached.</p>}
+                {!draft.photoIds?.length && <p className="col-span-full text-sm text-slate-500">{t("None attached.")}</p>}
               </div>
             )}
           </div>
@@ -761,37 +774,37 @@ export default function ChangeOrderEditor(props: {
 
         {/* Client link */}
         {draft.status === "sent" && linkUrl && (
-          <section className="card space-y-3 p-4" aria-label="Client link">
-            <div className="flex items-center gap-2">
-              <h2 className="section-title flex-1">Client link</h2>
+          <section className="card space-y-3 p-4" aria-label={t("Client link")}>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="section-title flex-1">{t("Client link")}</h2>
               {!supabaseConfigured || !signedIn ? (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-700">
-                  <WifiOff className="h-3.5 w-3.5" /> Cloud sync is off — the link won’t open. Mark it approved by hand.
+                  <WifiOff className="h-3.5 w-3.5" /> {t("Cloud sync is off — the link won’t open. Mark it approved by hand.")}
                 </span>
               ) : pending || !online ? (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-700" data-testid="co-link-state">
-                  <Clock className="h-3.5 w-3.5" /> Waiting to sync — the link works once this device is online
+                  <Clock className="h-3.5 w-3.5" /> {t("Waiting to sync — the link works once this device is online")}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-700" data-testid="co-link-state">
-                  <Wifi className="h-3.5 w-3.5" /> Link is live
+                  <Wifi className="h-3.5 w-3.5" /> {t("Link is live")}
                 </span>
               )}
             </div>
             <div className="flex gap-2">
-              <input className="input flex-1 font-mono text-xs" readOnly value={linkUrl} aria-label="Client link" onFocus={(e) => e.currentTarget.select()} data-testid="co-link" />
+              <input className="input flex-1 font-mono text-xs" readOnly value={linkUrl} aria-label={t("Client link")} onFocus={(e) => e.currentTarget.select()} data-testid="co-link" />
               <button
                 className="btn"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(linkUrl);
-                    toast("Link copied", "success");
+                    toast(t("Link copied"), "success");
                   } catch {
-                    toast("Couldn't copy — select the link and copy it", "error");
+                    toast(t("Couldn't copy — select the link and copy it"), "error");
                   }
                 }}
               >
-                <Copy /> Copy
+                <Copy /> {t("Copy")}
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -801,16 +814,16 @@ export default function ChangeOrderEditor(props: {
                   mailtoBody({ code, title: draft.title, total: totals.total, currency: cur, business: settings.business, scheduleDays: draft.scheduleDays ?? null }, linkUrl, (n) => formatMoney(n, cur)),
                 )}`}
               >
-                <Mail /> Email
+                <Mail /> {t("Email")}
               </a>
               {project.clientPhone && (
                 <a className="btn" href={`sms:${project.clientPhone.replace(/[^+\d]/g, "")}?&body=${encodeURIComponent(`${code} — ${draft.title}: ${formatMoney(totals.total, cur)}. Review and sign: ${linkUrl}`)}`}>
-                  <Send /> Text
+                  <Send /> {t("Text")}
                 </a>
               )}
               {typeof navigator !== "undefined" && "share" in navigator && (
                 <button className="btn" onClick={() => void navigator.share({ title: `Change order ${code}`, url: linkUrl }).catch(() => undefined)}>
-                  <Share2 /> Share
+                  <Share2 /> {t("Share")}
                 </button>
               )}
             </div>
@@ -821,12 +834,12 @@ export default function ChangeOrderEditor(props: {
         <section className="sticky bottom-0 z-10 -mx-3 flex flex-wrap gap-2 border-t border-slate-200 bg-white/95 p-3 backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:p-3">
           {draft.status === "draft" && (
             <button className="btn btn-brand flex-1 sm:flex-none" disabled={!draft.lines.length || busy === "send"} onClick={() => void send()}>
-              <Send /> Send to client
+              <Send /> {t("Send to client")}
             </button>
           )}
           {canDo(draft, "approve") && (
             <button className="btn" onClick={() => setApproving(true)}>
-              <Check /> Mark approved
+              <Check /> {t("Mark approved")}
             </button>
           )}
           {draft.status === "sent" && (
@@ -834,32 +847,32 @@ export default function ChangeOrderEditor(props: {
               className="btn"
               onClick={() => {
                 // Cancel on either prompt leaves the change order as it is.
-                const name = window.prompt("Rejected by (optional)");
+                const name = window.prompt(t("Rejected by (optional)"));
                 if (name == null) return;
-                const comment = window.prompt("Reason (optional)");
+                const comment = window.prompt(t("Reason (optional)"));
                 if (comment == null) return;
                 void act("reject", { name, comment });
               }}
             >
-              <X /> Mark rejected
+              <X /> {t("Mark rejected")}
             </button>
           )}
           {canDo(draft, "revise") && (
             <button className="btn" onClick={() => void act("revise", { newId: newId() })}>
-              <FilePen /> Revise
+              <FilePen /> {t("Revise")}
             </button>
           )}
           {canDo(draft, "void") && draft.status !== "draft" && (
-            <button className="btn btn-ghost text-red-600" onClick={() => window.confirm(`Void ${code}? The client link stops working.`) && void act("void")}>
-              <Ban /> Void
+            <button className="btn btn-ghost text-red-600" onClick={() => window.confirm(t("Void {code}? The client link stops working.", { code })) && void act("void")}>
+              <Ban /> {t("Void…")}
             </button>
           )}
           {draft.status === "draft" && (
             <button className="btn btn-ghost text-red-600" onClick={() => void remove()}>
-              <Trash /> Delete draft
+              <Trash /> {t("Delete draft")}
             </button>
           )}
-          {draft.status === "approved" && <p className="self-center text-sm text-slate-500">Approved change orders are locked. Make a new change order for further changes.</p>}
+          {draft.status === "approved" && <p className="self-center text-sm text-slate-500">{t("Approved change orders are locked. Make a new change order for further changes.")}</p>}
         </section>
       </div>
 

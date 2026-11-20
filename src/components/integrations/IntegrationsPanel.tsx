@@ -7,7 +7,6 @@ import { fmtDate, msg, useT } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
-import { rich } from "../ui/richText";
 import { ApiError, connectProvider, disconnectProvider, listIntegrations, providerStatus, saveProviderSettings, testProvider, type IntegrationsList, type ProviderStatus } from "./accountingClient";
 
 const when = (iso: string | null | undefined) => (iso ? fmtDate(iso, { dateStyle: "medium", timeStyle: "short" }) : "");
@@ -21,11 +20,11 @@ const RESULT_TEXT: Record<string, { ok: boolean; text: string }> = {
 };
 
 export default function IntegrationsPanel() {
+  const t = useT();
   const office = can(useRole(), "prices");
   const [list, setList] = useState<IntegrationsList | null>(null);
   const [locked, setLocked] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ provider: string; ok: boolean; text: string } | null>(null);
-  const t = useT();
 
   async function load() {
     try {
@@ -42,14 +41,14 @@ export default function IntegrationsPanel() {
     const q = new URLSearchParams(window.location.search);
     const p = q.get("integration");
     const r = q.get("result");
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       if (p && r && RESULT_TEXT[r]) setNotice({ provider: p, ...RESULT_TEXT[r] });
       void load();
     }, 0);
     window.addEventListener("pinplan:auth-changed", load);
     const sub = getSupabase()?.auth.onAuthStateChange(() => void load());
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       window.removeEventListener("pinplan:auth-changed", load);
       sub?.data.subscription.unsubscribe();
     };
@@ -79,13 +78,10 @@ export default function IntegrationsPanel() {
         </div>
         {list?.providers.some((p) => p.id === "billdu") && (
           <p className="text-xs text-slate-500">
-            {rich(t("Billdu is set up in its own section: {link}."), {
-              link: (
-                <a className="underline" href="#billdu">
-                  {t("Settings → Billdu")}
-                </a>
-              ),
-            })}
+            {t("Billdu is set up in its own section:")}{" "}
+            <a className="underline" href="#billdu">
+              {t("Settings → Billdu")}
+            </a>
           </p>
         )}
       </section>
@@ -94,8 +90,8 @@ export default function IntegrationsPanel() {
 }
 
 function StatusChip({ p }: { p: ProviderStatus }) {
-  const s = p.connection?.status;
   const t = useT();
+  const s = p.connection?.status;
   const [text, cls] = !p.enabled
     ? [t("Not available yet"), "bg-slate-100 text-slate-500"]
     : s === "connected"
@@ -107,12 +103,12 @@ function StatusChip({ p }: { p: ProviderStatus }) {
 }
 
 function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: ProviderStatus; canConnect: boolean; notice: { ok: boolean; text: string } | null; onChanged: () => void }) {
+  const t = useT();
   const [p, setP] = useState(initial);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(notice);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(notice);
   const [settings, setSettings] = useState<Record<string, string>>(initial.settings);
-  const t = useT();
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setP(initial);
@@ -123,12 +119,12 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
 
   async function run(fn: () => Promise<string | void>) {
     setBusy(true);
-    setNote(null);
+    setMessage(null);
     try {
       const text = await fn();
-      if (text) setNote({ ok: true, text });
+      if (text) setMessage({ ok: true, text });
     } catch (e) {
-      setNote({ ok: false, text: (e as Error).message });
+      setMessage({ ok: false, text: (e as Error).message });
     } finally {
       setBusy(false);
     }
@@ -160,7 +156,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
           </div>
           <div className="mt-0.5 text-xs text-slate-500">
             {c?.companyName && <>{c.companyName}{c.environment === "sandbox" ? ` ${t("(sandbox)")}` : ""} · </>}
-            {c?.lastSyncAt ? t("Last sync {date}", { date: when(c.lastSyncAt) }) : connected ? t("Nothing sent yet") : p.enabled ? t("Not connected") : t("Your PinPlan server needs this app's keys first.")}
+            {c?.lastSyncAt ? t("Last sync {when}", { when: when(c.lastSyncAt) }) : connected ? t("Nothing sent yet") : p.enabled ? t("Not connected") : t("Your PinPlan server needs this app's keys first.")}
           </div>
           {c?.lastError && <div className="mt-1 text-xs text-red-600">{c.lastError}</div>}
         </div>
@@ -185,7 +181,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
                   void run(async () => {
                     setP(await disconnectProvider(p.id));
                     onChanged();
-                    return t("Disconnected.");
+                    return msg("Disconnected.");
                   });
                 }}
               >
@@ -198,7 +194,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
           </div>
         )}
       </div>
-      {note && <p className={`mt-2 text-sm ${note.ok ? "text-emerald-700" : "text-red-600"}`}>{t(note.text)}</p>}
+      {message && <p className={`mt-2 text-sm ${message.ok ? "text-emerald-700" : "text-red-600"}`}>{t(message.text)}</p>}
 
       {more && (
         <div className="mt-3 space-y-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -209,7 +205,7 @@ function ProviderRow({ p: initial, canConnect, notice, onChanged }: { p: Provide
                 void run(async () => {
                   const out = await saveProviderSettings(p.id, settings);
                   setSettings(out.settings);
-                  return t("Mapping saved.");
+                  return msg("Mapping saved.");
                 });
               }}
             >

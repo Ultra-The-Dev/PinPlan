@@ -4,17 +4,20 @@ import { statusChip } from "@/lib/statusStyle";
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { STATUS_LABEL } from "@/lib/documents";
+import { msg, useT } from "@/lib/i18n";
 import type { DocDisplayStatus, DocKind } from "@/lib/types";
 
 
 export function StatusChip({ status }: { status: DocDisplayStatus }) {
-  return <span className={`chip shrink-0 ${statusChip(status)}`}>{STATUS_LABEL[status]}</span>;
+  const t = useT();
+  return <span className={`chip shrink-0 ${statusChip(status)}`}>{t(STATUS_LABEL[status])}</span>;
 }
 
-export const KIND_SHORT: Record<DocKind, string> = { quote: "Quote", invoice: "Invoice", credit_note: "Credit" };
+export const KIND_SHORT: Record<DocKind, string> = { quote: msg("Quote"), invoice: msg("Invoice"), credit_note: msg("Credit") };
 const KIND_STYLE: Record<DocKind, string> = { quote: "bg-violet-50 text-violet-700", invoice: "bg-brand-50 text-brand-700", credit_note: "bg-slate-100 text-slate-600" };
 export function KindChip({ kind, label }: { kind: DocKind; label?: string }) {
-  return <span className={`chip shrink-0 ${KIND_STYLE[kind]}`}>{label ?? KIND_SHORT[kind]}</span>;
+  const t = useT();
+  return <span className={`chip shrink-0 ${KIND_STYLE[kind]}`}>{label ?? t(KIND_SHORT[kind])}</span>;
 }
 
 /** "$1,200.50", "1200.5", "-40" → number; anything else → null. */
@@ -90,6 +93,7 @@ export function Menu({ label, icon, items, align = "right", className = "btn" }:
 
 /** A modal panel (bottom sheet on phones). */
 export function Modal({ title, description, onClose, children, wide }: { title: string; description?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  const t = useT();
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", k);
@@ -109,7 +113,7 @@ export function Modal({ title, description, onClose, children, wide }: { title: 
             <h2 className="text-base font-semibold">{title}</h2>
             {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
           </div>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
