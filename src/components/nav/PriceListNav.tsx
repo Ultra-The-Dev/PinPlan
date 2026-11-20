@@ -4,22 +4,24 @@
 import { Package, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { msg, useT } from "@/lib/i18n";
 
 const SECTIONS = [
-  { href: "/catalog", label: "Devices", icon: Package },
-  { href: "/products", label: "Products", icon: Tags },
+  { href: "/catalog", label: msg("Devices"), icon: Package },
+  { href: "/products", label: msg("Products"), icon: Tags },
 ];
 
 export default function PriceListNav() {
   const path = usePathname();
+  const t = useT();
   return (
     <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
-      <span className="text-sm font-semibold text-slate-900">Price list</span>
-      <nav className="seg" aria-label="Price list sections">
+      <span className="text-sm font-semibold text-slate-900">{t("Price list")}</span>
+      <nav className="seg" aria-label={t("Price list sections")}>
         {SECTIONS.map((s) => (
           <Link key={s.href} href={s.href} className={`tab h-7 ${path === s.href ? "tab-active" : ""}`} aria-current={path === s.href ? "page" : undefined}>
             <s.icon />
-            {s.label}
+            {t(s.label)}
           </Link>
         ))}
       </nav>

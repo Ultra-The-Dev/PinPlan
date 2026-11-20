@@ -8,6 +8,7 @@ import L from "leaflet";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { db } from "@/lib/db";
+import { t, useT } from "@/lib/i18n";
 import { mapTiles } from "@/lib/endpoints";
 import { filterJobs, isPlaced, jobLabelList, jobTitle, labelOptions, statusCounts } from "@/lib/jobFilters";
 import type { Project, ProjectStatus } from "@/lib/types";
@@ -20,10 +21,10 @@ function popup(j: Project): HTMLElement {
   const div = document.createElement("div");
   div.style.minWidth = "160px";
   const title = document.createElement("div");
-  title.textContent = jobTitle(j, "Job");
+  title.textContent = jobTitle(j, t("Job"));
   title.style.fontWeight = "600";
   const sub = document.createElement("div");
-  sub.textContent = [j.address ? j.clientName : "", projectStatusLabel(j.status)].filter(Boolean).join(" · ");
+  sub.textContent = [j.address ? j.clientName : "", t(projectStatusLabel(j.status))].filter(Boolean).join(" · ");
   sub.style.color = "#64748b";
   div.append(title, sub);
   const labels = jobLabelList(j);
@@ -36,7 +37,7 @@ function popup(j: Project): HTMLElement {
   }
   const a = document.createElement("a");
   a.href = `/project?id=${encodeURIComponent(j.id)}`;
-  a.textContent = "Open job →";
+  a.textContent = t("Open job →");
   a.style.display = "inline-block";
   a.style.marginTop = "6px";
   a.style.fontWeight = "600";
@@ -53,6 +54,7 @@ export default function JobsMap() {
   const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
   const [label, setLabel] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const t = useT();
   // Background map unavailable: offline, or tiles keep failing (bad key, provider down).
   const [noTiles, setNoTiles] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   useEffect(() => {
@@ -152,17 +154,18 @@ export default function JobsMap() {
   return (
     <div className="mx-auto flex h-full max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6">
       <div>
-        <h1 className="page-title">Map</h1>
+        <h1 className="page-title">{t("Map")}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {placed.length} job{placed.length === 1 ? "" : "s"} on the map{filtered ? " (filtered)" : ""} · location comes from the first photo with GPS, or set it on the job’s Overview tab.
+          {filtered ? t.tn("{n} job on the map (filtered)", "{n} jobs on the map (filtered)", placed.length) : t.tn("{n} job on the map", "{n} jobs on the map", placed.length)} ·{" "}
+          {t("location comes from the first photo with GPS, or set it on the job’s Overview tab.")}
         </p>
       </div>
       {loaded && live.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter jobs">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("Filter jobs")}>
           {STATUSES.map((s) => (
             <button key={s} className={chip(statuses.includes(s))} aria-pressed={statuses.includes(s)} onClick={() => toggleStatus(s)}>
               <span className="h-2.5 w-2.5 rounded-full ring-1 ring-white" style={{ background: COLOR[s] }} />
-              {projectStatusLabel(s)} <span className="opacity-60">{counts[s]}</span>
+              {t(projectStatusLabel(s))} <span className="opacity-60">{counts[s]}</span>
             </button>
           ))}
           {labels.length > 0 && <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />}
@@ -173,7 +176,7 @@ export default function JobsMap() {
           ))}
           {filtered && (
             <button className="chip px-2.5 py-1 text-brand-600 hover:underline" onClick={() => { setStatuses([]); setLabel(""); }}>
-              Clear
+              {t("Clear")}
             </button>
           )}
         </div>
@@ -183,40 +186,40 @@ export default function JobsMap() {
           <div ref={el} className="card relative z-0 h-full min-h-[420px] overflow-hidden" />
           {noTiles && (
             <p className="pointer-events-none absolute inset-x-12 bottom-8 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-xs text-slate-600 shadow-sm" role="status">
-              The map needs a connection. Your jobs and pins still work.
+              {t("The map needs a connection. Your jobs and pins still work.")}
             </p>
           )}
         </div>
         <div className="card flex max-h-[60vh] min-h-0 flex-col overflow-hidden lg:max-h-none">
-          <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">On the map · {placed.length}</div>
+          <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">{t("On the map · {n}", { n: placed.length })}</div>
           <ul className="min-h-0 flex-1 overflow-y-auto">
             {placed.map((j) => (
               <li key={j.id}>
                 <button className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50 ${selected === j.id ? "bg-slate-100" : ""}`} onClick={() => flyTo(j)}>
                   <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLOR[j.status] }} aria-hidden />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{jobTitle(j)}</span>
-                    <span className="block truncate text-xs text-slate-500">{[j.address ? j.clientName : "", projectStatusLabel(j.status), ...jobLabelList(j)].filter(Boolean).join(" · ")}</span>
+                    <span className="block truncate font-medium">{jobTitle(j, t("Untitled job"))}</span>
+                    <span className="block truncate text-xs text-slate-500">{[j.address ? j.clientName : "", t(projectStatusLabel(j.status)), ...jobLabelList(j)].filter(Boolean).join(" · ")}</span>
                   </span>
                 </button>
               </li>
             ))}
-            {loaded && placed.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">{filtered ? "No placed jobs match these filters." : "No jobs on the map yet."}</li>}
+            {loaded && placed.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">{filtered ? t("No placed jobs match these filters.") : t("No jobs on the map yet.")}</li>}
           </ul>
         </div>
       </div>
       {unplaced.length > 0 && (
         <p className="text-sm text-slate-500">
-          Not on the map yet:{" "}
+          {t("Not on the map yet:")}{" "}
           {unplaced.slice(0, 8).map((j, i) => (
             <span key={j.id}>
               {i > 0 && ", "}
               <Link className="text-brand-600 hover:underline" href={`/project?id=${encodeURIComponent(j.id)}&tab=overview`}>
-                {jobTitle(j)}
+                {jobTitle(j, t("Untitled job"))}
               </Link>
             </span>
           ))}
-          {unplaced.length > 8 ? ` and ${unplaced.length - 8} more` : ""}
+          {unplaced.length > 8 ? ` ${t("and {n} more", { n: unplaced.length - 8 })}` : ""}
         </p>
       )}
     </div>

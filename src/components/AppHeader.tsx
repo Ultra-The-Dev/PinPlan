@@ -2,6 +2,7 @@
 import { ClipboardList, FolderOpen, ReceiptText, Tags } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { msg, useT } from "@/lib/i18n";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
@@ -11,8 +12,9 @@ import { LogoMark } from "./marketing/Wordmark";
 import SyncBadge from "./SyncBadge";
 
 export function Logo({ compact }: { compact?: boolean }) {
+  const t = useT();
   return (
-    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={`${PRODUCT_NAME} home`}>
+    <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg font-semibold text-ink" aria-label={t("{product} home", { product: PRODUCT_NAME })}>
       <LogoMark size={32} />
       {!compact && <span className="hidden text-[15px] lg:inline">{PRODUCT_NAME}</span>}
     </Link>
@@ -24,15 +26,16 @@ export function Logo({ compact }: { compact?: boolean }) {
  * photos are views of Jobs, the crew board sits under Tasks, Products is part of the Price list.
  */
 export const MAIN_NAV: { href: string; label: string; icon: typeof FolderOpen; match: string[]; office?: boolean }[] = [
-  { href: "/", label: "Jobs", icon: FolderOpen, match: ["/", "/map", "/photos", "/project"] },
-  { href: "/tasks", label: "Tasks", icon: ClipboardList, match: ["/tasks", "/schedule"] },
-  { href: "/invoices", label: "Money", icon: ReceiptText, match: ["/invoices"], office: true },
-  { href: "/catalog", label: "Price list", icon: Tags, match: ["/catalog", "/products"], office: true },
+  { href: "/", label: msg("Jobs"), icon: FolderOpen, match: ["/", "/map", "/photos", "/project"] },
+  { href: "/tasks", label: msg("Tasks"), icon: ClipboardList, match: ["/tasks", "/schedule"] },
+  { href: "/invoices", label: msg("Money"), icon: ReceiptText, match: ["/invoices"], office: true },
+  { href: "/catalog", label: msg("Price list"), icon: Tags, match: ["/catalog", "/products"], office: true },
 ];
 
 export default function AppHeader({ children }: { children?: React.ReactNode }) {
   const path = usePathname() ?? "";
   const role = useRole();
+  const t = useT();
   const nav = MAIN_NAV.filter((n) => !n.office || can(role, "editCatalog"));
   return (
     <>
@@ -40,7 +43,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
       <Logo />
       {children && <div className="min-w-0 flex-1">{children}</div>}
       {/* Always labelled: the label sits under the icon on phones and beside it from md up. */}
-      <nav className={`flex min-w-0 items-center gap-0.5 ${children ? "" : "flex-1 justify-center sm:justify-start"}`} aria-label="Main">
+      <nav className={`flex min-w-0 items-center gap-0.5 ${children ? "" : "flex-1 justify-center sm:justify-start"}`} aria-label={t("Main")}>
         {nav.map((n) => {
           const active = n.match.includes(path);
           return (
@@ -53,7 +56,7 @@ export default function AppHeader({ children }: { children?: React.ReactNode }) 
               aria-current={active ? "page" : undefined}
             >
               <n.icon />
-              {n.label}
+              {t(n.label)}
             </Link>
           );
         })}

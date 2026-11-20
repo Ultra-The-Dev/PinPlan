@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { t, tn, useLocale } from "@/lib/i18n";
 import { useSyncStatus, type SyncStatus } from "@/lib/sync";
 
 export type SyncBadgeState = {
@@ -21,23 +22,24 @@ export function syncBadgeState(s: BadgeInput): SyncBadgeState {
   const amber = "bg-amber-100 text-amber-800";
   const red = "bg-red-100 text-red-700";
   const grey = "bg-slate-100 text-slate-600";
-  if (!online) return { text: pending && configured ? `Offline · ${pending} pending` : "Offline", short: "Offline", quiet: false, cls: amber };
-  if (!configured) return { text: "Local only", short: "Local only", quiet: true, cls: grey };
-  if (!signedIn) return { text: "Not signed in", short: "Sign in", quiet: false, cls: grey };
-  if (ownerMismatch) return { text: "Sync paused", short: "Paused", quiet: false, cls: amber };
-  if (readOnly) return { text: pending ? `Read-only · ${pending} kept here` : "Read-only", short: "Read-only", quiet: false, cls: amber };
-  if (refused) return { text: refused === 1 ? "1 change not accepted" : `${refused} changes not accepted`, short: "Not accepted", quiet: false, cls: red };
-  if (error) return { text: "Sync error", short: "Sync error", quiet: false, cls: red };
+  if (!online) return { text: pending && configured ? t("Offline · {n} pending", { n: pending }) : t("Offline"), short: t("Offline"), quiet: false, cls: amber };
+  if (!configured) return { text: t("Local only"), short: t("Local only"), quiet: true, cls: grey };
+  if (!signedIn) return { text: t("Not signed in"), short: t("Sign in"), quiet: false, cls: grey };
+  if (ownerMismatch) return { text: t("Sync paused"), short: t("Paused"), quiet: false, cls: amber };
+  if (readOnly) return { text: pending ? t("Read-only · {n} kept here", { n: pending }) : t("Read-only"), short: t("Read-only"), quiet: false, cls: amber };
+  if (refused) return { text: tn("{n} change not accepted", "{n} changes not accepted", refused), short: t("Not accepted"), quiet: false, cls: red };
+  if (error) return { text: t("Sync error"), short: t("Sync error"), quiet: false, cls: red };
   // Syncing comes and goes every few seconds; on phones it would make the header jump, so it stays quiet there.
-  if (syncing) return { text: "Syncing…", short: "Syncing", quiet: true, cls: "bg-blue-100 text-blue-700" };
-  if (pending) return { text: `${pending} pending`, short: `${pending} pending`, quiet: false, cls: amber };
-  return { text: "Synced", short: "Synced", quiet: true, cls: "bg-emerald-100 text-emerald-700" };
+  if (syncing) return { text: t("Syncing…"), short: t("Syncing"), quiet: true, cls: "bg-blue-100 text-blue-700" };
+  if (pending) return { text: t("{n} pending", { n: pending }), short: t("{n} pending", { n: pending }), quiet: false, cls: amber };
+  return { text: t("Synced"), short: t("Synced"), quiet: true, cls: "bg-emerald-100 text-emerald-700" };
 }
 
 /** Header indicator: offline / local only / pending N / synced. On phones it shows a short word, and only when something
  *  needs attention (offline, pending, errors…); when all is fine it is hidden there rather than a bare dot. */
 export default function SyncBadge() {
   const status = useSyncStatus();
+  useLocale(); // re-render in the chosen language
   const { authReady, readOnly, ownerMismatch, refused, error } = status;
   // Sync state only exists in the browser; render a neutral badge for the server/hydration pass.
   const hydrated = useSyncExternalStore(
@@ -50,8 +52,8 @@ export default function SyncBadge() {
   return (
     <Link
       href={readOnly ? "/settings#billing" : "/settings#account"}
-      title={readOnly ? "Your company's PinPlan subscription is inactive: changes stay on this device until it's restarted." : ownerMismatch ? "This device has another account's jobs. Open Settings to remove them before syncing." : refused ? `${refused} ${refused === 1 ? "change wasn't" : "changes weren't"} accepted. Open Settings to discard or try again.` : (error ?? text)}
-      aria-label={`Sync: ${text}`}
+      title={readOnly ? t("Your company's PinPlan subscription is inactive: changes stay on this device until it's restarted.") : ownerMismatch ? t("This device has another account's jobs. Open Settings to remove them before syncing.") : refused ? tn("{n} change wasn't accepted. Open Settings to discard or try again.", "{n} changes weren't accepted. Open Settings to discard or try again.", refused) : (error ?? text)}
+      aria-label={t("Sync: {status}", { status: text })}
       data-testid="sync-badge"
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium whitespace-nowrap sm:px-2.5 sm:py-1 ${quiet ? "max-sm:hidden" : ""} ${cls}`}
     >

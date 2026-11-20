@@ -7,33 +7,35 @@ import { saveChecklistTemplates } from "@/lib/db";
 import { removeTemplate, renameTemplate } from "@/lib/fieldDocs";
 import { tradeChecklists } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
+import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import type { ChecklistTemplate } from "@/lib/types";
 import { useChecklistTemplates } from "@/lib/useChecklistTemplates";
 
-function TemplateRow({ t }: { t: ChecklistTemplate }) {
+function TemplateRow({ t: tpl }: { t: ChecklistTemplate }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(t.name);
+  const [name, setName] = useState(tpl.name);
   const [open, setOpen] = useState(false);
-  const photos = t.items.filter((i) => i.requiresPhoto).length;
+  const photos = tpl.items.filter((i) => i.requiresPhoto).length;
 
   async function rename() {
     if (!name.trim()) return;
     try {
-      await saveChecklistTemplates((cur) => renameTemplate(cur, t.id, name));
+      await saveChecklistTemplates((cur) => renameTemplate(cur, tpl.id, name));
       setEditing(false);
     } catch {
-      toast("Couldn't rename the template", "error");
+      toast(t("Couldn't rename the template"), "error");
     }
   }
 
   async function remove() {
-    if (!confirm(`Delete the template “${t.name}”? Checklists already started from it stay on their jobs.`)) return;
+    if (!confirm(t("Delete the template “{name}”? Checklists already started from it stay on their jobs.", { name: tpl.name }))) return;
     try {
-      await saveChecklistTemplates((cur) => removeTemplate(cur, t.id));
-      toast(`Deleted “${t.name}”`);
+      await saveChecklistTemplates((cur) => removeTemplate(cur, tpl.id));
+      toast(t("Deleted “{name}”", { name: tpl.name }));
     } catch {
-      toast("Couldn't delete the template", "error");
+      toast(t("Couldn't delete the template"), "error");
     }
   }
 
@@ -47,16 +49,16 @@ function TemplateRow({ t }: { t: ChecklistTemplate }) {
             void rename();
           }}
         >
-          <input className="input h-9" autoFocus aria-label="Template name" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="btn btn-sm btn-brand" disabled={!name.trim()} aria-label="Save name">
+          <input className="input h-9" autoFocus aria-label={t("Template name")} value={name} onChange={(e) => setName(e.target.value)} />
+          <button className="btn btn-sm btn-brand" disabled={!name.trim()} aria-label={t("Save name")}>
             <Check />
           </button>
           <button
             type="button"
             className="btn btn-sm btn-ghost"
-            aria-label="Cancel"
+            aria-label={t("Cancel")}
             onClick={() => {
-              setName(t.name);
+              setName(tpl.name);
               setEditing(false);
             }}
           >
@@ -68,32 +70,32 @@ function TemplateRow({ t }: { t: ChecklistTemplate }) {
           <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
             <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} />
             <span className="min-w-0">
-              <span className="block truncate text-sm font-medium">{t.name}</span>
+              <span className="block truncate text-sm font-medium">{tpl.name}</span>
               <span className="block text-xs text-slate-500">
-                {t.items.length} item{t.items.length === 1 ? "" : "s"}
-                {photos > 0 && ` · ${photos} need${photos === 1 ? "s" : ""} a photo`}
+                {t.tn("{n} item", "{n} items", tpl.items.length)}
+                {photos > 0 && ` · ${t.tn("{n} needs a photo", "{n} need a photo", photos)}`}
               </span>
             </span>
           </button>
-          <button className="btn btn-sm btn-ghost text-slate-500" title="Rename" aria-label={`Rename ${t.name}`} onClick={() => {
-              setName(t.name);
+          <button className="btn btn-sm btn-ghost text-slate-500" title={t("Rename")} aria-label={t("Rename {name}", { name: tpl.name })} onClick={() => {
+              setName(tpl.name);
               setEditing(true);
             }}
           >
             <Pencil />
           </button>
-          <button className="btn btn-sm btn-ghost text-slate-400 hover:text-red-600" title="Delete" aria-label={`Delete ${t.name}`} onClick={() => void remove()}>
+          <button className="btn btn-sm btn-ghost text-slate-400 hover:text-red-600" title={t("Delete")} aria-label={t("Delete {name}", { name: tpl.name })} onClick={() => void remove()}>
             <Trash />
           </button>
         </div>
       )}
       {open && !editing && (
         <ul className="mt-2 space-y-1 pl-6 text-sm text-slate-600">
-          {t.items.map((i, n) => (
+          {tpl.items.map((i, n) => (
             <li key={n} className="flex items-start gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
               <span className="min-w-0 flex-1">{i.text}</span>
-              {i.requiresPhoto && <Camera className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" aria-label="Photo required" />}
+              {i.requiresPhoto && <Camera className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" aria-label={t("Photo required")} />}
             </li>
           ))}
         </ul>
@@ -105,22 +107,23 @@ function TemplateRow({ t }: { t: ChecklistTemplate }) {
 export default function ChecklistTemplatesSettings() {
   const { templates, loaded } = useChecklistTemplates();
   const builtIns = tradeChecklists(useTrades());
-  if (!loaded) return <p className="text-sm text-slate-500">Loading…</p>;
+  const t = useT();
+  if (!loaded) return <p className="text-sm text-slate-500">{t("Loading…")}</p>;
   const mine = [...templates].sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div className="space-y-3">
       {mine.length === 0 ? (
         <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-          No saved templates yet. Open a job’s Checklists, set one up the way your crew works, then tap the bookmark button to save it as a template.
+          {t("No saved templates yet. Open a job’s Checklists, set one up the way your crew works, then tap the bookmark button to save it as a template.")}
         </p>
       ) : (
         <ul className="divide-y divide-slate-100">
-          {mine.map((t) => (
-            <TemplateRow key={t.id} t={t} />
+          {mine.map((x) => (
+            <TemplateRow key={x.id} t={x} />
           ))}
         </ul>
       )}
-      <p className="text-xs text-slate-500">Built in: {builtIns.map((t) => t.name).join(", ")}.</p>
+      <p className="text-xs text-slate-500">{t("Built in: {names}.", { names: builtIns.map((x) => x.name).join(", ") })}</p>
     </div>
   );
 }

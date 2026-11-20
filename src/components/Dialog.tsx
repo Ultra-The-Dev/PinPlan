@@ -1,6 +1,7 @@
 "use client";
 import { X } from "lucide-react";
 import { useId, useState } from "react";
+import { useT } from "@/lib/i18n";
 import Modal from "./ui/Modal";
 
 export interface DialogField {
@@ -25,6 +26,7 @@ export default function Dialog(props: {
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(props.fields.map((f) => [f.name, f.initial ?? ""])));
   const id = useId();
+  const t = useT();
   return (
     <Modal onClose={props.onCancel} labelledBy={`${id}-title`} describedBy={props.description ? `${id}-desc` : undefined}>
       <form
@@ -41,7 +43,7 @@ export default function Dialog(props: {
             </h2>
             {props.description && <p id={`${id}-desc`} className="mt-1 text-sm text-slate-500">{props.description}</p>}
           </div>
-          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={props.onCancel} aria-label="Close">
+          <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={props.onCancel} aria-label={t("Close")}>
             <X />
           </button>
         </div>
@@ -76,9 +78,9 @@ export default function Dialog(props: {
             </button>
           )}
           <button type="button" className="btn" onClick={props.onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
-          <button className="btn btn-brand">{props.submitLabel ?? "Save"}</button>
+          <button className="btn btn-brand">{props.submitLabel ?? t("Save")}</button>
         </div>
       </form>
     </Modal>

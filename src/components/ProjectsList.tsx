@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { db, ensureSeeded, newId, nowIso, put, remove } from "@/lib/db";
 import { importBackup } from "@/lib/backup";
+import { fmtDate, useT } from "@/lib/i18n";
 import { useSyncStatus } from "@/lib/sync";
 import { jobHref } from "@/lib/tabRoutes";
 import { useRole, useTeam } from "@/lib/team";
@@ -62,6 +63,7 @@ export default function ProjectsList() {
   const [status, setStatus] = useState<ProjectStatus | "all">("all");
   const [label, setLabel] = useState<string | null>(null);
   const role = useRole();
+  const t = useT();
   // Office: create, restore and delete jobs. Technicians work on the jobs the office set up.
   const office = can(role, "prices");
   const onTeam = useTeam((s) => !!s.team);
@@ -102,17 +104,17 @@ export default function ProjectsList() {
   }
 
   async function del(p: Row) {
-    if (!confirm(`Delete job “${p.address || p.clientName}”? This removes its sheets and devices.`)) return;
+    if (!confirm(t("Delete job “{name}”? This removes its sheets and devices.", { name: p.address || p.clientName }))) return;
     await remove("projects", p.id);
     refresh();
-    toast("Job deleted");
+    toast(t("Job deleted"));
   }
 
   async function restore(file: File | undefined) {
     if (!file) return;
     try {
       const n = await importBackup(file);
-      toast(`Restored ${n} job${n === 1 ? "" : "s"}`);
+      toast(t.tn("Restored {n} job", "Restored {n} jobs", n));
       refresh();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "error");
@@ -131,17 +133,17 @@ export default function ProjectsList() {
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h1 className="page-title">Jobs</h1>
-          <p className="mt-1 text-sm text-slate-500">{office ? "Plans, device counts, quotes and invoices for every job." : "Every job on your team: plans, devices, photos and checklists."}</p>
+          <h1 className="page-title">{t("Jobs")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{office ? t("Plans, device counts, quotes and invoices for every job.") : t("Every job on your team: plans, devices, photos and checklists.")}</p>
         </div>
         {office && (
           <>
             <input ref={restoreRef} type="file" accept="application/json,.json,.pinplan" className="hidden" onChange={(e) => restore(e.target.files?.[0])} />
-            <button className="btn max-sm:hidden" onClick={() => restoreRef.current?.click()} title="Restore a job backup">
-              <Upload /> Restore backup
+            <button className="btn max-sm:hidden" onClick={() => restoreRef.current?.click()} title={t("Restore a job backup")}>
+              <Upload /> {t("Restore backup")}
             </button>
             <button className="btn btn-brand" onClick={() => setCreating(true)}>
-              <Plus /> New job
+              <Plus /> {t("New job")}
             </button>
           </>
         )}
@@ -155,7 +157,7 @@ export default function ProjectsList() {
           <div className="seg">
             {(["all", "estimate", "approved", "installed"] as const).map((s) => (
               <button key={s} className={`tab h-7 ${status === s ? "tab-active" : ""}`} onClick={() => setStatus(s)}>
-                {s === "all" ? "All" : projectStatusLabel(s)} <span className="text-xs text-slate-400">{totals![s]}</span>
+                {s === "all" ? t("All") : t(projectStatusLabel(s))} <span className="text-xs text-slate-400">{totals![s]}</span>
               </button>
             ))}
           </div>
@@ -170,7 +172,7 @@ export default function ProjectsList() {
           )}
           <div className="relative w-full sm:ml-auto sm:max-w-xs">
             <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input pl-9" placeholder="Search client, address or label" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input pl-9" placeholder={t("Search client, address or label")} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
       )}
@@ -180,36 +182,36 @@ export default function ProjectsList() {
           <form onSubmit={create} onClick={(e) => e.stopPropagation()} className="card animate-in grid w-full max-w-lg gap-4 p-6 shadow-pop sm:grid-cols-2">
             <div className="flex items-start sm:col-span-2">
               <div className="flex-1">
-                <h2 className="text-lg font-semibold">New job</h2>
-                <p className="text-sm text-slate-500">Next you&apos;ll upload the plan set.</p>
+                <h2 className="text-lg font-semibold">{t("New job")}</h2>
+                <p className="text-sm text-slate-500">{t("Next you'll upload the plan set.")}</p>
               </div>
-              <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={() => setCreating(false)} aria-label="Close">
+              <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={() => setCreating(false)} aria-label={t("Close")}>
                 <X />
               </button>
             </div>
             <div className="sm:col-span-2">
-              <label className="label" htmlFor="new-job-address">Job address</label>
+              <label className="label" htmlFor="new-job-address">{t("Job address")}</label>
               <input id="new-job-address" className="input" autoFocus placeholder="12 Maple Ridge Rd" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label" htmlFor="new-client-name">Client name</label>
-              <input id="new-client-name" className="input" placeholder="Client or company" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
+              <label className="label" htmlFor="new-client-name">{t("Client name")}</label>
+              <input id="new-client-name" className="input" placeholder={t("Client or company")} value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="new-client-email">Client email</label>
+              <label className="label" htmlFor="new-client-email">{t("Client email")}</label>
               <input id="new-client-email" className="input" type="email" value={form.clientEmail} onChange={(e) => setForm({ ...form, clientEmail: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="new-client-phone">Client phone</label>
+              <label className="label" htmlFor="new-client-phone">{t("Client phone")}</label>
               <input id="new-client-phone" className="input" type="tel" value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })} />
             </div>
             {template.field}
             <div className="flex justify-end gap-2 pt-1 sm:col-span-2">
               <button type="button" className="btn" onClick={() => setCreating(false)}>
-                Cancel
+                {t("Cancel")}
               </button>
               <button className="btn btn-brand" disabled={!form.address.trim() && !form.clientName.trim()}>
-                Create &amp; upload plans
+                {t("Create & upload plans")}
               </button>
             </div>
           </form>
@@ -226,40 +228,40 @@ export default function ProjectsList() {
       ) : rows.length === 0 && fetching ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center" role="status">
           <Loader2 className="mx-auto mb-4 h-7 w-7 animate-spin text-brand-600" />
-          <h2 className="text-xl font-semibold">Getting your team&apos;s jobs…</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">The first download can take a minute on a slow connection.</p>
+          <h2 className="text-xl font-semibold">{t("Getting your team's jobs…")}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{t("The first download can take a minute on a slow connection.")}</p>
         </div>
       ) : rows.length === 0 && !office ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
             <MapPin className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-semibold">Your office&apos;s jobs will show up here</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">When the office adds a job, its plans, devices, tasks and checklists appear on this page.</p>
+          <h2 className="text-xl font-semibold">{t("Your office's jobs will show up here")}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">{t("When the office adds a job, its plans, devices, tasks and checklists appear on this page.")}</p>
         </div>
       ) : rows.length === 0 ? (
         <div className="card mx-auto max-w-xl px-8 py-14 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
             <MapPin className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-semibold">Start your first job</h2>
+          <h2 className="text-xl font-semibold">{t("Start your first job")}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
-            Create a job, upload the plan set (PDF or phone photos), then tap to place each device and draw the wire runs.
+            {t("Create a job, upload the plan set (PDF or phone photos), then tap to place each device and draw the wire runs.")}
           </p>
           <div className="mt-6 grid grid-cols-3 gap-3 text-left text-xs text-slate-600">
-            {["Upload plans", "Tap to place devices", "Counts → quote → invoice"].map((t, i) => (
-              <div key={t} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+            {[t("Upload plans"), t("Tap to place devices"), t("Counts → quote → invoice")].map((step, i) => (
+              <div key={i} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
                 <div className="mb-1 font-semibold text-brand-600">{i + 1}</div>
-                {t}
+                {step}
               </div>
             ))}
           </div>
           <button className="btn btn-brand mt-6" onClick={() => setCreating(true)}>
-            <Plus /> New job
+            <Plus /> {t("New job")}
           </button>
         </div>
       ) : filtered!.length === 0 ? (
-        <p className="py-10 text-center text-slate-500">No jobs match.</p>
+        <p className="py-10 text-center text-slate-500">{t("No jobs match.")}</p>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered!.map((p) => (
@@ -274,6 +276,7 @@ export default function ProjectsList() {
 function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; prices: boolean }) {
   // A small preview, not the full sheet: a dozen full-size sheets would exhaust an iPad's memory (src/lib/thumbs.ts).
   const img = useThumbUrl(p.coverImageId, SHEET_THUMB);
+  const t = useT();
   return (
     <li className="card group relative overflow-hidden transition hover:-translate-y-0.5 hover:shadow-pop">
       <Link href={`/project?id=${p.id}`} className="block">
@@ -286,11 +289,11 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
               <FileText className="h-10 w-10" />
             </div>
           )}
-          <span className={`chip absolute top-3 left-3 ${STATUS_STYLE[p.status]}`}>{projectStatusLabel(p.status)}</span>
+          <span className={`chip absolute top-3 left-3 ${STATUS_STYLE[p.status]}`}>{t(projectStatusLabel(p.status))}</span>
         </div>
         <div className="p-4">
-          <div className="truncate font-semibold text-slate-900">{p.address || "Untitled job"}</div>
-          <div className="truncate text-sm text-slate-500">{p.clientName || "No client name"}</div>
+          <div className="truncate font-semibold text-slate-900">{p.address || t("Untitled job")}</div>
+          <div className="truncate text-sm text-slate-500">{p.clientName || t("No client name")}</div>
           {(p.labels ?? []).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {(p.labels ?? []).map((l) => (
@@ -301,13 +304,13 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
             </div>
           )}
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Mini label="Devices" value={p.markerCount} />
-            <Mini label="Photos" value={p.photoCount} />
-            <Mini label="LED LF" value={p.ledFt} />
+            <Mini label={t("Devices")} value={p.markerCount} />
+            <Mini label={t("Photos")} value={p.photoCount} />
+            <Mini label={t("LED LF")} value={p.ledFt} />
           </div>
           <div className="mt-3 flex items-center text-xs text-slate-400">
-            Updated {new Date(p.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-            {prices && p.billduDocs.length ? <span className="chip ml-auto bg-slate-100 text-slate-600">{p.billduDocs.length} in Billdu</span> : null}
+            {t("Updated {date}", { date: fmtDate(p.updatedAt) })}
+            {prices && p.billduDocs.length ? <span className="chip ml-auto bg-slate-100 text-slate-600">{t("{n} in Billdu", { n: p.billduDocs.length })}</span> : null}
           </div>
         </div>
       </Link>
@@ -315,8 +318,8 @@ function ProjectCard({ p, onDelete, prices }: { p: Row; onDelete?: () => void; p
         <button
           className="btn btn-sm btn-icon absolute top-3 right-3 bg-white/90 opacity-0 backdrop-blur transition group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={onDelete}
-          aria-label="Delete job"
-          title="Delete job"
+          aria-label={t("Delete job")}
+          title={t("Delete job")}
         >
           <Trash className="text-red-600" />
         </button>
