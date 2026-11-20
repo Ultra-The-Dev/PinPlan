@@ -1,6 +1,6 @@
 // The money path, end to end in a real browser, local-only (no Supabase):
-// new job → import the sample plan set → place 3 devices → takeoff shows 3 → estimate total > 0
-// → quote → issue → invoice → PDF download. Any console error or uncaught page error fails the test.
+// new job → import the sample plan set → place 3 devices → takeoff shows 3 → Money › Pricing total > 0
+// → quote → finalize → invoice → finalize → PDF download. Any console error or uncaught page error fails the test.
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
 import { readFileSync } from "node:fs";
@@ -25,21 +25,21 @@ const markerCount = (page: Page) =>
 
 const money = (s: string | null) => Number((s ?? "").replace(/[^0-9.-]/g, ""));
 
-test("money path: job → plans → devices → takeoff → estimate → quote → invoice → PDF", async ({ page }) => {
+test("money path: job → plans → devices → takeoff → pricing → quote → invoice → PDF", async ({ page }) => {
   const errors = watchErrors(page);
   page.on("dialog", (d) => void d.accept());
 
   // 1. New job.
   await page.goto("/");
-  await page.getByRole("button", { name: "New project" }).first().click();
+  await page.getByRole("button", { name: "New job" }).first().click();
   await page.getByLabel("Job address").fill("100 Example Ave");
   await page.getByLabel("Client name").fill("E2E Test Client");
   await page.getByRole("button", { name: /Create & upload plans/ }).click();
-  await expect(page).toHaveURL(/\/project\?id=.+&tab=sheets/);
+  await expect(page).toHaveURL(/\/project\?id=.+&tab=plan&manage=1/);
   const projectUrl = new URL(page.url());
   const id = projectUrl.searchParams.get("id")!;
 
-  // 2. Import the sample plan set (4 pages).
+  // 2. Import the sample plan set (4 pages) on Plan › manage sheets.
   await page.locator("input[type=file][multiple]").setInputFiles(PDF);
   await expect(page.locator('input[aria-label="Sheet name"]')).toHaveCount(4, { timeout: 90_000 });
 
@@ -64,13 +64,15 @@ test("money path: job → plans → devices → takeoff → estimate → quote �
   await page.keyboard.press("Escape");
 
   // 4. Takeoff counts exactly the placed devices.
-  await page.getByRole("button", { name: "Takeoff", exact: true }).click();
+  await page.getByRole("navigation", { name: "Job sections" }).getByRole("button", { name: "Takeoff", exact: true }).click();
   // The first table is the per-floor count; its last column is the job total.
   const camRow = page.getByRole("row", { name: /^Indoor camera\b/ }).first();
   await expect(camRow.locator("td").last()).toHaveText("3");
 
-  // 5. Estimate prices them.
-  await page.getByRole("button", { name: "Estimate", exact: true }).click();
+  // 5. Money › Pricing prices them.
+  await page.getByRole("navigation", { name: "Job sections" }).getByRole("button", { name: "Money", exact: true }).click();
+  const steps = page.getByRole("navigation", { name: "Money steps" });
+  await expect(steps.getByRole("button", { name: /Pricing$/ })).toHaveAttribute("aria-current", "step");
   // A fresh catalog has no prices, so type one in (an override stored on this job only).
   const price = page.getByLabel(/^Unit price: Indoor camera/).filter({ visible: true }).first();
   await price.fill("250");
@@ -79,21 +81,21 @@ test("money path: job → plans → devices → takeoff → estimate → quote �
   await expect(total).toBeVisible();
   await expect.poll(async () => money(await total.textContent())).toBeGreaterThan(0);
 
-  // 6. Quote from the job's pricing, then issue it (local-only: "Issue & number").
-  await page.getByRole("button", { name: "Billing", exact: true }).click();
+  // 6. Quote from the job's pricing, then finalize it (gives it a number; local-only it is then "ready to send").
+  await steps.getByRole("button", { name: /Quote$/ }).click();
   await page.getByRole("button", { name: /from job pricing/ }).click();
-  // The quote's name is a setting (it defaults to "Estimate").
+  // The quote's name is a setting (it defaults to "Quote").
   await page.getByRole("button", { name: /^Create (quote|estimate|proposal|bid)$/i }).click();
-  await page.getByRole("button", { name: /Issue/ }).click();
-  await expect(page.getByText(/issued/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Finalize", exact: true }).click();
+  await expect(page.getByText(/finalized/).first()).toBeVisible();
 
   // 7. Invoice from the quote.
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: /Create invoice/ }).click();
-  await page.getByRole("button", { name: /^Create invoice$/ }).click();
-  await expect(page.getByRole("button", { name: /Issue/ })).toBeVisible();
-  await page.getByRole("button", { name: /Issue/ }).click();
-  await expect(page.getByText(/Invoice .*issued/i).first()).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: /^Create invoice$/ }).click();
+  await expect(page.getByRole("button", { name: "Finalize", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Finalize", exact: true }).click();
+  await expect(page.getByText(/Invoice .*finalized/i).first()).toBeVisible();
 
   // 8. The invoice PDF downloads and is a real PDF.
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /^PDF$/ }).click()]);
