@@ -202,7 +202,7 @@ export default function ClientDocument() {
 
       <main className="cp-wrap cp-body">
         <div className="cp-sheet overflow-hidden">
-          <DocView snap={s} live={live} payLink={pay} />
+          <DocView snap={s} live={live} payLink={pay} letterhead={false} />
         </div>
 
         {canAnswer && (

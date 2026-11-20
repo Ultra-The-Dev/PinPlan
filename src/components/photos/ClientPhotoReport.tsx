@@ -75,17 +75,23 @@ export default function ClientPhotoReport() {
           <section key={si} className="mt-8 first:mt-0">
             {sec.title && <h2 className="cp-h2 mb-3 break-after-avoid">{sec.title}</h2>}
             <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-              {sec.cells.map((cell, ci) =>
-                cell.length > 1 ? (
+              {sec.cells.map((cell, ci) => {
+                // A single photo with no partner on its row (the grid is two columns on wider screens) spans the
+                // row instead of leaving an empty half: picture beside its caption.
+                let col = 0;
+                for (let k = 0; k < ci; k++) col = sec.cells[k].length > 1 ? 0 : (col + 1) % 2;
+                const next = sec.cells[ci + 1];
+                const alone = cell.length === 1 && col === 0 && (!next || next.length > 1);
+                return cell.length > 1 ? (
                   <div key={ci} className="cp-sheet grid grid-cols-2 gap-px overflow-hidden bg-[var(--cp-hair)] break-inside-avoid sm:col-span-2">
                     {cell.map((i) => (
                       <PhotoFigure key={i} p={s.photos[i]} onOpen={() => setOpen(i)} bare />
                     ))}
                   </div>
                 ) : (
-                  <PhotoFigure key={ci} p={s.photos[cell[0]]} onOpen={() => setOpen(cell[0])} />
-                ),
-              )}
+                  <PhotoFigure key={ci} p={s.photos[cell[0]]} onOpen={() => setOpen(cell[0])} wide={alone} />
+                );
+              })}
             </div>
           </section>
         ))}
@@ -104,15 +110,15 @@ export default function ClientPhotoReport() {
   );
 }
 
-function PhotoFigure({ p, onOpen, bare }: { p: Snap["photos"][number]; onOpen: () => void; bare?: boolean }) {
+function PhotoFigure({ p, onOpen, bare, wide }: { p: Snap["photos"][number]; onOpen: () => void; bare?: boolean; wide?: boolean }) {
   const comments = Array.isArray(p.comments) ? p.comments.filter((c) => c && typeof c.text === "string" && c.text.trim()) : [];
   return (
-    <figure className={`${bare ? "bg-white" : "cp-sheet overflow-hidden break-inside-avoid"} flex flex-col`}>
-      <button className="block w-full bg-[var(--cp-paper)]" onClick={onOpen} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ""}`}>
+    <figure className={`${bare ? "bg-white" : "cp-sheet overflow-hidden break-inside-avoid"} flex flex-col ${wide ? "sm:col-span-2 sm:flex-row sm:items-stretch" : ""}`}>
+      <button className={`block w-full bg-[var(--cp-paper)] ${wide ? "sm:w-3/5 sm:shrink-0" : ""}`} onClick={onOpen} aria-label={`Enlarge photo${p.caption ? `: ${p.caption}` : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={p.url} alt={p.caption || "Job photo"} loading="lazy" className="w-full object-contain" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
       </button>
-      <figcaption className="px-4 pt-3 pb-4 text-[15px]">
+      <figcaption className={`px-4 pt-3 pb-4 text-[15px] ${wide ? "sm:self-center sm:px-6" : ""}`}>
         {p.label && <div className="text-sm font-bold text-[var(--cp-brand-ink)]">{p.label}</div>}
         {p.caption && <div className="font-semibold">{p.caption}</div>}
         {p.meta && <div className="cp-meta mt-0.5">{p.meta}</div>}

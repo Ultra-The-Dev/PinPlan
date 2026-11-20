@@ -16,7 +16,23 @@ export interface DocLive {
 
 const pctText = (n: number) => `${fmtPct(n)}%`;
 
-export default function DocView({ snap, live, payLink, className = "" }: { snap: DocSnapshot; live?: DocLive; payLink?: string | null; className?: string }) {
+/**
+ * `letterhead={false}`: the page around it already shows the company, title, dates and total (the client link's
+ * cover), so the document starts with a slim number/terms line instead of repeating its letterhead.
+ */
+export default function DocView({
+  snap,
+  live,
+  payLink,
+  className = "",
+  letterhead = true,
+}: {
+  snap: DocSnapshot;
+  live?: DocLive;
+  payLink?: string | null;
+  className?: string;
+  letterhead?: boolean;
+}) {
   const money = (n: number) => formatDocMoney(n, snap.currency, snap.locale);
   const date = (d: string | null | undefined) => formatDocDate(d, snap.locale);
   // Contrast-checked colours from the company's brand (src/lib/clientTheme.ts): `brand` for rules and fills,
@@ -77,7 +93,20 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
       className={`doc-view overflow-hidden bg-white text-[#111a33] ${compact ? "text-[13px]" : "text-sm"} ${className}`}
       style={{ "--doc-brand": brand, "--doc-accent": accent } as React.CSSProperties}
     >
-      {!modern && <div className="h-1.5" style={{ background: brand }} />}
+      {letterhead && !modern && <div className="h-1.5" style={{ background: brand }} />}
+      {!letterhead && (
+        <dl className={`flex flex-wrap gap-x-6 gap-y-1 border-b border-slate-100 text-xs ${compact ? "px-5 py-3 sm:px-7" : "px-5 py-4 sm:px-10"}`}>
+          {meta
+            .filter(([k]) => k !== "Date" && k !== "Due" && k !== "Valid until")
+            .map(([k, v]) => (
+              <div key={k} className="flex gap-2">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-semibold tabular-nums">{v || "—"}</dd>
+              </div>
+            ))}
+        </dl>
+      )}
+      {letterhead && (
       <header className={modern ? "px-5 py-7 sm:px-10" : pad} style={modern ? { background: theme.band, color: theme.onBand } : undefined}>
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0 max-w-sm">
@@ -115,8 +144,9 @@ export default function DocView({ snap, live, payLink, className = "" }: { snap:
           </div>
         </div>
       </header>
+      )}
 
-      <div className={pad + (modern ? "" : " pt-0 sm:pt-0")}>
+      <div className={pad + (modern || !letterhead ? "" : " pt-0 sm:pt-0")}>
         <div className={`grid gap-3 sm:grid-cols-2 ${compact ? "mb-4" : "mb-7"}`}>
           <div className={compact ? "" : "rounded-xl bg-slate-50 p-4"}>
             <div className="mb-1 text-xs font-semibold text-slate-500">{isInvoice ? "Bill to" : "Prepared for"}</div>
