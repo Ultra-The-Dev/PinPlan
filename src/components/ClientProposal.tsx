@@ -2,7 +2,7 @@
 // What the client sees: the installer's proposal by link — plans, scope, price, optional add-ons, sign and accept.
 import { Check, Printer, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/estimate";
 import { floorLabels, GROUP_LABELS, packClientNote, proposalTotals, sectionTotals, type ClientPin, type ProposalLine } from "@/lib/proposal";
 import { notifyProposalResponse } from "@/lib/emailClient";
@@ -13,10 +13,26 @@ import { CLIENT_FONT_FAMILY } from "@/components/marketing/clientFont";
 
 const fmtDate = (s: string | null) => (s ? new Date(s.length === 10 ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
 
-/** Plan review change request: tap a plan to drop numbered pins, one note per pin. */
+/** Where a keyboard pin goes after an arrow key (Shift moves further), kept on the plan. */
+export function moveCrosshair(at: { x: number; y: number }, key: string, big: boolean): { x: number; y: number } | null {
+  const step = big ? 0.05 : 0.01;
+  const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[key];
+  if (!d) return null;
+  const clamp = (v: number) => Math.min(1, Math.max(0, Math.round(v * 1000) / 1000));
+  return { x: clamp(at.x + d[0]), y: clamp(at.y + d[1]) };
+}
+
+/** Plan review change request: tap a plan (or use the arrow keys and Enter) to drop numbered pins, one note per pin. */
 function PinPad({ floors, pins, onChange }: { floors: { name: string; image: string | null }[]; pins: ClientPin[]; onChange: (pins: ClientPin[]) => void }) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const focus = useRef<number | null>(null);
+  // Keyboard crosshair: shown on the plan that has focus, moved with the arrows, Enter drops a pin there.
+  const [cross, setCross] = useState<{ floor: string; x: number; y: number } | null>(null);
+  const hintId = useId();
+  const drop = (floor: string, x: number, y: number) => {
+    onChange([...pins, { floor, x, y, note: "" }]);
+    focus.current = pins.length;
+  };
   useEffect(() => {
     // Jump to the note box of a pin that was just dropped.
     if (focus.current == null) return;
@@ -30,23 +46,48 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
   return (
     <div className="mt-4">
       <span className="label">Point at the plan (optional)</span>
-      <p className="-mt-0.5 mb-2 text-xs text-slate-500">Tap a spot to drop a numbered pin, then say what should change there. Tap a pin’s × to remove it.</p>
+      <p id={hintId} className="-mt-0.5 mb-2 text-xs text-slate-500">
+        Tap a spot to drop a numbered pin, then say what should change there. Tap a pin’s × to remove it. With a keyboard: Tab to the plan, move with the arrow keys (Shift for bigger steps) and press Enter.
+      </p>
       <div className="space-y-3">
         {withImage.map((f) => (
           <figure key={f.name} className="overflow-hidden rounded-xl ring-1 ring-slate-200">
             <div
-              className="relative cursor-crosshair select-none"
+              className="relative cursor-crosshair select-none focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-400 focus-visible:ring-inset"
+              tabIndex={0}
+              role="application"
+              aria-label={`${f.name} plan: tap a spot, or move the crosshair with the arrow keys and press Enter to drop a pin`}
+              aria-describedby={hintId}
+              onFocus={() => setCross((c) => (c?.floor === f.name ? c : { floor: f.name, x: 0.5, y: 0.5 }))}
+              onBlur={() => setCross((c) => (c?.floor === f.name ? null : c))}
+              onKeyDown={(e) => {
+                const at = cross?.floor === f.name ? cross : { floor: f.name, x: 0.5, y: 0.5 };
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  drop(f.name, at.x, at.y);
+                  return;
+                }
+                const next = moveCrosshair(at, e.key, e.shiftKey);
+                if (!next) return;
+                e.preventDefault();
+                setCross({ floor: f.name, ...next });
+              }}
               onClick={(e) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 if (!r.width || !r.height) return;
                 const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
                 const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-                onChange([...pins, { floor: f.name, x, y, note: "" }]);
-                focus.current = pins.length;
+                drop(f.name, x, y);
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={f.image!} alt={`${f.name} plan — tap to add a pin`} className="block w-full bg-white" draggable={false} />
+              {cross?.floor === f.name && (
+                <span aria-hidden className="pointer-events-none absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2" style={{ left: `${cross.x * 100}%`, top: `${cross.y * 100}%` }}>
+                  <span className="absolute top-1/2 left-0 h-0.5 w-full -translate-y-1/2 bg-brand-600 shadow-[0_0_0_1px_white]" />
+                  <span className="absolute top-0 left-1/2 h-full w-0.5 -translate-x-1/2 bg-brand-600 shadow-[0_0_0_1px_white]" />
+                </span>
+              )}
               {pins.map((p, i) =>
                 p.floor === f.name ? (
                   <span
@@ -60,6 +101,9 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
               )}
             </div>
             <figcaption className="border-t border-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">{f.name}</figcaption>
+            <span className="sr-only" aria-live="polite">
+              {cross?.floor === f.name ? `Crosshair ${Math.round(cross.x * 100)}% across, ${Math.round(cross.y * 100)}% down` : ""}
+            </span>
           </figure>
         ))}
       </div>
@@ -72,6 +116,7 @@ function PinPad({ floors, pins, onChange }: { floors: { name: string; image: str
                 ref={(el) => {
                   inputs.current[i] = el;
                 }}
+                aria-label={`Pin ${i + 1} on ${p.floor}: what should change here?`}
                 className="input min-w-0 flex-1"
                 placeholder={`${p.floor}: what should change here?`}
                 value={p.note}
@@ -431,7 +476,7 @@ export default function ClientProposal() {
                 </label>
                 <div className="mt-4">
                   <span className="label">Signature</span>
-                  <SignaturePad onChange={setSignature} />
+                  <SignaturePad onChange={setSignature} name={name} />
                 </div>
                 <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
                   <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={agree} onChange={(e) => setAgree(e.target.checked)} />

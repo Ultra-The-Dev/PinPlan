@@ -135,7 +135,7 @@ export default function ClientDocument() {
                 {needSig && (
                   <div className="mt-4">
                     <span className="label">Signature</span>
-                    <SignaturePad onChange={setSignature} />
+                    <SignaturePad onChange={setSignature} name={name} />
                   </div>
                 )}
                 <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm">
