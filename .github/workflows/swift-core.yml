@@ -31,8 +31,8 @@ jobs:
     timeout-minutes: 30
     container: swift:6.0.3-jammy
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: ios/PinPlanCore/.build
           key: swiftpm-${{ runner.os }}-6.0.3-${{ hashFiles('ios/PinPlanCore/Package.swift', 'ios/PinPlanCore/Package.resolved') }}

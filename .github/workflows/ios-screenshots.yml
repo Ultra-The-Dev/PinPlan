@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 70
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
@@ -78,7 +78,7 @@ jobs:
           shoot "${IPHONE:-com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro}" iphone
           shoot "${IPAD:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}" ipad
           ls -la shots
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-screenshots
