@@ -9,11 +9,13 @@ import { toast } from "@/lib/toast";
 import type { PlanTask, TaskPriority, TaskStatus } from "@/lib/types";
 import { Chip, Portal, saveTaskPhotos, useTaskOptions } from "./TaskUi";
 import { useProjectTasks, useTasks, type QuickDraft } from "./taskStore";
+import { useT } from "@/lib/i18n";
 
-export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }: { projectId: string; draft: QuickDraft; onClose: () => void; onCreated?: (t: PlanTask) => void }) {
+export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }: { projectId: string; draft: QuickDraft; onClose: () => void; onCreated?: (tk: PlanTask) => void }) {
   const tasks = useProjectTasks(projectId);
   const { me, role, people, categories } = useTaskOptions(tasks);
   const sheets = useEditor((s) => s.sheets);
+  const t = useT();
   const [text, setText] = useState(draft.title ?? "");
   const [due, setDue] = useState("");
   const [status, setStatus] = useState<TaskStatus>("open");
@@ -35,7 +37,7 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
   async function save() {
     if (saving) return;
     const title = parsed.title || (text.trim() ? text.trim() : "");
-    if (!title && !files.length) return toast("Give the task a title", "error");
+    if (!title && !files.length) return toast(t("Give the task a title"), "error");
     setSaving(true);
     try {
       const st = useTasks.getState();
@@ -71,11 +73,11 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
         const ps = await saveTaskPhotos(files, task, me);
         task = (await st.change(task.id, { photoIds: ps.map((p) => p.id) }, me)) ?? task;
       }
-      toast(`Task #${task.number} added`, "success");
+      toast(t("Task #{number} added", { number: task.number }), "success");
       onCreated?.(task);
       onClose();
     } catch (e) {
-      toast(`Couldn't save the task: ${(e as Error).message}`, "error");
+      toast(t("Couldn't save the task: {error}", { error: (e as Error).message }), "error");
       setSaving(false);
     }
   }
@@ -94,7 +96,7 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
       <form
         role="dialog"
         aria-modal="true"
-        aria-label="New task"
+        aria-label={t("New task")}
         className="card animate-in w-full max-w-lg space-y-4 rounded-b-none p-4 shadow-pop sm:rounded-b-xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
@@ -104,13 +106,13 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">New task</h2>
+            <h2 className="text-base font-semibold">{t("New task")}</h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              {sheet ? `${sheet.name}${draft.x == null ? "" : " · pinned"}` : "General (not on a sheet)"}
+              {sheet ? (draft.x == null ? sheet.name : t("{sheet} · pinned", { sheet: sheet.name })) : t("General (not on a sheet)")}
               {draft.room ? ` · ${draft.room}` : ""}
             </p>
           </div>
-          <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
@@ -119,45 +121,45 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
           <input
             className="input h-12 text-base"
             autoFocus
-            placeholder="What's wrong?  @P1 @Mike @Electrical #lobby"
+            placeholder={t("What's wrong?  @P1 @Mike @Electrical #lobby")}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            aria-label="Title"
+            aria-label={t("Title")}
             enterKeyHint="done"
           />
           {(parsed.tags.length > 0 || parsed.priority || parsed.category || parsed.assignee) && (
             <p className="mt-1 text-xs text-slate-500">
-              “{parsed.title || "…"}”{parsed.tags.length ? ` · ${parsed.tags.map((t) => `#${t}`).join(" ")}` : ""}
+              “{parsed.title || "…"}”{parsed.tags.length ? ` · ${parsed.tags.map((tk) => `#${tk}`).join(" ")}` : ""}
             </p>
           )}
         </div>
 
-        <ChipRow label="Status">
+        <ChipRow label={t("Status")}>
           {STATUSES.filter((s) => s.id !== "verified" || canSetStatus(role, "open", "verified")).map((s) => (
             <Chip key={s.id} on={status === s.id} color={s.color} onClick={() => setStatus(s.id)}>
-              {s.short}
+              {t(s.short)}
             </Chip>
           ))}
         </ChipRow>
-        <ChipRow label="Priority">
+        <ChipRow label={t("Priority")}>
           {PRIORITIES.map((p) => (
-            <Chip key={p.id} on={pr === p.id} color={p.color} onClick={() => setPriority(pr === p.id ? null : p.id)} title={p.name}>
+            <Chip key={p.id} on={pr === p.id} color={p.color} onClick={() => setPriority(pr === p.id ? null : p.id)} title={t(p.name)}>
               {p.label}
             </Chip>
           ))}
         </ChipRow>
-        <ChipRow label="Assign">
+        <ChipRow label={t("Assign")}>
           {people.map((p) => (
             <Chip key={p} on={who === p} onClick={() => setAssignee(who === p ? null : p)}>
-              {p === me ? "Me" : p}
+              {p === me ? t("Me") : p}
             </Chip>
           ))}
         </ChipRow>
         <label className="block">
-          <span className="label">Due</span>
+          <span className="label">{t("Due")}</span>
           <input type="date" className="input h-11 w-auto" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
-        <ChipRow label="Category">
+        <ChipRow label={t("Category")}>
           {categories.map((c) => (
             <Chip key={c} on={cat === c} onClick={() => setCategory(cat === c ? null : c)}>
               {c}
@@ -166,7 +168,7 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
         </ChipRow>
 
         <div className="flex items-center gap-2 pt-1">
-          <button type="button" className="btn h-12 px-4" onClick={() => fileRef.current?.click()} aria-label="Add photos">
+          <button type="button" className="btn h-12 px-4" onClick={() => fileRef.current?.click()} aria-label={t("Add photos")}>
             <Camera className="!h-5 !w-5" />
             {files.length ? files.length : ""}
           </button>
@@ -190,7 +192,7 @@ export default function TaskQuickCreate({ projectId, draft, onClose, onCreated }
             ))}
           </div>
           <button className="btn btn-brand h-12 px-6 text-base" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </button>
         </div>
       </form>

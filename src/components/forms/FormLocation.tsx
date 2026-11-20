@@ -7,14 +7,16 @@ import { useEditor } from "@/lib/store";
 import type { JobForm, Marker, Sheet } from "@/lib/types";
 import { useSheetImage } from "@/lib/useImage";
 import { useDialog } from "./useDialog";
+import { t, useT } from "@/lib/i18n";
 
 export type FormPlace = Pick<JobForm, "sheetId" | "x" | "y" | "markerId">;
 
-const markerName = (m: Marker, typeName?: string) => [m.label || typeName || "Device", m.room].filter(Boolean).join(" · ");
+const markerName = (m: Marker, typeName?: string) => [m.label || typeName || t("Device"), m.room].filter(Boolean).join(" · ");
 
 function SheetSpot({ sheet, x, y, onPick }: { sheet: Sheet; x: number | null; y: number | null; onPick: (x: number, y: number) => void }) {
   const img = useSheetImage(sheet.imageId);
-  if (!img) return <div className="flex h-56 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">Loading the plan…</div>;
+  const t = useT();
+  if (!img) return <div className="flex h-56 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-500">{t("Loading the plan…")}</div>;
   // Keyboard: arrows move the pin (Shift = bigger steps); the first arrow or Enter drops it in the middle.
   const onKey = (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 0.05 : 0.01;
@@ -34,13 +36,13 @@ function SheetSpot({ sheet, x, y, onPick }: { sheet: Sheet; x: number | null; y:
       className="relative overflow-hidden rounded-lg ring-1 ring-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
       tabIndex={0}
       role="group"
-      aria-label={`Plan ${sheet.name}: tap the spot, or use the arrow keys to move the pin${x != null && y != null ? ` (now at ${Math.round(x * 100)}% across, ${Math.round(y * 100)}% down)` : ""}`}
+      aria-label={x != null && y != null ? t("Plan {name}: tap the spot, or use the arrow keys to move the pin (now at {x}% across, {y}% down)", { name: sheet.name, x: Math.round(x * 100), y: Math.round(y * 100) }) : t("Plan {name}: tap the spot, or use the arrow keys to move the pin", { name: sheet.name })}
       onKeyDown={onKey}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={img.url}
-        alt={`Plan: ${sheet.name}`}
+        alt={t("Plan: {name}", { name: sheet.name })}
         className="block w-full cursor-crosshair select-none"
         draggable={false}
         onClick={(e) => {
@@ -66,25 +68,26 @@ export function FormLocationPicker({ place, onSave, onClose }: { place: FormPlac
   const onSheet = markers.filter((m) => m.sheetId === sheetId);
   const typeName = (m: Marker) => catalog.find((d) => d.id === m.deviceTypeId)?.name;
   const dialog = useDialog(onClose);
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Pin to plan" className="card animate-in max-h-[95dvh] w-full max-w-2xl space-y-3 overflow-auto rounded-b-none p-5 shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("Pin to plan")} className="card animate-in max-h-[95dvh] w-full max-w-2xl space-y-3 overflow-auto rounded-b-none p-5 shadow-pop outline-none sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">Pin to plan</h2>
-            <p className="text-sm text-slate-500">Tap the spot on the plan (or use the arrow keys), or pick a device.</p>
+            <h2 className="text-base font-semibold">{t("Pin to plan")}</h2>
+            <p className="text-sm text-slate-500">{t("Tap the spot on the plan (or use the arrow keys), or pick a device.")}</p>
           </div>
-          <button className="btn btn-sm btn-icon btn-ghost" aria-label="Close" onClick={onClose}>
+          <button className="btn btn-sm btn-icon btn-ghost" aria-label={t("Close")} onClick={onClose}>
             <X />
           </button>
         </div>
         {!sheets.length ? (
-          <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">This job has no plans yet. Add one in the Sheets tab first.</p>
+          <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{t("This job has no plans yet. Add one in the Sheets tab first.")}</p>
         ) : (
           <>
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="block">
-                <span className="label">Sheet</span>
+                <span className="label">{t("Sheet")}</span>
                 <select
                   className="input h-11"
                   value={sheetId}
@@ -102,7 +105,7 @@ export function FormLocationPicker({ place, onSave, onClose }: { place: FormPlac
                 </select>
               </label>
               <label className="block">
-                <span className="label">Device (optional)</span>
+                <span className="label">{t("Device (optional)")}</span>
                 <select
                   className="input h-11"
                   value={markerId ?? ""}
@@ -112,7 +115,7 @@ export function FormLocationPicker({ place, onSave, onClose }: { place: FormPlac
                     if (m) setPt({ x: m.x, y: m.y });
                   }}
                 >
-                  <option value="">No device</option>
+                  <option value="">{t("No device")}</option>
                   {onSheet.map((m) => (
                     <option key={m.id} value={m.id}>
                       {markerName(m, typeName(m))}
@@ -137,14 +140,14 @@ export function FormLocationPicker({ place, onSave, onClose }: { place: FormPlac
         <div className="flex flex-wrap justify-end gap-2">
           {place.sheetId && (
             <button className="btn h-11 mr-auto text-red-600" onClick={() => onSave({ sheetId: null, x: null, y: null, markerId: null })}>
-              Remove pin
+              {t("Remove pin")}
             </button>
           )}
           <button className="btn h-11" onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button className="btn btn-brand h-11 px-5" disabled={!sheetId || pt.x == null} onClick={() => onSave({ sheetId, x: pt.x, y: pt.y, markerId })}>
-            Save pin
+            {t("Save pin")}
           </button>
         </div>
       </div>

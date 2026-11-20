@@ -15,12 +15,14 @@ import Modal from "../ui/Modal";
 import { toast } from "@/lib/toast";
 import type { Photo } from "@/lib/types";
 import type { ReportPhoto } from "./PhotoReportPdf";
+import { useT } from "@/lib/i18n";
 
 const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onClose: () => void }) {
   const { project, settings, markers, catalog, photoComments } = useEditor();
   const { signedIn, userId } = useSyncStatus();
+  const t = useT();
   const [title, setTitle] = useState(`Photo report — ${project?.address || project?.clientName || "job"}`);
   const [notes, setNotes] = useState("");
   const [perPage, setPerPage] = useState<1 | 2 | 4>(2);
@@ -55,7 +57,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
   async function rendered(): Promise<{ p: Photo; blob: Blob }[]> {
     const out: { p: Photo; blob: Blob }[] = [];
     for (const [i, p] of ordered.entries()) {
-      setBusy(`Preparing photo ${i + 1} of ${ordered.length}…`);
+      setBusy(t("Preparing photo {n} of {total}…", { n: i + 1, total: ordered.length }));
       const rec = await db().images.get(p.imageId);
       if (rec) out.push({ p, blob: await renderPhoto(rec.blob, p.annotations, perPage === 1 ? 2000 : 1400) });
     }
@@ -65,7 +67,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
   async function pdf() {
     try {
       const imgs = await rendered();
-      setBusy("Building the PDF…");
+      setBusy(t("Building the PDF…"));
       const toData = (b: Blob) => new Promise<string>((r) => {
         const fr = new FileReader();
         fr.onload = () => r(String(fr.result));
@@ -88,7 +90,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
       const out = await renderPhotoReportPdf({ title, business: settings!.business, clientName: project!.clientName, address: project!.address, notes, dateRange: range, perPage, photos: list, sections: secs });
       downloadBlob(out, `${slug(project!.address || "job")}-photo-report.pdf`);
     } catch (e) {
-      toast(`Report failed: ${(e as Error).message}`, "error");
+      toast(t("Report failed: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(null);
     }
@@ -103,7 +105,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
       const out = [];
       const indexOf = new Map<string, number>();
       for (const [i, { p, blob }] of imgs.entries()) {
-        setBusy(`Uploading photo ${i + 1} of ${imgs.length}…`);
+        setBusy(t("Uploading photo {n} of {total}…", { n: i + 1, total: imgs.length }));
         const path = `${userId}/reports/${token}/${p.id}.jpg`;
         const { error } = await sb.storage.from("proposals").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
         if (error) throw new Error(error.message);
@@ -111,7 +113,7 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         const notesOn = comments(p);
         out.push({ url: sb.storage.from("proposals").getPublicUrl(path).data.publicUrl, width: p.width, height: p.height, caption: p.caption ?? "", meta: meta(p), tags: p.tags ?? [], label: label(p) ?? "", ...(notesOn.length ? { comments: notesOn } : {}) });
       }
-      setBusy("Publishing…");
+      setBusy(t("Publishing…"));
       const b = settings!.business;
       const logo = b.logo?.startsWith("/") ? window.location.origin + b.logo : b.logo;
       const grouped = groupBy !== "none" || (pairs && hasPairs);
@@ -127,13 +129,13 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         ...(grouped ? { sections: snapshotSections(sections(), indexOf) } : {}),
       };
       const { error } = await sb.from("photo_reports").insert({ id: token, project_id: project!.id, snapshot });
-      if (error) throw new Error(/does not exist|schema cache/.test(error.message) ? "Photo reports aren't set up in Supabase yet — run supabase/migrations/20261119000000_field_docs.sql." : error.message);
+      if (error) throw new Error(/does not exist|schema cache/.test(error.message) ? t("Photo reports aren't set up in Supabase yet — run supabase/migrations/20261119000000_field_docs.sql.") : error.message);
       const url = `${window.location.origin}/r?t=${token}`;
       setLink(url);
       await navigator.clipboard.writeText(url).catch(() => undefined);
-      toast("Report link copied", "success");
+      toast(t("Report link copied"), "success");
     } catch (e) {
-      toast(`Couldn't share: ${(e as Error).message}`, "error");
+      toast(t("Couldn't share: {error}", { error: (e as Error).message }), "error");
     } finally {
       setBusy(null);
     }
@@ -145,9 +147,9 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
     try {
       await revokePhotoReport(token);
       setLink(null);
-      toast("Link stopped. It no longer opens.", "success");
+      toast(t("Link stopped. It no longer opens."), "success");
     } catch (e) {
-      toast(`Couldn't stop the link: ${(e as Error).message}`, "error");
+      toast(t("Couldn't stop the link: {error}", { error: (e as Error).message }), "error");
     }
   }
 
@@ -157,27 +159,27 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <h2 id="photo-report-title" className="text-base font-semibold">
-              Photo report
+              {t("Photo report")}
             </h2>
             <p className="text-sm text-slate-500">
-              {photos.length} photo{photos.length === 1 ? "" : "s"} {range && `· ${range}`} · with your branding, captions and mark-up
+              {t.tn("{n} photo", "{n} photos", photos.length)} {range && `· ${range}`} · {t("with your branding, captions and mark-up")}
             </p>
           </div>
-          <button className="btn btn-sm btn-icon btn-ghost" onClick={onClose} aria-label="Close">
+          <button className="btn btn-sm btn-icon btn-ghost" onClick={onClose} aria-label={t("Close")}>
             <X />
           </button>
         </div>
         <label className="block text-sm">
-          <span className="label">Title</span>
+          <span className="label">{t("Title")}</span>
           <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label className="block text-sm">
-          <span className="label">Notes for the client (optional)</span>
-          <textarea className="input min-h-16" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Pre-wire is complete and ready for insulation…" />
+          <span className="label">{t("Notes for the client (optional)")}</span>
+          <textarea className="input min-h-16" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("Pre-wire is complete and ready for insulation…")} />
         </label>
         <div className="text-sm">
           <span id="photo-report-per-page" className="label">
-            Photos per page
+            {t("Photos per page")}
           </span>
           <div className="seg w-fit" role="group" aria-labelledby="photo-report-per-page">
             {([1, 2, 4] as const).map((n) => (
@@ -189,14 +191,14 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         </div>
         <div className="text-sm">
           <span id="photo-report-group" className="label">
-            Group photos
+            {t("Group photos")}
           </span>
           <div className="seg w-fit" role="group" aria-labelledby="photo-report-group">
             {(
               [
-                ["none", "In order"],
-                ["room", "By room"],
-                ["day", "By day"],
+                ["none", t("In order")],
+                ["room", t("By room")],
+                ["day", t("By day")],
               ] as const
             ).map(([v, name]) => (
               <button key={v} className={`tab ${groupBy === v ? "tab-active" : ""}`} aria-pressed={groupBy === v} onClick={() => setGroupBy(v)}>
@@ -208,34 +210,34 @@ export default function PhotoReport({ photos, onClose }: { photos: Photo[]; onCl
         <div className="space-y-1.5 text-sm">
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={withComments} onChange={(e) => setWithComments(e.target.checked)} />
-            Include comments <span className="text-slate-500">({commentCount ? `${commentCount} on these photos` : "none yet"})</span>
+            {t("Include comments")} <span className="text-slate-500">({commentCount ? t("{n} on these photos", { n: commentCount }) : t("none yet")})</span>
           </label>
-          <label className={`flex items-center gap-2 ${hasPairs ? "" : "text-slate-400"}`} title={hasPairs ? undefined : "None of these photos are linked as before/after"}>
+          <label className={`flex items-center gap-2 ${hasPairs ? "" : "text-slate-400"}`} title={hasPairs ? undefined : t("None of these photos are linked as before/after")}>
             <input type="checkbox" checked={pairs && hasPairs} disabled={!hasPairs} onChange={(e) => setPairs(e.target.checked)} />
-            Show before / after side by side
+            {t("Show before / after side by side")}
           </label>
         </div>
         {link && (
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
             <span className="min-w-0 flex-1 truncate">{link}</span>
-            <button className="btn btn-sm" onClick={() => void navigator.clipboard.writeText(link).then(() => toast("Link copied"), () => toast("Couldn't copy — select the link and copy it", "error"))}>
-              <Copy /> Copy
+            <button className="btn btn-sm" onClick={() => void navigator.clipboard.writeText(link).then(() => toast(t("Link copied")), () => toast(t("Couldn't copy — select the link and copy it"), "error"))}>
+              <Copy /> {t("Copy")}
             </button>
-            <button className="btn btn-sm btn-ghost" title="The link stops working and its photos are deleted from the cloud" onClick={() => void stopSharing(link)}>
-              Stop sharing
+            <button className="btn btn-sm btn-ghost" title={t("The link stops working and its photos are deleted from the cloud")} onClick={() => void stopSharing(link)}>
+              {t("Stop sharing")}
             </button>
           </div>
         )}
         <div className="flex flex-wrap justify-end gap-2">
           {supabaseConfigured && signedIn ? (
-            <button className="btn" disabled={!!busy || !photos.length} onClick={() => void share()} title="Upload the report and copy a link the client can open">
-              <Link2 /> Share link
+            <button className="btn" disabled={!!busy || !photos.length} onClick={() => void share()} title={t("Upload the report and copy a link the client can open")}>
+              <Link2 /> {t("Share link")}
             </button>
           ) : (
-            <span className="mr-auto self-center text-xs text-slate-500">Sign in to cloud sync to share a link.</span>
+            <span className="mr-auto self-center text-xs text-slate-500">{t("Sign in to cloud sync to share a link.")}</span>
           )}
           <button className="btn btn-brand" disabled={!!busy || !photos.length} onClick={() => void pdf()}>
-            <Download /> {busy ?? "Download PDF"}
+            <Download /> {busy ?? t("Download PDF")}
           </button>
         </div>
       </div>

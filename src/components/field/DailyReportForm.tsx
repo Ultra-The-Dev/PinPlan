@@ -22,16 +22,17 @@ import {
 import { createElement, useEffect, useRef, useState, type ReactNode } from "react";
 import { parseHours, WEATHER_CHOICES, weatherKind, weatherLine, type CrewRow, type DailyWeather, type DelayRow, type WorkRow } from "@/lib/dailyReport";
 import type { Sheet, TradeId } from "@/lib/types";
+import { msg, useT } from "@/lib/i18n";
 
 /** Example text for the work and delivery lines, in the company's primary trade's words. */
 const TRADE_EXAMPLES: Record<TradeId, { work: string; delivery: string }> = {
-  lowvoltage: { work: "e.g. Pulled Cat6 to 12 drops", delivery: "e.g. 4 boxes Cat6 from ADI" },
-  electrical: { work: "e.g. Roughed in 14 boxes on the 2nd floor", delivery: "e.g. 10 rolls 12/2 NM-B" },
-  fire: { work: "e.g. Mounted 18 smoke detectors, 2nd floor", delivery: "e.g. 2 boxes of detector bases" },
-  hvac: { work: "e.g. Set the RTU and ran the supply trunk", delivery: "e.g. 6 sticks of 8\" duct" },
-  plumbing: { work: "e.g. Roughed in the 2nd floor bathrooms", delivery: "e.g. 20 sticks of 3/4\" PEX" },
-  solar: { work: "e.g. Mounted rails and 24 panels on the south roof", delivery: "e.g. 1 pallet of panels" },
-  general: { work: "e.g. Framed the kitchen walls", delivery: "e.g. 40 sheets of drywall" },
+  lowvoltage: { work: msg("e.g. Pulled Cat6 to 12 drops"), delivery: msg("e.g. 4 boxes Cat6 from ADI") },
+  electrical: { work: msg("e.g. Roughed in 14 boxes on the 2nd floor"), delivery: msg("e.g. 10 rolls 12/2 NM-B") },
+  fire: { work: msg("e.g. Mounted 18 smoke detectors, 2nd floor"), delivery: msg("e.g. 2 boxes of detector bases") },
+  hvac: { work: msg("e.g. Set the RTU and ran the supply trunk"), delivery: msg("e.g. 6 sticks of 8\" duct") },
+  plumbing: { work: msg("e.g. Roughed in the 2nd floor bathrooms"), delivery: msg("e.g. 20 sticks of 3/4\" PEX") },
+  solar: { work: msg("e.g. Mounted rails and 24 panels on the south roof"), delivery: msg("e.g. 1 pallet of panels") },
+  general: { work: msg("e.g. Framed the kitchen walls"), delivery: msg("e.g. 40 sheets of drywall") },
 };
 export const tradeExamples = (trade: TradeId | string | null | undefined) => TRADE_EXAMPLES[(trade ?? "lowvoltage") as TradeId] ?? TRADE_EXAMPLES.lowvoltage;
 
@@ -55,12 +56,13 @@ export function WeatherIcon({ summary, className = "h-4 w-4" }: { summary?: stri
 
 /** A collapsible form section with a one-line summary of what's in it. */
 export function Section({ title, icon: Icon, summary, open, onToggle, children, missing }: { title: string; icon: LucideIcon; summary?: string; open: boolean; onToggle: () => void; children: ReactNode; missing?: boolean }) {
+  const t = useT();
   return (
     <section className="rounded-xl ring-1 ring-slate-200">
       <button type="button" className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2 text-left" aria-expanded={open} onClick={onToggle}>
         <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <span className="text-sm font-semibold text-slate-800">{title}</span>
-        {missing && !open && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Recommended" />}
+        {missing && !open && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title={t("Recommended")} />}
         <span className="min-w-0 flex-1 truncate text-right text-xs text-slate-500">{summary}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
@@ -82,6 +84,7 @@ export function WeatherFields({ weather, onChange, status, onAutoFill, onLater, 
   // Anything typed by hand makes it manual (no longer labelled auto / forecast).
   const set = (patch: Partial<DailyWeather>) => onChange({ ...weather, ...patch, source: "manual", forecast: undefined });
   const line = weatherLine(weather);
+  const t = useT();
   return (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -89,41 +92,41 @@ export function WeatherFields({ weather, onChange, status, onAutoFill, onLater, 
           <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-slate-700" data-testid="weather-line">
             <WeatherIcon summary={weather.summary} />
             {line}
-            {weather.source === "auto" && <span className="chip bg-sky-50 text-sky-700">{weather.forecast ? "Forecast" : "Auto"}</span>}
+            {weather.source === "auto" && <span className="chip bg-sky-50 text-sky-700">{weather.forecast ? t("Forecast") : t("Auto")}</span>}
           </span>
         ) : (
-          <span className="text-sm text-slate-500">No weather yet.</span>
+          <span className="text-sm text-slate-500">{t("No weather yet.")}</span>
         )}
         <div className="flex-1" />
         {canAuto && status !== "offline" && status !== "later" && (
           <button type="button" className="btn btn-sm" onClick={onAutoFill} disabled={status === "loading"}>
-            <RefreshCw className={status === "loading" ? "animate-spin" : ""} /> {status === "loading" ? "Getting weather…" : "Auto-fill"}
+            <RefreshCw className={status === "loading" ? "animate-spin" : ""} /> {status === "loading" ? t("Getting weather…") : t("Auto-fill")}
           </button>
         )}
       </div>
       {status === "offline" && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800" role="status">
-          <CloudOff className="h-4 w-4" aria-hidden /> You’re offline — type it below, or leave it and it fills in when you’re back online.
+          <CloudOff className="h-4 w-4" aria-hidden /> {t("You’re offline — type it below, or leave it and it fills in when you’re back online.")}
           <button type="button" className="btn btn-sm ml-auto" onClick={onLater}>
-            Fill weather later
+            {t("Fill weather later")}
           </button>
         </div>
       )}
-      {status === "later" && <p className="text-xs text-slate-500">Weather will fill in when you’re back online with this log open.</p>}
-      {status === "nolocation" && <p className="text-xs text-slate-500">Set the job’s location (or add a photo with GPS) to fill the weather automatically. You can type it here meanwhile.</p>}
-      {status === "unavailable" && <p className="text-xs text-slate-500">Couldn’t get the weather for this day — type it below.</p>}
+      {status === "later" && <p className="text-xs text-slate-500">{t("Weather will fill in when you’re back online with this log open.")}</p>}
+      {status === "nolocation" && <p className="text-xs text-slate-500">{t("Set the job’s location (or add a photo with GPS) to fill the weather automatically. You can type it here meanwhile.")}</p>}
+      {status === "unavailable" && <p className="text-xs text-slate-500">{t("Couldn’t get the weather for this day — type it below.")}</p>}
       <div className="flex flex-wrap gap-1.5">
         {WEATHER_CHOICES.map((c) => (
           <button key={c} type="button" className={`btn btn-sm ${weather.summary === c ? "btn-on" : ""}`} aria-pressed={weather.summary === c} onClick={() => set({ summary: weather.summary === c ? "" : c })}>
-            <WeatherIcon summary={c} className="h-3.5 w-3.5" /> {c}
+            <WeatherIcon summary={c} className="h-3.5 w-3.5" /> {t(c)}
           </button>
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <NumField label="High °F" value={weather.tempHighF} onChange={(v) => set({ tempHighF: v })} />
-        <NumField label="Low °F" value={weather.tempLowF} onChange={(v) => set({ tempLowF: v })} />
-        <NumField label="Precip (in)" value={weather.precipIn} onChange={(v) => set({ precipIn: v })} />
-        <NumField label="Wind (mph)" value={weather.windMph} onChange={(v) => set({ windMph: v })} />
+        <NumField label={t("High °F")} value={weather.tempHighF} onChange={(v) => set({ tempHighF: v })} />
+        <NumField label={t("Low °F")} value={weather.tempLowF} onChange={(v) => set({ tempLowF: v })} />
+        <NumField label={t("Precip (in)")} value={weather.precipIn} onChange={(v) => set({ precipIn: v })} />
+        <NumField label={t("Wind (mph)")} value={weather.windMph} onChange={(v) => set({ windMph: v })} />
       </div>
     </div>
   );
@@ -165,6 +168,7 @@ export function HoursInput({ value, onChange, label }: { value: number; onChange
   }
   const parsed = parseHours(text);
   const over = text.trim() !== "" && parsed !== null && Number(text.trim().replace(",", ".")) > 24;
+  const t = useT();
   return (
     <div className="relative">
       <input
@@ -184,7 +188,7 @@ export function HoursInput({ value, onChange, label }: { value: number; onChange
           if (text.trim() && parsed !== null && String(parsed) !== text.trim()) setText(String(parsed));
         }}
       />
-      <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-slate-400">h</span>
+      <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-slate-400">{t("h")}</span>
     </div>
   );
 }
@@ -199,6 +203,7 @@ export function CrewRows({ crew, onChange, suggestions }: { crew: CrewRow[]; onC
   const set = (i: number, patch: Partial<CrewRow>) => onChange(crew.map((c, k) => (k === i ? { ...c, ...patch } : c)));
   const taken = new Set(crew.map((c) => c.name.trim().toLowerCase()));
   const quick = suggestions.filter((s) => !taken.has(s.toLowerCase())).slice(0, 8);
+  const t = useT();
   return (
     <div className="space-y-2">
       <datalist id={listId}>
@@ -212,15 +217,15 @@ export function CrewRows({ crew, onChange, suggestions }: { crew: CrewRow[]; onC
             ref={i === crew.length - 1 ? lastRef : undefined}
             className="input"
             list={listId}
-            placeholder="Name"
-            aria-label={`Crew member ${i + 1} name`}
+            placeholder={t("Name")}
+            aria-label={t("Crew member {n} name", { n: i + 1 })}
             autoComplete="off"
             value={c.name}
             onChange={(e) => set(i, { name: e.target.value })}
           />
-          <input className="input hidden sm:block" placeholder="Role (optional)" aria-label={`Crew member ${i + 1} role`} value={c.role ?? ""} onChange={(e) => set(i, { role: e.target.value || null })} />
-          <HoursInput label={`Crew member ${i + 1} hours`} value={c.hours} onChange={(n) => set(i, { hours: n })} />
-          <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={`Remove ${c.name || "crew member"}`} onClick={() => onChange(crew.filter((_, k) => k !== i))}>
+          <input className="input hidden sm:block" placeholder={t("Role (optional)")} aria-label={t("Crew member {n} role", { n: i + 1 })} value={c.role ?? ""} onChange={(e) => set(i, { role: e.target.value || null })} />
+          <HoursInput label={t("Crew member {n} hours", { n: i + 1 })} value={c.hours} onChange={(n) => set(i, { hours: n })} />
+          <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={c.name ? t("Remove {name}", { name: c.name }) : t("Remove crew member")} onClick={() => onChange(crew.filter((_, k) => k !== i))}>
             <X />
           </button>
         </div>
@@ -234,10 +239,10 @@ export function CrewRows({ crew, onChange, suggestions }: { crew: CrewRow[]; onC
             setFocusNew(true);
           }}
         >
-          <Plus /> Add person
+          <Plus /> {t("Add person")}
         </button>
         {quick.map((s) => (
-          <button key={s} type="button" className="btn btn-sm btn-ghost text-brand-700" title={`Add ${s} at 8 h`} onClick={() => onChange([...crew, { name: s, hours: 8, role: null }])}>
+          <button key={s} type="button" className="btn btn-sm btn-ghost text-brand-700" title={t("Add {name} at 8 h", { name: s })} onClick={() => onChange([...crew, { name: s, hours: 8, role: null }])}>
             <Plus /> {s}
           </button>
         ))}
@@ -257,6 +262,7 @@ export function LineList({ items, onChange, placeholder, addLabel }: { items: st
     onChange([...items, ""]);
     setFocus(items.length);
   };
+  const t = useT();
   return (
     <div className="space-y-2">
       {items.map((x, i) => (
@@ -278,7 +284,7 @@ export function LineList({ items, onChange, placeholder, addLabel }: { items: st
               }
             }}
           />
-          <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label="Remove" onClick={() => onChange(items.filter((_, k) => k !== i))}>
+          <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={t("Remove")} onClick={() => onChange(items.filter((_, k) => k !== i))}>
             <X />
           </button>
         </div>
@@ -290,7 +296,7 @@ export function LineList({ items, onChange, placeholder, addLabel }: { items: st
   );
 }
 
-export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Cat6 to 12 drops" }: { work: WorkRow[]; onChange: (w: WorkRow[]) => void; sheets: Sheet[]; placeholder?: string }) {
+export function WorkRows({ work, onChange, sheets, placeholder }: { work: WorkRow[]; onChange: (w: WorkRow[]) => void; sheets: Sheet[]; placeholder?: string }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const [focus, setFocus] = useState<number | null>(null);
   useEffect(() => {
@@ -301,6 +307,7 @@ export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Ca
     onChange([...work, { text: "", sheetId: null, area: null }]);
     setFocus(work.length);
   };
+  const t = useT();
   return (
     <div className="space-y-2.5">
       {work.map((w, i) => (
@@ -311,8 +318,8 @@ export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Ca
                 refs.current[i] = el;
               }}
               className="input"
-              placeholder={placeholder}
-              aria-label={`Work line ${i + 1}`}
+              placeholder={placeholder ?? t("e.g. Pulled Cat6 to 12 drops")}
+              aria-label={t("Work line {n}", { n: i + 1 })}
               value={w.text}
               onChange={(e) => set(i, { text: e.target.value })}
               onKeyDown={(e) => {
@@ -323,14 +330,14 @@ export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Ca
                 }
               }}
             />
-            <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label="Remove work line" onClick={() => onChange(work.filter((_, k) => k !== i))}>
+            <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={t("Remove work line")} onClick={() => onChange(work.filter((_, k) => k !== i))}>
               <X />
             </button>
           </div>
           <div className="mr-10 grid grid-cols-2 gap-2">
             {sheets.length > 0 ? (
-              <select className="input h-9 text-xs" aria-label={`Sheet for work line ${i + 1}`} value={w.sheetId ?? ""} onChange={(e) => set(i, { sheetId: e.target.value || null })}>
-                <option value="">Sheet (optional)</option>
+              <select className="input h-9 text-xs" aria-label={t("Sheet for work line {n}", { n: i + 1 })} value={w.sheetId ?? ""} onChange={(e) => set(i, { sheetId: e.target.value || null })}>
+                <option value="">{t("Sheet (optional)")}</option>
                 {sheets.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -340,12 +347,12 @@ export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Ca
             ) : (
               <span />
             )}
-            <input className="input h-9 text-xs" placeholder="Area / room (optional)" aria-label={`Area for work line ${i + 1}`} value={w.area ?? ""} onChange={(e) => set(i, { area: e.target.value || null })} />
+            <input className="input h-9 text-xs" placeholder={t("Area / room (optional)")} aria-label={t("Area for work line {n}", { n: i + 1 })} value={w.area ?? ""} onChange={(e) => set(i, { area: e.target.value || null })} />
           </div>
         </div>
       ))}
       <button type="button" className="btn btn-sm" onClick={add}>
-        <Plus /> Add work
+        <Plus /> {t("Add work")}
       </button>
     </div>
   );
@@ -353,45 +360,47 @@ export function WorkRows({ work, onChange, sheets, placeholder = "e.g. Pulled Ca
 
 export function DelayRows({ delays, onChange }: { delays: DelayRow[]; onChange: (d: DelayRow[]) => void }) {
   const set = (i: number, patch: Partial<DelayRow>) => onChange(delays.map((d, k) => (k === i ? { ...d, ...patch } : d)));
+  const t = useT();
   return (
     <div className="space-y-2.5">
       {delays.map((d, i) => (
         <div key={i} className="space-y-1.5">
           <div className="grid grid-cols-[1fr_5.5rem_2rem] items-center gap-2">
-            <input className="input" placeholder="Reason, e.g. Waiting on drywall" aria-label={`Delay ${i + 1} reason`} value={d.reason} onChange={(e) => set(i, { reason: e.target.value })} />
-            <HoursInput label={`Delay ${i + 1} hours lost`} value={d.hours ?? 0} onChange={(n) => set(i, { hours: n || null })} />
-            <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label="Remove delay" onClick={() => onChange(delays.filter((_, k) => k !== i))}>
+            <input className="input" placeholder={t("Reason, e.g. Waiting on drywall")} aria-label={t("Delay {n} reason", { n: i + 1 })} value={d.reason} onChange={(e) => set(i, { reason: e.target.value })} />
+            <HoursInput label={t("Delay {n} hours lost", { n: i + 1 })} value={d.hours ?? 0} onChange={(n) => set(i, { hours: n || null })} />
+            <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400" aria-label={t("Remove delay")} onClick={() => onChange(delays.filter((_, k) => k !== i))}>
               <X />
             </button>
           </div>
           <label className="flex items-center gap-2 text-xs text-slate-600">
             <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={!!d.ongoing} onChange={(e) => set(i, { ongoing: e.target.checked || undefined })} />
-            Still ongoing (carry over to tomorrow)
+            {t("Still ongoing (carry over to tomorrow)")}
           </label>
         </div>
       ))}
       <button type="button" className="btn btn-sm" onClick={() => onChange([...delays, { reason: "", hours: null }])}>
-        <Plus /> Add delay
+        <Plus /> {t("Add delay")}
       </button>
     </div>
   );
 }
 
 export function SafetyFields({ safety, onChange }: { safety: { incident: boolean; notes?: string | null } | undefined; onChange: (s: { incident: boolean; notes?: string | null }) => void }) {
+  const t = useT();
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Safety incident">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label={t("Safety incident")}>
         <button type="button" className={`btn h-11 ${safety && !safety.incident ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-50" : ""}`} aria-pressed={!!safety && !safety.incident} onClick={() => onChange({ incident: false, notes: safety?.notes ?? null })}>
-          No incidents
+          {t("No incidents")}
         </button>
         <button type="button" className={`btn h-11 ${safety?.incident ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-50" : ""}`} aria-pressed={!!safety?.incident} onClick={() => onChange({ incident: true, notes: safety?.notes ?? null })}>
-          Incident
+          {t("Incident")}
         </button>
       </div>
       <textarea
         className="input min-h-16"
-        aria-label="Safety notes"
-        placeholder={safety?.incident ? "What happened, who was involved, first aid / follow-up…" : "Toolbox talk, hazards, PPE notes (optional)"}
+        aria-label={t("Safety notes")}
+        placeholder={safety?.incident ? t("What happened, who was involved, first aid / follow-up…") : t("Toolbox talk, hazards, PPE notes (optional)")}
         value={safety?.notes ?? ""}
         onChange={(e) => onChange({ incident: safety?.incident ?? false, notes: e.target.value })}
       />

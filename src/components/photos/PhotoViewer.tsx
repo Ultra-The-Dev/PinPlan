@@ -19,15 +19,17 @@ import { useProjectTasks, useTasks } from "../tasks/taskStore";
 import AnnotationSvg from "./AnnotationSvg";
 import Annotator from "./Annotator";
 import { AI_ENABLED } from "@/lib/features";
+import { fmtDate, useT } from "@/lib/i18n";
 
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const when = (iso: string) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 export function PhotoImage({ photo, className = "" }: { photo: Photo; className?: string }) {
   const url = useBlobUrl(photo.imageId);
+  const t = useT();
   return (
     <div className={`relative ${className}`} style={{ aspectRatio: `${photo.width || 4} / ${photo.height || 3}` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url ? <img src={url} alt={photo.caption ?? "Job photo"} className="h-full w-full object-contain" /> : <div className="h-full w-full animate-pulse bg-white/5" />}
+      {url ? <img src={url} alt={photo.caption ?? t("Job photo")} className="h-full w-full object-contain" /> : <div className="h-full w-full animate-pulse bg-white/5" />}
       {!!photo.annotations?.length && <AnnotationSvg shapes={photo.annotations} w={photo.width} h={photo.height} />}
     </div>
   );
@@ -39,6 +41,7 @@ function MakeTask({ comment, photo, people, me, onDone }: { comment: PhotoCommen
   const [who, setWho] = useState("");
   const [due, setDue] = useState("");
   const [saving, setSaving] = useState(false);
+  const t = useT();
   return (
     <form
       className="mt-2 space-y-2 rounded-lg bg-white p-2.5 ring-1 ring-slate-200"
@@ -51,33 +54,33 @@ function MakeTask({ comment, photo, people, me, onDone }: { comment: PhotoCommen
           // Make sure the job's tasks are loaded, so the number continues the job's list.
           if (st.projectId !== comment.projectId) await st.load(comment.projectId);
           const at = nowIso();
-          const t = newTask({ id: newId(), projectId: comment.projectId, number: useTasks.getState().nextNumber(), ...taskFromComment(comment, photo, { text, assignee: who, due }) }, me, at, newId);
-          const saved = await useTasks.getState().save({ ...t, activity: [createdFromComment(comment.id, me, at, newId())] });
-          toast(`Task #${saved.number} added${saved.assignee ? ` for ${saved.assignee}` : ""}`, "success");
+          const tg = newTask({ id: newId(), projectId: comment.projectId, number: useTasks.getState().nextNumber(), ...taskFromComment(comment, photo, { text, assignee: who, due }) }, me, at, newId);
+          const saved = await useTasks.getState().save({ ...tg, activity: [createdFromComment(comment.id, me, at, newId())] });
+          toast(saved.assignee ? t("Task #{number} added for {name}", { number: saved.number, name: saved.assignee }) : t("Task #{number} added", { number: saved.number }), "success");
           onDone();
         } catch (err) {
-          toast(`Couldn't add the task: ${(err as Error).message}`, "error");
+          toast(t("Couldn't add the task: {error}", { error: (err as Error).message }), "error");
           setSaving(false);
         }
       }}
     >
-      <input className="input h-11" aria-label="Task" value={text} onChange={(e) => setText(e.target.value)} />
+      <input className="input h-11" aria-label={t("Task")} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs">
-          <span className="label">Assign</span>
+          <span className="label">{t("Assign")}</span>
           <PersonSelect value={who} onChange={setWho} people={people} />
         </label>
         <label className="text-xs">
-          <span className="label">Due</span>
+          <span className="label">{t("Due")}</span>
           <input type="date" className="input h-11" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
       </div>
       <div className="flex gap-2">
         <button className="btn btn-brand h-11" disabled={!text.trim() || saving}>
-          <ListPlus /> {saving ? "Adding…" : "Add task"}
+          <ListPlus /> {saving ? t("Adding…") : t("Add task")}
         </button>
         <button type="button" className="btn btn-ghost h-11" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>
@@ -96,6 +99,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
   const [aiBusy, setAiBusy] = useState(false);
   const [tasking, setTasking] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const t = useT();
   // Move focus into the viewer (keyboard and screen-reader users land on it) and give it back on close.
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -128,8 +132,8 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
 
   if (!p) return null;
   const save = (patch: Partial<Photo>) => saveRow("photos", { ...p, ...patch });
-  const addTag = (t: string) => {
-    const tag = t.trim();
+  const addTag = (tg: string) => {
+    const tag = tg.trim();
     if (tag && !(p.tags ?? []).includes(tag)) void save({ tags: [...(p.tags ?? []), tag] });
     setTagDraft("");
   };
@@ -141,7 +145,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
     setAiBusy(true);
     try {
       const rec = await db().images.get(p.imageId);
-      if (!rec) throw new Error("Photo not on this device yet");
+      if (!rec) throw new Error(t("Photo not on this device yet"));
       const small = await renderPhoto(rec.blob, null, 1024);
       const b64 = await new Promise<string>((r) => {
         const fr = new FileReader();
@@ -155,7 +159,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
         body: JSON.stringify({ imageBase64: b64, room: p.room ?? m?.room, device: m ? `${m.label} ${typeName(m.deviceTypeId)}` : undefined, existingTags: options.slice(0, 20) }),
       });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error || `Server returned ${res.status}`);
+      if (!res.ok) throw new Error(j.error || t("Server returned {status}", { status: res.status }));
       // Read the photo fresh: it may have been edited (or the viewer moved on) while the AI was looking.
       const cur = useEditor.getState().photos.find((x) => x.id === p.id) ?? p;
       await saveRow("photos", { ...cur, caption: cur.caption?.trim() ? cur.caption : j.caption, tags: [...new Set([...(cur.tags ?? []), ...(j.tags as string[])])] });
@@ -164,25 +168,25 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
         await saveRow("photoComments", { id: newId(), projectId: p.projectId, photoId: p.id, author: "AI check", text: `Worth a look: ${(j.issues as string[]).join("; ")}`, createdAt: now, updatedAt: now });
       }
     } catch (e) {
-      toast(`AI caption: ${(e as Error).message}`, "error");
+      toast(t("AI caption: {error}", { error: (e as Error).message }), "error");
     } finally {
       setAiBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 lg:flex-row" role="dialog" aria-modal="true" aria-label="Photo">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 lg:flex-row" role="dialog" aria-modal="true" aria-label={t("Photo")}>
       <div className="relative flex min-h-0 flex-1 items-center justify-center p-3 sm:p-6">
-        <button ref={closeRef} className="absolute top-3 left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={onClose} aria-label="Close">
+        <button ref={closeRef} className="absolute top-3 left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={onClose} aria-label={t("Close")}>
           <X className="h-5 w-5" />
         </button>
         {i > 0 && (
-          <button className="absolute left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={() => setId(photos[i - 1].id)} aria-label="Previous photo">
+          <button className="absolute left-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={() => setId(photos[i - 1].id)} aria-label={t("Previous photo")}>
             <ChevronLeft className="h-6 w-6" />
           </button>
         )}
         {i < photos.length - 1 && (
-          <button className="absolute right-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={() => setId(photos[i + 1].id)} aria-label="Next photo">
+          <button className="absolute right-3 z-10 rounded-full bg-black/40 p-2 text-white hover:bg-black/60" onClick={() => setId(photos[i + 1].id)} aria-label={t("Next photo")}>
             <ChevronRight className="h-6 w-6" />
           </button>
         )}
@@ -190,7 +194,7 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
           <div className="grid h-full w-full grid-cols-2 items-center gap-3">
             {[pair.before, pair.after].map((x, k) => (
               <div key={x.id} className="flex h-full flex-col items-center justify-center">
-                <span className="mb-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase">{k ? "After" : "Before"}</span>
+                <span className="mb-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white uppercase">{k ? t("After") : t("Before")}</span>
                 <PhotoImage photo={x} className="max-h-[80vh] w-full" />
               </div>
             ))}
@@ -206,16 +210,16 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
       <aside className="max-h-[48vh] w-full shrink-0 space-y-4 overflow-y-auto bg-white p-4 lg:max-h-none lg:w-[360px]">
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-sm btn-brand" onClick={() => setMarking(true)}>
-            <PenLine /> Mark up
+            <PenLine /> {t("Mark up")}
           </button>
           {AI_ENABLED && (
-          <button className="btn btn-sm" disabled={aiBusy} onClick={() => void aiCaption()} title="Write a caption and tags with AI">
-            <Sparkles /> {aiBusy ? "Looking…" : "AI caption"}
+          <button className="btn btn-sm" disabled={aiBusy} onClick={() => void aiCaption()} title={t("Write a caption and tags with AI")}>
+            <Sparkles /> {aiBusy ? t("Looking…") : t("AI caption")}
           </button>
           )}
           {pair && (
             <button className={`btn btn-sm ${compare ? "btn-on" : ""}`} onClick={() => setCompare((c) => !c)}>
-              <Columns2 /> Before / after
+              <Columns2 /> {t("Before / after")}
             </button>
           )}
           <button
@@ -225,25 +229,25 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               if (rec) downloadBlob(await renderPhoto(rec.blob, p.annotations, 4096), `photo-${p.takenAt.slice(0, 10)}.jpg`);
             }}
           >
-            <Download /> Save
+            <Download /> {t("Save")}
           </button>
           <button
             className="btn btn-sm btn-ghost text-slate-500 hover:text-red-600"
             onClick={async () => {
-              if (!confirm("Delete this photo?")) return;
+              if (!confirm(t("Delete this photo?"))) return;
               const next = photos[i + 1] ?? photos[i - 1];
               await removeRows("photos", [p.id]);
               if (next) setId(next.id);
               else onClose();
             }}
           >
-            <Trash /> Delete
+            <Trash /> {t("Delete")}
           </button>
         </div>
 
         <div className="text-sm text-slate-600">
           <div className="font-medium text-slate-900">{when(p.takenAt)}</div>
-          <div>{p.takenBy ? `by ${p.takenBy}` : ""}</div>
+          <div>{p.takenBy ? t("by {name}", { name: p.takenBy }) : ""}</div>
           {p.lat != null && p.lng != null && (
             <a className="mt-0.5 inline-flex items-center gap-1 text-brand-600 hover:underline" href={mapsLink(p.lat, p.lng)} target="_blank" rel="noreferrer">
               <MapPin className="h-3.5 w-3.5" /> {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
@@ -252,26 +256,26 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
         </div>
 
         <label className="block text-sm">
-          <span className="label">Caption</span>
-          <textarea key={`cap${p.id}`} className="input min-h-16" defaultValue={p.caption ?? ""} placeholder="What does this show?" onBlur={(e) => e.target.value !== (p.caption ?? "") && void save({ caption: e.target.value.trim() || null })} />
+          <span className="label">{t("Caption")}</span>
+          <textarea key={`cap${p.id}`} className="input min-h-16" defaultValue={p.caption ?? ""} placeholder={t("What does this show?")} onBlur={(e) => e.target.value !== (p.caption ?? "") && void save({ caption: e.target.value.trim() || null })} />
         </label>
 
         <div>
-          <span className="label">Tags</span>
+          <span className="label">{t("Tags")}</span>
           <div className="flex flex-wrap gap-1.5">
-            {(p.tags ?? []).map((t) => (
-              <button key={t} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title="Remove tag" aria-label={`Remove tag ${t}`} onClick={() => void save({ tags: (p.tags ?? []).filter((x) => x !== t) })}>
-                {t} ×
+            {(p.tags ?? []).map((tg) => (
+              <button key={tg} className="chip bg-brand-50 text-brand-700 hover:bg-red-50 hover:text-red-700" title={t("Remove tag")} aria-label={t("Remove tag {tag}", { tag: tg })} onClick={() => void save({ tags: (p.tags ?? []).filter((x) => x !== tg) })}>
+                {tg} ×
               </button>
             ))}
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {options
-              .filter((t) => !(p.tags ?? []).includes(t))
+              .filter((tg) => !(p.tags ?? []).includes(tg))
               .slice(0, 10)
-              .map((t) => (
-                <button key={t} className="chip bg-slate-100 text-slate-600 hover:bg-slate-200" onClick={() => addTag(t)}>
-                  + {t}
+              .map((tg) => (
+                <button key={tg} className="chip bg-slate-100 text-slate-600 hover:bg-slate-200" onClick={() => addTag(tg)}>
+                  + {tg}
                 </button>
               ))}
           </div>
@@ -282,16 +286,16 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               addTag(tagDraft);
             }}
           >
-            <input className="input h-9" placeholder="New tag" aria-label="New tag" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} />
+            <input className="input h-9" placeholder={t("New tag")} aria-label={t("New tag")} value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} />
             <button className="btn btn-sm" disabled={!tagDraft.trim()}>
-              Add
+              {t("Add")}
             </button>
           </form>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="text-sm">
-            <span className="label">Device</span>
+            <span className="label">{t("Device")}</span>
             <select className="input h-9" value={p.markerId ?? ""} onChange={(e) => {
               const m = markers.find((x) => x.id === e.target.value);
               void save({ markerId: m?.id ?? null, sheetId: m?.sheetId ?? p.sheetId ?? null, room: m?.room || p.room || null });
@@ -305,27 +309,27 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
             </select>
           </label>
           <label className="text-sm">
-            <span className="label">Room</span>
-            <input key={`room${p.id}`} className="input h-9" defaultValue={p.room ?? ""} placeholder="e.g. Kitchen" onBlur={(e) => e.target.value !== (p.room ?? "") && void save({ room: e.target.value.trim() || null })} />
+            <span className="label">{t("Room")}</span>
+            <input key={`room${p.id}`} className="input h-9" defaultValue={p.room ?? ""} placeholder={t("e.g. Kitchen")} onBlur={(e) => e.target.value !== (p.room ?? "") && void save({ room: e.target.value.trim() || null })} />
           </label>
         </div>
 
         <label className="block text-sm">
-          <span className="label">After photo of…</span>
+          <span className="label">{t("After photo of…")}</span>
           <select className="input h-9" value={p.beforeId ?? ""} onChange={(e) => void save({ beforeId: e.target.value || null })}>
-            <option value="">— not a before/after pair —</option>
+            <option value="">{t("— not a before/after pair —")}</option>
             {others.map((x) => (
               <option key={x.id} value={x.id}>
-                {new Date(x.takenAt).toLocaleDateString()} · {x.caption || x.room || (x.tags ?? []).join(", ") || "photo"}
+                {fmtDate(x.takenAt)} · {x.caption || x.room || (x.tags ?? []).join(", ") || t("photo")}
               </option>
             ))}
           </select>
-          {after && <span className="mt-1 block text-xs text-slate-500">This is the “before” of a later photo.</span>}
+          {after && <span className="mt-1 block text-xs text-slate-500">{t("This is the “before” of a later photo.")}</span>}
         </label>
 
         <div>
           <span className="label flex items-center gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5" /> Comments
+            <MessageSquare className="h-3.5 w-3.5" /> {t("Comments")}
           </span>
           <ul className="space-y-2">
             {comments.map((c) => {
@@ -337,20 +341,19 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
                 <li key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span className="min-w-0 flex-1">
-                      <span className="font-medium text-slate-700">{c.author || "—"}</span> · {new Date(c.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                      <span className="font-medium text-slate-700">{c.author || "—"}</span> · {fmtDate(c.createdAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                     </span>
                     {legacy ? (
-                      <span className={`inline-flex items-center gap-1 font-medium ${legacy.item.done ? "text-emerald-700" : "text-brand-600"}`} title={`On “${legacy.checklist.name}”`}>
-                        <CheckSquare className="h-3.5 w-3.5" /> {legacy.item.done ? "Task done" : "Task"}
+                      <span className={`inline-flex items-center gap-1 font-medium ${legacy.item.done ? "text-emerald-700" : "text-brand-600"}`} title={t("On “{name}”", { name: legacy.checklist.name })}>
+                        <CheckSquare className="h-3.5 w-3.5" /> {legacy.item.done ? t("Task done") : t("Task")}
                       </span>
                     ) : planTask ? (
-                      <span className={`inline-flex items-center gap-1 font-medium ${isClosed(planTask.status) ? "text-emerald-700" : "text-brand-600"}`} title={`${statusInfo(planTask.status).label}${planTask.assignee ? ` · ${planTask.assignee}` : ""}`}>
-                        <CheckSquare className="h-3.5 w-3.5" /> Task #{planTask.number}
-                        {isClosed(planTask.status) ? " done" : ""}
+                      <span className={`inline-flex items-center gap-1 font-medium ${isClosed(planTask.status) ? "text-emerald-700" : "text-brand-600"}`} title={`${t(statusInfo(planTask.status).label)}${planTask.assignee ? ` · ${planTask.assignee}` : ""}`}>
+                        <CheckSquare className="h-3.5 w-3.5" /> {isClosed(planTask.status) ? t("Task #{number} done", { number: planTask.number }) : t("Task #{number}", { number: planTask.number })}
                       </span>
                     ) : (
                       <button className="inline-flex min-h-11 items-center gap-1 px-1 font-medium text-brand-600 hover:underline" aria-expanded={tasking === c.id} onClick={() => setTasking(tasking === c.id ? null : c.id)}>
-                        <ListPlus className="h-3.5 w-3.5" /> Make task
+                        <ListPlus className="h-3.5 w-3.5" /> {t("Make task")}
                       </button>
                     )}
                   </div>
@@ -370,9 +373,9 @@ export default function PhotoViewer({ photos, startId, onClose }: { photos: Phot
               setComment("");
             }}
           >
-            <input className="input h-9" placeholder="Add a comment" aria-label="Add a comment" value={comment} onChange={(e) => setComment(e.target.value)} />
+            <input className="input h-9" placeholder={t("Add a comment")} aria-label={t("Add a comment")} value={comment} onChange={(e) => setComment(e.target.value)} />
             <button className="btn btn-sm" disabled={!comment.trim()}>
-              Post
+              {t("Post")}
             </button>
           </form>
         </div>

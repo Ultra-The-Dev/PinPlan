@@ -3,6 +3,7 @@
 import { memberInitials } from "@/lib/teamLogic";
 import { dayNum } from "@/lib/schedule";
 import { TONE_HEX } from "@/lib/statusStyle";
+import { fmtDate } from "@/lib/i18n";
 
 /** Bars without a colour of their own: action blue (Blueprint Ink, docs/brand.md). */
 export const DEFAULT_BAR = "#0B6FE0";
@@ -50,7 +51,7 @@ export function CrewAvatars({ crew, max = 3 }: { crew?: string[]; max?: number }
 const dateOf = (day: string) => new Date(dayNum(day) * 86_400_000);
 /** "Mon, Nov 23" (shown in UTC so the stored day is exactly the day shown). */
 export const fmtDay = (day: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) =>
-  dateOf(day).toLocaleDateString(undefined, { ...opts, timeZone: "UTC" });
+  fmtDate(dateOf(day), { ...opts, timeZone: "UTC" });
 export const fmtRange = (a: string, b: string) => (a === b ? fmtDay(a) : `${fmtDay(a, { month: "short", day: "numeric" })} – ${fmtDay(b, { month: "short", day: "numeric" })}`);
 
 export function ProgressBar({ value, color = DEFAULT_BAR }: { value: number; color?: string }) {

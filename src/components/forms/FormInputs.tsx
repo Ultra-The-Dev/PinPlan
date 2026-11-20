@@ -5,14 +5,16 @@ import { Check, Minus, Plus, SquareCheck, Trash } from "lucide-react";
 import { useState } from "react";
 import { columnTotals, formatNumber, parseNumber, type FormRow, type YesNo } from "@/lib/forms/forms";
 import type { FormField } from "@/lib/types";
+import { msg, useT } from "@/lib/i18n";
 
 const YES_NO: { v: YesNo; label: string; on: string }[] = [
-  { v: "yes", label: "Yes", on: "border-emerald-600 bg-emerald-600 text-white" },
-  { v: "no", label: "No", on: "border-red-600 bg-red-600 text-white" },
-  { v: "na", label: "N/A", on: "border-slate-600 bg-slate-600 text-white" },
+  { v: "yes", label: msg("Yes"), on: "border-emerald-600 bg-emerald-600 text-white" },
+  { v: "no", label: msg("No"), on: "border-red-600 bg-red-600 text-white" },
+  { v: "na", label: msg("N/A"), on: "border-slate-600 bg-slate-600 text-white" },
 ];
 
 export function YesNoInput({ value, onChange, disabled, compact, label }: { value: unknown; onChange: (v: YesNo | null) => void; disabled?: boolean; compact?: boolean; label: string }) {
+  const t = useT();
   return (
     <div role="radiogroup" aria-label={label} className="flex gap-1.5">
       {YES_NO.map((o) => {
@@ -30,7 +32,7 @@ export function YesNoInput({ value, onChange, disabled, compact, label }: { valu
               on ? o.on : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {o.label}
+            {t(o.label)}
           </button>
         );
       })}
@@ -40,12 +42,13 @@ export function YesNoInput({ value, onChange, disabled, compact, label }: { valu
 
 /** Number entry with the phone's decimal keypad. Keeps what was typed ("12," while typing); stores a number once it reads as one. */
 export function NumberInput({ value, onChange, disabled, unit, compact, label, step = 1, min }: { value: unknown; onChange: (v: number | string | null) => void; disabled?: boolean; unit?: string; compact?: boolean; label: string; step?: number; min?: number }) {
+  const t = useT();
   const [text, setText] = useState(() => (typeof value === "number" ? formatNumber(value) : typeof value === "string" ? value : ""));
-  const set = (t: string) => {
-    setText(t);
-    if (!t.trim()) return onChange(null);
-    const n = parseNumber(t);
-    onChange(n == null ? t : n);
+  const set = (txt: string) => {
+    setText(txt);
+    if (!txt.trim()) return onChange(null);
+    const n = parseNumber(txt);
+    onChange(n == null ? txt : n);
   };
   const bump = (by: number) => {
     const n = parseNumber(text) ?? 0;
@@ -55,7 +58,7 @@ export function NumberInput({ value, onChange, disabled, unit, compact, label, s
   return (
     <div className="flex items-center gap-1.5">
       {!compact && !disabled && (
-        <button type="button" className="btn btn-icon h-11 w-11" aria-label={`Less ${label}`} onClick={() => bump(-step)}>
+        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("Less: {name}", { name: label })} onClick={() => bump(-step)}>
           <Minus />
         </button>
       )}
@@ -72,7 +75,7 @@ export function NumberInput({ value, onChange, disabled, unit, compact, label, s
         {unit && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400">{unit}</span>}
       </div>
       {!compact && !disabled && (
-        <button type="button" className="btn btn-icon h-11 w-11" aria-label={`More ${label}`} onClick={() => bump(step)}>
+        <button type="button" className="btn btn-icon h-11 w-11" aria-label={t("More: {name}", { name: label })} onClick={() => bump(step)}>
           <Plus />
         </button>
       )}
@@ -82,6 +85,7 @@ export function NumberInput({ value, onChange, disabled, unit, compact, label, s
 
 export function SelectInput({ field, value, onChange, disabled, compact }: { field: FormField; value: unknown; onChange: (v: string | null) => void; disabled?: boolean; compact?: boolean }) {
   const options = field.options ?? [];
+  const t = useT();
   // A few short options read best as chips; long lists as a dropdown.
   if (!compact && options.length <= 6 && options.every((o) => o.length <= 28))
     return (
@@ -106,7 +110,7 @@ export function SelectInput({ field, value, onChange, disabled, compact }: { fie
     );
   return (
     <select className={`input ${compact ? "h-9" : "h-11 text-base"}`} aria-label={field.label} disabled={disabled} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">Choose…</option>
+      <option value="">{t("Choose…")}</option>
       {options.map((o) => (
         <option key={o} value={o}>
           {o}
@@ -142,6 +146,7 @@ export function MultiSelectInput({ field, value, onChange, disabled }: { field: 
 
 export function CheckboxInput({ label, value, onChange, disabled }: { label: string; value: unknown; onChange: (v: boolean) => void; disabled?: boolean }) {
   const on = value === true;
+  const t = useT();
   return (
     <button
       type="button"
@@ -153,7 +158,7 @@ export function CheckboxInput({ label, value, onChange, disabled }: { label: str
       className={`inline-flex h-11 items-center gap-2 rounded-lg border px-3.5 text-sm font-medium transition active:scale-[0.98] disabled:opacity-60 ${on ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600"}`}
     >
       <SquareCheck className={`h-5 w-5 ${on ? "text-emerald-600" : "text-slate-300"}`} />
-      {on ? "Done" : "Tap to tick"}
+      {on ? t("Done") : t("Tap to tick")}
     </button>
   );
 }
@@ -209,9 +214,10 @@ export function TableInput({
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const totals = columnTotals(field, rows);
   const setCell = (i: number, colId: string, v: unknown) => onChange(rows.map((r, k) => (k === i ? { ...r, [colId]: v } : r)));
+  const t = useT();
   return (
     <div className="space-y-2">
-      {rows.length === 0 && <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-500">No rows yet.</p>}
+      {rows.length === 0 && <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-500">{t("No rows yet.")}</p>}
       {rows.map((r, i) => {
         const bad = rowErrors?.get(i);
         return (
@@ -221,7 +227,7 @@ export function TableInput({
                 {field.label} {i + 1}
               </span>
               {!disabled && (
-                <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" aria-label={`Remove row ${i + 1}`} onClick={() => onChange(rows.filter((_, k) => k !== i))}>
+                <button type="button" className="btn btn-sm btn-icon btn-ghost text-slate-400 hover:text-red-600" aria-label={t("Remove row {n}", { n: i + 1 })} onClick={() => onChange(rows.filter((_, k) => k !== i))}>
                   <Trash />
                 </button>
               )}
@@ -230,7 +236,7 @@ export function TableInput({
               {cols.map((c, ci) => (
                 <div key={c.id} className={c.type === "yesno" || (c.type === "text" && ci === 0 && cols.length % 2 === 1) ? "col-span-2 sm:col-span-1" : ""}>
                   <Cell col={c} value={r[c.id]} disabled={disabled} autoFocus={ci === 0 && r._id === justAdded} onChange={(v) => setCell(i, c.id, v)} />
-                  {bad?.has(c.id) && <p className="mt-0.5 text-[11px] font-medium text-red-600">{r[c.id] == null || r[c.id] === "" ? "Required" : "Check this"}</p>}
+                  {bad?.has(c.id) && <p className="mt-0.5 text-[11px] font-medium text-red-600">{r[c.id] == null || r[c.id] === "" ? t("Required") : t("Check this")}</p>}
                 </div>
               ))}
             </div>
@@ -243,7 +249,7 @@ export function TableInput({
             .filter((c) => c.id in totals)
             .map((c) => (
               <span key={c.id}>
-                {c.label} total: <b className="tabular-nums text-slate-800">{formatNumber(totals[c.id])}</b>
+                {t("{name} total:", { name: c.label })} <b className="tabular-nums text-slate-800">{formatNumber(totals[c.id])}</b>
                 {c.unit ? ` ${c.unit}` : ""}
               </span>
             ))}
@@ -259,7 +265,7 @@ export function TableInput({
             onChange([...rows, { _id: id }]);
           }}
         >
-          <Plus className="h-4 w-4" /> Add {field.label.toLowerCase().replace(/s$/, "") || "row"}
+          <Plus className="h-4 w-4" /> {t("Add {name}", { name: field.label.toLowerCase().replace(/s$/, "") || t("row") })}
         </button>
       )}
     </div>

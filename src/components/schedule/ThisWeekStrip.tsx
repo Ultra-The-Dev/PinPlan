@@ -8,11 +8,13 @@ import { localDay } from "@/lib/fieldDocs";
 import { addDays, normalizeItem, onCrew, weekStart } from "@/lib/schedule";
 import type { Project, ScheduleItem } from "@/lib/types";
 import { DEFAULT_BAR, fmtRange, ProgressBar } from "./shared";
+import { useT } from "@/lib/i18n";
 
 /** `me`: my names (useMe); `projectId` keeps one job (the Today card on a job). */
 export default function ThisWeekStrip({ me, projectId, hideBoardLink }: { me: string[]; projectId?: string | null; hideBoardLink?: boolean }) {
   const key = me.join("\u0001");
   const [rows, setRows] = useState<{ item: ScheduleItem; project: Project }[]>([]);
+  const t = useT();
 
   const load = useCallback(async () => {
     const from = weekStart(localDay(new Date().toISOString()));
@@ -29,23 +31,23 @@ export default function ThisWeekStrip({ me, projectId, hideBoardLink }: { me: st
   }, [key, projectId]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => void load(), 0);
+    const timer = window.setTimeout(() => void load(), 0);
     const reload = () => void load();
     window.addEventListener("pinplan:synced", reload);
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
       window.removeEventListener("pinplan:synced", reload);
     };
   }, [load]);
 
   if (!rows.length) return null;
   return (
-    <section aria-label="This week on the schedule">
+    <section aria-label={t("This week on the schedule")}>
       <h2 className="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-        <CalendarRange className="h-3.5 w-3.5" /> This week · {rows.length}
+        <CalendarRange className="h-3.5 w-3.5" /> {t("This week")} · {rows.length}
         {!hideBoardLink && (
           <Link href="/schedule" className="ml-auto font-medium tracking-normal text-brand-600 normal-case hover:underline">
-            Crew board
+            {t("Crew board")}
           </Link>
         )}
       </h2>
@@ -56,7 +58,7 @@ export default function ThisWeekStrip({ me, projectId, hideBoardLink }: { me: st
               <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: item.color || DEFAULT_BAR }} />
               <span className="truncate text-sm font-medium">{item.name}</span>
             </span>
-            <span className="mt-0.5 block truncate text-xs text-slate-500">{project.address || project.clientName || "Job"}</span>
+            <span className="mt-0.5 block truncate text-xs text-slate-500">{project.address || project.clientName || t("Job")}</span>
             <span className="mt-0.5 block text-xs text-slate-500">{fmtRange(item.start, item.end)}</span>
             <span className="mt-2 flex items-center gap-2">
               <ProgressBar value={item.progress ?? 0} color={item.color || DEFAULT_BAR} />

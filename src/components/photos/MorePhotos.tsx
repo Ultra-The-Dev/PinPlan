@@ -1,9 +1,11 @@
 "use client";
 // "Show more" at the end of a photo grid: loads the next page when it scrolls into view, or on tap.
 import { useEffect, useRef } from "react";
+import { useT } from "@/lib/i18n";
 
 export default function MorePhotos({ remaining, onMore }: { remaining: number; onMore: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
+  const t = useT();
   const more = useRef(onMore);
   useEffect(() => {
     more.current = onMore;
@@ -19,7 +21,7 @@ export default function MorePhotos({ remaining, onMore }: { remaining: number; o
   return (
     <div className="flex justify-center py-2">
       <button ref={ref} className="btn btn-sm" onClick={onMore}>
-        Show more ({remaining})
+        {t("Show more ({n})", { n: remaining })}
       </button>
     </div>
   );

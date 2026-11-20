@@ -12,6 +12,7 @@ export default function PlanCrop({
   label,
   frac,
   className = "",
+  ariaLabel,
 }: {
   src: string;
   width: number;
@@ -21,6 +22,8 @@ export default function PlanCrop({
   label?: string | null;
   frac?: number;
   className?: string;
+  /** Overrides the English label (the team screens pass it translated; the client answer page stays English). */
+  ariaLabel?: string;
 }) {
   const c = planCropRect(x, y, width, height, frac);
   const pct = (v: number) => `${v * 100}%`;
@@ -29,7 +32,7 @@ export default function PlanCrop({
       className={`relative overflow-hidden rounded-lg bg-white ring-1 ring-slate-200 ${className}`}
       style={{ aspectRatio: `${Math.max(1, c.w * width)} / ${Math.max(1, c.h * height)}` }}
       role="img"
-      aria-label={label ? `Plan location on ${label}` : "Plan location"}
+      aria-label={ariaLabel ?? (label ? `Plan location on ${label}` : "Plan location")}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

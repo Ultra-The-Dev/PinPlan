@@ -40,8 +40,11 @@ import { FormLocationPicker, placeText, type FormPlace } from "./FormLocation";
 import type { FormPdfPhoto } from "./FormPdf";
 import SignatureSheet from "./SignatureSheet";
 import { useProjectTasks, useTasks } from "../tasks/taskStore";
+import { fmtDate, useT } from "@/lib/i18n";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+// On screen (the PDF keeps `when`): in the active language.
+const whenUi = (iso: string) => fmtDate(iso, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 const blobToDataUrl = (b: Blob) =>
   new Promise<string>((res, rej) => {
@@ -53,14 +56,15 @@ const blobToDataUrl = (b: Blob) =>
 
 function Thumb({ photo, missing, onOpen, onRemove }: { photo?: Photo; missing?: boolean; onOpen: () => void; onRemove?: () => void }) {
   const url = useBlobUrl(photo?.imageId);
+  const t = useT();
   return (
     <div className="relative">
-      <button type="button" onClick={onOpen} disabled={missing} className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-[10px] text-slate-400 ring-1 ring-slate-200" aria-label={missing ? "Photo missing" : "Open photo"}>
+      <button type="button" onClick={onOpen} disabled={missing} className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-[10px] text-slate-400 ring-1 ring-slate-200" aria-label={missing ? t("Photo missing") : t("Open photo")}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : missing ? "Missing" : null}
+        {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : missing ? t("Missing") : null}
       </button>
       {onRemove && (
-        <button type="button" onClick={onRemove} className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-500 shadow ring-1 ring-slate-200" aria-label="Remove photo from this field">
+        <button type="button" onClick={onRemove} className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-500 shadow ring-1 ring-slate-200" aria-label={t("Remove photo from this field")}>
           <X className="h-3.5 w-3.5" />
         </button>
       )}
@@ -70,13 +74,15 @@ function Thumb({ photo, missing, onOpen, onRemove }: { photo?: Photo; missing?: 
 
 function SignatureView({ imageId }: { imageId: string }) {
   const url = useBlobUrl(imageId);
+  const t = useT();
   // eslint-disable-next-line @next/next/no-img-element
-  return url ? <img src={url} alt="Signature" className="h-16 max-w-56 object-contain" /> : <span className="text-xs text-slate-400">Signature image not on this device yet</span>;
+  return url ? <img src={url} alt={t("Signature")} className="h-16 max-w-56 object-contain" /> : <span className="text-xs text-slate-400">{t("Signature image not on this device yet")}</span>;
 }
 
 export default function FormFill({ initial, onBack }: { initial: JobForm; onBack: () => void }) {
   const router = useRouter();
   const role = useRole();
+  const t = useT();
   const { email } = useSyncStatus();
   const me = getAuthor(email);
   const { project, settings, photos, sheets, markers, checklists, saveRow } = useEditor();
@@ -113,7 +119,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
       await saveForm(next);
       setSaving((s) => (pending.current ? s : "saved"));
     } catch {
-      toast("Couldn't save the form", "error");
+      toast(t("Couldn't save the form"), "error");
     }
   }
 
@@ -179,29 +185,29 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
       const el = document.getElementById(`ff-${first.fieldId}`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
       el?.querySelector<HTMLElement>("input, textarea, select, button")?.focus({ preventScroll: true });
-      toast(`${list.length} thing${list.length === 1 ? "" : "s"} to fix before submitting`, "error");
+      toast(t.tn("{n} thing to fix before submitting", "{n} things to fix before submitting", list.length), "error");
       return;
     }
-    if (!confirm("Submit this form? It will be locked. The office can reopen it if something needs changing.")) return;
+    if (!confirm(t("Submit this form? It will be locked. The office can reopen it if something needs changing."))) return;
     await saveNow(submitForm(formRef.current, me, nowIso()));
     setShowErrors(false);
-    toast("Form submitted and locked", "success");
+    toast(t("Form submitted and locked"), "success");
   }
 
   async function reopen() {
-    const why = prompt("Reopen this form for changes? Add a short reason (optional):", "");
+    const why = prompt(t("Reopen this form for changes? Add a short reason (optional):"), "");
     if (why === null) return;
     await saveNow(reopenForm(formRef.current, me, nowIso(), why));
     setRev((r) => r + 1);
-    toast("Form reopened as a draft");
+    toast(t("Form reopened as a draft"));
   }
 
   async function remove() {
-    if (!confirm(`Delete “${form.name}”?`)) return;
+    if (!confirm(t("Delete “{name}”?", { name: form.name }))) return;
     if (timer.current) clearTimeout(timer.current);
     pending.current = null;
     await deleteForm(formRef.current);
-    toast(`Deleted “${form.name}”`);
+    toast(t("Deleted “{name}”", { name: form.name }));
     onBack();
   }
 
@@ -213,7 +219,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
     try {
       await makeTasksNow();
     } catch (e) {
-      toast(`Couldn't add the tasks: ${(e as Error).message}`, "error");
+      toast(t("Couldn't add the tasks: {error}", { error: (e as Error).message }), "error");
     } finally {
       makingTasks.current = false;
     }
@@ -227,10 +233,10 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
     // The store's tasks, read now: a second tap right after the first must see the tasks it just made.
     const current = useTasks.getState().projectId === f.projectId ? useTasks.getState().tasks : planTasks;
     const drafts = formTaskDrafts(current, f, failedItems(f)).filter((d) => !legacy.has(d.title.toLowerCase()));
-    if (!drafts.length) return toast("Those answers already have tasks");
+    if (!drafts.length) return toast(t("Those answers already have tasks"));
     const at = nowIso();
     for (const d of drafts) await useTasks.getState().save(newTask({ id: newId(), projectId: f.projectId, number: useTasks.getState().nextNumber(), ...d }, me, at, newId));
-    toast(`${drafts.length} task${drafts.length === 1 ? "" : "s"} added — see Field → Tasks`, "success");
+    toast(t.tn("{n} task added — see Field → Tasks", "{n} tasks added — see Field → Tasks", drafts.length), "success");
   }
 
   async function addPhotos(files: FileList | null) {
@@ -249,7 +255,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         return { ...cur, values: { ...cur.values, [fieldId]: [...have, ...ids] }, photoIds: [...new Set([...(cur.photoIds ?? []), ...ids])] };
       });
     } catch (e) {
-      toast(`Couldn't add the photo: ${(e as Error).message}`, "error");
+      toast(t("Couldn't add the photo: {error}", { error: (e as Error).message }), "error");
     } finally {
       setPhotoFor(null);
     }
@@ -262,7 +268,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
       update((cur) => ({ ...cur, signatures: [...(cur.signatures ?? []).filter((s) => s.fieldId !== f.id), sig] }));
       setSigning(null);
     } catch {
-      toast("Couldn't save the signature", "error");
+      toast(t("Couldn't save the signature"), "error");
     }
   }
 
@@ -287,7 +293,7 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
       for (const x of fields) {
         const list: FormPdfPhoto[] = [];
         for (const pid of (Array.isArray(f.values[x.id]) ? (f.values[x.id] as string[]) : [])) {
-          setPdfBusy(`Preparing photo ${++done} of ${total}…`);
+          setPdfBusy(t("Preparing photo {n} of {total}…", { n: ++done, total }));
           const p = photos.find((y) => y.id === pid);
           const rec = p ? await db().images.get(p.imageId) : undefined;
           if (!p || !rec) {
@@ -304,12 +310,12 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         const rec = await db().images.get(s.imageId);
         if (rec) sigs[s.imageId] = await blobToDataUrl(rec.blob);
       }
-      setPdfBusy("Building the PDF…");
+      setPdfBusy(t("Building the PDF…"));
       const { renderFormPdf } = await import("./FormPdf");
       const blob = await renderFormPdf({ form: f, business: settings.business, clientName: project.clientName, address: project.address, photos: out, signatures: sigs, place, when });
       downloadBlob(blob, `${slug(project.address || project.clientName || "job")}-${slug(f.name)}-${(f.submittedAt ?? f.updatedAt).slice(0, 10)}.pdf`);
     } catch (e) {
-      toast(`PDF failed: ${(e as Error).message}`, "error");
+      toast(t("PDF failed: {error}", { error: (e as Error).message }), "error");
     } finally {
       setPdfBusy(null);
     }
@@ -391,10 +397,10 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
                   fileRef.current?.click();
                 }}
               >
-                <Camera className="h-5 w-5" /> Add
+                <Camera className="h-5 w-5" /> {t("Add")}
               </button>
             )}
-            {!editable && !ids.length && <p className="text-sm text-slate-400">No photos</p>}
+            {!editable && !ids.length && <p className="text-sm text-slate-400">{t("No photos")}</p>}
           </div>
         );
         break;
@@ -407,24 +413,24 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
               <SignatureView imageId={s.imageId} />
             </div>
             <div className="min-w-0 flex-1 text-sm">
-              {signatureLines(s, when(s.signedAt)).map((t, k) => (
+              {signatureLines(s, whenUi(s.signedAt)).map((line, k) => (
                 <p key={k} className={k === 0 ? "font-medium text-slate-900" : "text-xs text-slate-500"}>
-                  {t}
+                  {line}
                 </p>
               ))}
             </div>
             {editable && (
               <button type="button" className="btn btn-sm btn-ghost text-slate-500" onClick={() => update((cur) => ({ ...cur, signatures: (cur.signatures ?? []).filter((x) => x.fieldId !== f.id) }))}>
-                Clear
+                {t("Clear")}
               </button>
             )}
           </div>
         ) : editable ? (
           <button type="button" className="flex h-20 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-sm font-semibold text-slate-600 transition hover:border-brand-300 hover:text-brand-700 active:scale-[0.99]" onClick={() => setSigning(f)}>
-            <PenLine className="h-5 w-5" /> Tap to sign
+            <PenLine className="h-5 w-5" /> {t("Tap to sign")}
           </button>
         ) : (
-          <p className="text-sm text-slate-400">Not signed</p>
+          <p className="text-sm text-slate-400">{t("Not signed")}</p>
         );
         break;
       }
@@ -437,17 +443,17 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         <div>
           <p className="text-[15px] font-medium text-slate-900">
             {f.label}
-            {f.required && <span className="ml-0.5 text-red-500" aria-label="required">*</span>}
+            {f.required && <span className="ml-0.5 text-red-500" aria-label={t("required")}>*</span>}
           </p>
           {f.help && <p className="text-xs text-slate-500">{f.help}</p>}
         </div>
         {body}
         {plainErr?.map((e, k) => (
           <p key={k} className="text-sm font-medium text-red-600">
-            {e.message}
+            {t(e.message)}
           </p>
         ))}
-        {f.type === "table" && errs && errs.some((e) => e.row != null) && <p className="text-sm font-medium text-red-600">{errs.filter((e) => e.row != null).length} cell(s) to fix</p>}
+        {f.type === "table" && errs && errs.some((e) => e.row != null) && <p className="text-sm font-medium text-red-600">{t.tn("{n} cell to fix", "{n} cells to fix", errs.filter((e) => e.row != null).length)}</p>}
       </section>
     );
   };
@@ -459,10 +465,10 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void addPhotos(e.target.files).then(() => (e.target.value = ""))} />
       <div className="flex items-center gap-2">
         <button className="btn btn-sm btn-ghost -ml-2" onClick={() => void flush().then(onBack)}>
-          <ArrowLeft /> Forms
+          <ArrowLeft /> {t("Forms")}
         </button>
         <span className="ml-auto text-xs text-slate-400" aria-live="polite">
-          {editable ? (saving === "pending" ? "Saving…" : saving === "saved" ? "Saved" : "") : ""}
+          {editable ? (saving === "pending" ? t("Saving…") : saving === "saved" ? t("Saved") : "") : ""}
         </span>
       </div>
 
@@ -470,31 +476,31 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             {editable ? (
-              <input className="w-full rounded-md bg-transparent text-lg font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-brand-100" aria-label="Form name" value={form.name} onChange={(e) => update((f) => ({ ...f, name: e.target.value }))} />
+              <input className="w-full rounded-md bg-transparent text-lg font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-brand-100" aria-label={t("Form name")} value={form.name} onChange={(e) => update((f) => ({ ...f, name: e.target.value }))} />
             ) : (
               <h2 className="text-lg font-semibold text-slate-900">{form.name}</h2>
             )}
             <p className="text-xs text-slate-500">
               {form.template.name} · v{form.template.version || 1}
-              {form.createdBy ? ` · started by ${form.createdBy}` : ""} · {when(form.createdAt)}
+              {form.createdBy ? ` · ${t("started by {name}", { name: form.createdBy })}` : ""} · {whenUi(form.createdAt)}
             </p>
           </div>
           {form.status === "submitted" ? (
             <span className="chip shrink-0 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-              <Lock className="h-3 w-3" /> Submitted
+              <Lock className="h-3 w-3" /> {t("Submitted")}
             </span>
           ) : (
-            <span className="chip shrink-0 bg-amber-50 text-amber-800 ring-1 ring-amber-200">Draft</span>
+            <span className="chip shrink-0 bg-amber-50 text-amber-800 ring-1 ring-amber-200">{t("Draft")}</span>
           )}
         </div>
         <div>
           <div className="mb-1 flex justify-between text-xs text-slate-500">
             <span>
-              {progress.answered} of {progress.total} answered
+              {t("{answered} of {total} answered", { answered: progress.answered, total: progress.total })}
             </span>
             {progress.required > 0 && (
               <span>
-                {progress.requiredDone}/{progress.required} required
+                {t("{done}/{total} required", { done: progress.requiredDone, total: progress.required })}
               </span>
             )}
           </div>
@@ -505,32 +511,32 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         <div className="flex flex-wrap items-center gap-2">
           {place ? (
             <span className="inline-flex items-center overflow-hidden rounded-full bg-brand-50 text-xs font-medium text-brand-700 ring-1 ring-brand-200">
-              <button className="inline-flex h-8 items-center gap-1 pr-2 pl-2.5 hover:underline" onClick={openPlan} title="Open the plan here">
+              <button className="inline-flex h-8 items-center gap-1 pr-2 pl-2.5 hover:underline" onClick={openPlan} title={t("Open the plan here")}>
                 <MapPin className="h-3.5 w-3.5" /> {place}
               </button>
               {editable && (
-                <button className="h-8 border-l border-brand-200 px-2 hover:bg-brand-100" onClick={() => setPlacing(true)} aria-label="Change plan location">
-                  Edit
+                <button className="h-8 border-l border-brand-200 px-2 hover:bg-brand-100" onClick={() => setPlacing(true)} aria-label={t("Change plan location")}>
+                  {t("Edit")}
                 </button>
               )}
             </span>
           ) : (
             editable && (
               <button className="btn btn-sm" onClick={() => setPlacing(true)}>
-                <MapPin /> Pin to plan
+                <MapPin /> {t("Pin to plan")}
               </button>
             )
           )}
           {failed.length > 0 && (
-            <button className="btn btn-sm" onClick={() => void makeTasks()} title="Make a task on this job for every “No” answer">
-              <ListTodo /> Make tasks ({failed.length})
+            <button className="btn btn-sm" onClick={() => void makeTasks()} title={t("Make a task on this job for every “No” answer")}>
+              <ListTodo /> {t("Make tasks ({n})", { n: failed.length })}
             </button>
           )}
           <button className="btn btn-sm" onClick={() => void downloadPdf()} disabled={!!pdfBusy}>
             <FileDown /> {pdfBusy ?? "PDF"}
           </button>
           {canDeleteForm(role, form) && (
-            <button className="btn btn-sm btn-ghost ml-auto text-slate-400 hover:text-red-600" onClick={() => void remove()} aria-label="Delete form">
+            <button className="btn btn-sm btn-ghost ml-auto text-slate-400 hover:text-red-600" onClick={() => void remove()} aria-label={t("Delete form")}>
               <Trash />
             </button>
           )}
@@ -541,12 +547,12 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 p-3.5 text-sm text-emerald-900 ring-1 ring-emerald-200" role="status">
           <CircleCheck className="h-5 w-5 shrink-0 text-emerald-600" />
           <p className="min-w-0 flex-1">
-            Submitted{form.submittedBy ? ` by ${form.submittedBy}` : ""}
-            {form.submittedAt ? ` · ${when(form.submittedAt)}` : ""}. Locked — no more changes.
+            {form.submittedBy ? t("Submitted by {name}", { name: form.submittedBy }) : t("Submitted")}
+            {form.submittedAt ? ` · ${whenUi(form.submittedAt)}` : ""}. {t("Locked — no more changes.")}
           </p>
           {canReopenForm(role, form) && (
             <button className="btn btn-sm" onClick={() => void reopen()}>
-              <LockOpen /> Reopen
+              <LockOpen /> {t("Reopen")}
             </button>
           )}
         </div>
@@ -558,10 +564,10 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
 
       {history.length > 0 && (
         <div className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-500">
-          <p className="mb-1 font-semibold text-slate-600">History</p>
+          <p className="mb-1 font-semibold text-slate-600">{t("History")}</p>
           {history.map((h, k) => (
             <p key={k}>
-              {when(h.at)} — {h.text}
+              {whenUi(h.at)} — {h.text}
               {h.by ? ` (${h.by})` : ""}
             </p>
           ))}
@@ -572,16 +578,16 @@ export default function FormFill({ initial, onBack }: { initial: JobForm; onBack
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-4xl items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-sm text-slate-500">
-              {issues.length === 0 ? "Ready to submit" : `${progress.requiredDone} of ${progress.required} required done`}
-              {showErrors && issues.length > 0 && <span className="ml-1 font-medium text-red-600">· {issues.length} to fix</span>}
+              {issues.length === 0 ? t("Ready to submit") : t("{done} of {total} required done", { done: progress.requiredDone, total: progress.required })}
+              {showErrors && issues.length > 0 && <span className="ml-1 font-medium text-red-600">· {t("{n} to fix", { n: issues.length })}</span>}
             </p>
             <button className="btn btn-brand h-11 px-5 text-base" onClick={() => void submit()}>
-              <Send /> Submit
+              <Send /> {t("Submit")}
             </button>
           </div>
         </div>
       )}
-      {!editable && !office && <p className="px-1 text-xs text-slate-400">Ask the office if something on a submitted form needs to change.</p>}
+      {!editable && !office && <p className="px-1 text-xs text-slate-400">{t("Ask the office if something on a submitted form needs to change.")}</p>}
 
       {signing && <SignatureSheet title={signing.label} me={me} otherFirst={/customer|witness|inspector|owner|ahj|gc/i.test(signing.label)} onSave={(d) => sign(signing, d)} onClose={() => setSigning(null)} />}
       {placing && (
