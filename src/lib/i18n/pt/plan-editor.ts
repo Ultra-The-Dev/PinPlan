@@ -830,6 +830,28 @@ const planEditor: Dictionary = {
   // Find similar (match.worker.ts)
   "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
     "Aí só há linhas retas, como uma parede. Toque bem em cima de um símbolo ou desenhe um retângulo justo ao redor dele.",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Vãos",
+  "Add alarm sensors": "Adicionar sensores de alarme",
+  "Add alarm sensors to the doors and windows on this plan": "Adicionar sensores de alarme às portas e janelas desta planta",
+  Sensors: "Sensores",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "Ainda não há portas nem janelas neste pavimento. Conte-as primeiro: Encontrar semelhantes, contando como Door e depois como Window.",
+  "Sensors to place": "Sensores a colocar",
+  "Door contact on each door": "Contato de porta em cada porta",
+  "Window contact on each window": "Contato de janela em cada janela",
+  "Glass-break detector per room with windows": "Um detector de quebra de vidro por ambiente com janelas",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "O ambiente vem de cada janela; janelas sem ambiente são agrupadas por proximidade.",
+  "Not in your price list": "Não está na sua tabela de preços",
+  "Nothing to add": "Nada a adicionar",
+  "Tap a door or window on the plan to leave it out.": "Toque uma porta ou janela na planta para deixá-la de fora.",
+  "Place sensors": "Colocar sensores",
+  "{n} door contact": { one: "{n} contato de porta", other: "{n} contatos de porta" },
+  "{n} window contact": { one: "{n} contato de janela", other: "{n} contatos de janela" },
+  "{n} glass-break": { one: "{n} detector de quebra de vidro", other: "{n} detectores de quebra de vidro" },
+  "{n} opening left out. Tap it again to take it back.": { one: "{n} vão de fora. Toque de novo para incluí-lo.", other: "{n} vãos de fora. Toque de novo para incluí-los." },
+  "{n} already has its sensor.": { one: "{n} já tem seu sensor.", other: "{n} já têm seu sensor." },
+  "Place {n} sensor": { one: "Colocar {n} sensor", other: "Colocar {n} sensores" },
+  "Added {n} sensor. Undo takes it back.": { one: "{n} sensor adicionado. Desfazer o remove.", other: "{n} sensores adicionados. Desfazer remove todos." },
 };
 
 export default planEditor;

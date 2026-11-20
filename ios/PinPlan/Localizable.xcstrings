@@ -11503,6 +11503,52 @@
         }
       }
     },
+    "Add alarm sensors" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agregar sensores de alarma"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj czujniki alarmu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar sensores de alarme"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить датчики охраны"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додати датчики охорони"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thêm cảm biến báo động"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加报警传感器"
+          }
+        }
+      }
+    },
     "Add an item" : {
       "localizations" : {
         "es" : {
@@ -14165,6 +14211,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "所有图页"
+          }
+        }
+      }
+    },
+    "Already have their sensor: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya tienen su sensor: %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Już z czujnikiem: %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Já têm sensor: %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже с датчиком: %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже з датчиком: %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã có cảm biến: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已有传感器：%lld"
           }
         }
       }
@@ -25597,6 +25689,190 @@
         }
       }
     },
+    "Door contact on each door" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacto de puerta en cada puerta"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktron na każdych drzwiach"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contato de porta em cada porta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркон на каждую дверь"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркон на кожні двері"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mỗi cửa đi một tiếp điểm cửa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每扇门装一个门磁"
+          }
+        }
+      }
+    },
+    "Door contacts: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactos de puerta: %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktrony drzwiowe: %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contatos de porta: %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Герконы на дверях: %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркони на дверях: %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp điểm cửa: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门磁：%lld"
+          }
+        }
+      }
+    },
+    "Door contacts: %lld · Window contacts: %lld · Glass-breaks: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactos de puerta: %1$lld · Contactos de ventana: %2$lld · Rotura de cristal: %3$lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktrony drzwiowe: %1$lld · Kontaktrony okienne: %2$lld · Zbicie szyby: %3$lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contatos de porta: %1$lld · Contatos de janela: %2$lld · Quebra de vidro: %3$lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Герконы на дверях: %1$lld · Герконы на окнах: %2$lld · Разбитие стекла: %3$lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркони на дверях: %1$lld · Геркони на вікнах: %2$lld · Розбиття скла: %3$lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp điểm cửa: %1$lld · Tiếp điểm cửa sổ: %2$lld · Vỡ kính: %3$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门磁：%1$lld · 窗磁：%2$lld · 玻璃破碎：%3$lld"
+          }
+        }
+      }
+    },
+    "Doors: %lld · Windows: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puertas: %1$lld · Ventanas: %2$lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drzwi: %1$lld · Okna: %2$lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portas: %1$lld · Janelas: %2$lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Двери: %1$lld · Окна: %2$lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Двері: %1$lld · Вікна: %2$lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cửa đi: %1$lld · Cửa sổ: %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门：%1$lld · 窗：%2$lld"
+          }
+        }
+      }
+    },
     "Downloading the plan…" : {
       "localizations" : {
         "es" : {
@@ -30967,6 +31243,98 @@
         }
       }
     },
+    "Glass-break detector per room with windows" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un detector de rotura de cristal por habitación con ventanas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czujka zbicia szyby w każdym pomieszczeniu z oknami"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um detector de quebra de vidro por ambiente com janelas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датчик разбития стекла на каждое помещение с окнами"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датчик розбиття скла на кожне приміщення з вікнами"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mỗi phòng có cửa sổ một đầu dò vỡ kính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个有窗的房间装一个玻璃破碎探测器"
+          }
+        }
+      }
+    },
+    "Glass-breaks: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detectores de rotura de cristal: %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czujki zbicia szyby: %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detectores de quebra de vidro: %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датчики разбития стекла: %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датчики розбиття скла: %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đầu dò vỡ kính: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "玻璃破碎探测器：%lld"
+          }
+        }
+      }
+    },
     "Got a code from your company? Enter it here." : {
       "localizations" : {
         "es" : {
@@ -35843,6 +36211,52 @@
         }
       }
     },
+    "Left out: %lld. Tap one again to take it back." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuera: %lld. Toca una otra vez para volver a incluirla."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pominięto: %lld. Dotknij ponownie, aby przywrócić."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De fora: %lld. Toque de novo para incluir."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исключено: %lld. Нажмите ещё раз, чтобы вернуть."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виключено: %lld. Натисніть ще раз, щоб повернути."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã bỏ qua: %lld. Chạm lại để đưa trở lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已排除：%lld。再点一下即可恢复。"
+          }
+        }
+      }
+    },
     "Length" : {
       "localizations" : {
         "es" : {
@@ -40443,6 +40857,52 @@
         }
       }
     },
+    "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todavía no hay puertas ni ventanas en este piso. Cuéntalas primero: Buscar similares, contando como Door y luego como Window."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na tym piętrze nie ma jeszcze drzwi ani okien. Najpierw je policz: Znajdź podobne, licz jako Door, a potem jako Window."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda não há portas nem janelas neste pavimento. Conte-as primeiro: Encontrar semelhantes, contando como Door e depois como Window."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На этом этаже пока нет дверей и окон. Сначала посчитайте их: «Найти похожие», считать как «Door», затем как «Window»."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На цьому поверсі ще немає дверей і вікон. Спершу порахуйте їх: «Знайти схожі», рахувати як «Door», потім як «Window»."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tầng này chưa có cửa đi hay cửa sổ. Hãy đếm trước: Tìm tương tự, đếm là Door, rồi đếm là Window."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本楼层还没有门窗。请先统计：查找相似，先计为 Door，再计为 Window。"
+          }
+        }
+      }
+    },
     "No due date" : {
       "localizations" : {
         "es" : {
@@ -42651,6 +43111,52 @@
         }
       }
     },
+    "Not in your price list" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No está en tu lista de precios"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak w Twoim cenniku"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não está na sua tabela de preços"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет в вашем прайс-листе"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Немає у вашому прайс-листі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có trong bảng giá của bạn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不在你的价目表中"
+          }
+        }
+      }
+    },
     "Not sent yet. The office sends it from the web." : {
       "localizations" : {
         "es" : {
@@ -43245,6 +43751,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到相似内容。请更紧地框住一个符号。"
+          }
+        }
+      }
+    },
+    "Nothing to add" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada que agregar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nic do dodania"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada a adicionar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нечего добавить"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нічого додати"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có gì để thêm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可添加的"
           }
         }
       }
@@ -45165,6 +45717,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在网页版打开报价单和发票"
+          }
+        }
+      }
+    },
+    "Openings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aberturas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwory"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vãos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проёмы"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прорізи"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ô cửa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门窗洞口"
           }
         }
       }
@@ -48239,6 +48837,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "放到图纸上"
+          }
+        }
+      }
+    },
+    "Place sensors (%lld)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colocar sensores (%lld)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozmieść czujniki (%lld)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colocar sensores (%lld)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поставить датчики (%lld)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поставити датчики (%lld)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đặt cảm biến (%lld)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放置传感器（%lld）"
           }
         }
       }
@@ -55733,6 +56377,52 @@
         }
       }
     },
+    "Rooms come from each window’s room; windows without one are grouped by distance." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La habitación es la de cada ventana; las ventanas sin habitación se agrupan por cercanía."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomieszczenie pochodzi z pola okna; okna bez pomieszczenia są grupowane według odległości."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O ambiente vem de cada janela; janelas sem ambiente são agrupadas por proximidade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помещение берётся из поля «Помещение» у окна; окна без него группируются по расстоянию."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приміщення береться з поля «Приміщення» у вікна; вікна без нього групуються за відстанню."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phòng lấy theo phòng của từng cửa sổ; cửa sổ không có phòng được nhóm theo khoảng cách."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "房间取自每扇窗的房间；没有房间的窗按距离分组。"
+          }
+        }
+      }
+    },
     "Rotate" : {
       "localizations" : {
         "es" : {
@@ -58339,6 +59029,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "灵敏度"
+          }
+        }
+      }
+    },
+    "Sensors added: %lld. Undo takes them all back." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensores agregados: %lld. Deshacer los quita todos."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodano czujników: %lld. Cofnij usunie je wszystkie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensores adicionados: %lld. Desfazer remove todos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавлено датчиков: %lld. «Отменить» уберёт их все."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додано датчиків: %lld. «Скасувати» прибере їх усі."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã thêm cảm biến: %lld. Hoàn tác sẽ gỡ tất cả."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已添加传感器：%lld。撤销会将它们全部移除。"
           }
         }
       }
@@ -65261,6 +65997,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "依次点设备、路径，然后点设备间"
+          }
+        }
+      }
+    },
+    "Tap a door or window on the plan to leave it out." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca una puerta o ventana en el plano para dejarla fuera."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dotknij drzwi lub okna na planie, aby je pominąć."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque uma porta ou janela na planta para deixá-la de fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите на дверь или окно на плане, чтобы исключить его."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Натисніть на двері чи вікно на плані, щоб виключити їх."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạm vào cửa đi hoặc cửa sổ trên bản vẽ để bỏ qua nó."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一下图纸上的门或窗即可排除它。"
           }
         }
       }
@@ -75113,6 +75895,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "风速（mph）"
+          }
+        }
+      }
+    },
+    "Window contact on each window" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacto de ventana en cada ventana"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktron na każdym oknie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contato de janela em cada janela"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркон на каждое окно"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркон на кожне вікно"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mỗi cửa sổ một tiếp điểm cửa sổ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每扇窗装一个窗磁"
+          }
+        }
+      }
+    },
+    "Window contacts: %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactos de ventana: %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktrony okienne: %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contatos de janela: %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Герконы на окнах: %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Геркони на вікнах: %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp điểm cửa sổ: %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "窗磁：%lld"
           }
         }
       }

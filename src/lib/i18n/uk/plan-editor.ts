@@ -862,6 +862,28 @@ const dict: Dictionary = {
   // Find similar (match.worker.ts)
   "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
     "Там лише прямі лінії, як у стіни. Торкніться точно позначення або обведіть його рамкою щільніше.",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Прорізи",
+  "Add alarm sensors": "Додати датчики охорони",
+  "Add alarm sensors to the doors and windows on this plan": "Поставити датчики охорони на двері й вікна цього плану",
+  Sensors: "Датчики",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "На цьому поверсі ще немає дверей і вікон. Спершу порахуйте їх: «Знайти схожі», рахувати як «Door», потім як «Window».",
+  "Sensors to place": "Які датчики поставити",
+  "Door contact on each door": "Геркон на кожні двері",
+  "Window contact on each window": "Геркон на кожне вікно",
+  "Glass-break detector per room with windows": "Датчик розбиття скла на кожне приміщення з вікнами",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "Приміщення береться з поля «Приміщення» у вікна; вікна без нього групуються за відстанню.",
+  "Not in your price list": "Немає у вашому прайс-листі",
+  "Nothing to add": "Нічого додати",
+  "Tap a door or window on the plan to leave it out.": "Натисніть на двері чи вікно на плані, щоб виключити їх.",
+  "Place sensors": "Поставити датчики",
+  "{n} door contact": { one: "{n} геркон на двері", few: "{n} геркони на двері", many: "{n} герконів на двері", other: "{n} геркона на двері" },
+  "{n} window contact": { one: "{n} геркон на вікно", few: "{n} геркони на вікна", many: "{n} герконів на вікна", other: "{n} геркона на вікна" },
+  "{n} glass-break": { one: "{n} датчик розбиття скла", few: "{n} датчики розбиття скла", many: "{n} датчиків розбиття скла", other: "{n} датчика розбиття скла" },
+  "{n} opening left out. Tap it again to take it back.": { one: "Виключено {n} проріз. Натисніть ще раз, щоб повернути.", few: "Виключено {n} прорізи. Натисніть ще раз, щоб повернути.", many: "Виключено {n} прорізів. Натисніть ще раз, щоб повернути.", other: "Виключено {n} прорізу. Натисніть ще раз, щоб повернути." },
+  "{n} already has its sensor.": { one: "{n} уже з датчиком.", few: "{n} уже з датчиками.", many: "{n} уже з датчиками.", other: "{n} уже з датчиками." },
+  "Place {n} sensor": { one: "Поставити {n} датчик", few: "Поставити {n} датчики", many: "Поставити {n} датчиків", other: "Поставити {n} датчика" },
+  "Added {n} sensor. Undo takes it back.": { one: "Додано {n} датчик. «Скасувати» прибере його.", few: "Додано {n} датчики. «Скасувати» прибере їх усі.", many: "Додано {n} датчиків. «Скасувати» прибере їх усі.", other: "Додано {n} датчика. «Скасувати» прибере їх усі." },
 };
 
 export default dict;

@@ -29,6 +29,8 @@ export const PORT_PREFIX: Record<string, string> = {
   "LV per manufacturer": "MFR",
   Coax: "CX",
   Fiber: "FB",
+  // Alarm sensors land on the alarm panel's zones.
+  "22/4 alarm": "ZN",
 };
 export const PANEL_PORTS = 24;
 
@@ -137,6 +139,7 @@ export const BOX_FT: Record<string, number> = {
   "LV per manufacturer": 500,
   Coax: 1000,
   Fiber: 1000,
+  "22/4 alarm": 500,
 };
 /** Stock HDMI lengths (ft). */
 export const HDMI_LENGTHS = [6, 10, 15, 25, 35, 50, 75, 100, 150, 200];

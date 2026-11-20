@@ -42,6 +42,7 @@ struct TakeoffView: View {
                     StatTile(label: "LED", value: "\(tot.ledTotalFt.clean) LF", sub: String(localized: "\(tot.ledZones) zones"))
                     StatTile(label: String(localized: "Cable"), value: "\(tot.wireFt.values.reduce(0, +).clean) ft", sub: String(localized: "\(tot.wireRuns.values.reduce(0, +)) home runs"))
                 }
+                openings(AlarmSensors.summary(t, catalog: app.catalog))
                 ScrollView(.horizontal) {
                     Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 8) {
                         GridRow {
@@ -118,6 +119,39 @@ struct TakeoffView: View {
         .navigationDestination(isPresented: Binding(get: { openReview && app.cloud.can(.prices) }, set: { openReview = $0 })) { PlanReviewView(model: model) }
         .navigationDestination(isPresented: $showWiring) { CrewView(model: model).navigationTitle("Wiring sheets").navigationBarTitleDisplayMode(.inline) }
         .navigationDestination(isPresented: $openOrderList) { OrderListView(model: model) }
+    }
+
+    /// Openings: "Doors 14 · Windows 22" per floor and in total, and the alarm sensors on them once there are any
+    /// (docs/find-similar.md, "Alarm sensors from openings"). Only from placed devices.
+    @ViewBuilder
+    private func openings(_ s: AlarmSensors.Summary) -> some View {
+        if s.hasOpenings || s.hasSensors {
+            let floors = s.floors.filter { !$0.counts.isEmpty }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Openings").font(.headline)
+                if floors.count > 1 {
+                    ForEach(floors) { f in openingsRow(Text(verbatim: f.name), f.counts, sensors: s.hasSensors) }
+                }
+                openingsRow(Text("Total").bold(), s.total, sensors: s.hasSensors)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .paperCard()
+            .accessibilityIdentifier("takeoff-openings")
+        }
+    }
+
+    private func openingsRow(_ name: Text, _ c: AlarmSensors.Count, sensors: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            name.font(.subheadline.weight(.medium))
+            Text("Doors: \(c.doors) · Windows: \(c.windows)").font(.subheadline)
+            if sensors {
+                Text("Door contacts: \(c.doorContacts) · Window contacts: \(c.windowContacts) · Glass-breaks: \(c.glassBreaks)")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .monospacedDigit()
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

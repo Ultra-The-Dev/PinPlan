@@ -1,4 +1,4 @@
-import { CLOSET_KINDS, closetMeta } from "./catalog";
+import { CLOSET_KINDS, OPENING_TYPE_IDS, closetMeta } from "./catalog";
 import { countOf, linkedTypes } from "./charges";
 import { CABLE_PREFIX, cableChoices, cableKey, productSplit, productTitle, type ProductSplit } from "./products";
 import { computeTakeoff, type Takeoff } from "./takeoff";
@@ -135,8 +135,11 @@ export function buildEstimate(
       .filter((x): x is { p: Product; confirmed: number; tentative: number } => !!x.p && x.p.deviceTypeId === d.id)
       .sort((a, b) => compareProducts(a.p, b.p));
   const productPrice = (p: Product) => (combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk);
+  // Door and Window are reference counts (openings): they stay off the estimate until they have a price or a product.
+  const unpricedOpening = (d: DeviceType) => OPENING_TYPE_IDS.includes(d.id) && !d.unitPrice && !d.laborPrice && !productParts(d).length;
 
   for (const d of sorted) {
+    if (unpricedOpening(d)) continue;
     const q = qtyOf(d);
     const unit = d.unit === "LF" ? "LF" : "each";
     const group = d.kind === "led" ? "lighting" : "devices";
@@ -185,6 +188,7 @@ export function buildEstimate(
 
   if (pricing.laborMode === "separate") {
     for (const d of sorted) {
+      if (unpricedOpening(d)) continue;
       const q = qtyOf(d);
       const unit = d.unit === "LF" ? "LF" : "each";
       let restC = q.confirmed;

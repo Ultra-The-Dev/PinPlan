@@ -38,7 +38,8 @@ import "./overlays";
 import { setPlanToolbarRow, StatusSlot, StatusSlotHost } from "./overlays/PlanRail";
 import { resetPlanUi } from "./overlays/planInputs";
 import { AI_ENABLED } from "@/lib/features";
-import { useFindSimilar } from "../findSimilar/findSimilarStore";
+import { openSensors, useFindSimilar } from "../findSimilar/findSimilarStore";
+import { sheetOpenings } from "@/lib/alarmSensors";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -116,6 +117,9 @@ export default function PlanEditor() {
   const mode = viewer.mode ?? (role === "tech" ? "view" : "edit");
   const editing = mode === "edit";
   const findOpen = useFindSimilar((s) => s.open);
+  const sensorsOpen = useFindSimilar((s) => s.open && !!s.sensors);
+  // Add alarm sensors shows on the toolbar once the plan has doors or windows.
+  const hasOpenings = !!sheet && sheetOpenings(st.markers, st.catalog, sheet.id).length > 0;
   const filters = viewer.filters;
   const showLabels = filters.labels;
   const setShowLabels = (u: (v: boolean) => boolean) => viewer.setFilters({ labels: u(filters.labels) });
@@ -534,7 +538,8 @@ export default function PlanEditor() {
       }}
       countsOpen={panel === "counts" && !selection}
       onCounts={() => setPanel(panel === "counts" ? null : "counts")}
-      findSimilar={editing ? { open: findOpen, onClick: () => useFindSimilar.getState().setOpen(!findOpen) } : null}
+      findSimilar={editing ? { open: findOpen && !sensorsOpen, onClick: () => useFindSimilar.getState().setOpen(!findOpen || sensorsOpen) } : null}
+      sensors={editing && hasOpenings ? { open: sensorsOpen, onClick: () => (sensorsOpen ? useFindSimilar.getState().setOpen(false) : openSensors()) } : null}
       ai={AI_ENABLED ? { open: panel === "scan" && !selection, onClick: () => setPanel(panel === "scan" ? null : "scan") } : null}
       fullscreen={fullscreen}
       onFullscreen={() => toggleFullscreen()}

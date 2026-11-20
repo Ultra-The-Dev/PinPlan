@@ -51,6 +51,14 @@ final class FindSimilarUI {
     var note: String?
     /// Review one by one: position in the shown list.
     var review: Int?
+    /// Add sensors (docs/find-similar.md, "Alarm sensors from openings"): which sensors, and the doors / windows left
+    /// out (tapped on the plan). Nil when the card shows Find similar itself.
+    var sensors: SensorsDraft?
+
+    struct SensorsDraft: Equatable {
+        var kinds: Set<AlarmSensors.SensorKind>
+        var excluded: Set<String> = []
+    }
 
     /// The search running now (a newer one, or Clear, cancels it).
     @ObservationIgnored private var token: SearchToken?
@@ -59,6 +67,7 @@ final class FindSimilarUI {
     @ObservationIgnored private var seq = 0
 
     private static let typeKey = "findSimilar.type"
+    private static let kindsKey = "alarmSensors.kinds"
 
     // MARK: open, close, type
 
@@ -72,6 +81,7 @@ final class FindSimilarUI {
         open = true
         drag = nil
         review = nil
+        sensors = nil
         picking = found.isEmpty
         let types = FindSimilar.countableTypes(model.app.catalog)
         if typeId == nil || !types.contains(where: { $0.id == typeId }),
@@ -86,6 +96,7 @@ final class FindSimilarUI {
         boxMode = false
         drag = nil
         review = nil
+        sensors = nil
     }
 
     func setType(_ t: DeviceType) {
@@ -292,6 +303,67 @@ final class SearchToken: @unchecked Sendable {
     private var cancelled = false
     var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
     func cancel() { lock.lock(); cancelled = true; lock.unlock() }
+}
+
+// MARK: - Add sensors
+
+extension FindSimilarUI {
+    /// Opens the card on Add sensors for the doors and windows on this plan (from the card or the Tools menu).
+    func openSensors(model: EditorModel) {
+        if !open { show(model: model) }
+        let saved = UserDefaults.standard.stringArray(forKey: Self.kindsKey)
+        let kinds = saved.map { Set($0.compactMap(AlarmSensors.SensorKind.init(rawValue:))) } ?? [.door, .window]
+        sensors = SensorsDraft(kinds: kinds)
+        review = nil
+        drag = nil
+        boxMode = false
+    }
+
+    func closeSensors() { sensors = nil }
+
+    func toggleKind(_ k: AlarmSensors.SensorKind) {
+        guard var s = sensors else { return }
+        if s.kinds.contains(k) { s.kinds.remove(k) } else { s.kinds.insert(k) }
+        sensors = s
+        UserDefaults.standard.set(s.kinds.map(\.rawValue).sorted(), forKey: Self.kindsKey)
+    }
+
+    /// A tap on a door or window while Add sensors is open: leave it out, or take it back.
+    func toggleExcluded(_ openingId: String) {
+        guard var s = sensors else { return }
+        if s.excluded.contains(openingId) { s.excluded.remove(openingId) } else { s.excluded.insert(openingId) }
+        sensors = s
+        Haptics.select()
+    }
+
+    func openings(_ model: EditorModel, sheet: Sheet) -> [AlarmSensors.Opening] {
+        AlarmSensors.sheetOpenings(markers: model.bundle.liveMarkers, catalog: model.app.catalog, sheetId: sheet.id)
+    }
+
+    /// What Add sensors would place now; `kinds` overrides the chosen ones (to show every option's count).
+    func sensorPlan(_ model: EditorModel, sheet: Sheet, kinds: Set<AlarmSensors.SensorKind>? = nil) -> AlarmSensors.Plan {
+        guard let s = sensors else { return AlarmSensors.Plan() }
+        let missing = Set(AlarmSensors.missingTypes(model.app.catalog))
+        return AlarmSensors.plan(openings: openings(model, sheet: sheet), existing: model.bundle.liveMarkers.map(AlarmSensors.Placed.init),
+                                 sheetId: sheet.id, width: sheet.width, height: sheet.height, pxPerFt: sheet.pxPerFt,
+                                 kinds: (kinds ?? s.kinds).subtracting(missing), excluded: s.excluded)
+    }
+
+    /// Places the planned sensors as one undo step (each takes its opening's room). Returns how many.
+    @discardableResult
+    func placeSensors(model: EditorModel, sheet: Sheet) -> Int {
+        let plan = sensorPlan(model, sheet: sheet)
+        let items: [(type: DeviceType, x: Double, y: Double, room: String)] = plan.placements.compactMap { p in
+            model.app.type(p.deviceTypeId).map { (type: $0, x: p.x, y: p.y, room: p.room) }
+        }
+        guard !items.isEmpty else { return 0 }
+        let n = model.addMarkers(items, sheetId: sheet.id)
+        guard n > 0 else { return 0 }
+        model.say(String(localized: "Sensors added: \(n). Undo takes them all back."))
+        Haptics.tap()
+        sensors = nil
+        return n
+    }
 }
 
 // MARK: - screenshots and UI tests

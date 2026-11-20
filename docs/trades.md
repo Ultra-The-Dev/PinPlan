@@ -57,6 +57,19 @@ replaces or deletes anything, and archived items come back only when the trade i
 - Legend names and descriptions, PDF layer names, and built-in checklists.
 - AI scan and plan-reader prompts. With low voltage only, the prompt text is byte-for-byte the original.
 
+## Openings and alarm sensors
+
+Door and Window (`gen-door`, `gen-window`) belong to the General pack but are in every company's catalog and palette
+(`OPENING_TYPE_IDS`: `typeVisible` always shows them; the palette gives them an "Openings" section when the General
+trade is off). They are reference counts for Find similar and alarm sensors: shown in the Takeoff (an "Openings"
+summary), left off the estimate while $0 (`buildEstimate` / `EstimateBuilder`), and not counted in the Price list's
+"still at $0" warning.
+
+The low-voltage catalog's Security section has the intrusion alarm items: Door contact, Window contact, Glass-break
+detector, Motion detector, Siren and Alarm keypad, on the new `22/4 alarm` cable (port prefix `ZN`, 500 ft boxes). They
+are appended after the original 19 items and, unlike them, carry starting prices. `builtInAdditions` adds them and
+Door / Window to catalogs saved earlier, on the device (see docs/find-similar.md, "Alarm sensors from openings").
+
 ## Electrical
 
 A wire run that ends at a panel or subpanel is a **circuit**. `Run.circuit` is

@@ -511,6 +511,12 @@ const jobViews: Dictionary = {
   "Sign in with the same email and the same password. Your jobs sync automatically.":
     "Войдите с тем же адресом эл. почты и паролем. Объекты синхронизируются автоматически.",
   "QR code for the App Store page": "QR-код страницы в App Store",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Doors: "Двери",
+  Windows: "Окна",
+  "Door contacts": "Герконы на дверях",
+  "Window contacts": "Герконы на окнах",
+  "Glass-break": "Разбитие стекла",
 };
 
 export default jobViews;

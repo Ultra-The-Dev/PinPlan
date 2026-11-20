@@ -785,6 +785,28 @@ const dict: Dictionary = {
   // Find similar (match.worker.ts)
   "That’s only straight lines, like a wall. Tap right on a symbol, or draw the box tightly around one.":
     "Chỗ đó chỉ có đường thẳng, như tường. Hãy chạm đúng vào ký hiệu hoặc vẽ khung sát quanh nó.",
+  // Alarm sensors from openings (docs/find-similar.md)
+  Openings: "Ô cửa",
+  "Add alarm sensors": "Thêm cảm biến báo động",
+  "Add alarm sensors to the doors and windows on this plan": "Thêm cảm biến báo động cho cửa đi và cửa sổ trên bản vẽ này",
+  Sensors: "Cảm biến",
+  "No doors or windows on this floor yet. Count them first: Find similar, counted as Door, then as Window.": "Tầng này chưa có cửa đi hay cửa sổ. Hãy đếm trước: Tìm tương tự, đếm là Door, rồi đếm là Window.",
+  "Sensors to place": "Cảm biến cần đặt",
+  "Door contact on each door": "Mỗi cửa đi một tiếp điểm cửa",
+  "Window contact on each window": "Mỗi cửa sổ một tiếp điểm cửa sổ",
+  "Glass-break detector per room with windows": "Mỗi phòng có cửa sổ một đầu dò vỡ kính",
+  "Rooms come from each window’s room; windows without one are grouped by distance.": "Phòng lấy theo phòng của từng cửa sổ; cửa sổ không có phòng được nhóm theo khoảng cách.",
+  "Not in your price list": "Không có trong bảng giá của bạn",
+  "Nothing to add": "Không có gì để thêm",
+  "Tap a door or window on the plan to leave it out.": "Chạm vào cửa đi hoặc cửa sổ trên bản vẽ để bỏ qua nó.",
+  "Place sensors": "Đặt cảm biến",
+  "{n} door contact": { other: "{n} tiếp điểm cửa" },
+  "{n} window contact": { other: "{n} tiếp điểm cửa sổ" },
+  "{n} glass-break": { other: "{n} đầu dò vỡ kính" },
+  "{n} opening left out. Tap it again to take it back.": { other: "Đã bỏ qua {n} ô cửa. Chạm lại để đưa trở lại." },
+  "{n} already has its sensor.": { other: "{n} chỗ đã có cảm biến." },
+  "Place {n} sensor": { other: "Đặt {n} cảm biến" },
+  "Added {n} sensor. Undo takes it back.": { other: "Đã thêm {n} cảm biến. Hoàn tác sẽ gỡ tất cả." },
 };
 
 export default dict;

@@ -2,6 +2,7 @@
 import { Cable, Camera, Download, FileText, Flame, Lightbulb, Plug, Speaker, ToggleRight, Tv, Wifi, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { openingsSummary, type OpeningsCount } from "@/lib/alarmSensors";
 import { CLOSET_KINDS } from "@/lib/catalog";
 import { allCategoriesFor, hasTrade, primaryTrade, tradeCategory, tradeClosetKinds, tradeVocab } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
@@ -45,6 +46,46 @@ export default function TakeoffTab({ view: asked }: { view?: string | null }) {
       </div>
       <div className="min-h-0 flex-1">{view === "wiring" ? <CrewTab /> : <TakeoffCounts />}</div>
     </div>
+  );
+}
+
+/** Openings: "Doors 14 · Windows 22" per floor and in total, and the alarm sensors on them once there are any
+ *  (docs/find-similar.md, "Alarm sensors from openings"). Only from placed devices. */
+function OpeningsCard({ takeoff, catalog }: { takeoff: ReturnType<typeof computeTakeoff>; catalog: Parameters<typeof openingsSummary>[1] }) {
+  const t = useT();
+  const s = useMemo(() => openingsSummary(takeoff, catalog), [takeoff, catalog]);
+  if (!s.hasOpenings && !s.hasSensors) return null;
+  const n = (v: number) => <span className="font-semibold text-slate-900 tabular-nums">{v}</span>;
+  const line = (c: OpeningsCount) => (
+    <>
+      <span className="whitespace-nowrap">
+        {t("Doors")} {n(c.doors)} · {t("Windows")} {n(c.windows)}
+      </span>
+      {s.hasSensors && (
+        <span className="block text-xs text-slate-500 sm:ml-3 sm:inline">
+          {t("Door contacts")} {n(c.doorContacts)} · {t("Window contacts")} {n(c.windowContacts)} · {t("Glass-break")} {n(c.glassBreaks)}
+        </span>
+      )}
+    </>
+  );
+  const rows = s.floors.filter((f) => Object.values(f.counts).some(Boolean));
+  return (
+    <section className="card mb-5 p-4" data-testid="takeoff-openings">
+      <h3 className="mb-2 text-sm font-semibold text-slate-900">{t("Openings")}</h3>
+      <ul className="space-y-1.5 text-sm text-slate-600">
+        {rows.length > 1 &&
+          rows.map((f) => (
+            <li key={f.sheetId} className="flex flex-col gap-x-3 sm:flex-row">
+              <span className="w-32 shrink-0 truncate font-medium text-slate-700">{f.name}</span>
+              <span>{line(f.counts)}</span>
+            </li>
+          ))}
+        <li className="flex flex-col gap-x-3 sm:flex-row">
+          <span className="w-32 shrink-0 font-semibold text-slate-900">{t("Total")}</span>
+          <span>{line(s.total)}</span>
+        </li>
+      </ul>
+    </section>
   );
 }
 
@@ -165,6 +206,8 @@ function TakeoffCounts() {
           <SummaryCard icon={Cable} label={t(vocab.wire)} value={`${wireFt}`} unit={t("ft")} sub={t("{n} {runs}", { n: wireRunCount, runs: t(vocab.runs).toLowerCase() })} color="text-slate-600 bg-slate-100" />
         </div>
         )}
+
+        <OpeningsCard takeoff={takeoff} catalog={catalog} />
 
         <div className="card overflow-x-auto">
           <table className="tbl">

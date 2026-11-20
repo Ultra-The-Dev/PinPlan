@@ -39,7 +39,7 @@ public enum Catalog {
         .hvac: "HVAC", .plumbing: "Plumbing", .solar: "Solar", .ev: "EV charging", .general: "General",
     ]
 
-    public static let wireTypes = ["Cat6", "16/4 speaker", "HDMI", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber", "None"]
+    public static let wireTypes = ["Cat6", "16/4 speaker", "HDMI", "HDMI + Cat6", "18/2", "LV per driver", "LV per manufacturer", "Coax", "Fiber", "22/4 alarm", "None"]
 
     public struct ClosetInfo: Sendable {
         public let id: ClosetKind; public let name: String; public let abbrev: String; public let color: String
@@ -67,13 +67,32 @@ public enum Catalog {
     public static let panelKinds: [ClosetKind] = [.panel, .subpanel]
 
     private static func t(_ id: String, _ name: String, _ cat: Category, _ symbol: String, _ abbrev: String, _ shape: MarkerShape, _ color: String,
-                          _ unit: MeasureUnit, _ wire: String, _ mount: Mount, _ kind: DeviceKind, _ sort: Int) -> DeviceType {
+                          _ unit: MeasureUnit, _ wire: String, _ mount: Mount, _ kind: DeviceKind, _ sort: Int,
+                          price: Double = 0, labor: Double = 0) -> DeviceType {
         DeviceType(id: id, name: name, category: cat, symbol: symbol, abbrev: abbrev, shape: shape, color: color, unit: unit,
-                   unitPrice: 0, laborPrice: 0, defaultWire: wire, defaultMount: mount, kind: kind, billduProductId: nil,
+                   unitPrice: price, laborPrice: labor, defaultWire: wire, defaultMount: mount, kind: kind, billduProductId: nil,
                    sort: sort, archived: nil, updatedAt: "1970-01-01T00:00:00.000Z")
     }
 
-    /// Starting catalog from PLAN.md (same ids as the web app). Prices start at 0.
+    /// The generic Door and Window types (the General pack's): "openings", reference counts every trade can place and
+    /// count with Find similar. In every company's palette; off quotes until they have a price. Same as the web app.
+    public static let openingTypeIds = ["gen-door", "gen-window"]
+
+    /// The alarm items added to the original catalog later, in catalog order.
+    public static let alarmSeedIds = ["door-contact", "window-contact", "glass-break", "motion", "siren", "alarm-keypad"]
+
+    /// Client-legend lines for the original catalog's items that have one (the alarm items).
+    public static let seedDescriptions: [String: String] = [
+        "door-contact": "Alarm sensor that trips when the door opens.",
+        "window-contact": "Alarm sensor that trips when the window opens.",
+        "glass-break": "Alarm sensor that hears glass breaking in the room.",
+        "motion": "Alarm sensor that sees movement in the room.",
+        "siren": "Sounds when the alarm goes off.",
+        "alarm-keypad": "Arms and disarms the alarm.",
+    ]
+
+    /// Starting catalog from PLAN.md (same ids as the web app). Prices start at 0, except the alarm items added later
+    /// (US starting prices, device and labor).
     public static func seed() -> [DeviceType] {
         var i = 0
         func n() -> Int { defer { i += 1 }; return i }
@@ -97,11 +116,18 @@ public enum Catalog {
             t("led-spot-ceiling", "Ceiling LED spot", .lighting, "LS", "LSP", .star, "#eab308", .each, "18/2", .ceiling, .device, n()),
             t("led-driver", "LED zone / driver", .lighting, "DR", "DRV", .square, "#a16207", .each, "18/2", .other, .device, n()),
             t("shade", "Motorized curtain / shade", .shades, "M", "SHD", .square, "#db2777", .each, "LV per manufacturer", .wall, .device, n()),
+            // Security: intrusion alarm (after the original items, so their sort order stays).
+            t("door-contact", "Door contact", .security, "DC", "DC", .square, "#991b1b", .each, "22/4 alarm", .wall, .device, n(), price: 8, labor: 45),
+            t("window-contact", "Window contact", .security, "WC", "WC", .square, "#f87171", .each, "22/4 alarm", .wall, .device, n(), price: 8, labor: 45),
+            t("glass-break", "Glass-break detector", .security, "GB", "GB", .hexagon, "#be123c", .each, "22/4 alarm", .ceiling, .device, n(), price: 45, labor: 55),
+            t("motion", "Motion detector", .security, "MD", "PIR", .triangle, "#e11d48", .each, "22/4 alarm", .wall, .device, n(), price: 35, labor: 55),
+            t("siren", "Siren", .security, "SR", "SIR", .star, "#7f1d1d", .each, "22/4 alarm", .wall, .device, n(), price: 25, labor: 55),
+            t("alarm-keypad", "Alarm keypad", .security, "AK", "AKP", .square, "#b91c1c", .each, "22/4 alarm", .wall, .device, n(), price: 140, labor: 75),
         ]
     }
 
     public static let defaultPricing = PricingSettings(
         markupPct: 0, taxPct: 0, laborMode: .combined,
-        wirePrices: ["Cat6": 0, "16/4 speaker": 0, "HDMI + Cat6": 0, "18/2": 0, "LV per driver": 0, "LV per manufacturer": 0, "Coax": 0, "Fiber": 0],
+        wirePrices: ["Cat6": 0, "16/4 speaker": 0, "HDMI + Cat6": 0, "18/2": 0, "LV per driver": 0, "LV per manufacturer": 0, "Coax": 0, "Fiber": 0, "22/4 alarm": 0.2],
         wireSlackPct: 10, wireDropFt: 10, floorHeightFt: 10, includeTentative: false, currency: "USD")
 }

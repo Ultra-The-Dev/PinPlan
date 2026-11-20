@@ -3,8 +3,8 @@
 Plan editor, Edit mode only. Toolbar → **Find similar** (on phones: **More → Find similar**). No AI: it runs on this
 device, offline once loaded (AI stays off, `src/lib/features.ts`).
 
-1. **Count as**: any device type from the device menu (Door, Window, Door contact, Window sensor…). The last one used
-   is remembered on this device; otherwise the first type called "Door".
+1. **Count as**: any device type from the device menu (Door, Window, Door contact, Window contact…). The last one used
+   is remembered on this device; otherwise Door (every job has Door and Window, see "Alarm sensors from openings").
 2. Pick how to find them:
    - **Match a symbol**: tap one symbol on the plan, or drag a box around it (a box is more precise). Every symbol that
      looks like it on this plan is found, turned by 90°, 180° or 270° and mirrored too (door swings go both ways).
@@ -25,6 +25,56 @@ device, offline once loaded (AI stays off, `src/lib/features.ts`).
 
 Results belong to one plan: moving to another plan clears them. Closing the card (or starting another tool) keeps them
 until you open it again or press Clear; they are kept in memory only, never saved or synced.
+
+## Alarm sensors from openings
+
+Contractors count doors and windows to know how many alarm sensors to install. **Add sensors** turns the counted
+openings on the current plan into sensors in one step.
+
+**Openings.** Door and Window (`gen-door`, `gen-window`, the General pack's items) are in every company's catalog and
+palette, whatever its trades (a section called "Openings" when the General trade is off). Find similar's **Count as**
+starts on Door. They are reference counts: they show in the Takeoff but stay off the estimate, the quote and Billdu
+while they have no price (unit and labor both $0, no product chosen); give them a price in the Price list and they are
+priced like any device. The company's own types count as openings too when their name says door or window and nothing
+else ("Sliding door", "Windows" — not "Door contact", "Window shade", "Doorbell"): `openingKind`.
+
+**Where.** Find similar's card shows **Add alarm sensors** once the plan has doors or windows; the plan toolbar has
+**Sensors** (phones: **More → Add alarm sensors**); iPad: the card's button, or **Tools (⋯) → Add alarm sensors**.
+
+**The card**:
+
+- Checkboxes, each with its count shown before choosing: **Door contact on each door**, **Window contact on each
+  window**, **Glass-break detector per room with windows** (the choice is remembered on this device; default doors and
+  windows). Below: "14 door contacts · 22 window contacts".
+- The plan shows a ring around each door and window and a dashed pin with the sensor's letters where each will go.
+  **Tap a door or window to leave it out** (grey, crossed out); tap again to take it back.
+- **Place 36 sensors**: one undo step (`useEditor.addMarkers` / `EditorModel.addMarkers`), so ⌘Z takes them all back.
+  Each sensor takes its opening's room (glass-breaks the room of their windows).
+
+**Rules** (`src/lib/alarmSensors.ts`, pure, `tests/alarmSensors.test.ts`; Swift `AlarmSensors.swift`,
+`AlarmSensorTests`):
+
+- A contact sits 2 ft (2.5% of the sheet's long side without a scale) up and to the right of its door or window, so
+  both stay tappable. A glass-break sits at the middle of its windows, the same distance up and to the left.
+- Glass-breaks: one per room, from each window's **room** field (case and spaces ignored). Windows with no room are
+  grouped by distance: windows within 15 ft (6% of the sheet) of each other, in chains, share one.
+- **Never twice**: a door or window with a sensor of that type within 1.5 × the offset already counts as covered
+  ("2 already have their sensors"), and so does a room with a glass-break (same room, or near the windows when rooms
+  aren't known). Running it again after placing finds nothing new — like Find similar's `withoutExisting`.
+- A sensor type missing from the price list (deleted or archived) is greyed out ("Not in your price list").
+
+**Takeoff → Openings**: per floor (when more than one has openings) and in total, "Doors 14 · Windows 22", and once
+any sensor is placed "Door contacts 14 · Window contacts 22 · Glass-break 6" (`openingsSummary`, only from placed
+devices; iPad: `AlarmSensors.summary`).
+
+**Catalog.** Security has Door contact (DC), Window contact (WC), Glass-break detector (GB), Motion detector (MD),
+Siren (SR) and Alarm keypad (AK; the existing Keypad is the smart-home lighting keypad), on 22/4 alarm cable, with US
+starting prices (device / labor: contacts $8 / $45, glass-break $45 / $55, motion $35 / $55, siren $25 / $55, keypad
+$140 / $75; 22/4 alarm $0.20/ft). They come after the original low-voltage items, so those keep their order. Catalogs
+saved before this get the alarm items and Door / Window on each device that opens the app (`builtInAdditions` in
+`ensureSeeded` and the iPad's `Store.loadCatalog`): only ids with no row at all (an archived or deleted one never comes
+back), written like the seed catalog (not queued for sync, dated 1970, so the company's copy on the server always
+wins). No database change.
 
 ## How matching works
 
@@ -80,6 +130,8 @@ the card says so and points to Match a symbol.
 | `src/lib/findSimilar/tags.ts`, `sheetText.ts` | Read tags; the local text layer store. |
 | `src/components/findSimilar/*` | Store (suggestions, accept), overlay (ghosts, taps, box drag), card. |
 | `src/lib/store.ts` `addMarkers` | Several devices in one undo step. |
+| `src/lib/alarmSensors.ts`, `src/components/findSimilar/AlarmSensorsSection.tsx` | Add sensors: openings, placement, the card; the takeoff's Openings. |
+| `tests/alarmSensors.test.ts` | Unit tests of Add sensors and the Openings summary. |
 | `tests/findSimilar.test.ts` | Unit tests of the pure parts. |
 | `samples/doors-windows-demo.pdf` | A synthetic plan: 9 doors (every turn and swing), 9 windows, tags, a door schedule. |
 
@@ -109,8 +161,9 @@ on phones; it owns plan taps while open (`claimPlanInput("find-similar")`), like
 ## iPad and iPhone
 
 Same tool, same rules: plan → **Tools (⋯) → Find similar**, Edit mode. The card sits in the plan's controls column
-(bottom right). Files: `ios/PinPlanCore/Sources/PinPlanCore/FindSimilar.swift` and `FindTags.swift` (pure, tested with
-`swift test` in `FindSimilarTests`), `ios/PinPlan/FindSimilar/` (state, overlay, card).
+(bottom right). Files: `ios/PinPlanCore/Sources/PinPlanCore/FindSimilar.swift`, `FindTags.swift` and `AlarmSensors.swift` (pure,
+tested with `swift test` in `FindSimilarTests` and `AlarmSensorTests`), `ios/PinPlan/FindSimilar/` (state, overlay,
+card, `AlarmSensorsSection.swift`).
 
 - **Matching** is native Swift, no OpenCV: the sheet is decoded with ImageIO / Core Graphics at twice the work size,
   area-averaged and blurred 3×3 (`FindSimilar.prepare`), then normalised cross-correlation (TM_CCOEFF_NORMED) for every

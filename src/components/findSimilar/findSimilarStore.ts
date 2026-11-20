@@ -3,10 +3,12 @@
 // here in memory, drawn as ghost pins, never counted — until accepted, when they become ordinary devices through the
 // editor store (one undo step). Nothing is saved or synced until then.
 import { create } from "zustand";
+import { missingSensorTypes, planSensors, sheetOpenings, type SensorKind, type SensorPlan } from "@/lib/alarmSensors";
 import { findSimilarOnSheet } from "@/lib/findSimilar/client";
 import { thresholdFor, withoutExisting, type Box } from "@/lib/findSimilar/match";
 import { loadSheetText, readTextFromPdf } from "@/lib/findSimilar/sheetText";
 import { defaultTagPrefixes, findTags, parsePrefixes } from "@/lib/findSimilar/tags";
+import { tn } from "@/lib/i18n";
 import { claimPlanInput } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
@@ -53,6 +55,9 @@ interface FindState {
   needPdf: boolean;
   /** Review one by one: position in the shown list, or null. */
   review: number | null;
+  /** Add sensors (docs/find-similar.md, "Alarm sensors from openings"): which sensors, and the openings left out
+   *  (tapped on the plan). Null when the card shows Find similar itself. */
+  sensors: { kinds: SensorKind[]; excluded: string[] } | null;
   set(p: Partial<FindState>): void;
   setOpen(open: boolean): void;
   setType(typeId: string, typeName: string): void;
@@ -88,10 +93,11 @@ export const useFindSimilar = create<FindState>((set, get) => ({
   note: null,
   needPdf: false,
   review: null,
+  sensors: null,
   set: (p) => set(p),
   setOpen(open) {
     if (open) claimPlanInput("find-similar");
-    set({ open, drag: null, review: null, picking: open ? get().found.length === 0 : get().picking });
+    set({ open, drag: null, review: null, sensors: null, picking: open ? get().found.length === 0 : get().picking });
   },
   setType(typeId, typeName) {
     try {
@@ -184,6 +190,72 @@ export async function acceptFinds(sheet: Sheet): Promise<number> {
   // Nothing left worth showing (only rejected or below the slider): start over, ready for the next symbol.
   if (!shownFinds({ ...s, found: rest }, useEditor.getState().markers, sheet).some((f) => !f.rejected)) useFindSimilar.getState().clear();
   else useFindSimilar.getState().set({ found: rest, review: null });
+  return added.length;
+}
+
+// ---------------- Add sensors ----------------
+
+const KINDS_KEY = "pinplan.alarmSensors.kinds";
+
+function rememberedKinds(): SensorKind[] {
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(KINDS_KEY);
+    const v = raw ? (JSON.parse(raw) as unknown) : null;
+    if (Array.isArray(v)) return v.filter((k): k is SensorKind => k === "door" || k === "window" || k === "glass");
+  } catch {
+    /* storage unavailable */
+  }
+  return ["door", "window"];
+}
+
+/** Open the card on "Add sensors" for the doors and windows on this plan (from the card or the plan toolbar). */
+export function openSensors() {
+  const s = useFindSimilar.getState();
+  if (!s.open) s.setOpen(true);
+  useFindSimilar.getState().set({ sensors: { kinds: rememberedKinds(), excluded: [] }, review: null, drag: null });
+}
+
+export function closeSensors() {
+  useFindSimilar.getState().set({ sensors: null });
+}
+
+export function toggleSensorKind(kind: SensorKind) {
+  const s = useFindSimilar.getState().sensors;
+  if (!s) return;
+  const kinds = s.kinds.includes(kind) ? s.kinds.filter((k) => k !== kind) : [...s.kinds, kind];
+  try {
+    localStorage.setItem(KINDS_KEY, JSON.stringify(kinds));
+  } catch {
+    /* storage unavailable */
+  }
+  useFindSimilar.getState().set({ sensors: { ...s, kinds } });
+}
+
+/** Leave an opening out (or take it back): a tap on it while Add sensors is open. */
+export function toggleExcluded(openingId: string) {
+  const s = useFindSimilar.getState().sensors;
+  if (!s) return;
+  const excluded = s.excluded.includes(openingId) ? s.excluded.filter((x) => x !== openingId) : [...s.excluded, openingId];
+  useFindSimilar.getState().set({ sensors: { ...s, excluded } });
+}
+
+/** What Add sensors would place on this sheet now (kinds whose catalog item is missing are left out). */
+export function sensorPlan(sensors: { kinds: SensorKind[]; excluded: string[] }, markers: Marker[], catalog: { id: string; name: string; archived?: boolean }[], sheet: Sheet): SensorPlan {
+  const missing = missingSensorTypes(catalog, sensors.kinds);
+  const openings = sheetOpenings(markers, catalog, sheet.id);
+  return planSensors(openings, markers, sheet, { kinds: sensors.kinds.filter((k) => !missing.includes(k)), excluded: sensors.excluded });
+}
+
+/** Place the planned sensors as one undo step; each takes its opening's room. Returns how many. */
+export async function placeSensors(sheet: Sheet): Promise<number> {
+  const s = useFindSimilar.getState();
+  const ed = useEditor.getState();
+  if (!s.sensors || ed.activeSheetId !== sheet.id) return 0;
+  const plan = sensorPlan(s.sensors, ed.markers, ed.catalog, sheet);
+  if (!plan.placements.length) return 0;
+  const added = await ed.addMarkers(plan.placements.map((p) => ({ deviceTypeId: p.deviceTypeId, x: p.x, y: p.y, ...(p.room ? { extra: { room: p.room } } : {}) })));
+  if (added.length) toast(tn("Added {n} sensor. Undo takes it back.", "Added {n} sensors. Undo takes them all back.", added.length), "success");
+  closeSensors();
   return added.length;
 }
 

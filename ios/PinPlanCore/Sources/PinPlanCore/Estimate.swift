@@ -68,8 +68,12 @@ public enum EstimateBuilder {
                 .sorted { Product.ordered($0.0, $1.0) }
         }
         func productPrice(_ p: Product) -> Double { combined ? p.unitPrice * mk + p.laborPrice : p.unitPrice * mk }
+        // Door and Window are reference counts (openings): off the estimate until they have a price or a product.
+        func unpricedOpening(_ d: DeviceType) -> Bool {
+            Catalog.openingTypeIds.contains(d.id) && d.unitPrice == 0 && d.laborPrice == 0 && productParts(d).isEmpty
+        }
 
-        for d in sorted {
+        for d in sorted where !unpricedOpening(d) {
             let q = qty(d)
             let unit = d.unit == .LF ? "LF" : "each"
             let group: LineGroup = d.kind == .led ? .lighting : .devices
@@ -102,7 +106,7 @@ public enum EstimateBuilder {
             push("closet:\(k.rawValue)", Catalog.closetInfo(k).name, Double(t.closets[k]!), "each", 0, optional: false, .infrastructure)
         }
         if !combined {
-            for d in sorted {
+            for d in sorted where !unpricedOpening(d) {
                 let q = qty(d)
                 let unit = d.unit == .LF ? "LF" : "each"
                 var restC = q.confirmed, restT = q.tentative

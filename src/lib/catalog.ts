@@ -41,6 +41,7 @@ export const WIRE_TYPES = [
   "LV per manufacturer",
   "Coax",
   "Fiber",
+  "22/4 alarm",
   "None",
 ];
 
@@ -114,7 +115,33 @@ export const SEED: Seed[] = [
   { id: "led-driver", name: "LED zone / driver", category: "lighting", symbol: "DR", abbrev: "DRV", shape: "square", color: "#a16207", unit: "each", defaultWire: "18/2", defaultMount: "other", kind: "device" },
   // Shades
   { id: "shade", name: "Motorized curtain / shade", category: "shades", symbol: "M", abbrev: "SHD", shape: "square", color: "#db2777", unit: "each", defaultWire: "LV per manufacturer", defaultMount: "wall", kind: "device" },
+  // Security: intrusion alarm (docs/find-similar.md, "Alarm sensors from openings"). Added after the original list so
+  // the original items keep their sort order; unlike them, they carry US starting prices (device, labor). Existing
+  // catalogs get them through builtInAdditions (src/lib/alarmSensors.ts).
+  { id: "door-contact", name: "Door contact", category: "security", symbol: "DC", abbrev: "DC", shape: "square", color: "#991b1b", unit: "each", defaultWire: "22/4 alarm", defaultMount: "wall", kind: "device", unitPrice: 8, laborPrice: 45 },
+  { id: "window-contact", name: "Window contact", category: "security", symbol: "WC", abbrev: "WC", shape: "square", color: "#f87171", unit: "each", defaultWire: "22/4 alarm", defaultMount: "wall", kind: "device", unitPrice: 8, laborPrice: 45 },
+  { id: "glass-break", name: "Glass-break detector", category: "security", symbol: "GB", abbrev: "GB", shape: "hexagon", color: "#be123c", unit: "each", defaultWire: "22/4 alarm", defaultMount: "ceiling", kind: "device", unitPrice: 45, laborPrice: 55 },
+  { id: "motion", name: "Motion detector", category: "security", symbol: "MD", abbrev: "PIR", shape: "triangle", color: "#e11d48", unit: "each", defaultWire: "22/4 alarm", defaultMount: "wall", kind: "device", unitPrice: 35, laborPrice: 55 },
+  { id: "siren", name: "Siren", category: "security", symbol: "SR", abbrev: "SIR", shape: "star", color: "#7f1d1d", unit: "each", defaultWire: "22/4 alarm", defaultMount: "wall", kind: "device", unitPrice: 25, laborPrice: 55 },
+  { id: "alarm-keypad", name: "Alarm keypad", category: "security", symbol: "AK", abbrev: "AKP", shape: "square", color: "#b91c1c", unit: "each", defaultWire: "22/4 alarm", defaultMount: "wall", kind: "device", unitPrice: 140, laborPrice: 75 },
 ];
+
+/** The generic Door and Window types (the General pack's): "openings", reference counts every trade can place and
+ *  count with Find similar. They show in every company's palette, and stay off quotes until they have a price. */
+export const OPENING_TYPE_IDS = ["gen-door", "gen-window"];
+
+/** Ids of the alarm items added to the original catalog later (above), in catalog order. */
+export const ALARM_SEED_IDS = ["door-contact", "window-contact", "glass-break", "motion", "siren", "alarm-keypad"];
+
+/** Client-legend lines for the original catalog's items that have one (the alarm items). */
+export const SEED_DESCRIPTIONS: Record<string, string> = {
+  "door-contact": "Alarm sensor that trips when the door opens.",
+  "window-contact": "Alarm sensor that trips when the window opens.",
+  "glass-break": "Alarm sensor that hears glass breaking in the room.",
+  motion: "Alarm sensor that sees movement in the room.",
+  siren: "Sounds when the alarm goes off.",
+  "alarm-keypad": "Arms and disarms the alarm.",
+};
 
 export function seedCatalog(): DeviceType[] {
   return SEED.map((s, i) => ({
@@ -171,6 +198,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       "LV per manufacturer": 0,
       Coax: 0,
       Fiber: 0,
+      "22/4 alarm": 0.2,
     },
     wireSlackPct: 10,
     wireDropFt: 10,

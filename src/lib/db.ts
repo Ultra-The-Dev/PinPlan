@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { DEFAULT_SETTINGS, FOUNDER_BUSINESS, NEUTRAL_BUSINESS, seedCatalog } from "./catalog";
 import { normalizeDocSettings } from "./documents";
 import { normalizeTemplates } from "./fieldDocs";
+import { builtInAdditions } from "./trades";
 import type {
   AppSettings,
   BusinessSettings,
@@ -296,10 +297,19 @@ function isFounderTeam(): boolean {
   }
 }
 
-/** Ensure the catalog and settings exist (first run). */
+let builtInsChecked = false;
+
+/** Ensure the catalog and settings exist (first run), and that an older catalog has the items added since (alarm
+ *  sensors, Door / Window: `builtInAdditions`). Those are written like the seed: on this device only, not queued for
+ *  sync, dated 1970 so the company's own copy on the server always wins. */
 export async function ensureSeeded() {
   const d = db();
   if ((await d.deviceTypes.count()) === 0) await d.deviceTypes.bulkPut(seedCatalog());
+  if (!builtInsChecked) {
+    builtInsChecked = true;
+    const missing = builtInAdditions(await d.deviceTypes.toArray());
+    if (missing.length) await d.deviceTypes.bulkPut(missing);
+  }
   if (!(await d.settings.get("app"))) await d.settings.put(DEFAULT_SETTINGS);
 }
 

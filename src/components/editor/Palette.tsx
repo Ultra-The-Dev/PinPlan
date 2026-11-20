@@ -1,6 +1,7 @@
 "use client";
 import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
+import { categoryOf } from "@/lib/catalog";
 import { msg, useT } from "@/lib/i18n";
 import { productTitle } from "@/lib/products";
 import { useEditor, type Tool } from "@/lib/store";
@@ -31,6 +32,8 @@ export default function Palette() {
   // Closet kinds whose category isn't one of the sections (e.g. a solar company's main panel) get their own section.
   const orphanClosets = closetKinds.filter((k) => !sections.some((c) => c.id === k.category));
   if (orphanClosets.length) sections.push({ id: orphanClosets[0].category, name: msg("Equipment"), color: orphanClosets[0].color });
+  // Door and Window (openings) are in every palette; without the General trade they get their own section.
+  if (!sections.some((c) => c.id === "general")) sections.push({ id: "general", name: msg("Openings"), color: categoryOf("general").color });
 
   const item = (x: Tool, key: string, icon: React.ReactNode, name: string, hint?: string, badge?: number) => (
     <button

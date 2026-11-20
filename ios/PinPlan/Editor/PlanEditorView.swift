@@ -414,6 +414,11 @@ struct PlanEditorView: View {
             Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
             Button { FindSimilarUI.shared.show(model: model) } label: { Label("Find similar", systemImage: "square.on.square.dashed") }
                 .accessibilityIdentifier("find-similar-menu")
+            // Once the plan has doors or windows: alarm sensors on them (Find similar's Add sensors).
+            if let sheet = model.activeSheet, !FindSimilarUI.shared.openings(model, sheet: sheet).isEmpty {
+                Button { FindSimilarUI.shared.openSensors(model: model) } label: { Label("Add alarm sensors", systemImage: "checkmark.shield") }
+                    .accessibilityIdentifier("alarm-sensors-menu")
+            }
             Divider()
             Button { model.autoHomeRuns(sheetOnly: true) } label: { Label("Draw home runs (this floor)", systemImage: "cable.connector") }
             Button { model.showLabels.toggle(); model.saveFilter() } label: { Label(model.showLabels ? "Hide labels" : "Show labels", systemImage: "tag") }

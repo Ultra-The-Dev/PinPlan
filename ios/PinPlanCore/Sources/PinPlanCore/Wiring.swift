@@ -8,6 +8,7 @@ public enum Wiring {
 
     public static let portPrefix: [String: String] = [
         "16/4 speaker": "SPK", "HDMI": "HD", "18/2": "LV", "LV per driver": "DRV", "LV per manufacturer": "MFR", "Coax": "CX", "Fiber": "FB",
+        "22/4 alarm": "ZN",
     ]
     public static let panelPorts = 24
 
@@ -96,6 +97,7 @@ public enum Wiring {
 
     public static let boxFt: [String: Double] = [
         "Cat6": 1000, "16/4 speaker": 500, "18/2": 500, "LV per driver": 500, "LV per manufacturer": 500, "Coax": 1000, "Fiber": 1000,
+        "22/4 alarm": 500,
     ]
     public static let hdmiLengths: [Double] = [6, 10, 15, 25, 35, 50, 75, 100, 150, 200]
     public static let noProduct = "No product chosen"
