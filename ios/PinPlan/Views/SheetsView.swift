@@ -77,7 +77,7 @@ struct SheetsView: View {
             }, onCancel: { showScanner = false })
                 .ignoresSafeArea()
         }
-        .sheet(item: $pdfPick, onDismiss: nextPDF) { pending in
+        .sheet(item: $pdfPick, onDismiss: { if busy == nil { nextPDF() } }) { pending in
             PDFPagePickerView(url: pending.url) { names in importPDF(pending.url, names: names) }
                 .interactiveDismissDisabled()
         }
@@ -136,7 +136,7 @@ struct SheetsView: View {
             if selecting {
                 let live = Set(model.sheets.map(\.id))
                 let n = selected.intersection(live).count
-                Button(n == live.count ? "Select none" : "Select all") {
+                Button(n == live.count ? LocalizedStringKey("Select none") : LocalizedStringKey("Select all")) {
                     selected = n == live.count ? [] : live
                 }
                 Text("\(n) selected").foregroundStyle(.secondary).monospacedDigit()
@@ -199,9 +199,10 @@ struct SheetsView: View {
                     if model.activeSheetId == nil { model.activeSheetId = added.first?.id }
                     busy = nil
                     model.say(scaledCount > 0 ? String(localized: "Added \(added.count) sheets · scale read from \(scaledCount)") : String(localized: "Added \(added.count) sheets"))
+                    nextPDF()
                 }
             } catch {
-                await MainActor.run { busy = nil; self.error = error.localizedDescription }
+                await MainActor.run { busy = nil; self.error = error.localizedDescription; nextPDF() }
             }
         }
     }

@@ -46,7 +46,7 @@ struct PDFPagePickerView: View {
                         .font(.callout).foregroundStyle(.secondary)
                     if failed { Text("That PDF couldn't be opened.").foregroundStyle(.red) }
                     if !rows.isEmpty {
-                        Button(kept == rows.count ? "Skip all" : "Keep all") {
+                        Button(kept == rows.count ? LocalizedStringKey("Skip all") : LocalizedStringKey("Keep all")) {
                             let on = kept != rows.count
                             for i in rows.indices { rows[i].keep = on }
                         }

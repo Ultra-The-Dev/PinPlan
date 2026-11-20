@@ -29,10 +29,10 @@ enum SheetActions {
     static func delete(_ model: EditorModel, ids: Set<String>) {
         guard !ids.isEmpty else { return }
         let list = model.sheets
-        let activeGone = model.activeSheetId.map(ids.contains) ?? false
-        let next = activeGone ? list.firstIndex { $0.id == model.activeSheetId }.flatMap { i in
-            (list[(i + 1)...].first { !ids.contains($0.id) }) ?? list[..<i].last { !ids.contains($0.id) }
-        } : nil
+        var next: Sheet?
+        if let active = model.activeSheetId, ids.contains(active), let i = list.firstIndex(where: { $0.id == active }) {
+            next = list[(i + 1)...].first(where: { !ids.contains($0.id) }) ?? list[..<i].last(where: { !ids.contains($0.id) })
+        }
         let changed = model.edit { b in
             for i in b.sheets.indices where ids.contains(b.sheets[i].id) { b.sheets[i].deleted = true }
         }
