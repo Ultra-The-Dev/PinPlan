@@ -77,7 +77,8 @@ describe("default plan insets", () => {
   it("phones keep only the top bar clear", () => {
     const ins = planFitInsets({ w: 390, h: 700 });
     expect(ins.left).toBeUndefined();
-    expect(ins.top).toBeGreaterThan(0);
+    expect(ins.top).toBeGreaterThanOrEqual(PLAN_CHROME.gutter.phone + PLAN_CHROME.topBarHeight);
+    expect(ins.top!).toBeLessThanOrEqual(leftRailFrame(390, 700).y);
   });
 });
 

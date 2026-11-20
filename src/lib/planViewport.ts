@@ -53,9 +53,10 @@ export const LEFT_RAIL_FIT_WIDTH = 120;
  * fitted drawing starts clear of them. Phones only keep the top bar clear: a left inset costs too much of a narrow view.
  */
 export function planFitInsets(size: ViewSize): FitInsets {
-  if (size.w <= PLAN_CHROME.phoneMax) return { top: PLAN_CHROME.railTop.phone - PLAN_CHROME.gutter.phone };
+  // The top bar's bottom edge: its gutter plus its tallest (touch) height.
+  if (size.w <= PLAN_CHROME.phoneMax) return { top: PLAN_CHROME.gutter.phone + PLAN_CHROME.topBarHeight };
   return {
-    top: PLAN_CHROME.railTop.wide - PLAN_CHROME.railGap,
+    top: PLAN_CHROME.gutter.wide + PLAN_CHROME.topBarHeight,
     left: PLAN_CHROME.gutter.wide + LEFT_RAIL_FIT_WIDTH + PLAN_CHROME.railGap,
   };
 }
