@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { db, ensureSeeded } from "@/lib/db";
+import { startLocaleSync } from "@/lib/i18n/account";
 import { startSync } from "@/lib/sync";
 import Toaster from "./ui/Toaster";
 import UpdatePrompt from "./UpdatePrompt";
@@ -35,9 +36,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     navigator.storage?.persist?.().catch(() => undefined);
     const stopWarm = warmPlanEditor();
     const stopSync = startSync();
+    // The language saved on the account follows the person to this device on sign-in (docs/i18n.md).
+    const stopLocale = startLocaleSync();
     return () => {
       stopWarm();
       stopSync?.();
+      stopLocale();
     };
   }, []);
   return (

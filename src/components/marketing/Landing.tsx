@@ -1,6 +1,8 @@
+"use client";
 // /welcome: what the product does for a contractor, in their words, in the order a job actually runs.
-// Server markup; the header, FAQ and demo link are small client islands.
+// A client component so the text follows the visitor's language (it still renders in English on the server).
 import Link from "next/link";
+import { msg, useT } from "@/lib/i18n";
 import { PLANS, PRODUCT_NAME, TRIAL_DAYS, monthlyPrice } from "@/lib/plans";
 import { closetMeta } from "@/lib/catalog";
 import { tradePack } from "@/lib/trades";
@@ -9,48 +11,49 @@ import HeroPlan from "./HeroPlan";
 import { ApproveVisual, CountVisual, FieldVisual, InvoiceVisual, PlansVisual, QuoteVisual } from "./StepVisuals";
 import { DeletedNotice, Faq, SitePage, TryDemoLink } from "./Site";
 import { Symbol } from "./Symbol";
+import { rich } from "../auth/rich";
 
 const STEPS: { id: string; title: string; body: string; detail: string[]; visual: React.ReactNode }[] = [
   {
     id: "plan",
-    title: "Pin devices on the plans",
-    body: "Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes.",
-    detail: ["Letters on the plan, like the legend on the drawings", "Wire runs drawn back to the panel, rack or closet", "Set the scale once from any known dimension"],
+    title: msg("Pin devices on the plans"),
+    body: msg("Upload the PDF set or a photo of the drawings. Every page becomes a floor you can pinch, zoom and flip through. Tap a device from your trade’s list and tap where it goes."),
+    detail: [msg("Letters on the plan, like the legend on the drawings"), msg("Wire runs drawn back to the panel, rack or closet"), msg("Set the scale once from any known dimension")],
     visual: <PlansVisual />,
   },
   {
     id: "count",
-    title: "Get the count for every floor",
-    body: "Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule.",
-    detail: ["Counts come only from what’s on the plan", "Export the count and marked-up sheets as PDF"],
+    title: msg("Get the count for every floor"),
+    body: msg("Device and wire counts add up as you pin, floor by floor. Wire lengths come out in feet with slack included, and electrical jobs get circuits and a panel schedule."),
+    detail: [msg("Counts come only from what’s on the plan"), msg("Export the count and marked-up sheets as PDF")],
     visual: <CountVisual />,
   },
   {
     id: "quote",
-    title: "Price it from your price list",
-    body: "Your material and labor prices, markup and wire by the foot turn the count into a quote. Mark items optional and let the client decide.",
-    detail: ["Starting prices for your trade, all editable", "Change the plan and the quote follows"],
+    title: msg("Price it from your price list"),
+    body: msg("Your material and labor prices, markup and wire by the foot turn the count into a quote. Mark items optional and let the client decide."),
+    detail: [msg("Starting prices for your trade, all editable"), msg("Change the plan and the quote follows")],
     visual: <QuoteVisual />,
   },
   {
     id: "approve",
-    title: "Your client approves on their phone",
-    body: "Send the client a link. They read the quote, tick the options they want, sign with a finger and approve. No account or app for them.",
-    detail: ["See when it’s opened and when it’s approved", "The approved options are added to the job"],
+    title: msg("Your client approves on their phone"),
+    body: msg("Send the client a link. They read the quote, tick the options they want, sign with a finger and approve. No account or app for them."),
+    detail: [msg("See when it’s opened and when it’s approved"), msg("The approved options are added to the job")],
     visual: <ApproveVisual />,
   },
   {
     id: "bill",
-    title: "Bill the deposit, progress and final",
-    body: "Invoices come straight from the approved quote, so nothing is typed twice. Record payments as they come in and see what’s left to collect on every job.",
-    detail: ["Quote and invoice numbering, tax and terms set once", "See what’s paid and what’s left on every job"],
+    title: msg("Bill the deposit, progress and final"),
+    body: msg("Invoices come straight from the approved quote, so nothing is typed twice. Record payments as they come in and see what’s left to collect on every job."),
+    detail: [msg("Quote and invoice numbering, tax and terms set once"), msg("See what’s paid and what’s left on every job")],
     visual: <InvoiceVisual />,
   },
   {
     id: "field",
-    title: "Run the job in the field",
-    body: "The crew works from the same plans. Photos with mark-up, checklists and punch lists, tasks with who’s on them, daily logs and files all live on the job.",
-    detail: ["Photos pinned to the spot on the plan", "Daily logs and photo reports ready to send"],
+    title: msg("Run the job in the field"),
+    body: msg("The crew works from the same plans. Photos with mark-up, checklists and punch lists, tasks with who’s on them, daily logs and files all live on the job."),
+    detail: [msg("Photos pinned to the spot on the plan"), msg("Daily logs and photo reports ready to send")],
     visual: <FieldVisual />,
   },
 ];
@@ -66,6 +69,7 @@ const TRADES: { id: TradeId; picks: string[] }[] = [
 ];
 
 export default function Landing() {
+  const t = useT();
   const plan = PLANS[0];
   return (
     <SitePage>
@@ -77,22 +81,22 @@ export default function Landing() {
         <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6 lg:py-28">
           <div className="max-w-[40rem]">
             <h2 id="how-title" className="mk-h2">
-              One job, from the first walkthrough to the final invoice
+              {t("One job, from the first walkthrough to the final invoice")}
             </h2>
-            <p className="mk-lede mt-5">Each step uses what the last one made, so you never count the same plan twice or type a quote into an invoice.</p>
+            <p className="mk-lede mt-5">{t("Each step uses what the last one made, so you never count the same plan twice or type a quote into an invoice.")}</p>
           </div>
           <ol className="mk-rail mt-14 space-y-16 lg:mt-20 lg:space-y-24">
             {STEPS.map((s, i) => (
               <li key={s.id} className="relative grid gap-8 pl-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
                 <span className="mk-step-pin absolute top-0 left-0">{i + 1}</span>
                 <div className="lg:pt-0.5">
-                  <h3 className="mk-h3">{s.title}</h3>
-                  <p className="mk-body mt-3">{s.body}</p>
+                  <h3 className="mk-h3">{t(s.title)}</h3>
+                  <p className="mk-body mt-3">{t(s.body)}</p>
                   <ul className="mt-5 space-y-2 text-[15px]">
                     {s.detail.map((d) => (
                       <li key={d} className="flex gap-3">
                         <span className="mt-[9px] h-[2px] w-3 shrink-0 bg-mk-graphite" aria-hidden="true" />
-                        {d}
+                        {t(d)}
                       </li>
                     ))}
                   </ul>
@@ -109,21 +113,21 @@ export default function Landing() {
         <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6 lg:py-28">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
             <h2 id="trades-title" className="mk-h2">
-              Your trade’s devices, already on the list
+              {t("Your trade’s devices, already on the list")}
             </h2>
             <p className="mk-lede lg:pt-2">
-              Pick your trades when you sign up. Each one comes with its own devices, wire or pipe types and checklists, with starting prices you change to yours.
+              {t("Pick your trades when you sign up. Each one comes with its own devices, wire or pipe types and checklists, with starting prices you change to yours.")}
             </p>
           </div>
           <div className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-            {TRADES.map((t) => {
-              const pack = tradePack(t.id);
-              const items = t.picks.map((id) => pack.catalog.find((c) => c.id === id)).filter((c) => !!c);
-              const ends = pack.closets.map((c) => closetMeta(c).name);
+            {TRADES.map((tr) => {
+              const pack = tradePack(tr.id);
+              const items = tr.picks.map((id) => pack.catalog.find((c) => c.id === id)).filter((c) => !!c);
+              const ends = pack.closets.map((c) => t(closetMeta(c).name));
               return (
-                <div key={t.id} className="border-t-2 pt-4" style={{ borderColor: pack.color }}>
+                <div key={tr.id} className="border-t-2 pt-4" style={{ borderColor: pack.color }}>
                   <h3 className="text-[20px] font-[750]" style={{ fontStretch: "75%" }}>
-                    {pack.name}
+                    {t(pack.name)}
                   </h3>
                   <ul className="mt-3 space-y-2 text-[15px]">
                     {items.map((c) => (
@@ -134,10 +138,10 @@ export default function Landing() {
                     ))}
                   </ul>
                   <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[14px] leading-snug">
-                    <dt className="text-mk-pencil">Runs to</dt>
+                    <dt className="text-mk-pencil">{t("Runs to")}</dt>
                     <dd>{ends.slice(0, 2).join(", ")}</dd>
-                    <dt className="text-mk-pencil">{pack.wireNoun}</dt>
-                    <dd>{pack.wireTypes.slice(0, 3).join(", ")} and more</dd>
+                    <dt className="text-mk-pencil">{t(pack.wireNoun)}</dt>
+                    <dd>{t("{list} and more", { list: pack.wireTypes.slice(0, 3).join(", ") })}</dd>
                   </dl>
                 </div>
               );
@@ -151,19 +155,19 @@ export default function Landing() {
         <div className="mx-auto grid max-w-[1240px] gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 lg:py-28">
           <div>
             <h2 id="team-title" className="mk-h2">
-              The office sees the money. The crew sees the work.
+              {t("The office sees the money. The crew sees the work.")}
             </h2>
             <p className="mk-lede mt-5">
-              Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technician logins hide prices in the app.
+              {t("Invite your office staff and technicians with a code. Everyone works on the same jobs with their own login, and technician logins hide prices in the app.")}
             </p>
             <dl className="mt-8 space-y-4 text-[15px]">
               {[
-                ["Owner and office", "Plans, counts, prices, quotes, invoices and settings."],
-                ["Technicians", "Plans, devices, photos, checklists, daily logs and their tasks. Prices, quotes and invoices are hidden in the app, and they can’t delete jobs."],
-              ].map(([t, d]) => (
-                <div key={t} className="grid gap-1 border-l-2 border-mk-graphite pl-4">
-                  <dt className="font-semibold">{t}</dt>
-                  <dd className="text-mk-pencil">{d}</dd>
+                [msg("Owner and office"), msg("Plans, counts, prices, quotes, invoices and settings.")],
+                [msg("Technicians"), msg("Plans, devices, photos, checklists, daily logs and their tasks. Prices, quotes and invoices are hidden in the app, and they can’t delete jobs.")],
+              ].map(([term, d]) => (
+                <div key={term} className="grid gap-1 border-l-2 border-mk-graphite pl-4">
+                  <dt className="font-semibold">{t(term)}</dt>
+                  <dd className="text-mk-pencil">{t(d)}</dd>
                 </div>
               ))}
             </dl>
@@ -177,21 +181,21 @@ export default function Landing() {
         <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-24">
           <div>
             <h2 id="offline-title" className="mk-h2">
-              No signal in the basement? Keep working.
+              {t("No signal in the basement? Keep working.")}
             </h2>
             <p className="mk-lede mt-5">
-              Every job is saved on the iPad or iPhone. Pin devices, take photos and tick checklists with no connection, and it all syncs when you’re back online.
+              {t("Every job is saved on the iPad or iPhone. Pin devices, take photos and tick checklists with no connection, and it all syncs when you’re back online.")}
             </p>
             <ul className="mt-8 grid gap-x-8 gap-y-5 text-[15px] sm:grid-cols-2">
               {[
-                ["iPad", "Walk the site with the plans"],
-                ["iPhone", "Photos, checklists and tasks"],
-                ["Web", "Quotes and invoices at the desk"],
-                ["Large plan sets", "Opens fast; pinch, zoom and flip sheets"],
-              ].map(([t, d]) => (
-                <li key={t} className="border-t border-white/15 pt-3">
-                  <div className="font-semibold">{t}</div>
-                  <div className="text-mk-on-dark">{d}</div>
+                [msg("iPad"), msg("Walk the site with the plans")],
+                [msg("iPhone"), msg("Photos, checklists and tasks")],
+                [msg("Web"), msg("Quotes and invoices at the desk")],
+                [msg("Large plan sets"), msg("Opens fast; pinch, zoom and flip sheets")],
+              ].map(([term, d]) => (
+                <li key={term} className="border-t border-white/15 pt-3">
+                  <div className="font-semibold">{t(term)}</div>
+                  <div className="text-mk-on-dark">{t(d)}</div>
                 </li>
               ))}
             </ul>
@@ -206,28 +210,32 @@ export default function Landing() {
           <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
             <div>
               <h2 id="price-title" className="mk-h2">
-                One price for the company
+                {t("One price for the company")}
               </h2>
               <p className="mk-lede mt-5">
-                Every feature, every trade, unlimited jobs. Pay for the people who log in. Try it free for {TRIAL_DAYS} days.
+                {t.tn(
+                  "Every feature, every trade, unlimited jobs. Pay for the people who log in. Try it free for {n} day.",
+                  "Every feature, every trade, unlimited jobs. Pay for the people who log in. Try it free for {n} days.",
+                  TRIAL_DAYS,
+                )}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/signup" className="mk-btn mk-btn-primary">
-                  Start free trial
+                  {t("Start free trial")}
                 </Link>
                 <Link href="/pricing" className="mk-btn mk-btn-line">
-                  See pricing
+                  {t("See pricing")}
                 </Link>
               </div>
             </div>
             <TitleBlock
               cells={[
-                { label: "Monthly", value: `$${plan.basePrice}`, note: `includes ${plan.includedSeats} users`, big: true },
-                { label: "Each extra user", value: `$${plan.seatPrice}`, note: "a month", big: true },
-                { label: "A crew of 6", value: `$${monthlyPrice(plan, 6)}`, note: "a month" },
-                { label: "Free trial", value: `${TRIAL_DAYS} days`, note: "every feature" },
+                { label: t("Monthly"), value: `$${plan.basePrice}`, note: t.tn("includes {n} user", "includes {n} users", plan.includedSeats), big: true },
+                { label: t("Each extra user"), value: `$${plan.seatPrice}`, note: t("a month"), big: true },
+                { label: t.tn("A crew of {n}", "A crew of {n}", 6), value: `$${monthlyPrice(plan, 6)}`, note: t("a month") },
+                { label: t("Free trial"), value: t.tn("{n} day", "{n} days", TRIAL_DAYS), note: t("every feature") },
               ]}
-              footnote="Prices in USD, plus applicable tax."
+              footnote={t("Prices in USD, plus applicable tax.")}
             />
           </div>
         </div>
@@ -237,38 +245,38 @@ export default function Landing() {
       <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20">
         <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16 lg:py-28">
           <h2 id="faq-title" className="mk-h2">
-            Questions contractors ask
+            {t("Questions contractors ask")}
           </h2>
           <Faq
             items={[
-              ["Do I need internet on site?", "No. Plans, devices, photos and checklists are saved on the iPad or phone and sync when you’re back online."],
+              [t("Do I need internet on site?"), t("No. Plans, devices, photos and checklists are saved on the iPad or phone and sync when you’re back online.")],
               [
-                "What plans can I use?",
-                "PDF plan sets (every page becomes a floor), photos or scans of printed plans, or a sketch. Set the scale once from any known dimension.",
+                t("What plans can I use?"),
+                t("PDF plan sets (every page becomes a floor), photos or scans of printed plans, or a sketch. Set the scale once from any known dimension."),
               ],
               [
-                "Which trades does it work for?",
-                "Low voltage and smart home, electrical, fire alarm, HVAC, plumbing, and solar and EV charging. Pick one or several, and add your own devices to any list.",
+                t("Which trades does it work for?"),
+                t("Low voltage and smart home, electrical, fire alarm, HVAC, plumbing, and solar and EV charging. Pick one or several, and add your own devices to any list."),
               ],
               [
-                "Can my technicians use it without seeing prices?",
-                "Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app.",
+                t("Can my technicians use it without seeing prices?"),
+                t("Yes. Technicians get their own login for plans, devices, photos, checklists and tasks. Prices, quotes and invoices are hidden from them in the app."),
               ],
               [
-                "Does it work with my accounting?",
-                `Quotes, invoices and payments are built into ${PRODUCT_NAME}, so you don’t need anything else. You can also export counts, quotes and plan sheets as PDF or CSV.`,
+                t("Does it work with my accounting?"),
+                t("Quotes, invoices and payments are built into {product}, so you don’t need anything else. You can also export counts, quotes and plan sheets as PDF or CSV.", { product: PRODUCT_NAME }),
               ],
               [
-                `What happens after the ${TRIAL_DAYS}-day trial?`,
-                <>
-                  Choose a plan to keep going. If you don’t, your jobs stay readable and you can export them any time. See{" "}
-                  <Link href="/pricing" className="mk-link">
-                    pricing
-                  </Link>
-                  .
-                </>,
+                t.tn("What happens after the {n}-day trial?", "What happens after the {n}-day trial?", TRIAL_DAYS),
+                rich(t("Choose a plan to keep going. If you don’t, your jobs stay readable and you can export them any time. See {pricing}."), {
+                  pricing: (
+                    <Link href="/pricing" className="mk-link">
+                      {t("pricing")}
+                    </Link>
+                  ),
+                }),
               ],
-              ["Is my data private?", "Each company’s jobs are private to its team, enforced in the database. You can export everything or delete your account from Settings."],
+              [t("Is my data private?"), t("Each company’s jobs are private to its team, enforced in the database. You can export everything or delete your account from Settings.")],
             ]}
           />
         </div>
@@ -279,15 +287,19 @@ export default function Landing() {
         <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 py-16 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:py-20">
           <div>
             <h2 id="cta-title" className="mk-h2 max-w-[16em]">
-              Bring your next set of plans
+              {t("Bring your next set of plans")}
             </h2>
             <p className="mt-4 max-w-[34em] text-[17px] leading-relaxed">
-              Set up your company, upload a plan and send a real quote during the {TRIAL_DAYS}-day trial. Bring the crew in when you’re ready.
+              {t.tn(
+                "Set up your company, upload a plan and send a real quote during the {n}-day trial. Bring the crew in when you’re ready.",
+                "Set up your company, upload a plan and send a real quote during the {n}-day trial. Bring the crew in when you’re ready.",
+                TRIAL_DAYS,
+              )}
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/signup" className="mk-btn mk-btn-ink">
-              Start free trial
+              {t("Start free trial")}
             </Link>
             <TryDemoLink className="mk-link h-12 px-2 text-left text-[15px] sm:text-center" />
           </div>
@@ -298,28 +310,38 @@ export default function Landing() {
 }
 
 function Hero() {
+  const t = useT();
   return (
     <section aria-labelledby="hero-title" className="overflow-hidden">
       <div className="mx-auto max-w-[1240px] px-4 pt-12 pb-20 sm:px-6 sm:pt-16 lg:pt-20 lg:pb-28">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-14">
           <h1 id="hero-title" className="mk-display">
-            Pin the plan. Send the quote. Get it signed.
+            {t("Pin the plan. Send the quote. Get it signed.")}
           </h1>
           <div className="lg:pb-2">
             <p className="mk-lede">
-              {PRODUCT_NAME} is takeoff, quoting and job management for electrical, low-voltage and specialty contractors. Put each device on the floor plan, and the count,
-              the wire and your price come straight from it.
+              {t(
+                "{product} is takeoff, quoting and job management for electrical, low-voltage and specialty contractors. Put each device on the floor plan, and the count, the wire and your price come straight from it.",
+                { product: PRODUCT_NAME },
+              )}
             </p>
-            <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row">
+            <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row min-[420px]:flex-wrap">
               <Link href="/signup" className="mk-btn mk-btn-primary">
-                Start free trial
+                {t("Start free trial")}
               </Link>
               <Link href="#how" className="mk-btn mk-btn-line">
-                See how it works
+                {t("See how it works")}
               </Link>
             </div>
             <p className="mt-5 text-[15px] text-mk-pencil">
-              Free for {TRIAL_DAYS} days with every feature. Just looking? <TryDemoLink className="mk-link text-mk-graphite" />.
+              {rich(
+                t.tn(
+                  "Free for {n} day with every feature. Just looking? {demo}.",
+                  "Free for {n} days with every feature. Just looking? {demo}.",
+                  TRIAL_DAYS,
+                ),
+                { demo: <TryDemoLink className="mk-link text-mk-graphite" /> },
+              )}
             </p>
           </div>
         </div>
@@ -333,6 +355,7 @@ function Hero() {
 
 /** The same job seen by the office and by a technician. */
 function TeamCompare() {
+  const t = useT();
   const el = tradePack("electrical");
   const rows = (
     [
@@ -346,8 +369,8 @@ function TeamCompare() {
       {(["Office", "Technician"] as const).map((who) => (
         <div key={who} className="mk-sheet overflow-hidden text-[14px]">
           <div className="flex items-center justify-between border-b border-mk-rule px-4 py-2.5">
-            <span className="font-semibold">Kitchen, first floor</span>
-            <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${who === "Office" ? "bg-mk-graphite text-white" : "bg-mk-marker text-white"}`}>{who}</span>
+            <span className="min-w-0 font-semibold">{t("Kitchen, first floor")}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${who === "Office" ? "bg-mk-graphite text-white" : "bg-mk-marker text-white"}`}>{who === "Office" ? t("Office") : t("Technician")}</span>
           </div>
           <ul>
             {rows.map(({ name, n, done, s }) => (
@@ -355,18 +378,18 @@ function TeamCompare() {
                 <Symbol symbol={s.symbol} color={s.color} shape={s.shape} size={22} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{name}</span>
-                  <span className="block text-[13px] text-mk-pencil">{n} on the plan</span>
+                  <span className="block text-[13px] text-mk-pencil">{t("{n} on the plan", { n })}</span>
                 </span>
                 {who === "Office" ? (
                   <span className="mk-num font-semibold">${(n * (s.unitPrice + s.laborPrice)).toLocaleString("en-US")}</span>
                 ) : (
-                  <span className="mk-num text-[13px] text-mk-pencil">{done === n ? "All set" : `${done} of ${n} set`}</span>
+                  <span className="mk-num text-[13px] text-mk-pencil">{done === n ? t("All set") : t("{done} of {total} set", { done, total: n })}</span>
                 )}
               </li>
             ))}
           </ul>
           <div className="border-t border-mk-rule bg-mk-paper px-4 py-2.5 text-[13px] text-mk-pencil">
-            {who === "Office" ? "Quote, invoices and margins" : "Photos, checklist and today’s tasks"}
+            {who === "Office" ? t("Quote, invoices and margins") : t("Photos, checklist and today’s tasks")}
           </div>
         </div>
       ))}
@@ -376,8 +399,9 @@ function TeamCompare() {
 
 /** iPad, iPhone and laptop drawn as plan linework. */
 function DevicesDrawing() {
+  const t = useT();
   return (
-    <svg viewBox="0 0 520 330" className="h-auto w-full" role="img" aria-label="The same plan open on an iPad, an iPhone and a laptop">
+    <svg viewBox="0 0 520 330" className="h-auto w-full" role="img" aria-label={t("The same plan open on an iPad, an iPhone and a laptop")}>
       <g fill="none" stroke="#a9bcd4" strokeWidth="1.5">
         {/* laptop */}
         <rect x="150" y="30" width="330" height="210" rx="10" />

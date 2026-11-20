@@ -1,6 +1,7 @@
 // The hero: an electrical first-floor plan with devices pinned on it, the count that comes out of it and the quote the
 // client approved. Every figure is computed from the pins and runs below with the electrical trade pack's own
 // symbols and starting prices (src/lib/trades.ts), the way computeTakeoff/buildEstimate do it in the app.
+import { msg, useT } from "@/lib/i18n";
 import { tradePack } from "@/lib/trades";
 import { SymbolMark } from "./Symbol";
 
@@ -10,13 +11,13 @@ const PX_PER_FT = 12;
 
 /** Short names for the count. */
 const LABEL: Record<string, string> = {
-  "el-rec15": "Receptacles",
-  "el-gfci": "GFCI receptacles",
-  "el-sw": "Switches",
-  "el-sw3": "3-way switches",
-  "el-can6": "Recessed lights",
-  "el-surf": "Surface fixtures",
-  "el-smoke": "Smoke alarms",
+  "el-rec15": msg("Receptacles"),
+  "el-gfci": msg("GFCI receptacles"),
+  "el-sw": msg("Switches"),
+  "el-sw3": msg("3-way switches"),
+  "el-can6": msg("Recessed lights"),
+  "el-surf": msg("Surface fixtures"),
+  "el-smoke": msg("Smoke alarms"),
 };
 
 type Pin = [id: keyof typeof LABEL, x: number, y: number];
@@ -81,11 +82,16 @@ export const HERO_DEVICES = PINS.length;
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
 export default function HeroPlan() {
+  const t = useT();
   return (
     <figure className="relative">
       <figcaption className="sr-only">
-        An electrical floor plan with {HERO_DEVICES} devices pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {money(HERO_TOTAL)}{" "}
-        quote that the client signed and approved on their phone.
+        {t.tn(
+          "An electrical floor plan with {n} device pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {total} quote that the client signed and approved on their phone.",
+          "An electrical floor plan with {n} devices pinned on it and circuits drawn to the panel. Beside it, the count for the floor and a {total} quote that the client signed and approved on their phone.",
+          HERO_DEVICES,
+          { total: money(HERO_TOTAL) },
+        )}
       </figcaption>
       <div aria-hidden="true" className="grid gap-4 md:grid-cols-[minmax(0,1fr)_236px] md:items-start lg:grid-cols-[minmax(0,1fr)_256px] lg:gap-0">
         <PlanSheet />
@@ -104,6 +110,7 @@ export default function HeroPlan() {
 }
 
 function PlanSheet() {
+  const t = useT();
   return (
     <div className="mk-sheet overflow-hidden">
       <svg viewBox="0 -18 640 424" className="block h-auto w-full" style={{ fontFamily: "inherit" }}>
@@ -183,15 +190,15 @@ function PlanSheet() {
       {/* Title block */}
       <div className="grid grid-cols-[1fr_auto] border-t border-mk-rule text-[12px] leading-tight sm:grid-cols-[1.3fr_1fr_auto]">
         <div className="border-r border-mk-rule px-3 py-2">
-          <div className="text-mk-pencil">Job</div>
+          <div className="text-mk-pencil">{t("Job")}</div>
           <div className="font-semibold">Harbor View Rd, unit 2</div>
         </div>
         <div className="hidden border-r border-mk-rule px-3 py-2 sm:block">
-          <div className="text-mk-pencil">Floor</div>
-          <div className="font-semibold">First floor power and lighting</div>
+          <div className="text-mk-pencil">{t("Floor")}</div>
+          <div className="font-semibold">{t("First floor power and lighting")}</div>
         </div>
         <div className="px-3 py-2 text-right">
-          <div className="text-mk-pencil">Sheet</div>
+          <div className="text-mk-pencil">{t("Sheet")}</div>
           <div className="mk-figure text-[15px]">E-101</div>
         </div>
       </div>
@@ -200,11 +207,12 @@ function PlanSheet() {
 }
 
 function Tally({ className = "" }: { className?: string }) {
+  const t = useT();
   return (
     <div className={`mk-sheet mk-anim-rise p-3.5 text-[13px] ${className}`} style={{ ["--d" as string]: "1500ms" }}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold">First floor count</span>
-        <span className="text-mk-pencil">{HERO_DEVICES} devices</span>
+        <span className="font-semibold">{t("First floor count")}</span>
+        <span className="text-mk-pencil">{t.tn("{n} device", "{n} devices", HERO_DEVICES)}</span>
       </div>
       <ul className="mt-2.5 space-y-[5px]">
         {COUNT.map((r) => (
@@ -212,7 +220,7 @@ function Tally({ className = "" }: { className?: string }) {
             <svg viewBox="-11 -11 22 22" width="20" height="20" className="shrink-0">
               <SymbolMark symbol={r.seed.symbol} color={r.seed.color} shape={r.seed.shape} r={9} ring={false} />
             </svg>
-            <span className="min-w-0 flex-1 truncate">{LABEL[r.id]}</span>
+            <span className="min-w-0 flex-1 truncate">{t(LABEL[r.id])}</span>
             <span className="mk-num font-semibold">{r.n}</span>
           </li>
         ))}
@@ -222,7 +230,7 @@ function Tally({ className = "" }: { className?: string }) {
               <path d="M2 12Q9 3 16 12" fill="none" stroke="#0f2340" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
             <span className="min-w-0 flex-1 truncate">{w.wire}</span>
-            <span className="mk-num font-semibold">{w.ft} ft</span>
+            <span className="mk-num font-semibold">{t("{ft} ft", { ft: w.ft })}</span>
           </li>
         ))}
       </ul>
@@ -246,29 +254,30 @@ function Signature() {
 }
 
 function QuoteBody() {
+  const t = useT();
   const lines = COUNT.slice(0, 3);
   return (
     <div className="text-[12px]">
       <div className="bg-mk-graphite px-4 pt-5 pb-3 text-white">
-        <div className="text-mk-on-dark">Quote Q-1042</div>
+        <div className="text-mk-on-dark">{t("Quote {number}", { number: "Q-1042" })}</div>
         <div className="mk-figure mt-0.5 text-[26px]">{money(HERO_TOTAL)}</div>
       </div>
       <div className="space-y-1.5 px-4 pt-3">
         {lines.map((r) => (
           <div key={r.id} className="flex justify-between gap-2">
             <span className="truncate text-mk-pencil">
-              {LABEL[r.id]} ({r.n})
+              {t(LABEL[r.id])} ({r.n})
             </span>
             <span className="mk-num">{money(r.n * (r.seed.unitPrice + r.seed.laborPrice))}</span>
           </div>
         ))}
-        <div className="text-mk-pencil">and {COUNT.length - lines.length + WIRE.length} more lines</div>
+        <div className="text-mk-pencil">{t.tn("and {n} more line", "and {n} more lines", COUNT.length - lines.length + WIRE.length)}</div>
       </div>
       <div className="relative mx-4 mt-3 mb-4 border-t border-mk-rule pt-2">
         <Signature />
-        <div className="text-[11px] text-mk-pencil">Signed by Dana Whitfield</div>
+        <div className="text-[11px] text-mk-pencil">{t("Signed by {name}", { name: "Dana Whitfield" })}</div>
         <div className="mk-anim-stamp absolute -top-1 right-0 rounded-[3px] border-2 border-mk-ok px-1.5 py-0.5 text-[12px] font-bold text-mk-ok" style={{ fontStretch: "75%" }}>
-          Approved
+          {t("Approved")}
         </div>
       </div>
     </div>

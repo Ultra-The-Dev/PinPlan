@@ -38,6 +38,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests (coverage gates on takeoff, estimate, documents)
         run: npm run test:coverage
+      - name: Translations (fails on placeholder mismatches; lists untranslated text)
+        run: npm run check:i18n
       - name: Coverage report
         if: always()
         uses: actions/upload-artifact@v4

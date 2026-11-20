@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
+import { dpaRu } from "@/components/legal/ru/DpaRu";
 import { publicMetadata } from "@/components/marketing/seo";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION } from "@/lib/legal";
 
@@ -42,6 +43,7 @@ export default function DpaPage() {
       title="Data Processing Addendum"
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
+      ru={dpaRu}
       intro={
         <p>
           This addendum is part of our <Link href="/terms">Terms of Service</Link> and applies whenever we process personal information inside your Customer

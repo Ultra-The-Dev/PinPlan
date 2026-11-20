@@ -5,11 +5,13 @@
 // email field. The delete dialog (Settings › Account) renders `fields` and calls `request()` on submit.
 import { useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
+import { useT } from "@/lib/i18n";
 import { authErrorMessage } from "@/lib/onboardingLogic";
 import { getSupabase } from "@/lib/supabase";
 import { accountDeleteReply } from "@/lib/teamLogic";
 
 export function useAccountDelete(email: string | null) {
+  const t = useT();
   const [reauth, setReauth] = useState<string | null>(null);
   const [mode, setMode] = useState<"password" | "email">("password");
   const [password, setPassword] = useState("");
@@ -20,22 +22,22 @@ export function useAccountDelete(email: string | null) {
   /** True when the account was deleted; false when the person must prove it's them first (the fields now show). */
   const request = async (): Promise<boolean> => {
     const sb = getSupabase();
-    if (!sb) throw new Error("Not connected to the cloud.");
+    if (!sb) throw new Error(t("Not connected to the cloud."));
     let body: string | undefined;
     if (reauth) {
       if (mode === "password") {
-        if (!email) throw new Error("Sign out, sign in again, then delete your account.");
-        if (!password) throw new Error("Enter your password.");
+        if (!email) throw new Error(t("Sign out, sign in again, then delete your account."));
+        if (!password) throw new Error(t("Enter your password."));
         const { error } = await sb.auth.signInWithPassword({ email, password, options: { captchaToken: await takeCaptcha() } });
-        if (error) throw new Error(/invalid login/i.test(error.message) ? "That password isn’t right. Try again, or type your email instead." : authErrorMessage(error.message));
+        if (error) throw new Error(/invalid login/i.test(error.message) ? t("That password isn’t right. Try again, or type your email instead.") : t(authErrorMessage(error.message)));
       } else {
-        if (!typedEmail.trim()) throw new Error("Type the email you sign in with.");
+        if (!typedEmail.trim()) throw new Error(t("Type the email you sign in with."));
         body = JSON.stringify({ confirmEmail: typedEmail.trim() });
       }
     }
     const token = (await sb.auth.getSession()).data.session?.access_token;
     if (!token) {
-      setReauth("Your sign-in has expired. Sign out, sign in again, then delete your account.");
+      setReauth(t("Your sign-in has expired. Sign out, sign in again, then delete your account."));
       setExpired(true);
       setMode("password");
       return false;
@@ -48,23 +50,23 @@ export function useAccountDelete(email: string | null) {
     const reply = accountDeleteReply(r.status, (await r.json().catch(() => ({}))) as Parameters<typeof accountDeleteReply>[1]);
     if (reply.kind === "deleted") return true;
     if (reply.kind === "reauth") {
-      setReauth(reply.message);
+      setReauth(t(reply.message));
       setExpired(r.status === 401);
       setPassword("");
       return false;
     }
-    throw new Error(reply.message);
+    throw new Error(t(reply.message));
   };
 
   const fields = reauth ? (
     <div className="space-y-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" role="alert">
-      <p className="font-medium">Confirm it’s you</p>
+      <p className="font-medium">{t("Confirm it’s you")}</p>
       {/* The server's words talk about typing the email; with the password field showing, say what to do here. */}
-      <p>{mode === "email" ? reauth : expired ? "Your sign-in has expired. Enter your password to continue." : "To keep your account safe, enter your password again."}</p>
+      <p>{mode === "email" ? reauth : expired ? t("Your sign-in has expired. Enter your password to continue.") : t("To keep your account safe, enter your password again.")}</p>
       {mode === "password" ? (
         <div>
           <label className="label" htmlFor="del-password">
-            Your password
+            {t("Your password")}
           </label>
           <input
             id="del-password"
@@ -79,7 +81,7 @@ export function useAccountDelete(email: string | null) {
       ) : (
         <div>
           <label className="label" htmlFor="del-email">
-            The email you sign in with
+            {t("The email you sign in with")}
           </label>
           <input
             id="del-email"
@@ -94,7 +96,7 @@ export function useAccountDelete(email: string | null) {
         </div>
       )}
       <button type="button" className="text-xs font-medium text-amber-900 underline" onClick={() => setMode(mode === "password" ? "email" : "password")}>
-        {mode === "password" ? "No password? Type your email instead" : "Use my password instead"}
+        {mode === "password" ? t("No password? Type your email instead") : t("Use my password instead")}
       </button>
       <div ref={captchaMount} className="flex justify-center empty:hidden" />
       {captchaError && <p className="text-xs text-red-700">{captchaError}</p>}

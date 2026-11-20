@@ -12,6 +12,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LegalDoc, { Ph, Section, type TocItem } from "@/components/legal/LegalDoc";
+import { privacyRu } from "@/components/legal/ru/PrivacyRu";
 import { publicMetadata } from "@/components/marketing/seo";
 import { AI_ENABLED } from "@/lib/features";
 import { COMPANY, LEGAL_EFFECTIVE_DATE, RETENTION, SUBPROCESSORS } from "@/lib/legal";
@@ -47,6 +48,7 @@ export default function PrivacyPage() {
       title="Privacy Policy"
       effective={LEGAL_EFFECTIVE_DATE}
       toc={toc}
+      ru={privacyRu}
       intro={
         <p>
           Electrical, low-voltage and specialty trade contractors trust PinPlan with their plans, quotes, invoices, jobs and their clients’ details. This

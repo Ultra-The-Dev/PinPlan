@@ -5,6 +5,8 @@ import { CheckCircle2, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { msg, useT } from "@/lib/i18n";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { startDemo } from "@/lib/onboarding";
 import { useSyncStatus } from "@/lib/sync";
@@ -15,10 +17,10 @@ import { Wordmark } from "./Wordmark";
 import "./marketing.css";
 
 const NAV = [
-  { href: "/welcome#how", label: "How it works" },
-  { href: "/welcome#trades", label: "Trades" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/welcome#faq", label: "Questions" },
+  { href: "/welcome#how", label: msg("How it works") },
+  { href: "/welcome#trades", label: msg("Trades") },
+  { href: "/pricing", label: msg("Pricing") },
+  { href: "/welcome#faq", label: msg("Questions") },
 ];
 
 /**
@@ -27,6 +29,7 @@ const NAV = [
  */
 export function SiteHeader() {
   const s = useSyncStatus();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -53,7 +56,7 @@ export function SiteHeader() {
         href={`#${MAIN_ID}`}
         className="absolute top-2 left-2 z-40 -translate-y-24 rounded-md bg-mk-graphite px-4 py-2 text-[15px] font-semibold text-white focus:translate-y-0"
       >
-        Skip to content
+        {t("Skip to content")}
       </a>
       <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
         <button
@@ -62,23 +65,24 @@ export function SiteHeader() {
           className="-ml-2 rounded-md p-2 hover:bg-mk-sheet lg:hidden"
           aria-expanded={open}
           aria-controls="site-menu"
-          aria-label={open ? "Close menu" : "Open menu"}
+          aria-label={open ? t("Close menu") : t("Open menu")}
           onClick={() => setOpen((o) => !o)}
         >
           {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
         <Wordmark />
-        <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label="Site">
+        <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label={t("Site")}>
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className="rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
-              {n.label}
+              {t(n.label)}
             </Link>
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <LanguageSwitcher className="mr-2 hidden lg:inline-flex" showIcon={false} />
           {s.authReady && s.signedIn ? (
             <Link href="/" className="mk-btn mk-btn-ink mk-btn-sm">
-              Open the app
+              {t("Open the app")}
             </Link>
           ) : (
             <>
@@ -86,25 +90,28 @@ export function SiteHeader() {
                 href="/login"
                 className="hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
               >
-                Sign in
+                {t("Sign in")}
               </Link>
-              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm max-[359px]:px-2.5">
-                Start free trial
+              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 py-1 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
+                {t("Start free trial")}
               </Link>
             </>
           )}
         </div>
       </div>
       {/* Always in the page (hidden when closed) so the button's aria-controls points at a real element. */}
-      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label="Site menu">
+      <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label={t("Site menu")}>
         <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
-          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: "Sign in" }])].map((n) => (
+          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: msg("Sign in") }])].map((n) => (
             <li key={n.href}>
               <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
-                {n.label}
+                {t(n.label)}
               </Link>
             </li>
           ))}
+          <li className="px-2 py-3">
+            <LanguageSwitcher />
+          </li>
         </ul>
       </nav>
     </header>
@@ -143,6 +150,7 @@ export function Faq({ items }: { items: [string, React.ReactNode][] }) {
 /** "Try it without an account": local demo mode on this device, then the jobs list. */
 export function TryDemoLink({ className = "" }: { className?: string }) {
   const router = useRouter();
+  const t = useT();
   return (
     <button
       type="button"
@@ -152,7 +160,7 @@ export function TryDemoLink({ className = "" }: { className?: string }) {
         router.push("/");
       }}
     >
-      Try it without an account
+      {t("Try it without an account")}
     </button>
   );
 }
@@ -161,13 +169,14 @@ export function TryDemoLink({ className = "" }: { className?: string }) {
 export function DeletedNotice() {
   const deleted = useArrivalParams()?.search.get("deleted") === "1";
   const [hidden, setHidden] = useState(false);
+  const t = useT();
   if (!deleted || hidden) return null;
   return (
     <div className="mx-auto mt-4 flex max-w-[1240px] items-center gap-3 px-4 sm:px-6" role="status">
       <div className="flex flex-1 items-center gap-2 rounded-lg bg-mk-sheet px-3 py-2.5 text-[15px] ring-1 ring-mk-rule">
         <CheckCircle2 className="h-4 w-4 shrink-0 text-mk-ok" />
-        <span className="flex-1">Your account was deleted and this device was cleared.</span>
-        <button className="rounded p-1 hover:bg-mk-paper" onClick={() => setHidden(true)} aria-label="Dismiss">
+        <span className="flex-1">{t("Your account was deleted and this device was cleared.")}</span>
+        <button className="rounded p-1 hover:bg-mk-paper" onClick={() => setHidden(true)} aria-label={t("Dismiss")}>
           <X className="h-4 w-4" />
         </button>
       </div>

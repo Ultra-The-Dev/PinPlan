@@ -21,6 +21,7 @@
     "check:legal": "LEGAL_CHECK=strict node scripts/check-legal.mjs",
     "e2e": "playwright test",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "check:i18n": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/check-i18n.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
