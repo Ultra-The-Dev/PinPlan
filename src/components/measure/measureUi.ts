@@ -2,11 +2,29 @@
 // UI state of the saved-measurements overlay (this device only): the measure toolbar, what's being drawn, the
 // selection and the summary panel. The rows themselves live in useMeasurements (src/lib/measurements.ts).
 import { create } from "zustand";
+import { DRAFT_DASH, SELECT_HALO, SELECT_HALO_OPACITY, SELECT_INK } from "@/lib/canvasColors";
+import { claimPlanInput } from "@/lib/planOverlays";
+import type { TeamRole } from "@/lib/teamLogic";
 import type { Measurement, MeasurementKind } from "@/lib/types";
 
 export const MEASURE_COLORS = ["#e11d48", "#f59e0b", "#16a34a", "#0284c7", "#7c3aed", "#334155"];
 /** Spoken names for the colour swatches (screen readers). */
 export const COLOR_NAMES: Record<string, string> = { "#e11d48": "Red", "#f59e0b": "Amber", "#16a34a": "Green", "#0284c7": "Blue", "#7c3aed": "Violet", "#334155": "Slate" };
+
+/** The plan's shared selection / draft look (src/lib/canvasColors.ts) as the measure layer uses it. */
+export const MEASURE_LOOK = { halo: SELECT_HALO, haloOpacity: SELECT_HALO_OPACITY, ink: SELECT_INK, draftDash: DRAFT_DASH };
+
+/**
+ * May this person change or delete a saved measurement? Only while changing things is on (Edit mode, or the Measure
+ * toolbar open), and like markups (canEditMarkup): your own always, someone else's only for the office.
+ * `me` is this device's author name (getAuthor), which is what a measurement records.
+ */
+export function canEditMeasurement(role: TeamRole | null | undefined, m: Pick<Measurement, "author">, me: string | null, mode: { editing: boolean; measuring: boolean }): boolean {
+  if (!mode.editing && !mode.measuring) return false;
+  const author = m.author?.trim();
+  if (!author || (me != null && author.toLowerCase() === me.trim().toLowerCase())) return true;
+  return role !== "tech";
+}
 
 const PREFS_KEY = "pinplan.measure.prefs";
 
@@ -45,6 +63,8 @@ export interface MeasureUiState extends Prefs {
   panelOpen: boolean;
   /** Just deleted (for Undo). */
   lastDeleted: Measurement | null;
+  /** Calibrating from Measure switched View → Edit: go back to View (and Measure) when the scale is set or cancelled. */
+  restoreView: boolean;
   /** Centre this measurement once its sheet is shown. */
   pendingFocus: { sheetId: string; id: string; x: number; y: number } | null;
   hydrated: boolean;
@@ -60,6 +80,7 @@ export interface MeasureUiState extends Prefs {
   setPanelOpen(open: boolean): void;
   setLastDeleted(m: Measurement | null): void;
   focus(f: MeasureUiState["pendingFocus"]): void;
+  setRestoreView(on: boolean): void;
 }
 
 export const useMeasureUi = create<MeasureUiState>((set, get) => {
@@ -80,6 +101,7 @@ export const useMeasureUi = create<MeasureUiState>((set, get) => {
     panelOpen: false,
     lastDeleted: null,
     pendingFocus: null,
+    restoreView: false,
     hydrated: false,
     hydrate() {
       if (get().hydrated) return;
@@ -93,6 +115,8 @@ export const useMeasureUi = create<MeasureUiState>((set, get) => {
       });
     },
     setActive(on) {
+      // Measuring takes the plan's taps: other tools (markups, walk, links, a task drop, device tools) close.
+      if (on) claimPlanInput("measure");
       set({ active: on, draft: [], draftSheetId: null, hover: null, ...(on ? { visible: true } : {}) });
       save();
     },
@@ -131,6 +155,9 @@ export const useMeasureUi = create<MeasureUiState>((set, get) => {
     },
     focus(pendingFocus) {
       set({ pendingFocus });
+    },
+    setRestoreView(restoreView) {
+      set({ restoreView });
     },
   };
 });

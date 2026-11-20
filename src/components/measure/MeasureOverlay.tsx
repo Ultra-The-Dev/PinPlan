@@ -1,27 +1,30 @@
 "use client";
-// HTML side of the measurements overlay (screen px over the plan): toolbar, drawing bar, calibrate banner, the
-// selected measurement's card and the totals panel. Also the keys (Esc / Enter / Backspace) and the mouse's live
-// segment while drawing.
+// HTML side of the measurements overlay (screen px over the plan): the Measure button / strip in the left rail, the
+// drawing / calibrate / undo bars in the status slot, the selected measurement's card and the totals panel (beside the
+// right rail on sm+, bottom sheets on phones). Also the keys (Esc / Enter / Backspace) and the mouse's live segment
+// while drawing.
 import { Check, Crosshair, Undo2, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { areaSqFt, formatFeetInches, formatSqFt, KIND_NAMES, lengthFt, MIN_POINTS, recentLabels, snapAngle } from "@/lib/measure";
 import { useMeasurements } from "@/lib/measurements";
+import { getAuthor } from "@/lib/photos";
+import { planKeyBlocked, repeatBlocked } from "@/lib/planOverlays";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
+import { useSyncStatus } from "@/lib/sync";
+import { useRole } from "@/lib/team";
 import type { Sheet } from "@/lib/types";
+import { useMedia } from "@/lib/useMedia";
 import { useViewer } from "@/lib/viewerStore";
+import { PHONE_QUERY, RailSlot, StatusSlot } from "../editor/overlays/PlanRail";
 import MeasureEditCard from "./MeasureEditCard";
 import MeasurementsPanel from "./MeasurementsPanel";
 import MeasureToolbar from "./MeasureToolbar";
 import { cancelDraft, finishDraft, undoPoint } from "./measureInput";
-import { useMeasureUi } from "./measureUi";
+import { canEditMeasurement, useMeasureUi } from "./measureUi";
 
-const bar = "pointer-events-auto absolute top-[162px] left-2 z-[13] flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-xl bg-ink/90 py-1 pr-1 pl-3 text-[13px] text-white shadow-pop backdrop-blur sm:top-[120px] sm:left-3";
-
-function typing(e: KeyboardEvent) {
-  const t = e.target as HTMLElement | null;
-  return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
-}
+const bar = "pointer-events-auto flex max-w-full items-center gap-1.5 rounded-xl bg-ink/90 py-1 pr-1 pl-3 text-[13px] text-white shadow-pop backdrop-blur";
+const barBtn = "flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25";
 
 function DrawBar({ sheet }: { sheet: Sheet }) {
   const { kind, draft, draftSheetId, label } = useMeasureUi();
@@ -52,7 +55,7 @@ function DrawBar({ sheet }: { sheet: Sheet }) {
       </span>
       {n > 0 && (
         <>
-          <button className="ml-1 flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25" onClick={undoPoint} aria-label="Undo last point" title="Undo last point (Backspace)">
+          <button className={`ml-1 ${barBtn}`} onClick={undoPoint} aria-label="Undo last point" title="Undo last point (Backspace)">
             <Undo2 className="h-3.5 w-3.5" />
           </button>
           {kind !== "length" && (
@@ -60,10 +63,54 @@ function DrawBar({ sheet }: { sheet: Sheet }) {
               <Check className="h-3.5 w-3.5" /> Done
             </button>
           )}
-          <button className="flex h-9 shrink-0 items-center rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25" onClick={cancelDraft} aria-label="Cancel this measurement" title="Cancel (Esc)">
+          <button className={barBtn} onClick={cancelDraft} aria-label="Cancel this measurement" title="Cancel (Esc)">
             <X className="h-3.5 w-3.5" />
           </button>
         </>
+      )}
+    </div>
+  );
+}
+
+/** No scale on this sheet: the office sets it (after a check when that means leaving View); technicians ask. */
+function CalibrateBar({ editing, office }: { editing: boolean; office: boolean }) {
+  const [confirm, setConfirm] = useState(false);
+  if (!office) {
+    return (
+      <div className={bar} data-plan-ui data-testid="measure-calibrate">
+        <span className="min-w-0 truncate py-1">Ask the office to set this sheet&apos;s scale</span>
+        <button className={`ml-1 ${barBtn}`} onClick={() => useMeasureUi.getState().setActive(false)} aria-label="Close">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+  const start = () => {
+    const ui = useMeasureUi.getState();
+    if (!editing) {
+      // Back to View (and Measure) once the scale is set or cancelled.
+      ui.setRestoreView(true);
+      useViewer.getState().setMode("edit");
+    }
+    ui.setActive(false);
+    useEditor.getState().setTool({ kind: "calibrate" });
+  };
+  return (
+    <div className={bar} data-plan-ui data-testid="measure-calibrate">
+      <span className="min-w-0 truncate py-1">{confirm ? "Setting the scale switches to Edit for a moment" : "Set this sheet's scale to measure"}</span>
+      {confirm ? (
+        <>
+          <button className="ml-1 flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600" onClick={start} data-testid="measure-calibrate-confirm">
+            <Crosshair className="h-3.5 w-3.5" /> Set scale
+          </button>
+          <button className={barBtn} onClick={() => setConfirm(false)}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button className="ml-1 flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600" onClick={() => (editing ? start() : setConfirm(true))} data-testid="measure-calibrate-start">
+          <Crosshair className="h-3.5 w-3.5" /> Set scale
+        </button>
       )}
     </div>
   );
@@ -75,6 +122,10 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
   const load = useMeasurements((s) => s.load);
   const toolKind = useEditor((s) => s.tool.kind);
   const editorSelection = useEditor((s) => s.selection);
+  const role = useRole();
+  const office = role !== "tech";
+  const email = useSyncStatus((s) => s.email);
+  const phone = useMedia(PHONE_QUERY);
   const anchor = useRef<HTMLSpanElement>(null);
 
   const hydrate = useMeasureUi((s) => s.hydrate);
@@ -90,10 +141,22 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
   useEffect(() => {
     if (editorSelection && useMeasureUi.getState().selectedId) useMeasureUi.getState().select(null);
   }, [editorSelection]);
+  // Calibrating from Measure in View: when the scale tool ends, back to View with Measure open.
+  useEffect(() => {
+    const s = useMeasureUi.getState();
+    if (toolKind !== "select" || !s.restoreView) return;
+    s.setRestoreView(false);
+    useViewer.getState().setMode("view");
+    if (sheet.pxPerFt) s.setActive(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolKind]);
 
   const mine = useMemo(() => rows.filter((m) => m.sheetId === sheet.id), [rows, sheet.id]);
   const recent = useMemo(() => recentLabels(rows), [rows]);
   const selected = ui.selectedId ? mine.find((m) => m.id === ui.selectedId) : undefined;
+  const mayEdit = (m: { author?: string | null }) => canEditMeasurement(role, m, getAuthor(email), { editing, measuring: useMeasureUi.getState().active });
+  const lockedWhy = (m: { author?: string | null }) =>
+    mayEdit(m) ? null : !editing && !ui.active ? "Open Measure or switch to Edit to change it." : "Only the person who drew it or the office can change it.";
 
   // "Go to" from the panel: centre it once its sheet is on screen.
   const pf = ui.pendingFocus;
@@ -107,12 +170,14 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
     return () => clearTimeout(t);
   }, [pf, sheet.id, viewport]);
 
-  // Keys: capture phase, so the editor's own Esc / Enter / Backspace don't also act.
+  // Keys: capture phase, so the editor's own Esc / Enter / Backspace don't also act. Never behind a dialog or in a field.
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    keyRef.current = (e: KeyboardEvent) => {
+      if (planKeyBlocked(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useMeasureUi.getState();
       const drawing = s.active && s.draft.length > 0;
+      const del = e.key === "Backspace" || e.key === "Delete";
       let handled = true;
       if (e.key === "Escape") {
         if (drawing) cancelDraft();
@@ -121,10 +186,12 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
         else if (s.active) s.setActive(false);
         else handled = false;
       } else if (e.key === "Enter" && drawing) void finishDraft();
-      else if ((e.key === "Backspace" || e.key === "Delete") && drawing) undoPoint();
-      else if ((e.key === "Backspace" || e.key === "Delete") && s.selectedId) {
+      else if (del && drawing) undoPoint();
+      else if (del && s.selectedId) {
         const m = useMeasurements.getState().rows.find((r) => r.id === s.selectedId);
-        if (m) {
+        // Delete only while changing things is on, and only what this person may change; held keys don't repeat.
+        if (!m || repeatBlocked(e) || !mayEdit(m)) handled = !!m;
+        else {
           s.setLastDeleted(m);
           s.select(null);
           void useMeasurements.getState().remove(m.id);
@@ -135,6 +202,9 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
         e.stopPropagation();
       }
     };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
@@ -177,12 +247,6 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
     };
   }, [active, sheet.id, sheet.width, sheet.height, viewport]);
 
-  const calibrate = () => {
-    if (!editing) useViewer.getState().setMode("edit");
-    ui.setActive(false);
-    useEditor.getState().setTool({ kind: "calibrate" });
-  };
-
   const colorFor = (label: string) => {
     const l = label.trim().toLowerCase();
     if (!l) return null;
@@ -191,22 +255,32 @@ export default function MeasureOverlay({ sheet, viewport, editing }: { sheet: Sh
   };
 
   const last = ui.lastDeleted;
+  const card = selected && !ui.panelOpen && !(ui.active && ui.draft.length) ? <MeasureEditCard key={selected.id} m={selected} sheet={sheet} recent={recent} locked={lockedWhy(selected)} sheetMode={phone} /> : null;
+  const panel = ui.panelOpen ? <MeasurementsPanel sheet={sheet} rows={rows} sheetMode={phone} /> : null;
   return (
     <>
       <span ref={anchor} className="hidden" />
-      <MeasureToolbar count={mine.length} recent={recent} hidden={toolKind !== "select"} colorFor={colorFor} />
-      {ui.active && !sheet.pxPerFt && (
-        <div className={bar} data-plan-ui data-testid="measure-calibrate">
-          <span className="min-w-0 truncate py-1">Calibrate this sheet first</span>
-          <button className="ml-1 flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-xs font-semibold hover:bg-brand-600" onClick={calibrate}>
-            <Crosshair className="h-3.5 w-3.5" /> Calibrate
-          </button>
-        </div>
+      <RailSlot side="left" order={20}>
+        <MeasureToolbar count={mine.length} recent={recent} hidden={toolKind !== "select"} phone={phone} colorFor={colorFor} />
+      </RailSlot>
+      <StatusSlot order={20}>
+        {ui.active && !sheet.pxPerFt && <CalibrateBar editing={editing} office={office} />}
+        {ui.active && !!sheet.pxPerFt && <DrawBar sheet={sheet} />}
+        {last && !ui.active && <UndoDelete name={last.label || KIND_NAMES[last.kind]} />}
+      </StatusSlot>
+      {phone ? (
+        (card || panel) && (
+          <StatusSlot order={80}>
+            {card}
+            {panel}
+          </StatusSlot>
+        )
+      ) : (
+        <>
+          {card}
+          {panel}
+        </>
       )}
-      {ui.active && !!sheet.pxPerFt && <DrawBar sheet={sheet} />}
-      {last && !ui.active && <UndoDelete name={last.label || KIND_NAMES[last.kind]} />}
-      {selected && !ui.panelOpen && !(ui.active && ui.draft.length) && <MeasureEditCard key={selected.id} m={selected} sheet={sheet} recent={recent} />}
-      {ui.panelOpen && <MeasurementsPanel sheet={sheet} rows={rows} />}
     </>
   );
 }
@@ -221,7 +295,7 @@ function UndoDelete({ name }: { name: string }) {
     <div className={bar} data-plan-ui>
       <span className="min-w-0 truncate py-1">Deleted {name}</span>
       <button
-        className="ml-1 flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2.5 text-xs font-semibold hover:bg-white/25"
+        className={`ml-1 ${barBtn}`}
         onClick={async () => {
           if (!last) return;
           useMeasureUi.getState().setLastDeleted(null);

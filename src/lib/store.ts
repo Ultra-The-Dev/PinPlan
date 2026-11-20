@@ -5,6 +5,7 @@ import { canEditJob, READ_ONLY_MESSAGE, ReadOnlyError } from "./canEdit";
 import { getCatalog, getProducts, getSettings, loadProject, newId, nowIso, put, type SyncTable } from "./db";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { nextLabel } from "./labels";
+import { claimPlanInput } from "./planOverlays";
 import { rotateSheetMeasurements } from "./measurements";
 import { markerCables } from "./products";
 import { toast } from "./toast";
@@ -35,8 +36,7 @@ export type Tool =
   | { kind: "stair" }
   | { kind: "wire" }
   | { kind: "closet"; closetKind: ClosetKind }
-  | { kind: "calibrate" }
-  | { kind: "measure" };
+  | { kind: "calibrate" };
 
 export type Selection = { table: "markers" | "runs" | "closets"; id: string } | null;
 
@@ -232,6 +232,8 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({ activeSheetId: id, selection: null });
   },
   setTool(tool) {
+    // A tool that takes plan taps closes Measure, Markups, Walk, the Link tool and a task drop (planOverlays.ts).
+    if (tool.kind !== "select") claimPlanInput("editor-tool");
     set({ tool, selection: tool.kind === "select" ? get().selection : null });
   },
   select(selection) {

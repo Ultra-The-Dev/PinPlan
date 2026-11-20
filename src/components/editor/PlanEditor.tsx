@@ -5,17 +5,8 @@ import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
 import { closetMeta, PANEL_KINDS } from "@/lib/catalog";
 import { MIN_CALIBRATION_PX, parseFeet, parseScale, polylineFt, polylinePx } from "@/lib/geometry";
-
-function formatFeetInches(ft: number) {
-  let f = Math.floor(ft);
-  let i = Math.round((ft - f) * 12);
-  if (i === 12) {
-    f += 1;
-    i = 0;
-  }
-  return `${f}'-${i}" (${ft.toFixed(1)} ft)`;
-}
 import { activeFilterCount, layerCounts } from "@/lib/planFilter";
+import { isLetterShortcut, letterShortcutsOn, modalOpen, planKeyBlocked, repeatBlocked } from "@/lib/planOverlays";
 import { PlanViewport } from "@/lib/planViewport";
 import { markerCables } from "@/lib/products";
 import { useEditor } from "@/lib/store";
@@ -28,6 +19,8 @@ import type { Layer as LayerId } from "@/lib/types";
 import { useViewer } from "@/lib/viewerStore";
 import Dialog, { type DialogField } from "../Dialog";
 import ScanPanel from "../ScanPanel";
+import SheetsTab from "../SheetsTab";
+import { useMeasureUi } from "../measure/measureUi";
 import Inspector from "./Inspector";
 import Palette from "./Palette";
 import PlanCanvas, { type CanvasHit } from "./PlanCanvas";
@@ -37,12 +30,13 @@ import ModeToggle from "./viewer/ModeToggle";
 import PlanToolbar from "./viewer/PlanToolbar";
 import SheetBrowser from "./viewer/SheetBrowser";
 import SheetPill from "./viewer/SheetPill";
+import ShortcutSheet from "./viewer/ShortcutSheet";
 import ZoomControls from "./viewer/ZoomControls";
+// Plan overlays register themselves (rails, measurements, progress, links, tasks, markups, revisions).
 import "./overlays";
+import { setPlanToolbarRow, StatusSlot, StatusSlotHost } from "./overlays/PlanRail";
+import { resetPlanUi } from "./overlays/planInputs";
 import { AI_ENABLED } from "@/lib/features";
-// Plan overlays (register themselves): saved measurements, sheet links.
-import "@/components/measure/registerOverlay";
-import "../sheetIndex/registerOverlay";
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -101,6 +95,11 @@ export default function PlanEditor() {
   const toolbarTop = planWidth >= 1000;
   const toolbarRow = !toolbarTop && planWidth < 760;
   useEffect(() => () => vp.destroy(), [vp]);
+  // The rails and the status slot stay above the toolbar when it has its own bottom row.
+  useEffect(() => setPlanToolbarRow(toolbarRow), [toolbarRow]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   // Viewer preferences (this device, this user): mode, minimap, layers & filters, per-sheet views, recent sheets.
   const role = useRole();
@@ -143,13 +142,24 @@ export default function PlanEditor() {
     };
   }, []);
 
-  // View only: no tool that changes the plan (measuring is fine).
+  // View only: no tool that changes the plan (measuring, in the left rail, is fine).
   useEffect(() => {
-    if (!editing && tool.kind !== "select" && tool.kind !== "measure") setTool({ kind: "select" });
+    if (!editing && tool.kind !== "select") setTool({ kind: "select" });
   }, [editing, tool.kind, setTool]);
 
   // Recently viewed, and build the neighbours' tiles in the background so stepping to them is instant.
   const projectId = st.project?.id;
+
+  // Walk, Measure, Markups (and any armed tool) don't follow to another job, nor stay on after leaving the plan. Not on
+  // the first mount: a task "Place on plan" from the Tasks tab arms the drop just before the plan opens.
+  const lastProject = useRef(projectId);
+  useEffect(() => {
+    if (lastProject.current !== projectId) {
+      lastProject.current = projectId;
+      resetPlanUi();
+    }
+  }, [projectId]);
+  useEffect(() => () => resetPlanUi(), []);
   useEffect(() => {
     if (!sheet || !projectId) return;
     useViewer.getState().markViewed(projectId, sheet.id);
@@ -164,15 +174,45 @@ export default function PlanEditor() {
     if (!activeSheetId && sheets[0]) setActiveSheet(sheets[0].id);
   }, [activeSheetId, sheets, setActiveSheet]);
 
-  // Keyboard shortcuts (laptop).
+  // The Manage sheets drawer: Esc closes it wherever focus is, unless a field or one of its own dialogs has the key.
+  useEffect(() => {
+    if (!manageOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const t = e.target instanceof Element ? e.target : null;
+      if (t?.closest("input,textarea,select,[contenteditable]")) return;
+      const inner = t?.closest("[role=dialog],[role=alertdialog]");
+      if (inner && inner.getAttribute("data-testid") !== "manage-sheets-drawer") return;
+      if (document.querySelectorAll("[aria-modal='true']").length > 1) return;
+      setManageOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [manageOpen]);
+
+  // Keyboard shortcuts (laptop). Never behind a dialog, while typing or on a focused button's Space / Enter
+  // (planKeyBlocked); E and Delete don't repeat while held; single keys can be switched off ("?").
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const v = useViewer.getState();
+      // Esc closes the viewer's own panels even with focus inside them (they are dialogs).
+      if (e.key === "Escape" && (v.browserOpen || v.layersOpen) && !manageOpen && !modalOpen()) {
+        viewer.setBrowserOpen(false);
+        viewer.setLayersOpen(false);
+        return;
+      }
+      if (pending || keysOpen || manageOpen || planKeyBlocked(e) || repeatBlocked(e)) return;
       const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
       const k = e.key.toLowerCase();
+      if (plain && e.key === "?") {
+        e.preventDefault();
+        setKeysOpen(true);
+        return;
+      }
+      if (isLetterShortcut(e) && !letterShortcutsOn()) return;
       if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "0")) {
-        // ⌘+ / ⌘− / ⌘0 zoom the plan, not the page.
+        // ⌘+ / ⌘− / ⌘0 zoom the plan, not the page — only while focus is in the plan editor.
+        if (!rootRef.current?.contains(document.activeElement)) return;
         e.preventDefault();
         if (e.key === "0") vp.fit();
         else vp.zoomBy(e.key === "-" ? 1 / 1.5 : 1.5);
@@ -185,10 +225,7 @@ export default function PlanEditor() {
         e.preventDefault();
         if (editing) redo();
       } else if (e.key === "Escape") {
-        if (useViewer.getState().browserOpen || useViewer.getState().layersOpen) {
-          viewer.setBrowserOpen(false);
-          viewer.setLayersOpen(false);
-        } else if (draft.length) setDraft([]);
+        if (draft.length) setDraft([]);
         else if (tool.kind !== "select") setTool({ kind: "select" });
         else if (fullscreen) toggleFullscreen(false);
       } else if (plain && (e.key === "+" || e.key === "=")) {
@@ -219,10 +256,13 @@ export default function PlanEditor() {
       } else if (plain && k === "f") {
         setFitKey((n) => n + 1);
       } else if (plain && k === "m") {
-        setTool({ kind: "measure" });
+        // One Measure: the saved measurements tool in the left rail.
+        const m = useMeasureUi.getState();
+        m.setActive(!m.active);
       } else if (plain && k === "l") {
         setShowLabels((v) => !v);
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" && (tool.kind === "led" || tool.kind === "wire")) {
+        e.preventDefault();
         finishDraft();
       } else if (editing && (e.key === "Delete" || e.key === "Backspace") && useEditor.getState().selection) {
         e.preventDefault();
@@ -280,16 +320,6 @@ export default function PlanEditor() {
           return;
         }
         setDraft((d) => [...d, px, py]);
-        break;
-      }
-      case "measure": {
-        const pts = draft.length >= 4 ? [x, y] : [...draft, x, y];
-        setDraft(pts);
-        if (pts.length === 4) {
-          const ft = polylineFt(pts, sheet);
-          if (ft == null) toast("Set the sheet scale to measure distances", "info");
-          else toast(`Distance: ${formatFeetInches(ft)}`, "info");
-        }
         break;
       }
       case "stair":
@@ -442,13 +472,7 @@ export default function PlanEditor() {
               ? "Tap the bottom and top of the stair"
               : tool.kind === "calibrate"
                 ? "Tap both ends of a known dimension"
-                : tool.kind === "measure"
-                  ? draft.length === 4 && polylineFt(draft, sheet) != null
-                    ? `${formatFeetInches(polylineFt(draft, sheet)!)} · tap to measure again`
-                    : sheet.pxPerFt
-                      ? "Tap two points to measure"
-                      : "Set the scale first to measure"
-                  : null;
+                : null;
 
   const floorCounts = floor ? Object.entries(floor.counts) : [];
   const q = find.trim().toLowerCase();
@@ -492,8 +516,7 @@ export default function PlanEditor() {
       onRedo={redo}
       onSelectTool={() => setTool({ kind: "select" })}
       scaleSet={!!sheet.pxPerFt}
-      onScale={() => setPending({ kind: "scale" })}
-      onMeasure={() => setTool(tool.kind === "measure" ? { kind: "select" } : { kind: "measure" })}
+      onScale={role === "tech" ? null : () => setPending({ kind: "scale" })}
       layersBadge={layersBadge}
       layersOpen={layersOpen}
       onLayers={() => setLayersOpen((o) => !o)}
@@ -508,12 +531,13 @@ export default function PlanEditor() {
       ai={AI_ENABLED ? { open: panel === "scan" && !selection, onClick: () => setPanel(panel === "scan" ? null : "scan") } : null}
       fullscreen={fullscreen}
       onFullscreen={() => toggleFullscreen()}
+      compact={phone}
     />
   );
   const showPalette = editing && paletteOpen;
 
   return (
-    <div className={`flex bg-slate-100 ${fullscreen ? "fixed inset-0 z-[60]" : "relative h-full"}`} data-testid="plan-editor" data-mode={mode}>
+    <div ref={rootRef} className={`flex bg-slate-100 ${fullscreen ? "fixed inset-0 z-[60]" : "relative h-full"}`} data-testid="plan-editor" data-mode={mode}>
       {/* Device menu (edit mode) */}
       {!wide && showPalette && <div className="absolute inset-0 z-20 bg-slate-900/20" onClick={() => setPaletteOpen(false)} />}
       <aside
@@ -525,7 +549,16 @@ export default function PlanEditor() {
         <div className="h-full w-64">{editing && <Palette />}</div>
       </aside>
 
-      <div ref={planRef} className="relative min-w-0 flex-1" data-testid="plan-view">
+      <div
+        ref={planRef}
+        className="relative min-w-0 flex-1 outline-none"
+        tabIndex={-1}
+        // Pressing the plan gives it focus, so ⌘+ / ⌘− zoom the plan (not the page) and stray keys stay with the editor.
+        onPointerDown={(e) => {
+          if (!(e.target as HTMLElement).closest("input,textarea,select,button,a,[contenteditable]")) e.currentTarget.focus({ preventScroll: true });
+        }}
+        data-testid="plan-view"
+      >
         <PlanCanvas
           sheet={sheet}
           draft={draft}
@@ -564,8 +597,11 @@ export default function PlanEditor() {
           </div>
         </div>
 
+        {/* What a tap does now, and the drawing controls: the status slot (bottom centre, above the bottom controls). */}
+        <StatusSlotHost />
+        <StatusSlot order={10}>
         {hint && (
-          <div className="absolute top-[64px] left-1/2 z-10 flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur sm:top-[72px]" data-plan-ui>
+          <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl bg-ink/90 py-1 pr-1 pl-3.5 text-[13px] whitespace-nowrap text-white shadow-pop backdrop-blur" data-plan-ui data-testid="plan-hint">
             <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-400" />
             <span className="min-w-0 truncate py-1">{hint}</span>
             {tool.kind !== "select" && !drawing ? (
@@ -578,7 +614,7 @@ export default function PlanEditor() {
           </div>
         )}
         {drawing && (
-          <div className="absolute top-[112px] left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur sm:top-[120px]" data-plan-ui>
+          <div className="pointer-events-auto mt-2 flex max-w-full gap-1.5 rounded-xl bg-white/95 p-1 shadow-pop ring-1 ring-slate-200 backdrop-blur" data-plan-ui data-testid="plan-draw-bar">
             <button className="btn btn-sm btn-ghost" onClick={() => setDraft((d) => d.slice(0, -2))} disabled={!draft.length}>
               <Undo2 /> Point
             </button>
@@ -592,6 +628,7 @@ export default function PlanEditor() {
             </button>
           </div>
         )}
+        </StatusSlot>
 
         {/* Bottom: minimap and the device menu button on the left, zoom on the right; the toolbar between them or below when the plan area is narrow. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
@@ -625,6 +662,15 @@ export default function PlanEditor() {
               viewer.setBrowserOpen(false);
             }}
             onClose={() => viewer.setBrowserOpen(false)}
+            onManage={
+              role === "tech"
+                ? undefined
+                : () => {
+                    // Under the Sheets screen's own full-screen dialogs (z-50), so not over a full-screen plan.
+                    if (fullscreen) toggleFullscreen(false);
+                    setManageOpen(true);
+                  }
+            }
           />
         )}
         {layersOpen && (
@@ -755,6 +801,36 @@ export default function PlanEditor() {
             )
           )}
         </aside>
+      )}
+
+      {keysOpen && <ShortcutSheet onClose={() => setKeysOpen(false)} />}
+      {manageOpen && (
+        // The job's Sheets screen as a drawer over the plan: upload, rename, reorder, set scales; open a sheet to close.
+        <div className="fixed inset-0 z-[45] flex justify-end bg-slate-900/25" onClick={() => setManageOpen(false)} data-plan-ui>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Manage sheets"
+            className="animate-in flex h-full w-full max-w-3xl flex-col bg-slate-50 shadow-pop"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="manage-sheets-drawer"
+          >
+            <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">
+              <h2 className="flex-1 text-base font-semibold">Manage sheets</h2>
+              <button className="btn btn-sm btn-icon btn-ghost" onClick={() => setManageOpen(false)} aria-label="Close">
+                <X />
+              </button>
+            </div>
+            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+              <SheetsTab
+                onOpenSheet={() => {
+                  setManageOpen(false);
+                  viewer.setBrowserOpen(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {dialog && (

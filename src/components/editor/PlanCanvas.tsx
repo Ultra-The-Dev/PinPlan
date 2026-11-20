@@ -5,6 +5,7 @@
 import Konva from "konva";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Circle, Layer, Line, Rect, Stage } from "react-konva";
+import { DRAFT, DRAFT_DASH } from "@/lib/canvasColors";
 import { closetMeta } from "@/lib/catalog";
 import { AI_ENABLED } from "@/lib/features";
 import { DEFAULT_FILTERS, closetVisibility, markerVisibility, runVisibility, type PlanFilters, type Visibility } from "@/lib/planFilter";
@@ -288,7 +289,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
       for (const o of liveOverlays(ctx)) if (o.onTap?.(ev, ctx)) return;
       const st = useEditor.getState();
       // View only allows measuring, nothing that changes the plan.
-      if (st.tool.kind === "select" || (!editing && st.tool.kind !== "measure")) {
+      if (st.tool.kind === "select" || !editing) {
         const h = info.hit;
         if (h?.kind === "marker") {
           if (info.shiftKey || info.metaKey || info.ctrlKey || st.multiMode) st.toggleMulti(h.id);
@@ -448,9 +449,9 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
           <MarkersShape items={view.items} viewport={vp} showLabels={showLabels} drag={markerDrag} />
           {draft.length >= 2 && (
             <>
-              <Line points={toPx(draft)} stroke="#f59e0b" strokeWidth={3} strokeScaleEnabled={false} dash={[8, 6]} listening={false} />
+              <Line points={toPx(draft)} stroke={DRAFT} strokeWidth={3} strokeScaleEnabled={false} dash={DRAFT_DASH} listening={false} />
               {Array.from({ length: draft.length / 2 }, (_, i) => (
-                <Circle key={i} name={CONSTANT_SIZE} x={draft[i * 2] * W} y={draft[i * 2 + 1] * H} radius={5} fill="#f59e0b" listening={false} />
+                <Circle key={i} name={CONSTANT_SIZE} x={draft[i * 2] * W} y={draft[i * 2 + 1] * H} radius={5} fill={DRAFT} listening={false} />
               ))}
             </>
           )}

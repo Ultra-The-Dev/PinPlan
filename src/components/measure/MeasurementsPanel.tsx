@@ -67,7 +67,8 @@ function AddToEstimate({ row, onDone }: { row: SummaryRow; onDone: () => void })
   );
 }
 
-export default function MeasurementsPanel({ sheet, rows }: { sheet: Sheet; rows: Measurement[] }) {
+/** Totals panel: beside the right rail on sm+, a bottom sheet on phones (`sheetMode`, in the status slot). */
+export default function MeasurementsPanel({ sheet, rows, sheetMode }: { sheet: Sheet; rows: Measurement[]; sheetMode?: boolean }) {
   const ui = useMeasureUi();
   const sheets = useEditor((s) => s.sheets);
   const project = useEditor((s) => s.project);
@@ -99,8 +100,11 @@ export default function MeasurementsPanel({ sheet, rows }: { sheet: Sheet; rows:
 
   return (
     <div
-      className="animate-in pointer-events-auto absolute inset-x-2 bottom-2 z-[12] flex max-h-[75%] flex-col rounded-2xl bg-white shadow-pop ring-1 ring-black/5 sm:inset-x-auto sm:top-[170px] sm:right-3 sm:bottom-[72px] sm:max-h-none sm:w-[22rem]"
+      className={`animate-in pointer-events-auto flex flex-col bg-white shadow-pop ring-1 ring-black/5 ${
+        sheetMode ? "max-h-[65dvh] w-full rounded-t-2xl pb-[env(safe-area-inset-bottom)]" : "absolute top-[128px] right-16 bottom-[132px] z-[12] w-[22rem] max-w-[calc(100%-5rem)] rounded-2xl"
+      }`}
       data-plan-ui
+      data-plan-sheet={sheetMode ? "" : undefined}
       data-testid="measure-panel"
     >
       <div className="flex items-center gap-2 border-b border-slate-100 p-3">

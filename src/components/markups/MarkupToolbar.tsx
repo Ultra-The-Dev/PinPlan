@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { createPortal } from "react-dom";
 import { canEditMarkup, canSeeMarkup, KIND_NAMES, layerNames, MARKUP_COLORS, PRIVATE_COLOR, STROKE_SIZES, type StrokeSize } from "@/lib/markups";
 import { newId } from "@/lib/db";
+import { letterShortcutsOn, planKeyBlocked, repeatBlocked } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
 import { useRole } from "@/lib/team";
@@ -126,9 +127,8 @@ export default function MarkupToolbar({ sheet }: { sheet: Sheet }) {
   useEffect(() => {
     keyRef.current = (e: KeyboardEvent) => {
       const s = useMarkups.getState();
-      if (!s.open) return;
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // Never behind a dialog, while typing or on a focused button's Space / Enter.
+      if (!s.open || planKeyBlocked(e)) return;
       const mod = e.metaKey || e.ctrlKey;
       const stop = () => {
         e.preventDefault();
@@ -148,9 +148,11 @@ export default function MarkupToolbar({ sheet }: { sheet: Sheet }) {
         else s.setOpen(false);
       } else if ((e.key === "Delete" || e.key === "Backspace") && s.selectedId) {
         stop();
+        if (repeatBlocked(e)) return;
         const m = s.items.find((x) => x.id === s.selectedId);
         if (m && canEditMarkup(role, m, userId)) void s.remove(m.id);
-      } else if (!mod && !e.altKey) {
+      } else if (!mod && !e.altKey && !e.shiftKey && letterShortcutsOn()) {
+        // Shift+letter belongs to others (Shift+T drops a task), and letters can be switched off ("?").
         const t = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
         if (t) {
           stop();
@@ -203,16 +205,6 @@ export default function MarkupToolbar({ sheet }: { sheet: Sheet }) {
         </button>
         <button className={`${iconBtn} ${fly === "layers" ? "bg-slate-100" : ""}`} onClick={() => setFly(fly === "layers" ? null : "layers")} title={`Layer: ${layer}`} aria-label="Layers">
           <Layers className="h-5 w-5" />
-        </button>
-        <button
-          className={`${iconBtn} ${anyHidden ? "bg-red-50 text-red-600 hover:bg-red-100" : ""}`}
-          onClick={() => useMarkups.getState().setAllHidden(!anyHidden ? true : false)}
-          title={anyHidden ? "Some markups are hidden: show all" : "Hide all markups"}
-          aria-label={anyHidden ? "Show all markups" : "Hide all markups"}
-          data-testid="markups-eye"
-          data-hidden={anyHidden ? "1" : "0"}
-        >
-          {anyHidden ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
         </button>
         <button className={`${iconBtn} ${listOpen ? "bg-slate-100" : ""}`} onClick={() => useMarkups.getState().set({ listOpen: !listOpen })} title="Markup list" aria-label="Markup list">
           <List className="h-5 w-5" />

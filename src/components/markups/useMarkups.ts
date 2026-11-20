@@ -6,6 +6,7 @@ import { create } from "zustand";
 import { db, newId, nowIso, put } from "@/lib/db";
 import { DEFAULT_LAYERS, PRIVATE_COLOR, rotateMarkupCW, STROKE_SIZES, type StrokeSize } from "@/lib/markups";
 import { getAuthor } from "@/lib/photos";
+import { claimPlanInput } from "@/lib/planOverlays";
 import { SYNCED_EVENT, useSyncStatus } from "@/lib/sync";
 import type { MarkupKind, PlanMarkup } from "@/lib/types";
 
@@ -137,9 +138,12 @@ export const useMarkups = create<MarkupState>((set, get) => {
       });
     },
     setOpen(open) {
+      // Open markups take the plan's taps: Measure, Walk, the Link tool, a task drop and device tools close.
+      if (open) claimPlanInput("markups");
       set({ open, tool: "select", selectedId: null, details: null, textDraft: null, listOpen: open ? get().listOpen : false });
     },
     setTool(tool) {
+      if (!get().open) claimPlanInput("markups");
       set({ tool, open: true, selectedId: tool === "select" ? get().selectedId : null, details: null });
     },
     setColor(color) {

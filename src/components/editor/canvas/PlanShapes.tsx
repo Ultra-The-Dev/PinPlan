@@ -4,6 +4,7 @@
 // and drags are handled by planGestures + planHit.
 import { Circle, Group, Line, Rect, Text } from "react-konva";
 import { categoryOf, closetMeta } from "@/lib/catalog";
+import { HANDLE_FILL, HANDLE_STROKE, SELECT_HALO, SELECT_HALO_OPACITY, SELECT_INK } from "@/lib/canvasColors";
 import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "@/lib/geometry";
 import { CONSTANT_SIZE } from "@/lib/planViewport";
 import { cableSummary, runCables } from "@/lib/products";
@@ -41,7 +42,12 @@ export function RunShape(props: {
   const opacity = props.dim ? 0.2 : r.tentative ? 0.5 : 0.95;
   return (
     <Group listening={false}>
-      {props.selected && <Line points={pts} stroke="#ea580c" strokeWidth={width + 8} strokeScaleEnabled={false} opacity={0.35} lineCap="round" lineJoin="round" perfectDrawEnabled={false} />}
+      {props.selected && (
+        <>
+          <Line points={pts} stroke={SELECT_HALO} strokeWidth={width + 10} strokeScaleEnabled={false} opacity={SELECT_HALO_OPACITY} lineCap="round" lineJoin="round" perfectDrawEnabled={false} />
+          <Line points={pts} stroke={SELECT_INK} strokeWidth={width + 3} strokeScaleEnabled={false} lineCap="round" lineJoin="round" perfectDrawEnabled={false} />
+        </>
+      )}
       {strands?.map((s, k) => (
         <Line key={k} points={s.pts} stroke={s.color} strokeWidth={2.2} strokeScaleEnabled={false} dash={[6, 4]} opacity={opacity} lineCap="round" lineJoin="round" perfectDrawEnabled={false} />
       ))}
@@ -66,7 +72,7 @@ export function RunShape(props: {
       )}
       {props.handles &&
         Array.from({ length: pts.length / 2 }, (_, i) => (
-          <Circle key={i} id={`handle-${r.id}-${i}`} name={CONSTANT_SIZE} x={pts[i * 2]} y={pts[i * 2 + 1]} radius={8} fill="#fff" stroke="#ea580c" strokeWidth={2} />
+          <Circle key={i} id={`handle-${r.id}-${i}`} name={CONSTANT_SIZE} x={pts[i * 2]} y={pts[i * 2 + 1]} radius={8} fill={HANDLE_FILL} stroke={HANDLE_STROKE} strokeWidth={2} />
         ))}
     </Group>
   );
@@ -78,7 +84,12 @@ export function ClosetShape(props: { closet: Closet; W: number; H: number; selec
   const s = 18;
   return (
     <Group id={`closet-${c.id}`} name={CONSTANT_SIZE} x={c.x * W} y={c.y * H} listening={false}>
-      {props.selected && <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke="#ea580c" strokeWidth={3} cornerRadius={8} />}
+      {props.selected && (
+        <>
+          <Rect x={-s - 7} y={-s - 7} width={2 * s + 14} height={2 * s + 14} stroke={SELECT_HALO} strokeWidth={6} opacity={SELECT_HALO_OPACITY} cornerRadius={9} />
+          <Rect x={-s - 6} y={-s - 6} width={2 * s + 12} height={2 * s + 12} stroke={SELECT_INK} strokeWidth={2} cornerRadius={8} />
+        </>
+      )}
       <Rect x={-s} y={-s} width={2 * s} height={2 * s} cornerRadius={6} fill={meta.color} shadowColor="#000" shadowOpacity={0.3} shadowBlur={4} />
       <Text text={meta.abbrev} width={2 * s} height={2 * s} offsetX={s} offsetY={s} align="center" verticalAlign="middle" fontStyle="bold" fontSize={meta.abbrev.length > 3 ? 10 : 13} fill="#fff" />
       <Text text={c.name} y={s + 3} width={140} offsetX={70} align="center" fontSize={11} fontStyle="bold" fill={meta.color} />
