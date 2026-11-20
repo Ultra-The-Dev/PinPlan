@@ -79,7 +79,10 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <LanguageSwitcher className="mr-2 hidden lg:inline-flex" showIcon={false} />
+          {/* Phones: the switcher lives in the menu and the footer, so the header keeps room for the trial button. */}
+          <span className="mr-2 hidden lg:inline-flex">
+            <LanguageSwitcher showIcon={false} />
+          </span>
           {s.authReady && s.signedIn ? (
             <Link href="/" className="mk-btn mk-btn-ink mk-btn-sm">
               {t("Open the app")}
