@@ -84,13 +84,22 @@ from the published `PlanViewport`, so symbols and labels stay a constant size on
 | Double-tap | Zoom in 2.5× at that point; at the closest zoom, back to the whole sheet (off while placing so taps are instant) |
 | Two-finger tap | Zoom out |
 | Tap | View mode: show the device/closet/run card. Edit mode: select, or place/draw with the current tool |
-| Press and hold a device (Edit) | Pick it up (haptic) and drag; let go without moving for quick actions |
+| Press and hold a device (Edit) | Pick it up (haptic) and drag; let go without moving for quick actions. The hold reaches a little further than a tap (`PlanMarkerMetrics.liftRadius`), so a finger covering the symbol still grabs it |
 | Swipe in from a side edge while the sheet is at that edge | Previous / next sheet |
 | Scale line / measure | One finger aims with a loupe; two fingers pan and zoom |
 | Apple Pencil (option in Tools on iPad) | Pencil places and draws, fingers only pan |
+| Apple Pencil double-tap / squeeze (Edit) | Back to select from the current tool, or from select to the last tool (follows the Pencil setting; squeeze only when set to switch tools) |
+| Apple Pencil hover / pointer while placing | A faint preview of the device where it would land |
+| Shake (iPhone), three-finger swipe left / right | Undo / redo in Edit mode (`EditorUndoManager` forwards the system's undo to the editor's history once the plan has been touched) |
 
-Keyboard (iPad): `E` View/Edit, `B` sheet browser, `[` `]` previous/next sheet, `⌘=` `⌘-` zoom, `F` fit, `L` labels,
-`M` measure, `Esc`, `Delete`.
+Haptics: light on place and drop, firm on delete, soft on undo / redo, selection tick on select and sheet change.
+
+Keyboard (iPad, or iPhone with a keyboard): `⌘Z` / `⇧⌘Z` undo / redo (also in full screen), `E` View/Edit, `B` sheet
+browser, `[` `]` previous/next sheet, `⌘=` `⌘-` zoom, `F` fit, `L` labels, `M` measure, `Esc`, `Delete`, arrows move
+the selected device or closet 2 pt (`⇧` 12 pt, `PlanNudge`).
+
+Narrow regular-width windows (iPad mini portrait, Split View, Stage Manager): when the device palette and a right-hand
+panel would leave the plan less than 400 pt, the right-hand panel takes the palette's place while it is open.
 
 ## Drawing on the plan: overlays
 

@@ -25,6 +25,10 @@ struct PlanCanvasView: View {
     @State private var quickMarker: String?
     @State private var edgeHint: EdgeHint?
     @State private var imageOnDevice = true
+    /// Where Apple Pencil (or the pointer) hovers while placing: a faint preview of the device that would land there.
+    @State private var hoverPoint: CGPoint?
+    /// Shake to undo and the three-finger undo gestures, forwarded to the editor's history (Edit mode only).
+    @State private var systemUndo = EditorUndoManager()
 
     struct Lifted: Equatable {
         enum Kind: Equatable { case marker, closet }
@@ -69,6 +73,10 @@ struct PlanCanvasView: View {
                     QuickActionsBar(model: model, marker: m) { quickMarker = nil }
                 }
             }
+            if let hoverPoint, editing, case .place(let typeId) = model.tool, controller.viewport.isOnSheet(PlanPoint(hoverPoint)) {
+                PlacementGhost(type: app.type(typeId), point: hoverPoint,
+                               size: CGFloat(PlanMarkerMetrics.symbolSize(zoom: controller.viewport.zoom, fitZoom: controller.limits.lowerBound)))
+            }
             if let aim, precisionMode, let image = app.store.image(sheet.imageId) {
                 Loupe(image: image, point: aim, viewport: controller.viewport)
             }
@@ -80,8 +88,9 @@ struct PlanCanvasView: View {
         .task(id: sheet.imageId) { await waitForImage() }
         .onChange(of: model.fitRequest) { _, _ in controller.fit() }
         .onChange(of: model.focus) { _, f in applyFocus(f) }
-        .onChange(of: model.tool) { _, _ in quickMarker = nil }
-        .onChange(of: model.viewerMode) { _, _ in quickMarker = nil }
+        .onChange(of: model.tool) { _, _ in quickMarker = nil; hoverPoint = nil }
+        .onChange(of: model.viewerMode) { _, _ in quickMarker = nil; hoverPoint = nil }
+        .onAppear { systemUndo.model = model }
     }
 
     /// The sheet image may still be on its way from cloud sync: check again every couple of seconds.
@@ -134,6 +143,12 @@ struct PlanCanvasView: View {
         h.settled = { v in
             if v.isReady { ViewerPrefs.saveViewState(PlanViewState(v), sheetId: sheet.id) }
         }
+        h.hover = { p in
+            // Only while placing (a redraw per pointer move otherwise buys nothing).
+            if case .place = model.tool, editing { hoverPoint = p } else if hoverPoint != nil { hoverPoint = nil }
+        }
+        h.pencilAction = { model.switchToLastTool() }
+        h.undoManager = editing ? systemUndo : nil
         return h
     }
 
@@ -165,10 +180,12 @@ struct PlanCanvasView: View {
 
     // MARK: hit testing
 
-    private func nearestMarker(_ loc: CGPoint) -> Marker? {
+    /// The device nearest to a touch, within reach of it: a tap's reach, or a press-and-hold's (`lift`), which is a
+    /// little wider so a finger covering the symbol still picks it up.
+    private func nearestMarker(_ loc: CGPoint, lift: Bool = false) -> Marker? {
         let v = controller.viewport
         let size = PlanMarkerMetrics.symbolSize(zoom: v.zoom, fitZoom: controller.limits.lowerBound)
-        let tol = CGFloat(PlanMarkerMetrics.hitRadius(symbolSize: size))
+        let tol = CGFloat(lift ? PlanMarkerMetrics.liftRadius(symbolSize: size) : PlanMarkerMetrics.hitRadius(symbolSize: size))
         var best: (Marker, CGFloat)?
         for m in model.visibleMarkers(on: sheet.id, types: model.typesById) {
             let p = v.point(m.x, m.y)
@@ -247,7 +264,7 @@ struct PlanCanvasView: View {
     private func liftTarget(at loc: CGPoint) -> Lifted? {
         guard editing, model.tool == .select else { return nil }
         let v = controller.viewport
-        if let m = nearestMarker(loc) {
+        if let m = nearestMarker(loc, lift: true) {
             let p = v.point(m.x, m.y)
             return Lifted(id: m.id, kind: .marker, grab: CGSize(width: p.x - loc.x, height: p.y - loc.y))
         }
@@ -376,7 +393,7 @@ private struct QuickActionsBar: View {
     private func button(_ title: String, _ icon: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
         Button(role: role) {
             action()
-            Haptics.tap()
+            if role == .destructive { Haptics.remove() } else { Haptics.tap() }
             onDone()
         } label: {
             VStack(spacing: 2) {
@@ -388,6 +405,7 @@ private struct QuickActionsBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
     }
 }
 
@@ -430,6 +448,22 @@ extension MarkerAccessibilityLayer {
         if photos { parts.append(String(localized: "has photos")) }
         if model.isSelected(m.id) { parts.append("selected") }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// Apple Pencil hover (or the pointer) while placing: the device that a tap would drop there, faint, so the nib's
+/// landing spot is visible before it touches the glass.
+private struct PlacementGhost: View {
+    let type: DeviceType?
+    let point: CGPoint
+    let size: CGFloat
+
+    var body: some View {
+        DeviceSymbol(type: type, size: size)
+            .opacity(0.45)
+            .position(point)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

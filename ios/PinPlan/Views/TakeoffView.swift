@@ -28,6 +28,11 @@ struct TakeoffView: View {
                         HStack { exportButtons }
                         countedNote
                     }
+                    // iPhone SE, long languages, large text: one button per line, never cut off.
+                    VStack(alignment: .leading, spacing: 8) {
+                        exportButtons
+                        countedNote
+                    }
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                     StatTile(label: String(localized: "Cameras"), value: "\(tot.count(["cam-indoor", "cam-outdoor"]))", sub: String(localized: "\(tot.counts["cam-outdoor"] ?? 0) outdoor"))
@@ -100,6 +105,8 @@ struct TakeoffView: View {
                                 Spacer()
                                 Text(model.sheets.first { $0.id == m.sheetId }?.name ?? "").font(.caption).foregroundStyle(.secondary)
                             }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                         }
                     }
                 }

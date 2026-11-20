@@ -37,10 +37,15 @@ enum Haptics {
     private static let light = UIImpactFeedbackGenerator(style: .light)
     private static let medium = UIImpactFeedbackGenerator(style: .medium)
     private static let soft = UIImpactFeedbackGenerator(style: .soft)
+    private static let rigid = UIImpactFeedbackGenerator(style: .rigid)
     private static let selection = UISelectionFeedbackGenerator()
 
     /// A device placed, an item dropped after a drag.
     static func tap() { light.impactOccurred() }
+    /// Something deleted from the plan (a firmer knock than placing, so the two never feel alike).
+    static func remove() { rigid.impactOccurred(intensity: 0.8) }
+    /// A step undone or redone.
+    static func undo() { soft.impactOccurred() }
     /// An item picked up for dragging.
     static func lift() { medium.impactOccurred() }
     /// Sheet changed, mode switched, something selected.
@@ -96,6 +101,15 @@ extension View {
             Color.clear
                 .onAppear { onChange(g.size.height) }
                 .onChange(of: g.size.height) { _, h in onChange(h) }
+        })
+    }
+
+    /// Reports this view's width as laid out (on appear and whenever it changes).
+    func measureWidth(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+        background(GeometryReader { g in
+            Color.clear
+                .onAppear { onChange(g.size.width) }
+                .onChange(of: g.size.width) { _, w in onChange(w) }
         })
     }
 

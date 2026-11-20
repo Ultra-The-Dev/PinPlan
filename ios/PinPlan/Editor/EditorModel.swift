@@ -102,6 +102,8 @@ final class EditorModel {
 
     private var past: [ProjectBundle] = []
     private var future: [ProjectBundle] = []
+    /// The last placing or drawing tool, for Apple Pencil's double-tap / squeeze (`switchToLastTool`).
+    @ObservationIgnored private var lastDrawingTool: Tool?
 
     init(bundle: ProjectBundle, app: AppModel) {
         self.bundle = bundle
@@ -126,6 +128,7 @@ final class EditorModel {
         // Picking a tool (palette, plan reader…) means editing.
         if t != .select && viewerMode == .view { viewerMode = .edit }
         guard t != tool else { return }
+        if tool != .select { lastDrawingTool = tool }
         tool = t
         draft = []
         draftMarkerId = nil
@@ -219,6 +222,7 @@ final class EditorModel {
         bundle = prev
         selection = nil
         persist()
+        Haptics.undo()
     }
 
     func redo() {
@@ -226,6 +230,7 @@ final class EditorModel {
         past.append(bundle)
         bundle = next
         persist()
+        Haptics.undo()
     }
 
     private func persist() {
@@ -266,7 +271,7 @@ final class EditorModel {
             // No room typed in? Use the room name printed on the plan where the device lands.
             let r = room.isEmpty ? (PlanReader.room(atX: x, y: y, details: planDetails[sheet.id] ?? []) ?? "") : room
             if edit({ $0.addMarker(type: t, sheetId: sheet.id, x: x, y: y, room: r) }) {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Haptics.tap()
             }
         case .closet(let kind):
             var newId = ""
@@ -362,7 +367,7 @@ final class EditorModel {
     }
 
     func bulkDelete(_ ids: [String]) {
-        edit { b in for id in ids { b.deleteMarker(id) } }
+        if edit({ b in for id in ids { b.deleteMarker(id) } }) { Haptics.remove() }
         clearSelection()
     }
 
@@ -412,14 +417,49 @@ final class EditorModel {
 
     func deleteSelection() {
         guard let s = selection else { return }
-        edit { b in
+        let removed = edit { b in
             switch s {
             case .marker(let id): b.deleteMarker(id)
             case .run(let id): b.deleteRun(id)
             case .closet(let id): b.deleteCloset(id)
             }
         }
+        if removed { Haptics.remove() }
         selection = nil
+    }
+
+    /// Apple Pencil double-tap / squeeze: back to select from a placing or drawing tool, or from select to the last
+    /// one used (like switching to the eraser and back in a drawing app). Edit mode only.
+    func switchToLastTool() {
+        guard viewerMode == .edit else { return }
+        if tool != .select {
+            use(.select)
+        } else if let t = lastDrawingTool {
+            use(t)
+        } else {
+            return
+        }
+        Haptics.select()
+    }
+
+    /// Arrow keys on a hardware keyboard: move the selected device or closet by `dx`/`dy` screen points at the
+    /// current `zoom` (one undo step per press).
+    func nudgeSelection(dx: Double, dy: Double, zoom: Double) {
+        guard viewerMode == .edit, let s = selection, let sheet = activeSheet else { return }
+        let o = PlanNudge.offset(dx: dx, dy: dy, zoom: zoom, sheet: sheet.planSize)
+        let pr = self.pricing
+        switch s {
+        case .marker(let id):
+            guard let m = bundle.liveMarkers.first(where: { $0.id == id }) else { return }
+            let p = PlanNudge.moved(PlanPoint(x: m.x, y: m.y), by: o)
+            edit { $0.updateMarker(id, pricing: pr) { $0.x = p.x; $0.y = p.y } }
+        case .closet(let id):
+            guard let c = bundle.liveClosets.first(where: { $0.id == id }) else { return }
+            let p = PlanNudge.moved(PlanPoint(x: c.x, y: c.y), by: o)
+            edit { $0.updateCloset(id, pricing: pr) { $0.x = p.x; $0.y = p.y } }
+        case .run:
+            return
+        }
     }
 
     func autoHomeRuns(sheetOnly: Bool) {

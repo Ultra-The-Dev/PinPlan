@@ -168,6 +168,28 @@ final class PlanTilesTests: XCTestCase {
         XCTAssertEqual(PlanMarkerMetrics.hitRadius(symbolSize: 18), 22)
     }
 
+    func testLiftReachesFurtherThanATapAndFurtherThanTheSymbol() {
+        for size in [18.0, 24, 30] {
+            XCTAssertGreaterThan(PlanMarkerMetrics.liftRadius(symbolSize: size), PlanMarkerMetrics.hitRadius(symbolSize: size))
+            XCTAssertGreaterThan(PlanMarkerMetrics.liftRadius(symbolSize: size), size / 2)
+            // A 44 pt touch target at least (radius 22) — the lift reaches past it.
+            XCTAssertGreaterThanOrEqual(PlanMarkerMetrics.liftRadius(symbolSize: size), 28)
+        }
+    }
+
+    func testNudgeIsAFixedScreenDistanceAndStaysOnTheSheet() {
+        // 4000 × 2000 px sheet at 0.25 pt/px: 2 pt = 8 px = 0.002 of the width, 0.004 of the height.
+        let sheet = PlanSize(width: 4000, height: 2000)
+        let o = PlanNudge.offset(dx: PlanNudge.step, dy: -PlanNudge.step, zoom: 0.25, sheet: sheet)
+        XCTAssertEqual(o.x, 0.002, accuracy: 1e-12)
+        XCTAssertEqual(o.y, -0.004, accuracy: 1e-12)
+        // Zoomed in 4×, the same press moves a quarter as far on the sheet.
+        XCTAssertEqual(PlanNudge.offset(dx: 2, dy: 0, zoom: 1, sheet: sheet).x, 0.0005, accuracy: 1e-12)
+        XCTAssertEqual(PlanNudge.moved(PlanPoint(x: 0.999, y: 0.001), by: PlanPoint(x: 0.01, y: -0.01)), PlanPoint(x: 1, y: 0))
+        XCTAssertEqual(PlanNudge.offset(dx: 2, dy: 2, zoom: 0, sheet: sheet), .zero)
+        XCTAssertEqual(PlanNudge.offset(dx: 2, dy: 2, zoom: 1, sheet: .zero), .zero)
+    }
+
     func testDensestCluster() {
         var pts = (0..<12).map { PlanPoint(x: 0.7 + Double($0 % 4) * 0.01, y: 0.3 + Double($0 / 4) * 0.01) }
         pts += [PlanPoint(x: 0.1, y: 0.1), PlanPoint(x: 0.9, y: 0.9), PlanPoint(x: 0.12, y: 0.11)]

@@ -17,19 +17,6 @@ struct JobView: View {
                     ForEach(ProjectStatus.allCases, id: \.self) { Text(tr($0.rawValue.capitalized, context: "Job status")).tag($0) }
                 }
             }
-            Section {
-                JobLabelsRow(model: model)
-            } header: { Text("Labels").textCase(nil) } footer: {
-                Text("Filter jobs by label on the jobs list (web and iPad).")
-            }
-            JobLocationSection(model: model)
-            if app.cloud.can(.prices) {
-                Section {
-                    NavigationLink { JobProductsView(model: model) } label: { Label("Products for this job", systemImage: "tag") }
-                    NavigationLink { QuotesInvoicesView(model: model) } label: { Label("Quotes & invoices", systemImage: "doc.text") }
-                    ForEach(ProjectStatus.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-            }
             Section(sentence: String(localized: "Client")) {
                 LabeledContent("Name") { CommitField(title: String(localized: "Name"), value: p.clientName) { v in model.editSilently { $0.project.clientName = v } }.multilineTextAlignment(.trailing) }
                 LabeledContent("Email") { CommitField(title: String(localized: "Email"), value: p.clientEmail ?? "", keyboard: .emailAddress) { v in model.editSilently { $0.project.clientEmail = v } }.multilineTextAlignment(.trailing) }

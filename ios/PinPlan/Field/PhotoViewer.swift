@@ -6,6 +6,7 @@ struct PhotoViewer: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
     let model: EditorModel
     let ids: [String]
     @State var current: String
@@ -18,7 +19,9 @@ struct PhotoViewer: View {
         NavigationStack {
             Group {
                 if let p = model.photo(current) {
-                    if hSize == .compact {
+                    // Phone in portrait: details under the photo. Phone in landscape (short) and iPad: beside it, so
+                    // the photo keeps the height.
+                    if hSize == .compact && vSize != .compact {
                         VStack(spacing: 0) {
                             pager(live).frame(maxHeight: .infinity)
                             ScrollView { PhotoDetails(model: model, photo: p).padding() }
@@ -29,7 +32,7 @@ struct PhotoViewer: View {
                         HStack(spacing: 0) {
                             pager(live)
                             ScrollView { PhotoDetails(model: model, photo: p).padding() }
-                                .frame(width: 380)
+                                .frame(width: hSize == .compact ? 300 : 380)
                                 .background(Color(.systemBackground))
                         }
                     }
