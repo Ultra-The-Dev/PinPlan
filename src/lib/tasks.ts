@@ -1,23 +1,24 @@
 // Tasks pinned on the plan (Fieldwire-style punch / issues). Pure: no browser, database or React, so the web screens,
 // the PDF and the tests share it; the iPad app mirrors it in PinPlanCore (Tasks.swift, same fixtures in TaskTests.swift).
 // Tasks never affect the takeoff or the estimate, and never carry prices.
+import { msg } from "./i18n/msg";
 import { taskBucket, type TaskBucket } from "./fieldDocs";
 import { TONE_HEX } from "./statusStyle";
 import type { TeamRole } from "./teamLogic";
 import type { Checklist, ChecklistItem, Marker, Photo, PhotoComment, PlanTask, TaskEvent, TaskPriority, TaskStatus } from "./types";
 
 export const STATUSES: { id: TaskStatus; label: string; short: string; color: string }[] = [
-  { id: "open", label: "Open", short: "Open", color: "#dc2626" },
-  { id: "in_progress", label: "In progress", short: "In progress", color: TONE_HEX.warn },
-  { id: "ready", label: "Ready for review", short: "Review", color: "#7c3aed" },
-  { id: "done", label: "Completed", short: "Completed", color: "#16a34a" },
-  { id: "verified", label: "Verified", short: "Verified", color: "#2563eb" },
+  { id: "open", label: msg("Open"), short: msg("Open"), color: "#dc2626" },
+  { id: "in_progress", label: msg("In progress"), short: msg("In progress"), color: TONE_HEX.warn },
+  { id: "ready", label: msg("Ready for review"), short: msg("Review"), color: "#7c3aed" },
+  { id: "done", label: msg("Completed"), short: msg("Completed"), color: "#16a34a" },
+  { id: "verified", label: msg("Verified"), short: msg("Verified"), color: "#2563eb" },
 ];
 
 export const PRIORITIES: { id: TaskPriority; label: string; name: string; color: string }[] = [
-  { id: 1, label: "P1", name: "High", color: "#dc2626" },
-  { id: 2, label: "P2", name: "Medium", color: "#d97706" },
-  { id: 3, label: "P3", name: "Low", color: "#64748b" },
+  { id: 1, label: "P1", name: msg("High"), color: "#dc2626" },
+  { id: 2, label: "P2", name: msg("Medium"), color: "#d97706" },
+  { id: 3, label: "P3", name: msg("Low"), color: "#64748b" },
 ];
 
 export const statusInfo = (s: TaskStatus | string | null | undefined) => STATUSES.find((x) => x.id === s) ?? STATUSES[0];

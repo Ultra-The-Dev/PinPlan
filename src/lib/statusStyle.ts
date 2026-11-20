@@ -1,5 +1,6 @@
 // One look for every status chip in the app (jobs, quotes / invoices, RFIs, invites, tasks), so "approved" is the
 // same teal everywhere. Tones map to the ok / info / warn / bad tokens in src/app/globals.css (docs/brand.md).
+import { msg, t } from "./i18n";
 
 export type StatusTone = "ok" | "info" | "warn" | "bad" | "neutral" | "muted";
 
@@ -81,13 +82,14 @@ export const PROJECT_STATUS_HEX = {
 /** What a job's stage is called on screen. The stored value "estimate" stays (sync, iOS, the database); people see
  *  "Quoting" (docs/ux-audit.md glossary: a Quote is what the client approves, not an estimate). */
 export const PROJECT_STATUS_LABEL = {
-  estimate: "Quoting",
-  approved: "Approved",
-  installed: "Installed",
+  estimate: msg("Quoting"),
+  approved: msg("Approved"),
+  installed: msg("Installed"),
 } as const satisfies Record<keyof typeof PROJECT_STATUS_HEX, string>;
 
-/** The label for a job status; an unknown one (synced from a newer app) shows as stored, capitalised. */
+/** The label for a job status in the app's language; an unknown one (synced from a newer app) shows as stored,
+ *  capitalised. PROJECT_STATUS_LABEL itself is English: translate it where shown, with t(). */
 export function projectStatusLabel(status: string): string {
-  if (Object.prototype.hasOwnProperty.call(PROJECT_STATUS_LABEL, status)) return PROJECT_STATUS_LABEL[status as keyof typeof PROJECT_STATUS_LABEL];
+  if (Object.prototype.hasOwnProperty.call(PROJECT_STATUS_LABEL, status)) return t(PROJECT_STATUS_LABEL[status as keyof typeof PROJECT_STATUS_LABEL]);
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : "";
 }

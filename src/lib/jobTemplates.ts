@@ -5,6 +5,7 @@
 // lines), never the client, the address, ticks, dates or photos. Duplicating copies a whole job (plans, devices, runs,
 // closets, estimate edits, optionally checklists) with fresh ids, for tract and model homes.
 import type { ProjectBundle, SyncTable } from "./db";
+import { msg, t } from "./i18n";
 import type {
   Checklist,
   Closet,
@@ -158,7 +159,7 @@ function captureEstimate(bundle: ProjectBundle, includePrices: boolean): JobTemp
 
 const checklistsPart: TemplatePart = {
   key: "checklists",
-  label: "Checklists",
+  label: msg("Checklists"),
   capture: (bundle) => captureChecklists(bundle),
   async apply(data, ctx) {
     const rows = buildChecklists(Array.isArray(data) ? (data as JobTemplateChecklist[]) : [], ctx);
@@ -168,7 +169,7 @@ const checklistsPart: TemplatePart = {
 
 const estimatePart: TemplatePart = {
   key: "estimate",
-  label: "Estimate lines",
+  label: msg("Estimate lines"),
   capture: (bundle, opts) => captureEstimate(bundle, opts.includePrices),
   async apply(data, ctx) {
     // Technicians can't write estimate lines (the database refuses): nothing to apply.
@@ -236,12 +237,12 @@ const EMPTY_PAYLOAD: JobTemplatePayload = { version: 1, project: {}, checklists:
 /** Check a template payload: version, shape, and parts nobody registered (ignored with a warning). */
 export function validateTemplate(raw: unknown): TemplateValidation {
   const warnings: string[] = [];
-  if (!isObj(raw)) return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: "The template is empty or damaged." };
+  if (!isObj(raw)) return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("The template is empty or damaged.") };
   const version = raw.version == null ? 1 : raw.version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1)
-    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: "The template's version isn't valid." };
+    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("The template's version isn't valid.") };
   if (version > TEMPLATE_VERSION)
-    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: "This template was saved by a newer version of PinPlan. Update the app to use it." };
+    return { ok: false, payload: EMPTY_PAYLOAD, warnings, error: t("This template was saved by a newer version of PinPlan. Update the app to use it.") };
 
   const p = isObj(raw.project) ? raw.project : {};
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()) : null);
@@ -273,7 +274,7 @@ export function validateTemplate(raw: unknown): TemplateValidation {
   if (isObj(raw.parts))
     for (const [key, data] of Object.entries(raw.parts)) {
       if (registry.has(key) && !isBuiltIn(key)) parts[key] = data;
-      else warnings.push(`Skipped “${key}”: this version of PinPlan doesn't know that part of a template.`);
+      else warnings.push(t("Skipped “{name}”: this version of PinPlan doesn't know that part of a template.", { name: key }));
     }
 
   return { ok: true, payload: { version: 1, project, checklists, estimateLines, ...(Object.keys(parts).length ? { parts } : {}) }, warnings };
@@ -303,11 +304,11 @@ export function buildEstimateLines(
   for (const l of list) {
     const ref = estimateKeyRef(l.key);
     if (ref && "type" in ref && ctx.deviceTypeIds && !ctx.deviceTypeIds.has(ref.type)) {
-      ctx.warnings.push(`Skipped the estimate line “${l.description || l.key}”: its device type isn't in your catalog any more.`);
+      ctx.warnings.push(t("Skipped the estimate line “{name}”: its device type isn't in your catalog any more.", { name: l.description || l.key }));
       continue;
     }
     if (ref && "product" in ref && ctx.productIds && !ctx.productIds.has(ref.product)) {
-      ctx.warnings.push(`Skipped the estimate line “${l.description || l.key}”: that product was deleted.`);
+      ctx.warnings.push(t("Skipped the estimate line “{name}”: that product was deleted.", { name: l.description || l.key }));
       continue;
     }
     const price = ctx.includePrices ? (l.unitPrice ?? null) : null;
@@ -352,7 +353,7 @@ export function applyTemplate(
 ): AppliedTemplate {
   const v = validateTemplate(template.payload);
   const warnings = [...v.warnings];
-  if (!v.ok) return { project: {}, checklists: [], estimateLines: [], warnings: [v.error ?? "The template can't be used."] };
+  if (!v.ok) return { project: {}, checklists: [], estimateLines: [], warnings: [v.error ?? t("The template can't be used.")] };
   const includePrices = opts.includePrices !== false;
   const ctx = { project: newProject, now, newId, includePrices, deviceTypeIds: opts.deviceTypeIds, productIds: opts.productIds, warnings };
   return {
@@ -368,26 +369,26 @@ function projectPatch(
   project: Project,
   ctx: { includePrices: boolean; deviceTypeIds?: ReadonlySet<string>; productIds?: ReadonlySet<string>; warnings: string[] },
 ): Partial<Project> {
-  const t = payload.project;
+  const pt = payload.project;
   const patch: Partial<Project> = {};
-  if (ctx.includePrices && t.pricing && Object.keys(t.pricing).length) patch.pricing = { ...project.pricing, ...t.pricing };
-  if (t.productChoices) {
+  if (ctx.includePrices && pt.pricing && Object.keys(pt.pricing).length) patch.pricing = { ...project.pricing, ...pt.pricing };
+  if (pt.productChoices) {
     const choices: Record<string, string> = { ...project.productChoices };
-    for (const [typeId, productId] of Object.entries(t.productChoices)) {
+    for (const [typeId, productId] of Object.entries(pt.productChoices)) {
       if (!typeId.startsWith("wire:") && ctx.deviceTypeIds && !ctx.deviceTypeIds.has(typeId)) {
-        ctx.warnings.push(`Skipped a product choice: the device type “${typeId}” isn't in your catalog any more.`);
+        ctx.warnings.push(t("Skipped a product choice: the device type “{name}” isn't in your catalog any more.", { name: typeId }));
         continue;
       }
       if (ctx.productIds && !ctx.productIds.has(productId)) {
-        ctx.warnings.push(`Skipped a product choice for “${typeId.replace(/^wire:/, "")}”: that product was deleted.`);
+        ctx.warnings.push(t("Skipped a product choice for “{name}”: that product was deleted.", { name: typeId.replace(/^wire:/, "") }));
         continue;
       }
       choices[typeId] = productId;
     }
     if (Object.keys(choices).length) patch.productChoices = choices;
   }
-  if (t.labels?.length) patch.labels = [...new Set([...(project.labels ?? []), ...t.labels])];
-  if (t.notes) patch.notes = project.notes?.trim() ? `${project.notes.trim()}\n\n${t.notes}` : t.notes;
+  if (pt.labels?.length) patch.labels = [...new Set([...(project.labels ?? []), ...pt.labels])];
+  if (pt.notes) patch.notes = project.notes?.trim() ? `${project.notes.trim()}\n\n${pt.notes}` : pt.notes;
   return patch;
 }
 
@@ -398,7 +399,7 @@ export async function applyTemplateParts(
   writeProject: (patch: Partial<Project>) => Promise<void>,
 ): Promise<string[]> {
   const v = validateTemplate(template.payload);
-  if (!v.ok) return [v.error ?? "The template can't be used."];
+  if (!v.ok) return [v.error ?? t("The template can't be used.")];
   ctx.warnings.push(...v.warnings);
   const patch = projectPatch(v.payload, ctx.project, ctx);
   if (Object.keys(patch).length) await writeProject(patch);
@@ -408,7 +409,7 @@ export async function applyTemplateParts(
     try {
       await part.apply(data, ctx);
     } catch (e) {
-      ctx.warnings.push(`Couldn't apply “${part.label ?? part.key}”: ${e instanceof Error ? e.message : String(e)}`);
+      ctx.warnings.push(t("Couldn't apply “{name}”: {error}", { name: t(part.label ?? part.key), error: e instanceof Error ? e.message : String(e) }));
     }
   }
   return ctx.warnings;
@@ -584,10 +585,10 @@ export function parseTemplatesFile(text: string, now: string, newId: () => strin
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("That file isn't a PinPlan templates file (invalid JSON).");
+    throw new Error(t("That file isn't a PinPlan templates file (invalid JSON)."));
   }
   const list = isObj(data) && Array.isArray(data.templates) ? data.templates : isObj(data) && isObj(data.payload) ? [data] : null;
-  if (!list) throw new Error("That file isn't a PinPlan templates file.");
+  if (!list) throw new Error(t("That file isn't a PinPlan templates file."));
   const warnings: string[] = [];
   const templates: JobTemplate[] = [];
   for (const raw of list) {
@@ -595,7 +596,7 @@ export function parseTemplatesFile(text: string, now: string, newId: () => strin
     const name = str(raw.name) ?? "Imported template";
     const v = validateTemplate(raw.payload);
     if (!v.ok) {
-      warnings.push(`Skipped “${name}”: ${v.error}`);
+      warnings.push(t("Skipped “{name}”: {error}", { name, error: v.error ?? "" }));
       continue;
     }
     warnings.push(...v.warnings.map((w) => `${name}: ${w}`));

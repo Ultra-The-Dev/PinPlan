@@ -3,6 +3,7 @@
 // this file reads and writes Dexie through put/putMany/remove/saveImage, so everything is queued for sync.
 import { useEffect, useState } from "react";
 import { db, getCatalog, getProducts, loadProject, newId, nowIso, put, putMany, remove, saveImage, type SyncTable } from "./db";
+import { t } from "./i18n";
 import {
   applyTemplateParts,
   captureTemplate,
@@ -52,10 +53,10 @@ export function useJobTemplates(): { templates: JobTemplate[]; loaded: boolean }
 /** Save a job's setup as a new template. */
 export async function saveJobAsTemplate(projectId: string, opts: CaptureOptions): Promise<JobTemplate> {
   const bundle = await loadProject(projectId);
-  if (!bundle) throw new Error("Job not found");
-  const t = await put("jobTemplates", captureTemplate(bundle, opts, { id: newId(), now: nowIso() }));
+  if (!bundle) throw new Error(t("Job not found"));
+  const tpl = await put("jobTemplates", captureTemplate(bundle, opts, { id: newId(), now: nowIso() }));
   changed();
-  return t;
+  return tpl;
 }
 
 export async function updateTemplate(id: string, patch: Partial<Pick<JobTemplate, "name" | "description">>): Promise<void> {
@@ -122,7 +123,7 @@ export interface DuplicateProgress {
  */
 export async function duplicateJobInDb(projectId: string, opts: Omit<DuplicateOptions, "imageMap">, onProgress?: (p: DuplicateProgress) => void): Promise<Project> {
   const bundle = await loadProject(projectId);
-  if (!bundle) throw new Error("Job not found");
+  if (!bundle) throw new Error(t("Job not found"));
   const imageIds = duplicateImageIds(bundle);
   // Sizes are known before anything is written, so the progress bar doesn't jump.
   const preview = duplicateJob(bundle, opts, () => "x", "");

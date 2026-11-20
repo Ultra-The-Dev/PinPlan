@@ -1,5 +1,6 @@
 // Subscription billing: plan status wording, seat maths and the Stripe → team mapping. Pure (no browser, network or
 // Stripe SDK), shared by the web screens, the server routes and the tests.
+import { fmtDate, t, tn } from "./i18n";
 import { PLANS, planAllowsWork, type Plan, type PlanStatus } from "./plans";
 import type { TeamRole } from "./teamLogic";
 
@@ -104,11 +105,13 @@ export function daysLeft(iso: string | null | undefined, now = new Date()): numb
   return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000);
 }
 
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
-const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+// Wording follows the app's language (src/lib/i18n); dates too, always the UTC day.
+const shortDate = (iso: string) => fmtDate(iso, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+/** Whole sentences, each translated on its own, joined with a space. */
+const sentences = (...parts: string[]) => parts.join(" ");
 
 /** "Ends Dec 1, 2026: jobs turn read-only after that." */
-const endsNote = (iso: string) => `Ends ${shortDate(iso)}: jobs turn read-only after that.`;
+const endsNote = (iso: string) => t("Ends {date}: jobs turn read-only after that.", { date: shortDate(iso) });
 
 export type Tone = "green" | "slate" | "amber" | "red";
 
@@ -118,30 +121,30 @@ export function billingSummary(b: TeamBilling, now = new Date()): { label: strin
   const ending = b.cancelAt && new Date(b.cancelAt).getTime() > now.getTime() ? b.cancelAt : null;
   switch (b.status) {
     case "comped":
-      return { label: "Comped", detail: "Founder account — free, no seat limit.", tone: "green" };
+      return { label: t("Comped"), detail: t("Founder account — free, no seat limit."), tone: "green" };
     case "active":
-      if (ending) return { label: "Ending", detail: endsNote(ending), tone: "amber" };
-      return { label: "Active", detail: b.currentPeriodEnd ? `Renews ${shortDate(b.currentPeriodEnd)}.` : "Your subscription is active.", tone: "green" };
+      if (ending) return { label: t("Ending"), detail: endsNote(ending), tone: "amber" };
+      return { label: t("Active"), detail: b.currentPeriodEnd ? t("Renews {date}.", { date: shortDate(b.currentPeriodEnd) }) : t("Your subscription is active."), tone: "green" };
     case "past_due":
-      return { label: "Past due", detail: "The last payment failed. Stripe will retry the card — update it to avoid interruption.", tone: "amber" };
+      return { label: t("Past due"), detail: t("The last payment failed. Stripe will retry the card — update it to avoid interruption."), tone: "amber" };
     case "trialing":
     case "incomplete":
     case "none": {
-      if (!works) return { label: "Trial ended", detail: "Jobs are read-only until you start a subscription.", tone: "red" };
+      if (!works) return { label: t("Trial ended"), detail: t("Jobs are read-only until you start a subscription."), tone: "red" };
       // Billing isn't switched on yet (billing_settings.enforce): the trial is over but nothing locks.
-      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: "Trial ended", detail: "Your free trial is over. Start a subscription to keep using PinPlan; jobs stay editable for now.", tone: "slate" };
-      if (ending && b.status === "trialing") return { label: "Trial", detail: endsNote(ending), tone: "amber" };
+      if (b.trialEndsAt && daysLeft(b.trialEndsAt, now) === 0) return { label: t("Trial ended"), detail: t("Your free trial is over. Start a subscription to keep using PinPlan; jobs stay editable for now."), tone: "slate" };
+      if (ending && b.status === "trialing") return { label: t("Trial"), detail: endsNote(ending), tone: "amber" };
       if (b.hasSubscription && b.status === "trialing")
-        return { label: "Trial", detail: b.trialEndsAt ? `${plural(daysLeft(b.trialEndsAt, now), "day")} left — then your subscription starts.` : "Subscription starts after the trial.", tone: "slate" };
-      if (b.status === "incomplete") return { label: "Payment pending", detail: "Finish the first payment to keep working after the trial.", tone: "amber" };
-      return { label: "Trial", detail: b.trialEndsAt ? `${plural(daysLeft(b.trialEndsAt, now), "day")} left.` : "Free trial.", tone: daysLeft(b.trialEndsAt, now) <= 3 ? "amber" : "slate" };
+        return { label: t("Trial"), detail: b.trialEndsAt ? tn("{n} day left — then your subscription starts.", "{n} days left — then your subscription starts.", daysLeft(b.trialEndsAt, now)) : t("Subscription starts after the trial."), tone: "slate" };
+      if (b.status === "incomplete") return { label: t("Payment pending"), detail: t("Finish the first payment to keep working after the trial."), tone: "amber" };
+      return { label: t("Trial"), detail: b.trialEndsAt ? tn("{n} day left.", "{n} days left.", daysLeft(b.trialEndsAt, now)) : t("Free trial."), tone: daysLeft(b.trialEndsAt, now) <= 3 ? "amber" : "slate" };
     }
     case "canceled":
       // Canceled during the trial: still working until the trial ends.
-      if (works && b.trialEndsAt) return { label: "Canceled", detail: endsNote(b.trialEndsAt), tone: "amber" };
-      return { label: "Canceled", detail: "Jobs are read-only. Start a subscription to edit again.", tone: "red" };
+      if (works && b.trialEndsAt) return { label: t("Canceled"), detail: endsNote(b.trialEndsAt), tone: "amber" };
+      return { label: t("Canceled"), detail: t("Jobs are read-only. Start a subscription to edit again."), tone: "red" };
     case "unpaid":
-      return { label: "Unpaid", detail: "Payments failed, so jobs are read-only. Update the card to unlock.", tone: "red" };
+      return { label: t("Unpaid"), detail: t("Payments failed, so jobs are read-only. Update the card to unlock."), tone: "red" };
   }
 }
 
@@ -156,30 +159,33 @@ export interface Banner {
 export function bannerFor(b: TeamBilling | null | undefined, role: TeamRole | null | undefined, now = new Date()): Banner | null {
   if (!b || b.status === "comped") return null;
   const office = role === "owner" || role === "admin";
-  const ask = "Ask your office to sort out the subscription.";
+  const ask = t("Ask your office to sort out the subscription.");
   if (!billingAllowsWork(b, now)) {
-    const why = b.status === "trialing" || b.status === "incomplete" || b.status === "none" ? "Your free trial has ended" : "Your PinPlan subscription is inactive";
+    const why =
+      b.status === "trialing" || b.status === "incomplete" || b.status === "none"
+        ? t("Your free trial has ended, so jobs are read-only — you can still view and export everything.")
+        : t("Your PinPlan subscription is inactive, so jobs are read-only — you can still view and export everything.");
     return {
       tone: "red",
-      text: `${why}, so jobs are read-only — you can still view and export everything. ${office ? "Start a subscription to edit again." : ask}`,
+      text: sentences(why, office ? t("Start a subscription to edit again.") : ask),
       action: office ? (b.hasSubscription && b.status !== "canceled" ? "portal" : "subscribe") : null,
     };
   }
   if (b.status === "canceled" && b.trialEndsAt)
-    return { tone: "amber", text: `Your subscription was canceled. ${endsNote(b.trialEndsAt)} ${office ? "Start a subscription to keep working." : ask}`, action: office ? "subscribe" : null };
+    return { tone: "amber", text: sentences(t("Your subscription was canceled."), endsNote(b.trialEndsAt), office ? t("Start a subscription to keep working.") : ask), action: office ? "subscribe" : null };
   // A cancellation scheduled in Stripe, within a week.
   if (b.cancelAt && (b.status === "active" || b.status === "trialing")) {
     const d = daysLeft(b.cancelAt, now);
-    if (d > 0 && d <= 7) return { tone: "amber", text: `Your subscription ${endsNote(b.cancelAt).replace(/^E/, "e")} ${office ? "Renew it in billing to keep working." : ask}`, action: office ? "portal" : null };
+    if (d > 0 && d <= 7) return { tone: "amber", text: sentences(t("Your subscription ends {date}: jobs turn read-only after that.", { date: shortDate(b.cancelAt) }), office ? t("Renew it in billing to keep working.") : ask), action: office ? "portal" : null };
   }
   if (b.status === "past_due")
-    return { tone: "amber", text: `The last PinPlan payment failed. ${office ? "Update the card to avoid interruption." : ask}`, action: office ? "portal" : null };
+    return { tone: "amber", text: sentences(t("The last PinPlan payment failed."), office ? t("Update the card to avoid interruption.") : ask), action: office ? "portal" : null };
   // While billing isn't switched on, the trial ending changes nothing: say nothing.
   if ((b.status === "trialing" || b.status === "incomplete") && !b.hasSubscription && b.trialEndsAt && b.enforce !== false) {
     const d = daysLeft(b.trialEndsAt, now);
     if (d <= 3) {
-      const when = d <= 1 ? "today or tomorrow" : `in ${d} days`;
-      return { tone: "amber", text: `Your free trial ends ${when}. ${office ? "Start your subscription to keep working." : ask}`, action: office ? "subscribe" : null };
+      const when = d <= 1 ? t("Your free trial ends today or tomorrow.") : tn("Your free trial ends in {n} day.", "Your free trial ends in {n} days.", d);
+      return { tone: "amber", text: sentences(when, office ? t("Start your subscription to keep working.") : ask), action: office ? "subscribe" : null };
     }
   }
   return null;
@@ -189,9 +195,9 @@ export function bannerFor(b: TeamBilling | null | undefined, role: TeamRole | nu
 export function soloBannerFor(s: SoloBilling | null | undefined, now = new Date()): Banner | null {
   if (!s || !s.enforce || !s.trialEndsAt) return null;
   if (!soloAllowsWork(s, now))
-    return { tone: "red", text: "Your free trial has ended, so jobs are read-only — you can still view and export everything. Start a company team to keep working.", action: "team" };
+    return { tone: "red", text: sentences(t("Your free trial has ended, so jobs are read-only — you can still view and export everything."), t("Start a company team to keep working.")), action: "team" };
   const d = daysLeft(s.trialEndsAt, now);
-  if (d <= 3) return { tone: "amber", text: `Your free trial ends ${d <= 1 ? "today or tomorrow" : `in ${d} days`}. Start a company team to keep working.`, action: "team" };
+  if (d <= 3) return { tone: "amber", text: sentences(d <= 1 ? t("Your free trial ends today or tomorrow.") : tn("Your free trial ends in {n} day.", "Your free trial ends in {n} days.", d), t("Start a company team to keep working.")), action: "team" };
   return null;
 }
 

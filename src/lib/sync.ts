@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, type RefusedChange, type SyncItem, type SyncTable } from "./db";
 import { reportError } from "./errorReporting";
+import { t } from "./i18n";
 import { adoptLocalData, checkLocalOwner, readLocalOwner, removeLocalData } from "./localOwner";
 import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
 import {
@@ -564,7 +565,7 @@ export async function listRefused(): Promise<RefusedChange[]> {
 /** Throw away the refused changes: each row goes back to the cloud's copy (or is removed when the cloud has none). */
 export async function discardRefused(): Promise<void> {
   const sb = getSupabase();
-  if (!sb || !useSyncStatus.getState().signedIn) throw new Error("Sign in to discard these changes.");
+  if (!sb || !useSyncStatus.getState().signedIn) throw new Error(t("Sign in to discard these changes."));
   const changed: PullResult = { tables: new Set(), projectIds: new Set() };
   try {
     for (const r of await db().syncRefused.toArray()) {
@@ -746,13 +747,13 @@ function ranRecently(): boolean {
 /** A remembered invite was finished on sign-in: say so and fetch the team's jobs. */
 function joined(team: string | null) {
   if (!team) return;
-  toast(`You joined ${team}`);
+  toast(t("You joined {team}", { team }));
   void runSync(true);
 }
 
 /** A company sign-up that waited for email confirmation was finished on sign-in. */
 function companyReady(company: string | null) {
-  if (company) toast(`${company} is set up — welcome to PinPlan`);
+  if (company) toast(t("{company} is set up — welcome to PinPlan", { company }));
 }
 
 /** Start background sync. Safe to call without Supabase configured. Returns a cleanup function. */

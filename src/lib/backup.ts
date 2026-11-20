@@ -3,6 +3,7 @@
 // Useful when running local-only (no Supabase) or to move a job between devices.
 import { db, loadProject, newId, nowIso, putMany, type SyncTable } from "./db";
 import { downloadBlob, slug } from "./download";
+import { t } from "./i18n";
 import { readLocalOwner } from "./localOwner";
 import { useTeam } from "./team";
 import type { DeviceType, DocPayment, JobTemplate, Product, SalesDoc, StoredImage } from "./types";
@@ -175,9 +176,9 @@ export async function importBackup(file: File): Promise<number> {
   try {
     data = JSON.parse(await file.text());
   } catch {
-    throw new Error("That file isn't a PinPlan backup (invalid JSON).");
+    throw new Error(t("That file isn't a PinPlan backup (invalid JSON)."));
   }
-  if (data.format !== FORMAT || !Array.isArray(data.projects)) throw new Error("That file isn't a PinPlan backup.");
+  if (data.format !== FORMAT || !Array.isArray(data.projects)) throw new Error(t("That file isn't a PinPlan backup."));
   const me = backupOwner();
   const asCopy = restoreAsCopy(data, { userId: me.ownerId, teamId: me.teamId });
   // Technicians can't change the price list or job templates (the database refuses): only the jobs are restored.

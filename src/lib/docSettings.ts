@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { db, getSettings, nowIso, saveDocumentSettings } from "./db";
 import { hasLegacyQuoteDefault, normalizeDocSettings } from "./documents";
+import { t } from "./i18n";
 import { getSupabase } from "./supabase";
 import type { DocKind, DocumentSettings } from "./types";
 
@@ -107,7 +108,7 @@ export async function fetchNumbering(): Promise<Record<DocKind, Numbering> | nul
 
 export async function setNextNumber(kind: DocKind, next: number): Promise<Record<DocKind, Numbering>> {
   const sb = await signedIn();
-  if (!sb) throw new Error("Sign in to change numbering.");
+  if (!sb) throw new Error(t("Sign in to change numbering."));
   const { data, error } = await sb.rpc("set_document_next_number", { p_kind: kind, p_next: next });
   if (error) throw new Error(error.message);
   return data as Record<DocKind, Numbering>;

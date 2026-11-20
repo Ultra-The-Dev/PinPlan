@@ -1,6 +1,7 @@
 // Saved measurements: pure geometry, totals, grouping, CSV and estimate lines (docs/saved-measurements.md).
 // Points are relative (0–1) x,y pairs on the sheet image. Nothing here is stored: every value is computed from the
 // points and the sheet's current scale (pxPerFt), so recalibrating a sheet updates every measurement on it.
+import { msg } from "./i18n/msg";
 import type { EstimateLine, Measurement, MeasurementKind, Product, Sheet } from "./types";
 
 export type SheetScale = Pick<Sheet, "width" | "height" | "pxPerFt">;
@@ -14,7 +15,7 @@ export type GroupKind = "length" | "area";
 export const groupKind = (k: MeasurementKind): GroupKind => (k === "area" ? "area" : "length");
 export const unitFor = (k: MeasurementKind | GroupKind): "ft" | "sq ft" => (k === "area" ? "sq ft" : "ft");
 
-export const KIND_NAMES: Record<MeasurementKind, string> = { length: "Length", polyline: "Run", area: "Area" };
+export const KIND_NAMES: Record<MeasurementKind, string> = { length: msg("Length"), polyline: msg("Run"), area: msg("Area") };
 
 const calibrated = (s: SheetScale | null | undefined): s is SheetScale & { pxPerFt: number } => !!s && !!s.pxPerFt && s.pxPerFt > 0 && s.width > 0 && s.height > 0;
 

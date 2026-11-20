@@ -4,6 +4,7 @@
 // decoded. Thumbs live in the local-only `thumbs` table (never synced) and are made once per image: at import, or the
 // first time a card or grid shows an image pulled from another device.
 import { db, type StoredThumb } from "./db";
+import { t } from "./i18n";
 
 /** Longest side of a job card's sheet preview. */
 export const SHEET_THUMB = 480;
@@ -37,17 +38,17 @@ async function toJpeg(c: OffscreenCanvas | HTMLCanvasElement): Promise<Blob> {
 
 /** Draw any image source (bitmap, canvas, img) into a thumb of at most maxSide. */
 export async function thumbFromSource(src: CanvasImageSource, width: number, height: number, maxSide: number): Promise<{ blob: Blob; width: number; height: number }> {
-  const t = thumbSize(width, height, maxSide);
-  const c = canvasOf(t.width, t.height);
+  const size = thumbSize(width, height, maxSide);
+  const c = canvasOf(size.width, size.height);
   const ctx = c.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-  if (!ctx) throw new Error("Couldn't make a preview");
+  if (!ctx) throw new Error(t("Couldn't make a preview"));
   ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, t.width, t.height);
+  ctx.fillRect(0, 0, size.width, size.height);
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(src, 0, 0, t.width, t.height);
+  ctx.drawImage(src, 0, 0, size.width, size.height);
   const blob = await toJpeg(c);
   c.width = c.height = 0;
-  return { blob, ...t };
+  return { blob, ...size };
 }
 
 /** Make a thumb from an image blob. Lets the browser decode straight to the small size where it can. */

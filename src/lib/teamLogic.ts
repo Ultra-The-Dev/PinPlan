@@ -1,5 +1,6 @@
 // Company teams: roles, what each role may do, and invite codes. Pure (no browser or network), shared by the
 // web screens and tests; the iPad app mirrors it in PinPlanCore (TeamLogic.swift).
+import { msg, t } from "./i18n";
 
 export type TeamRole = "owner" | "admin" | "tech";
 
@@ -11,9 +12,9 @@ export type TeamAction =
   | "editCatalog";
 
 export const ROLE_INFO: Record<TeamRole, { name: string; short: string; description: string }> = {
-  owner: { name: "Owner", short: "Owner", description: "Everything, including billing and the team. One per company." },
-  admin: { name: "Office / admin", short: "Admin", description: "Everything: estimates, proposals, Billdu, catalog and the team." },
-  tech: { name: "Technician", short: "Tech", description: "Field work on every job: plans, devices, photos, checklists, logs and tasks. No prices." },
+  owner: { name: msg("Owner"), short: msg("Owner"), description: msg("Everything, including billing and the team. One per company.") },
+  admin: { name: msg("Office / admin"), short: msg("Admin"), description: msg("Everything: estimates, proposals, Billdu, catalog and the team.") },
+  tech: { name: msg("Technician"), short: msg("Tech"), description: msg("Field work on every job: plans, devices, photos, checklists, logs and tasks. No prices.") },
 };
 
 /** No team (working alone) means full access. */
@@ -61,11 +62,12 @@ export function inviteState(i: { used_by?: string | null; revoked?: boolean; exp
 
 /** A friendly message for the errors the team functions raise. */
 export function teamErrorMessage(e: { message?: string | null; code?: string | null } | null | undefined): string {
-  const msg = e?.message ?? "Something went wrong";
-  if (/(function|table|relation)[^]*\b(team_|create_team|teams\b)/i.test(msg))
-    return "The cloud database needs the team update: run supabase/migrations/20261120000000_teams.sql in Supabase.";
-  if (/JWT|not authenticated|Sign in first/i.test(msg)) return "Sign in first.";
-  return msg;
+  const message = e?.message ?? "Something went wrong";
+  if (/(function|table|relation)[^]*\b(team_|create_team|teams\b)/i.test(message))
+    return t("The cloud database needs the team update: run {file} in Supabase.", { file: "supabase/migrations/20261120000000_teams.sql" });
+  if (/JWT|not authenticated|Sign in first/i.test(message)) return t("Sign in first.");
+  // Messages the team functions raise in English: translated when known, else shown as they are.
+  return t(message);
 }
 
 /** Sort members: owner, admins, techs, then by name. */
@@ -106,13 +108,13 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function signupProblem(f: { email: string; password: string; name?: string; code?: string }): string | null {
   if (f.code !== undefined) {
     const c = normalizeCode(f.code);
-    if (c.length < 8 || c.length > 64) return "Enter the invite code you were sent.";
+    if (c.length < 8 || c.length > 64) return t("Enter the invite code you were sent.");
   }
-  if ((f.name ?? "").trim().length > 80) return "Keep your name under 80 characters.";
+  if ((f.name ?? "").trim().length > 80) return t("Keep your name under 80 characters.");
   const email = f.email.trim();
-  if (!EMAIL_RE.test(email) || email.length > 254) return "Enter a valid email address.";
-  if (f.password.length < PASSWORD_MIN) return `Use a password of at least ${PASSWORD_MIN} characters.`;
-  if (f.password.length > 72) return "Use a password of 72 characters or fewer.";
+  if (!EMAIL_RE.test(email) || email.length > 254) return t("Enter a valid email address.");
+  if (f.password.length < PASSWORD_MIN) return t("Use a password of at least {n} characters.", { n: PASSWORD_MIN });
+  if (f.password.length > 72) return t("Use a password of 72 characters or fewer.");
   return null;
 }
 
@@ -142,7 +144,7 @@ export function joinReply(status: number, body: { ok?: boolean; confirmEmail?: b
   if (status >= 200 && status < 300) return b.confirmEmail ? { kind: "checkEmail" } : { kind: "signIn" };
   if (b.code === "exists") return { kind: "exists" };
   if (status === 501 || status === 404 || status >= 500) return { kind: "fallback" };
-  return { kind: "error", message: b.error || "Couldn’t create your login." };
+  return { kind: "error", message: b.error ? t(b.error) : t("Couldn’t create your login.") };
 }
 
 /** What the delete-account dialog does with DELETE /api/account's answer. `reauth` asks the person to prove it's
@@ -152,7 +154,7 @@ export function accountDeleteReply(status: number, body: { ok?: boolean; error?:
   const b = body ?? {};
   if (status >= 200 && status < 300 && b.ok !== false) return { kind: "deleted" };
   if (status === 403 && b.code === "reauth_required")
-    return { kind: "reauth", message: b.error || "To keep your account safe, enter your password again, then delete your account." };
-  if (status === 401) return { kind: "reauth", message: b.error || "Your sign-in has expired. Enter your password again, then delete your account." };
-  return { kind: "error", message: b.error || `Couldn’t delete your account (${status}).` };
+    return { kind: "reauth", message: b.error ? t(b.error) : t("To keep your account safe, enter your password again, then delete your account.") };
+  if (status === 401) return { kind: "reauth", message: b.error ? t(b.error) : t("Your sign-in has expired. Enter your password again, then delete your account.") };
+  return { kind: "error", message: b.error ? t(b.error) : t("Couldn’t delete your account ({status}).", { status }) };
 }

@@ -2,6 +2,7 @@
 // Browser side of the email routes: is email switched on, emailing a team invite, and the client page's
 // "tell the installer" ping after a proposal is answered.
 import { apiFetch } from "./api";
+import { t } from "./i18n";
 
 let status: Promise<boolean> | null = null;
 
@@ -22,7 +23,8 @@ export async function emailInvite(code: string, email: string, name?: string): P
   const r = await apiFetch("/api/team/invite-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, email, name }) });
   if (r.ok) return;
   const d = (await r.json().catch(() => ({}))) as { error?: string };
-  throw new Error(d.error || `Couldn't send the email (${r.status}).`);
+  // The server answers in English; known messages are shown in the app's language.
+  throw new Error(d.error ? t(d.error) : t("Couldn't send the email ({status}).", { status: r.status }));
 }
 
 /** Fire and forget: lets the server email the installer that the client answered. Never throws. */

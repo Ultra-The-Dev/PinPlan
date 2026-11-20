@@ -1,5 +1,6 @@
 // Sign-up, first-run and account-deletion rules. Pure (no browser or network), shared by the pages, the
 // /api/account route and the tests.
+import { t, tn } from "./i18n";
 import { PASSWORD_MIN, signupProblem, type TeamRole } from "./teamLogic";
 import { normalizeTrades } from "./trades";
 import type { TradeId } from "./types";
@@ -50,15 +51,15 @@ const COMMON =
 
 /** A quick, honest strength meter: length matters most, then variety; common passwords are always weak. */
 export function passwordStrength(pw: string): PasswordStrength {
-  if (!pw) return { score: 0, label: "", hint: `At least ${PASSWORD_MIN} characters.` };
-  if (pw.length < PASSWORD_MIN) return { score: 1, label: "Too short", hint: `${PASSWORD_MIN - pw.length} more character${PASSWORD_MIN - pw.length === 1 ? "" : "s"}.` };
-  if (COMMON.test(pw) || /^(.)\1+$/.test(pw)) return { score: 1, label: "Weak", hint: "That one is easy to guess. Try a short phrase." };
+  if (!pw) return { score: 0, label: "", hint: t("At least {n} characters.", { n: PASSWORD_MIN }) };
+  if (pw.length < PASSWORD_MIN) return { score: 1, label: "Too short", hint: tn("{n} more character.", "{n} more characters.", PASSWORD_MIN - pw.length) };
+  if (COMMON.test(pw) || /^(.)\1+$/.test(pw)) return { score: 1, label: "Weak", hint: t("That one is easy to guess. Try a short phrase.") };
   const kinds = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((r) => r.test(pw)).length;
   let points = (pw.length >= 12 ? 2 : pw.length >= 10 ? 1 : 0) + (kinds >= 3 ? 2 : kinds === 2 ? 1 : 0);
   if (pw.length >= 16) points += 1;
-  if (points <= 1) return { score: 2, label: "Fair", hint: "Longer is stronger — add a word or two." };
-  if (points <= 3) return { score: 3, label: "Good", hint: "Good. A few more characters make it strong." };
-  return { score: 4, label: "Strong", hint: "Strong password." };
+  if (points <= 1) return { score: 2, label: "Fair", hint: t("Longer is stronger — add a word or two.") };
+  if (points <= 3) return { score: 3, label: "Good", hint: t("Good. A few more characters make it strong.") };
+  return { score: 4, label: "Strong", hint: t("Strong password.") };
 }
 
 export interface CompanySignup {
@@ -72,13 +73,13 @@ export interface CompanySignup {
 /** The first problem with the company sign-up form, or null when it can be sent. */
 export function companySignupProblem(f: CompanySignup): string | null {
   const company = f.company.trim();
-  if (!company) return "Enter your company name.";
-  if (company.length > 120) return "Keep the company name under 120 characters.";
-  if (!f.name.trim()) return "Enter your name.";
+  if (!company) return t("Enter your company name.");
+  if (company.length > 120) return t("Keep the company name under 120 characters.");
+  if (!f.name.trim()) return t("Enter your name.");
   const base = signupProblem({ email: f.email, password: f.password, name: f.name });
   if (base) return base;
-  if (passwordStrength(f.password).score < 2) return "Choose a less common password.";
-  if (!f.accepted) return "Please accept the Terms and Privacy Policy.";
+  if (passwordStrength(f.password).score < 2) return t("Choose a less common password.");
+  if (!f.accepted) return t("Please accept the Terms and Privacy Policy.");
   return null;
 }
 
@@ -86,16 +87,16 @@ export function companySignupProblem(f: CompanySignup): string | null {
 export function authErrorMessage(message: string | null | undefined): string {
   const m = message ?? "";
   const min = /should be at least (\d+) characters/i.exec(m);
-  if (min) return `Use a password of at least ${min[1]} characters.`;
-  if (/captcha/i.test(m)) return "We couldn’t check that you’re a person. Wait a moment and try again.";
-  if (/already (registered|been registered)|user already exists/i.test(m)) return "There’s already an account with this email. Sign in instead, or reset your password.";
-  if (/invalid login credentials/i.test(m)) return "That email and password don’t match. Check them, or reset your password.";
-  if (/email not confirmed/i.test(m)) return "Confirm your email first — open the link we sent you (check spam), then sign in.";
-  if (/rate limit|too many|security purposes/i.test(m)) return "Too many tries for now. Wait a minute and try again.";
-  if (/signups? not allowed|signup.*disabled/i.test(m)) return "New sign-ups are turned off on this server.";
-  if (/failed to fetch|network/i.test(m)) return "Can’t reach the server. Check your connection and try again.";
-  if (/weak|pwned|leaked/i.test(m)) return "That password is too easy to guess. Choose another one.";
-  return m || "Something went wrong. Try again.";
+  if (min) return t("Use a password of at least {n} characters.", { n: min[1] });
+  if (/captcha/i.test(m)) return t("We couldn’t check that you’re a person. Wait a moment and try again.");
+  if (/already (registered|been registered)|user already exists/i.test(m)) return t("There’s already an account with this email. Sign in instead, or reset your password.");
+  if (/invalid login credentials/i.test(m)) return t("That email and password don’t match. Check them, or reset your password.");
+  if (/email not confirmed/i.test(m)) return t("Confirm your email first — open the link we sent you (check spam), then sign in.");
+  if (/rate limit|too many|security purposes/i.test(m)) return t("Too many tries for now. Wait a minute and try again.");
+  if (/signups? not allowed|signup.*disabled/i.test(m)) return t("New sign-ups are turned off on this server.");
+  if (/failed to fetch|network/i.test(m)) return t("Can’t reach the server. Check your connection and try again.");
+  if (/weak|pwned|leaked/i.test(m)) return t("That password is too easy to guess. Choose another one.");
+  return m ? t(m) : t("Something went wrong. Try again.");
 }
 
 // ---------------- terms ----------------
@@ -133,11 +134,11 @@ export function companyFromMetadata(meta: Record<string, unknown> | null | undef
 /** The first problem with "Set up your company", or null. `accepted` is only asked of accounts that haven't agreed yet. */
 export function setupCompanyProblem(f: { company: string; name: string; accepted: boolean }): string | null {
   const company = f.company.trim();
-  if (!company) return "Enter your company name.";
-  if (company.length > 120) return "Keep the company name under 120 characters.";
-  if (!f.name.trim()) return "Enter your name.";
-  if (f.name.trim().length > 80) return "Keep your name under 80 characters.";
-  if (!f.accepted) return "Please accept the Terms and Privacy Policy.";
+  if (!company) return t("Enter your company name.");
+  if (company.length > 120) return t("Keep the company name under 120 characters.");
+  if (!f.name.trim()) return t("Enter your name.");
+  if (f.name.trim().length > 80) return t("Keep your name under 80 characters.");
+  if (!f.accepted) return t("Please accept the Terms and Privacy Policy.");
   return null;
 }
 

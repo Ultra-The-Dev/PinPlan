@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { db, getAllDocs, getProjectDocs, newId, nowIso, put, remove } from "./db";
 import { buildDocSnapshot, documentUrl, formatDocNumber, snapshotHash, today, withTotals, type DocSnapshot } from "./documents";
+import { t } from "./i18n";
 import { newToken } from "./proposal";
 import { getSupabase, supabaseConfigured } from "./supabase";
 import { SYNCED_EVENT, useSyncStatus } from "./sync";
@@ -58,7 +59,7 @@ export async function voidPayment(p: DocPayment, voided = true) {
 
 /** Drafts can be deleted; issued documents are voided instead (their number stays used). */
 export async function deleteDraft(doc: SalesDoc) {
-  if (doc.status !== "draft") throw new Error("Only drafts can be deleted. Void it instead.");
+  if (doc.status !== "draft") throw new Error(t("Only drafts can be deleted. Void it instead."));
   await remove("salesDocs", doc.id);
   if (doc.kind === "credit_note" && doc.convertedFrom) await refreshInvoice(doc.convertedFrom);
   changed();
@@ -153,7 +154,7 @@ export interface DocLinkRow {
 
 function cloud() {
   const sb = getSupabase();
-  if (!sb) throw new Error("Client links need cloud sync — see Settings → Account.");
+  if (!sb) throw new Error(t("Client links need cloud sync — see Settings → Account."));
   return sb;
 }
 
@@ -180,7 +181,7 @@ export async function publishLink(doc: SalesDoc, input: { settings: DocumentSett
   cur = (await db().salesDocs.get(cur.id)) ?? cur;
   const check = await sb.from("sales_documents").select("id, number").eq("id", cur.id).maybeSingle();
   if (check.error) throw new Error(check.error.message);
-  if (!check.data) throw new Error("This document hasn't reached the cloud yet. Check your connection and try again.");
+  if (!check.data) throw new Error(t("This document hasn't reached the cloud yet. Check your connection and try again."));
   if (!cur.number && check.data.number) cur = { ...cur, number: check.data.number };
   const snapshot = buildDocSnapshot(cur, { settings: input.settings, business: input.business, origin: input.origin, now: nowIso() });
   const token = newToken();

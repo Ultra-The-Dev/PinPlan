@@ -1,5 +1,6 @@
 // Field documentation helpers: checklist templates and progress, tags, the job timeline and photo filters.
 // Mirrors PinPlanCore/FieldDocsLogic.swift.
+import { msg } from "./i18n/msg";
 import type { Checklist, ChecklistItem, ChecklistTemplate, JobDocument, JobLog, Photo, PhotoComment, Project } from "./types";
 import { memberLabel } from "./teamLogic";
 
@@ -410,11 +411,11 @@ export function timeline(input: {
 export type TimelineFilterId = "photos" | "comments" | "checklists" | "logs" | "documents" | "billdu";
 /** Filter chips for the timeline and the event kinds each one shows. */
 export const TIMELINE_FILTERS: { id: TimelineFilterId; label: string; kind: TimelineEvent["kind"] }[] = [
-  { id: "photos", label: "Photos", kind: "photos" },
-  { id: "comments", label: "Comments", kind: "comment" },
-  { id: "checklists", label: "Checklists", kind: "checklist" },
-  { id: "logs", label: "Logs", kind: "log" },
-  { id: "documents", label: "Documents", kind: "document" },
+  { id: "photos", label: msg("Photos"), kind: "photos" },
+  { id: "comments", label: msg("Comments"), kind: "comment" },
+  { id: "checklists", label: msg("Checklists"), kind: "checklist" },
+  { id: "logs", label: msg("Logs"), kind: "log" },
+  { id: "documents", label: msg("Documents"), kind: "document" },
   { id: "billdu", label: "Billdu", kind: "billdu" },
 ];
 /** How many events the timeline shows at first (and adds per "Load more"). */
