@@ -1,9 +1,10 @@
 "use client";
-import { Building, Cable, Calculator, ClipboardPen, CloudOff, CreditCard, HardHat, ListChecks, Receipt, ReceiptText, Save, Users } from "lucide-react";
+import { Building, CreditCard, LayoutTemplate, MoreHorizontal, Plug, ReceiptText, Save, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DOC_DEFAULT_ACCENT, DOC_DEFAULT_BRAND } from "@/lib/brandDefaults";
 import { toast } from "@/lib/toast";
 import { getSettings, saveSettings } from "@/lib/db";
+import { PRODUCT_NAME } from "@/lib/plans";
 import { tradeWireTypes, tradeVocab } from "@/lib/trades";
 import { TRADES_EVENT, useTrades } from "@/lib/useTrades";
 import { useRole } from "@/lib/team";
@@ -18,11 +19,25 @@ import FormTemplatesSettings from "./forms/FormTemplatesSettings";
 import DocSettingsPanel from "./documents/DocSettingsPanel";
 import TeamPanel from "./TeamPanel";
 import TemplatesSettings from "./templates/TemplatesSettings";
-import { LayoutTemplate } from "lucide-react";
 import TradeSettings from "./TradeSettings";
 import InstallSettings from "./progress/InstallSettings";
 
-export default function SettingsForm() {
+/** A group of settings with a small heading; `id` is what the side nav (and links like /settings#team) jump to. */
+function Group({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className="scroll-mt-6 space-y-4">
+      <h2 className="px-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Settings, in sections: Company · Team · Plan & billing · Quotes & invoices · Connected apps · Templates · More.
+ * Older anchors (#trades, #business, #pricing, #wire, #invoicing, #billdu, #checklists, #forms, #account, …) still
+ * land on their card.
+ */
+export default function SettingsForm({ connectedApps }: { connectedApps?: React.ReactNode } = {}) {
   const [s, setS] = useState<AppSettings | null>(null);
   const [orig, setOrig] = useState<string>("");
   useEffect(() => {
@@ -37,7 +52,7 @@ export default function SettingsForm() {
     return () => window.removeEventListener(TRADES_EVENT, load);
   }, []);
   const trades = useTrades();
-  // Technicians don't see prices, the business branding or Billdu (office work).
+  // Technicians don't see prices, the business branding or connected apps (office work).
   const office = can(useRole(), "prices");
   if (!s) return <p className="p-6 text-slate-500">Loading…</p>;
   const b = s.business;
@@ -46,27 +61,37 @@ export default function SettingsForm() {
   const setP = <K extends keyof typeof p>(k: K, v: (typeof p)[K]) => setS({ ...s, pricing: { ...p, [k]: v } });
 
   const dirty = JSON.stringify(s) !== orig;
+  const save = async () => {
+    try {
+      await saveSettings(s);
+      setOrig(JSON.stringify(s));
+      toast("Settings saved");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "error");
+    }
+  };
+  // The cards that edit the settings record (business, wire, pricing) save together with the bar at the bottom.
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void save();
+  };
   const NAV = [
-    { id: "trades", label: "Trades", icon: HardHat },
-    { id: "business", label: "Business", icon: Building, office: true },
-    { id: "pricing", label: "Pricing", icon: Calculator, office: true },
-    { id: "wire", label: "Wire", icon: Cable },
-    { id: "invoicing", label: "Invoicing", icon: ReceiptText, office: true },
-    { id: "checklists", label: "Checklists", icon: ListChecks },
-    { id: "templates", label: "Job templates", icon: LayoutTemplate, office: true },
-    { id: "forms", label: "Forms", icon: ClipboardPen },
-    { id: "billdu", label: "Billdu", icon: Receipt, office: true },
+    { id: "company", label: "Company", icon: Building },
     { id: "team", label: "Team", icon: Users },
-    { id: "billing", label: "Billing", icon: CreditCard },
-    { id: "account", label: "Account & sync", icon: CloudOff },
+    { id: "billing", label: "Plan & billing", icon: CreditCard },
+    { id: "quotes", label: "Quotes & invoices", icon: ReceiptText, office: true },
+    { id: "connected", label: "Connected apps", icon: Plug, office: true },
+    { id: "library", label: "Templates", icon: LayoutTemplate },
+    { id: "more", label: "More", icon: MoreHorizontal },
   ].filter((n) => office || !n.office);
+  const wireWord = tradeVocab(trades).wire === "Cable" ? "Wire" : tradeVocab(trades).wire;
 
   return (
     <div className="mx-auto grid max-w-5xl gap-8 px-4 py-6 sm:px-6 sm:py-8 md:grid-cols-[180px_1fr]">
       <aside className="hidden md:block">
         <div className="sticky top-6">
           <h1 className="page-title mb-4">Settings</h1>
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5" aria-label="Settings sections">
             {NAV.map((n) => (
               <a
                 key={n.id}
@@ -80,24 +105,27 @@ export default function SettingsForm() {
           </nav>
         </div>
       </aside>
-      <div className="min-w-0 space-y-6">
-        <h1 className="page-title md:hidden">Settings</h1>
-        <TradeSettings />
-        <form
-          className="space-y-6"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            await saveSettings(s);
-            setOrig(JSON.stringify(s));
-            toast("Settings saved");
-          }}
-        >
+      <div className="min-w-0 space-y-10">
+        <div className="space-y-3 md:hidden">
+          <h1 className="page-title">Settings</h1>
+          {/* Phones: the sections as a scrolling row of chips. */}
+          <nav className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1" aria-label="Settings sections">
+            {NAV.map((n) => (
+              <a key={n.id} href={`#${n.id}`} className="chip shrink-0 bg-white px-3 py-1.5 text-sm text-slate-600 ring-1 ring-slate-200">
+                {n.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        <Group id="company" title="Company">
+          <TradeSettings />
           {office && (
-          <>
+          <form onSubmit={onSubmit}>
           <section id="business" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <h2 className="text-lg font-semibold">Your business</h2>
-              <p className="text-sm text-slate-500">Your branding on the client estimate PDF and proposal links.</p>
+              <p className="text-sm text-slate-500">Your name, logo and colours on quotes, invoices and client links.</p>
             </div>
             <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
               <div className="flex h-20 w-48 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-slate-200">
@@ -167,47 +195,18 @@ export default function SettingsForm() {
               <input id="set-service-area" className="input" placeholder="Serving the metro area and nearby towns" value={b.serviceArea ?? ""} onChange={(e) => setB("serviceArea", e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="label" htmlFor="set-estimate-terms">Estimate terms</label>
+              <label className="label" htmlFor="set-estimate-terms">Quote terms</label>
               <textarea id="set-estimate-terms" className="input min-h-20" value={b.estimateTerms} onChange={(e) => setB("estimateTerms", e.target.value)} />
             </div>
           </section>
-
-          <section id="pricing" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-3">
-            <div className="sm:col-span-3">
-              <h2 className="text-lg font-semibold">Pricing defaults</h2>
-              <p className="text-sm text-slate-500">New estimates start from these; each project can override markup, tax and labor.</p>
-            </div>
-            <div>
-              <label className="label" htmlFor="set-markup-on-materials">Markup on materials %</label>
-              <input id="set-markup-on-materials" className="input" type="number" step="0.1" value={p.markupPct} onChange={(e) => setP("markupPct", Number(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label className="label" htmlFor="set-sales-tax">Sales tax %</label>
-              <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label className="label" htmlFor="set-currency">Currency</label>
-              <input id="set-currency" className="input" value={p.currency} maxLength={3} onChange={(e) => setP("currency", e.target.value.toUpperCase())} />
-            </div>
-            <div>
-              <label className="label" htmlFor="set-labor-on-estimate">Labor on estimate</label>
-              <select id="set-labor-on-estimate" className="input" value={p.laborMode} onChange={(e) => setP("laborMode", e.target.value as "combined" | "separate")}>
-                <option value="combined">Combined (“— installed” price)</option>
-                <option value="separate">Separate labor lines</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" checked={p.includeTentative} onChange={(e) => setP("includeTentative", e.target.checked)} />
-              Include tentative (?) items in estimate totals by default
-            </label>
-          </section>
-          </>
+          </form>
           )}
 
+          <form onSubmit={onSubmit}>
           <section id="wire" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-3">
             <div className="sm:col-span-3">
-              <h2 className="text-lg font-semibold">{tradeVocab(trades).wire === "Cable" ? "Wire" : tradeVocab(trades).wire}</h2>
-              <p className="text-sm text-slate-500">{office ? `How home-run lengths are estimated from the plan, and the price per foot of each ${tradeVocab(trades).wire === "Cable" ? "cable" : "type"}.` : "How home-run lengths are estimated from the plan."}</p>
+              <h2 className="text-lg font-semibold">{wireWord}</h2>
+              <p className="text-sm text-slate-500">{office ? `How home-run lengths are estimated from the plan, and the price per foot of each ${wireWord === "Wire" ? "cable" : "type"}.` : "How home-run lengths are estimated from the plan."}</p>
             </div>
             <div>
               <label className="label" htmlFor="set-slack-service-loop">Slack / service loop %</label>
@@ -235,59 +234,105 @@ export default function SettingsForm() {
               </div>
             ))}
           </section>
+          </form>
           {office && <InstallSettings value={s.installPhotoRequired} onChange={(v) => setS({ ...s, installPhotoRequired: v })} />}
+        </Group>
 
-          <div
-            className={`sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-xl px-4 py-3 transition ${dirty ? "bg-ink/95 shadow-pop backdrop-blur" : ""}`}
-          >
-            {dirty && <span className="mr-auto text-sm text-white/80">You have unsaved changes</span>}
-            <button className={`btn ${dirty ? "btn-brand" : ""}`} disabled={!dirty}>
-              <Save /> Save settings
-            </button>
-          </div>
-        </form>
+        <Group title="Team">
+          <TeamPanel businessName={s.business.name} />
+        </Group>
+
+        <Group title="Plan & billing">
+          <BillingPanel />
+        </Group>
 
         {office && (
-          <section id="invoicing" className="card scroll-mt-6 space-y-4 p-6">
-            <div>
-              <h2 className="text-lg font-semibold">Invoicing</h2>
-              <p className="text-sm text-slate-500">Quotes, invoices and credit notes made in PinPlan: titles, numbering, terms, taxes and how clients pay. Shared by everyone in the office.</p>
-            </div>
-            <DocSettingsPanel />
-          </section>
+          <Group id="quotes" title="Quotes & invoices">
+            <form onSubmit={onSubmit}>
+            <section id="pricing" className="card grid scroll-mt-6 gap-4 p-6 sm:grid-cols-3">
+              <div className="sm:col-span-3">
+                <h2 className="text-lg font-semibold">Pricing defaults</h2>
+                <p className="text-sm text-slate-500">New jobs start from these; each job can change markup, tax and labor.</p>
+              </div>
+              <div>
+                <label className="label" htmlFor="set-markup-on-materials">Markup on materials %</label>
+                <input id="set-markup-on-materials" className="input" type="number" step="0.1" value={p.markupPct} onChange={(e) => setP("markupPct", Number(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="set-sales-tax">Sales tax %</label>
+                <input id="set-sales-tax" className="input" type="number" step="0.01" value={p.taxPct} onChange={(e) => setP("taxPct", Number(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="set-currency">Currency</label>
+                <input id="set-currency" className="input" value={p.currency} maxLength={3} onChange={(e) => setP("currency", e.target.value.toUpperCase())} />
+              </div>
+              <div>
+                <label className="label" htmlFor="set-labor-on-estimate">Labor on the quote</label>
+                <select id="set-labor-on-estimate" className="input" value={p.laborMode} onChange={(e) => setP("laborMode", e.target.value as "combined" | "separate")}>
+                  <option value="combined">Combined (“— installed” price)</option>
+                  <option value="separate">Separate labor lines</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" checked={p.includeTentative} onChange={(e) => setP("includeTentative", e.target.checked)} />
+                Include optional (?) items in totals by default
+              </label>
+            </section>
+            </form>
+            <section id="invoicing" className="card scroll-mt-6 space-y-4 p-6">
+              <div>
+                <h2 className="text-lg font-semibold">Quotes, invoices and credit notes</h2>
+                <p className="text-sm text-slate-500">Titles, numbering, terms, taxes and how clients pay, for documents made in {PRODUCT_NAME}. Shared by everyone in the office.</p>
+              </div>
+              <DocSettingsPanel />
+            </section>
+          </Group>
         )}
 
-        <section id="checklists" className="card scroll-mt-6 space-y-4 p-6">
-          <div>
-            <h2 className="text-lg font-semibold">Checklist templates</h2>
-            <p className="text-sm text-slate-500">Your own checklists, saved from a job with “Save as template”. They show first under “Start a checklist”.</p>
-          </div>
-          <ChecklistTemplatesSettings />
-        </section>
-        <TemplatesSettings />
+        {office && (
+          <Group id="connected" title="Connected apps">
+            {/* Other connected apps render here too (passed in by the settings page). */}
+            {connectedApps}
+            <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">
+              <div>
+                <h2 className="text-lg font-semibold">Billdu</h2>
+                <p className="text-sm text-slate-500">Optional: if you already invoice in Billdu, connect it to send quotes and invoices there from a job.</p>
+              </div>
+              <BillduSettings />
+            </section>
+          </Group>
+        )}
 
-        <section id="forms" className="card scroll-mt-6 space-y-4 p-6">
-          <div>
-            <h2 className="text-lg font-semibold">Forms</h2>
-            <p className="text-sm text-slate-500">Inspections, test records, T&amp;M tags and sign-offs your crew fills on jobs (Field → Forms). Duplicate a built-in to make it yours.</p>
-          </div>
-          <FormTemplatesSettings />
-        </section>
+        <Group id="library" title="Templates">
+          <section id="checklists" className="card scroll-mt-6 space-y-4 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Checklist templates</h2>
+              <p className="text-sm text-slate-500">Your own checklists, saved from a job with “Save as template”. They show first under “Start a checklist”.</p>
+            </div>
+            <ChecklistTemplatesSettings />
+          </section>
+          <TemplatesSettings />
+          <section id="forms" className="card scroll-mt-6 space-y-4 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Forms</h2>
+              <p className="text-sm text-slate-500">Inspections, test records, T&amp;M tags and sign-offs your crew fills on jobs (Field → Forms). Duplicate a built-in to make it yours.</p>
+            </div>
+            <FormTemplatesSettings />
+          </section>
+        </Group>
 
-        <AccessCodePanel />
-      {office && (
-      <section id="billdu" className="card scroll-mt-6 space-y-4 p-6">
-          <div>
-            <h2 className="text-lg font-semibold">Billdu</h2>
-            <p className="text-sm text-slate-500">Send estimates, orders and invoices straight from a project.</p>
+        <Group id="more" title="More">
+          <AccessCodePanel />
+          <div className="card scroll-mt-6 p-6">
+            <AccountPanel />
           </div>
-          <BillduSettings />
-        </section>
-      )}
-        <TeamPanel businessName={s.business.name} />
-        <BillingPanel />
-        <div className="card scroll-mt-6 p-6">
-          <AccountPanel />
+        </Group>
+
+        <div className={`sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-xl px-4 py-3 transition ${dirty ? "bg-ink/95 shadow-pop backdrop-blur" : "pointer-events-none opacity-0"}`} aria-hidden={!dirty}>
+          {dirty && <span className="mr-auto text-sm text-white/80">You have unsaved changes</span>}
+          <button type="button" className="btn btn-brand" disabled={!dirty} onClick={() => void save()}>
+            <Save /> Save settings
+          </button>
         </div>
       </div>
     </div>

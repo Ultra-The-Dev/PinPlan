@@ -1,5 +1,5 @@
 "use client";
-import { DatabaseBackup, MapPin, Receipt, Save, Tag } from "lucide-react";
+import { ChevronDown, DatabaseBackup, MapPin, Receipt, Save, Tag } from "lucide-react";
 import { useState } from "react";
 import { exportProjectBackup } from "@/lib/backup";
 import { formatMoney } from "@/lib/estimate";
@@ -7,6 +7,7 @@ import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import JobHealth from "./JobHealth";
+import ProgressPanel from "./progress/ProgressPanel";
 import JobTemplatesCard from "./templates/JobTemplatesCard";
 import { toast } from "@/lib/toast";
 import { currentPosition, mapsLink } from "@/lib/photos";
@@ -37,7 +38,7 @@ function JobLabels() {
             {l} ×
           </button>
         ))}
-        {!labels.length && <span className="text-sm text-slate-500">Sort jobs on the Projects page by label.</span>}
+        {!labels.length && <span className="text-sm text-slate-500">Filter the Jobs page by label.</span>}
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         {SUGGESTED_LABELS.filter((l) => !labels.includes(l)).map((l) => (
@@ -110,6 +111,7 @@ function JobLocation() {
   );
 }
 
+/** The job's Overview tab: health and the next step first, then the details, then everything else under "More". */
 export default function ProjectInfo() {
   const { project, updateProject, settings, sheets, markers } = useEditor();
   const [form, setForm] = useState(() => ({
@@ -134,6 +136,12 @@ export default function ProjectInfo() {
     <div className="h-full overflow-auto">
       <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <JobHealth />
+        {/* Install progress (was on the Crew tab), once there are devices to install. */}
+        {markers.length > 0 && (
+          <div className="lg:col-span-2">
+            <ProgressPanel />
+          </div>
+        )}
         <form
           className="card space-y-4 p-6"
           onSubmit={async (e) => {
@@ -144,7 +152,7 @@ export default function ProjectInfo() {
         >
           <div>
             <h2 className="text-lg font-semibold">Job details</h2>
-            <p className="text-sm text-slate-500">{prices ? "Used on the estimate PDF and to find or create the client in Billdu." : "Address, client contact and site notes for the crew."}</p>
+            <p className="text-sm text-slate-500">{prices ? "Shown on quotes, invoices and the client link." : "Address, client contact and site notes for the crew."}</p>
           </div>
           {field("address", "Job address")}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -164,63 +172,69 @@ export default function ProjectInfo() {
         </form>
 
         <div className="space-y-5">
-          <JobLabels />
           <JobLocation />
-          {prices && (
-          <section className="card p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-slate-400" />
-              <h3 className="font-semibold">Billdu documents</h3>
-            </div>
-            {project.billduDocs.length ? (
-              <ul className="divide-y divide-slate-100">
-                {project.billduDocs.map((d) => (
-                  <li key={`${d.type}-${d.id}`} className="flex items-center gap-2 py-2 text-sm">
-                    <span className="chip bg-slate-100 capitalize text-slate-600">{d.type}</span>
-                    <span className="min-w-0 flex-1 truncate">{d.serial || `#${d.id}`}{d.percent ? ` · ${d.percent}%` : ""}</span>
-                    <span className="font-medium tabular-nums">{formatMoney(d.amount, currency)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500">Nothing sent yet. Send from the Estimate tab.</p>
-            )}
-            {project.billduClientId ? <p className="mt-3 text-xs text-slate-400">Billdu client #{project.billduClientId}</p> : null}
-          </section>
-          )}
-
-          <section className="card p-5">
-            <div className="mb-1 flex items-center gap-2">
-              <DatabaseBackup className="h-4 w-4 text-slate-400" />
-              <h3 className="font-semibold">Backup</h3>
-            </div>
-            <p className="mb-3 text-sm text-slate-500">
-              One file with all {sheets.length} sheets, {markers.length} devices, runs and estimate edits. Restore it from the Projects page on any device.
-            </p>
-            <button
-              className="btn w-full"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await exportProjectBackup(project.id);
-                } catch (e) {
-                  toast(e instanceof Error ? e.message : String(e), "error");
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <DatabaseBackup /> {busy ? "Preparing…" : "Download backup"}
-            </button>
-          </section>
-
-          <JobTemplatesCard />
-
-          <p className="px-1 text-xs text-slate-400">
-            Created {new Date(project.createdAt).toLocaleDateString()} · Updated {new Date(project.updatedAt).toLocaleString()}
-          </p>
         </div>
+
+        <details className="group lg:col-span-2" data-testid="overview-more">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
+            <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
+            More
+            <span className="font-normal text-slate-500">Labels, job templates, backup</span>
+          </summary>
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
+            <JobLabels />
+            <JobTemplatesCard />
+            {/* Jobs sent to Billdu before keep their list; nothing shows unless the job has some. */}
+            {prices && project.billduDocs.length > 0 && (
+              <section className="card p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-slate-400" />
+                  <h3 className="font-semibold">Billdu documents</h3>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {project.billduDocs.map((d) => (
+                    <li key={`${d.type}-${d.id}`} className="flex items-center gap-2 py-2 text-sm">
+                      <span className="chip bg-slate-100 capitalize text-slate-600">{d.type}</span>
+                      <span className="min-w-0 flex-1 truncate">{d.serial || `#${d.id}`}{d.percent ? ` · ${d.percent}%` : ""}</span>
+                      <span className="font-medium tabular-nums">{formatMoney(d.amount, currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {project.billduClientId ? <p className="mt-3 text-xs text-slate-400">Billdu client #{project.billduClientId}</p> : null}
+              </section>
+            )}
+
+            <section className="card p-5">
+              <div className="mb-1 flex items-center gap-2">
+                <DatabaseBackup className="h-4 w-4 text-slate-400" />
+                <h3 className="font-semibold">Backup</h3>
+              </div>
+              <p className="mb-3 text-sm text-slate-500">
+                One file with all {sheets.length} sheets, {markers.length} devices, runs and pricing edits. Restore it from the Jobs page on any device.
+              </p>
+              <button
+                className="btn w-full"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await exportProjectBackup(project.id);
+                  } catch (e) {
+                    toast(e instanceof Error ? e.message : String(e), "error");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <DatabaseBackup /> {busy ? "Preparing…" : "Download backup"}
+              </button>
+            </section>
+          </div>
+        </details>
+
+        <p className="px-1 text-xs text-slate-400 lg:col-span-2">
+          Created {new Date(project.createdAt).toLocaleDateString()} · Updated {new Date(project.updatedAt).toLocaleString()}
+        </p>
       </div>
     </div>
   );

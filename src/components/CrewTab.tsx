@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
 import PanelSchedule from "./PanelSchedule";
 import PortSchedule from "./PortSchedule";
-import ProgressPanel from "./progress/ProgressPanel";
 import { PANEL_KINDS } from "@/lib/catalog";
 import { downloadText, slug } from "@/lib/download";
 import { exportSheetsPdf } from "@/lib/exportSheets";
@@ -16,7 +15,7 @@ import { hasTrade, primaryTrade, tradeCategories, tradeClosetKinds, tradeLayers,
 import { useTrades } from "@/lib/useTrades";
 import type { Layer, Marker } from "@/lib/types";
 
-/** Wiring-only view for the crew: no prices. Marked PDFs by layer plus the home-run schedule. */
+/** Takeoff → Wiring sheets, for the crew: no prices. Marked PDFs by layer plus the home-run schedule. */
 export default function CrewTab() {
   const { project, sheets, markers, runs, closets, catalog, products, autoHomeRuns } = useEditor();
   // Layers follow the company's trades (low voltage only: the original list). Kept as the ones switched off, so the
@@ -78,11 +77,9 @@ export default function CrewTab() {
     <div className="h-full overflow-auto">
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6">
         <div>
-          <h2 className="page-title">Crew wiring sheets</h2>
+          <h2 className="page-title">Wiring sheets</h2>
           <p className="mt-1 text-sm text-slate-500">Where each wire goes and which type — no prices. Share the PDF with the crew pulling wire.</p>
         </div>
-
-        <ProgressPanel />
 
         <div className="card space-y-3 p-4">
           <div className="section-title">Layers in the PDF</div>
