@@ -29,6 +29,8 @@ describe("rateLimit (sliding window)", () => {
     expect(clientIp(new Request("http://x", { headers: { "x-forwarded-for": "203.0.113.9, 10.0.0.1" } }))).toBe("203.0.113.9");
     expect(clientIp(new Request("http://x", { headers: { "x-real-ip": "198.51.100.2" } }))).toBe("198.51.100.2");
     expect(clientIp(new Request("http://x"))).toBe("unknown");
+    // Cloudflare's header wins over anything the caller put in x-forwarded-for.
+    expect(clientIp(new Request("http://x", { headers: { "cf-connecting-ip": "192.0.2.7", "x-forwarded-for": "203.0.113.9" } }))).toBe("192.0.2.7");
   });
 });
 

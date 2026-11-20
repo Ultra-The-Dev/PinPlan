@@ -20,7 +20,10 @@
     "test:db": "scripts/test-supabase.sh",
     "check:legal": "LEGAL_CHECK=strict node scripts/check-legal.mjs",
     "e2e": "playwright test",
-    "check:migrations": "node scripts/check-migrations.mjs"
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
@@ -43,6 +46,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@opennextjs/cloudflare": "^1.20.17",
     "@playwright/test": "1.63.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^22.20.5",
@@ -56,7 +60,8 @@
     "jsdom": "^31.0.1",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.165.0"
   },
   "overrides": {
     "playwright-core": "$@playwright/test"

@@ -19,6 +19,9 @@ describe("production config check", () => {
 
   it("logs one line in production only, naming variables but never values", () => {
     expect(isProduction({ VERCEL_ENV: "preview" })).toBe(false);
+    // Any host (Cloudflare Workers): PINPLAN_ENV decides, and wins over VERCEL_ENV.
+    expect(isProduction({ PINPLAN_ENV: "production" })).toBe(true);
+    expect(isProduction({ PINPLAN_ENV: "preview", VERCEL_ENV: "production" })).toBe(false);
     expect(configWarning({ ...full, STRIPE_SECRET_KEY: "" })).toBeNull(); // not production
     expect(configWarning({ ...full, VERCEL_ENV: "production" })).toBeNull();
     const line = configWarning({ ...full, VERCEL_ENV: "production", STRIPE_SECRET_KEY: "", EMAIL_FROM: "" })!;

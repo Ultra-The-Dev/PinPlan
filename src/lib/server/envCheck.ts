@@ -31,8 +31,12 @@ export const REQUIRED_PRODUCTION_VARS = [
 
 type Env = Record<string, string | undefined>;
 
-/** Vercel's production deployment (preview and development deployments are allowed to be incomplete). */
+/**
+ * The production deployment (preview and development deployments are allowed to be incomplete): Vercel production, or
+ * PINPLAN_ENV=production on any other host (set in wrangler.jsonc for Cloudflare Workers).
+ */
 export function isProduction(env: Env = process.env): boolean {
+  if (env.PINPLAN_ENV) return env.PINPLAN_ENV === "production";
   return env.VERCEL_ENV === "production";
 }
 

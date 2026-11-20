@@ -25,8 +25,13 @@ export function authMode(): "supabase" | "access_code" | "open" {
   return "open";
 }
 
-/** A production deployment (Vercel production, or a production Node build). Previews and `next dev` are not. */
+/**
+ * A production deployment (PINPLAN_ENV=production, e.g. Cloudflare Workers; Vercel production; or a production Node
+ * build). Previews and `next dev` are not.
+ */
 export function isProduction(): boolean {
+  const pinplan = process.env.PINPLAN_ENV;
+  if (pinplan) return pinplan === "production";
   const vercel = process.env.VERCEL_ENV;
   if (vercel) return vercel === "production";
   return process.env.NODE_ENV === "production";

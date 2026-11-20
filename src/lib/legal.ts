@@ -64,8 +64,9 @@ export const ALL_SUBPROCESSORS: Subprocessor[] = [
     location: COMPANY.dataRegion,
   },
   {
-    name: "Vercel Inc.",
-    purpose: "Website and application hosting, serverless functions, content delivery",
+    // The host: Cloudflare Workers (docs/cloudflare.md). If you host on Vercel instead, name Vercel Inc. here.
+    name: "Cloudflare, Inc.",
+    purpose: "Website and application hosting, serverless functions, content delivery, DNS and email forwarding",
     data: "Requests passing through the service, IP addresses, server logs",
     location: "United States (global edge network)",
   },

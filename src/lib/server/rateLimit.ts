@@ -95,11 +95,14 @@ export function tooManyRequests(r: RateLimitResult, message: string): Response {
 export const waitText = (s: number) => (s < 90 ? `${s} seconds` : `${Math.ceil(s / 60)} minutes`);
 
 /**
- * Best-effort client IP, for per-IP limits. Trustworthy only on Vercel: Vercel's edge overwrites x-forwarded-for and
- * x-real-ip with the real client address, so callers can't choose it. Behind any other host or proxy these headers are
- * whatever the caller (or the proxy) sent, so per-IP limits there can be dodged; per-user and per-code limits can't.
+ * Best-effort client IP, for per-IP limits. On Cloudflare Workers, cf-connecting-ip is set by Cloudflare and callers
+ * can't choose it. On Vercel, the edge overwrites x-forwarded-for and x-real-ip with the real client address. Behind
+ * any other host or proxy these headers are whatever the caller (or the proxy) sent, so per-IP limits there can be
+ * dodged; per-user and per-code limits can't.
  */
 export function clientIp(request: Request): string {
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
   const fwd = request.headers.get("x-forwarded-for");
   if (fwd) return fwd.split(",")[0].trim() || "unknown";
   return request.headers.get("x-real-ip")?.trim() || "unknown";

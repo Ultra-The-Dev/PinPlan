@@ -1,0 +1,25 @@
+{
+  // Cloudflare Workers deployment (OpenNext). Secrets: `npx wrangler secret put NAME` (see docs/cloudflare.md).
+  // NEXT_PUBLIC_* values are read at build time, so they go in the build environment, not here.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pinplan",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    // Self-reference (the name must match "name" above): OpenNext uses it for its caching.
+    { "binding": "WORKER_SELF_REFERENCE", "service": "pinplan" }
+  ],
+  // Same schedule as vercel.json: billing reminders daily at 15:17 UTC.
+  "triggers": { "crons": ["17 15 * * *"] },
+  // Marks this Worker as production (required settings are checked, open mode is refused). Secrets are set with
+  // `npx wrangler secret put` or in the dashboard, never here.
+  "vars": { "PINPLAN_ENV": "production" },
+  // Run the Worker close to the database (Supabase is in one region) instead of close to each visitor.
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true }
+}

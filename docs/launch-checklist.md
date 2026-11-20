@@ -12,13 +12,13 @@ running the service after launch (monitoring, key rotation, incidents).
   password manager. Never into a file in this repo, an issue, a pull request or a chat.
 - AI features stay **off** for launch. Don't set any of the AI settings (step 7.3).
 
-**Lean setup (recommended for launch): about $45 a month**, plus the domain (about $10–$14 a year at cost from
+**Lean setup (recommended for launch): about $30 a month**, plus the domain (about $10–$14 a year at cost from
 Cloudflare Registrar), Stripe fees on each payment, Apple $99 a year once you ship the App Store app, and one-time
 company formation (your state's fee). Upgrade a line when you outgrow it; the "Later" column is the step up.
 
 | Service | Launch with | About | Later |
 | --- | --- | --- | --- |
-| Vercel (hosting) | Pro, one member (the free Hobby plan forbids commercial use) | $20 a month | Cloudflare Workers paid (~$5 a month) is cheaper but needs a migration (OpenNext) |
+| Cloudflare Workers (hosting) | Workers Paid; the app is set up for it ([cloudflare.md](cloudflare.md)) | $5 a month | — (Vercel Pro, $20 per member a month, also works: section 7) |
 | Supabase (database, sign-in, files) | Pro, which already includes 7 days of daily backups | $25 a month | Point-in-time recovery add-on (~$100 a month) once you have many paying companies |
 | Resend (email) | Free: 3,000 emails a month, 100 a day, one domain | $0 | Pro ($20 a month) when you near 100 a day; Amazon SES ($0.10 per 1,000) at scale |
 | Map tiles | A provider's free commercial tier, or leave the jobs map background off (pins and list still work) | $0 | MapTiler / Stadia / Mapbox paid plan |
@@ -179,7 +179,13 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
    registrations, then set `STRIPE_TAX=1`.
 7. **O:** each company can have a `billing_email` on its team row; otherwise billing emails go to the owner's email.
 
-## 7. Vercel (Pro $20 per member a month)
+## 7. Hosting
+
+**Cloudflare Workers (recommended, $5 a month):** follow [cloudflare.md](cloudflare.md). It uses the same settings as
+the table below: `NEXT_PUBLIC_` values go in the Worker's build variables, everything else as Worker secrets, and the
+cron is already in `wrangler.jsonc`. Steps 7.2 and 7.3 apply as written; skip 7.4 (Vercel project settings).
+
+**Or Vercel (Pro $20 per member a month):** the steps below.
 
 1. **R: Production environment variables** (Project → Settings → Environment Variables → Production). Full
    descriptions are in [.env.example](../.env.example). `NEXT_PUBLIC_` values are built into the app: redeploy after
