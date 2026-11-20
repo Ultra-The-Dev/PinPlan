@@ -82,6 +82,9 @@ struct ProjectView: View {
         .environment(\.exportPlacement, hSize == .compact ? .topBarTrailing : .bottomBar)
         // A technician has no Money tab (also when the role arrives with a sync while the job is open).
         .onChange(of: app.cloud.can(.prices)) { _, ok in if !ok && tab == .money { tab = .overview } }
+        // Every plan deleted from "Add or manage plans": the plan section is the import screen again, so don't let
+        // the closed sheet pop back up after the next import.
+        .onChange(of: model?.sheets.isEmpty ?? false) { _, empty in if empty { model?.showManagePlans = false } }
         .onAppear {
             if model == nil {
                 let m = EditorModel(bundle: bundle, app: app)
@@ -137,7 +140,7 @@ struct ProjectView: View {
             }
         case .takeoff: TakeoffView(model: model, showWiring: $showWiring)
         case .money:
-            if app.cloud.can(.prices) { MoneyView(model: model) } else { OfficeOnlyView(what: "Quotes and invoices") }
+            if app.cloud.can(.prices) { MoneyView(model: model) } else { OfficeOnlyView(what: "Quotes, invoices") }
         case .field: JobFieldView(model: model, photos: $showPhotos)
         }
     }
@@ -164,7 +167,7 @@ private struct QuotesAndInvoicesLink: View {
     var body: some View {
         Link(destination: url) {
             HStack(spacing: 12) {
-                Image(systemName: "doc.text").font(.body.weight(.semibold)).foregroundStyle(Color.ink)
+                Image(systemName: "doc.text").font(.body.weight(.semibold)).foregroundStyle(Color.primary)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Quotes & invoices").font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
                     Text("Finalize, send and record payments on the web").font(.caption).foregroundStyle(Color.pencil)

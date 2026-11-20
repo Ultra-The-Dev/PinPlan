@@ -79,7 +79,14 @@ enum ViewerPrefs {
     static func saveMode(_ m: PlanViewerMode) { d.set(m.rawValue, forKey: "viewer.mode") }
 
     /// Screenshot / automation flags (`--viewer-zoomed`, `--sheet-browser`, `--layers`, `--minimap`, `--view-mode`).
-    static func launchFlag(_ name: String) -> Bool { ProcessInfo.processInfo.arguments.contains("--\(name)") }
+    /// Debug builds only: a release build ignores launch arguments.
+    static func launchFlag(_ name: String) -> Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--\(name)")
+        #else
+        return false
+        #endif
+    }
 }
 
 extension View {

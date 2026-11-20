@@ -229,8 +229,8 @@ private struct EmptyProjects: View {
 struct StatusChip: View {
     let status: ProjectStatus
     var body: some View {
-        // Approved is teal (brand); quoting is amber, installed is ink.
-        let tint: Color = status == .estimate ? Color.orange : status == .approved ? Color.approved : Color.ink
+        // Approved is teal (brand); quoting is amber, installed is pencil grey (reads in light and dark).
+        let tint: Color = status == .estimate ? Color.orange : status == .approved ? Color.approved : Color.pencil
         HStack(spacing: 5) {
             Circle().fill(tint).frame(width: 7, height: 7)
             Text(status.title).font(.caption.weight(.medium)).foregroundStyle(.primary)
