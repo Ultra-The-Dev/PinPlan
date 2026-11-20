@@ -76,10 +76,15 @@ export default function SignupForm() {
           captchaToken: await takeCaptcha(),
         },
       });
-      // With "Confirm email" on, an address that already has an account comes back with no identities.
-      const exists = !error && data.user && !data.session && data.user.identities?.length === 0;
-      if (error || exists) {
-        const msg = authErrorMessage(exists ? "User already registered" : error!.message);
+      // With "Confirm email" on, an address that already has an account comes back with no identities. It gets exactly
+      // what a new sign-up gets ("Check your email"): this form must not tell anyone which addresses have accounts.
+      // Nothing is noted on this device for it (no company waits for a confirmation that never comes).
+      if (!error && data.user && !data.session && data.user.identities?.length === 0) {
+        setSentTo(email);
+        return;
+      }
+      if (error) {
+        const msg = authErrorMessage(error.message);
         setError(
           /already an account/.test(msg) ? (
             rich(t("There’s already an account with this email. {signIn} or {reset}."), {

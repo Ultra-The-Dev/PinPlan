@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
 import { checkCloudSetup, type CheckResult } from "@/lib/cloudCheck";
-import { authErrorMessage } from "@/lib/onboardingLogic";
+import { changePassword } from "@/lib/onboarding";
+import { authErrorMessage, CURRENT_PASSWORD } from "@/lib/onboardingLogic";
 import { fmtDate, msg, useT } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import type { RefusedChange, SyncTable } from "@/lib/db";
@@ -91,7 +92,7 @@ export default function AccountPanel() {
             </button>
             <SignOut pending={s.pending + s.refused} />
           </div>
-          <SetPassword />
+          <SetPassword email={s.email} />
           <AccountData />
         </div>
       ) : (
@@ -267,10 +268,11 @@ const REFUSED_LABELS: Partial<Record<SyncTable, string>> = {
   planMarkups: msg("Markup"),
 };
 
-/** Sign out, optionally removing this device's jobs too (with a warning when changes haven't synced). */
+/** Sign out, removing this device's jobs too unless the person unticks it (with a warning when changes haven't synced). */
 function SignOut({ pending }: { pending: number }) {
   const [open, setOpen] = useState(false);
-  const [remove, setRemove] = useState(false);
+  // A signed-out device keeps nothing of the account's unless the person chooses to.
+  const [remove, setRemove] = useState(true);
   const [busy, setBusy] = useState(false);
   const t = useT();
   if (!open)
@@ -307,6 +309,26 @@ function SignOut({ pending }: { pending: number }) {
           }}
         >
           {remove ? t("Sign out and remove") : t("Sign out")}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              // Ends every session of the account (a lost phone, a shared computer), then this device's as usual.
+              await getSupabase()
+                ?.auth.signOut({ scope: "global" })
+                .catch(() => undefined);
+              await signOut({ removeData: remove });
+            } finally {
+              setBusy(false);
+              setOpen(false);
+            }
+          }}
+        >
+          Sign out of all devices
         </button>
         <button type="button" className="btn btn-sm" disabled={busy} onClick={() => setOpen(false)}>
           {t("Cancel")}
@@ -364,12 +386,17 @@ function CloudCheck() {
 }
 
 /** Accounts made with a magic link have no password; the iPad app signs in with email + password. */
-function SetPassword() {
+// Proof first (changePassword in onboarding.ts): a password account types its current password; a login made with a
+// sign-in link leaves it empty and gets a code by email (Supabase's reauthentication email) to enter here.
+function SetPassword({ email }: { email: string | null }) {
+  const [current, setCurrent] = useState("");
+  const [code, setCode] = useState<string | null>(null);
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const valid = pw.length >= PASSWORD_MIN && pw.length <= 72 && pw === pw2;
+  const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("login");
+  const valid = pw.length >= PASSWORD_MIN && pw.length <= 72 && pw === pw2 && (code === null || !!code.trim());
   const t = useT();
   return (
     <form
@@ -379,17 +406,55 @@ function SetPassword() {
         if (!valid) return;
         setBusy(true);
         setMsg(null);
-        const { error } = (await getSupabase()?.auth.updateUser({ password: pw })) ?? { error: { message: t("Not connected") } };
-        setBusy(false);
-        setMsg(error ? { ok: false, text: error.message } : { ok: true, text: t("Password set. On the iPad/iPhone, sign in with this email and password.") });
-        if (!error) {
-          setPw("");
-          setPw2("");
+        try {
+          const r = await changePassword({
+            email,
+            password: pw,
+            current: code === null ? current : undefined,
+            nonce: code ?? undefined,
+            captchaToken: code === null && current ? await takeCaptcha() : undefined,
+          });
+          if (r.ok) {
+            setMsg({ ok: true, text: t("Password set. On the iPad/iPhone, sign in with this email and password.") });
+            setPw("");
+            setPw2("");
+            setCurrent("");
+            setCode(null);
+          } else if ("codeSent" in r) {
+            setCode("");
+            setMsg({ ok: true, text: t("Enter the code to confirm it's you.") });
+          } else setMsg({ ok: false, text: r.error });
+        } catch (err) {
+          setMsg({ ok: false, text: authErrorMessage(err instanceof Error ? err.message : String(err)) });
+        } finally {
+          setBusy(false);
         }
       }}
     >
       <div className="text-sm font-medium">{t("Set or change password")}</div>
       <p className="text-xs text-slate-500">{t("Signed in with a magic link? Set a password here to sign in on the iPad and iPhone app.")}</p>
+      {code === null ? (
+        <input
+          className="input max-w-56"
+          type="password"
+          autoComplete="current-password"
+          placeholder={t(CURRENT_PASSWORD)}
+          aria-label={t(CURRENT_PASSWORD)}
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+      ) : (
+        <input
+          className="input max-w-56"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder={t("Your code")}
+          aria-label={t("Your code")}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          autoFocus
+        />
+      )}
       <div className="flex flex-wrap gap-2">
         <input className="input max-w-56" type="password" autoComplete="new-password" placeholder={t("New password ({n}+ characters)", { n: PASSWORD_MIN })} aria-label={t("New password")} value={pw} onChange={(e) => setPw(e.target.value)} />
         <input className="input max-w-56" type="password" autoComplete="new-password" placeholder={t("Repeat password")} aria-label={t("Repeat new password")} value={pw2} onChange={(e) => setPw2(e.target.value)} />
@@ -399,7 +464,8 @@ function SetPassword() {
       </div>
       {pw && pw.length < PASSWORD_MIN && <p className="text-xs text-slate-500">{t("Use at least {n} characters.", { n: PASSWORD_MIN })}</p>}
       {pw2 && pw !== pw2 && <p className="text-xs text-amber-700">{t("The two passwords don’t match.")}</p>}
-      {msg && <p className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+      <div ref={captchaMount} className="flex justify-center empty:hidden" />
+      {(msg ?? captchaError) && <p className={`text-sm ${msg?.ok ? "text-emerald-700" : "text-red-600"}`}>{msg?.text ?? captchaError}</p>}
     </form>
   );
 }

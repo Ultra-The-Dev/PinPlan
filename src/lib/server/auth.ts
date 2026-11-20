@@ -108,6 +108,50 @@ export async function requireOffice(request: Request): Promise<AuthResult> {
   return auth;
 }
 
+/** Sign-in methods that prove the person is here now: their password, or a code or link sent to their email. */
+const FRESH_METHODS = new Set(["password", "otp", "magiclink"]);
+
+function claimsOf(token: string): Record<string, unknown> | null {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const v = JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) as unknown;
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * When the person last actually signed in with a password, an emailed code or a sign-in link: the newest such entry in
+ * the token's `amr` (seconds since 1970), or null. A refreshed token gets a new `iat`, and the browser refreshes on its
+ * own, as can anyone holding a stolen refresh token, so `iat` never counts. Only call this on a token Supabase has
+ * already accepted (requireUser / /auth/v1/user): it decodes, it doesn't verify.
+ */
+export function lastSignInAt(token: string): number | null {
+  const amr = claimsOf(token)?.amr;
+  if (!Array.isArray(amr)) return null;
+  const times = amr
+    .filter((m): m is { method?: unknown; timestamp?: unknown } => !!m && typeof m === "object")
+    .filter((m) => typeof m.method === "string" && FRESH_METHODS.has(m.method))
+    .map((m) => m.timestamp)
+    .filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+  return times.length ? Math.max(...times) : null;
+}
+
+/**
+ * For actions a stolen session must not be able to take (deleting the account): the token must carry a sign-in from
+ * the last `maxAgeSec` seconds. Otherwise 401 { code: "reauth_required" }: the apps ask for the password (or send a
+ * sign-in link) and try again. Same caveat as lastSignInAt: only on a token Supabase has accepted.
+ */
+export function requireFreshAuth(token: string, maxAgeSec: number, message: string, now = Date.now()): { ok: true } | { ok: false; response: Response } {
+  const at = lastSignInAt(token);
+  const age = at == null ? Infinity : now / 1000 - at;
+  // A sign-in time in the future (beyond a minute of clock skew) isn't believed either.
+  if (age < maxAgeSec && age > -60) return { ok: true };
+  return { ok: false, response: Response.json({ error: message, code: "reauth_required" }, { status: 401, headers: { "Cache-Control": "no-store" } }) };
+}
+
 /**
  * When the caller's access token was issued (JWT `iat`, seconds since 1970), or null when it can't be read.
  * Only call this on a token Supabase has already accepted (requireUser / /auth/v1/user): it decodes, it doesn't verify.

@@ -6,7 +6,7 @@ import { Building2, Loader2, LogOut, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { accountMetadata, clearPendingCompany, pendingCompany, recordTermsAccepted, welcomeNewCompany } from "@/lib/onboarding";
+import { accountMetadata, clearPendingCompany, pendingCompany, recordTermsAccepted, recordTermsOnSignIn, welcomeNewCompany } from "@/lib/onboarding";
 import { acceptedTerms, companyFromMetadata, setupCompanyProblem } from "@/lib/onboardingLogic";
 import { getAuthor } from "@/lib/photos";
 import { PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
@@ -66,7 +66,9 @@ export default function SetupCompany() {
         await reloadTeam();
       }
       clearPendingCompany();
+      // Agreed just now: noted on the account and in the database. Agreed at sign-up: the database gets it too.
       if (termsNeeded !== false) await recordTermsAccepted();
+      else await recordTermsOnSignIn().catch(() => undefined);
       if (made) await welcomeNewCompany({ company: f.company.trim(), name: f.name.trim(), email: sync.email ?? "", trades: f.trades });
       void useSyncStatus.getState().syncNow().catch(() => undefined);
       // /start now shows the checklist (the team store has the new company).

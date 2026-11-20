@@ -707,6 +707,9 @@ const shellSettings: Dictionary = {
   "signed out": "без входа",
   "No errors reported.": "Ошибок нет.",
   "Generated {date}": "Сформировано {date}",
+  "Enter the code to confirm it's you.": "Введите код, чтобы подтвердить, что это вы.",
+  "Your code": "Ваш код",
+  "Current password": "Текущий пароль",
 };
 
 export default shellSettings;

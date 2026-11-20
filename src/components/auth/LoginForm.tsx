@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCaptcha } from "@/lib/captcha";
 import { useT } from "@/lib/i18n";
-import { accountMetadata, markOnboardingStarted, pendingCompany } from "@/lib/onboarding";
+import { accountMetadata, markOnboardingStarted, pendingCompany, recordTermsOnSignIn } from "@/lib/onboarding";
 import { authErrorMessage, companyFromMetadata } from "@/lib/onboardingLogic";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
@@ -40,6 +40,8 @@ export default function LoginForm() {
   useEffect(() => {
     if (!sync.authReady || !sync.signedIn || left.current) return;
     left.current = true;
+    // The first sign-in after a sign-up (the confirmation link) records the terms it agreed to in the database too.
+    void recordTermsOnSignIn().catch(() => undefined);
     void (async () => {
       // A company waiting for this account: noted on this device, or on the account (signed up on another device).
       // (Accounts from before sign-ups noted the terms also carry a company name but never wait for one: only newer

@@ -1,11 +1,13 @@
 "use client";
 // "/" for a first-time visitor (signed out, no jobs on this device) goes to the landing page instead of an empty
 // jobs list. Signed-in users, anyone with local jobs, and "Try it without an account" keep the app — except that
-// every account belongs to a company: someone signed in without one goes to /start ("Set up your company").
+// every account belongs to a company: someone signed in without one goes to /start ("Set up your company"). Jobs that
+// belong to an account stay behind its sign-in: signed out, "/" goes to /login.
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { pullCompanySettings } from "@/lib/companySettings";
 import { db } from "@/lib/db";
+import { heldSignIn, recordedOwner } from "@/lib/localOwner";
 import { COMPANY_READY_EVENT, isDemo } from "@/lib/onboarding";
 import { landingDecision } from "@/lib/onboardingLogic";
 import { useSyncStatus } from "@/lib/sync";
@@ -17,9 +19,11 @@ export default function FirstRunGate({ children }: { children: React.ReactNode }
   const t = useTeam();
   const [localJobs, setLocalJobs] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
+  const [owner, setOwner] = useState<string | null>(null);
   useEffect(() => {
     const done = (n: number) => {
       setDemo(isDemo());
+      setOwner(recordedOwner()?.userId ?? null);
       setLocalJobs(n);
     };
     db()
@@ -31,8 +35,13 @@ export default function FirstRunGate({ children }: { children: React.ReactNode }
   // as "no team": nobody is sent to set up a company because the network is down.
   const known = t.ready && t.userId === s.userId;
   const hasTeam = !s.signedIn || !known ? null : t.team || t.error || t.needsMigration ? true : false;
-  const decision = landingDecision({ configured: s.configured, authReady: s.authReady, signedIn: s.signedIn, localJobs, demo, hasTeam });
+  // Not known until the local check has run (localJobs set): wait rather than show an owned device's jobs.
+  // Offline with an expired token the client reports nobody signed in, but the sign-in is still stored: not a sign-out.
+  // (Read only once the sign-in state is known, so only in the browser.)
+  const held = s.authReady && !s.signedIn && !!owner && heldSignIn(owner);
+  const decision = landingDecision({ configured: s.configured, authReady: s.authReady, signedIn: s.signedIn, localJobs, demo, hasTeam, hasOwner: !!owner, heldSignIn: held });
   useEffect(() => {
+    if (decision === "login") router.replace("/login");
     if (decision === "welcome") router.replace("/welcome");
     if (decision === "setup") router.replace("/start");
   }, [decision, router]);

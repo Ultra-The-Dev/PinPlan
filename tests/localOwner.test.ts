@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db, put } from "@/lib/db";
-import { adoptLocalData, checkLocalOwner, hasLocalData, ownerDecision, readLocalOwner, removeLocalData, writeLocalOwner } from "@/lib/localOwner";
+import { adoptLocalData, checkLocalOwner, hasLocalData, heldSignIn, ownerDecision, readLocalOwner, removeLocalData, writeLocalOwner } from "@/lib/localOwner";
 
 // localStorage for the node test environment.
 class MemoryStorage {
@@ -38,6 +38,20 @@ beforeEach(async () => {
   storage.clear();
   await db().delete();
   await db().open();
+});
+
+describe("heldSignIn", () => {
+  it("a stored session for the owner (offline, token not refreshed) counts; anyone else's or a broken one doesn't", () => {
+    expect(heldSignIn("a")).toBe(false);
+    storage.setItem("sb-test-auth-token", JSON.stringify({ access_token: "x", refresh_token: "r", user: { id: "a" } }));
+    expect(heldSignIn("a")).toBe(true);
+    expect(heldSignIn("b")).toBe(false);
+    expect(heldSignIn(null)).toBe(false);
+    storage.setItem("sb-test-auth-token", JSON.stringify({ access_token: "x", user: { id: "a" } }));
+    expect(heldSignIn("a")).toBe(false);
+    storage.setItem("sb-test-auth-token", "not json");
+    expect(heldSignIn("a")).toBe(false);
+  });
 });
 
 describe("ownerDecision", () => {

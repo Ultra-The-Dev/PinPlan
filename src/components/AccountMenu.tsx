@@ -4,8 +4,7 @@ import { CreditCard, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { getSupabase } from "@/lib/supabase";
-import { useSyncStatus } from "@/lib/sync";
+import { signOut, useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import { ROLE_INFO } from "@/lib/teamLogic";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -56,7 +55,8 @@ export default function AccountMenu() {
       </button>
       {open && (
         <div role="menu" className="card animate-in absolute right-0 z-40 mt-2 w-64 p-1 shadow-pop">
-          {(signedIn || role) && (
+          {/* Signed out, the role kept for this device's jobs (team.ts) only limits what shows; it isn't who you are. */}
+          {signedIn && (
             <div className="border-b border-slate-100 px-3 pt-2 pb-2.5">
               {me?.name && <div className="truncate text-sm font-semibold text-slate-900">{me.name}</div>}
               {email && <div className="truncate text-xs text-slate-500">{email}</div>}
@@ -87,7 +87,8 @@ export default function AccountMenu() {
               className={`${item} border-t border-slate-100`}
               onClick={() => {
                 setOpen(false);
-                void getSupabase()?.auth.signOut();
+                // sync.signOut, never the bare Supabase call: it also deals with this device's jobs (its default).
+                void signOut();
               }}
             >
               <LogOut /> {t("Sign out")}

@@ -6,7 +6,20 @@ import { create } from "zustand";
 import { FOUNDER_BUSINESS } from "./catalog";
 import { COMPANY_SETTINGS_EVENT, getCompanySettings, pullCompanySettings, saveCompanySettings } from "./companySettings";
 import { db, getSettings } from "./db";
-import { companyFromMetadata, onboardingDone, onboardingProgress, termsMetadata, type OnboardingStepId } from "./onboardingLogic";
+import { t } from "./i18n";
+import {
+  acceptedTerms,
+  authErrorMessage,
+  companyFromMetadata,
+  missingFunction,
+  needsReauthCode,
+  onboardingDone,
+  onboardingProgress,
+  passwordChangeProof,
+  termsMetadata,
+  TERMS_VERSION,
+  type OnboardingStepId,
+} from "./onboardingLogic";
 import { setAuthor } from "./photos";
 import { getSupabase } from "./supabase";
 import { createTeam, useTeam } from "./team";
@@ -83,15 +96,78 @@ export async function accountMetadata(): Promise<Record<string, unknown> | null>
 /** Note on the account that it agreed to the current Terms and Privacy Policy (best effort: the sign-up already
  *  sent it where it could). */
 export async function recordTermsAccepted(): Promise<void> {
+  // user_metadata is kept for older servers and apps; the database's own record (accept_terms) is the one that counts.
   await getSupabase()
     ?.auth.updateUser({ data: termsMetadata() })
     .catch(() => undefined);
+  await acceptTermsInDatabase();
+}
+
+/** Record the agreement in the database (accept_terms, which stamps the time and version on the server). A database
+ *  without the function yet (PGRST202) is fine: user_metadata still has it. True when it was recorded. */
+export async function acceptTermsInDatabase(): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return false;
+  try {
+    const { error } = await sb.rpc("accept_terms", { p_version: TERMS_VERSION });
+    if (error && !missingFunction(error)) console.warn("[terms] couldn't record the agreement", error.message);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+const TERMS_RECORDED_KEY = "pinplan.termsRecorded";
+/** After a sign-in: an account that agreed at sign-up (user_metadata) has it recorded in the database too, once per
+ *  account and terms version on this device. */
+export async function recordTermsOnSignIn(): Promise<void> {
+  const sb = getSupabase();
+  const user = sb ? (await sb.auth.getSession()).data.session?.user : null;
+  if (!user || !acceptedTerms(user.user_metadata as Record<string, unknown> | undefined)) return;
+  const mark = `${user.id}:${TERMS_VERSION}`;
+  if (read<string>(TERMS_RECORDED_KEY) === mark) return;
+  if (await acceptTermsInDatabase()) write(TERMS_RECORDED_KEY, mark);
+}
+
+// ---------------- changing the password ----------------
+
+export type PasswordChangeResult = { ok: true } | { ok: false; error: string } | { ok: false; codeSent: true };
+
+/**
+ * Change the signed-in account's password, proven first (see passwordChangeProof): the current password checked with a
+ * fresh sign-in, the emailed code, or the reset link. When Supabase asks for the code anyway (reauthentication_needed)
+ * it's sent and `codeSent` comes back: ask for it and call again with `nonce`. Afterwards every other session of the
+ * account is signed out, so a stolen session doesn't outlive the change.
+ */
+export async function changePassword(o: { email: string | null; password: string; current?: string; nonce?: string; recovery?: boolean; captchaToken?: string }): Promise<PasswordChangeResult> {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: t("Not connected") };
+  const sendCode = async (): Promise<PasswordChangeResult> => {
+    const { error } = await sb.auth.reauthenticate();
+    return error ? { ok: false, error: authErrorMessage(error.message) } : { ok: false, codeSent: true };
+  };
+  const proof = passwordChangeProof(o);
+  if (proof === "code") return sendCode();
+  if (proof === "current") {
+    if (!o.email) return { ok: false, error: authErrorMessage("invalid login credentials") };
+    const { error } = await sb.auth.signInWithPassword({ email: o.email, password: o.current!, options: { captchaToken: o.captchaToken } });
+    if (error) return { ok: false, error: authErrorMessage(error.message) };
+  }
+  const { error } = await sb.auth.updateUser(proof === "nonce" ? { password: o.password, nonce: o.nonce!.trim() } : { password: o.password });
+  if (error) {
+    if (proof !== "nonce" && needsReauthCode(error)) return sendCode();
+    return { ok: false, error: /different from the old/i.test(error.message) ? t("Choose a password you haven’t used before.") : authErrorMessage(error.message) };
+  }
+  await sb.auth.signOut({ scope: "others" }).catch(() => undefined);
+  return { ok: true };
 }
 
 /** Everything a brand-new company gets once its team exists: trades, this device's business name, the welcome email,
  *  and the checklist. The company is noted on the account so it's never made twice (another device, a later sign-in). */
 export async function welcomeNewCompany(c: { company: string; name: string; email: string; trades?: TradeId[] }): Promise<void> {
   if (c.name.trim()) setAuthor(c.name.trim());
+  // The sign-up agreed to the terms (user_metadata): record it in the database as well.
+  await recordTermsOnSignIn().catch(() => undefined);
   if (c.trades?.length) await chooseTrades(c.trades).catch(() => undefined);
   await brandNewCompany(c.company, c.email).catch(() => undefined);
   await getSupabase()

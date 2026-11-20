@@ -19,8 +19,31 @@ export const ROLE_INFO: Record<TeamRole, { name: string; short: string; descript
 
 /** No team (working alone) means full access. */
 const TECH_CAN: Record<TeamAction, boolean> = { prices: false, manageTeam: false, deleteJob: false, editCatalog: false };
-export function can(role: TeamRole | null | undefined, action: TeamAction): boolean {
-  return role === "tech" ? TECH_CAN[action] : true;
+
+/** Who is (or was) using this device, for deciding a role while nobody is signed in. */
+export interface RoleContext {
+  signedIn: boolean;
+  /** The account the jobs on this device belong to (localOwner.ts), or null for data that never had an owner. */
+  owner: string | null;
+  /** The last team cached on this device (`pinplan.team`). */
+  cached: { userId?: string | null; role?: TeamRole | null } | null;
+}
+
+/**
+ * The role to use. Signed in: the account's own role. Signed out with jobs that belong to nobody (solo, demo): full
+ * access. Signed out with jobs that belong to an account: that account's last cached role, and when it isn't known,
+ * a technician's (no prices). Signing out must never open the office side to whoever picks up the device next.
+ */
+export function effectiveRole(role: TeamRole | null | undefined, ctx: RoleContext): TeamRole | null {
+  if (ctx.signedIn || !ctx.owner) return role ?? null;
+  if (ctx.cached?.userId === ctx.owner && ctx.cached.role !== undefined) return ctx.cached.role ?? null;
+  return "tech";
+}
+
+/** `ctx` (optional) applies the signed-out rule above; the team store already does when it loads for nobody. */
+export function can(role: TeamRole | null | undefined, action: TeamAction, ctx?: RoleContext): boolean {
+  const r = ctx ? effectiveRole(role, ctx) : role;
+  return r === "tech" ? TECH_CAN[action] : true;
 }
 
 // Unambiguous characters (no 0/O, 1/I/L), so a code read aloud or typed on an iPad works first time.
@@ -148,13 +171,40 @@ export function joinReply(status: number, body: { ok?: boolean; confirmEmail?: b
 }
 
 /** What the delete-account dialog does with DELETE /api/account's answer. `reauth` asks the person to prove it's
- *  them: enter their password (a fresh sign-in) or type their email, then try again. */
+ *  them with a fresh sign-in (their password, or a sign-in link for logins without one), then try again. */
 export type AccountDeleteReply = { kind: "deleted" } | { kind: "reauth"; message: string } | { kind: "error"; message: string };
 export function accountDeleteReply(status: number, body: { ok?: boolean; error?: string; code?: string } | null | undefined): AccountDeleteReply {
   const b = body ?? {};
   if (status >= 200 && status < 300 && b.ok !== false) return { kind: "deleted" };
-  if (status === 403 && b.code === "reauth_required")
+  if ((status === 401 || status === 403) && b.code === "reauth_required")
     return { kind: "reauth", message: b.error ? t(b.error) : t("To keep your account safe, enter your password again, then delete your account.") };
   if (status === 401) return { kind: "reauth", message: b.error ? t(b.error) : t("Your sign-in has expired. Enter your password again, then delete your account.") };
   return { kind: "error", message: b.error ? t(b.error) : t("Couldn’t delete your account ({status}).", { status }) };
+}
+
+// ---------------- invites waiting for a sign-in ----------------
+
+export interface PendingInviteNote {
+  code: string;
+  name: string;
+  /** The email the invite was started with on this device (lower case), or null when none was typed. */
+  email?: string | null;
+}
+
+/**
+ * What to do with an invite remembered on this device once someone signs in. "accept": the signed-in account is the
+ * one the invite was started for. "confirm": another account, or nobody said which: keep it for the person to accept
+ * themselves on /join. "none": nothing remembered.
+ */
+export function pendingInviteAction(p: PendingInviteNote | null | undefined, signedInEmail: string | null | undefined): "accept" | "confirm" | "none" {
+  if (!p?.code) return "none";
+  const want = (p.email ?? "").trim().toLowerCase();
+  const have = (signedInEmail ?? "").trim().toLowerCase();
+  return want && have && want === have ? "accept" : "confirm";
+}
+
+/** The address stored on an invite (team_invites.email): trimmed and lower case, or null when there isn't a valid one. */
+export function inviteEmail(raw: string | null | undefined): string | null {
+  const e = (raw ?? "").trim().toLowerCase();
+  return EMAIL_RE.test(e) && e.length <= 254 ? e : null;
 }

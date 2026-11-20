@@ -11,8 +11,8 @@ import { authErrorMessage, termsMetadata, TERMS_VERSION } from "@/lib/onboarding
 import { getAuthor, setAuthor } from "@/lib/photos";
 import { PRODUCT_NAME } from "@/lib/plans";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
-import { useSyncStatus } from "@/lib/sync";
-import { acceptInvite, inviteInfo, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
+import { signOut, useSyncStatus } from "@/lib/sync";
+import { acceptInvite, clearPendingInvite, inviteInfo, pendingInvite, rememberPendingInvite, useTeam, type InviteInfo } from "@/lib/team";
 import { formatCode, joinReply, joinRequestBody, joinUrl, normalizeCode, PASSWORD_MIN, ROLE_INFO, signupProblem, type TeamRole } from "@/lib/teamLogic";
 import { Logo } from "./AppHeader";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -54,18 +54,26 @@ export default function JoinTeam() {
   };
 
   // A link with ?code= looks the code up straight away.
+  // Without one, an invite remembered on this device that wasn't joined automatically (another account signed in) is
+  // offered here for the person to confirm.
   const asked = useRef(false);
   useEffect(() => {
-    if (asked.current || !fromUrl || !supabaseConfigured) return;
+    if (asked.current || !supabaseConfigured) return;
+    const pending = fromUrl ? null : pendingInvite()?.code;
+    const c = fromUrl || pending;
+    if (!c) return;
     asked.current = true;
-    inviteInfo(fromUrl).then(
+    inviteInfo(c).then(
       (info) => {
-        if (info) setStep({ kind: "invite", info });
+        if (info) {
+          if (pending) setCode(formatCode(pending));
+          setStep({ kind: "invite", info });
+        } else if (pending) clearPendingInvite(); // a remembered code that died: forget it quietly
         else setError(tr(BAD_CODE));
         setLooking(false);
       },
       (e) => {
-        setError(errText(e));
+        if (!pending) setError(errText(e));
         setLooking(false);
       },
     );
@@ -271,8 +279,9 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
       });
       const reply = joinReply(r.status, (await r.json().catch(() => ({}))) as Parameters<typeof joinReply>[1]);
       if (reply.kind === "checkEmail") {
-        // Join automatically after they confirm and sign in on this device (the email's link comes back to this invite).
-        rememberPendingInvite(code, name.trim());
+        // Join automatically after they confirm and sign in on this device with this email (the email's link comes back
+        // to this invite). Another account signing in here is only offered it.
+        rememberPendingInvite(code, name.trim(), email);
         props.onCheckEmail(email.trim());
         return;
       }
@@ -305,8 +314,8 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
       await finish();
       return;
     }
-    // Email confirmation is on: join automatically after they confirm and sign in on this device.
-    rememberPendingInvite(code, name.trim());
+    // Email confirmation is on: join automatically after they confirm and sign in on this device (with this email).
+    rememberPendingInvite(code, name.trim(), email);
     props.onCheckEmail(email.trim());
   };
 
@@ -352,7 +361,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
             <FolderOpen /> {t("Open jobs")}
           </Link>
           {!same && (
-            <button className="btn h-11 w-full" onClick={() => void getSupabase()?.auth.signOut()}>
+            <button className="btn h-11 w-full" onClick={() => void signOut()}>
               {t("Sign out")}
             </button>
           )}
@@ -397,7 +406,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
           {nameField}
           <p className="text-sm text-slate-500">
             {rich(t("Joining as {email}."), { email: <span className="font-medium text-slate-700">{sync.email}</span> })}{" "}
-            <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => void getSupabase()?.auth.signOut()}>
+            <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => void signOut()}>
               {t("Not you?")}
             </button>
           </p>
@@ -464,7 +473,7 @@ function Invite(props: { info: InviteInfo; code: string; onBack: () => void; onJ
                   href={`/reset${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
                   className="text-xs font-medium text-slate-500 hover:text-slate-900"
                   // After the reset they sign in and join automatically on this device.
-                  onClick={() => rememberPendingInvite(code, name.trim())}
+                  onClick={() => rememberPendingInvite(code, name.trim(), email)}
                 >
                   {t("Forgot password?")}
                 </Link>
