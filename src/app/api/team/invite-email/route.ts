@@ -2,14 +2,17 @@
 // Owner or admin only. The invite is read with the caller's own token, so row-level security decides whether they may
 // see it (only the owner and admins of its team can). Works for the web app and the iPad (Authorization: Bearer …).
 // Abuse limits (sendGuard.ts): confirmed sender email, active subscription and a daily invite cap per company.
-// Once sent, the address is saved on the invite (team_invites.email, as the caller, so RLS applies): /api/team/join then
-// only creates an account for that address. Sending again to another address moves the invite to it.
+// Once sent, the address and the time are saved on the invite (team_invites.email and invite_emailed_at) by the server
+// (service role; the caller's right to the invite was checked with their own token above). /api/team/join only
+// creates an account for an invite PinPlan emailed, and only for that address. Sending again to another address moves
+// the invite to it. invite_emailed_at is the server's alone (team_invites_emailed_guard).
+// A free trial can't put links in the names the email shows (team, inviter, invitee): stripLinks.
 import { inviteState, joinUrl, memberLabel, normalizeCode } from "@/lib/teamLogic";
-import { teamInviteEmail } from "@/lib/emailTemplates";
+import { stripLinks, teamInviteEmail } from "@/lib/emailTemplates";
 import { requireUser } from "@/lib/server/auth";
 import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
 import { finishSend, reserveSend } from "@/lib/server/sendGuard";
-import { anonKey, bearer, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
+import { anonKey, bearer, serviceConfigured, serviceFetch, supabaseUrl, userFetch } from "@/lib/server/supabaseAdmin";
 
 const json = (body: Record<string, unknown>, status = 200) => Response.json(body, { status });
 
@@ -76,32 +79,40 @@ export async function POST(req: Request) {
   const guard = await reserveSend(auth.userId, "invite", email);
   if (!guard.ok) return guard.response;
 
+  // A free trial's names can't carry links (anyone can open a trial and name their "team" after a phishing site).
+  const clean = (s: string) => (guard.trial ? stripLinks(s) : s);
   const content = teamInviteEmail({
-    inviterName: inviter,
-    teamName,
+    inviterName: clean(inviter),
+    teamName: clean(teamName),
     role: invite.role,
     code: invite.code,
     joinUrl: joinUrl(origin, invite.code),
-    inviteeName: name || invite.name,
+    inviteeName: clean(name || invite.name),
     expiresAt: invite.expires_at,
   });
   // Replies go to whoever sent the invite.
   const sent = await sendEmail({ to: email, ...content, replyTo: validEmail(inviterEmail) ? inviterEmail : undefined, tags: { type: "team_invite" } });
   await finishSend(guard, sent);
   if (!sent.ok) return sendFailure(sent);
-  const saved = await saveInviteEmail(token, invite.code, email);
+  const saved = await saveInviteEmail(token, invite.code, invite.team_id, email);
   return json({ ok: true, savedEmail: saved });
 }
 
-/** Remembers who the invite went to. A failure (e.g. the column's migration not run yet) doesn't undo the send: the
- *  code then works for any address, as before. */
-async function saveInviteEmail(token: string, code: string, email: string): Promise<boolean> {
+/** Remembers who the invite went to, and that PinPlan emailed it (the server's own write: the caller's right to this
+ *  invite was checked above with their token). A failure (e.g. the migration not run yet) doesn't undo the send: the
+ *  join page then uses the normal sign-up. Without the service key (local use) only the address is saved, as the
+ *  caller. */
+async function saveInviteEmail(token: string, code: string, teamId: string, email: string): Promise<boolean> {
+  const path = `/rest/v1/team_invites?code=eq.${encodeURIComponent(code)}`;
+  const init = (body: Record<string, unknown>): RequestInit => ({
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
   try {
-    const r = await userFetch(token, `/rest/v1/team_invites?code=eq.${encodeURIComponent(code)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ email }),
-    });
+    const r = serviceConfigured()
+      ? await serviceFetch(`${path}&team_id=eq.${encodeURIComponent(teamId)}&used_by=is.null&revoked=is.false`, init({ email, invite_emailed_at: new Date().toISOString() }))
+      : await userFetch(token, path, init({ email }));
     if (!r.ok) console.warn("[invite-email] couldn't save the invite's email", r.status);
     return r.ok;
   } catch {

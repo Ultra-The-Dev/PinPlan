@@ -186,8 +186,13 @@ describe("POST /api/team/invite-email", () => {
     expect(s.text).toContain("https://app.example.com/join?code=K7QMXR4TPA");
     expect(s.text).toContain("Hi Sam,");
     expect(s.reply_to).toBe("dana@acme.com");
-    // The invite itself is read with the caller's token; the service key is only used for the send guard's RPC.
-    expect(calls.filter((c) => c.headers.authorization === "Bearer service-key").every((c) => c.url.includes("/rpc/email_send"))).toBe(true);
+    // The invite itself is read with the caller's token; the service key is only used for the send guard's RPC and,
+    // after the send, to stamp the invite as emailed (invite_emailed_at is the server's).
+    expect(
+      calls
+        .filter((c) => c.headers.authorization === "Bearer service-key")
+        .every((c) => c.url.includes("/rpc/email_send") || (c.method === "PATCH" && c.url.startsWith(`${SB}/rest/v1/team_invites?code=eq.K7QMXR4TPA&team_id=eq.`))),
+    ).toBe(true);
   });
 
   it("uses PINPLAN_APP_URL for the link when set", async () => {

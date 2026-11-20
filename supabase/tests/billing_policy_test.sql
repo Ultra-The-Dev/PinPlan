@@ -78,18 +78,23 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000c2');
 select pg_temp.check((select count(*) from public.projects where id = 'cp2') = 1, 'lapsed solo still reads their job');
 select pg_temp.check(pg_temp.error_of($$insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)
   values ('cm2', 'cp2', 'cs2', 'ccam', 0.5, 0.5, 'CAM-1', '', 'ceiling', 'Cat6', false, '')$$) = 'PinPlan subscription inactive', 'lapsed solo cannot insert a marker');
--- Starting a company gives them a team trial, and they can work again.
+-- Starting a company doesn't start a new trial (20261124300600_email_signup_abuse.sql: a new team's trial is what is
+-- left of the owner's personal trial); once the company subscribes they can work again.
 select pg_temp.check(public.create_team('Lapsed Co', 'Lee') is not null, 'lapsed solo starts a company');
-select pg_temp.check((public.team_billing() ->> 'can_work')::boolean, 'their new team is on its trial');
+select pg_temp.check(not (public.team_billing() ->> 'can_work')::boolean, 'their new team gets no fresh trial');
 select pg_temp.check(public.solo_billing() is null, 'solo_billing is null once on a team');
+reset role;
+update public.teams set plan_status = 'active' where owner_id = '00000000-0000-0000-0000-0000000000c2';
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000c2');
 insert into public.markers (id, project_id, sheet_id, device_type_id, x, y, label, room, mount, wire_type, tentative, notes)
   values ('cm2', 'cp2', 'cs2', 'ccam', 0.5, 0.5, 'CAM-1', '', 'ceiling', 'Cat6', false, '');
-select pg_temp.check((select count(*) from public.markers where id = 'cm2') = 1, 'with a company on trial, the device goes in');
+select pg_temp.check((select count(*) from public.markers where id = 'cm2') = 1, 'with a paying company, the device goes in');
 
 -- enforce = false never locks an unpaid trial (solo or team).
 reset role;
 update public.billing_settings set enforce = false;
-update public.teams set trial_ends_at = now() - interval '1 day' where owner_id = '00000000-0000-0000-0000-0000000000c2';
+update public.teams set plan_status = 'trialing', trial_ends_at = now() - interval '1 day' where owner_id = '00000000-0000-0000-0000-0000000000c2';
 set role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000c2');
 select pg_temp.check((public.team_billing() ->> 'can_work')::boolean, 'enforce=false: expired team trial still works');
@@ -114,7 +119,8 @@ set role authenticated;
 -- One trial per owner: a second team by the same person starts with the trial over.
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000c4');
 select pg_temp.check(public.create_team('First Co', 'Ann') is not null, 'owner starts a first team');
-select pg_temp.check((public.team_billing() ->> 'trial_ends_at')::timestamptz > now() + interval '13 days', 'first team gets 14 days');
+-- Signed up 2 days ago: the team gets what is left of the personal trial (12 days), not a fresh 14.
+select pg_temp.check((public.team_billing() ->> 'trial_ends_at')::timestamptz between now() + interval '11 days 23 hours' and now() + interval '12 days 1 hour', 'first team gets the rest of the trial');
 reset role;
 delete from public.teams where owner_id = '00000000-0000-0000-0000-0000000000c4';
 set role authenticated;

@@ -15,7 +15,7 @@ const snapshot = {
   number: "INV-2026-0007",
   business: { name: "Brightline <Integration>", email: "office@brightline.example" },
   client: { name: "Jane Whitfield", email: "jane@example.com", siteAddress: "12 Maple Ridge Rd" },
-  payment: { payUrl: "https://pay.example.com/x?amount={amount}&ref={number}" },
+  payment: { payUrl: "https://buy.stripe.com/x?amount={amount}&ref={number}" },
 };
 const docRow = { id: "d1", kind: "invoice", number: "INV-2026-0007", status: "sent", total: 1200, amount_paid: 200, balance_due: 1000, currency: "USD", due_date: "2000-01-01", valid_until: null, client: { name: "Jane Whitfield" }, deleted: false };
 
@@ -57,18 +57,23 @@ const sends = () => calls.filter((c) => c.url === RESEND);
 const signedIn = (role = "admin") => {
   routes[`${SB}/auth/v1/user`] = () => Response.json({ id: "u1" });
   routes[`${SB}/rest/v1/team_members`] = () => Response.json([{ role }]);
+  // The company's name and reply-to come from its settings, not the link's snapshot.
+  routes[`${SB}/rest/v1/company_settings`] = () => Response.json([{ business_name: "Brightline <Integration>", email: "office@brightline.example" }]);
+  // A paying company (a trial gets no pay button).
+  routes[`${SB}/rest/v1/rpc/email_send_reserve`] = () => Response.json({ ok: true, id: 1, trial: false });
+  routes[`${SB}/rest/v1/email_sends`] = () => new Response(null, { status: 204 });
 };
 const post = (path: string, body: unknown, auth = true) =>
   new Request(`https://app.example.com${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...(auth ? { Authorization: "Bearer user-token" } : {}) }, body: JSON.stringify(body) });
 
 describe("templates", () => {
   it("invoice email: company-branded, escaped, with the link and pay button", () => {
-    const e = documentEmail({ kind: "document", docKind: "invoice", title: "Invoice", number: "INV-1", companyName: "Acme <b>", clientName: "Jane", total: 100, balanceDue: 60, currency: "USD", dueDate: "2026-12-01", url: "https://app.example.com/d?t=abc", payUrl: "https://pay.example.com/p" });
+    const e = documentEmail({ kind: "document", docKind: "invoice", title: "Invoice", number: "INV-1", companyName: "Acme <b>", clientName: "Jane", total: 100, balanceDue: 60, currency: "USD", dueDate: "2026-12-01", url: "https://app.example.com/d?t=abc", payUrl: "https://buy.stripe.com/p" });
     expect(e.subject).toBe("Invoice INV-1 from Acme <b>");
     expect(e.html).toContain("Acme &lt;b&gt;");
     expect(e.html).not.toContain("Acme <b>");
     expect(e.html).toContain("https://app.example.com/d?t=abc");
-    expect(e.text).toContain("Pay $60.00 online: https://pay.example.com/p");
+    expect(e.text).toContain("Pay $60.00 online: https://buy.stripe.com/p");
     expect(e.text.split("\n")[0]).toBe("Acme <b>");
   });
 
@@ -78,7 +83,7 @@ describe("templates", () => {
     expect(q.text).toContain("Valid until: Dec 19, 2026");
     const r = documentEmail({ kind: "reminder", docKind: "invoice", title: "Invoice", number: "INV-2", companyName: "Acme", total: 100, balanceDue: 100, overdue: true, dueDate: "2026-11-01", url: "https://x.example/d?t=2" });
     expect(r.subject).toBe("Past due: Invoice INV-2 from Acme");
-    const p = documentEmail({ kind: "receipt", docKind: "invoice", title: "Invoice", number: "INV-2", companyName: "Acme", total: 100, balanceDue: 0, amountPaid: 100, url: "https://x.example/d?t=2", lastPayment: { amount: 100, date: "2026-11-19", method: "Check" }, payUrl: "https://pay.example.com" });
+    const p = documentEmail({ kind: "receipt", docKind: "invoice", title: "Invoice", number: "INV-2", companyName: "Acme", total: 100, balanceDue: 0, amountPaid: 100, url: "https://x.example/d?t=2", lastPayment: { amount: 100, date: "2026-11-19", method: "Check" }, payUrl: "https://buy.stripe.com" });
     expect(p.subject).toBe("Payment received — Invoice INV-2");
     expect(p.text).not.toContain("online");
   });
@@ -104,7 +109,7 @@ describe("POST /api/documents/email", () => {
     expect(c.body).toMatchObject({ to: ["jane@example.com"], reply_to: "office@brightline.example", subject: "Past due: Invoice INV-2026-0007 from Brightline <Integration>" });
     const text = (c.body as { text: string }).text;
     expect(text).toContain(`https://app.example.com/d?t=${TOKEN}`);
-    expect(text).toContain("https://pay.example.com/x?amount=1000.00&ref=INV-2026-0007");
+    expect(text).toContain("https://buy.stripe.com/x?amount=1000.00&ref=INV-2026-0007");
     // Read with the caller's own token (row-level security decides).
     expect(calls.find((x) => x.url.includes("/rest/v1/sales_documents"))!.headers.authorization).toBe("Bearer user-token");
   });

@@ -67,16 +67,33 @@ describe("POST /api/team/invite-email saves the invite's email", () => {
     vi.restoreAllMocks();
   });
 
-  it("saves the lower-case address on the invite with the caller's own token", async () => {
+  it("reads the invite with the caller's token, then the server saves the address and when it was emailed", async () => {
     const { POST } = await import("@/app/api/team/invite-email/route");
     const r = await POST(req(good));
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ ok: true, savedEmail: true });
+    const read = calls.find((c) => c.method === "GET" && c.url.startsWith(`${SB}/rest/v1/team_invites`))!;
+    expect(read.headers.authorization).toBe("Bearer user-token");
     const [p] = patches();
     expect(p.url).toContain("code=eq.K7QMXR4TPA");
+    // Only the invite that was read: same team, still open.
+    expect(p.url).toContain("team_id=eq.t1");
+    expect(p.url).toContain("used_by=is.null");
+    expect(p.url).toContain("revoked=is.false");
+    const body = p.body as { email: string; invite_emailed_at: string };
+    expect(body.email).toBe("sam@example.com");
+    expect(Date.now() - Date.parse(body.invite_emailed_at)).toBeLessThan(60_000);
+    // invite_emailed_at is the server's: written with the service key (the apps can't set it).
+    expect(p.headers.authorization).toBe("Bearer service-key");
+  });
+
+  it("without the service key, only the address is saved, as the caller", async () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    const { POST } = await import("@/app/api/team/invite-email/route");
+    expect((await POST(req(good))).status).toBe(200);
+    const [p] = patches();
     expect(p.body).toEqual({ email: "sam@example.com" });
     expect(p.headers.authorization).toBe("Bearer user-token");
-    expect(p.headers.apikey).toBe("anon-key");
   });
 
   it("still reports the send when saving fails (e.g. migration not run)", async () => {

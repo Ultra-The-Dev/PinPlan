@@ -175,8 +175,8 @@ describe("Blueprint Ink look", () => {
 
 describe("links in client mail", () => {
   it("httpsUrl only lets https through", () => {
-    expect(httpsUrl("https://pay.example.com/x")).toBe("https://pay.example.com/x");
-    expect(httpsUrl("http://pay.example.com/x")).toBeNull();
+    expect(httpsUrl("https://buy.stripe.com/x")).toBe("https://buy.stripe.com/x");
+    expect(httpsUrl("http://buy.stripe.com/x")).toBeNull();
     expect(httpsUrl("javascript:alert(1)")).toBeNull();
     expect(httpsUrl(null)).toBeNull();
   });
@@ -194,14 +194,14 @@ describe("links in client mail", () => {
 
   it("the pay button needs an https link and names the payment site", () => {
     const base = { kind: "document" as const, docKind: "invoice" as const, title: "Invoice", number: "INV-1", companyName: "Acme", total: 100, balanceDue: 60, url: "https://app.example.com/d?t=abc" };
-    const ok = documentEmail({ ...base, payUrl: "https://pay.example.com/p?a=1" });
-    expect(ok.text).toContain("Pay $60.00 online: https://pay.example.com/p?a=1");
-    expect(ok.text).toContain("The payment page is on pay.example.com, chosen by Acme.");
-    const plain = documentEmail({ ...base, payUrl: "http://pay.example.com/p" });
+    const ok = documentEmail({ ...base, payUrl: "https://buy.stripe.com/p?a=1" });
+    expect(ok.text).toContain("Pay $60.00 online: https://buy.stripe.com/p?a=1");
+    expect(ok.text).toContain("The payment page is on buy.stripe.com, chosen by Acme.");
+    const plain = documentEmail({ ...base, payUrl: "http://buy.stripe.com/p" });
     expect(plain.text).not.toContain("Pay $60.00 online");
     expect(plain.text).not.toContain("pay online");
     expect(plain.text).not.toContain("payment page");
-    const paid = documentEmail({ ...base, balanceDue: 0, payUrl: "https://pay.example.com/p" });
+    const paid = documentEmail({ ...base, balanceDue: 0, payUrl: "https://buy.stripe.com/p" });
     expect(paid.text).not.toContain("payment page");
   });
 });

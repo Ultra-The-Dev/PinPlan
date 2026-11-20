@@ -3,10 +3,13 @@
 // payment reminder or a receipt. Office only. The document and its link are read with the caller's own token, so
 // row-level security decides whether they may (technicians and other companies can't see them).
 // Abuse limits (sendGuard.ts): the sender's email must be confirmed, the company's subscription active and under its
-// daily cap; a free trial can't put links in the message. Replies go to the company's own business email, which is
-// required: client mail never replies to PinPlan.
+// daily cap; a free trial can't put links in the message, the title or the names, and gets no pay button. Replies go
+// to the company's own business email, which is required: client mail never replies to PinPlan.
+// The company's name and email come from its settings (company_settings, read with the caller's token so RLS applies),
+// never from the link's snapshot: the snapshot is whatever the app published. A pay button only for a known payment
+// site (allowedPayUrl).
 import { documentUrl, payUrl, PAYMENT_METHODS, type DocSnapshot } from "@/lib/documents";
-import { documentEmail, httpsUrl, stripLinks } from "@/lib/emailTemplates";
+import { allowedPayUrl, documentEmail, stripLinks } from "@/lib/emailTemplates";
 import { requireOffice } from "@/lib/server/auth";
 import { appOrigin, appOriginMissing, emailConfigured, emailUnavailable, rateLimiter, sendEmail, sendFailure, validEmail } from "@/lib/server/email";
 import { finishSend, reserveSend } from "@/lib/server/sendGuard";
@@ -59,13 +62,17 @@ export async function POST(req: Request) {
   let snap: DocSnapshot;
   let doc: DocRow;
   let last: { amount: number; paid_on: string; method: string } | undefined;
+  let business: { business_name?: string | null; email?: string | null } | undefined;
   try {
-    const [l, d] = await Promise.all([
+    const [l, d, c] = await Promise.all([
       userFetch(token, `/rest/v1/document_links?id=eq.${encodeURIComponent(link)}&select=id,document_id,status,snapshot`),
       userFetch(token, `/rest/v1/sales_documents?id=eq.${encodeURIComponent(documentId)}&select=id,kind,number,status,total,amount_paid,balance_due,currency,due_date,valid_until,client,deleted`),
+      // The caller's own company (RLS: company_settings_read shows only that row).
+      userFetch(token, `/rest/v1/company_settings?select=business_name,email&limit=1`),
     ]);
-    if (l.status === 404 || d.status === 404) return json({ error: "Invoicing isn't set up on this server's database yet.", code: "unavailable" }, 501);
-    if (!l.ok || !d.ok) return json({ error: "Couldn't load the document. Try again.", code: "upstream" }, 502);
+    if (l.status === 404 || d.status === 404 || c.status === 404) return json({ error: "Invoicing isn't set up on this server's database yet.", code: "unavailable" }, 501);
+    if (!l.ok || !d.ok || !c.ok) return json({ error: "Couldn't load the document. Try again.", code: "upstream" }, 502);
+    business = ((await c.json()) as { business_name?: string | null; email?: string | null }[])[0];
     const lr = ((await l.json()) as { document_id: string; status: string; snapshot: DocSnapshot }[])[0];
     const dr = ((await d.json()) as DocRow[])[0];
     if (!lr || !dr || dr.deleted || lr.document_id !== dr.id) return json({ error: "That document wasn't found on your team.", code: "not_found" }, 404);
@@ -82,22 +89,27 @@ export async function POST(req: Request) {
     return json({ error: "Couldn't reach the cloud database.", code: "upstream" }, 502);
   }
   if (kind !== "document" && doc.kind !== "invoice") return json({ error: "Reminders and receipts are for invoices.", code: "bad_request" }, 400);
-  // Replies go to the company. Without its own email the client would reply to nobody (or to PinPlan): refuse.
-  const replyTo = snap.business?.email?.trim() ?? "";
+  // Replies go to the company (its settings, not the snapshot). Without its own email the client would reply to
+  // nobody (or to PinPlan): refuse.
+  const replyTo = business?.email?.trim() ?? "";
   if (!validEmail(replyTo))
-    return json({ error: "Add your business email in Settings → Company → Your business, then choose Update link on the document and send it again.", code: "business_email_required" }, 400);
+    return json({ error: "Add your business email in Settings → Company → Your business, then send it again.", code: "business_email_required" }, 400);
+  const companyName = business?.business_name?.trim() || undefined;
 
   const guard = await reserveSend(auth.userId, kind, to);
   if (!guard.ok) return guard.response;
 
   const today = new Date().toISOString().slice(0, 10);
+  // A free trial can't send links in its own words: not in the message, the title or the names (the client link is
+  // ours and checked), and no pay button at all.
+  const clean = (s: string | null | undefined) => (s && guard.trial ? stripLinks(s) : (s ?? undefined));
   const content = documentEmail({
     kind,
     docKind: doc.kind,
-    title: snap.title,
+    title: clean(snap.title) ?? "",
     number: doc.number ?? snap.number,
-    companyName: snap.business?.name,
-    clientName: doc.client?.name ?? snap.client?.name,
+    companyName: clean(companyName),
+    clientName: clean(doc.client?.name ?? snap.client?.name),
     total: doc.total,
     balanceDue: doc.balance_due,
     amountPaid: doc.amount_paid,
@@ -106,9 +118,11 @@ export async function POST(req: Request) {
     validUntil: doc.valid_until,
     overdue: doc.kind === "invoice" && !!doc.due_date && doc.due_date < today && doc.balance_due > 0,
     url: documentUrl(origin, link),
-    // Only an https pay link, and the email names its site.
-    payUrl: doc.kind === "invoice" ? httpsUrl(payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency })) : null,
-    // A free trial can't send links in its own words (the client link and pay button are ours and checked).
+    // Only an https link on a known payment site, and the email names its site. None on a trial.
+    payUrl:
+      doc.kind === "invoice" && !guard.trial
+        ? allowedPayUrl(payUrl(snap.payment?.payUrl ?? "", { number: doc.number, balanceDue: doc.balance_due, currency: doc.currency }))
+        : null,
     message: guard.trial ? stripLinks(message) : message,
     lastPayment: last ? { amount: last.amount, date: last.paid_on, method: PAYMENT_METHODS.find((m) => m.id === last.method)?.label ?? last.method } : null,
   });

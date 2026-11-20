@@ -517,6 +517,17 @@ const libStrings: Dictionary = {
   "This link's web address isn't valid.": "Неверный веб-адрес у ссылки.",
   "Project not found": "Объект не найден",
   "Your company already has free seats. Invite someone before adding more.": "У вашей компании уже есть свободные места. Пригласите кого-нибудь, прежде чем добавлять новые.",
+  "Accept the terms to create your account.": "Примите условия, чтобы создать аккаунт.",
+  "Add your business email in Settings → Company → Your business, then send it again.": "Укажите рабочий email в «Настройки» → «Компания» → «Ваша компания» и отправьте ещё раз.",
+  "An account was already made with this invite. Open the link we emailed you, or ask for a new invite.": "По этому приглашению уже создан аккаунт. Откройте ссылку из нашего письма или попросите новое приглашение.",
+  "Couldn't load the document. Try again.": "Не удалось загрузить документ. Попробуйте ещё раз.",
+  "Email from free trials is paused for the rest of the day. Copy the client link and send it yourself, or start your subscription in Settings → Billing.": "Отправка писем на пробном периоде приостановлена до конца дня. Скопируйте ссылку для клиента и отправьте её сами или оформите подписку в «Настройки» → «Оплата».",
+  "Invites by email are paused for free trials for the rest of the day. Share the invite with Copy link or Text it instead, or start your subscription in Settings → Billing.": "Приглашения по email на пробном периоде приостановлены до конца дня. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS» либо оформите подписку в «Настройки» → «Оплата».",
+  "Invoicing isn't set up on this server's database yet.": "Счета ещё не настроены в базе данных этого сервера.",
+  "PinPlan can't send more email today. Copy the client link and send it yourself, or try again tomorrow.": "Сегодня PinPlan больше не может отправлять письма. Скопируйте ссылку для клиента и отправьте её сами или попробуйте завтра.",
+  "PinPlan can't send more email today. Share the invite with Copy link or Text it instead.": "Сегодня PinPlan больше не может отправлять письма. Поделитесь приглашением через «Скопировать ссылку» или «Отправить SMS».",
+  "Sign up with your email and a password instead.": "Зарегистрируйтесь с email и паролем.",
+  "That request is too large.": "Слишком большой запрос.",
 };
 
 export default libStrings;
