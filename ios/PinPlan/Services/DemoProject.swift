@@ -5,8 +5,12 @@ import PinPlanCore
 /// Builds a ready-to-explore demo job (4 floors with simple drawn plans and some placed devices),
 /// so a new user can try every feature before importing their own plans.
 enum DemoProject {
+    /// The demo job's address and client: how the tutorial finds it again (TutorialController), never a real job.
+    static let address = "Demo — 12 Maple Ridge Rd"
+    static let clientName = "Demo client"
+
     static func make(store: Store, catalog: [DeviceType], pricing: PricingSettings) -> ProjectBundle {
-        var b = ProjectBundle(project: Project(clientName: "Demo client", address: "Demo — 12 Maple Ridge Rd"))
+        var b = ProjectBundle(project: Project(clientName: clientName, address: address))
         let floors = ["Attic", "1st Fl", "2nd Fl", "Cellar"]
         // A real vector PDF (17 × 11 in sheets), imported exactly like an architect's plan set:
         // pages rendered from vector, floor names and the printed scale read from each page's text.

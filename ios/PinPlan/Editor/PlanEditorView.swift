@@ -35,6 +35,8 @@ struct PlanEditorView: View {
         .onAppear(perform: appeared)
         .onChange(of: model.activeSheet?.id) { _, id in if let id { model.noteSheetViewed(id) } }
         .onChange(of: model.viewerMode) { _, m in if m == .view { showPalette = false } else if regular { showPalette = true } }
+        // A tour step shows the plan in View or Edit.
+        .onChange(of: TutorialController.shared.pendingPlanMode) { _, _ in applyTutorialMode() }
         // Picking a device or drawing tool ends Find similar (its taps would otherwise compete with placing).
         .onChange(of: model.tool) { _, t in if t != .select { FindSimilarUI.shared.close() } }
         // Remembered on this device (a screenshot flag doesn't change the saved choice).
@@ -46,6 +48,7 @@ struct PlanEditorView: View {
         return HStack(spacing: 0) {
             if regular && showPalette && editing && !fullScreen && paletteFits {
                 PaletteView(model: model).frame(width: Self.paletteWidth)
+                    .tutorialAnchor("plan-palette")
                 Divider()
             }
             canvasArea
@@ -73,6 +76,7 @@ struct PlanEditorView: View {
         }
         showMinimap = savedMinimap || ViewerPrefs.launchFlag("minimap")
         FindSimilarUI.runLaunchDemo(model: model, viewport: viewport)
+        applyTutorialMode()
         if ViewerPrefs.launchFlag("sheet-browser") || ViewerPrefs.launchFlag("layers") {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(800))
@@ -80,6 +84,16 @@ struct PlanEditorView: View {
                 if ViewerPrefs.launchFlag("layers") { showLayers = true }
             }
         }
+    }
+
+    /// The mode a tour step asks for. Not saved as the person's choice (setViewerMode would remember it).
+    private func applyTutorialMode() {
+        guard let m = TutorialController.shared.takePlanMode(), m != model.viewerMode else { return }
+        if m == .view {
+            model.use(.select)
+            model.selection = nil
+        }
+        model.viewerMode = m
     }
 
     static let paletteWidth: CGFloat = 290
@@ -112,6 +126,7 @@ struct PlanEditorView: View {
             if let sheet = model.activeSheet {
                 PlanCanvasView(model: model, sheet: sheet, controller: viewport, pencilDraws: pencilDraws && regular) { side in step(side) }
                     .id(sheet.id)
+                    .tutorialAnchor("plan-canvas")
             }
             if editing { EditModeFrame() }
             topChrome
@@ -175,8 +190,10 @@ struct PlanEditorView: View {
         VStack(spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 SheetPill(model: model, onBrowse: { showBrowser = true }, onStep: step, onManage: { model.showManagePlans = true })
+                    .tutorialAnchor("plan-sheets")
                 Spacer(minLength: 4)
                 ViewerModeSwitch(model: model, compact: !regular)
+                    .tutorialAnchor("plan-mode")
             }
             .padding(.horizontal, 12)
             if !regular && !fullScreen { compactBar }
@@ -381,6 +398,7 @@ struct PlanEditorView: View {
                 }
                 .buttonStyle(.borderedProminent).controlSize(.small).tint(Color.brand)
                 .accessibilityIdentifier("plan-devices")
+                .tutorialAnchor("plan-devices")
             }
             Spacer(minLength: 4)
             Group {
@@ -432,6 +450,7 @@ struct PlanEditorView: View {
         } label: { Image(systemName: "ellipsis.circle") }
         .accessibilityLabel("Tools")
         .accessibilityIdentifier("plan-tools")
+        .tutorialAnchor("plan-tools")
     }
 
     private var drawingBar: some View {
@@ -454,6 +473,7 @@ struct PlanEditorView: View {
         ToolbarItemGroup(placement: .topBarLeading) {
             if editing {
                 Button { showPalette.toggle() } label: { Label("Devices", systemImage: regular ? "sidebar.left" : "plus.circle.fill") }
+                    .tutorialAnchor("plan-devices")
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {

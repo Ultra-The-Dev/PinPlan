@@ -19,9 +19,10 @@ Tasks · Photos · Money · More). Words follow the glossary in `docs/ux-audit.m
   guide); the end of every tour and every tip (**Learn more**).
 - **First run**: the jobs list offers **Your first job** (office people only, new companies, "Try it without an
   account" or no jobs yet). Answered once: Start, or ×.
-- **iPad / iPhone**: Settings › About › **Help & tutorials** and Jobs › More › **Help & tutorials** open `/help` in a
-  Safari view (`ios/PinPlan/Views/HelpViews.swift`, address from `WebLinks.helpURL`: the app's server, else
-  `https://northpin.app/help`). A one-time tip on the Jobs screen points to it (`@AppStorage("pinplan.help.tipSeen")`).
+- **iPad / iPhone**: Settings › About › **Help & tutorials** and Jobs › More › **Help & tutorials** open the native
+  **Tutorials** screen (offline guided tours, the welcome pages, and the web Help center in a Safari view: address from
+  `WebLinks.helpURL`, the app's server, else `https://northpin.app/help`). The Jobs screen's one first-run prompt
+  offers the tour (see "Help in the iPad / iPhone app" below).
 - Never on client pages (`/q`, `/d`, `/co`, `/p`, `/r`): `isClientPath` in `src/lib/tour/model.ts`.
 
 ## Tours
@@ -114,6 +115,36 @@ windows with **Read tags**, adds sensors, gives a camera a photo and a task for 
 
 ## Help in the iPad / iPhone app
 
+A native tutorial that works offline (crews are often without signal on site), plus the web Help center.
+
+- **Model** (PinPlanCore `Tutorials.swift`, tested in `TutorialTests`): two tours, **Your first job** (office: start a
+  job → plans and pages → Edit → place devices → Find similar → alarm sensors → takeoff → price → quote) and **Crew
+  basics** (technicians: open a job → the plan in View → tap a device → the job's Tasks → Photos → working with no
+  signal); the welcome pages; `TutorialLogic.reduce` (start / next / back / go / skip / close / don't show again /
+  reset); the card's placement (`TutorialLayout`); the launch arguments (`TutorialLaunch`). Steps reuse the web tours'
+  English (and so their translations) where it fits the app; office steps (`officeOnly`) are left out for technicians.
+- **State** in UserDefaults `pinplan.tutorial.prefs` (finished, skipped, paused with the step, first-run prompt
+  answered, Don't show again). Anyone who closed the earlier Help tip (`pinplan.help.tipSeen`) isn't asked again. A
+  tour on screen when the app quits is offered as **Resume**, not reopened.
+- **First run**: one prompt on the Jobs screen (`HelpTipBanner`): **Start the tour** opens the welcome pages, which end
+  on the tour for this person; **Help & tutorials** opens Tutorials; × answers it. Nothing opens by itself.
+- **Coach marks** (`ios/PinPlan/Tutorial/`): `TutorialController` (shared, like `JobNav`) runs the tour; each step
+  goes to its place once (the jobs list, or a section of the **demo job**, never the person's own jobs; drawn if
+  missing). Controls are marked with `.tutorialAnchor("id")`, which reports the control's frame in window
+  coordinates (so toolbar items work too); `TutorialTests` checks every step's anchor is marked in the app. A step can
+  name other anchors for iPhone (`compactAnchors`) and fallbacks; **a missing anchor never blocks**: after a moment the
+  card shows centred. The dimmed layer lets every tap through; the card has Skip · dots · Back · Next, × (resume
+  later) and, on the first step, Don't show again. VoiceOver hears "Step 2 of 9: …" and focus moves to the title.
+- **Replay**: **Tutorials** (Start / Resume (step n of N) / Take it again, the welcome pages, the web Help center,
+  Reset tutorials).
+- **Screenshots**: `--tutorial [welcome|first-job|crew-basics] --tutorial-step=N` (Debug builds) and the **tutorial**
+  suite of `.github/workflows/ios-sim-screens.yml` (`ios/PinPlanUITests/TutorialScreens.swift`).
+
+Anchors: jobs list `jobs-new` (New job), `jobs-list`; job `job-sections` (iPad section picker); plan `plan-sheets`
+(sheet pill), `plan-mode` (View / Edit), `plan-palette` (iPad device list), `plan-devices` (Devices button),
+`plan-tools` (Tools menu: Find similar, Add alarm sensors), `plan-canvas`; `takeoff-table`; `money-total`,
+`money-quotes` (Quotes & invoices, when the app is connected to a server); `tasks-list`; `photos-add`, `photos-list`.
+
 `WebLinks.help`, `WebLinks.helpGuide(_:)`, `WebLinks.helpURL(origin:guide:)` (PinPlanCore, tested in
-`WebLinksTests`). Strings in `ios/PinPlan/Localizable.xcstrings`: "Help & tutorials", "Open Help", "Dismiss tip", the
-tip's sentence and the row's hint.
+`WebLinksTests`). Strings in `ios/PinPlan/Localizable.xcstrings` (the tours' words are marked `extractionState:
+manual`: they come from PinPlanCore and are shown with `tr()`).

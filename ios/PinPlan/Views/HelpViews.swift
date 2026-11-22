@@ -2,9 +2,10 @@ import SafariServices
 import SwiftUI
 import PinPlanCore
 
-// Help & tutorials: the web Help center (short guides with screenshots, docs/help-and-tours.md) opened inside the app
-// in a Safari view, from Settings › About and the Jobs screen's More menu, plus a one-time tip on the Jobs screen.
-// The address comes from WebLinks.helpURL: the app's own server, else the public site.
+// Help & tutorials (docs/help-and-tours.md): the native Tutorials screen (Tutorial/TutorialViews.swift: guided tours
+// that work offline, the welcome walkthrough) from Settings › About and the Jobs screen's More menu, with the web
+// Help center (short guides with screenshots) opened inside the app in a Safari view; plus the one first-run prompt
+// on the Jobs screen. The web address comes from WebLinks.helpURL: the app's own server, else the public site.
 
 /// A web page to show in-app (Identifiable so it can drive `.sheet(item:)`).
 struct InAppPage: Identifiable {
@@ -34,49 +35,51 @@ extension AppSettings {
     }
 }
 
-/// A row that opens Help in-app (Settings › About).
+/// A row that opens Help & tutorials (Settings › About): the native Tutorials screen, which links to the web Help center.
 struct HelpRow: View {
-    @Environment(AppModel.self) private var app
-    @State private var page: InAppPage?
-
     var body: some View {
-        Button {
-            if let url = app.settings.helpURL() { page = InAppPage(url: url) }
+        NavigationLink {
+            TutorialsView()
         } label: {
-            HStack {
-                Label("Help & tutorials", systemImage: "questionmark.circle")
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.secondary)
-            }
+            Label("Help & tutorials", systemImage: "questionmark.circle")
         }
         .accessibilityHint(Text("Short guides for the office and the crew."))
-        .sheet(item: $page) { p in SafariView(url: p.url).ignoresSafeArea() }
+        .accessibilityIdentifier("help-tutorials")
     }
 }
 
-/// The one-time tip on the Jobs screen: where Help lives. Shown until it's opened or closed, once per install.
+/// The one first-run prompt on the Jobs screen: the tour (the welcome walkthrough, then the tour for this person) or
+/// Help & tutorials. Shown until it's answered (Start, Help, or ×) or "Don't show again"; people who closed the earlier
+/// Help tip (`pinplan.help.tipSeen`) aren't asked again (TutorialStore).
 struct HelpTipBanner: View {
-    @AppStorage("pinplan.help.tipSeen") private var seen = false
+    /// Opens the welcome walkthrough.
+    let onStart: () -> Void
+    /// Opens Tutorials (with the web Help center).
     let onOpen: () -> Void
 
+    private var tour: TutorialController { .shared }
+
     var body: some View {
-        if !seen {
+        if tour.showsFirstRunPrompt {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "lightbulb").foregroundStyle(Color.accentColor).padding(.top, 2)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("New here? Help & tutorials has short guides for the office and the crew.")
-                        .font(.subheadline)
+                Image(systemName: "lightbulb").foregroundStyle(Color.accentColor).padding(.top, 2).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("New here? Take the 2-minute tour")
+                        .font(.subheadline.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("Open Help") {
-                        seen = true
-                        onOpen()
+                    Text("It shows the basics on a demo job and works offline.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // Side by side when they fit; stacked in a long language or at large text sizes.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 18) { startButton; helpButton }
+                        VStack(alignment: .leading, spacing: 0) { startButton; helpButton }
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
                 }
                 Spacer(minLength: 0)
                 Button {
-                    seen = true
+                    tour.answerWelcome()
                 } label: {
                     Image(systemName: "xmark").font(.footnote.weight(.semibold)).frame(width: 44, height: 44)
                 }
@@ -88,6 +91,26 @@ struct HelpTipBanner: View {
             .padding(.vertical, 6)
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tutorial-banner")
         }
+    }
+
+    private var startButton: some View {
+        Button("Start the tour") {
+            tour.answerWelcome()
+            onStart()
+        }
+        .font(.subheadline.weight(.semibold))
+        .frame(minHeight: 44)
+        .accessibilityIdentifier("tutorial-banner-start")
+    }
+
+    private var helpButton: some View {
+        Button("Help & tutorials") {
+            tour.answerWelcome()
+            onOpen()
+        }
+        .font(.subheadline)
+        .frame(minHeight: 44)
     }
 }

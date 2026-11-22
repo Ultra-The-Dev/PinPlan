@@ -116,7 +116,7 @@ struct PhotosView: View {
             VStack(alignment: .leading, spacing: 14) {
                 uploadStatus
                 deviceFilter
-                filters
+                filters.tutorialAnchor("photos-list")
                 if all.isEmpty {
                     ContentUnavailableView {
                         Label("No photos yet", systemImage: "camera")
@@ -164,6 +164,7 @@ struct PhotosView: View {
                 PhotoAddMenu(model: model, extra: { p in
                     if let m = device { p.markerId = m.id; p.sheetId = m.sheetId; if !m.room.isEmpty { p.room = m.room } }
                 }) { Label("Add photos", systemImage: "camera.fill") }
+                .tutorialAnchor("photos-add")
             }
         }
         .onChange(of: stampLocation) { _, v in LocationOnce.enabled = v }

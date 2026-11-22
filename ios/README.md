@@ -46,7 +46,8 @@ A local build has no server built in. To try it against a server, either set it 
 Don't commit your team ID: pick it in Xcode's Signing tab or pass `DEVELOPMENT_TEAM=…` on the command line.
 
 Debug builds accept launch arguments used by the screenshot workflows (`--demo`, `--tab plan`, `--settings`,
-`--cloud-test <url>` …). Release builds ignore them (`#if DEBUG`).
+`--cloud-test <url>`, `--tutorial [welcome|first-job|crew-basics] --tutorial-step=N` …). Release builds ignore them
+(`#if DEBUG`).
 
 ### Developer note: sideloading a test build
 For a quick test on a device without TestFlight: Actions → **iOS IPA (sideload)** → *Run workflow* → download the
@@ -136,6 +137,9 @@ always uses their company's connection. **Settings › Billdu** in the app shows
   on every device in the `devices` input (default iPhone SE 3rd generation, iPhone 16, iPad Pro 13-inch) and every
   variant in `layout_variants` (default `en,pl,en-dark`: English, Polish as the long language, English in Dark Mode).
   Download the `ios-layout-screens` artifact; files are `<lang>[-dark]-<device>-<nn>-<screen>-<orientation>.png`.
+  Suite **tutorial** (`TutorialScreens.swift`): the native tutorial (welcome pages, the first-run prompt, every step of
+  both tours, a step in landscape, the Tutorials list) on an iPhone and an iPad (`tutorial_devices`), in English and
+  `second_language`. Artifact `ios-tutorial-screens`.
 - `ios-screenshots.yml` (on demand) screenshots every screen on an iPhone and an iPad simulator.
 - `ios-real-plans.yml` (on demand) runs real plans from the internet through the app's import, scan cleanup and plan
   reader on both simulators.

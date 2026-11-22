@@ -20,11 +20,16 @@ struct ProjectsView: View {
     @State private var path: [String] = []
     @State private var message: String?
     @State private var toDelete: ProjectBundle?
-    /// Help & tutorials in a Safari view (HelpViews.swift).
-    @State private var helpPage: InAppPage?
+    /// Help & tutorials: the native Tutorials screen, with the web Help center (Tutorial/TutorialViews.swift).
+    @State private var showTutorials = false
+    /// The welcome walkthrough (from the first-run prompt, or `--tutorial` in Debug builds), at this page.
+    @State private var welcome: WelcomeRequest?
+    /// The demo job being drawn for a tour (two quick steps don't draw it twice).
+    @State private var sampleJob: Task<String, Never>?
+    private var tutorial: TutorialController { .shared }
 
     private func openHelp() {
-        if let url = app.settings.helpURL() { helpPage = InAppPage(url: url) }
+        showTutorials = true
     }
 
     /// Screenshot / automation flags. Debug builds only: a release build ignores launch arguments.
@@ -51,6 +56,42 @@ struct ProjectsView: View {
         Task { path.append(await app.createDemo().project.id) }
     }
 
+    /// A tour step goes to the jobs list or to a section of the demo job (never the person's own jobs). Sheets close
+    /// first so the tour is on top; the demo job is drawn once if there isn't one yet.
+    private func followTutorial(_ route: TutorialRoute?) {
+        guard let route else { return }
+        tutorial.route = nil
+        let hadSheet = showSettings || showCatalog || showTasks || showProducts || showTeam || showTutorials || welcome != nil
+            || showNew || showAllPhotos || showMap
+        showSettings = false; showCatalog = false; showTasks = false; showProducts = false; showTeam = false
+        showTutorials = false; welcome = nil; showNew = false; showAllPhotos = false; showMap = false
+        Task { @MainActor in
+            if hadSheet { try? await Task.sleep(for: .milliseconds(450)) }
+            let id = await tutorialSampleJob()
+            switch route {
+            case .jobs:
+                path = []
+            case .job(let tab):
+                tutorial.pendingTab = TutorialTabRequest(jobId: id, tab: tab)
+                if path != [id] { path = [id] }
+            }
+        }
+    }
+
+    /// The demo job ("Create demo job"), drawn if there isn't one. Matched on its exact address and client, so a
+    /// real job is never used.
+    private func tutorialSampleJob() async -> String {
+        if let demo = app.projects.first(where: { $0.project.address == DemoProject.address && $0.project.clientName == DemoProject.clientName }) {
+            return demo.project.id
+        }
+        if let pending = sampleJob { return await pending.value }
+        let task = Task { @MainActor in await app.createDemo().project.id }
+        sampleJob = task
+        let id = await task.value
+        sampleJob = nil
+        return id
+    }
+
     private var filtered: [ProjectBundle] {
         app.projects.filter { b in
             (status == nil || b.project.status == status) &&
@@ -64,8 +105,9 @@ struct ProjectsView: View {
             ScrollView {
                 // Trial ending, needs attention or read-only (company teams only; nothing otherwise).
                 BillingBannerView(outer: EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
-                // Once per install: where Help & tutorials lives.
-                HelpTipBanner(onOpen: openHelp).padding(.horizontal, 16).padding(.top, 8)
+                // The one first-run prompt: the welcome walkthrough and tour, or Help & tutorials.
+                HelpTipBanner(onStart: { welcome = WelcomeRequest(page: 0) }, onOpen: openHelp)
+                    .padding(.horizontal, 16).padding(.top, 8)
                 if app.projects.isEmpty {
                     EmptyProjects(office: office, onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
@@ -109,6 +151,7 @@ struct ProjectsView: View {
                                     }
                             }
                         }
+                        .tutorialAnchor("jobs-list")
                         if filtered.isEmpty { Text("No jobs match.").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(40) }
                     }
                     .padding()
@@ -143,9 +186,12 @@ struct ProjectsView: View {
                         Button(action: openDemo) { Label("Create demo job", systemImage: "wand.and.stars") }
                         Divider()
                         Button(action: openHelp) { Label("Help & tutorials", systemImage: "questionmark.circle") }
+                            .accessibilityIdentifier("jobs-help")
                     } label: { Label("More", systemImage: "ellipsis.circle") }
+                    .accessibilityIdentifier("jobs-more")
                     if office {
                         Button { showNew = true } label: { Label("New job", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                            .tutorialAnchor("jobs-new")
                     }
                 }
             }
@@ -162,7 +208,16 @@ struct ProjectsView: View {
             .sheet(isPresented: $showTasks) { TasksView { id in path = [id] } }
             .sheet(isPresented: $showProducts) { NavigationStack { ProductLibraryView() } }
             .sheet(isPresented: $showTeam) { TeamSheet() }
-            .sheet(item: $helpPage) { p in SafariView(url: p.url).ignoresSafeArea() }
+            .sheet(isPresented: $showTutorials) { NavigationStack { TutorialsView(asSheet: true) } }
+            .sheet(item: $welcome) { w in
+                TutorialWelcomeView(page: w.page, onStart: {
+                    welcome = nil
+                    tutorial.start(Tutorials.suggested(office: app.cloud.can(.prices)))
+                }, onDontShow: {
+                    welcome = nil
+                    tutorial.dontShowAgain()
+                })
+            }
             .fileImporter(isPresented: $showRestore, allowedContentTypes: [.json, .data]) { result in
                 // Nothing is written until the user confirms what the backup brings in (PinPlanApp: RestoreConfirmSheet).
                 do { try app.prepareRestore(from: result.get()) } catch { message = tr(error.localizedDescription) }
@@ -202,6 +257,14 @@ struct ProjectsView: View {
                 if args.contains("--settings") || args.contains("--server") || args.contains("--delete-account") { showSettings = true }
                 if args.contains("--products") { showProducts = true }
                 if args.contains("--catalog") { showCatalog = true }
+                // `--tutorial [welcome | first-job | crew-basics]` with `--tutorial-step=N`: the walkthrough's page or a
+                // tour's step (TutorialLaunch; screenshots in TutorialScreens.swift).
+                if let launch = TutorialLaunch.parse(args) {
+                    switch launch {
+                    case .welcome(let page): welcome = WelcomeRequest(page: page)
+                    case .tour(let id, let step): tutorial.start(id, at: step)
+                    }
+                }
                 #endif
             }
             .sheet(isPresented: Binding(get: { !app.incomingFiles.isEmpty }, set: { if !$0 { app.incomingFiles = [] } })) {
@@ -226,7 +289,19 @@ struct ProjectsView: View {
                 Button("Delete", role: .destructive) { if let b = toDelete { app.delete(b) }; toDelete = nil }
             }
         }
+        // The running tour: steps say where to go (the jobs list, or a section of the demo job). Outside the
+        // navigation stack, so it stays when a job is pushed.
+        .onChange(of: tutorial.route) { _, route in followTutorial(route) }
+        .onChange(of: app.cloud.can(.prices), initial: true) { _, office in tutorial.office = office }
+        // Above the jobs list and the open job, bars included (sheets close when a tour goes somewhere).
+        .overlay { TutorialOverlay() }
     }
+}
+
+/// The welcome walkthrough to show, from a page (drives `.sheet(item:)`).
+private struct WelcomeRequest: Identifiable {
+    let page: Int
+    var id: Int { page }
 }
 
 private struct EmptyProjects: View {

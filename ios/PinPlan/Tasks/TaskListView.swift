@@ -29,7 +29,7 @@ struct TaskListView: View {
         let list = shown
         let all = model.bundle.liveTasks
         List {
-            Section { filterBar }
+            Section { filterBar.tutorialAnchor("tasks-list") }
             if JobNav.shared.taskDevice != nil { Section { deviceFilter } }
             if all.isEmpty {
                 ContentUnavailableView("No tasks yet", systemImage: "checklist",

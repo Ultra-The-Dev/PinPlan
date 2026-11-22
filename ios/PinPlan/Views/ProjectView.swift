@@ -123,6 +123,7 @@ struct ProjectView: View {
                                     .pickerStyle(.segmented)
                                 }
                                 .frame(maxWidth: 700)
+                                .tutorialAnchor("job-sections")
                             }
                         }
                 }
@@ -149,6 +150,8 @@ struct ProjectView: View {
             JobNav.shared.go = nil
         }
         .onChange(of: tab) { _, t in if phoneMore.contains(t) { lastMore = t } }
+        // A tour step asks for a section of this (demo) job.
+        .onChange(of: TutorialController.shared.pendingTab) { _, _ in takeTutorialTab() }
         // Every plan deleted from "Add or manage plans": the plan section is the import screen again, so don't let
         // the closed sheet pop back up after the next import.
         .onChange(of: model?.sheets.isEmpty ?? false) { _, empty in if empty { model?.showManagePlans = false } }
@@ -161,6 +164,8 @@ struct ProjectView: View {
                 if m.sheets.isEmpty { tab = .plan }
                 // Plans shared from another app open on the plan's import screen.
                 if app.pendingImport?.projectId == bundle.project.id { tab = .plan; if !m.sheets.isEmpty { m.showManagePlans = true } }
+                // Opened by a tour step: its section (JobNav was just reset, so the tour keeps its own request).
+                takeTutorialTab()
                 #if DEBUG
                 // Screenshot/automation hook: `--tab plan` etc. (older ids such as `sheets`, `crew`, `estimate` still work).
                 let args = ProcessInfo.processInfo.arguments
@@ -171,6 +176,10 @@ struct ProjectView: View {
                 #endif
             }
         }
+    }
+
+    private func takeTutorialTab() {
+        if let t = TutorialController.shared.takePendingTab(job: bundle.project.id), tabs.contains(t) { tab = t }
     }
 
     private func title(_ model: EditorModel) -> String {
@@ -259,6 +268,7 @@ struct MoneyView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 if let url = serverPageURL(app.settings, WebLinks.quotes(job: model.bundle.project.id)) {
                     QuotesAndInvoicesLink(url: url)
+                        .tutorialAnchor("money-quotes")
                 }
             }
     }

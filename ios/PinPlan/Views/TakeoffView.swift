@@ -91,6 +91,7 @@ struct TakeoffView: View {
                     .padding()
                 }
                 .paperCard()
+                .tutorialAnchor("takeoff-table")
                 if tot.unmeasuredRuns > 0 {
                     Label("\(tot.unmeasuredRuns) wire run(s) have no length yet. Set each plan's scale or type the LF on the run.", systemImage: "exclamationmark.triangle")
                         .font(.callout).foregroundStyle(.orange)

@@ -63,6 +63,7 @@ struct EstimateView: View {
                     .controlSize(.large)
                 }
                 .padding(.vertical, 6)
+                .tutorialAnchor("money-total")
             }
             if !unpriced.isEmpty {
                 Section {

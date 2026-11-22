@@ -3,13 +3,16 @@ name: iOS simulator screens
 # Screenshots from the XCUITests in ios/PinPlanUITests, on demand (Actions → iOS simulator screens → Run workflow).
 # The app runs in Debug on its demo job with local data only: no secrets, no server, no sign-in.
 #
-# Two suites (input "suite"):
+# Three suites (input "suite"):
 #   • find-similar — the iPad app's Find similar tool (FindSimilarScreens.swift) on an iPad simulator, in English and
 #     one more language. Artifact "ios-sim-screens".
 #   • layouts — the field-crew screens (LayoutScreens.swift: jobs list, plan View and Edit with the device palette,
 #     takeoff, a checklist, photos, daily logs, settings), each in portrait and landscape, on every device in
 #     "devices" and in every variant in "layout_variants" (a language code, "-dark" for Dark Mode). For reviewing
 #     layouts on an iPhone SE, a standard iPhone and an iPad side by side. Artifact "ios-layout-screens".
+#   • tutorial — the native tutorial (TutorialScreens.swift): the welcome walkthrough, the jobs list's first-run
+#     prompt, every step of "Your first job" and "Crew basics", a step in landscape and the Tutorials list, on every
+#     device in "tutorial_devices", in English and "second_language". Artifact "ios-tutorial-screens".
 #
 # Test failures don't fail the run: the screenshots are the point, and the xcresult bundles are uploaded too.
 on:
@@ -18,10 +21,10 @@ on:
       suite:
         description: "Which screenshots"
         type: choice
-        options: [all, layouts, find-similar]
+        options: [all, layouts, find-similar, tutorial]
         default: all
       second_language:
-        description: "find-similar: second language besides English (es, pt-BR, ru, uk, pl, zh-Hans, vi)"
+        description: "find-similar, tutorial: second language besides English (es, pt-BR, ru, uk, pl, zh-Hans, vi)"
         required: false
         default: "es"
       devices:
@@ -32,6 +35,10 @@ on:
         description: "layouts: language[-dark] per run, comma-separated (en, pl, ru, uk, vi… ; en-dark = English in Dark Mode)"
         required: false
         default: "en,pl,en-dark"
+      tutorial_devices:
+        description: "tutorial: simulator device names, comma-separated (an iPhone and an iPad)"
+        required: false
+        default: "iPhone 16,iPad Pro 13-inch (M4)"
 
 permissions:
   contents: read
@@ -42,7 +49,7 @@ concurrency:
 
 jobs:
   find-similar:
-    if: ${{ inputs.suite != 'layouts' }}
+    if: ${{ inputs.suite == 'all' || inputs.suite == 'find-similar' }}
     runs-on: macos-26
     timeout-minutes: 75
     env:
@@ -115,7 +122,7 @@ jobs:
           if-no-files-found: ignore
 
   layouts:
-    if: ${{ inputs.suite != 'find-similar' }}
+    if: ${{ inputs.suite == 'all' || inputs.suite == 'layouts' }}
     runs-on: macos-26
     timeout-minutes: 180
     env:
@@ -216,4 +223,96 @@ jobs:
         with:
           name: ios-layout-screens-xcresult
           path: ios/layout-*.xcresult
+          if-no-files-found: ignore
+
+  tutorial:
+    if: ${{ inputs.suite == 'all' || inputs.suite == 'tutorial' }}
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      DEVICES: ${{ inputs.tutorial_devices || 'iPhone 16,iPad Pro 13-inch (M4)' }}
+      SECOND_LANG: ${{ inputs.second_language || 'es' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
+      - run: brew install xcodegen
+      - name: Generate the project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Check the inputs
+        run: |
+          # Only plain names and codes reach the shell loops below.
+          echo "$DEVICES" | grep -qE '^[A-Za-z0-9 ().,-]+$' || { echo "Unexpected characters in devices: $DEVICES"; exit 1; }
+          case "$SECOND_LANG" in es|pt-BR|ru|uk|pl|zh-Hans|vi) ;; *) echo "Unknown language: $SECOND_LANG"; exit 1 ;; esac
+      - name: Create the simulators
+        id: sims
+        working-directory: ios
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes | grep -E "^iOS" | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+" | tail -1)
+          echo "runtime: $RUNTIME"
+          : > sims.txt
+          IFS=',' read -ra DS <<< "$DEVICES"
+          for d in "${DS[@]}"; do
+            name="$(echo "$d" | xargs)"
+            if udid=$(xcrun simctl create "tutorial-$(echo "$name" | tr -cs 'A-Za-z0-9' '-')" "$name" "$RUNTIME" 2>/dev/null); then
+              echo "$udid|$name" >> sims.txt
+              echo "created $name: $udid"
+            else
+              echo "warning: no simulator type named '$name' in this Xcode; available:"
+              xcrun simctl list devicetypes | grep -E "iPhone|iPad" | tail -30
+            fi
+          done
+          test -s sims.txt || { echo "No simulators could be created"; exit 1; }
+          echo "first=$(head -1 sims.txt | cut -d'|' -f1)" >> "$GITHUB_OUTPUT"
+          cat sims.txt
+      - name: Build the app and the UI tests
+        working-directory: ios
+        run: |
+          set -o pipefail
+          perl -e 'alarm 1800; exec @ARGV' xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -configuration Debug \
+            -destination "id=${{ steps.sims.outputs.first }}" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build-for-testing 2>&1 | tee build.log | grep -E "error:|\*\* (TEST )?BUILD" || true
+          grep -q "TEST BUILD SUCCEEDED" build.log
+      - name: Tutorial screens
+        working-directory: ios
+        run: |
+          t () { local secs=$1; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@" || echo "warning: '$*' failed or timed out"; }
+          mkdir -p tutorial-shots
+          # The list is read on its own descriptor: xcodebuild and simctl would otherwise eat it from stdin.
+          while IFS='|' read -r UDID NAME <&3; do
+            [ -n "$UDID" ] || continue
+            SLUG="$(echo "$NAME" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' | sed 's/-$//')"
+            echo "== $NAME ($UDID)"
+            t 180 xcrun simctl boot "$UDID"
+            t 400 xcrun simctl bootstatus "$UDID" -b
+            t 30 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4
+            for L in en "$SECOND_LANG"; do
+              echo "-- $SLUG $L"
+              # A fresh install each time: the first-run prompt shows and the demo job starts as drawn.
+              t 60 xcrun simctl uninstall "$UDID" com.pinplan.app
+              TEST_RUNNER_SHOT_LANG="$L" TEST_RUNNER_SHOT_DEVICE="$SLUG" TEST_RUNNER_SHOT_DIR="$PWD/tutorial-shots/$SLUG" \
+              perl -e 'alarm 1800; exec @ARGV' \
+                xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -destination "id=$UDID" -derivedDataPath build \
+                -only-testing:PinPlanUITests/TutorialScreens \
+                -testLanguage "$L" -resultBundlePath "tutorial-$SLUG-$L.xcresult" CODE_SIGNING_ALLOWED=NO test-without-building \
+                2>&1 | tee "tutorial-$SLUG-$L.log" | grep -E "Test Case|error:|\*\* TEST" || echo "warning: $SLUG $L failed or timed out"
+              t 300 xcrun xcresulttool export attachments --path "tutorial-$SLUG-$L.xcresult" --output-path "tutorial-shots/xcresult-$SLUG-$L"
+            done
+            t 120 xcrun simctl shutdown "$UDID"
+          done 3< sims.txt
+          ls -laR tutorial-shots | head -300
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-tutorial-screens
+          path: |
+            ios/tutorial-shots
+            ios/tutorial-*.log
+            ios/build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-tutorial-screens-xcresult
+          path: ios/tutorial-*.xcresult
           if-no-files-found: ignore

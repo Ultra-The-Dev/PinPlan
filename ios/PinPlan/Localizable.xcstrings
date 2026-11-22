@@ -6769,6 +6769,52 @@
         }
       }
     },
+    "%lld min" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld мин"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld хв"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld phút"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟"
+          }
+        }
+      }
+    },
     "%lld not on the map" : {
       "localizations" : {
         "es" : {
@@ -10331,6 +10377,53 @@
         }
       }
     },
+    "A short tour points at the real buttons on a demo job, so nothing of yours changes. Replay it any time from Help & tutorials." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un recorrido corto señala los botones reales en una obra de demostración, así que nada tuyo cambia. Repítelo cuando quieras desde Ayuda y tutoriales."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krótka wycieczka pokazuje prawdziwe przyciski na zleceniu demo, więc nic Twojego się nie zmienia. Powtórzysz ją w Pomocy i samouczkach."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um tour curto aponta os botões de verdade numa obra de demonstração, então nada seu muda. Repita quando quiser em Ajuda e tutoriais."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткий тур показывает настоящие кнопки на демо-объекте, так что ваши данные не меняются. Повторить его можно в «Справке и обучении»."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткий тур показує справжні кнопки на демо-об'єкті, тож ваші дані не змінюються. Повторити його можна в «Довідці й навчанні»."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phần tham quan ngắn chỉ vào các nút thật trên một công trình mẫu nên không thay đổi dữ liệu của bạn. Xem lại bất cứ lúc nào trong Trợ giúp & hướng dẫn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简短的导览会在示例工程上指出真实的按钮，不会改动你的数据。随时可以在“帮助和教程”中重看。"
+          }
+        }
+      }
+    },
     "A suggested answer gets a quicker reply." : {
       "localizations" : {
         "es" : {
@@ -12465,6 +12558,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加你安装的品牌和型号，以及你的价格。然后每个工程可以为摄像头、Wi-Fi、音箱等选择使用哪一款。"
+          }
+        }
+      }
+    },
+    "Add the PDF or phone photos. On Choose and name pages, untick pages you don't need. Names are read from each page, scans too; tap a name to change it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agrega el PDF o fotos del teléfono. En Elige y nombra las páginas, desmarca las que no necesitas. Los nombres se leen de cada página, también de escaneos; toca un nombre para cambiarlo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj PDF lub zdjęcia z telefonu. Na ekranie Wybierz i nazwij strony odznacz niepotrzebne. Nazwy są odczytywane z każdej strony, także ze skanów; dotknij nazwy, aby ją zmienić."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicione o PDF ou fotos do celular. Em Escolha e nomeie as páginas, desmarque as que não precisa. Os nomes são lidos de cada página, inclusive escaneadas; toque em um nome para mudar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавьте PDF или фото с телефона. На экране «Выберите и назовите страницы» снимите отметки с ненужных. Названия читаются с каждой страницы, и со сканов тоже; нажмите на название, чтобы изменить."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додайте PDF або фото з телефона. На екрані «Виберіть і назвіть сторінки» зніміть позначки з непотрібних. Назви читаються з кожної сторінки, і зі сканів теж; торкніться назви, щоб змінити."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thêm PDF hoặc ảnh chụp bằng điện thoại. Ở Chọn và đặt tên trang, bỏ chọn trang không cần. Tên được đọc từ từng trang, cả bản quét; chạm vào tên để đổi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加 PDF 或手机照片。在“选择并命名页面”中取消勾选不需要的页面。名称从每页读取，扫描件也可以；点按名称即可修改。"
           }
         }
       }
@@ -15519,6 +15659,52 @@
         }
       }
     },
+    "Back" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atrás"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wstecz"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quay lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上一步"
+          }
+        }
+      }
+    },
     "Backup" : {
       "localizations" : {
         "es" : {
@@ -17773,6 +17959,53 @@
         }
       }
     },
+    "Check the takeoff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisa el cómputo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprawdź przedmiar"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confira o levantamento"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверьте подсчёт"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевірте підрахунок"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra bóc khối lượng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查工程量"
+          }
+        }
+      }
+    },
     "Check your email (%@); follow the link to set a new password, then sign in here." : {
       "localizations" : {
         "es" : {
@@ -19533,6 +19766,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭"
+          }
+        }
+      }
+    },
+    "Close the tour (resume it from Help)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar el recorrido (continúalo desde la Ayuda)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknij wycieczkę (dokończysz ją z Pomocy)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fechar o tour (continue pela Ajuda)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрыть тур (продолжить можно из справки)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрити тур (продовжити можна з довідки)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đóng tham quan (tiếp tục từ Trợ giúp)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭导览（可在帮助中继续）"
           }
         }
       }
@@ -22297,6 +22576,53 @@
         }
       }
     },
+    "Count doors and windows" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuenta puertas y ventanas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Policz drzwi i okna"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conte portas e janelas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Посчитайте двери и окна"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Порахуйте двері й вікна"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đếm cửa đi và cửa sổ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "统计门窗"
+          }
+        }
+      }
+    },
     "Count “?” items in totals" : {
       "localizations" : {
         "es" : {
@@ -23167,6 +23493,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "人员和工时"
+          }
+        }
+      }
+    },
+    "Crew basics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo básico para la cuadrilla"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podstawy dla ekipy"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Básico para a equipe de campo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Основы для бригады"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Основи для бригади"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cơ bản cho đội thi công"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "施工队入门"
           }
         }
       }
@@ -25639,6 +26012,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "文件"
+          }
+        }
+      }
+    },
+    "Don't show again" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No volver a mostrar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie pokazuj ponownie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não mostrar de novo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Больше не показывать"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Більше не показувати"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không hiện lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不再显示"
           }
         }
       }
@@ -28667,6 +29086,100 @@
         }
       }
     },
+    "Every device and wire run, floor by floor. It counts only what's on the plan, so fix a count on the plan, not here." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada dispositivo y tendido, piso por piso. Solo cuenta lo que está en el plano, así que corrige un conteo en el plano, no aquí."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każde urządzenie i trasa, piętro po piętrze. Liczy się tylko to, co jest na planie, więc poprawiaj liczby na planie, nie tutaj."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada dispositivo e lance, andar por andar. Só conta o que está na planta, então corrija uma contagem na planta, não aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждое устройство и кабельная трасса по этажам. Считается только то, что на плане, поэтому исправляйте количество на плане, а не здесь."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кожен пристрій і траса по поверхах. Рахується лише те, що на плані, тож виправляйте кількість на плані, а не тут."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mọi thiết bị và tuyến dây, theo từng tầng. Chỉ đếm những gì trên bản vẽ, nên sửa số lượng trên bản vẽ, không phải ở đây."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个设备和线路，逐层列出。只统计图纸上的内容，所以要在图纸上改数量，而不是在这里。"
+          }
+        }
+      }
+    },
+    "Every job starts here: the address and the client. For this tour we made a sample job for you." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada obra empieza aquí: la dirección y el cliente. Para este recorrido creamos una obra de ejemplo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każde zlecenie zaczyna się tutaj: adres i klient. Na potrzeby tej wycieczki utworzyliśmy przykładowe zlecenie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toda obra começa aqui: o endereço e o cliente. Para este tour criamos uma obra de exemplo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждый объект начинается здесь: адрес и клиент. Для этого тура мы создали пример объекта."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кожен об'єкт починається тут: адреса й клієнт. Для цього туру ми створили приклад об'єкта."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mọi công trình bắt đầu ở đây: địa chỉ và khách hàng. Cho tham quan này chúng tôi đã tạo một công trình mẫu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每个工程都从这里开始：地址和客户。为了这次导览，我们为你创建了一个示例工程。"
+          }
+        }
+      }
+    },
     "Every line" : {
       "localizations" : {
         "es" : {
@@ -28939,6 +29452,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ 中的全部（%2$lld）"
+          }
+        }
+      }
+    },
+    "Everything is saved on this device first. Keep working in a basement or a new build: changes sync when you're back online." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo se guarda primero en este dispositivo. Sigue trabajando en un sótano o en una obra nueva: los cambios se sincronizan cuando vuelvas a tener conexión."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystko zapisuje się najpierw na tym urządzeniu. Pracuj w piwnicy czy na nowej budowie: zmiany zsynchronizują się, gdy wróci internet."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tudo é salvo primeiro neste aparelho. Continue trabalhando no subsolo ou numa obra nova: as alterações sincronizam quando você voltar a ter conexão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Всё сначала сохраняется на этом устройстве. Работайте в подвале или на новостройке: изменения синхронизируются, когда появится связь."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Усе спершу зберігається на цьому пристрої. Працюйте в підвалі чи на новобудові: зміни синхронізуються, щойно з'явиться зв'язок."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mọi thứ được lưu trên thiết bị này trước. Cứ làm việc dưới tầng hầm hay công trình mới: thay đổi sẽ đồng bộ khi có mạng lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有内容都先保存在本设备上。在地下室或新建工地照常工作，恢复联网后更改会自动同步。"
+          }
+        }
+      }
+    },
+    "Everything is saved on this device first. No signal? Keep working: changes sync when you're back online." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todo se guarda primero en este dispositivo. ¿Sin señal? Sigue trabajando: los cambios se sincronizan cuando vuelvas a tener conexión."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystko zapisuje się najpierw na tym urządzeniu. Brak zasięgu? Pracuj dalej: zmiany zsynchronizują się, gdy wróci internet."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tudo é salvo primeiro neste aparelho. Sem sinal? Continue trabalhando: as alterações sincronizam quando você voltar a ter conexão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Всё сначала сохраняется на этом устройстве. Нет связи? Продолжайте работать: изменения синхронизируются, когда связь вернётся."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Усе спершу зберігається на цьому пристрої. Немає зв'язку? Працюйте далі: зміни синхронізуються, щойно зв'язок повернеться."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mọi thứ được lưu trên thiết bị này trước. Không có sóng? Cứ làm tiếp: thay đổi sẽ đồng bộ khi có mạng lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有内容都先保存在本设备上。没有信号？照常工作，恢复联网后更改会自动同步。"
           }
         }
       }
@@ -29771,6 +30378,53 @@
         }
       }
     },
+    "Find similar: tap one door on the plan and it finds the others like it. Check them, then Accept all." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar similares: toca una puerta en el plano y encuentra las demás iguales. Revísalas y luego Aceptar todas."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znajdź podobne: dotknij jednych drzwi na planie, a znajdzie pozostałe takie same. Sprawdź je, potem Akceptuj wszystkie."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encontrar semelhantes: toque numa porta na planta e ele acha as outras iguais. Confira e depois Aceitar todos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Найти похожие»: нажмите одну дверь на плане — найдутся все такие же. Проверьте и нажмите «Принять все»."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Знайти схожі»: натисніть одні двері на плані — знайдуться всі такі самі. Перевірте й натисніть «Прийняти всі»."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm tương tự: chạm một cửa đi trên bản vẽ và nó tìm các cửa giống vậy. Kiểm tra, rồi Chấp nhận tất cả."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“查找相似”：在图纸上点一扇门，就能找到所有相同的门。检查后点“全部接受”。"
+          }
+        }
+      }
+    },
     "Finish" : {
       "localizations" : {
         "es" : {
@@ -30365,6 +31019,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工长"
+          }
+        }
+      }
+    },
+    "Forgets finished and skipped tours, and shows the welcome tip on the jobs list again." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Olvida los recorridos terminados y omitidos, y vuelve a mostrar el consejo de bienvenida en la lista de obras."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zapomina ukończone i pominięte wycieczki oraz znów pokazuje wskazówkę powitalną na liście zleceń."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esquece os tours concluídos e pulados e mostra de novo a dica de boas-vindas na lista de obras."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Забывает пройденные и пропущенные туры и снова показывает приветствие в списке объектов."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Забуває пройдені й пропущені тури та знову показує привітання в списку об'єктів."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quên các phần tham quan đã xong và đã bỏ qua, và hiện lại mẹo chào mừng trong danh sách công trình."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除已完成和已跳过的导览记录，并在工程列表中再次显示欢迎提示。"
           }
         }
       }
@@ -31611,6 +32311,52 @@
         }
       }
     },
+    "Guided tours" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorridos guiados"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wycieczki z przewodnikiem"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tours guiados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обучающие туры"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Навчальні тури"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tham quan có hướng dẫn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导览"
+          }
+        }
+      }
+    },
     "h" : {
       "localizations" : {
         "es" : {
@@ -31745,6 +32491,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "帮助和教程"
+          }
+        }
+      }
+    },
+    "Help center on the web" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centro de ayuda en la web"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Centrum pomocy w sieci"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Central de ajuda na web"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Справочный центр в интернете"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Довідковий центр в інтернеті"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trung tâm trợ giúp trên web"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网页版帮助中心"
           }
         }
       }
@@ -33773,6 +34565,52 @@
         }
       }
     },
+    "It shows the basics on a demo job and works offline." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra lo básico en una obra de demostración y funciona sin conexión."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokazuje podstawy na zleceniu demo i działa bez internetu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra o básico numa obra de demonstração e funciona off-line."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Он показывает основы на демо-объекте и работает без интернета."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Він показує основи на демо-об'єкті й працює без інтернету."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phần này chỉ những điều cơ bản trên công trình mẫu và dùng được khi không có mạng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在示例工程上演示基本操作，离线也能用。"
+          }
+        }
+      }
+    },
     "It stays selected so you can tap again and again. Recent devices also appear in the dock on the plan." : {
       "localizations" : {
         "es" : {
@@ -33953,6 +34791,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "带相机标志的项目需要照片才算完成。长按项目可更改此设置。"
+          }
+        }
+      }
+    },
+    "Its card shows what it is, the room and the notes, with links to the device's photos and tasks." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su tarjeta muestra qué es, la habitación y las notas, con enlaces a las fotos y tareas del dispositivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karta pokazuje, co to jest, pomieszczenie i notatki, z linkami do zdjęć i zadań urządzenia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O cartão mostra o que é, o cômodo e as notas, com links para as fotos e tarefas do dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Карточка показывает, что это, помещение и заметки, со ссылками на фото и задачи устройства."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картка показує, що це, приміщення й нотатки, з посиланнями на фото й завдання пристрою."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thẻ cho biết đó là gì, phòng và ghi chú, kèm liên kết tới ảnh và việc của thiết bị."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备卡片显示它是什么、所在房间和备注，并链接到该设备的照片和任务。"
           }
         }
       }
@@ -34505,6 +35390,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "来自其他账户的工程"
+          }
+        }
+      }
+    },
+    "Jobs from your office show up here; tap one to open it. This tour uses the demo job, so nothing of yours changes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aquí aparecen las obras de tu oficina; toca una para abrirla. Este recorrido usa la obra de demostración, así que nada tuyo cambia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu pojawiają się zlecenia z biura; dotknij jednego, aby je otworzyć. Ta wycieczka używa zlecenia demo, więc nic Twojego się nie zmienia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As obras do seu escritório aparecem aqui; toque em uma para abrir. Este tour usa a obra de demonstração, então nada seu muda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Здесь появляются объекты от вашего офиса; нажмите, чтобы открыть. Тур идёт на демо-объекте, так что ваши данные не меняются."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тут з'являються об'єкти від вашого офісу; торкніться, щоб відкрити. Тур іде на демо-об'єкті, тож ваші дані не змінюються."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Công trình văn phòng giao cho bạn hiện ở đây; chạm để mở. Phần tham quan này dùng công trình mẫu nên không thay đổi dữ liệu của bạn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "办公室派给你的工程都在这里，点一个即可打开。本导览使用示例工程，不会改动你的任何数据。"
           }
         }
       }
@@ -35885,6 +36817,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "布置已确认"
+          }
+        }
+      }
+    },
+    "Learn by doing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aprende haciendo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ucz się w praktyce"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aprenda fazendo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Учитесь на деле"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вчіться на ділі"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Học bằng cách làm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "边做边学"
           }
         }
       }
@@ -37361,6 +38340,53 @@
         }
       }
     },
+    "Made for the job site" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hecho para la obra"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stworzone na budowę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feito para a obra"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сделано для объекта"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Створено для об'єкта"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Làm cho công trường"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为施工现场而生"
+          }
+        }
+      }
+    },
     "Made on the web. Shown here to read; they never change the device count." : {
       "localizations" : {
         "es" : {
@@ -37633,6 +38659,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "生成任务"
+          }
+        }
+      }
+    },
+    "Make the quote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz la cotización"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przygotuj wycenę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faça o orçamento"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Составьте смету"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Складіть кошторис"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lập báo giá"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "制作报价单"
           }
         }
       }
@@ -39887,6 +40960,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "第一次使用？“帮助和教程”里有写给办公室和施工队的简短指南。"
+          }
+        }
+      }
+    },
+    "New here? Take the 2-minute tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eres nuevo? Haz el recorrido de 2 minutos"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwszy raz? Zrób 2-minutową wycieczkę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É novo aqui? Faça o tour de 2 minutos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Впервые здесь? Пройдите тур за 2 минуты"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ви тут уперше? Пройдіть тур за 2 хвилини"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mới dùng? Xem tham quan 2 phút"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第一次来？花 2 分钟看看导览"
           }
         }
       }
@@ -43295,6 +44414,52 @@
         }
       }
     },
+    "Not now" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora no"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie teraz"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agora não"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не сейчас"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не зараз"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Để sau"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以后再说"
+          }
+        }
+      }
+    },
     "Not sent yet. The office sends it from the web." : {
       "localizations" : {
         "es" : {
@@ -44583,6 +45748,53 @@
         }
       }
     },
+    "Once doors and windows are counted, Add alarm sensors puts a contact on each one in a single step. Tap one to leave it out." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con las puertas y ventanas contadas, Agregar sensores de alarma pone un contacto en cada una en un solo paso. Toca una para dejarla fuera."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gdy drzwi i okna są policzone, Dodaj czujniki alarmu stawia kontaktron przy każdym w jednym kroku. Dotknij jednego, by go pominąć."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com portas e janelas contadas, Adicionar sensores de alarme põe um contato em cada uma num só passo. Toque numa para deixá-la de fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда двери и окна посчитаны, «Добавить датчики охраны» ставит контакт на каждую за один шаг. Нажмите любую, чтобы исключить."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Коли двері й вікна пораховано, «Додати датчики охорони» ставить контакт на кожні за один крок. Натисніть будь-які, щоб виключити."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi đã đếm cửa đi và cửa sổ, Thêm cảm biến báo động đặt một tiếp điểm lên mỗi cái chỉ trong một bước. Chạm một cái để bỏ qua."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门窗统计好后，“添加报警传感器”一步就给每个门窗装上门磁/窗磁。点其中一个可将其排除。"
+          }
+        }
+      }
+    },
     "One file with every plan, device, wire run, photo and price edit. It opens in this app or the Northpin web app." : {
       "localizations" : {
         "es" : {
@@ -45177,6 +46389,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开 %@"
+          }
+        }
+      }
+    },
+    "Open a job" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre una obra"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz zlecenie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abra uma obra"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откройте объект"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрийте об'єкт"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở công trình"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开工程"
+          }
+        }
+      }
+    },
+    "Open a job, read the plan, check a device, the job's tasks and photos, and working with no signal." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir una obra, leer el plano, revisar un dispositivo, las tareas y fotos de la obra, y trabajar sin señal."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz zlecenie, czytaj plan, sprawdź urządzenie, zadania i zdjęcia zlecenia oraz pracę bez zasięgu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir uma obra, ler a planta, ver um dispositivo, as tarefas e fotos da obra, e trabalhar sem sinal."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть объект, читать план, посмотреть устройство, задачи и фото объекта и работа без связи."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити об'єкт, читати план, переглянути пристрій, завдання й фото об'єкта та робота без зв'язку."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở công trình, đọc bản vẽ, xem thiết bị, việc và ảnh của công trình, và làm việc khi không có sóng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开工程、看图纸、查看设备、工程的任务和照片，以及没有信号时如何工作。"
           }
         }
       }
@@ -46683,6 +47989,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已逾期 · %@"
+          }
+        }
+      }
+    },
+    "Page %lld of %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página %lld de %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strona %lld z %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página %lld de %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Страница %lld из %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сторінка %lld з %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trang %lld / %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 页，共 %2$lld 页"
           }
         }
       }
@@ -48335,6 +49687,53 @@
         }
       }
     },
+    "Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos tiene su propia pestaña. Tomar foto la guarda en este trabajo con la fecha y el lugar. ¿Sin señal? Se sube cuando vuelvas a tener conexión."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zdjęcia mają własną kartę. Zrób zdjęcie zapisuje je w zleceniu z datą i miejscem. Brak zasięgu? Prześle się, gdy wrócisz do sieci."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos tem uma aba própria. Tirar foto salva nesta obra com a data e o local. Sem sinal? Ela é enviada quando a internet voltar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У фото своя вкладка. «Сделать фото» сохраняет снимок в объект с датой и местом. Нет связи? Загрузится, когда сеть появится."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для фото є окрема вкладка. «Зробити фото» зберігає знімок в об'єкт з датою й місцем. Немає зв'язку? Вивантажиться, коли мережа з'явиться."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ảnh có tab riêng. Chụp ảnh lưu ảnh vào công trình này kèm ngày và địa điểm. Không có sóng? Ảnh sẽ tải lên khi có mạng lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片有自己的标签。“拍照”会将照片连同日期和地点保存到此项目。没有信号？恢复联网后会自动上传。"
+          }
+        }
+      }
+    },
     "Photos per page" : {
       "localizations" : {
         "es" : {
@@ -48657,6 +50056,53 @@
         }
       }
     },
+    "Pin devices on your plans, count them floor by floor and turn the count into a quote. The crew gets the plan, tasks and photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coloca dispositivos en tus planos, cuéntalos piso por piso y convierte el conteo en una cotización. La cuadrilla tiene el plano, las tareas y las fotos."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaznaczaj urządzenia na planach, licz je piętro po piętrze i zamieniaj przedmiar w wycenę. Ekipa ma plan, zadania i zdjęcia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marque dispositivos nas plantas, conte por pavimento e transforme a contagem em orçamento. A equipe de campo recebe a planta, as tarefas e as fotos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ставьте устройства на план, считайте их по этажам и превращайте подсчёт в смету. У бригады — план, задачи и фото."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ставте пристрої на план, рахуйте їх поверх за поверхом і перетворюйте підрахунок на кошторис. У бригади — план, завдання й фото."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghim thiết bị lên bản vẽ, đếm theo từng tầng và biến số lượng thành báo giá. Đội thi công có bản vẽ, việc và ảnh."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在图纸上标出设备，按楼层计数，再把数量变成报价单。施工队可以看到图纸、任务和照片。"
+          }
+        }
+      }
+    },
     "Pinch or use the zoom buttons to zoom." : {
       "localizations" : {
         "es" : {
@@ -48795,6 +50241,53 @@
         }
       }
     },
+    "Pinch to zoom, drag to move. Tap a device to see what it is, its room and its notes. Stay in View so nothing moves by accident." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pellizca para acercar, arrastra para moverte. Toca un dispositivo para ver qué es, su cuarto y sus notas. Quédate en Ver para que nada se mueva por accidente."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiększaj dwoma palcami, przesuwaj przeciągając. Dotknij urządzenia, by zobaczyć, co to jest, pomieszczenie i notatki. Zostań w Podglądzie, by nic się nie przesunęło."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faça pinça para aproximar, arraste para mover. Toque num dispositivo para ver o que é, o cômodo e as notas. Fique em Ver para nada se mexer sem querer."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Масштаб — двумя пальцами, сдвиг — перетаскиванием. Нажмите устройство, чтобы увидеть, что это, помещение и заметки. Оставайтесь в «Просмотре», чтобы ничего не сдвинуть."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Масштаб — двома пальцями, зсув — перетягуванням. Натисніть пристрій, щоб побачити, що це, приміщення й нотатки. Залишайтеся в «Перегляді», щоб нічого не зсунути."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chụm hai ngón để phóng to, kéo để di chuyển. Chạm một thiết bị để xem nó là gì, phòng và ghi chú. Giữ ở chế độ Xem để không gì bị dịch chuyển."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "双指缩放，拖动移动。点设备可查看它是什么、所在房间和备注。保持“查看”模式以免误动。"
+          }
+        }
+      }
+    },
     "Place %@" : {
       "localizations" : {
         "es" : {
@@ -48929,6 +50422,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请先放置设备间"
+          }
+        }
+      }
+    },
+    "Place devices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coloca dispositivos"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozmieszczanie urządzeń"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colocar dispositivos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Расстановка устройств"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Розстановка пристроїв"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đặt thiết bị"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放置设备"
           }
         }
       }
@@ -49905,6 +51445,53 @@
         }
       }
     },
+    "Plans in, devices placed, doors and windows counted, quote out. Uses a sample plan, so nothing of yours changes." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planos cargados, dispositivos colocados, puertas y ventanas contadas, cotización enviada. Usa un plano de ejemplo, así que nada tuyo cambia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plany wgrane, urządzenia rozmieszczone, drzwi i okna policzone, wycena wysłana. Na przykładowym planie, więc nic twojego się nie zmienia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plantas enviadas, dispositivos colocados, portas e janelas contadas, orçamento enviado. Usa uma planta de exemplo, então nada seu muda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Планы загружены, устройства расставлены, двери и окна посчитаны, смета отправлена. На примере плана — ваши данные не меняются."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Плани завантажено, пристрої розставлено, двері й вікна пораховано, кошторис надіслано. На прикладі плану — ваші дані не змінюються."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tải bản vẽ, đặt thiết bị, đếm cửa đi và cửa sổ, gửi báo giá. Dùng bản vẽ mẫu, nên không gì của bạn thay đổi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传图纸、放置设备、统计门窗、发出报价单。使用示例图纸，不会改变你的任何数据。"
+          }
+        }
+      }
+    },
     "Plans PDF" : {
       "localizations" : {
         "es" : {
@@ -50641,6 +52228,53 @@
         }
       }
     },
+    "Price it" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponle precio"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyceń"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dê o preço"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оцените работу"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оцініть роботу"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Định giá"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "定价"
+          }
+        }
+      }
+    },
     "Price list" : {
       "localizations" : {
         "es" : {
@@ -50821,6 +52455,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每线性英尺价格"
+          }
+        }
+      }
+    },
+    "Prices come from your Price list. Change a price for this job only, add labor or a markup; the total updates as you go." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los precios vienen de tu lista de precios. Cambia un precio solo para esta obra, agrega mano de obra o margen; el total se actualiza al momento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ceny pochodzą z twojego cennika. Zmień cenę tylko dla tego zlecenia, dodaj robociznę lub narzut; suma od razu się aktualizuje."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os preços vêm da sua tabela de preços. Mude um preço só para esta obra, some mão de obra ou margem; o total se atualiza na hora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цены берутся из прайс-листа. Меняйте цену только для этого объекта, добавляйте работу или наценку — итог пересчитывается сразу."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ціни беруться з прайс-листа. Змінюйте ціну лише для цього об'єкта, додавайте роботу чи націнку — підсумок перераховується одразу."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giá lấy từ bảng giá của bạn. Đổi giá chỉ cho công trình này, thêm nhân công hoặc phần lời; tổng cập nhật ngay."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价格来自你的价目表。可只为本工程调价，添加人工或加价；合计会即时更新。"
           }
         }
       }
@@ -52247,6 +53928,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "报价单和发票在网页版中创建、定稿、发送和收款——包括定金、尾款和自定义金额。此列表只读。"
+          }
+        }
+      }
+    },
+    "Quotes are made, finalized and sent on the web: Quotes & invoices opens them. After a sync they show here too." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las cotizaciones se hacen, finalizan y envían en la web: Cotizaciones y facturas las abre. Después de sincronizar, también aparecen aquí."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyceny tworzy się, zatwierdza i wysyła w wersji webowej: otwiera je Wyceny i faktury. Po synchronizacji widać je też tutaj."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os orçamentos são feitos, finalizados e enviados na web: Orçamentos e faturas abre essa página. Depois de sincronizar, aparecem aqui também."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сметы составляют, утверждают и отправляют в веб-версии: её открывает «Сметы и счета». После синхронизации они видны и здесь."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кошториси складають, затверджують і надсилають у веб-версії: її відкриває «Кошториси й рахунки». Після синхронізації вони видні й тут."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Báo giá được lập, chốt và gửi trên web: Báo giá & hóa đơn sẽ mở chúng. Sau khi đồng bộ, chúng cũng hiện ở đây."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "报价单在网页版中制作、定稿和发送：点“报价单和发票”即可打开。同步后，这里也能看到。"
           }
         }
       }
@@ -55229,6 +56957,52 @@
         }
       }
     },
+    "Reset tutorials" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer tutoriales"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetuj samouczki"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redefinir tutoriais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сбросить обучение"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скинути навчання"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đặt lại hướng dẫn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置教程"
+          }
+        }
+      }
+    },
     "Restore" : {
       "localizations" : {
         "es" : {
@@ -55707,6 +57481,52 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Resume (step %lld of %lld)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar (paso %lld de %lld)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontynuuj (krok %lld z %lld)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuar (passo %lld de %lld)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжить (шаг %lld из %lld)"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продовжити (крок %lld з %lld)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp tục (bước %lld / %lld)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续（第 %lld 步，共 %lld 步）"
           }
         }
       }
@@ -61309,6 +63129,52 @@
         }
       }
     },
+    "Short guides with screenshots. Needs a connection." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guías cortas con capturas de pantalla. Necesita conexión."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krótkie przewodniki ze zrzutami ekranu. Wymaga internetu."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guias curtos com capturas de tela. Precisa de conexão."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткие инструкции со снимками экрана. Нужен интернет."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Короткі інструкції зі знімками екрана. Потрібен інтернет."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hướng dẫn ngắn kèm ảnh chụp màn hình. Cần có mạng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附截图的简短指南。需要联网。"
+          }
+        }
+      }
+    },
     "Show" : {
       "localizations" : {
         "es" : {
@@ -63609,6 +65475,98 @@
         }
       }
     },
+    "Skip" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiń"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pular"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустить"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустити"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bỏ qua"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过"
+          }
+        }
+      }
+    },
+    "Skip tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Omitir recorrido"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomiń wycieczkę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pular tour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустить тур"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пропустити тур"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bỏ qua tham quan"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过导览"
+          }
+        }
+      }
+    },
     "Skipped %lld" : {
       "localizations" : {
         "es" : {
@@ -64529,6 +66487,53 @@
         }
       }
     },
+    "Start a job" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empieza una obra"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zacznij zlecenie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comece uma obra"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начните объект"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почніть об'єкт"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bắt đầu một công trình"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始一个工程"
+          }
+        }
+      }
+    },
     "Start from a template — pre-wire, trim-out, rack or final walkthrough — and require a photo for the items that need proof." : {
       "localizations" : {
         "es" : {
@@ -64571,6 +66576,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "从模板开始——预布线、面板安装、机柜或最终验收巡检——并要求需要证明的项目拍照。"
+          }
+        }
+      }
+    },
+    "Start the tour" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar el recorrido"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozpocznij wycieczkę"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar o tour"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начать тур"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почати тур"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bắt đầu hướng dẫn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始导览"
           }
         }
       }
@@ -64847,6 +66898,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "状态"
+          }
+        }
+      }
+    },
+    "Step %lld of %lld" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso %lld de %lld"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krok %lld z %lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passo %lld de %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шаг %lld из %lld"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Крок %lld з %lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bước %lld / %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 步，共 %lld 步"
+          }
+        }
+      }
+    },
+    "Step %lld of %lld: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paso %lld de %lld: %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Krok %lld z %lld: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passo %lld de %lld: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шаг %lld из %lld: %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Крок %lld з %lld: %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bước %lld / %lld: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 步，共 %lld 步：%@"
           }
         }
       }
@@ -65633,6 +67776,53 @@
         }
       }
     },
+    "Switch to Edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia a Editar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przełącz na Edycja"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mude para Editar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите «Правка»"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Увімкніть «Редагування»"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chuyển sang Sửa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换到“编辑”"
+          }
+        }
+      }
+    },
     "Symbol" : {
       "localizations" : {
         "es" : {
@@ -66185,6 +68375,52 @@
         }
       }
     },
+    "Take it again" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repetirlo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powtórz"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fazer de novo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пройти снова"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пройти знову"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再看一遍"
+          }
+        }
+      }
+    },
     "Take photo" : {
       "localizations" : {
         "es" : {
@@ -66215,6 +68451,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Зробити фото"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chụp ảnh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍照"
+          }
+        }
+      }
+    },
+    "Take photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toma fotos"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rób zdjęcia"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tire fotos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фотографируйте"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фотографуйте"
           }
         },
         "vi" : {
@@ -66319,6 +68602,100 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点按“+ 任务”添加。如果任务属于某处，请选择图页或设备。"
+          }
+        }
+      }
+    },
+    "Tap a device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca un dispositivo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dotknij urządzenia"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque em um dispositivo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите на устройство"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Торкніться пристрою"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạm vào thiết bị"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点一下设备"
+          }
+        }
+      }
+    },
+    "Tap a device in the list, then tap the plan where it goes. Keep tapping to place more. Tap Done when you're finished." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca un dispositivo de la lista y luego toca el plano donde va. Sigue tocando para colocar más. Toca Listo al terminar."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dotknij urządzenia na liście, potem miejsca na planie. Dotykaj dalej, by dodać kolejne. Na koniec dotknij Gotowe."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque num dispositivo da lista e depois toque na planta onde ele fica. Continue tocando para colocar mais. Toque em Concluído ao terminar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите устройство в списке, затем место на плане. Нажимайте дальше, чтобы поставить ещё. Закончив, нажмите «Готово»."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Натисніть пристрій у списку, потім місце на плані. Натискайте далі, щоб поставити ще. Закінчивши, натисніть «Готово»."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chạm một thiết bị trong danh sách, rồi chạm vào chỗ đặt trên bản vẽ. Tiếp tục chạm để đặt thêm. Xong thì chạm Xong."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点列表中的设备，再点图纸上要放的位置。继续点可放更多。完成后点“完成”。"
           }
         }
       }
@@ -69405,6 +71782,53 @@
         }
       }
     },
+    "The job's tasks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las tareas de la obra"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zadania zlecenia"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As tarefas da obra"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Задачи объекта"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завдання об'єкта"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Việc của công trình"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工程任务"
+          }
+        }
+      }
+    },
     "The marked-up plans with a legend that explains every symbol — no prices — so the client can check where everything goes. They can approve the layout or tell you what to change." : {
       "localizations" : {
         "es" : {
@@ -69723,6 +72147,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "服务器返回 %lld。请检查地址。"
+          }
+        }
+      }
+    },
+    "The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pestaña Tareas (en teléfonos, en la barra inferior): todo lo que hay que hacer en este trabajo. Abre una tarea para ver su lugar en el plano, agregar una foto y marcarla hecha."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Karta Zadania (na telefonie na pasku na dole): wszystko do zrobienia w tym zleceniu. Otwórz zadanie, aby zobaczyć jego miejsce na planie, dodać zdjęcie i oznaczyć jako zrobione."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A aba Tarefas (no celular, na barra inferior): tudo o que há para fazer nesta obra. Abra uma tarefa para ver o local na planta, adicionar uma foto e concluí-la."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкладка «Задачи» (на телефоне — в панели внизу): всё, что нужно сделать на объекте. Откройте задачу, чтобы увидеть её место на плане, добавить фото и закрыть её."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкладка «Завдання» (на телефоні — на панелі внизу): усе, що треба зробити на об'єкті. Відкрийте завдання, щоб побачити його місце на плані, додати фото й закрити його."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab Việc (trên điện thoại ở thanh dưới cùng): mọi thứ cần làm ở công trình này. Mở một việc để xem vị trí trên bản vẽ, thêm ảnh và đánh dấu xong."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“任务”标签（手机上在底部栏）：此项目要做的一切。打开任务可查看它在图纸上的位置、添加照片并标记完成。"
           }
         }
       }
@@ -72135,6 +74606,190 @@
         }
       }
     },
+    "Tour finished. Take it again any time from Help." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorrido terminado. Repítelo cuando quieras desde la Ayuda."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wycieczka ukończona. Powtórz ją kiedy chcesz z Pomocy."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tour concluído. Faça de novo quando quiser pela Ajuda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тур пройден. Его можно пройти снова в справке."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тур пройдено. Його можна пройти знову з довідки."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã xong tham quan. Xem lại bất cứ lúc nào trong Trợ giúp."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导览已完成。随时可在帮助中再看一遍。"
+          }
+        }
+      }
+    },
+    "Tour skipped. You'll find it in Help." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorrido omitido. Lo encontrarás en la Ayuda."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wycieczka pominięta. Znajdziesz ją w Pomocy."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tour pulado. Você o encontra na Ajuda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тур пропущен. Он есть в справке."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тур пропущено. Він є в довідці."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã bỏ qua tham quan. Bạn có thể tìm nó trong Trợ giúp."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已跳过导览。可在帮助中找到它。"
+          }
+        }
+      }
+    },
+    "Tours and tips will show again" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los recorridos y consejos se mostrarán de nuevo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wycieczki i wskazówki pokażą się znowu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os tours e as dicas vão aparecer de novo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Туры и подсказки покажутся снова"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тури й підказки з'являться знову"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tham quan và mẹo sẽ hiện lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导览和提示将再次显示"
+          }
+        }
+      }
+    },
+    "Tours run on the demo job and work offline, so nothing of yours changes." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los recorridos usan la obra de demostración y funcionan sin conexión, así que nada tuyo cambia."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wycieczki działają na zleceniu demo i bez internetu, więc nic Twojego się nie zmienia."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os tours usam a obra de demonstração e funcionam off-line, então nada seu muda."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Туры идут на демо-объекте и работают без интернета, так что ваши данные не меняются."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тури йдуть на демо-об'єкті й працюють без інтернету, тож ваші дані не змінюються."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phần tham quan chạy trên công trình mẫu và dùng được khi không có mạng nên không thay đổi dữ liệu của bạn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导览在示例工程上进行，离线也能用，不会改动你的数据。"
+          }
+        }
+      }
+    },
     "Trades" : {
       "localizations" : {
         "es" : {
@@ -72361,6 +75016,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "换其他筛选条件试试。"
+          }
+        }
+      }
+    },
+    "Tutorials" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutoriales"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Samouczki"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutoriais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обучение"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Навчання"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hướng dẫn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "教程"
           }
         }
       }
@@ -73603,6 +76304,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已在 Billdu 中更新 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Upload plans and name pages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sube los planos y nombra las páginas"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prześlij plany i nazwij strony"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envie as plantas e nomeie as páginas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузите планы и назовите страницы"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вивантажте плани й назвіть сторінки"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tải bản vẽ lên và đặt tên trang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传图纸并命名页面"
           }
         }
       }
@@ -75071,6 +77819,53 @@
         }
       }
     },
+    "View is for looking around. Edit is for placing devices; the plan gets a blue frame so you know taps change things." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver es para mirar. Editar es para colocar dispositivos; el plano toma un marco azul para que sepas que los toques cambian cosas."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podgląd służy do oglądania. Edycja do rozmieszczania urządzeń; plan dostaje niebieską ramkę, byś wiedział, że dotknięcia coś zmieniają."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver é para olhar. Editar é para colocar dispositivos; a planta ganha uma moldura azul para você saber que os toques mudam coisas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Просмотр» — чтобы смотреть. «Правка» — чтобы ставить устройства; план получает синюю рамку, чтобы было видно, что нажатия что-то меняют."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Перегляд» — щоб дивитися. «Редагування» — щоб ставити пристрої; план отримує синю рамку, щоб було видно, що натискання щось змінюють."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem là để nhìn. Sửa là để đặt thiết bị; bản vẽ có khung xanh để bạn biết chạm sẽ thay đổi nội dung."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“查看”用于浏览。“编辑”用于放置设备；图纸会出现蓝色边框，提醒你点击会改动内容。"
+          }
+        }
+      }
+    },
     "Visitors & inspections" : {
       "localizations" : {
         "es" : {
@@ -75439,6 +78234,53 @@
         }
       }
     },
+    "Welcome to Northpin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Te damos la bienvenida a Northpin"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Witamy w Northpin"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boas-vindas ao Northpin"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добро пожаловать в Northpin"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вітаємо в Northpin"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chào mừng đến với Northpin"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欢迎使用 Northpin"
+          }
+        }
+      }
+    },
     "What do you need to know?" : {
       "localizations" : {
         "es" : {
@@ -75665,6 +78507,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "首次为工程“发送到 Billdu”时会创建什么"
+          }
+        }
+      }
+    },
+    "What the app does, in three short pages." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que hace la app, en tres páginas cortas."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co robi aplikacja, na trzech krótkich stronach."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que o app faz, em três páginas curtas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что умеет приложение — на трёх коротких страницах."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Що вміє застосунок — на трьох коротких сторінках."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ứng dụng làm được gì, trong ba trang ngắn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用三页简短介绍这款应用能做什么。"
           }
         }
       }
@@ -76911,6 +79799,53 @@
         }
       }
     },
+    "Works with no signal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funciona sin señal"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Działa bez zasięgu"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Funciona sem sinal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Работает без связи"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Працює без зв'язку"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dùng được khi không có sóng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有信号也能用"
+          }
+        }
+      }
+    },
     "Write today's log" : {
       "localizations" : {
         "es" : {
@@ -77827,6 +80762,53 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工种由你公司的所有者或办公室设置。"
+          }
+        }
+      }
+    },
+    "Your first job" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu primera obra"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje pierwsze zlecenie"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sua primeira obra"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш первый объект"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш перший об'єкт"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Công trình đầu tiên của bạn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的第一个工程"
           }
         }
       }
