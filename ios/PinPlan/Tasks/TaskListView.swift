@@ -174,7 +174,13 @@ struct TaskListView: View {
                 Button {
                     // Narrowed to a device: the new task starts at that device.
                     if let m = device { quick = TaskDraft(sheetId: m.sheetId, x: m.x, y: m.y, room: m.room.isEmpty ? nil : m.room, markerId: m.id) } else { quick = TaskDraft() }
-                } label: { Label("Task", systemImage: "plus").lineLimit(1).fixedSize() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("Task").lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
                     .buttonStyle(.borderedProminent)
             }
         }

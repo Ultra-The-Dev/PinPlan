@@ -198,8 +198,8 @@ final class TutorialAnchors {
         return (windows.first { $0.isKeyWindow } ?? windows.first)?.bounds ?? .zero
     }
 
-    /// The first of these ids that is on screen. Toolbar items don't always report a usable frame from SwiftUI, so a
-    /// control with the same accessibility identifier is looked up in the window as a fallback.
+    /// The first of these ids that is on screen. Toolbar buttons don't always report a usable frame from SwiftUI, so
+    /// the right-most bar button stands in for the ones listed in `trailingBarButtons`.
     func frame(for ids: [String]) -> CGRect? {
         let bounds = screen
         func usable(_ f: CGRect) -> Bool {
@@ -210,34 +210,45 @@ final class TutorialAnchors {
         }
         for id in ids {
             if let r = reports[id]?.values.filter({ usable($0.frame) }).max(by: { $0.seq < $1.seq }) { return r.frame }
-            if let f = Self.accessibilityFrame(id), usable(f) { return f }
+            if let f = Self.barFrame(id), usable(f) { return f }
         }
         return nil
     }
 
-    /// A control's frame (window coordinates) found by its accessibility identifier in the key window.
-    private static func accessibilityFrame(_ id: String) -> CGRect? {
+    /// Controls that are the last (right-most) button of the navigation bar. SwiftUI can turn toolbar buttons into
+    /// native bar buttons, which drops the anchor's GeometryReader, so these are found in the bar itself.
+    private static let trailingBarButtons: Set<String> = ["jobs-new", "photos-add"]
+
+    /// The right-most button in the visible navigation bar, in window coordinates.
+    private static func barFrame(_ id: String) -> CGRect? {
+        guard trailingBarButtons.contains(id) else { return nil }
         let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
         guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else { return nil }
-        var budget = 4000
-        func search(_ element: NSObject) -> CGRect? {
-            budget -= 1
-            if budget < 0 { return nil }
-            if let e = element as? UIAccessibilityIdentification, e.accessibilityIdentifier == id {
-                let f = (element as? UIView).map { $0.convert($0.bounds, to: window) } ?? element.accessibilityFrame
-                if f.width > 1, f.height > 1 { return f }
-            }
-            if let v = element as? UIView {
-                for sub in v.subviews where !sub.isHidden && sub.alpha > 0.01 {
-                    if let f = search(sub) { return f }
-                }
-            }
-            for e in element.accessibilityElements ?? [] {
-                if let o = e as? NSObject, let f = search(o) { return f }
-            }
-            return nil
+        var bars: [UINavigationBar] = []
+        func collect(_ v: UIView) {
+            if let bar = v as? UINavigationBar, !bar.isHidden, bar.alpha > 0.01, bar.window != nil { bars.append(bar); return }
+            for sub in v.subviews where !sub.isHidden { collect(sub) }
         }
-        return search(window)
+        collect(window)
+        // The bar nearest the top that is on screen (a pushed screen's bar replaces the one below it).
+        guard let bar = bars.map({ ($0, $0.convert($0.bounds, to: window)) })
+            .filter({ $0.1.width > 0 && $0.1.minY >= -1 && window.bounds.intersects($0.1) })
+            .max(by: { $0.1.width < $1.1.width })?.0 else { return nil }
+        var best: CGRect?
+        func scan(_ v: UIView) {
+            let name = String(describing: type(of: v))
+            let f = v.convert(v.bounds, to: window)
+            if name.contains("Button"), !v.isHidden, v.alpha > 0.01, f.width >= 20, f.width <= 220, f.height >= 20, f.height <= 70 {
+                if best == nil || f.maxX > best!.maxX + 1 { best = f }
+                return
+            }
+            for sub in v.subviews where !sub.isHidden && sub.alpha > 0.01 { scan(sub) }
+        }
+        scan(bar)
+        // Only a button on the trailing side (never the back button when the bar has no trailing items).
+        let barRect = bar.convert(bar.bounds, to: window)
+        guard let b = best, b.midX > barRect.midX else { return nil }
+        return b
     }
 }
 
