@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { interpolate, normalizeKey, placeholders, pluralCategory, translate, translatePlural } from "@/lib/i18n/core";
 import { localeFromLanguages } from "@/lib/i18n/locales";
 import { localeOnAuth } from "@/lib/i18n/account";
-import { DICTIONARIES } from "@/lib/i18n/dictionaries";
+import { DICTIONARIES, loadDictionary } from "@/lib/i18n/dictionaries";
 import { RU_AREAS } from "@/lib/i18n/ru";
 import { ES_AREAS } from "@/lib/i18n/es";
 import { PT_AREAS } from "@/lib/i18n/pt";
@@ -92,6 +92,8 @@ describe("core", () => {
 });
 
 describe("active language and persistence", () => {
+  // Every language but English loads on first use; with Russian in memory, setLocale / initLocale switch at once.
+  beforeAll(() => loadDictionary("ru"));
   let store: Record<string, string>;
   const doc = { documentElement: { lang: "en" } };
   beforeEach(() => {
@@ -187,12 +189,14 @@ describe("account language", () => {
 });
 
 describe("dictionaries and checker", () => {
-  it("merges every area into the Russian dictionary", () => {
+  it("merges every area into the Russian dictionary", async () => {
     const n = Object.values(RU_AREAS).reduce((s, d) => s + Object.keys(d).length, 0);
-    expect(Object.keys(DICTIONARIES.ru).length).toBeLessThanOrEqual(n);
-    expect(DICTIONARIES.ru["Settings"]).toBe("Настройки");
+    const ru = await loadDictionary("ru");
+    expect(DICTIONARIES.ru).toBe(ru);
+    expect(Object.keys(ru).length).toBeLessThanOrEqual(n);
+    expect(ru["Settings"]).toBe("Настройки");
     expect(Object.keys(DICTIONARIES.en)).toHaveLength(0);
-    // The other languages load on first use.
+    // Every other language loads on first use.
     expect(DICTIONARIES.es).toBeUndefined();
   });
 

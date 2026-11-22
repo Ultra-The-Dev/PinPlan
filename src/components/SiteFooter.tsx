@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/marketing/SiteLink";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { MK_ROOT } from "@/components/marketing/fonts";
 import { Wordmark } from "@/components/marketing/Wordmark";

@@ -751,8 +751,7 @@ const moneyOffice: Dictionary = {
   "drafts and sent": "rascunhos e enviados",
   "New contract total": "Novo total do contrato",
   "Total if approved": "Total se aprovado",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Serviços extras com preços do seu catálogo, assinados pelo cliente antes da execução.",
+  "Extras priced from your price list, signed by the client before the work.": "Serviços extras com preços da sua tabela de preços, assinados pelo cliente antes da execução.",
   "New change order": "Novo aditivo",
   "No change orders yet": "Nenhum aditivo ainda",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

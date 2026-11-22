@@ -2,7 +2,7 @@
 // /welcome: what the product does for a contractor, in their words, in the order a job actually runs.
 // A client component so the text follows the visitor's language (it still renders in English on the server).
 // Layout and rules: docs/brand.md. One bold thing on the page: the hero plan on the ink drafting table.
-import Link from "next/link";
+import Link from "./SiteLink";
 import { msg, useT } from "@/lib/i18n";
 import { PLANS, PRODUCT_NAME, TRIAL_DAYS, monthlyPrice } from "@/lib/plans";
 import { closetMeta } from "@/lib/catalog";

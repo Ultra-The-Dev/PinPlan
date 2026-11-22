@@ -2,11 +2,12 @@
 // The language picker. Saved on this device, and on the account when signed in (src/lib/i18n/account.ts).
 import { ChevronDown, Languages } from "lucide-react";
 import { LOCALES, setLocale, useT, type Locale } from "@/lib/i18n";
-import { saveLocaleToAccount } from "@/lib/i18n/account";
+import { hasSavedSession, useSyncStatus } from "@/lib/syncStatus";
 
 export function chooseLocale(locale: Locale) {
   setLocale(locale);
-  void saveLocaleToAccount(locale);
+  // Loaded on demand and only for a signed-in device, so the public pages don't carry the Supabase client.
+  if (useSyncStatus.getState().signedIn || hasSavedSession()) void import("@/lib/i18n/account").then((m) => m.saveLocaleToAccount(locale));
 }
 
 /**

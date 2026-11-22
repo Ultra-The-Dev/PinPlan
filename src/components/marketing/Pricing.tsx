@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "./SiteLink";
 import { useState } from "react";
 import { useT } from "@/lib/i18n";
 import { monthlyPrice, PLANS, TRIAL_DAYS, type Plan } from "@/lib/plans";

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { create } from "zustand";
 import { translate, translatePlural } from "./core";
+import { revealPage } from "./boot";
 import { dictionaryFor, hasDictionary, loadDictionary } from "./dictionaries";
 import { SOURCE_LOCALE, STORAGE_KEY, intlTag, isLocale, localeFromLanguages } from "./locales";
 import type { Locale, Vars } from "./types";
@@ -18,11 +19,11 @@ export { LOCALES, SOURCE_LOCALE, STORAGE_KEY, intlTag, isLocale, localeFromLangu
  */
 export const useLocaleStore = create<{ locale: Locale; loaded: number }>(() => ({ locale: SOURCE_LOCALE, loaded: 0 }));
 
-/** Show `locale` once its translations are in memory (they're fetched on first use, except Russian). The last choice wins. */
+/** Show `locale` once its translations are in memory (they're fetched on first use). The last choice wins. */
 let wanted: Locale = SOURCE_LOCALE;
 // A language that arrives while React is still hydrating the server HTML waits until hydration is done (Providers calls
-// markHydrated): changing text mid-hydration makes React throw away the page. Russian is in memory before hydration
-// starts, so it never waits.
+// markHydrated): changing text mid-hydration makes React throw away the page (React error #418). Meanwhile the page is
+// kept hidden (./boot.ts) and Providers reveals it once the language is on screen.
 let hydrated = false;
 let pendingApply: (() => void) | null = null;
 export function markHydrated(): void {
@@ -48,9 +49,17 @@ function show(locale: Locale): void {
     },
     () => {
       // Offline before this language was ever loaded: stay in the current language.
-      if (wanted === locale) applyDocumentLang(useLocaleStore.getState().locale);
+      if (wanted === locale) {
+        applyDocumentLang(useLocaleStore.getState().locale);
+        revealPage();
+      }
     },
   );
+}
+
+/** The language the page is on its way to (the active one once its translations have arrived). */
+export function wantedLocale(): Locale {
+  return wanted;
 }
 
 /** This device's saved choice, or null when the person never picked one (or storage is blocked). */

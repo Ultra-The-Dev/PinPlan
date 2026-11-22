@@ -1,14 +1,16 @@
 import type { Dictionary, Locale } from "./types";
-import ru from "./ru";
 
 /**
- * Translations per language that are loaded. English is the source text itself, so its dictionary is empty. Russian
- * ships with the app; the other languages are fetched the first time someone picks them (`loadDictionary`), so
- * nobody downloads eight languages to read one. Until a language arrives its text shows in English.
+ * Translations per language that are loaded. English is the source text itself, so its dictionary is empty. Every other
+ * language, Russian included, is fetched the first time it is needed (`loadDictionary`), so nobody downloads eight
+ * languages to read one and the public pages carry none. The service worker precaches every chunk, so this works
+ * offline. Until a language arrives its text shows in English, and the page stays hidden for a moment (bootScript in
+ * ./boot.ts) so it doesn't jump from English to the visitor's language.
  */
-export const DICTIONARIES: Partial<Record<Locale, Dictionary>> & { en: Dictionary; ru: Dictionary } = { en: {}, ru };
+export const DICTIONARIES: Partial<Record<Locale, Dictionary>> & { en: Dictionary } = { en: {} };
 
 const LOADERS: Partial<Record<Locale, () => Promise<{ default: Dictionary }>>> = {
+  ru: () => import("./ru"),
   es: () => import("./es"),
   pt: () => import("./pt"),
   uk: () => import("./uk"),

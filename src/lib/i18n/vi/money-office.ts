@@ -712,8 +712,7 @@ const dict: Dictionary = {
   "drafts and sent": "nháp và đã gửi",
   "New contract total": "Tổng hợp đồng mới",
   "Total if approved": "Tổng nếu được duyệt",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Phần phát sinh tính giá theo danh mục của bạn, khách hàng ký trước khi làm.",
+  "Extras priced from your price list, signed by the client before the work.": "Phần phát sinh tính giá theo bảng giá của bạn, khách hàng ký trước khi làm.",
   "New change order": "Lệnh thay đổi mới",
   "No change orders yet": "Chưa có lệnh thay đổi",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

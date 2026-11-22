@@ -2,13 +2,13 @@
 // Shared chrome for the public pages (/welcome, /pricing, the legal pages) and the auth pages (/signup, /login, /reset).
 // The public pages use the brand in docs/brand.md, scoped under `.mk`.
 import { CheckCircle2, Menu, X } from "lucide-react";
-import Link from "next/link";
+import Link from "./SiteLink";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { msg, useT } from "@/lib/i18n";
-import { startDemo } from "@/lib/onboarding";
-import { useSyncStatus } from "@/lib/sync";
+import { startDemo } from "@/lib/demoMode";
+import { useSignedIn } from "@/lib/syncStatus";
 import { useArrivalParams } from "@/lib/useArrivalUrl";
 import SiteFooter from "@/components/SiteFooter";
 import { MAIN_ID, MK_ROOT } from "./fonts";
@@ -28,7 +28,7 @@ const NAV = [
  * buttons. Below `lg` the section links fold into a menu button.
  */
 export function SiteHeader() {
-  const s = useSyncStatus();
+  const s = useSignedIn();
   const t = useT();
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -84,7 +84,7 @@ export function SiteHeader() {
           <span className="mr-2 hidden lg:inline-flex">
             <LanguageSwitcher showIcon={false} />
           </span>
-          {s.authReady && s.signedIn ? (
+          {s.ready && s.signedIn ? (
             <Link href="/jobs" className="mk-btn mk-btn-ink mk-btn-sm">
               {t("Open the app")}
             </Link>
@@ -107,7 +107,7 @@ export function SiteHeader() {
       {/* Always in the page (hidden when closed) so the button's aria-controls points at a real element. */}
       <nav id="site-menu" hidden={!open} className="border-t border-mk-rule bg-mk-paper lg:hidden" aria-label={t("Site menu")}>
         <ul className="mx-auto max-w-[1240px] px-4 py-2 sm:px-6">
-          {[...NAV, ...(s.authReady && s.signedIn ? [] : [{ href: "/login", label: msg("Sign in") }])].map((n) => (
+          {[...NAV, ...(s.ready && s.signedIn ? [] : [{ href: "/login", label: msg("Sign in") }])].map((n) => (
             <li key={n.href}>
               <Link href={n.href} className="block rounded-md px-2 py-3 text-[17px] font-medium hover:bg-mk-sheet" onClick={() => setOpen(false)}>
                 {t(n.label)}

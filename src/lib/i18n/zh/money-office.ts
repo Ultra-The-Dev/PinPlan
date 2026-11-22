@@ -666,7 +666,7 @@ const moneyOffice: Dictionary = {
   "drafts and sent": "草稿和已发送",
   "New contract total": "新合同总额",
   "Total if approved": "批准后总额",
-  "Extras priced from your catalog, signed by the client before the work.": "按你的目录定价的增项，施工前由客户签字。",
+  "Extras priced from your price list, signed by the client before the work.": "按你的价目表定价的增项，施工前由客户签字。",
   "New change order": "新建变更单",
   "No change orders yet": "还没有变更单",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.": "客户要再加两个摄像头？从目录中定价——或直接用你在图纸上添加的设备——再发一个链接让客户在手机上签字。",

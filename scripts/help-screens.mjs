@@ -227,6 +227,8 @@ async function main() {
 
     // Pricing: give the cameras and sensors a price on this job.
     await page.goto(`${job}&tab=money&step=pricing`);
+    // The Pricing step loads on demand: wait for its price fields (else the shot can catch "Loading…").
+    await page.getByLabel(/^Unit price: /).filter({ visible: true }).first().waitFor({ timeout: 30_000 });
     const prices = [
       [/^Unit price: Indoor camera/, "250"],
       [/^Unit price: Motion/, "65"],
@@ -241,6 +243,12 @@ async function main() {
       }
     }
     await page.waitForTimeout(600);
+    // Back to the top of the step, with no field focused (typing the prices scrolled down to the table).
+    await page.evaluate(() => {
+      document.activeElement?.blur?.();
+      for (const el of [document.scrollingElement, ...document.querySelectorAll("*")]) if (el && el.scrollTop > 0) el.scrollTop = 0;
+    });
+    await page.waitForTimeout(300);
     await shot(page, "pricing", "desktop");
 
     // Quote: from the job's pricing, finalized.

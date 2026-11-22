@@ -764,8 +764,7 @@ const dict: Dictionary = {
   "drafts and sent": "чернетки й надіслані",
   "New contract total": "Нова сума договору",
   "Total if approved": "Разом у разі затвердження",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Додаткові роботи за цінами вашого прайс-листа, підписані клієнтом до їх початку.",
+  "Extras priced from your price list, signed by the client before the work.": "Додаткові роботи за цінами вашого прайс-листа, підписані клієнтом до їх початку.",
   "New change order": "Новий дод. кошторис",
   "No change orders yet": "Дод. кошторисів ще немає",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

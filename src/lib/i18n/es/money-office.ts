@@ -750,8 +750,7 @@ const dict: Dictionary = {
   "drafts and sent": "borradores y enviadas",
   "New contract total": "Nuevo total del contrato",
   "Total if approved": "Total si se aprueba",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Extras con precios de tu catálogo, firmados por el cliente antes del trabajo.",
+  "Extras priced from your price list, signed by the client before the work.": "Extras con precios de tu lista de precios, firmados por el cliente antes del trabajo.",
   "New change order": "Nueva orden de cambio",
   "No change orders yet": "Aún no hay órdenes de cambio",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

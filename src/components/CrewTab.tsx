@@ -103,19 +103,19 @@ export default function CrewTab() {
               </button>
             ))}
             <button className="btn" onClick={csv}>
-              <Download /> {t("Home-run CSV")}
+              <Download /> {t("Wire-run CSV")}
             </button>
             <button
               className="btn h-auto min-h-9 max-w-full py-1.5 text-left whitespace-normal"
               onClick={async () => {
                 const n = await autoHomeRuns();
-                toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : lowVoltage ? t("Place an equipment closet first") : t("Place a {closet} and assign devices to it first", { closet: t(vocab.closet) }), n ? "success" : "info");
+                toast(n ? t.tn("Drew {n} wire run", "Drew {n} wire runs", n) : lowVoltage ? t("Place an equipment closet first") : t("Place a {closet} and assign devices to it first", { closet: t(vocab.closet) }), n ? "success" : "info");
               }}
             >
-              <Cable /> {t("Auto-draw all home runs")}
+              <Cable /> {t("Auto-draw all wire runs")}
             </button>
           </div>
-          {noCloset > 0 && <p className="text-sm text-amber-700">{t.tn("{n} device has no home-run {closet} assigned.", "{n} devices have no home-run {closet} assigned.", noCloset, { closet: t(vocab.closet) })}</p>}
+          {noCloset > 0 && <p className="text-sm text-amber-700">{t.tn("{n} device has no {closet} assigned.", "{n} devices have no {closet} assigned.", noCloset, { closet: t(vocab.closet) })}</p>}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -126,7 +126,7 @@ export default function CrewTab() {
                 {ft}
                 <span className="ml-1 text-sm font-medium text-slate-400">{t("ft")}</span>
               </div>
-              <div className="text-xs text-slate-500">{t.tn("{n} home run", "{n} home runs", takeoff.total.wireRuns[w] ?? 0)}</div>
+              <div className="text-xs text-slate-500">{t.tn("{n} wire run", "{n} wire runs", takeoff.total.wireRuns[w] ?? 0)}</div>
             </div>
           ))}
         </div>
@@ -140,7 +140,7 @@ export default function CrewTab() {
                 <th>{t("Device")}</th>
                 <th>{t("Room")}</th>
                 <th>{t("Cables")}</th>
-                <th>{lowVoltage ? t("Home run to") : ((c) => `${c[0].toUpperCase()}${c.slice(1)}`)(t(vocab.closet))}</th>
+                <th>{lowVoltage ? t("Wire run to") : ((c) => `${c[0].toUpperCase()}${c.slice(1)}`)(t(vocab.closet))}</th>
                 <th className="text-right">{t("Cable")}</th>
               </tr>
             </thead>

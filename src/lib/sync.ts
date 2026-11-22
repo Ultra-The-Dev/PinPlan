@@ -9,13 +9,12 @@
 // columns (never '*'), and the catalog is the billing owner's only.
 // Cost: only visible tabs tick, one tab syncs at a time, the team/billing is re-read every few minutes, and the sweep
 // for files that never arrived runs only after a pull changed something.
-import { create } from "zustand";
 import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, recentJobs, RECENT_JOBS_KEY, type RefusedChange, type SyncItem, type SyncTable } from "./db";
 import { reportError } from "./errorReporting";
 import { t } from "./i18n";
 import { adoptLocalData, checkLocalOwner, readLocalOwner, removeLocalData } from "./localOwner";
-import { getSupabase, PLANS_BUCKET, supabaseConfigured } from "./supabase";
+import { getSupabase, PLANS_BUCKET } from "./supabase";
 import { plansUploadBody, plansUploadType } from "./storageTypes";
 import {
   dedupeQueue,
@@ -51,45 +50,10 @@ import { pullDocSettings } from "./docSettings";
 import { clearLocalData, finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, loadTeamIfStale, TEAM_MAX_AGE_MS, useTeam } from "./team";
 import { toast } from "./toast";
+import { useSyncStatus, type SyncStatus } from "./syncStatus";
 
-export interface SyncStatus {
-  configured: boolean;
-  signedIn: boolean;
-  /** False until the saved sign-in has been read on this page load (avoid flashing "signed out"). */
-  authReady: boolean;
-  email: string | null;
-  userId: string | null;
-  online: boolean;
-  syncing: boolean;
-  /** Distinct rows waiting to be pushed. */
-  pending: number;
-  /** Changes the cloud didn't accept (set aside; see discardRefused / retryRefused). */
-  refused: number;
-  lastSyncAt: string | null;
-  error: string | null;
-  /** The team's subscription has lapsed: the cloud refuses edits, so they stay queued on this device (pulls go on). */
-  readOnly: boolean;
-  /** Another account's jobs are on this device: sync is paused until the person decides (see AccountPanel). */
-  ownerMismatch: { email: string | null } | null;
-  syncNow(): Promise<void>;
-}
-
-export const useSyncStatus = create<SyncStatus>(() => ({
-  configured: supabaseConfigured,
-  signedIn: false,
-  authReady: !supabaseConfigured,
-  email: null,
-  userId: null,
-  online: typeof navigator === "undefined" ? true : navigator.onLine,
-  syncing: false,
-  pending: 0,
-  refused: 0,
-  lastSyncAt: null,
-  error: null,
-  readOnly: false,
-  ownerMismatch: null,
-  syncNow: () => runSync(true),
-}));
+// The status store lives in ./syncStatus (no dependencies) so the public pages can read it without this module.
+export { useSyncStatus, type SyncStatus } from "./syncStatus";
 
 /** Fired on window after a pull wrote remote changes into Dexie. detail: { tables, projectIds }. */
 export const SYNCED_EVENT = "pinplan:synced";
@@ -126,6 +90,7 @@ let channel: BroadcastChannel | null = null;
 function setStatus(p: Partial<SyncStatus>) {
   useSyncStatus.setState(p);
 }
+useSyncStatus.setState({ syncNow: () => runSync(true) });
 
 async function refreshPending() {
   try {

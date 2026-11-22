@@ -1,6 +1,8 @@
 // Small, believable pictures of each step of a job, drawn in code. Figures come from the electrical trade pack so the
 // names, symbols and prices are the ones a new company actually starts with.
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { LOCALES, makeT, msg, useT } from "@/lib/i18n";
+import { hasDictionary, loadDictionary } from "@/lib/i18n/dictionaries";
 import { TRADE_PACKS, tradePack } from "@/lib/trades";
 import { HERO_TOTAL } from "./HeroPlan";
 import { Symbol } from "./Symbol";
@@ -9,6 +11,7 @@ const EL = tradePack("electrical");
 const seed = (id: string) => TRADE_PACKS.flatMap((p) => p.catalog).find((s) => s.id === id)!;
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 const price = (id: string) => seed(id).unitPrice + seed(id).laborPrice;
+const noSubscribe = () => () => undefined;
 
 function Panel({ title, aside, children, className = "" }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
@@ -344,16 +347,42 @@ export function FieldVisual() {
 }
 
 /** The same checklist on two phones: English, and the visitor's language (Russian when the page is in English). The text
- *  comes from the app's own dictionaries, so the second phone is what a crew member actually reads. */
+ *  comes from the app's own dictionaries, so the second phone is what a crew member actually reads. For an English
+ *  visitor the Russian dictionary is fetched only when the picture comes near the screen (the page doesn't carry it),
+ *  and that phone stays blank until then. */
 export function CrewVisual() {
   const t = useT();
   const second = t.locale === "en" ? "ru" : t.locale;
-  const sides = LOCALES.filter((l) => l.code === "en" || l.code === second).map((l) => ({ ...l, tr: makeT(l.code) }));
+  const ref = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [, setArrived] = useState(0);
+  // False while hydrating (the server HTML has the phone blank), whatever is already in memory.
+  const client = useSyncExternalStore(noSubscribe, () => true, () => false);
+  const ready = client && (hasDictionary(second) || failed === second);
+  useEffect(() => {
+    const el = ref.current;
+    if (ready || !el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        loadDictionary(second).then(
+          () => setArrived((n) => n + 1),
+          () => setFailed(second),
+        );
+      },
+      { rootMargin: "800px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [second, ready]);
+  // The blank phone renders in English until its language is shown, like the server HTML (no hydration mismatch).
+  const sides = LOCALES.filter((l) => l.code === "en" || l.code === second).map((l) => ({ ...l, tr: makeT(ready ? l.code : "en") }));
   return (
-    <div className="grid grid-cols-2 items-start gap-3 sm:gap-6">
+    <div ref={ref} className="grid grid-cols-2 items-start gap-3 sm:gap-6">
       {sides.map(({ code, label, tr }, i) => (
         <figure key={code} className={i === 1 ? "mt-10 sm:mt-14" : ""}>
-          <div className="mk-phone" lang={code}>
+          <div className={`mk-phone ${i === 1 && !ready ? "invisible" : ""}`} lang={code}>
             <div className="mk-screen text-[12px] leading-snug sm:text-[13px]">
               <div className="border-b border-mk-rule px-3.5 pt-5 pb-3 sm:px-4">
                 <div className="text-mk-pencil">Harbor View Rd, unit 2</div>

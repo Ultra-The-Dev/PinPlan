@@ -765,8 +765,7 @@ const moneyOffice: Dictionary = {
   "drafts and sent": "черновики и отправленные",
   "New contract total": "Новая сумма договора",
   "Total if approved": "Итого при утверждении",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Дополнительные работы по ценам вашего прайс-листа, подписанные клиентом до их начала.",
+  "Extras priced from your price list, signed by the client before the work.": "Дополнительные работы по ценам вашего прайс-листа, подписанные клиентом до их начала.",
   "New change order": "Новая доп. смета",
   "No change orders yet": "Доп. смет пока нет",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

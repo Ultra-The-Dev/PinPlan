@@ -191,7 +191,7 @@ function BulkInspector() {
         <CablesEditor cables={sameCables ? markerCables(ms[0]) : []} onChange={(list) => updateMarkers(ids, () => cablesPatch(list))} />
         {!sameCables && <p className="-mt-2 text-xs text-slate-500">{t("Cables differ between these devices — a change replaces each device’s cables.")}</p>}
         <div>
-          <label className="label" htmlFor={`${uid}-home-run`}>{t("Home run to: {closet}", { closet: t(tradeVocab(trades).closet) })}</label>
+          <label className="label" htmlFor={`${uid}-home-run`}>{t("Wire run to: {closet}", { closet: t(tradeVocab(trades).closet) })}</label>
           <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value="" onChange={(e) => updateMarkers(ids, () => ({ closetId: e.target.value === "__none" ? null : e.target.value }))}>
             <option value="" disabled>
               {t("Set {closet} for all {n}…", { closet: t(tradeVocab(trades).closet), n: ms.length })}
@@ -226,10 +226,10 @@ function BulkInspector() {
             onClick={async () => {
               let n = 0;
               for (const id of ids) n += await autoHomeRuns(undefined, id);
-              toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : t("Place an equipment closet first"), n ? "success" : "info");
+              toast(n ? t.tn("Drew {n} wire run", "Drew {n} wire runs", n) : t("Place an equipment closet first"), n ? "success" : "info");
             }}
           >
-            {t("Draw home runs")}
+            {t("Draw wire runs")}
           </button>
           <button className="btn btn-danger" onClick={() => deleteMarkers(ids)}>
             <Trash /> {t("Delete {n}", { n: ms.length })}
@@ -357,7 +357,7 @@ function MarkerInspector({ id }: { id: string }) {
           <p className="mt-1 text-xs text-slate-500">
             {t("No products for this type yet")} ·{" "}
             <Link href="/products" className="font-medium text-brand-600 hover:underline">
-              {t("add in Products")}
+              {t("add in Price list")}
             </Link>
           </p>
         )}
@@ -385,7 +385,7 @@ function MarkerInspector({ id }: { id: string }) {
       </div>
       <CablesEditor cables={markerCables(m)} onChange={(list) => updateMarker(m.id, cablesPatch(list))} />
       <div>
-        <label className="label" htmlFor={`${uid}-home-run`}>{t("Home run to: {closet}", { closet: t(vocab.closet) })}</label>
+        <label className="label" htmlFor={`${uid}-home-run`}>{t("Wire run to: {closet}", { closet: t(vocab.closet) })}</label>
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-home-run`} value={m.closetId ?? ""} onChange={(e) => updateMarker(m.id, { closetId: e.target.value || null })}>
           <option value="">{t("— none —")}</option>
           {closets.map((c) => (
@@ -396,9 +396,9 @@ function MarkerInspector({ id }: { id: string }) {
         </select>
         {m.closetId && (
           <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-            {run ? <span>{t("Home run: {len}", { len: formatFt(runLengthFt(run)).replace("LF", t("ft")) })}</span> : <span>{t("No wire line drawn")}</span>}
+            {run ? <span>{t("Wire run: {len}", { len: formatFt(runLengthFt(run)).replace("LF", t("ft")) })}</span> : <span>{t("No wire line drawn")}</span>}
             <button className="btn btn-sm" onClick={() => autoHomeRuns(undefined, m.id)}>
-              {run ? t("Redraw") : t("Draw home run")}
+              {run ? t("Redraw") : t("Draw wire run")}
             </button>
           </div>
         )}
@@ -638,7 +638,7 @@ function ClosetInspector({ id }: { id: string }) {
           ))}
         </select>
       </div>
-      <p className="text-sm text-slate-600">{t.tn("{n} device home-runs here.", "{n} devices home-run here.", n)}</p>
+      <p className="text-sm text-slate-600">{t.tn("{n} device is wired back here.", "{n} devices are wired back here.", n)}</p>
       <div>
         <label className="label" htmlFor={`${uid}-notes`}>{t("Notes")}</label>
         <NotesField id={`${uid}-notes`} value={c.notes ?? ""} onCommit={(v) => updateCloset(c.id, { notes: v })} />

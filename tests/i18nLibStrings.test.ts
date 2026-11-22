@@ -1,7 +1,8 @@
 // Text made in src/lib follows the app's language (docs/i18n.md): English by default (the other tests), Russian here.
 // Client-facing data tables stay English (msg() is the identity); only what the app shows is translated.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setLocale } from "@/lib/i18n";
+import { loadDictionary } from "@/lib/i18n/dictionaries";
 import { bannerFor, billingSummary, type TeamBilling } from "@/lib/billingLogic";
 import { RU_AREAS } from "@/lib/i18n/ru";
 import { STATUS_LABEL } from "@/lib/documents";
@@ -29,6 +30,8 @@ const billing = (p: Partial<TeamBilling> = {}): TeamBilling => ({
   ...p,
 });
 
+// Russian loads on first use like every language: have it in memory so setLocale switches at once.
+beforeAll(() => loadDictionary("ru"));
 beforeEach(() => setLocale("ru", { remember: false }));
 afterEach(() => setLocale("en", { remember: false }));
 

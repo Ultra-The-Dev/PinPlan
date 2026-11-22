@@ -26,7 +26,6 @@ import { createTeam, useTeam } from "./team";
 import type { TradeId } from "./types";
 import { chooseTrades } from "./useTrades";
 
-const DEMO_KEY = "pinplan.demo";
 const PENDING_COMPANY_KEY = "pinplan.pendingCompany";
 const ONBOARDING_KEY = "pinplan.onboarding";
 
@@ -47,11 +46,9 @@ function write(key: string, value: unknown) {
   }
 }
 
-// ---------------- demo mode ----------------
+// ---------------- demo mode (./demoMode, so the public pages can start it without this module) ----------------
 
-/** "Try it without an account": the jobs list stays, even with no jobs and nobody signed in. */
-export const isDemo = () => read<boolean>(DEMO_KEY) === true;
-export const startDemo = () => write(DEMO_KEY, true);
+export { isDemo, startDemo } from "./demoMode";
 
 // ---------------- company waiting for email confirmation ----------------
 

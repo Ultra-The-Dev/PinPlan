@@ -124,7 +124,7 @@ export default function ChangeOrdersTab() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="mr-auto">
             <h1 className="page-title">{t("Change orders")}</h1>
-            <p className="text-sm text-slate-500">{t("Extras priced from your catalog, signed by the client before the work.")}</p>
+            <p className="text-sm text-slate-500">{t("Extras priced from your price list, signed by the client before the work.")}</p>
           </div>
           {rows.length > 0 && (
             <button className="btn" onClick={() => void logPdf()} disabled={busy}>

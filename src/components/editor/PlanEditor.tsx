@@ -538,7 +538,7 @@ export default function PlanEditor() {
       onLabels={() => setShowLabels((v) => !v)}
       onHomeRuns={async () => {
         const n = await useEditor.getState().autoHomeRuns(sheet.id);
-        toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : useEditor.getState().closets.length ? t("No wired devices on this sheet") : t("Place an equipment closet first"), n ? "success" : "info");
+        toast(n ? t.tn("Drew {n} wire run", "Drew {n} wire runs", n) : useEditor.getState().closets.length ? t("No wired devices on this sheet") : t("Place an equipment closet first"), n ? "success" : "info");
       }}
       countsOpen={panel === "counts" && !selection}
       onCounts={() => setPanel(panel === "counts" ? null : "counts")}

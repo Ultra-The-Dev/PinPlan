@@ -81,6 +81,12 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* While the visitor's language loads, the English prerender stays hidden so it doesn't jump when the text changes
+   (src/lib/i18n/boot.ts: at most 2 s, then it shows whatever happens). */
+html[data-i18n-wait] body {
+  visibility: hidden;
+}
+
 /* Touch screens: iOS zooms the page into any field whose text is under 16px. Fields get 16px in the base layer (over
    the inherited size); the unlayered rule wins over the small text utilities on compact fields, while larger ones
    (text-base, text-lg …) keep their size. */

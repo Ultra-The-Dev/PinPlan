@@ -4,6 +4,7 @@ import Providers from "@/components/Providers";
 import { ErrorReporter } from "@/components/ErrorBoundary";
 import { plex } from "@/components/marketing/fonts";
 import { SHARE_IMAGE } from "@/components/marketing/seo";
+import { bootScript } from "@/lib/i18n/boot";
 import { siteUrl } from "@/lib/legal";
 import { PRODUCT_NAME } from "@/lib/plans";
 import "./globals.css";
@@ -52,10 +53,14 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  // Pages render in English; the browser switches `lang` to the visitor's language before hydration
-  // (src/lib/i18n), hence suppressHydrationWarning on <html> (it covers this element's attributes only).
+  // Pages render in English; the inline script switches `lang` to the visitor's language before first paint and keeps
+  // the page hidden until that language is shown (src/lib/i18n/boot.ts), hence suppressHydrationWarning on <html> (it
+  // covers this element's attributes only).
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${plex.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: bootScript() }} />
+      </head>
       <body className="h-full flex flex-col bg-slate-50 text-slate-900">
         <ErrorReporter />
         <Providers>{children}</Providers>

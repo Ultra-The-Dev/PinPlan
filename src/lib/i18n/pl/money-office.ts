@@ -765,8 +765,7 @@ const dict: Dictionary = {
   "drafts and sent": "robocze i wysłane",
   "New contract total": "Nowa wartość umowy",
   "Total if approved": "Razem po zatwierdzeniu",
-  "Extras priced from your catalog, signed by the client before the work.":
-    "Prace dodatkowe wycenione z Twojego katalogu, podpisane przez klienta przed rozpoczęciem.",
+  "Extras priced from your price list, signed by the client before the work.": "Prace dodatkowe wycenione z Twojego cennika, podpisane przez klienta przed rozpoczęciem.",
   "New change order": "Nowe zlecenie zmiany",
   "No change orders yet": "Brak zleceń zmiany",
   "Client asked for two more cameras? Price them from the catalog — or straight from the devices you added on the plan — and send a link they sign on their phone.":

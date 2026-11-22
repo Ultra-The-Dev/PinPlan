@@ -1,15 +1,15 @@
 "use client";
 // The 404 page (src/app/not-found.tsx): the site header and footer, so a mistyped or old link still has the way home,
 // to the jobs (signed in) or to sign-up, and to help. A client component so the text follows the visitor's language.
-import Link from "next/link";
+import Link from "./SiteLink";
 import { useT } from "@/lib/i18n";
-import { useSyncStatus } from "@/lib/sync";
+import { useSignedIn } from "@/lib/syncStatus";
 import { SitePage } from "./Site";
 
 export default function NotFound() {
   const t = useT();
-  const s = useSyncStatus();
-  const signedIn = s.authReady && s.signedIn;
+  const s = useSignedIn();
+  const signedIn = s.ready && s.signedIn;
   return (
     <SitePage>
       <section aria-labelledby="nf-title" className="mk-dark mk-table">
