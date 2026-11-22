@@ -22,7 +22,7 @@ const jobViews: Dictionary = {
   Hide: "Скрыть",
   More: "Ещё",
   All: "Все",
-  Open: "Открыть",
+  Open: "Открыто",
   Refresh: "Обновить",
   Import: "Импорт",
   Export: "Экспорт",
@@ -517,6 +517,7 @@ const jobViews: Dictionary = {
   "Door contacts": "Герконы на дверях",
   "Window contacts": "Герконы на окнах",
   "Glass-break": "Разбитие стекла",
+  "No closet": "Без шкафа",
 };
 
 export default jobViews;

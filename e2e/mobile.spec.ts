@@ -111,6 +111,13 @@ for (const name of [...PHONES, ...TABLETS]) {
       await expect(name).toHaveText(LONG_ADDRESS);
       const clipped = await name.evaluate((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);
       if (phone) expect(clipped, "job name cut off in the phone header").toBe(false);
+      if (!phone) {
+        // Tablets: the header's status picker, the next step and Overview's More are finger-sized too.
+        await fingerSized(page.getByRole("combobox", { name: "Job status" }), "Job status");
+        await fingerSized(page.getByRole("link", { name: /Next step/ }), "Next step");
+        await fingerSized(page.getByTestId("overview-more").locator("summary"), "Overview More");
+        await fingerSized(page.getByRole("link", { name: /Open tasks/ }), "Open tasks");
+      }
       const tabs = page.getByRole("navigation", { name: "Job sections" }).filter({ visible: true });
       // Phones: Plan · Tasks · Photos · Money · More; tablets: every tab in the header.
       const jobTabs = phone ? ["Plan", "Tasks", "Photos", "Money", "More"] : ["Overview", "Plan", "Takeoff", "Tasks", "Photos", "Money", "Field"];

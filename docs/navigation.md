@@ -52,7 +52,7 @@ you to the picture"):
 
 | Tab | Sub-views (query params) |
 | --- | --- |
-| `overview` | Job health and next step, install progress, details; labels, templates and backup under **More** |
+| `overview` | Job health and next step (each number opens what it counts: **Open tasks** is the Tasks tab's open tasks, `openTaskCounts`), install progress, details; labels, templates and backup under **More** |
 | `plan` | `manage=1` opens the **Manage sheets** drawer (`ManageSheetsDrawer` in `SheetsTab.tsx`) |
 | `takeoff` | `view=wiring` shows **Wiring sheets** (the old Crew tab) |
 | `tasks` | `tf=` the list's filter (`encodeTaskFilter`; `dv:` = one device), `task=` opens a task |

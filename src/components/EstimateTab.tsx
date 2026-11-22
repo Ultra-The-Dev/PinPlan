@@ -407,7 +407,7 @@ export default function EstimateTab() {
                       <div className="w-16">
                         <Cell numeric label={t("Quantity: {item}", { item: l.description })} value={Number(l.qty.toFixed(2))} onCommit={(v) => upsert(l.key, { qty: num(v) })} />
                       </div>
-                      <span className="shrink-0 whitespace-nowrap">{l.unit} ×</span>
+                      <span className="shrink-0 whitespace-nowrap">{l.unit === "each" ? t("each") : l.unit} ×</span>
                       <div className="w-24">
                         <Cell numeric label={t("Unit price: {item}", { item: l.description })} value={l.unitPrice.toFixed(2)} onCommit={(v) => upsert(l.key, { unitPrice: num(v) })} className={l.unitPrice === 0 && l.included ? "text-amber-700" : ""} />
                       </div>

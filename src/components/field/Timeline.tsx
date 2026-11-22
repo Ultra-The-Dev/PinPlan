@@ -40,6 +40,8 @@ export default function Timeline() {
   const t = useT();
   const all = useMemo(() => (project ? timeline({ project, photos, photoComments, checklists, jobLogs, documents }) : []), [project, photos, photoComments, checklists, jobLogs, documents]);
   const people = useMemo(() => timelinePeople(all), [all]);
+  // Only the chips that would show something (no "Billdu" on a job that never used it); a chip that is on stays.
+  const chips = useMemo(() => TIMELINE_FILTERS.filter((f) => kinds.includes(f.id) || all.some((e) => e.kind === f.kind)), [all, kinds]);
   const filtered = useMemo(() => filterTimeline(all, { kinds, who: person, text }), [all, kinds, person, text]);
   const { shown: events, remaining } = pageTimeline(filtered, limit);
   const filtering = kinds.length > 0 || !!person || !!text.trim();
@@ -64,7 +66,7 @@ export default function Timeline() {
           )}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {TIMELINE_FILTERS.map((f) => (
+          {chips.length > 1 && chips.map((f) => (
             <button
               key={f.id}
               className={`chip ${kinds.includes(f.id) ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
@@ -101,7 +103,7 @@ export default function Timeline() {
                   <Icon className="h-3.5 w-3.5 text-slate-500" />
                 </span>
                 <div className="text-sm">
-                  <span className="font-medium">{e.text}</span>
+                  <span className="font-medium">{e.kind === "created" ? t("Job created") : e.text}</span>
                   <span className="text-slate-400">
                     {" "}
                     · {e.who ? `${e.who} · ` : ""}

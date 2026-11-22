@@ -22,7 +22,7 @@ const dict: Dictionary = {
   Hide: "隐藏",
   More: "更多",
   All: "全部",
-  Open: "打开",
+  Open: "待处理",
   Refresh: "刷新",
   Import: "导入",
   Export: "导出",
@@ -479,6 +479,7 @@ const dict: Dictionary = {
   "Door contacts": "门磁",
   "Window contacts": "窗磁",
   "Glass-break": "玻璃破碎",
+  "No closet": "未分配设备间",
 };
 
 export default dict;

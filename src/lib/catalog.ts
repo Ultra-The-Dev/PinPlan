@@ -46,6 +46,15 @@ export const WIRE_TYPES = [
 ];
 
 export const MOUNTS: Mount[] = ["ceiling", "wall", "exterior", "floor", "cabinet", "other"];
+/** How each mount reads on screen (translate with t()). */
+export const MOUNT_LABELS: Record<Mount, string> = {
+  ceiling: msg("Ceiling"),
+  wall: msg("Wall"),
+  exterior: msg("Exterior"),
+  floor: msg("On the floor"),
+  cabinet: msg("Cabinet"),
+  other: msg("Other"),
+};
 
 export interface ClosetKindInfo {
   id: ClosetKind;

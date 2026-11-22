@@ -270,7 +270,7 @@ export default function ProposalPanel({ estimate, takeoff, pricing, openForm = 0
                 <Share2 /> {t("Share")}
               </button>
               <a className="btn btn-sm" href={link(r.id)} target="_blank" rel="noreferrer">
-                <ExternalLink /> {t("Open")}
+                <ExternalLink /> {t("Open link")}
               </a>
               {(r.status === "sent" || r.status === "viewed") && (
                 <button

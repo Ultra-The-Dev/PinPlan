@@ -1,9 +1,10 @@
 // Job health at a glance: counts, checklist progress, tasks, photos, logs and the one thing to do next.
 // Pure; works offline from the local job data. Mirrors PinPlanCore/JobSummary.swift.
-import { checklistProgress, taskBucket } from "./fieldDocs";
+import { checklistProgress } from "./fieldDocs";
 import { t, tn } from "./i18n";
 import type { ProposalStatus } from "./proposal";
-import type { Checklist, JobLog, Marker, Photo, Project, Run, Sheet } from "./types";
+import { openTaskCounts } from "./tasks";
+import type { Checklist, JobLog, Marker, Photo, PlanTask, Project, Run, Sheet } from "./types";
 
 /** A sent proposal or plan review (cloud data — pass it only when it is already loaded). */
 export interface ProposalInfo {
@@ -13,7 +14,7 @@ export interface ProposalInfo {
 }
 
 /** Web tab ids (the iPad app maps "info" to its Job tab). */
-export type JobTab = "plan" | "sheets" | "photos" | "field" | "takeoff" | "estimate" | "crew" | "info";
+export type JobTab = "plan" | "sheets" | "photos" | "tasks" | "field" | "takeoff" | "estimate" | "crew" | "info";
 
 export type NextStepKind =
   | "addPlans"
@@ -49,6 +50,8 @@ export interface JobSummaryInput {
   photos: Photo[];
   checklists: Checklist[];
   jobLogs: JobLog[];
+  /** The job's tasks (the Tasks tab). Open ones count as "Open tasks"; leave out when not loaded (counts as none). */
+  tasks?: PlanTask[];
   /** From the local estimate: grand total and how many included lines have no price yet. */
   estimate?: { total: number; unpriced: number } | null;
   /** Proposals and plan reviews, when known. Leave out (undefined/null) when they haven't been loaded. */
@@ -67,7 +70,7 @@ export interface JobSummary {
   /** LED / stair runs. */
   ledRuns: number;
   checklists: { lists: number; done: number; total: number; pct: number; missingPhotos: number };
-  /** Open checklist items that are tasks (assigned or dated). */
+  /** Open tasks as the Tasks tab counts them (openTaskCounts). */
   tasks: { open: number; overdue: number; dueToday: number };
   photos: { count: number; lastAt: string | null };
   logs: { count: number; lastDate: string | null };
@@ -95,23 +98,14 @@ export function jobSummary(input: JobSummaryInput): JobSummary {
 
   let done = 0,
     total = 0,
-    missingPhotos = 0,
-    open = 0,
-    overdue = 0,
-    dueToday = 0;
+    missingPhotos = 0;
   for (const c of lists) {
     const p = checklistProgress(c, photos);
     done += p.done;
     total += p.total;
     missingPhotos += p.missingPhotos;
-    for (const i of c.items) {
-      if (i.done || (!i.assignee && !i.due)) continue;
-      open++;
-      const b = taskBucket(i.due, today);
-      if (b === "overdue") overdue++;
-      else if (b === "today") dueToday++;
-    }
   }
+  const { open, overdue, dueToday } = openTaskCounts(input.tasks ?? [], today);
   const lastAt = photos.reduce<string | null>((a, p) => (p.takenAt && (!a || p.takenAt > a) ? p.takenAt : a), null);
   const lastDate = logs.reduce<string | null>((a, l) => (l.date && (!a || l.date > a) ? l.date : a), null);
   const proposal = input.proposals ? latest(input.proposals, "proposal") : null;
@@ -138,14 +132,14 @@ export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposal
   const step = (kind: NextStepKind, text: string, tab: JobTab): NextStep => ({ kind, text, tab });
   if (!s.sheets) return step("addPlans", t("Add the floor plans"), "sheets");
   if (!s.devices && !s.ledRuns) return step("placeDevices", t("Pin devices on the plan"), "plan");
-  if (s.tasks.overdue) return step("overdueTasks", tn("{n} overdue task", "{n} overdue tasks", s.tasks.overdue), "field");
+  if (s.tasks.overdue) return step("overdueTasks", tn("{n} overdue task", "{n} overdue tasks", s.tasks.overdue), "tasks");
   if (!prices) {
     // Technicians: estimates, proposals and invoices are the office's job.
     if (project.status === "estimate") {
-      if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "field");
+      if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "tasks");
       return step("officePricing", t("With the office for pricing — check the plan and devices"), "plan");
     }
-    if (project.status === "installed") return s.tasks.open ? step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "field") : step("done", t("All wrapped up"), "info");
+    if (project.status === "installed") return s.tasks.open ? step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "tasks") : step("done", t("All wrapped up"), "info");
   }
   const unpriced = !!s.estimate && (s.estimate.unpriced > 0 || s.estimate.total <= 0);
   const billed = (project.billduDocs ?? []).length > 0;
@@ -164,7 +158,7 @@ export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposal
   }
 
   if (project.status === "approved") {
-    if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "field");
+    if (s.tasks.dueToday) return step("tasksToday", tn("{n} task due today", "{n} tasks due today", s.tasks.dueToday), "tasks");
     if (!s.checklists.lists) return step("startChecklist", t("Start an install checklist"), "field");
     if (s.checklists.missingPhotos) return step("checklistPhotos", tn("{n} checklist item needs a photo", "{n} checklist items need a photo", s.checklists.missingPhotos), "field");
     if (s.checklists.done < s.checklists.total)
@@ -173,7 +167,7 @@ export function nextStep(s: Omit<JobSummary, "next">, project: Project, proposal
   }
 
   // installed
-  if (s.tasks.open) return step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "field");
+  if (s.tasks.open) return step("closeTasks", tn("Close out {n} open task", "Close out {n} open tasks", s.tasks.open), "tasks");
   if (!(project.billduDocs ?? []).some((d) => d.type === "invoice")) return step("invoice", t("Send the final invoice"), "estimate");
   return step("done", t("All wrapped up"), "info");
 }

@@ -166,7 +166,7 @@ function TakeoffCounts() {
           <button className="btn" onClick={() => downloadText(takeoffCsv(takeoff, catalog), `${slug(project.address)}-takeoff.csv`)}>
             <Download /> CSV
           </button>
-          <label className="flex h-9 cursor-pointer items-center gap-1.5 text-sm text-slate-600" title={t("Draw plan markups (redlines, clouds, notes) on the PDF. Private markups never print.")}>
+          <label className="flex h-9 cursor-pointer items-center gap-1.5 text-sm text-slate-600 pointer-coarse:h-11" title={t("Draw plan markups (redlines, clouds, notes) on the PDF. Private markups never print.")}>
             <input type="checkbox" className="accent-brand-600" checked={withMarkups} onChange={(e) => setWithMarkups(e.target.checked)} data-testid="pdf-markups" />
             {t("Include markups")}
           </label>

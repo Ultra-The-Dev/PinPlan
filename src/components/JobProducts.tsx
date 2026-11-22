@@ -69,7 +69,7 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
       <div className="mb-1 flex items-center gap-2">
         <Tags className="h-4 w-4 text-slate-500" />
         <h3 className="font-semibold">{t("Products for this job")}</h3>
-        <Link href="/products" className="ml-auto text-sm font-medium text-brand-600 hover:underline">
+        <Link href="/products" className="tap ml-auto text-sm font-medium text-brand-600 hover:underline">
           {t("Product library")}
         </Link>
       </div>

@@ -209,7 +209,7 @@ export default function DocSettingsPanel() {
             </button>
           </div>
         ))}
-        <label className="mt-1 flex items-center gap-2 text-sm">
+        <label className="tap mt-1 flex items-center gap-2 text-sm">
           <input type="checkbox" className="accent-brand-600" checked={s.laborTaxable} onChange={(e) => set({ laborTaxable: e.target.checked })} /> {t("Labor lines are taxable (quotes made from the job’s pricing)")}
         </label>
       </div>

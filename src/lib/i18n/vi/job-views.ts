@@ -22,7 +22,7 @@ const jobViews: Dictionary = {
   Hide: "Ẩn",
   More: "Thêm",
   All: "Tất cả",
-  Open: "Mở",
+  Open: "Đang mở",
   Refresh: "Làm mới",
   Import: "Nhập",
   Export: "Xuất",
@@ -479,6 +479,7 @@ const jobViews: Dictionary = {
   "Door contacts": "Tiếp điểm cửa",
   "Window contacts": "Tiếp điểm cửa sổ",
   "Glass-break": "Vỡ kính",
+  "No closet": "Chưa có tủ thiết bị",
 };
 
 export default jobViews;

@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { applyPriceList, catalogToCsv, type PriceImportResult } from "@/lib/catalogCsv";
 import { downloadText } from "@/lib/download";
 import { formatMoney } from "@/lib/estimate";
-import { categoryOf, MOUNTS, OPENING_TYPE_IDS, WIRE_TYPES } from "@/lib/catalog";
+import { categoryOf, MOUNT_LABELS, MOUNTS, OPENING_TYPE_IDS, WIRE_TYPES } from "@/lib/catalog";
 import { allCategoriesFor, hasTrade, tradeCategories, tradeWireTypes, typeVisible } from "@/lib/trades";
 import { useTrades } from "@/lib/useTrades";
 import { getCatalog, newId, nowIso, put, putMany } from "@/lib/db";
@@ -61,15 +61,6 @@ const SHAPE_LABELS: Record<Shape, string> = {
   diamond: msg("Diamond"),
   hexagon: msg("Hexagon"),
   star: msg("Star"),
-};
-
-const MOUNT_LABELS: Record<string, string> = {
-  ceiling: msg("Ceiling"),
-  wall: msg("Wall"),
-  exterior: msg("Exterior"),
-  floor: msg("On the floor"),
-  cabinet: msg("Cabinet"),
-  other: msg("Other"),
 };
 
 export default function CatalogEditor() {
@@ -183,7 +174,7 @@ export default function CatalogEditor() {
           <section key={cat.id} className="mb-6">
             <div className="mb-2 flex items-center gap-2 px-1">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: cat.color }} />
-              <h2 className="font-semibold">{cat.name}</h2>
+              <h2 className="font-semibold">{t(cat.name)}</h2>
               <span className="text-xs text-slate-500">{rows.length}</span>
               <button className="btn btn-sm btn-ghost ml-auto text-brand-600" onClick={() => newType(cat.id)}>
                 <Plus /> {t("Add type")}
@@ -296,7 +287,7 @@ function EditDialog({ type, isNew, onSave, onCancel }: { type: DeviceType; isNew
           <select id={f("category")} className="input" value={d.category} onChange={(e) => set("category", e.target.value as Category)}>
             {allCategoriesFor(trades).map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {t(c.name)}
               </option>
             ))}
           </select>

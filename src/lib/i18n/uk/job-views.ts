@@ -22,7 +22,7 @@ const dict: Dictionary = {
   Hide: "Сховати",
   More: "Ще",
   All: "Усі",
-  Open: "Відкрити",
+  Open: "Відкрито",
   Refresh: "Оновити",
   Import: "Імпорт",
   Export: "Експорт",
@@ -527,6 +527,7 @@ const dict: Dictionary = {
   "Door contacts": "Геркони на дверях",
   "Window contacts": "Геркони на вікнах",
   "Glass-break": "Розбиття скла",
+  "No closet": "Без шафи",
 };
 
 export default dict;

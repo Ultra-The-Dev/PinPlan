@@ -177,7 +177,7 @@ const moneyOffice: Dictionary = {
   "Copy link": "Скопировать ссылку",
   Email: "Эл. почта",
   Share: "Поделиться",
-  Open: "Открыть",
+  Open: "Открыто",
   "Withdraw this quote? The link will stop working.": "Отозвать эту смету? Ссылка перестанет работать.",
   Withdraw: "Отозвать",
   "Send an updated quote": "Отправить обновлённую смету",
@@ -1000,6 +1000,7 @@ const moneyOffice: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "Ниже комиссии для крупных счетов. Банковский платёж проходит несколько рабочих дней; счёт покажет его, когда он пройдёт.",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "Оплаты записываются в счёт автоматически, а возвраты, сделанные в Stripe, появляются как возвраты.",
   "Open Stripe dashboard": "Открыть панель Stripe",
+  "Open link": "Открыть ссылку",
 };
 
 export default moneyOffice;

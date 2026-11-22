@@ -36,7 +36,7 @@ export default function PortSchedule() {
           return (
             <div key={g} className="card overflow-hidden">
               <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5">
-                <span className="font-semibold">{g}</span>
+                <span className="font-semibold">{list[0].closetId ? g : t("No closet")}</span>
                 <span className="text-xs text-slate-400">{t.tn("{n} cable", "{n} cables", list.length)}</span>
                 {!list[0].closetId && <span className="ml-auto text-xs text-amber-700">{t("Assign a closet to number these")}</span>}
               </div>

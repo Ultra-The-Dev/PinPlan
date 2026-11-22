@@ -22,7 +22,7 @@ const dict: Dictionary = {
   Hide: "Ocultar",
   More: "Más",
   All: "Todas",
-  Open: "Abrir",
+  Open: "Abierta",
   Refresh: "Actualizar",
   Import: "Importar",
   Export: "Exportar",
@@ -501,6 +501,7 @@ const dict: Dictionary = {
   "Door contacts": "Contactos de puerta",
   "Window contacts": "Contactos de ventana",
   "Glass-break": "Rotura de cristal",
+  "No closet": "Sin cuarto de equipos",
 };
 
 export default dict;

@@ -158,7 +158,7 @@ const dict: Dictionary = {
   "Copy link": "Sao chép liên kết",
   Email: "Email",
   Share: "Chia sẻ",
-  Open: "Mở",
+  Open: "Đang mở",
   "Withdraw this quote? The link will stop working.": "Thu hồi báo giá này? Liên kết sẽ ngừng hoạt động.",
   Withdraw: "Rút lại",
   "Send an updated quote": "Gửi báo giá cập nhật",
@@ -915,6 +915,7 @@ const dict: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "Phí thấp hơn cho hóa đơn lớn. Thanh toán ngân hàng mất vài ngày làm việc để hoàn tất; hóa đơn sẽ hiển thị khi hoàn tất.",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "Các khoản thanh toán được ghi vào hóa đơn tự động, và khoản hoàn tiền bạn làm trên Stripe hiển thị là hoàn tiền.",
   "Open Stripe dashboard": "Mở bảng điều khiển Stripe",
+  "Open link": "Mở liên kết",
 };
 
 export default dict;

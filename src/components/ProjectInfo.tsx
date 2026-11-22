@@ -180,7 +180,7 @@ export default function ProjectInfo() {
         </div>
 
         <details className="group lg:col-span-2" data-testid="overview-more">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-2 text-sm pointer-coarse:min-h-11 font-semibold text-slate-700 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
             <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
             {t("More")}
             <span className="font-normal text-slate-500">{t("Labels, job templates, backup")}</span>

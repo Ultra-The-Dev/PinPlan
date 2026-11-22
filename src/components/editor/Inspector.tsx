@@ -2,7 +2,7 @@
 import { Camera, Copy, ListTodo, Minus, Plus, Trash, X } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
-import { closetMeta, MOUNTS, PANEL_KINDS } from "@/lib/catalog";
+import { closetMeta, MOUNT_LABELS, MOUNTS, PANEL_KINDS } from "@/lib/catalog";
 import { saveImage } from "@/lib/db";
 import { formatFt, parseFeet, runLengthFt } from "@/lib/geometry";
 import { cableCounts, cablesPatch, markerCables, productIdFor, productTitle, runCables, settingCable } from "@/lib/products";
@@ -109,7 +109,7 @@ function CablesEditor({ cables, onChange }: { cables: string[]; onChange: (list:
         {unused.length > 0 && (
           <select
             aria-label={t("Add cable")}
-            className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
+            className="w-full cursor-pointer rounded-b-xl bg-transparent px-3 py-2 text-sm font-medium text-brand-600 outline-none pointer-coarse:min-h-11 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
             value=""
             onChange={(e) => e.target.value && onChange([...cables, e.target.value])}
           >
@@ -378,7 +378,7 @@ function MarkerInspector({ id }: { id: string }) {
         <select className="input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" id={`${uid}-mount`} value={m.mount} onChange={(e) => updateMarker(m.id, { mount: e.target.value as Mount })}>
           {MOUNTS.map((x) => (
             <option key={x} value={x}>
-              {t(x)}
+              {t(MOUNT_LABELS[x])}
             </option>
           ))}
         </select>

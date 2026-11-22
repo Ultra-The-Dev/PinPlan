@@ -181,8 +181,8 @@ export default function LineEditor({ lines, onChange, taxes, currency, locale, d
                   onKeyDown={(e) => onKey(e, i, "unit")}
                 />
                 <NumCell money label={t("Unit price: {item}", { item })} value={l.unitPrice} onValue={(n) => set(i, { unitPrice: n })} row={i} col="price" onKey={onKey} />
-                <label className="flex justify-center" title={taxes.length ? t("Taxable") : t("Taxable (add a tax rate below)")}>
-                  <input type="checkbox" className="h-4 w-4 accent-brand-600" aria-label={t("Taxable: {item}", { item })} disabled={readOnly} checked={l.taxable} onChange={(e) => set(i, { taxable: e.target.checked })} />
+                <label className="tap flex justify-center" title={taxes.length ? t("Taxable") : t("Taxable (add a tax rate below)")}>
+                  <input type="checkbox" className="h-4 w-4 accent-brand-600 pointer-coarse:h-5 pointer-coarse:w-5" aria-label={t("Taxable: {item}", { item })} disabled={readOnly} checked={l.taxable} onChange={(e) => set(i, { taxable: e.target.checked })} />
                 </label>
                 <div className={`pr-1.5 text-right font-medium tabular-nums ${l.optional ? "text-slate-400" : ""}`}>
                   {money(a.net)}

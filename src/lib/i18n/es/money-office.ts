@@ -171,7 +171,7 @@ const dict: Dictionary = {
   "Copy link": "Copiar enlace",
   Email: "Correo",
   Share: "Compartir",
-  Open: "Abrir",
+  Open: "Abierta",
   "Withdraw this quote? The link will stop working.": "¿Retirar esta cotización? El enlace dejará de funcionar.",
   Withdraw: "Retirar",
   "Send an updated quote": "Enviar una cotización actualizada",
@@ -977,6 +977,7 @@ const dict: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "Comisiones más bajas en facturas grandes. Los pagos bancarios tardan unos días hábiles en acreditarse; la factura los muestra cuando se acreditan.",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "Los pagos se registran en la factura automáticamente, y los reembolsos que hagas en Stripe aparecen como reembolsos.",
   "Open Stripe dashboard": "Abrir panel de Stripe",
+  "Open link": "Abrir enlace",
 };
 
 export default dict;

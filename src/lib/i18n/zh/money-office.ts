@@ -150,7 +150,7 @@ const moneyOffice: Dictionary = {
   "Copy link": "复制链接",
   Email: "邮箱",
   Share: "分享",
-  Open: "打开",
+  Open: "待处理",
   "Withdraw this quote? The link will stop working.": "撤回此报价单？链接将失效。",
   Withdraw: "撤回",
   "Send an updated quote": "发送更新后的报价单",
@@ -854,6 +854,7 @@ const moneyOffice: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "大额发票手续费更低。银行付款需要几个工作日到账；到账后发票会显示。",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "付款会自动记录到发票上，您在 Stripe 中办理的退款会显示为退款。",
   "Open Stripe dashboard": "打开 Stripe 控制台",
+  "Open link": "打开链接",
 };
 
 export default moneyOffice;

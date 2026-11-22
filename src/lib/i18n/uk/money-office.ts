@@ -176,7 +176,7 @@ const dict: Dictionary = {
   "Copy link": "Скопіювати посилання",
   Email: "Ел. пошта",
   Share: "Поділитися",
-  Open: "Відкрити",
+  Open: "Відкрито",
   "Withdraw this quote? The link will stop working.": "Відкликати цей кошторис? Посилання перестане працювати.",
   Withdraw: "Відкликати",
   "Send an updated quote": "Надіслати оновлений кошторис",
@@ -999,6 +999,7 @@ const dict: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "Нижчі комісії для великих рахунків. Банківський платіж проходить кілька робочих днів; рахунок покаже його, коли він пройде.",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "Оплати записуються в рахунок автоматично, а повернення, зроблені в Stripe, з’являються як повернення.",
   "Open Stripe dashboard": "Відкрити панель Stripe",
+  "Open link": "Відкрити посилання",
 };
 
 export default dict;

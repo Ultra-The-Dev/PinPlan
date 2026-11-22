@@ -95,15 +95,17 @@ export default function ProjectView() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4 sm:max-lg:h-auto sm:max-lg:flex-wrap sm:max-lg:gap-y-2 sm:max-lg:py-2">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-2 backdrop-blur sm:gap-3 sm:px-4 sm:max-lg:h-auto sm:max-lg:flex-wrap sm:max-lg:gap-y-2 sm:max-lg:py-2 lg:h-auto lg:min-h-14 lg:flex-wrap lg:gap-y-1.5 lg:py-1.5">
         <Link href="/jobs" className="tap flex h-9 shrink-0 items-center gap-0.5 rounded-lg px-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 max-sm:-ml-1 max-sm:w-9 max-sm:justify-center max-sm:px-0" aria-label={t("Back to jobs")}>
           <ChevronLeft className="h-4 w-4 max-sm:h-5 max-sm:w-5" />
           <span className="max-sm:hidden">{t("Jobs")}</span>
         </Link>
-        <span className="max-lg:hidden">
+        <span className="max-xl:hidden">
           <Logo compact />
         </span>
-        <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
+        {/* Desktop: the name takes the room the tabs leave (at least 12rem); when there isn't that much (narrow
+            windows, long languages) the tabs wrap onto a second row instead of pushing the page sideways. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2 lg:basis-48">
           {/* Phones: the job name comes first and may take two lines; the client and the status share the small line under it. */}
           <div className="min-w-0">
             <div className="text-sm leading-tight font-semibold break-words text-slate-900 max-sm:line-clamp-2 sm:truncate" title={project.address || undefined} data-testid="job-name">
@@ -116,7 +118,7 @@ export default function ProjectView() {
             </div>
           </div>
           <select
-            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none pointer-coarse:h-9 pointer-coarse:rounded-lg pointer-coarse:px-2.5 sm:block ${STATUS_STYLE[project.status]}`}
+            className={`hidden h-6 shrink-0 cursor-pointer appearance-none rounded-md px-2 text-xs font-medium ring-1 outline-none pointer-coarse:h-11 pointer-coarse:rounded-lg pointer-coarse:px-2.5 sm:block ${STATUS_STYLE[project.status]}`}
             value={project.status}
             onChange={(e) => updateProject({ status: e.target.value as ProjectStatus })}
             aria-label={t("Job status")}
@@ -128,17 +130,19 @@ export default function ProjectView() {
             ))}
           </select>
         </div>
-        <div className="flex-1 max-lg:hidden" />
-        {/* Tablets in portrait: the tabs get their own row, so the job name keeps its room. */}
-        <JobTabStrip tabs={tabs} active={tab} onSelect={(id) => setTab(id)} className="sm:max-lg:order-last sm:max-lg:w-full sm:max-lg:justify-center" />
-        {tab === "plan" && sheets.length > 0 && (
-          <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open" {...tourAnchor("plan-sheets")}>
-            <FileText />
-            <span className="max-md:hidden">{t("Manage sheets")}</span>
-            <span className="max-sm:sr-only md:hidden">{t("Sheets")}</span>
-          </button>
-        )}
-        <SyncBadge />
+        {/* Tablets in portrait: the tabs get their own row, so the job name keeps its room. Desktop: the tabs, Manage
+            sheets and the sync badge stay together (one group that moves to the second row as a whole). */}
+        <div className="contents lg:flex lg:shrink-0 lg:items-center lg:gap-3">
+          <JobTabStrip tabs={tabs} active={tab} onSelect={(id) => setTab(id)} className="sm:max-lg:order-last sm:max-lg:w-full sm:max-lg:justify-center" />
+          {tab === "plan" && sheets.length > 0 && (
+            <button type="button" className="btn btn-sm shrink-0" onClick={openManageSheets} data-testid="manage-sheets-open" {...tourAnchor("plan-sheets")}>
+              <FileText />
+              <span className="max-xl:hidden">{t("Manage sheets")}</span>
+              <span className="max-sm:sr-only xl:hidden">{t("Sheets")}</span>
+            </button>
+          )}
+          <SyncBadge />
+        </div>
       </header>
       <main className="relative min-h-0 flex-1 overflow-hidden">
         {tab === "plan" &&

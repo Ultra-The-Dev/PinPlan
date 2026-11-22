@@ -47,7 +47,7 @@ export default function TourList({ tone = "app" }: { tone?: "app" | "site" }) {
             </div>
             <button
               type="button"
-              className={site ? "mk-btn mk-btn-line mk-btn-sm shrink-0" : "btn btn-sm shrink-0"}
+              className={site ? "tap mk-btn mk-btn-line mk-btn-sm shrink-0" : "btn btn-sm shrink-0"}
               disabled={busy !== null}
               onClick={() => void go(tour, b.kind === "resume" ? b.step : 0)}
               data-testid={`tour-start-${tour.id}`}

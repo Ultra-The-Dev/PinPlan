@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jobSummary, type JobSummaryInput } from "@/lib/jobSummary";
-import type { Checklist, JobLog, Marker, Photo, Project, Run, Sheet } from "@/lib/types";
+import { filterTasks, OPEN_STATUSES, openTaskCounts } from "@/lib/tasks";
+import type { Checklist, JobLog, Marker, Photo, PlanTask, Project, Run, Sheet } from "@/lib/types";
 
 const ts = "2026-11-19T15:00:00.000Z";
 const today = "2026-11-19";
@@ -11,6 +12,8 @@ const run = (id: string, kind: Run["kind"]): Run => ({ id, projectId: "p", sheet
 const photo = (id: string, takenAt: string, extra: Partial<Photo> = {}): Photo => ({ id, projectId: "p", imageId: id, width: 4, height: 3, takenAt, createdAt: ts, updatedAt: ts, ...extra });
 const log = (id: string, date: string, deleted = false): JobLog => ({ id, projectId: "p", date, body: "", createdAt: ts, updatedAt: ts, deleted });
 const list = (id: string, items: Checklist["items"]): Checklist => ({ id, projectId: "p", name: id, items, createdAt: ts, updatedAt: ts });
+const task = (n: number, extra: Partial<PlanTask> = {}): PlanTask =>
+  ({ id: `t${n}`, projectId: "p", number: n, title: `Task ${n}`, status: "open", sheetId: null, x: null, y: null, createdAt: ts, updatedAt: ts, ...extra }) as PlanTask;
 
 const base = (extra: Partial<JobSummaryInput> = {}): JobSummaryInput => ({
   project: project(),
@@ -38,7 +41,7 @@ describe("jobSummary counts", () => {
     expect(s.logs).toEqual({ count: 2, lastDate: "2026-11-16" });
   });
 
-  it("totals checklist progress and open tasks, with overdue and due today", () => {
+  it("totals checklist progress; assigned or dated checklist items are not tasks", () => {
     const s = jobSummary(
       base({
         photos: [photo("p1", ts, { checklistId: "c1", checklistItemId: "1" })],
@@ -58,8 +61,27 @@ describe("jobSummary counts", () => {
       }),
     );
     expect(s.checklists).toEqual({ lists: 2, done: 2, total: 6, pct: 33, missingPhotos: 1 });
-    expect(s.tasks).toEqual({ open: 2, overdue: 1, dueToday: 1 });
-    expect(s.next).toMatchObject({ kind: "overdueTasks", text: "1 overdue task", tab: "field" });
+    expect(s.tasks).toEqual({ open: 0, overdue: 0, dueToday: 0 });
+  });
+
+  it("counts open tasks the way the Tasks tab does, with overdue and due today", () => {
+    const tasks = [
+      task(1, { due: "2026-11-18" }), // overdue
+      task(2, { status: "in_progress", due: today }), // due today
+      task(3, { status: "ready" }), // waiting for review: still open
+      task(4, { status: "done", due: "2026-11-01" }), // closed, not overdue
+      task(5, { status: "verified" }),
+      task(6, { deleted: true, due: "2026-11-01" }),
+      task(7, { assignee: "Alex", due: "2026-12-30" }),
+    ];
+    const s = jobSummary(base({ tasks }));
+    expect(s.tasks).toEqual({ open: 4, overdue: 1, dueToday: 1 });
+    // The Tasks tab's open-status chips (Open · In progress · Review) add up to the same number.
+    expect(filterTasks(tasks, { status: [...OPEN_STATUSES] }, today)).toHaveLength(s.tasks.open);
+    expect(openTaskCounts(tasks, today)).toEqual(s.tasks);
+    expect(s.next).toMatchObject({ kind: "overdueTasks", text: "1 overdue task", tab: "tasks" });
+    expect(jobSummary(base({ tasks: [] })).tasks).toEqual({ open: 0, overdue: 0, dueToday: 0 });
+    expect(jobSummary(base()).tasks.open).toBe(0);
   });
 
   it("picks the latest proposal and review, skipping revoked ones", () => {
@@ -102,7 +124,7 @@ describe("next step", () => {
   it("approved jobs: tasks today, checklists, photos, then installed", () => {
     const approved = project({ status: "approved" });
     expect(jobSummary(base({ project: approved })).next).toMatchObject({ kind: "startChecklist", tab: "field" });
-    expect(jobSummary(base({ project: approved, checklists: [list("c", [{ id: "1", text: "x", due: today }])] })).next).toMatchObject({ kind: "tasksToday", text: "1 task due today" });
+    expect(jobSummary(base({ project: approved, tasks: [task(1, { due: today })] })).next).toMatchObject({ kind: "tasksToday", text: "1 task due today", tab: "tasks" });
     expect(jobSummary(base({ project: approved, checklists: [list("c", [{ id: "1", text: "x", done: true, requiresPhoto: true }])] })).next).toMatchObject({ kind: "checklistPhotos", text: "1 checklist item needs a photo" });
     expect(jobSummary(base({ project: approved, checklists: [list("c", [{ id: "1", text: "x", done: true }, { id: "2", text: "y" }])] })).next).toMatchObject({ kind: "finishChecklists", text: "Finish checklists (1 of 2 done)" });
     expect(jobSummary(base({ project: approved, checklists: [list("c", [{ id: "1", text: "x", done: true }])] })).next).toMatchObject({ kind: "markInstalled", tab: "info" });
@@ -110,14 +132,14 @@ describe("next step", () => {
 
   it("installed jobs: close tasks, invoice, done", () => {
     const installed = project({ status: "installed" });
-    expect(jobSummary(base({ project: installed, checklists: [list("c", [{ id: "1", text: "x", assignee: "Sam" }])] })).next).toMatchObject({ kind: "closeTasks", text: "Close out 1 open task" });
+    expect(jobSummary(base({ project: installed, tasks: [task(1, { assignee: "Sam" }), task(2, { status: "done" })] })).next).toMatchObject({ kind: "closeTasks", text: "Close out 1 open task", tab: "tasks" });
     expect(jobSummary(base({ project: installed })).next.kind).toBe("invoice");
     const invoiced = project({ status: "installed", billduDocs: [{ id: 2, type: "invoice", amount: 10, createdAt: ts }] });
     expect(jobSummary(base({ project: invoiced })).next).toMatchObject({ kind: "done", text: "All wrapped up" });
   });
 
   it("overdue tasks come before everything but plans and devices", () => {
-    const s = jobSummary(base({ project: project({ status: "installed" }), checklists: [list("c", [{ id: "1", text: "a", due: "2026-11-01" }, { id: "2", text: "b", due: "2026-11-02" }, { id: "3", text: "c", due: "2026-11-03" }])] }));
+    const s = jobSummary(base({ project: project({ status: "installed" }), tasks: [task(1, { due: "2026-11-01" }), task(2, { due: "2026-11-02" }), task(3, { due: "2026-11-03" })] }));
     expect(s.next.text).toBe("3 overdue tasks");
   });
 });
@@ -126,8 +148,8 @@ describe("jobSummary for technicians (no prices)", () => {
   it("never points a tech at the estimate, proposals or invoices", () => {
     const est = jobSummary(base({ prices: false, estimate: { total: 0, unpriced: 3 }, proposals: [{ kind: "proposal", status: "declined", createdAt: ts }] }));
     expect(est.next).toMatchObject({ kind: "officePricing", tab: "plan" });
-    const dueToday = jobSummary(base({ prices: false, checklists: [list("c", [{ id: "1", text: "Rough-in", due: today }])] }));
-    expect(dueToday.next).toMatchObject({ kind: "tasksToday", tab: "field" });
+    const dueToday = jobSummary(base({ prices: false, tasks: [task(1, { title: "Rough-in", due: today })] }));
+    expect(dueToday.next).toMatchObject({ kind: "tasksToday", tab: "tasks" });
     const installed = jobSummary(base({ prices: false, project: project({ status: "installed" }) }));
     expect(installed.next.kind).toBe("done");
     const approved = jobSummary(base({ prices: false, project: project({ status: "approved" }) }));

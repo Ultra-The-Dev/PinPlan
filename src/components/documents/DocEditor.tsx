@@ -705,7 +705,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
                     ["lineTotal", t("Line totals")],
                   ] as const
                 ).map(([k, label]) => (
-                  <label key={k} className="flex items-center gap-1.5">
+                  <label key={k} className="tap flex items-center gap-1.5">
                     <input
                       type="checkbox"
                       className="accent-brand-600"

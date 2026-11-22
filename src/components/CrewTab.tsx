@@ -106,7 +106,7 @@ export default function CrewTab() {
               <Download /> {t("Home-run CSV")}
             </button>
             <button
-              className="btn"
+              className="btn h-auto min-h-9 max-w-full py-1.5 text-left whitespace-normal"
               onClick={async () => {
                 const n = await autoHomeRuns();
                 toast(n ? t.tn("Drew {n} home run", "Drew {n} home runs", n) : lowVoltage ? t("Place an equipment closet first") : t("Place a {closet} and assign devices to it first", { closet: t(vocab.closet) }), n ? "success" : "info");

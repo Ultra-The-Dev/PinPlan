@@ -220,10 +220,12 @@ body {
     @apply mx-1 h-6 w-px shrink-0 bg-slate-200;
   }
   /* Touch screens: buttons and tabs keep their drawn size but answer to a 44px target; fields at least 44px tall. */
-  /* The same 44px touch target for any small link, chip or icon button that isn't a .btn (`tap` class). */
+  /* The same 44px touch target for any small link, chip or icon button that isn't a .btn (`tap` class), and for chips
+     that are a label around a hidden checkbox (filter and option chips). */
   .tap,
   button.chip,
-  a.chip {
+  a.chip,
+  label.chip:has(> input) {
     position: relative;
   }
   @media (pointer: coarse) {
@@ -234,6 +236,7 @@ body {
     .tap::after,
     button.chip::after,
     a.chip::after,
+    label.chip:has(> input)::after,
     .btn::after,
     .tab::after {
       content: "";

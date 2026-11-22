@@ -546,6 +546,24 @@ export function isMineFilter(f: TaskFilter, names: string[]): boolean {
   return a.length > 0 && a.every((x) => isMyName(x, names)) && names.every((n) => isMyName(n, a));
 }
 
+/**
+ * The job's open tasks as the Tasks tab counts them (not deleted, not Completed / Verified), with how many are overdue
+ * and due today. Overview's "Open tasks" uses it, so the two screens always agree.
+ */
+export function openTaskCounts(tasks: Pick<PlanTask, "status" | "due" | "deleted">[], today: string): { open: number; overdue: number; dueToday: number } {
+  let open = 0,
+    overdue = 0,
+    dueToday = 0;
+  for (const t of tasks) {
+    if (t.deleted || isClosed(t.status)) continue;
+    open++;
+    const b = taskBucket(t.due, today);
+    if (b === "overdue") overdue++;
+    else if (b === "today") dueToday++;
+  }
+  return { open, overdue, dueToday };
+}
+
 /** My open tasks that are overdue or due today, overdue first (the Today card). */
 export function myTasksDueNow(tasks: PlanTask[], names: string[], today: string): OpenPlanTask[] {
   if (!names.length) return [];

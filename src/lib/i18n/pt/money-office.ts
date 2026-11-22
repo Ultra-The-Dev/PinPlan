@@ -172,7 +172,7 @@ const moneyOffice: Dictionary = {
   "Copy link": "Copiar link",
   Email: "E-mail",
   Share: "Compartilhar",
-  Open: "Abrir",
+  Open: "Aberta",
   "Withdraw this quote? The link will stop working.": "Retirar este orçamento? O link vai parar de funcionar.",
   Withdraw: "Retirar",
   "Send an updated quote": "Enviar orçamento atualizado",
@@ -978,6 +978,7 @@ const moneyOffice: Dictionary = {
   "Lower fees for large invoices. Bank payments take a few business days to clear; the invoice shows them once they do.": "Tarifas menores para faturas grandes. Pagamentos bancários levam alguns dias úteis para compensar; a fatura os mostra quando compensam.",
   "Payments are recorded on the invoice automatically, and refunds you make in Stripe show up as refunds.": "Os pagamentos são registrados na fatura automaticamente, e os reembolsos feitos no Stripe aparecem como reembolsos.",
   "Open Stripe dashboard": "Abrir painel do Stripe",
+  "Open link": "Abrir link",
 };
 
 export default moneyOffice;

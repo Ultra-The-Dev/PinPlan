@@ -1,7 +1,7 @@
 "use client";
 // The job's quotes, invoices and credit notes (Money tab): list, totals, and the editor for one document. The Quote
 // step lists the quotes; the Invoices & payments step lists invoices, credit notes and payments (?step=).
-import { FilePlus2, FileText, Receipt, Settings } from "lucide-react";
+import { FilePlus2, FileText, MapPin, Receipt, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -266,7 +266,17 @@ export default function DocumentsTab() {
           {step === "quote" ? (
             <>
               <p className="font-semibold">{t("Nothing here yet: {label}", { label: quoteLabel })}</p>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("Turn the job’s pricing into a {label} the client can approve and sign online. Once it’s approved, bill it under Invoices & payments.", { label: quoteLabel })}</p>
+              {estimate?.lines.length ? (
+                <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("Turn the job’s pricing into a {label} the client can approve and sign online. Once it’s approved, bill it under Invoices & payments.", { label: quoteLabel })}</p>
+              ) : (
+                // Nothing to quote yet: say why the button above is off (a tooltip doesn't show on touch) and go there.
+                <>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("Place devices and price the job first")}</p>
+                  <Link href={`/project?id=${encodeURIComponent(project.id)}&tab=plan`} className="btn btn-brand mt-4" data-testid="quote-empty-plan">
+                    <MapPin /> {t("Open plan")}
+                  </Link>
+                </>
+              )}
             </>
           ) : (
             <>

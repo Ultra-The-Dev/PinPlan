@@ -111,7 +111,7 @@ export default function ProgressPanel() {
           {rows.map((r) => (
             <li key={r.key}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                <span className="truncate font-medium">{by === "category" ? t(r.name) : r.name}</span>
+                <span className="truncate font-medium">{by === "category" || (by === "closet" && r.key === "none") ? t(r.name) : r.name}</span>
                 <span className="shrink-0 text-xs text-slate-500 tabular-nums">
                   {r.total ? (
                     <>

@@ -5,7 +5,7 @@
 import { Camera, CheckSquare, Columns2, FileText, ImagePlus, MapPin, MessageSquare, PenLine, Search, SlidersHorizontal, Square, Tag, Trash, UserRound, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { bulkEditPhotos, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
+import { bulkEditPhotos, DEFAULT_AUTHOR, filterPhotos, photosByDay, roomOptions, tagOptions, tagsInUse, type PhotoBulkEdit } from "@/lib/fieldDocs";
 import { currentPosition, firstPhotos, getAuthor, importPhoto, PHOTO_PAGE, setAuthor } from "@/lib/photos";
 import { useEditor } from "@/lib/store";
 import { useSyncStatus } from "@/lib/sync";
@@ -193,7 +193,7 @@ export default function PhotosTab() {
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void addFiles(e.target.files).then(() => (e.target.value = ""))} />
           <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void addFiles(e.target.files, true).then(() => (e.target.value = ""))} />
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600" title={t("Add the device's location to photos taken now (photos with their own GPS keep it)")}>
+          <label className="tap flex cursor-pointer items-center gap-2 text-sm text-slate-600" title={t("Add the device's location to photos taken now (photos with their own GPS keep it)")}>
             <input
               type="checkbox"
               className="accent-brand-600"
@@ -221,7 +221,7 @@ export default function PhotosTab() {
               }
             }}
           >
-            <UserRound /> {getAuthor(email)}
+            <UserRound /> {getAuthor(email) === DEFAULT_AUTHOR ? t("Me") : getAuthor(email)}
           </button>
           <button className="btn" onClick={() => camRef.current?.click()} disabled={!!busy} {...tourAnchor("photos-take")}>
             <Camera /> {t("Take photo")}

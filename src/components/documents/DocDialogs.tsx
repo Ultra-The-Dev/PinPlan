@@ -63,13 +63,13 @@ export function NewQuoteDialog({ settings, pricingTotal, preview, onClose, onCre
         ))}
       </fieldset>
       <div className="mt-4 space-y-2 text-sm">
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 pointer-coarse:min-h-11">
           <input type="checkbox" className="accent-brand-600" checked={o.details} onChange={(e) => setO({ ...o, details: e.target.checked })} /> {t("Device details under each line (rooms, labels)")}
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 pointer-coarse:min-h-11">
           <input type="checkbox" className="accent-brand-600" checked={o.detail === "sections"} onChange={(e) => setO({ ...o, detail: e.target.checked ? "sections" : "lines" })} /> {t("Hide unit prices — show section totals only")}
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 pointer-coarse:min-h-11">
           <input type="checkbox" className="accent-brand-600" checked={o.includeOptional} onChange={(e) => setO({ ...o, includeOptional: e.target.checked })} /> {t("List optional items (the client can add them; not counted in the total)")}
         </label>
       </div>
