@@ -5,6 +5,7 @@ import type { Dictionary } from "../types";
 
 const dict: Dictionary = {
   "Help & tutorials": "Довідка й навчання",
+  "Northpin website": "Сайт Northpin",
   "{n} optional": "опцій: {n}",
   "Crew guide: tasks, photos, checklists and daily logs": "Для бригади: завдання, фото, чек-листи та щоденні журнали",
   "Start the tour": "Почати тур",

@@ -1,7 +1,7 @@
 "use client";
 // The avatar in the header: who you are and your role, plus Settings, Team, Plan & billing, Help & tutorials, the
 // language and Sign out.
-import { CreditCard, LifeBuoy, LogOut, Settings, Users } from "lucide-react";
+import { CreditCard, Globe, LifeBuoy, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
@@ -82,6 +82,10 @@ export default function AccountMenu() {
           </Link>
           <Link role="menuitem" href="/help" className={item} onClick={() => setOpen(false)}>
             <LifeBuoy /> {t("Help & tutorials")}
+          </Link>
+          {/* The marketing home ("/") stays reachable when signed in. */}
+          <Link role="menuitem" href="/" className={item} onClick={() => setOpen(false)}>
+            <Globe /> {t("Northpin website")}
           </Link>
           <div className="border-t border-slate-100 px-3 py-2">
             <LanguageSwitcher />
