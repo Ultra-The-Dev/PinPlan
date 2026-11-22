@@ -207,7 +207,10 @@ final class TutorialAnchors {
             if bounds.isEmpty { return true }
             // On screen, and not the whole window (a frame reported before layout).
             let wholeWindow: Bool = f.width >= bounds.width * 0.98 && f.height >= bounds.height * 0.9
-            return bounds.intersects(f) && !wholeWindow
+            // A toolbar button can report its frame in the bar's own space (a small box at the window's corner,
+            // inside the status bar): no real control sits wholly up there.
+            let inStatusBar: Bool = f.maxY <= 30
+            return bounds.intersects(f) && !wholeWindow && !inStatusBar
         }
         for id in ids {
             var latest: Report?
