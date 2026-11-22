@@ -1,7 +1,7 @@
 "use client";
 // /login: email + password, or a one-time sign-in link. Back to the jobs list afterwards (or /start for a company
 // that was waiting for its confirmation email, whichever device the sign-up was made on).
-import { CheckCircle2, Loader2, LogIn, Mail } from "lucide-react";
+import { CheckCircle2, Loader2, LogIn, Mail, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -27,6 +27,9 @@ export default function LoginForm() {
   const [busy, setBusy] = useState<"password" | "link" | null>(null);
   const [error, setError] = useState<React.ReactNode>(null);
   const [linkSent, setLinkSent] = useState(false);
+  /** The password was right but the address isn't confirmed yet: offer to send the confirmation email again. */
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resend, setResend] = useState<{ busy: boolean; ok?: boolean; text?: string }>({ busy: false });
   const confirmed = params.get("confirmed") === "1";
   const { mount: captchaMount, error: captchaError, take: takeCaptcha } = useCaptcha("login");
 
@@ -75,13 +78,33 @@ export default function LoginForm() {
     const sb = getSupabase()!;
     setBusy("password");
     setError(null);
+    setUnconfirmed(false);
+    setResend({ busy: false });
     try {
       const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken: await takeCaptcha() } });
-      if (error) setError(t(authErrorMessage(error.message)));
+      if (error) {
+        setUnconfirmed(/email not confirmed/i.test(error.message));
+        setError(t(authErrorMessage(error.message)));
+      }
     } catch (e) {
       setError(t(authErrorMessage(errText(e))));
     } finally {
       setBusy(null);
+    }
+  };
+
+  // The same email as after sign-up (SignupForm's "Resend the email"); its link lands on /login?confirmed=1.
+  const resendConfirmation = async () => {
+    setResend({ busy: true });
+    try {
+      const r = await getSupabase()!.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/login?confirmed=1`, captchaToken: await takeCaptcha() },
+      });
+      setResend(r.error ? { busy: false, ok: false, text: t(authErrorMessage(r.error.message)) } : { busy: false, ok: true, text: t("Sent again. Give it a few minutes.") });
+    } catch (e) {
+      setResend({ busy: false, ok: false, text: t(authErrorMessage(errText(e))) });
     }
   };
 
@@ -130,7 +153,7 @@ export default function LoginForm() {
               t("If {email} has a {product} account, a sign-in link is on its way. Open it on the device you want to use. It can take a few minutes — check spam too.", {
                 product: PRODUCT_NAME,
               }),
-              { email: <span className="font-medium break-all text-slate-700">{email.trim()}</span> },
+              { email: <span className="font-medium break-words text-slate-700">{email.trim()}</span> },
             )}
           />
           <button className="btn h-11 w-full" onClick={() => setLinkSent(false)}>
@@ -177,7 +200,21 @@ export default function LoginForm() {
         >
           <div>
             <label className="label" htmlFor="li-email">{t("Email")}</label>
-            <input id="li-email" className="input h-11" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              id="li-email"
+              className="input h-11"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setUnconfirmed(false);
+              }}
+            />
           </div>
           <div>
             <PasswordField id="li-password" label={t("Password")} value={password} onChange={setPassword} />
@@ -189,6 +226,14 @@ export default function LoginForm() {
           </div>
           <div ref={captchaMount} className="flex justify-center empty:hidden" />
           <FormError>{error ?? captchaError}</FormError>
+          {unconfirmed && (
+            <div className="space-y-2">
+              <button type="button" className="btn h-11 w-full" disabled={resend.busy} onClick={() => void resendConfirmation()}>
+                {resend.busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} {t("Send the confirmation email again")}
+              </button>
+              {resend.text && (resend.ok ? <FormNotice>{resend.text}</FormNotice> : <FormError>{resend.text}</FormError>)}
+            </div>
+          )}
           <button type="submit" className="btn btn-brand h-11 w-full text-[15px]" disabled={!!busy || !email || !password}>
             {busy === "password" ? <Loader2 className="animate-spin" /> : <LogIn />} {t("Sign in")}
           </button>

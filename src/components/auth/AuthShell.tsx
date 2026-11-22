@@ -18,14 +18,14 @@ export function AuthShell({ children, aside, wide }: { children: React.ReactNode
         <div className="text-ink [font-family:var(--font-mk)]">
           <Wordmark />
         </div>
-        <div className="ml-auto text-sm text-slate-500">{aside}</div>
+        <div className="ml-auto flex items-center text-sm text-slate-500 [&_a]:inline-flex [&_a]:items-center [&_a]:pointer-coarse:min-h-11">{aside}</div>
       </header>
       <main className={`mx-auto w-full px-4 pt-6 pb-16 sm:pt-12 ${wide ? "max-w-lg" : "max-w-md"}`}>{children}</main>
       <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-4 pb-8 text-xs text-slate-500">
-        <Link href="/terms" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Terms")}</Link>
-        <Link href="/privacy" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Privacy")}</Link>
-        <Link href="/support" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Support")}</Link>
-        <Link href="/pricing" className="inline-flex items-center hover:text-slate-700 pointer-coarse:min-h-11">{t("Pricing")}</Link>
+        <Link href="/terms" className="inline-flex items-center px-1 hover:text-slate-700 pointer-coarse:min-h-11">{t("Terms")}</Link>
+        <Link href="/privacy" className="inline-flex items-center px-1 hover:text-slate-700 pointer-coarse:min-h-11">{t("Privacy")}</Link>
+        <Link href="/support" className="inline-flex items-center px-1 hover:text-slate-700 pointer-coarse:min-h-11">{t("Support")}</Link>
+        <Link href="/pricing" className="inline-flex items-center px-1 hover:text-slate-700 pointer-coarse:min-h-11">{t("Pricing")}</Link>
         <LanguageSwitcher />
       </footer>
     </div>
@@ -89,7 +89,7 @@ export function PasswordField(props: { id: string; label: string; value: string;
         />
         <button
           type="button"
-          className="absolute top-1/2 right-1.5 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          className="absolute top-1/2 right-1.5 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 pointer-coarse:right-0 pointer-coarse:h-11 pointer-coarse:w-11"
           onClick={() => setShow(!show)}
           aria-label={show ? t("Hide password") : t("Show password")}
           aria-pressed={show}
@@ -107,7 +107,9 @@ export function PasswordField(props: { id: string; label: string; value: string;
           <p className={`mt-1.5 text-xs ${text}`}>
             {/* Dynamic keys from src/lib/onboardingLogic.ts (lib-strings area). */}
             {s.label && <span className="font-medium">{t(s.label)}. </span>}
-            <span className={s.label ? "text-slate-500" : ""}>{t(s.hint)}</span>
+            {/* The empty-field hint comes from useT(), not passwordStrength(): its plain t() already reads the visitor's
+                language while the page hydrates in English, and the mismatch made React re-render the whole form. */}
+            <span className={s.label ? "text-slate-500" : ""}>{props.value ? t(s.hint) : t("At least {n} characters.", { n: PASSWORD_MIN })}</span>
           </p>
         </div>
       )}

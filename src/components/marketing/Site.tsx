@@ -62,7 +62,7 @@ export function SiteHeader() {
         <button
           ref={menuButton}
           type="button"
-          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-md hover:bg-mk-sheet lg:hidden"
+          className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-mk-sheet lg:hidden"
           aria-expanded={open}
           aria-controls="site-menu"
           aria-label={open ? t("Close menu") : t("Open menu")}
@@ -70,7 +70,8 @@ export function SiteHeader() {
         >
           {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </button>
-        <Wordmark />
+        {/* Phones: the logo mark alone, so "Sign in" and the trial button both fit in every language. */}
+        <Wordmark nameClassName="max-[439px]:sr-only" />
         <nav className="ml-6 hidden items-center gap-1 text-[15px] lg:flex" aria-label={t("Site")}>
           {NAV.map((n) => (
             <Link key={n.href} href={n.href} className="tap rounded-md px-3 py-2 font-medium text-mk-pencil hover:text-mk-graphite">
@@ -78,7 +79,7 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
           {/* Phones: the switcher lives in the menu and the footer, so the header keeps room for the trial button. */}
           <span className="mr-2 hidden lg:inline-flex">
             <LanguageSwitcher showIcon={false} />
@@ -89,13 +90,14 @@ export function SiteHeader() {
             </Link>
           ) : (
             <>
+              {/* Shown at every width: returning customers look for it top right. Very narrow phones let it wrap. */}
               <Link
                 href="/login"
-                className="tap hidden rounded-md px-2 py-2 text-[15px] font-semibold whitespace-nowrap hover:underline hover:underline-offset-4 min-[400px]:inline-block sm:px-3"
+                className="tap inline-flex shrink-0 items-center rounded-md px-2 py-1 text-center text-[15px] leading-tight font-semibold whitespace-nowrap pointer-coarse:min-h-11 hover:underline hover:underline-offset-4 max-[359px]:shrink max-[359px]:whitespace-normal sm:px-3"
               >
                 {t("Sign in")}
               </Link>
-              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 py-1 pointer-coarse:min-h-11 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
+              <Link href="/signup" className="mk-btn mk-btn-primary mk-btn-sm h-auto! min-h-10 min-w-0 py-1 pointer-coarse:min-h-11 text-center leading-tight whitespace-normal! max-[359px]:px-2.5">
                 {t("Start free trial")}
               </Link>
             </>

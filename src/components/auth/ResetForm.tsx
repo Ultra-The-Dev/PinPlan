@@ -104,7 +104,7 @@ export default function ResetForm() {
             icon={<KeyRound />}
             title={t("Choose a new password")}
             sub={rich(recovery ? t("For {email}.") : t("Signed in as {email}."), {
-              email: <span className="font-medium break-all text-slate-700">{sync.email}</span>,
+              email: <span className="font-medium break-words text-slate-700">{sync.email}</span>,
             })}
           />
           <form
@@ -171,7 +171,7 @@ export default function ResetForm() {
             icon={<Mail />}
             title={t("Check your email")}
             sub={rich(t("If {email} has a {product} account, a reset link is on its way.", { product: PRODUCT_NAME }), {
-              email: <span className="font-medium break-all text-slate-700">{email.trim()}</span>,
+              email: <span className="font-medium break-words text-slate-700">{email.trim()}</span>,
             })}
           />
           <ul className="mb-5 space-y-1.5 text-sm text-slate-500">
@@ -182,7 +182,7 @@ export default function ResetForm() {
             <Link href="/login" className="btn h-11 w-full">
               {t("Back to sign in")}
             </Link>
-            <button className="btn btn-ghost h-10 w-full text-slate-500" onClick={() => setSent(false)}>
+            <button className="btn btn-ghost h-11 w-full text-slate-500" onClick={() => setSent(false)}>
               {t("Use a different email")}
             </button>
           </div>

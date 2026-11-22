@@ -643,8 +643,31 @@ const siteAuth: Dictionary = {
     "Все восемь языков уже работают в веб-версии — в браузере компьютера, планшета или телефона — и в приложении для iPad и iPhone.",
   "Can my crew use it in their own language?":
     "Может ли бригада работать на своём языке?",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Да. Northpin говорит на английском, испанском, русском, украинском, польском, португальском, китайском и вьетнамском. В веб-версии язык меняется в меню или внизу страницы, а приложение для iPad и iPhone следует языку устройства. Выбор сохраняется в аккаунте. Сметы, счета и всё, что видит клиент, остаются на английском.",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Да. {product} говорит на английском, испанском, русском, украинском, польском, португальском, китайском и вьетнамском. В веб-версии язык меняется в меню или внизу страницы, а приложение для iPad и iPhone следует языку устройства. Выбор сохраняется в аккаунте. Сметы, счета и всё, что видит клиент, остаются на английском.",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "Объекты, планы и устройства без ограничений, для любого вида работ",
+  "Device and wire counts per floor, priced from your price list":
+    "Подсчёт устройств и кабеля по этажам, с ценами из вашего прайс-листа",
+  "Quotes your client approves and signs on their phone":
+    "Сметы, которые клиент утверждает и подписывает в телефоне",
+  "Deposit, progress and final invoices, with payments":
+    "Счета на аванс, промежуточные и итоговые, с учётом оплат",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "Фото с пометками, чек-листы, задачи, ежедневные отчёты и файлы",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad, iPhone и веб, работает без сети и синхронизируется",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "Аккаунты монтажников для работы на объекте, без вкладки «Финансы», смет и счетов",
+  "Page not found":
+    "Страница не найдена",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "Такой страницы нет или она переехала. Проверьте адрес или продолжите отсюда.",
+  "Go to the home page":
+    "На главную",
+  "Send the confirmation email again":
+    "Отправить письмо для подтверждения ещё раз",
 };
 
 export default siteAuth;

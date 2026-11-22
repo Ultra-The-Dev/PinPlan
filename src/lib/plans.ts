@@ -1,6 +1,7 @@
 // What Northpin sells: one place for plan names, trial length and the placeholder prices shown on the
 // pricing page. Real charges come from Stripe (the Price IDs in the server's environment); keep these
 // display prices in step with Stripe when you set them there.
+import { msg } from "./i18n/msg";
 
 export const PRODUCT_NAME = "Northpin";
 export const TRIAL_DAYS = 14;
@@ -25,14 +26,15 @@ export const PLANS: Plan[] = [
     basePrice: 49,
     includedSeats: 3,
     seatPrice: 15,
+    // msg(): translated where shown (the pricing card); the English text is the key (docs/i18n.md).
     features: [
-      "Unlimited jobs, plans and devices, for every trade",
-      "Device and wire counts per floor, priced from your price list",
-      "Quotes your client approves and signs on their phone",
-      "Deposit, progress and final invoices, with payments",
-      "Photos with mark-up, checklists, tasks, daily logs and files",
-      "iPad, iPhone and web, works offline and syncs",
-      "Technician logins for field work, without the Money tab, quotes or invoices",
+      msg("Unlimited jobs, plans and devices, for every trade"),
+      msg("Device and wire counts per floor, priced from your price list"),
+      msg("Quotes your client approves and signs on their phone"),
+      msg("Deposit, progress and final invoices, with payments"),
+      msg("Photos with mark-up, checklists, tasks, daily logs and files"),
+      msg("iPad, iPhone and web, works offline and syncs"),
+      msg("Technician logins for field work, without the Money tab, quotes or invoices"),
     ],
   },
 ];

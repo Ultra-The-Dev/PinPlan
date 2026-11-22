@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import manifest from "@/app/manifest";
 import { SHARE_IMAGE } from "@/components/marketing/seo";
+import { siteUrl } from "@/lib/legal";
 import { PLANS } from "@/lib/plans";
 
 const root = path.resolve(__dirname, "..");
@@ -21,9 +22,11 @@ describe("root layout metadata", () => {
     expect(layout).not.toMatch(/Billdu/i);
   });
   it("sets metadataBase from the site URL env vars", () => {
-    expect(layout).toMatch(/metadataBase:/);
-    expect(layout).toContain("NEXT_PUBLIC_SITE_URL");
-    expect(layout).toContain("PINPLAN_APP_URL");
+    // One rule for the whole site: siteUrl() in src/lib/legal.ts (NEXT_PUBLIC_SITE_URL, then PINPLAN_APP_URL, …;
+    // tested in seo.test.ts), the same origin the canonicals, sitemap and robots.txt use.
+    expect(layout).toMatch(/metadataBase: new URL\(siteUrl\(\)\)/);
+    expect(layout).toContain('import { siteUrl } from "@/lib/legal"');
+    expect(siteUrl({ PINPLAN_APP_URL: "https://northpin.app" })).toBe("https://northpin.app");
   });
   it("shares the wide card, never the square icon", () => {
     expect(layout).toContain("SHARE_IMAGE");

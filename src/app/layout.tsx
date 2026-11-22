@@ -4,6 +4,7 @@ import Providers from "@/components/Providers";
 import { ErrorReporter } from "@/components/ErrorBoundary";
 import { plex } from "@/components/marketing/fonts";
 import { SHARE_IMAGE } from "@/components/marketing/seo";
+import { siteUrl } from "@/lib/legal";
 import { PRODUCT_NAME } from "@/lib/plans";
 import "./globals.css";
 
@@ -12,20 +13,9 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 const DESCRIPTION = "Pin devices on your plans, get the count, send the quote and run the job. For electrical, low-voltage and specialty contractors.";
 
-/** The public address for absolute links (Open Graph images). NEXT_PUBLIC_SITE_URL, else PINPLAN_APP_URL, else localhost. */
-function siteUrl(): URL {
-  for (const raw of [process.env.NEXT_PUBLIC_SITE_URL, process.env.PINPLAN_APP_URL]) {
-    try {
-      if (raw?.trim()) return new URL(raw.trim());
-    } catch {
-      // A malformed value must not break every page: try the next one.
-    }
-  }
-  return new URL("http://localhost:3000");
-}
-
 export const metadata: Metadata = {
-  metadataBase: siteUrl(),
+  // The public address for absolute links (Open Graph images, canonicals): one rule for every page, in src/lib/legal.ts.
+  metadataBase: new URL(siteUrl()),
   // Pages set their own full titles ("Sign in — <name>"), so there is no title template here (it would double them).
   title: `${PRODUCT_NAME} — Plans to quotes to jobs`,
   description: DESCRIPTION,

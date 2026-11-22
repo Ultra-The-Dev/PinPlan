@@ -47,7 +47,8 @@ const PROSE = [
   "[&_h3]:mt-8 [&_h3]:scroll-mt-24 [&_h3]:text-[17px] [&_h3]:font-semibold",
   "[&_p]:mt-4 [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-6 [&_ol]:mt-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-6",
   "[&_li]:pl-1 [&_strong]:font-semibold",
-  "[&_a]:text-mk-marker [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-mk-graphite",
+  // Action deep, not action blue: the pages sit on paper (#F2F6FA), where action blue is 4.4:1 and deep is 6.3:1.
+  "[&_a]:text-(--mk-marker-deep) [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-mk-graphite",
   "[&_table]:mt-4 [&_table]:w-full [&_table]:border-collapse [&_table]:text-[15px]",
   "[&_th]:border-b [&_th]:border-mk-rule [&_th]:py-2 [&_th]:pr-4 [&_th]:text-left [&_th]:align-bottom [&_th]:font-semibold",
   "[&_td]:border-b [&_td]:border-mk-rule/60 [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top",

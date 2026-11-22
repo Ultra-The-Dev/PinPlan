@@ -264,7 +264,7 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
           sub={rich(
             t("We sent a confirmation link to {email}. Open it on any device — phone, tablet or computer — and sign in. We’ll finish setting up {company} for you."),
             {
-              email: <span className="font-medium break-all text-slate-700">{email}</span>,
+              email: <span className="font-medium break-words text-slate-700">{email}</span>,
               company: <span className="font-medium text-slate-700">{company}</span>,
             },
           )}
@@ -297,7 +297,7 @@ function CheckEmail({ email, company }: { email: string; company: string }) {
           </button>
         </div>
         <div ref={captchaMount} className="mt-3 flex justify-center empty:hidden" />
-        <div className="mt-3">{msg && (msg.ok ? <FormNotice>{msg.text}</FormNotice> : <FormError>{msg.text}</FormError>)}</div>
+        <div className="mt-3">{msg ? msg.ok ? <FormNotice>{msg.text}</FormNotice> : <FormError>{msg.text}</FormError> : <FormError>{captchaError}</FormError>}</div>
       </AuthCard>
     </AuthShell>
   );

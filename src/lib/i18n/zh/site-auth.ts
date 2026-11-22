@@ -594,8 +594,31 @@ const dict: Dictionary = {
     "八种语言现已全部支持网页版（电脑、平板或手机浏览器均可）以及 iPad 和 iPhone 应用。",
   "Can my crew use it in their own language?":
     "班组可以用自己的语言吗？",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "可以。Northpin 支持英语、西班牙语、俄语、乌克兰语、波兰语、葡萄牙语、中文和越南语。在网页版中，任何人都可以从菜单或页面底部切换语言，iPad 和 iPhone 应用则跟随设备语言。选择会保存在账号中。报价单、发票以及客户能看到的所有内容都保持英文。",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "可以。{product} 支持英语、西班牙语、俄语、乌克兰语、波兰语、葡萄牙语、中文和越南语。在网页版中，任何人都可以从菜单或页面底部切换语言，iPad 和 iPhone 应用则跟随设备语言。选择会保存在账号中。报价单、发票以及客户能看到的所有内容都保持英文。",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "工程、图纸和设备不限数量，适用于所有工种",
+  "Device and wire counts per floor, priced from your price list":
+    "按楼层统计设备和线缆，按你的价目表计价",
+  "Quotes your client approves and signs on their phone":
+    "客户在手机上批准并签字的报价单",
+  "Deposit, progress and final invoices, with payments":
+    "定金、进度款和尾款发票，并记录收款",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "带标注的照片、检查清单、任务、施工日志和文件",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad、iPhone 和网页版，离线可用，联网后同步",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "技术员账号用于现场工作，看不到财务标签页、报价单和发票",
+  "Page not found":
+    "找不到页面",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "此页面不存在或已移动。请检查地址，或从这里继续。",
+  "Go to the home page":
+    "前往首页",
+  "Send the confirmation email again":
+    "重新发送验证邮件",
 };
 
 export default dict;

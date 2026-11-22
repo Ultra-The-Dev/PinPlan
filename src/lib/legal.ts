@@ -122,11 +122,17 @@ export function legalPlaceholders(): string[] {
 // --- Public site URL (canonical links, sitemap, robots, Open Graph) ---
 
 /**
- * The public origin, without a trailing slash. NEXT_PUBLIC_SITE_URL wins (set it in Vercel to the final domain), then
- * COMPANY.website once it is filled in, then the Vercel production domain, then localhost for development.
+ * The public origin, without a trailing slash. NEXT_PUBLIC_SITE_URL wins (set it to the final domain), then the app's
+ * address PINPLAN_APP_URL (required in production, as .env.example promises), then COMPANY.website once it is filled
+ * in, then the Vercel production domain, then localhost for development.
  */
 export function siteUrl(env: Record<string, string | undefined> = process.env): string {
-  const candidates = [env.NEXT_PUBLIC_SITE_URL, isPlaceholder(COMPANY.website) ? undefined : COMPANY.website, env.VERCEL_PROJECT_PRODUCTION_URL];
+  const candidates = [
+    env.NEXT_PUBLIC_SITE_URL,
+    env.PINPLAN_APP_URL,
+    isPlaceholder(COMPANY.website) ? undefined : COMPANY.website,
+    env.VERCEL_PROJECT_PRODUCTION_URL,
+  ];
   for (const c of candidates) {
     if (!c || !c.trim()) continue;
     const withScheme = /^https?:\/\//i.test(c.trim()) ? c.trim() : `https://${c.trim()}`;

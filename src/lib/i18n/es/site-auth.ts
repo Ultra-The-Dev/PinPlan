@@ -618,8 +618,31 @@ const dict: Dictionary = {
     "Los ocho idiomas ya funcionan en la app web, en el navegador de cualquier computadora, tableta o teléfono, y en la app para iPad y iPhone.",
   "Can my crew use it in their own language?":
     "¿Mi cuadrilla puede usarlo en su propio idioma?",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Sí. Northpin habla inglés, español, ruso, ucraniano, polaco, portugués, chino y vietnamita. En la web, cualquiera puede cambiar el idioma desde el menú o el pie de página, y la app para iPad y iPhone sigue el idioma del dispositivo. La elección se guarda en su cuenta. Las cotizaciones, facturas y todo lo que ve el cliente se quedan en inglés.",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Sí. {product} habla inglés, español, ruso, ucraniano, polaco, portugués, chino y vietnamita. En la web, cualquiera puede cambiar el idioma desde el menú o el pie de página, y la app para iPad y iPhone sigue el idioma del dispositivo. La elección se guarda en su cuenta. Las cotizaciones, facturas y todo lo que ve el cliente se quedan en inglés.",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "Obras, planos y dispositivos ilimitados, para todos los oficios",
+  "Device and wire counts per floor, priced from your price list":
+    "Conteo de dispositivos y cable por piso, con precios de tu lista de precios",
+  "Quotes your client approves and signs on their phone":
+    "Cotizaciones que tu cliente aprueba y firma en su teléfono",
+  "Deposit, progress and final invoices, with payments":
+    "Facturas de anticipo, avance y final, con pagos",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "Fotos con anotaciones, listas de verificación, tareas, bitácoras diarias y archivos",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad, iPhone y web, funciona sin conexión y se sincroniza",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "Cuentas de técnico para el trabajo en campo, sin la pestaña Dinero, cotizaciones ni facturas",
+  "Page not found":
+    "Página no encontrada",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "Esta página no existe o se movió. Revisa la dirección o sigue desde aquí.",
+  "Go to the home page":
+    "Ir a la página de inicio",
+  "Send the confirmation email again":
+    "Reenviar el correo de confirmación",
 };
 
 export default dict;

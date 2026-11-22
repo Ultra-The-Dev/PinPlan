@@ -1,5 +1,5 @@
 // Search and sharing plumbing for the public pages: canonical URLs, Open Graph, the sitemap list and the robots rules.
-// The origin comes from siteUrl() (NEXT_PUBLIC_SITE_URL, then COMPANY.website) in src/lib/legal.ts.
+// The origin comes from siteUrl() (NEXT_PUBLIC_SITE_URL, then PINPLAN_APP_URL, then COMPANY.website) in src/lib/legal.ts.
 import type { Metadata, MetadataRoute } from "next";
 import { siteUrl } from "@/lib/legal";
 import { PLANS, PRODUCT_NAME, TRIAL_DAYS } from "@/lib/plans";
@@ -38,6 +38,7 @@ export const DISALLOWED_PATHS: string[] = [
   "/join",
   "/login",
   "/map",
+  "/offline",
   "/photos",
   "/products",
   "/project",

@@ -665,8 +665,31 @@ const siteAuth: Dictionary = {
     "Wszystkie osiem języków działa już w aplikacji webowej — w przeglądarce komputera, tabletu lub telefonu — oraz w aplikacji na iPada i iPhone’a.",
   "Can my crew use it in their own language?":
     "Czy ekipa może pracować w swoim języku?",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Tak. Northpin mówi po angielsku, hiszpańsku, rosyjsku, ukraińsku, polsku, portugalsku, chińsku i wietnamsku. W wersji webowej każdy zmieni język w menu lub w stopce strony, a aplikacja na iPada i iPhone’a używa języka urządzenia. Wybór zapisuje się na koncie. Wyceny, faktury i wszystko, co widzi klient, pozostają po angielsku.",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Tak. {product} mówi po angielsku, hiszpańsku, rosyjsku, ukraińsku, polsku, portugalsku, chińsku i wietnamsku. W wersji webowej każdy zmieni język w menu lub w stopce strony, a aplikacja na iPada i iPhone’a używa języka urządzenia. Wybór zapisuje się na koncie. Wyceny, faktury i wszystko, co widzi klient, pozostają po angielsku.",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "Bez limitu zleceń, planów i urządzeń, dla każdej branży",
+  "Device and wire counts per floor, priced from your price list":
+    "Przedmiar urządzeń i przewodów po piętrach, z cenami z Twojego cennika",
+  "Quotes your client approves and signs on their phone":
+    "Wyceny, które klient zatwierdza i podpisuje na telefonie",
+  "Deposit, progress and final invoices, with payments":
+    "Faktury zaliczkowe, częściowe i końcowe, z płatnościami",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "Zdjęcia z adnotacjami, listy kontrolne, zadania, dzienniki budowy i pliki",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad, iPhone i przeglądarka, działa offline i się synchronizuje",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "Konta techników do pracy w terenie, bez karty Finanse, wycen i faktur",
+  "Page not found":
+    "Nie znaleziono strony",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "Ta strona nie istnieje albo została przeniesiona. Sprawdź adres albo przejdź dalej stąd.",
+  "Go to the home page":
+    "Przejdź na stronę główną",
+  "Send the confirmation email again":
+    "Wyślij ponownie e-mail z potwierdzeniem",
 };
 
 export default siteAuth;

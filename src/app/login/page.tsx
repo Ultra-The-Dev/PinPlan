@@ -4,7 +4,12 @@ import { T } from "@/lib/i18n/T";
 import LoginForm from "@/components/auth/LoginForm";
 import { PRODUCT_NAME } from "@/lib/plans";
 
-export const metadata: Metadata = { title: `Sign in — ${PRODUCT_NAME}` };
+// Out of search results like /reset (robots.txt keeps crawlers out too); the public entry point is /signup.
+export const metadata: Metadata = {
+  title: `Sign in — ${PRODUCT_NAME}`,
+  description: `Sign in to ${PRODUCT_NAME} to open your jobs on the web, iPad and iPhone.`,
+  robots: { index: false, follow: false },
+};
 
 export default function LoginPage() {
   return (

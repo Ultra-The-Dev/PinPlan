@@ -666,8 +666,31 @@ const siteAuth: Dictionary = {
     "Усі вісім мов уже працюють у вебверсії — у браузері комп'ютера, планшета чи телефона — і в застосунку для iPad та iPhone.",
   "Can my crew use it in their own language?":
     "Чи може бригада працювати своєю мовою?",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Так. Northpin розмовляє англійською, іспанською, російською, українською, польською, португальською, китайською та в'єтнамською. У вебверсії мову можна змінити в меню або внизу сторінки, а застосунок для iPad та iPhone використовує мову пристрою. Вибір зберігається в акаунті. Кошториси, рахунки й усе, що бачить клієнт, залишаються англійською.",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Так. {product} розмовляє англійською, іспанською, російською, українською, польською, португальською, китайською та в'єтнамською. У вебверсії мову можна змінити в меню або внизу сторінки, а застосунок для iPad та iPhone використовує мову пристрою. Вибір зберігається в акаунті. Кошториси, рахунки й усе, що бачить клієнт, залишаються англійською.",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "Об'єкти, плани й пристрої без обмежень, для будь-якого виду робіт",
+  "Device and wire counts per floor, priced from your price list":
+    "Підрахунок пристроїв і кабелю по поверхах, з цінами з вашого прайс-листа",
+  "Quotes your client approves and signs on their phone":
+    "Кошториси, які клієнт затверджує й підписує в телефоні",
+  "Deposit, progress and final invoices, with payments":
+    "Рахунки на аванс, проміжні й підсумкові, з урахуванням оплат",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "Фото з позначками, чек-листи, завдання, щоденні журнали й файли",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad, iPhone і веб, працює без мережі й синхронізується",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "Акаунти техніків для роботи на об'єкті, без вкладки «Фінанси», кошторисів і рахунків",
+  "Page not found":
+    "Сторінку не знайдено",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "Такої сторінки немає або її перенесено. Перевірте адресу або продовжте звідси.",
+  "Go to the home page":
+    "На головну",
+  "Send the confirmation email again":
+    "Надіслати лист для підтвердження ще раз",
 };
 
 export default siteAuth;

@@ -132,8 +132,9 @@ export default function SupportPage() {
       <Section item={S.faq}>
         <div className="mt-4 divide-y divide-mk-rule mk-sheet">
           {FAQ.filter((f) => f.onlyWhen !== "ai" || AI_ENABLED).map((f) => (
-            <details key={f.q} className="group px-5 py-4 [&_p]:mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-mk-graphite [&::-webkit-details-marker]:hidden">
+            <details key={f.q} className="group px-5 [&_p]:-mt-2 [&_p]:pb-4">
+              {/* The padding is on the summary so the whole row is the tap target (44 px and up). */}
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-4 font-medium text-mk-graphite [&::-webkit-details-marker]:hidden">
                 {f.q}
                 <span className="text-slate-400 transition group-open:rotate-45" aria-hidden>
                   +

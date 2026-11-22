@@ -28,12 +28,13 @@ export function SeatCalculator({ plan = PLANS[0], initial = 6 }: { plan?: Plan; 
         max={50}
         value={users}
         onChange={(e) => setUsers(Number(e.target.value))}
-        className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full accent-mk-graphite"
-        style={{ background: `linear-gradient(to right, var(--mk-graphite) ${pct}%, var(--mk-rule) ${pct}%)` }}
+        // A 44 px tall input with the 8 px track painted in its content box, so a finger can grab it anywhere on the row.
+        className="-mt-1.5 -mb-[18px] box-content block h-2 w-full cursor-pointer appearance-none rounded-full bg-clip-content py-[18px] accent-mk-graphite"
+        style={{ backgroundImage: `linear-gradient(to right, var(--mk-graphite) ${pct}%, var(--mk-rule) ${pct}%)` }}
         aria-valuetext={t.tn("{n} user, {total} a month", "{n} users, {total} a month", users, { total: money(total) })}
       />
       {/* A scale bar under the slider, one tick per user, like the scale on a drawing. */}
-      <div className="px-2" aria-hidden="true">
+      <div className="pointer-events-none px-2" aria-hidden="true">
         <svg viewBox="0 0 490 11" className="mt-1.5 block h-[11px] w-full overflow-visible" preserveAspectRatio="none">
           {Array.from({ length: 50 }, (_, i) => {
             const n = i + 1;

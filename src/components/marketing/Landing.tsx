@@ -308,7 +308,10 @@ export default function Landing() {
               ],
               [
                 t("Can my crew use it in their own language?"),
-                t("Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English."),
+                t(
+                  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.",
+                  { product: PRODUCT_NAME },
+                ),
               ],
               [
                 t("Does it work with my accounting?"),

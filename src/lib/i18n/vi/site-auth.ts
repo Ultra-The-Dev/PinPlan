@@ -594,8 +594,31 @@ const siteAuth: Dictionary = {
     "Cả tám ngôn ngữ đều đã dùng được trên bản web — trong trình duyệt của máy tính, máy tính bảng hay điện thoại — và trên ứng dụng iPad, iPhone.",
   "Can my crew use it in their own language?":
     "Đội thợ của tôi có dùng được bằng ngôn ngữ của họ không?",
-  "Yes. Northpin speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
-    "Có. Northpin có tiếng Anh, Tây Ban Nha, Nga, Ukraina, Ba Lan, Bồ Đào Nha, Trung và Việt. Trên bản web, ai cũng có thể đổi ngôn ngữ trong menu hoặc ở chân trang, còn ứng dụng iPad và iPhone theo ngôn ngữ của thiết bị. Lựa chọn được lưu theo tài khoản. Báo giá, hóa đơn và mọi thứ khách hàng thấy vẫn bằng tiếng Anh.",
+  "Yes. {product} speaks English, Spanish, Russian, Ukrainian, Polish, Portuguese, Chinese and Vietnamese. Anyone can switch from the menu or the page footer on the web, and the iPad and iPhone app follows the device language. The choice is saved on their login. Quotes, invoices and everything the client sees stay in English.":
+    "Có. {product} có tiếng Anh, Tây Ban Nha, Nga, Ukraina, Ba Lan, Bồ Đào Nha, Trung và Việt. Trên bản web, ai cũng có thể đổi ngôn ngữ trong menu hoặc ở chân trang, còn ứng dụng iPad và iPhone theo ngôn ngữ của thiết bị. Lựa chọn được lưu theo tài khoản. Báo giá, hóa đơn và mọi thứ khách hàng thấy vẫn bằng tiếng Anh.",
+  // Plan card features (src/lib/plans.ts), the 404 page, resending the confirmation email from sign-in
+  "Unlimited jobs, plans and devices, for every trade":
+    "Không giới hạn công trình, bản vẽ và thiết bị, cho mọi ngành nghề",
+  "Device and wire counts per floor, priced from your price list":
+    "Đếm thiết bị và dây theo từng tầng, tính giá theo bảng giá của bạn",
+  "Quotes your client approves and signs on their phone":
+    "Báo giá để khách hàng duyệt và ký trên điện thoại",
+  "Deposit, progress and final invoices, with payments":
+    "Hóa đơn đặt cọc, theo tiến độ và quyết toán, kèm thanh toán",
+  "Photos with mark-up, checklists, tasks, daily logs and files":
+    "Ảnh có ghi chú, danh sách kiểm tra, việc, nhật ký hằng ngày và tài liệu",
+  "iPad, iPhone and web, works offline and syncs":
+    "iPad, iPhone và web, dùng được khi không có mạng và tự đồng bộ",
+  "Technician logins for field work, without the Money tab, quotes or invoices":
+    "Tài khoản kỹ thuật viên cho việc ngoài công trường, không có thẻ Tài chính, báo giá hay hóa đơn",
+  "Page not found":
+    "Không tìm thấy trang",
+  "This page doesn’t exist or has moved. Check the address, or carry on from here.":
+    "Trang này không tồn tại hoặc đã chuyển đi. Hãy kiểm tra địa chỉ, hoặc tiếp tục từ đây.",
+  "Go to the home page":
+    "Về trang chủ",
+  "Send the confirmation email again":
+    "Gửi lại email xác nhận",
 };
 
 export default siteAuth;

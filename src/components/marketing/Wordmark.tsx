@@ -31,7 +31,8 @@ const CAP_EM = 0.698;
 const LSB_EM = 0.068;
 const BASELINE_EM = 0.875;
 
-export function Wordmark({ href = "/", onDark = false }: { href?: string; onDark?: boolean }) {
+/** `nameClassName` lets a crowded header drop the name on phones (e.g. "max-[439px]:sr-only"); the link keeps its label. */
+export function Wordmark({ href = "/", onDark = false, nameClassName = "" }: { href?: string; onDark?: boolean; nameClassName?: string }) {
   const tile = 30;
   const unit = tile / 64;
   const fontSize = (LOCKUP.cap * unit) / CAP_EM; // caps 30/64 of the tile, as in the logo files
@@ -39,10 +40,10 @@ export function Wordmark({ href = "/", onDark = false }: { href?: string; onDark
   // where the outlined lockup has it. Checked against northpin-logo.svg: widths match within a pixel at 3x.
   const nudge = LOCKUP.baseline * unit - ((tile - fontSize) / 2 + BASELINE_EM * fontSize);
   return (
-    <Link href={href} className="flex shrink-0 items-center rounded-md" style={{ gap: LOCKUP.gap * unit - LSB_EM * fontSize }} aria-label={`${PRODUCT_NAME} home`}>
+    <Link href={href} className="flex shrink-0 items-center rounded-md pointer-coarse:min-h-11" style={{ gap: LOCKUP.gap * unit - LSB_EM * fontSize }} aria-label={`${PRODUCT_NAME} home`}>
       <LogoMark size={tile} onDark={onDark} />
       <span
-        className={`${brandFont.className} leading-none font-bold`}
+        className={`${brandFont.className} leading-none font-bold ${nameClassName}`}
         style={{ fontSize, fontStretch: "75%", letterSpacing: "-0.01em", transform: `translateY(${nudge.toFixed(2)}px)` }}
       >
         {PRODUCT_NAME}

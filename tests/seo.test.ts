@@ -26,10 +26,12 @@ function blocked(url: string, rules: string[]): boolean {
 }
 
 describe("site URL", () => {
-  it("prefers NEXT_PUBLIC_SITE_URL, then the Vercel production domain, then localhost", () => {
+  it("prefers NEXT_PUBLIC_SITE_URL, then PINPLAN_APP_URL, then the Vercel production domain, then localhost", () => {
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "https://example.com/some/path/" })).toBe("https://example.com");
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "example.com", VERCEL_PROJECT_PRODUCTION_URL: "x.vercel.app" })).toBe("https://example.com");
     expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "pinplan-x.vercel.app" })).toBe("https://pinplan-x.vercel.app");
+    expect(siteUrl({ PINPLAN_APP_URL: "https://northpin.app", VERCEL_PROJECT_PRODUCTION_URL: "x.vercel.app" })).toBe("https://northpin.app");
+    expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "https://www.example.com", PINPLAN_APP_URL: "https://northpin.app" })).toBe("https://www.example.com");
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "  " })).toBe("http://localhost:3000");
     expect(siteUrl({})).toBe("http://localhost:3000");
   });
@@ -51,7 +53,7 @@ describe("robots.txt", () => {
   });
 
   it("keeps crawlers out of the app, the API and client share links", () => {
-    for (const p of ["/api/billdu/sync", "/project?id=1&tab=plan", "/settings", "/catalog", "/admin", "/invoices", "/jobs", "/schedule", "/tasks", "/map", "/photos"])
+    for (const p of ["/api/billdu/sync", "/project?id=1&tab=plan", "/settings", "/catalog", "/admin", "/invoices", "/jobs", "/schedule", "/tasks", "/map", "/photos", "/offline"])
       expect(blocked(p, disallow), p).toBe(true);
     for (const p of ["/p?t=abc", "/q?t=abc", "/r?t=abc", "/co?t=abc", "/d?t=abc", "/p", "/co"]) expect(blocked(p, disallow), p).toBe(true);
     expect(DISALLOWED_PATHS).not.toContain("/p");
