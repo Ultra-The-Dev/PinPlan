@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import PinPlanCore
 
 // The native tutorial (docs/help-and-tours.md, "Help in the iPad / iPhone app"): a welcome walkthrough and guided
@@ -169,31 +170,74 @@ final class TutorialController {
 // MARK: - anchors
 
 /// The frames of the controls marked with `.tutorialAnchor`, in window coordinates. Only what's on screen is here:
-/// a control that goes away (another tab, another screen) removes itself.
+/// a control that goes away (another tab, another screen) removes itself. The same id can be reported by more than
+/// one view (a toolbar copy and an on-screen copy); the latest frame that is actually on screen wins.
 @MainActor
 @Observable
 final class TutorialAnchors {
     static let shared = TutorialAnchors()
 
-    private(set) var frames: [String: CGRect] = [:]
-    /// Which view reported each frame, so a view leaving doesn't remove the same id reported by the one replacing it.
-    @ObservationIgnored private var owners: [String: UUID] = [:]
+    private struct Report: Equatable { var frame: CGRect; var seq: Int }
+    private var reports: [String: [UUID: Report]] = [:]
+    @ObservationIgnored private var seq = 0
 
     func report(_ id: String, _ frame: CGRect, owner: UUID) {
-        owners[id] = owner
-        if frames[id] != frame { frames[id] = frame }
+        if reports[id]?[owner]?.frame == frame { return }
+        seq += 1
+        reports[id, default: [:]][owner] = Report(frame: frame, seq: seq)
     }
 
     func remove(_ id: String, owner: UUID) {
-        guard owners[id] == owner else { return }
-        owners[id] = nil
-        frames[id] = nil
+        reports[id]?[owner] = nil
+        if reports[id]?.isEmpty == true { reports[id] = nil }
     }
 
-    /// The first of these ids that is on screen.
+    /// The window's bounds (the overlay covers the whole window).
+    private var screen: CGRect {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        return (windows.first { $0.isKeyWindow } ?? windows.first)?.bounds ?? .zero
+    }
+
+    /// The first of these ids that is on screen. Toolbar items don't always report a usable frame from SwiftUI, so a
+    /// control with the same accessibility identifier is looked up in the window as a fallback.
     func frame(for ids: [String]) -> CGRect? {
-        for id in ids { if let f = frames[id], f.width > 0, f.height > 0 { return f } }
+        let bounds = screen
+        func usable(_ f: CGRect) -> Bool {
+            guard f.width > 1, f.height > 1 else { return false }
+            if bounds.isEmpty { return true }
+            // On screen, and not the whole window (a frame reported before layout).
+            return bounds.intersects(f) && !(f.width >= bounds.width * 0.98 && f.height >= bounds.height * 0.9)
+        }
+        for id in ids {
+            if let r = reports[id]?.values.filter({ usable($0.frame) }).max(by: { $0.seq < $1.seq }) { return r.frame }
+            if let f = Self.accessibilityFrame(id), usable(f) { return f }
+        }
         return nil
+    }
+
+    /// A control's frame (window coordinates) found by its accessibility identifier in the key window.
+    private static func accessibilityFrame(_ id: String) -> CGRect? {
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        guard let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first else { return nil }
+        var budget = 4000
+        func search(_ element: NSObject) -> CGRect? {
+            budget -= 1
+            if budget < 0 { return nil }
+            if let e = element as? UIAccessibilityIdentification, e.accessibilityIdentifier == id {
+                let f = (element as? UIView).map { $0.convert($0.bounds, to: window) } ?? element.accessibilityFrame
+                if f.width > 1, f.height > 1 { return f }
+            }
+            if let v = element as? UIView {
+                for sub in v.subviews where !sub.isHidden && sub.alpha > 0.01 {
+                    if let f = search(sub) { return f }
+                }
+            }
+            for e in element.accessibilityElements ?? [] {
+                if let o = e as? NSObject, let f = search(o) { return f }
+            }
+            return nil
+        }
+        return search(window)
     }
 }
 
@@ -218,7 +262,9 @@ private struct TutorialAnchorModifier: ViewModifier {
 extension View {
     /// Marks a control a tutorial step can point at (ids: PinPlanCore's Tutorials; TutorialTests checks each id a
     /// step uses is marked somewhere in the app).
-    func tutorialAnchor(_ id: String) -> some View {
-        modifier(TutorialAnchorModifier(id: id))
+    /// `enabled: false` leaves the view unmarked (e.g. a toolbar copy of a control that is elsewhere on this screen size).
+    @ViewBuilder
+    func tutorialAnchor(_ id: String, enabled: Bool = true) -> some View {
+        if enabled { modifier(TutorialAnchorModifier(id: id)) } else { self }
     }
 }

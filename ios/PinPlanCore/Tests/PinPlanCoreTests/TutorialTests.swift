@@ -294,7 +294,7 @@ final class TutorialTests: XCTestCase {
     /// anchor is one a step uses.
     func testEveryAnchorExistsInTheApp() throws {
         var found = Set<String>()
-        let pattern = try NSRegularExpression(pattern: #"\.tutorialAnchor\("([a-z0-9-]+)"\)"#)
+        let pattern = try NSRegularExpression(pattern: #"\.tutorialAnchor\("([a-z0-9-]+)""#)
         let files = FileManager.default.enumerator(at: iosDir, includingPropertiesForKeys: nil)
         while let f = files?.nextObject() as? URL {
             guard f.pathExtension == "swift", let text = try? String(contentsOf: f, encoding: .utf8) else { continue }

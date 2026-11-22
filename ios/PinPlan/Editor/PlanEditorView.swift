@@ -405,7 +405,7 @@ struct PlanEditorView: View {
                 if editing {
                     Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }.disabled(!model.canUndo).accessibilityLabel("Undo")
                     Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }.disabled(!model.canRedo).accessibilityLabel("Redo")
-                    toolsMenu
+                    toolsMenu(anchored: true)
                 }
                 Button { showReader = true } label: { Image(systemName: "doc.text.magnifyingglass") }.accessibilityLabel("Read the plan")
                 Button { showCounts = true } label: { Image(systemName: "list.number") }.accessibilityLabel("Floor counts")
@@ -425,7 +425,8 @@ struct PlanEditorView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 
-    private var toolsMenu: some View {
+    /// `anchored`: the copy the tour points at (the floating bar on iPhone, the toolbar on iPad).
+    private func toolsMenu(anchored: Bool) -> some View {
         Menu {
             Button { scaleInput = true } label: { Label(model.activeSheet?.pxPerFt == nil ? "Set scale…" : "Change scale…", systemImage: "ruler") }
             Button { model.use(.calibrate) } label: { Label("Draw a scale line", systemImage: "line.diagonal") }
@@ -450,7 +451,7 @@ struct PlanEditorView: View {
         } label: { Image(systemName: "ellipsis.circle") }
         .accessibilityLabel("Tools")
         .accessibilityIdentifier("plan-tools")
-        .tutorialAnchor("plan-tools")
+        .tutorialAnchor("plan-tools", enabled: anchored)
     }
 
     private var drawingBar: some View {
@@ -473,7 +474,8 @@ struct PlanEditorView: View {
         ToolbarItemGroup(placement: .topBarLeading) {
             if editing {
                 Button { showPalette.toggle() } label: { Label("Devices", systemImage: regular ? "sidebar.left" : "plus.circle.fill") }
-                    .tutorialAnchor("plan-devices")
+                    // iPhone: the floating bar's Devices is the one the tour points at (the bar copy may be hidden).
+                    .tutorialAnchor("plan-devices", enabled: regular)
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
@@ -482,7 +484,7 @@ struct PlanEditorView: View {
                     .disabled(!model.canUndo)
                 Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                     .disabled(!model.canRedo)
-                toolsMenu
+                toolsMenu(anchored: regular)
             }
             Button { showReader.toggle(); showCounts = false; model.selection = nil } label: { Label("Read plan", systemImage: "doc.text.magnifyingglass") }
             Button { showCounts.toggle(); showReader = false; model.selection = nil } label: { Label("Counts", systemImage: "list.number") }

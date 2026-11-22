@@ -158,16 +158,23 @@ struct TaskListView: View {
                         ForEach(model.taskCategories, id: \.self) { Text($0).tag($0) }
                     }
                     if !filter.isEmpty { Button("Clear filters", role: .destructive) { filter = TaskFilter() } }
-                } label: { Label("Sort & filter", systemImage: "line.3.horizontal.decrease.circle") }
-                Spacer()
+                } label: {
+                    // Long languages: the icon alone rather than a label wrapped over two lines.
+                    ViewThatFits(in: .horizontal) {
+                        Label("Sort & filter", systemImage: "line.3.horizontal.decrease.circle").lineLimit(1).fixedSize()
+                        Label("Sort & filter", systemImage: "line.3.horizontal.decrease.circle").labelStyle(.iconOnly)
+                    }
+                }
+                Spacer(minLength: 4)
                 Button(selecting ? "Done" : "Select") {
                     selecting.toggle()
                     picked = []
                 }
+                .lineLimit(1).fixedSize()
                 Button {
                     // Narrowed to a device: the new task starts at that device.
                     if let m = device { quick = TaskDraft(sheetId: m.sheetId, x: m.x, y: m.y, room: m.room.isEmpty ? nil : m.room, markerId: m.id) } else { quick = TaskDraft() }
-                } label: { Label("Task", systemImage: "plus") }
+                } label: { Label("Task", systemImage: "plus").lineLimit(1).fixedSize() }
                     .buttonStyle(.borderedProminent)
             }
         }

@@ -85,7 +85,7 @@ struct EstimateView: View {
                     Text("Combined (installed price)").tag(LaborMode.combined)
                     Text("Separate labor lines").tag(LaborMode.separate)
                 }
-                Toggle("Include “?” items by default", isOn: Binding(get: { pricing.includeTentative }, set: { v in setPricing { $0.includeTentative = v } }))
+                Toggle("Include optional items by default", isOn: Binding(get: { pricing.includeTentative }, set: { v in setPricing { $0.includeTentative = v } }))
                 Text("Markup is added to catalog, product and cable prices. A price you type on a line is used as is.")
                     .font(.footnote).foregroundStyle(.secondary)
             }

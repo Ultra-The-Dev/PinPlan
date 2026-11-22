@@ -271,7 +271,7 @@ struct PricingSettingsView: View {
                     Text("Included in device price").tag(LaborMode.combined)
                     Text("Separate labor lines").tag(LaborMode.separate)
                 }
-                Toggle("Count “?” items in totals", isOn: $app.settings.pricing.includeTentative)
+                Toggle("Include optional items in totals by default", isOn: $app.settings.pricing.includeTentative)
             }
             Section {
                 NavigationLink("Device prices") { CatalogView() }

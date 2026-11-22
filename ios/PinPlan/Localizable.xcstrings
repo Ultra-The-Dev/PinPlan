@@ -22623,48 +22623,48 @@
         }
       }
     },
-    "Count “?” items in totals" : {
+    "Include optional items in totals by default" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incluir los elementos “?” en los totales"
+            "value" : "Incluir partidas opcionales en los totales por defecto"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wliczaj pozycje „?” do sum"
+            "value" : "Domyślnie wliczaj pozycje opcjonalne do sum"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Contar itens “?” nos totais"
+            "value" : "Incluir itens opcionais nos totais por padrão"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Учитывать позиции «?» в итогах"
+            "value" : "Включать опции в итоги по умолчанию"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Враховувати позиції «?» у підсумках"
+            "value" : "Включати опції в підсумки за замовчуванням"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tính các mục “?” vào tổng"
+            "value" : "Mặc định tính hạng mục tùy chọn vào tổng"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合计中计入“?”项"
+            "value" : "默认将可选项计入总计"
           }
         }
       }
@@ -33737,48 +33737,48 @@
         }
       }
     },
-    "Include “?” items by default" : {
+    "Include optional items by default" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incluir los elementos “?” por defecto"
+            "value" : "Incluir partidas opcionales por defecto"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Domyślnie uwzględniaj pozycje „?”"
+            "value" : "Domyślnie uwzględniaj pozycje opcjonalne"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Incluir itens “?” por padrão"
+            "value" : "Incluir itens opcionais por padrão"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Включать позиции «?» по умолчанию"
+            "value" : "Включать опции по умолчанию"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Включати позиції «?» за замовчуванням"
+            "value" : "Включати опції за замовчуванням"
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mặc định tính các mục “?”"
+            "value" : "Mặc định gồm hạng mục tùy chọn"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "默认包含“?”项"
+            "value" : "默认包含可选项"
           }
         }
       }

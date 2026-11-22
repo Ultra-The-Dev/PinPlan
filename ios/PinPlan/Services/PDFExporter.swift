@@ -168,7 +168,7 @@ enum PDFExporter {
                     drawSymbol(ctx, type: t, at: CGPoint(x: x + 7, y: y + 6), r: 5.5, tentative: false, label: nil)
                     text(t.name, at: CGPoint(x: x + 18, y: y), size: 8, width: side - 18); y += 14
                 }
-                text("? = tentative / to confirm", at: CGPoint(x: x, y: y + 4), size: 7, color: .gray)
+                text("? = optional / to confirm", at: CGPoint(x: x, y: y + 4), size: 7, color: .gray)
 
                 if crew {
                     let rows = bundle.liveMarkers.filter { $0.sheetId == sheet.id }.sorted { $0.label < $1.label }

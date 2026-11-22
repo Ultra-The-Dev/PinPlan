@@ -191,6 +191,7 @@ struct ProjectsView: View {
                     .accessibilityIdentifier("jobs-more")
                     if office {
                         Button { showNew = true } label: { Label("New job", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("jobs-new")
                             .tutorialAnchor("jobs-new")
                     }
                 }
