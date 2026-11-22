@@ -67,13 +67,14 @@ public struct JobSummary: Hashable, Sendable {
         for c in lists {
             let p = FieldDocs.progress(c, photos: photos)
             s.itemsDone += p.done; s.itemsTotal += p.total; s.missingPhotos += p.missingPhotos
-            for i in c.items where i.done != true && ((i.assignee ?? "").isEmpty == false || (i.due ?? "").isEmpty == false) {
-                s.openTasks += 1
-                switch FieldDocs.taskBucket(i.due, today: today) {
-                case .overdue: s.overdueTasks += 1
-                case .today: s.dueToday += 1
-                default: break
-                }
+        }
+        // Open tasks are the Tasks tab's open tasks (same rule as openTaskCounts in src/lib/tasks.ts).
+        for t in b.tasks where t.deleted != true && !TaskLogic.isClosed(t.status) {
+            s.openTasks += 1
+            switch FieldDocs.taskBucket(t.due, today: today) {
+            case .overdue: s.overdueTasks += 1
+            case .today: s.dueToday += 1
+            default: break
             }
         }
         s.photos = photos.count
@@ -100,15 +101,15 @@ public struct JobSummary: Hashable, Sendable {
         func step(_ k: NextKind, _ text: String, _ tab: String) -> NextStep { NextStep(kind: k, text: text, tab: tab) }
         if s.sheets == 0 { return step(.addPlans, "Add the floor plans", "sheets") }
         if s.devices == 0 && s.ledRuns == 0 { return step(.placeDevices, "Pin devices on the plan", "plan") }
-        if s.overdueTasks > 0 { return step(.overdueTasks, plural(s.overdueTasks, "overdue task"), "field") }
+        if s.overdueTasks > 0 { return step(.overdueTasks, plural(s.overdueTasks, "overdue task"), "tasks") }
         if !prices {
             // Technicians: estimates, proposals and invoices are the office's job.
             if project.status == .estimate {
-                if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "field") }
+                if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "tasks") }
                 return step(.officePricing, "With the office for pricing — check the plan and devices", "plan")
             }
             if project.status == .installed {
-                return s.openTasks > 0 ? step(.closeTasks, "Close out \(plural(s.openTasks, "open task"))", "field") : step(.done, "All wrapped up", "info")
+                return s.openTasks > 0 ? step(.closeTasks, "Close out \(plural(s.openTasks, "open task"))", "tasks") : step(.done, "All wrapped up", "info")
             }
         }
         let unpriced = s.estimateTotal != nil && (s.unpricedLines > 0 || (s.estimateTotal ?? 0) <= 0)
@@ -129,13 +130,13 @@ public struct JobSummary: Hashable, Sendable {
             if billed { return step(.awaitClient, "Quote sent — mark the job approved when the client signs", "estimate") }
             return step(.sendProposal, "Send the quote to the client", "estimate")
         case .approved:
-            if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "field") }
+            if s.dueToday > 0 { return step(.tasksToday, "\(plural(s.dueToday, "task")) due today", "tasks") }
             if s.checklists == 0 { return step(.startChecklist, "Start an install checklist", "field") }
             if s.missingPhotos > 0 { return step(.checklistPhotos, "\(plural(s.missingPhotos, "checklist item")) need\(s.missingPhotos == 1 ? "s" : "") a photo", "field") }
             if s.itemsDone < s.itemsTotal { return step(.finishChecklists, "Finish checklists (\(s.itemsDone) of \(s.itemsTotal) done)", "field") }
             return step(.markInstalled, "Everything checked off — mark the job installed", "info")
         case .installed:
-            if s.openTasks > 0 { return step(.closeTasks, "Close out \(plural(s.openTasks, "open task"))", "field") }
+            if s.openTasks > 0 { return step(.closeTasks, "Close out \(plural(s.openTasks, "open task"))", "tasks") }
             if !project.billduDocs.contains(where: { $0.type == "invoice" }) { return step(.invoice, "Send the final invoice", "estimate") }
             return step(.done, "All wrapped up", "info")
         }

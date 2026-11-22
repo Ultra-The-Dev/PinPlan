@@ -49,8 +49,17 @@ final class JobSummaryTests: XCTestCase {
         b.photos = [p]
         let s = JobSummary.make(b, today: today)
         XCTAssertEqual([s.checklists, s.itemsDone, s.itemsTotal, s.checklistPct, s.missingPhotos], [2, 2, 6, 33, 1])
-        XCTAssertEqual([s.openTasks, s.overdueTasks, s.dueToday], [2, 1, 1])
-        XCTAssertEqual(s.next, JobSummary.NextStep(kind: .overdueTasks, text: "1 overdue task", tab: "field"))
+        // Checklist items are not tasks: Open tasks counts the Tasks tab only (like openTaskCounts on the web).
+        XCTAssertEqual([s.openTasks, s.overdueTasks, s.dueToday], [0, 0, 0])
+        var t1 = PlanTask(projectId: "p", number: 1, title: "a"); t1.due = "2026-11-01"
+        var t2 = PlanTask(projectId: "p", number: 2, title: "b", status: .in_progress); t2.due = today
+        let t3 = PlanTask(projectId: "p", number: 3, title: "c")
+        var t4 = PlanTask(projectId: "p", number: 4, title: "d", status: .done); t4.due = "2026-11-01"
+        var t5 = PlanTask(projectId: "p", number: 5, title: "e"); t5.deleted = true
+        b.tasks = [t1, t2, t3, t4, t5]
+        let s2 = JobSummary.make(b, today: today)
+        XCTAssertEqual([s2.openTasks, s2.overdueTasks, s2.dueToday], [3, 1, 1])
+        XCTAssertEqual(s2.next, JobSummary.NextStep(kind: .overdueTasks, text: "1 overdue task", tab: "tasks"))
     }
 
     func testLatestProposalSkipsRevoked() {
@@ -107,8 +116,9 @@ final class JobSummaryTests: XCTestCase {
     func testApprovedSteps() {
         var b = bundle(status: .approved)
         XCTAssertEqual(JobSummary.make(b, today: today).next.kind, .startChecklist)
-        b.checklists = [Checklist(projectId: "p", name: "c", items: [item("1", due: today)])]
+        b.tasks = [task(1, due: today)]
         XCTAssertEqual(JobSummary.make(b, today: today).next.text, "1 task due today")
+        b.tasks = []
         b.checklists = [Checklist(projectId: "p", name: "c", items: [item("1", done: true, photo: true)])]
         XCTAssertEqual(JobSummary.make(b, today: today).next.text, "1 checklist item needs a photo")
         b.checklists = [Checklist(projectId: "p", name: "c", items: [item("1", done: true), item("2")])]
@@ -119,13 +129,17 @@ final class JobSummaryTests: XCTestCase {
 
     func testInstalledSteps() {
         var b = bundle(status: .installed)
-        b.checklists = [Checklist(projectId: "p", name: "c", items: [item("1", assignee: "Sam")])]
+        b.tasks = [task(1)]
         XCTAssertEqual(JobSummary.make(b, today: today).next.text, "Close out 1 open task")
-        b.checklists = []
+        b.tasks = []
         XCTAssertEqual(JobSummary.make(b, today: today).next.kind, .invoice)
         b.project.billduDocs = [BillduDocRef(id: 2, type: "invoice", serial: nil, amount: 10, percent: nil, label: nil, createdAt: "x")]
         XCTAssertEqual(JobSummary.make(b, today: today).next.text, "All wrapped up")
-        b.checklists = [Checklist(projectId: "p", name: "c", items: [item("1", due: "2026-11-01"), item("2", due: "2026-11-02"), item("3", due: "2026-11-03")])]
+        b.tasks = [task(1, due: "2026-11-01"), task(2, due: "2026-11-02"), task(3, due: "2026-11-03")]
         XCTAssertEqual(JobSummary.make(b, today: today).next.text, "3 overdue tasks")
+    }
+
+    private func task(_ n: Int, due: String? = nil) -> PlanTask {
+        var t = PlanTask(projectId: "p", number: n, title: "t\(n)"); t.due = due; return t
     }
 }

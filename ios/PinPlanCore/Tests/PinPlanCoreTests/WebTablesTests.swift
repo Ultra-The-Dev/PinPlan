@@ -231,12 +231,12 @@ final class JobSummaryTechTests: XCTestCase {
         XCTAssertEqual(est.next.kind, .officePricing)
         XCTAssertEqual(est.next.tab, "plan")
         var withTask = bundle(.estimate)
-        var item = ChecklistItem(id: "1", text: "Rough-in", requiresPhoto: false)
-        item.due = today
-        withTask.checklists = [Checklist(id: "c", projectId: "p", name: "c", items: [item])]
+        var task = PlanTask(projectId: "p", number: 1, title: "Rough-in")
+        task.due = today
+        withTask.tasks = [task]
         let due = JobSummary.make(withTask, today: today, prices: false)
         XCTAssertEqual(due.next.kind, .tasksToday)
-        XCTAssertEqual(due.next.tab, "field")
+        XCTAssertEqual(due.next.tab, "tasks")
         XCTAssertEqual(JobSummary.make(bundle(.installed), today: today, prices: false).next.kind, .done)
         XCTAssertEqual(JobSummary.make(bundle(.approved), today: today, prices: false).next.kind, .startChecklist)
         // The office still gets the pricing steps.
