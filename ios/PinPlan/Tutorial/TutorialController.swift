@@ -206,10 +206,16 @@ final class TutorialAnchors {
             guard f.width > 1, f.height > 1 else { return false }
             if bounds.isEmpty { return true }
             // On screen, and not the whole window (a frame reported before layout).
-            return bounds.intersects(f) && !(f.width >= bounds.width * 0.98 && f.height >= bounds.height * 0.9)
+            let wholeWindow: Bool = f.width >= bounds.width * 0.98 && f.height >= bounds.height * 0.9
+            return bounds.intersects(f) && !wholeWindow
         }
         for id in ids {
-            if let r = reports[id]?.values.filter({ usable($0.frame) }).max(by: { $0.seq < $1.seq }) { return r.frame }
+            var latest: Report?
+            for r in (reports[id] ?? [:]).values where usable(r.frame) {
+                if let l = latest, l.seq > r.seq { continue }
+                latest = r
+            }
+            if let latest { return latest.frame }
             if let f = Self.barFrame(id), usable(f) { return f }
         }
         return nil
@@ -231,22 +237,30 @@ final class TutorialAnchors {
         }
         collect(window)
         // The bar nearest the top that is on screen (a pushed screen's bar replaces the one below it).
-        guard let bar = bars.map({ ($0, $0.convert($0.bounds, to: window)) })
-            .filter({ $0.1.width > 0 && $0.1.minY >= -1 && window.bounds.intersects($0.1) })
-            .max(by: { $0.1.width < $1.1.width })?.0 else { return nil }
+        var bar: UINavigationBar?
+        var barWidth: CGFloat = 0
+        for candidate in bars {
+            let f: CGRect = candidate.convert(candidate.bounds, to: window)
+            guard f.width > barWidth, f.minY >= -1, window.bounds.intersects(f) else { continue }
+            bar = candidate
+            barWidth = f.width
+        }
+        guard let bar else { return nil }
         var best: CGRect?
         func scan(_ v: UIView) {
-            let name = String(describing: type(of: v))
-            let f = v.convert(v.bounds, to: window)
-            if name.contains("Button"), !v.isHidden, v.alpha > 0.01, f.width >= 20, f.width <= 220, f.height >= 20, f.height <= 70 {
-                if best == nil || f.maxX > best!.maxX + 1 { best = f }
+            let name: String = String(describing: type(of: v))
+            let f: CGRect = v.convert(v.bounds, to: window)
+            let sized: Bool = f.width >= 20 && f.width <= 220 && f.height >= 20 && f.height <= 70
+            if name.contains("Button") && sized {
+                if let b = best, f.maxX <= b.maxX + 1 { return }
+                best = f
                 return
             }
             for sub in v.subviews where !sub.isHidden && sub.alpha > 0.01 { scan(sub) }
         }
         scan(bar)
         // Only a button on the trailing side (never the back button when the bar has no trailing items).
-        let barRect = bar.convert(bar.bounds, to: window)
+        let barRect: CGRect = bar.convert(bar.bounds, to: window)
         guard let b = best, b.midX > barRect.midX else { return nil }
         return b
     }
