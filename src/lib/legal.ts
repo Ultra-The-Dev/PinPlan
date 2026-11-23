@@ -7,26 +7,26 @@
 import { AI_ENABLED } from "./features";
 
 /** Shown as "Effective" on Terms and Privacy. Change it whenever either document materially changes. */
-export const LEGAL_EFFECTIVE_DATE = "[Effective date, e.g. January 1, 2027]";
+export const LEGAL_EFFECTIVE_DATE = "November 23, 2026";
 
 export const COMPANY = {
   product: "Northpin",
-  legalName: "[Company legal name]",
-  entity: "[a State limited liability company]",
-  state: "[State]",
-  county: "[County]",
-  address: "[Mailing address]",
-  contactEmail: "[Contact email]",
-  supportEmail: "[Support email]",
-  privacyEmail: "[Privacy email]",
-  securityEmail: "[Security email]",
-  website: "[https://your-domain.com]",
+  legalName: "Smart Living Solutions Inc.",
+  entity: "a New York corporation",
+  state: "New York",
+  county: "Nassau",
+  address: "20 Hilltop Drive E, Great Neck, NY 11021",
+  contactEmail: "support@northpin.app",
+  supportEmail: "support@northpin.app",
+  privacyEmail: "privacy@northpin.app",
+  securityEmail: "security@northpin.app",
+  website: "https://northpin.app",
   /** Supabase project region (database + file storage). */
-  dataRegion: "[United States (AWS us-east-1)]",
+  dataRegion: "United States (AWS us-east-1, Northern Virginia)",
   /** Time zone for support hours, e.g. "Eastern Time". */
-  supportTimeZone: "[Support time zone]",
+  supportTimeZone: "Eastern Time",
   /** International transfer safeguard for EU/UK data, e.g. "the EU Standard Contractual Clauses". */
-  transferMechanism: "[Transfer mechanism, e.g. the EU Standard Contractual Clauses]",
+  transferMechanism: "the EU Standard Contractual Clauses (and the UK Addendum)",
 };
 
 /** Retention promises made on /privacy, /terms and /support. Keep them true to what the system actually does. */
@@ -37,7 +37,7 @@ export const RETENTION = {
    */
   deletionRequestDays: 30,
   /** Point-in-time recovery window of the production database (Supabase PITR: 7, 14 or 28 days, or daily backups). */
-  backupDays: "[Backup retention in days, e.g. 7]",
+  backupDays: "7",
   /** Error reports are pruned automatically (supabase/migrations/20261121020000_ops.sql). */
   errorReportDays: 90,
 };

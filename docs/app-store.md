@@ -48,11 +48,11 @@ profile. Account deletion is in the app too (see below).
 | Bundle ID | `app.northpin.ios` |
 | SKU | `pinplan-ios` |
 | Age rating | 4+ (no objectionable content; no unrestricted web access; no user-to-public sharing) |
-| Copyright | `<© 2026 Your Company LLC>` |
-| Privacy policy URL | `https://<your-server>/privacy` |
-| Terms of use (EULA) | `https://<your-server>/terms` (or Apple's standard EULA) |
-| Support URL | `https://<your-server>/support` |
-| Marketing URL | `https://<your-server>/` |
+| Copyright | `© 2026 Smart Living Solutions Inc.` |
+| Privacy policy URL | `https://northpin.app/privacy` |
+| Terms of use (EULA) | `https://northpin.app/terms` (or Apple's standard EULA) |
+| Support URL | `https://northpin.app/support` |
+| Marketing URL | `https://northpin.app/` |
 
 ### Promotional text (170 chars)
 
@@ -169,7 +169,7 @@ The build number is the workflow run number. Nothing about the team, keys or ser
 
 - [ ] Web server deployed with `/terms`, `/privacy`, `/support`, `/reset`, `/api/config` and `DELETE /api/account`
       working.
-- [ ] Supabase Auth › URL configuration: add `https://<your-server>/reset` to the allowed redirect URLs (password reset
+- [ ] Supabase Auth › URL configuration: add `https://northpin.app/reset` to the allowed redirect URLs (password reset
       from the app sends `redirect_to` there). Minimum password length set to 10 to match the apps.
 - [ ] TestFlight secrets and the `PINPLAN_SERVER_URL` variable set (above); a TestFlight build installed and signed in.
 - [ ] Demo account created, team comped/active, a couple of demo jobs synced.

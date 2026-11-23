@@ -26,14 +26,15 @@ function blocked(url: string, rules: string[]): boolean {
 }
 
 describe("site URL", () => {
-  it("prefers NEXT_PUBLIC_SITE_URL, then PINPLAN_APP_URL, then the Vercel production domain, then localhost", () => {
+  it("prefers NEXT_PUBLIC_SITE_URL, then PINPLAN_APP_URL, then the company website (src/lib/legal.ts)", () => {
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "https://example.com/some/path/" })).toBe("https://example.com");
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "example.com", VERCEL_PROJECT_PRODUCTION_URL: "x.vercel.app" })).toBe("https://example.com");
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "pinplan-x.vercel.app" })).toBe("https://pinplan-x.vercel.app");
+    // COMPANY.website is filled in, so it comes before the Vercel domain and localhost.
+    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "pinplan-x.vercel.app" })).toBe("https://northpin.app");
     expect(siteUrl({ PINPLAN_APP_URL: "https://northpin.app", VERCEL_PROJECT_PRODUCTION_URL: "x.vercel.app" })).toBe("https://northpin.app");
     expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "https://www.example.com", PINPLAN_APP_URL: "https://northpin.app" })).toBe("https://www.example.com");
-    expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "  " })).toBe("http://localhost:3000");
-    expect(siteUrl({})).toBe("http://localhost:3000");
+    expect(siteUrl({ NEXT_PUBLIC_SITE_URL: "  " })).toBe("https://northpin.app");
+    expect(siteUrl({})).toBe("https://northpin.app");
   });
 });
 
