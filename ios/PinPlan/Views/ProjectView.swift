@@ -77,7 +77,8 @@ struct ProjectView: View {
     @Environment(\.horizontalSizeClass) private var hSize
     let bundle: ProjectBundle
     @State private var model: EditorModel?
-    @State private var tab: ProjectTab = .overview
+    /// A job opens on its plan (for everyone).
+    @State private var tab: ProjectTab = .plan
     /// iPhone: the section last opened under More (shown again when More is tapped).
     @State private var lastMore: ProjectTab = .overview
     @State private var showWiring = false

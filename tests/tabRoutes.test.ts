@@ -61,20 +61,20 @@ describe("resolveJobTab", () => {
     expect(q(resolveJobTab("id=p1&tab=sheets&manage=0", true).query).manage).toBe("0");
   });
 
-  it("opens Overview for the office and today's Field work for technicians", () => {
-    expect(defaultJobTab(true)).toEqual({ tab: "overview", params: {} });
+  it("opens the plan for everyone", () => {
+    expect(defaultJobTab()).toEqual({ tab: "plan", params: {} });
     const office = resolveJobTab("id=p1", true);
-    expect(office.tab).toBe("overview");
+    expect(office.tab).toBe("plan");
     expect(office.redirect).toBe(true);
     const tech = resolveJobTab("id=p1", false);
-    expect(q(tech.query)).toEqual({ id: "p1", tab: "field", section: "today" });
-    expect(resolveJobTab("id=p1&tab=nonsense", true).tab).toBe("overview");
+    expect(q(tech.query)).toEqual({ id: "p1", tab: "plan" });
+    expect(resolveJobTab("id=p1&tab=nonsense", true).tab).toBe("plan");
   });
 
   it("never opens Money for technicians, even from old links", () => {
     for (const t of ["money", "estimate", "billing", "changes"]) {
       const r = resolveJobTab(`id=p1&tab=${t}&step=quote`, false);
-      expect(r.tab).toBe("field");
+      expect(r.tab).toBe("plan");
       expect(r.redirect).toBe(true);
       expect(q(r.query).step).toBeUndefined();
     }

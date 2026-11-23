@@ -39,9 +39,9 @@ export const LEGACY_TABS: Record<string, { tab: JobTabId; params: Record<string,
 export const isJobTab = (t: string | null | undefined): t is JobTabId => !!t && (JOB_TABS as readonly string[]).includes(t);
 export const isMoneyStep = (s: string | null | undefined): s is MoneyStep => !!s && (MONEY_STEPS as readonly string[]).includes(s);
 
-/** Where a job opens with no tab asked for: the office lands on Overview, technicians on today's field work. */
-export function defaultJobTab(office: boolean): { tab: JobTabId; params: Record<string, string> } {
-  return office ? { tab: "overview", params: {} } : { tab: "field", params: { section: "today" } };
+/** Where a job opens with no tab asked for: the plan, for everyone (the office and technicians). */
+export function defaultJobTab(): { tab: JobTabId; params: Record<string, string> } {
+  return { tab: "plan", params: {} };
 }
 
 export interface ResolvedJobTab {
@@ -63,7 +63,7 @@ export function resolveJobTab(search: URLSearchParams | string, office: boolean)
   let extra: Record<string, string> = {};
   if (isJobTab(asked)) tab = asked;
   else if (asked && LEGACY_TABS[asked]) ({ tab, params: extra } = LEGACY_TABS[asked]);
-  else ({ tab, params: extra } = defaultJobTab(office));
+  else ({ tab, params: extra } = defaultJobTab());
   // Tasks and Photos used to be Field sections: old links (emails, My Tasks, bookmarks, the iPad app) open the tab.
   // A Field link to a task (&task= or &tf= with no section) meant the task list too.
   if (tab === "field") {
@@ -75,7 +75,7 @@ export function resolveJobTab(search: URLSearchParams | string, office: boolean)
     }
   }
   if (!office && OFFICE_ONLY_TABS.includes(tab)) {
-    ({ tab, params: extra } = defaultJobTab(office));
+    ({ tab, params: extra } = defaultJobTab());
     // The money sub-view means nothing on another tab.
     params.delete("step");
   }

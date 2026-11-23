@@ -24,7 +24,7 @@ Older pages still work and light up the section they belong to:
 ## Job tabs
 
 `/project?id=…&tab=…` with seven tabs, always labelled: **Overview · Plan · Takeoff · Tasks · Photos · Money (office) ·
-Field**. The office opens a job on Overview; technicians open it on Field (`section=today`). Every tab but the plan
+Field**. A job opens on the Plan, for the office and technicians alike (web and iOS). Every tab but the plan
 is lazy-loaded.
 
 The plan is for devices. Tasks and photos have tabs of their own (the owner: "creating tasks on the same sheet as
