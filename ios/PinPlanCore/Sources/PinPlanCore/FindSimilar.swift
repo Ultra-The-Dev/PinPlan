@@ -710,7 +710,7 @@ public enum FindSimilar {
     public static func floorSummary(types: [DeviceType], markers: [Marker], sheetId: String, countingTypeId: String?) -> [(type: DeviceType, count: Int)] {
         let ids = Set(types.filter { isDoorOrWindow($0.name) || $0.id == countingTypeId }.map(\.id))
         var n: [String: Int] = [:]
-        for m in markers where m.deleted != true && m.sheetId == sheetId && ids.contains(m.deviceTypeId) { n[m.deviceTypeId, default: 0] += 1 }
+        for m in markers where m.deleted != true && m.sheetId == sheetId && ids.contains(m.deviceTypeId) { n[m.deviceTypeId, default: 0] += m.quantity }
         return types.filter { ids.contains($0.id) && ((n[$0.id] ?? 0) > 0 || $0.id == countingTypeId) }.map { ($0, n[$0.id] ?? 0) }
     }
 }

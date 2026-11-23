@@ -10,6 +10,8 @@ import { BREAKER_SIZES, deviceSpec, hasTrade, tradeClosetKinds, tradeVocab, trad
 import { useTrades } from "@/lib/useTrades";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { markerQty, normalizeCount, pinLabel, sumQty } from "@/lib/markerCount";
+import CountStepper from "./CountStepper";
 import { useT } from "@/lib/i18n";
 import { wireColor } from "@/lib/symbols";
 import { useSheetImage } from "@/lib/useImage";
@@ -156,7 +158,7 @@ function BulkInspector() {
         <div className="flex flex-wrap gap-1.5">
           {typeIds.map((tid) => (
             <span key={tid} className="chip bg-slate-100 text-slate-600">
-              {typeName(tid)} × {ms.filter((m) => m.deviceTypeId === tid).length}
+              {typeName(tid)} × {sumQty(ms.filter((m) => m.deviceTypeId === tid))}
             </span>
           ))}
         </div>
@@ -295,6 +297,7 @@ function MarkerInspector({ id }: { id: string }) {
       productId: m.productId,
       closetId: m.closetId,
       tentative: m.tentative,
+      count: m.count,
     });
     if (copy) select({ table: "markers", id: copy.id });
   };
@@ -316,7 +319,7 @@ function MarkerInspector({ id }: { id: string }) {
       <div className="flex items-center gap-3">
         {type && <SymbolIcon type={type} size={40} tentative={m.tentative} />}
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{m.label}</h3>
+          <h3 className="truncate text-base font-semibold">{pinLabel(m)}</h3>
           <p className="truncate text-xs text-slate-500">
             {type?.name}
             {m.room ? ` · ${m.room}` : ""}
@@ -369,6 +372,11 @@ function MarkerInspector({ id }: { id: string }) {
           <span className="block text-xs text-slate-500">{t("Shows a ? on the plan; listed separately, optional on the quote")}</span>
         </span>
       </label>
+      <div>
+        <label className="label" htmlFor={`${uid}-count`}>{t("Count")}</label>
+        <CountStepper id={`${uid}-count`} value={markerQty(m)} onChange={(n) => updateMarker(m.id, { count: normalizeCount(n) })} testId="marker-count" />
+        <p className="mt-1 text-xs text-slate-500">{markerQty(m) > 1 ? t("This pin counts as {n} in the takeoff, estimate and exports.", { n: markerQty(m) }) : t("Several of these here? Set how many: one pin counts as all of them.")}</p>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <Field label={t("Label")} value={m.label} onCommit={(v) => updateMarker(m.id, { label: v })} />
         <Field label={t("Room")} value={m.room} placeholder={t("e.g. Kitchen")} onCommit={(v) => updateMarker(m.id, { room: v })} />
@@ -620,7 +628,7 @@ function ClosetInspector({ id }: { id: string }) {
   const trades = useTrades();
   const c = closets.find((x) => x.id === id);
   if (!c) return null;
-  const n = markers.filter((m) => m.closetId === c.id).length;
+  const n = sumQty(markers.filter((m) => m.closetId === c.id));
   // This company's kinds, plus the closet's own kind if it's from another trade.
   const kinds = tradeClosetKinds(trades);
   if (!kinds.some((k) => k.id === c.kind)) kinds.push(closetMeta(c.kind));

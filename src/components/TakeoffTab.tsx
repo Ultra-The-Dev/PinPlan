@@ -14,6 +14,7 @@ import { useRole } from "@/lib/team";
 import { can } from "@/lib/teamLogic";
 import { computeTakeoff, countOf, takeoffCsv, type TakeoffBucket } from "@/lib/takeoff";
 import { toast } from "@/lib/toast";
+import { pinLabel, sumQty } from "@/lib/markerCount";
 import { msg, t as tr, useT } from "@/lib/i18n";
 import OrderList from "./OrderList";
 import PlanReviewPanel from "./PlanReviewPanel";
@@ -331,7 +332,7 @@ function TakeoffCounts() {
           </p>
         )}
 
-        <h3 className="mb-2 mt-6 font-semibold">{t.tn("Optional item ({n})", "Optional items ({n})", tentativeList.length)}</h3>
+        <h3 className="mb-2 mt-6 font-semibold">{t.tn("Optional item ({n})", "Optional items ({n})", sumQty(tentativeList))}</h3>
         {tentativeList.length ? (
           <div className="card overflow-x-auto">
             <table className="tbl">
@@ -347,7 +348,7 @@ function TakeoffCounts() {
               <tbody>
                 {tentativeList.map((m) => (
                   <tr key={m.id}>
-                    <td>{m.label}</td>
+                    <td>{pinLabel(m)}</td>
                     <td>{catalog.find((d) => d.id === m.deviceTypeId)?.name}</td>
                     <td>{sheets.find((s) => s.id === m.sheetId)?.name}</td>
                     <td>{m.room}</td>

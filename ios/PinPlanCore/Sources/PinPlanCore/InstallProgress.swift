@@ -149,7 +149,7 @@ public enum InstallProgress {
         public var done: Int { (counts[.tested] ?? 0) + (counts[.verified] ?? 0) }
         public var pct: Int { total > 0 ? Int((Double(done) / Double(total) * 100).rounded()) : 0 }
         public func count(_ s: InstallStatus) -> Int { counts[s] ?? 0 }
-        mutating func add(_ s: InstallStatus) { counts[s, default: 0] += 1; total += 1 }
+        mutating func add(_ s: InstallStatus, _ n: Int = 1) { counts[s, default: 0] += n; total += n }
         public init() {}
     }
 
@@ -169,7 +169,8 @@ public enum InstallProgress {
 
     public static func totals(_ markers: [Marker], catalog: [DeviceType]) -> Counts {
         var c = Counts()
-        for m in trackedMarkers(markers, catalog: catalog) { c.add(status(m)) }
+        // A count pin (×12) has one status and counts 12 times.
+        for m in trackedMarkers(markers, catalog: catalog) { c.add(status(m), m.quantity) }
         return c
     }
 
@@ -196,12 +197,12 @@ public enum InstallProgress {
                 return (cat.rawValue, name, 0)
             }
         }
-        func add(_ k: (String, String, Double), _ s: InstallStatus, isRun: Bool) {
+        func add(_ k: (String, String, Double), _ s: InstallStatus, isRun: Bool, n: Int = 1) {
             if groups[k.0] == nil { groups[k.0] = G(name: k.1, sort: k.2); order.append(k.0) }
-            if isRun { groups[k.0]!.run.add(s) } else { groups[k.0]!.dev.add(s) }
+            if isRun { groups[k.0]!.run.add(s) } else { groups[k.0]!.dev.add(s, n) }
         }
         for m in trackedMarkers(markers, catalog: catalog) {
-            if let k = key(sheetId: m.sheetId, closetId: m.closetId, category: types[m.deviceTypeId]?.category, run: nil) { add(k, status(m), isRun: false) }
+            if let k = key(sheetId: m.sheetId, closetId: m.closetId, category: types[m.deviceTypeId]?.category, run: nil) { add(k, status(m), isRun: false, n: m.quantity) }
         }
         for r in trackedRuns(runs) {
             if let k = key(sheetId: r.sheetId, closetId: r.closetId, category: nil, run: r.kind) { add(k, status(r), isRun: true) }
@@ -241,15 +242,15 @@ public enum InstallProgress {
     /// progress-billing integration; not used by invoicing.
     public static func installedQuantities(markers: [Marker], catalog: [DeviceType]) -> [String: Int] {
         var out: [String: Int] = [:]
-        for m in trackedMarkers(markers, catalog: catalog) where isInstalled(status(m)) { out[m.deviceTypeId, default: 0] += 1 }
+        for m in trackedMarkers(markers, catalog: catalog) where isInstalled(status(m)) { out[m.deviceTypeId, default: 0] += m.quantity }
         return out
     }
 
     /// Devices at `s` or further along (issue: exactly issue), for the walk-mode counter.
     public static func countAtLeast(_ markers: [Marker], catalog: [DeviceType], _ s: InstallStatus) -> (n: Int, total: Int) {
         let ms = trackedMarkers(markers, catalog: catalog)
-        let n = ms.filter { s == .issue ? status($0) == .issue : rank(status($0)) >= rank(s) }.count
-        return (n, ms.count)
+        let n = ms.filter { s == .issue ? status($0) == .issue : rank(status($0)) >= rank(s) }.quantitySum
+        return (n, ms.quantitySum)
     }
 
     /// Index of the point nearest `p` within `maxDist`, or nil.

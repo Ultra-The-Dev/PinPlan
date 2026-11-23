@@ -315,6 +315,8 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
     public var wires: [String]?
     /// Electrical: the panel circuit number this device is on ("12"); its panel is `closetId`.
     public var circuit: String?
+    /// A count pin ("Add by count"): this one pin stands for this many devices of its type (2…9999). Nil = one.
+    public var count: Int?
     public var createdAt: String
     public var updatedAt: String
     public var deleted: Bool?
@@ -328,6 +330,44 @@ public struct Marker: Codable, Hashable, Identifiable, Sendable {
         self.tentative = tentative; self.notes = notes
         let now = isoNow(); self.createdAt = now; self.updatedAt = now
     }
+
+    /// Largest count a count pin can have (the database checks 2…9999).
+    public static let maxCount = 9999
+
+    /// How many devices this pin stands for: its count (2…9999), else 1. Every count of devices uses this
+    /// (src/lib/markerCount.ts markerQty).
+    public var quantity: Int {
+        guard let n = count, n >= 2 else { return 1 }
+        return min(Marker.maxCount, n)
+    }
+
+    /// The value to store for a typed count: nil for 1 (a normal pin), else 2…9999.
+    public static func normalizeCount(_ n: Int?) -> Int? {
+        guard let n, n >= 2 else { return nil }
+        return min(maxCount, n)
+    }
+
+    /// "WIN-1-03 ×12" for a count pin, else the label (lists and schedules).
+    public var pinLabel: String { quantity > 1 ? "\(label) ×\(quantity)" : label }
+
+    /// Where "Add by count" puts its pin: the middle of the view (sheet-relative), kept off the edge, stepping aside
+    /// from a pin already there. Same as countPinSpot in src/lib/markerCount.ts.
+    public static func countPinSpot(center: PlanPoint, taken: [PlanPoint]) -> PlanPoint {
+        let cx: Double = min(0.97, max(0.03, center.x))
+        let cy: Double = min(0.97, max(0.03, center.y))
+        for i in 0..<12 {
+            let step: Double = Double(i) * 0.02
+            let p = PlanPoint(x: min(0.97, cx + step), y: min(0.97, cy + step))
+            let busy: Bool = taken.contains { abs($0.x - p.x) < 0.008 && abs($0.y - p.y) < 0.008 }
+            if !busy { return p }
+        }
+        return PlanPoint(x: cx, y: cy)
+    }
+}
+
+extension Sequence where Element == Marker {
+    /// Devices behind these pins (a count pin counts as its count).
+    public var quantitySum: Int { reduce(0) { $0 + $1.quantity } }
 }
 
 public struct Run: Codable, Hashable, Identifiable, Sendable {

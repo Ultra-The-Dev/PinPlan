@@ -1,6 +1,7 @@
 "use client";
 import { Cable, ChevronDown, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { markerQty, pinLabel } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import { useMedia, WIDE_EDITOR } from "@/lib/useMedia";
@@ -22,6 +23,7 @@ import Dialog, { type DialogField } from "../Dialog";
 import ScanPanel from "../ScanPanel";
 import SheetsTab from "../SheetsTab";
 import { useMeasureUi } from "../measure/measureUi";
+import AddByCountDialog from "./AddByCountDialog";
 import Inspector from "./Inspector";
 import Palette from "./Palette";
 import PlanCanvas, { type CanvasHit } from "./PlanCanvas";
@@ -108,6 +110,8 @@ export default function PlanEditor() {
   const [manageOpen, setManageOpen] = useState(false);
   // The current sheet's menu (rename, move, delete, Manage sheets) under the sheet pill.
   const [sheetMenu, setSheetMenu] = useState(false);
+  // Add by count: one pin for many of a device (12 windows), placed in the middle of the view.
+  const [byCount, setByCount] = useState(false);
 
   // Viewer preferences (this device, this user): mode, minimap, layers & filters, per-sheet views, recent sheets.
   const role = useRole();
@@ -505,8 +509,8 @@ export default function PlanEditor() {
     const m = new Map<string, { count: number; tentative: number }>();
     for (const x of sheetMarkers) {
       const e = m.get(x.deviceTypeId) ?? { count: 0, tentative: 0 };
-      e.count++;
-      if (x.tentative) e.tentative++;
+      e.count += markerQty(x);
+      if (x.tentative) e.tentative += markerQty(x);
       m.set(x.deviceTypeId, e);
     }
     return [...m.entries()].flatMap(([id, c]) => (typesById.get(id) ? [{ type: typesById.get(id)!, ...c }] : [])).sort((x, y) => x.type.name.localeCompare(y.type.name));
@@ -517,7 +521,7 @@ export default function PlanEditor() {
   const nFilters = activeFilterCount(filters);
   const layersBadge = nHidden + nFilters ? String(nHidden + nFilters) : null;
   const perSheet: Record<string, number> = {};
-  for (const m of st.markers) perSheet[m.sheetId] = (perSheet[m.sheetId] ?? 0) + 1;
+  for (const m of st.markers) perSheet[m.sheetId] = (perSheet[m.sheetId] ?? 0) + markerQty(m);
 
   const toolbar = (
     <PlanToolbar
@@ -544,6 +548,7 @@ export default function PlanEditor() {
       onCounts={() => setPanel(panel === "counts" ? null : "counts")}
       findSimilar={editing ? { open: findOpen && !sensorsOpen, onClick: () => useFindSimilar.getState().setOpen(!findOpen || sensorsOpen) } : null}
       sensors={editing && hasOpenings ? { open: sensorsOpen, onClick: () => (sensorsOpen ? useFindSimilar.getState().setOpen(false) : openSensors()) } : null}
+      byCount={editing ? { open: byCount, onClick: () => setByCount((o) => !o) } : null}
       ai={AI_ENABLED ? { open: panel === "scan" && !selection, onClick: () => setPanel(panel === "scan" ? null : "scan") } : null}
       fullscreen={fullscreen}
       onFullscreen={() => toggleFullscreen()}
@@ -587,6 +592,7 @@ export default function PlanEditor() {
           filters={filters}
           onEdgeSwipe={step}
         />
+        {byCount && editing && <AddByCountDialog viewport={vp} onClose={() => setByCount(false)} />}
         {/* Edit mode frames the plan in orange, so it's obvious taps change things. */}
         {editing && <div className="pointer-events-none absolute inset-0 z-[5] shadow-[inset_0_0_0_3px_var(--color-brand-500)]" aria-hidden />}
 
@@ -817,7 +823,7 @@ export default function PlanEditor() {
                                   onClick={() => st.focusOn("markers", m.id)}
                                   title={m.room || undefined}
                                 >
-                                  {m.label}
+                                  {pinLabel(m)}
                                   {m.tentative ? " ?" : ""}
                                 </button>
                               ))}

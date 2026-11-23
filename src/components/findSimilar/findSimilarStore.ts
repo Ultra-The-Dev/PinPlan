@@ -9,6 +9,7 @@ import { thresholdFor, withoutExisting, type Box } from "@/lib/findSimilar/match
 import { loadSheetText, readTextFromPdf } from "@/lib/findSimilar/sheetText";
 import { defaultTagPrefixes, findTags, parsePrefixes } from "@/lib/findSimilar/tags";
 import { msg, tn } from "@/lib/i18n";
+import { sumQty } from "@/lib/markerCount";
 import { claimPlanInput } from "@/lib/planOverlays";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
@@ -272,10 +273,19 @@ export async function placeSensors(sheet: Sheet): Promise<number> {
   if (!s.sensors || ed.activeSheetId !== sheet.id) return 0;
   const plan = sensorPlan(s.sensors, ed.markers, ed.catalog, sheet);
   if (!plan.placements.length) return 0;
-  const added = await ed.addMarkers(plan.placements.map((p) => ({ deviceTypeId: p.deviceTypeId, x: p.x, y: p.y, ...(p.room ? { extra: { room: p.room } } : {}) })));
-  if (added.length) toast(tn("Added {n} sensor. Undo takes it back.", "Added {n} sensors. Undo takes them all back.", added.length), "success");
+  // A count pin's contacts are one count pin (Window ×12 → Window contact ×12).
+  const added = await ed.addMarkers(
+    plan.placements.map((p) => {
+      const extra: Partial<Marker> = {};
+      if (p.room) extra.room = p.room;
+      if (p.count > 1) extra.count = p.count;
+      return { deviceTypeId: p.deviceTypeId, x: p.x, y: p.y, extra };
+    }),
+  );
+  const n = sumQty(added);
+  if (n) toast(tn("Added {n} sensor. Undo takes it back.", "Added {n} sensors. Undo takes them all back.", n), "success");
   closeSensors();
-  return added.length;
+  return n;
 }
 
 export function toggleFind(id: string) {

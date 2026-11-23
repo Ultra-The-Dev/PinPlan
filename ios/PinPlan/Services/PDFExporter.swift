@@ -24,7 +24,7 @@ enum PDFExporter {
             .boundingRect(with: CGSize(width: width, height: 2000), options: [.usesLineFragmentOrigin], context: nil).height
     }
 
-    static func drawSymbol(_ ctx: CGContext, type: DeviceType, at c: CGPoint, r: CGFloat, tentative: Bool, label: String?) {
+    static func drawSymbol(_ ctx: CGContext, type: DeviceType, at c: CGPoint, r: CGFloat, tentative: Bool, label: String?, count: Int = 1) {
         let color = UIColor(hex: type.color)
         let path = SymbolGeometry.cgPath(type.shape, center: c, radius: r)
         let ink = tentative ? color : UIColor.white
@@ -54,8 +54,26 @@ enum PDFExporter {
         }
         if let label {
             let l = NSAttributedString(string: label, attributes: [.font: UIFont.systemFont(ofSize: r * 0.55), .foregroundColor: UIColor.darkText])
-            l.draw(at: CGPoint(x: c.x - l.size().width / 2, y: c.y + r * 1.3))
+            let below: CGFloat = count > 1 ? r * 1.45 : r * 1.3
+            l.draw(at: CGPoint(x: c.x - l.size().width / 2, y: c.y + below))
         }
+        if count > 1 { drawCountBadge(ctx, at: c, r: r, count: count) }
+    }
+
+    /// The "×12" pill of a count pin ("Add by count"), lower right of its symbol (as on the plan and the web).
+    static func drawCountBadge(_ ctx: CGContext, at c: CGPoint, r: CGFloat, count: Int) {
+        let h: CGFloat = max(4, r * 0.95)
+        let font: UIFont = UIFont.systemFont(ofSize: h * 0.78, weight: .bold)
+        let str = NSAttributedString(string: "×\(count)", attributes: [.font: font, .foregroundColor: UIColor.white])
+        let sz: CGSize = str.size()
+        let w: CGFloat = max(h, sz.width + h * 0.55)
+        let box = CGRect(x: c.x + r * 0.35, y: c.y + r * 0.3, width: w, height: h)
+        let pill: CGPath = CGPath(roundedRect: box, cornerWidth: h / 2, cornerHeight: h / 2, transform: nil)
+        ctx.saveGState()
+        ctx.addPath(pill); ctx.setFillColor(UIColor(white: 0.09, alpha: 1).cgColor); ctx.fillPath()
+        ctx.addPath(pill); ctx.setStrokeColor(UIColor.white.cgColor); ctx.setLineWidth(max(0.5, h * 0.14)); ctx.strokePath()
+        ctx.restoreGState()
+        str.draw(at: CGPoint(x: box.midX - sz.width / 2, y: box.midY - sz.height / 2))
     }
 
     /// Render one sheet with its markup into `rect`.
@@ -112,7 +130,7 @@ enum PDFExporter {
         }
         for m in bundle.liveMarkers where m.sheetId == sheet.id {
             guard let t = catalog.first(where: { $0.id == m.deviceTypeId }), show(Layer(rawValue: t.category.rawValue) ?? .security) else { continue }
-            drawSymbol(ctx, type: t, at: pt(m.x, m.y), r: r, tentative: m.tentative, label: labels ? m.label : nil)
+            drawSymbol(ctx, type: t, at: pt(m.x, m.y), r: r, tentative: m.tentative, label: labels ? m.label : nil, count: m.quantity)
         }
     }
 
@@ -185,7 +203,7 @@ enum PDFExporter {
                         if cy > page.height - 40 { pdf.beginPage(); cy = 36 }
                         let run = bundle.liveRuns.first { $0.kind == .wire && $0.markerId == m.id }
                         let len = run.flatMap(Geometry.runLengthFt)
-                        let vals = [m.label + (m.tentative ? " ?" : ""), catalog.first { $0.id == m.deviceTypeId }?.name ?? "", m.room, m.mount.rawValue, Cables.summary(m.cables),
+                        let vals = [m.pinLabel + (m.tentative ? " ?" : ""), catalog.first { $0.id == m.deviceTypeId }?.name ?? "", m.room, m.mount.rawValue, Cables.summary(m.cables),
                                     bundle.liveClosets.first { $0.id == m.closetId }?.name ?? "—", len.map { "\($0.clean) ft" } ?? "", m.notes]
                         cx = 36
                         for (i, v) in vals.enumerated() { text(v, at: CGPoint(x: cx, y: cy), size: 8.5, width: cols[i].1 - 6); cx += cols[i].1 }

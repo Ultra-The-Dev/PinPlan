@@ -122,8 +122,35 @@ export function drawSymbolContent(ctx: CanvasRenderingContext2D, shape: Shape, r
   ctx.fillText(text, 0, dy);
 }
 
+/**
+ * The "×12" pill of a count pin ("Add by count"), to the lower right of a symbol of radius `r` centred on (x, y):
+ * dark ink on white text, white outline, so it reads on any plan. Same look on the plan and in exports.
+ */
+export function drawCountBadge(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, count: number) {
+  const text = `×${count}`;
+  const h = Math.max(8, r * 0.95);
+  ctx.save();
+  ctx.font = `bold ${h * 0.78}px ui-sans-serif, system-ui, sans-serif`;
+  const w = Math.max(h, ctx.measureText(text).width + h * 0.55);
+  const left = x + r * 0.35;
+  const top = y + r * 0.3;
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") ctx.roundRect(left, top, w, h, h / 2);
+  else ctx.rect(left, top, w, h);
+  ctx.fillStyle = "#0f172a";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, h * 0.14);
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, left + w / 2, top + h / 2 + h * 0.04);
+  ctx.restore();
+}
+
 /** Draw a complete device symbol on a 2D canvas (palette, legends, exports): a solid badge with a white pictogram.
- * Tentative (?) devices are hollow with a dashed outline. */
+ * Tentative (?) devices are hollow with a dashed outline. A count pin (`count` ≥ 2) gets its "×12" pill. */
 export function drawSymbol(
   ctx: CanvasRenderingContext2D,
   shape: Shape,
@@ -132,7 +159,7 @@ export function drawSymbol(
   r: number,
   color: string,
   text: string,
-  opts: { tentative?: boolean; label?: string; icon?: string | null } = {},
+  opts: { tentative?: boolean; label?: string; icon?: string | null; count?: number } = {},
 ) {
   ctx.save();
   ctx.translate(x, y);
@@ -157,9 +184,10 @@ export function drawSymbol(
     ctx.fillStyle = "#0f172a";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText(opts.label, 0, r * 1.3);
+    ctx.fillText(opts.label, 0, r * (opts.count && opts.count > 1 ? 1.45 : 1.3));
   }
   ctx.restore();
+  if (opts.count && opts.count > 1) drawCountBadge(ctx, x, y, r, opts.count);
 }
 
 export const WIRE_COLORS: Record<string, string> = {

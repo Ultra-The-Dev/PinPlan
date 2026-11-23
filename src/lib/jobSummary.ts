@@ -2,6 +2,7 @@
 // Pure; works offline from the local job data. Mirrors PinPlanCore/JobSummary.swift.
 import { checklistProgress } from "./fieldDocs";
 import { t, tn } from "./i18n";
+import { sumQty } from "./markerCount";
 import type { ProposalStatus } from "./proposal";
 import { openTaskCounts } from "./tasks";
 import type { Checklist, JobLog, Marker, Photo, PlanTask, Project, Run, Sheet } from "./types";
@@ -113,8 +114,8 @@ export function jobSummary(input: JobSummaryInput): JobSummary {
 
   const s: Omit<JobSummary, "next"> = {
     sheets,
-    devices: markers.length,
-    tentative: markers.filter((m) => m.tentative).length,
+    devices: sumQty(markers),
+    tentative: sumQty(markers.filter((m) => m.tentative)),
     ledRuns,
     checklists: { lists: lists.length, done, total, pct: total ? Math.round((done / total) * 100) : 0, missingPhotos },
     tasks: { open, overdue, dueToday },

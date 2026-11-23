@@ -7,6 +7,7 @@ import { runCables } from "./products";
 import { renderSheet, symbolDataUrl } from "./renderSheet";
 import { wireColor } from "./symbols";
 import { computeTakeoff } from "./takeoff";
+import { pinLabel } from "./markerCount";
 import type { Closet, DeviceType, Layer, Marker, PlanMarkup, Project, Run, Sheet, TradeId } from "./types";
 
 interface Data {
@@ -95,7 +96,7 @@ export async function exportSheetsPdf(
           const run = data.runs.find((r) => r.kind === "wire" && r.markerId === m.id);
           const len = run ? runLengthFt(run) : null;
           return [
-            m.label + (m.tentative ? " ?" : ""),
+            pinLabel(m) + (m.tentative ? " ?" : ""),
             types.get(m.deviceTypeId)?.name ?? "",
             m.room || "",
             m.mount,

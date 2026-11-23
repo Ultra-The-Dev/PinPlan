@@ -6,6 +6,7 @@ import { runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import { toCsv } from "./takeoff";
 import { deviceSpec, wireForBreaker } from "./trades";
+import { markerQty, sumQty } from "./markerCount";
 import type { CircuitInfo, Closet, DeviceType, Marker, Run, Sheet } from "./types";
 
 export interface PanelInput {
@@ -112,7 +113,8 @@ export function panelSchedule(data: PanelInput, catalog: DeviceType[]): PanelSch
     const circuits: PanelCircuit[] = [];
     for (const g of groups.values()) {
       const specs = g.markers.map((m) => deviceSpec(typeOf.get(m.deviceTypeId)));
-      const va = specs.reduce((s, x) => s + x.va, 0);
+      // A count pin's load counts once per device it stands for.
+      const va = specs.reduce((s, x, i) => s + x.va * markerQty(g.markers[i]), 0);
       const needs240 = specs.some((x) => x.volts >= 208);
       const volts = g.info.volts ?? (needs240 ? 240 : 120);
       const poles = g.info.poles ?? (volts >= 208 ? 2 : 1);
@@ -121,7 +123,7 @@ export function panelSchedule(data: PanelInput, catalog: DeviceType[]): PanelSch
       const typeCounts = new Map<string, number>();
       for (const m of g.markers) {
         const n = typeOf.get(m.deviceTypeId)?.name ?? m.deviceTypeId;
-        typeCounts.set(n, (typeCounts.get(n) ?? 0) + 1);
+        typeCounts.set(n, (typeCounts.get(n) ?? 0) + markerQty(m));
       }
       const cables = g.runs.flatMap((r) => runCables(r)).filter((c) => c && c !== "Unspecified");
       const fromDevices = g.markers.map((m) => m.wireType).filter(Boolean);
@@ -136,8 +138,8 @@ export function panelSchedule(data: PanelInput, catalog: DeviceType[]): PanelSch
         poles,
         description: (g.info.description ?? "").trim() || rooms.join(", "),
         devicesText: [...typeCounts].map(([n, c]) => `${c} × ${n}`).join(", "),
-        devices: g.markers.length,
-        labels: g.markers.map((m) => m.label).sort(natural),
+        devices: sumQty(g.markers),
+        labels: g.markers.map((m) => (markerQty(m) > 1 ? `${m.label} ×${markerQty(m)}` : m.label)).sort(natural),
         wire,
         wireFt: known.length ? Math.round(known.reduce((a, b) => a + b, 0) * 10) / 10 : null,
         va,

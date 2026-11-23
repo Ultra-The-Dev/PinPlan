@@ -53,7 +53,7 @@ struct CrewView: View {
                         HStack {
                             DeviceSymbol(type: app.type(m.deviceTypeId), size: 24, tentative: m.tentative)
                             VStack(alignment: .leading) {
-                                Text(m.label).bold()
+                                Text(m.pinLabel).bold()
                                 let product = app.product(ProductAssignment.productId(for: m, project: model.bundle.project, products: app.products))?.title
                                 Text([model.sheets.first { $0.id == m.sheetId }?.name, m.room.isEmpty ? nil : m.room, product, Cables.summary(m.cables)].compactMap { $0 }.joined(separator: " · "))
                                     .font(.caption).foregroundStyle(.secondary)

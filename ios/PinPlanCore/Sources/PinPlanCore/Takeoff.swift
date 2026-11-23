@@ -48,8 +48,10 @@ public enum TakeoffCalculator {
         var zones: [String: Set<String>] = Dictionary(uniqueKeysWithValues: sheets.map { ($0.id, Set<String>()) })
 
         for m in b.liveMarkers where buckets[m.sheetId] != nil {
-            buckets[m.sheetId]!.counts[m.deviceTypeId, default: 0] += 1
-            if m.tentative { buckets[m.sheetId]!.tentative[m.deviceTypeId, default: 0] += 1 }
+            // A count pin ("Add by count") stands for `quantity` devices of its type.
+            let n = m.quantity
+            buckets[m.sheetId]!.counts[m.deviceTypeId, default: 0] += n
+            if m.tentative { buckets[m.sheetId]!.tentative[m.deviceTypeId, default: 0] += n }
         }
         for r in b.liveRuns where buckets[r.sheetId] != nil {
             let len = Geometry.runLengthFt(r)

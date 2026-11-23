@@ -52,7 +52,7 @@ struct SheetsView: View {
                 if model.sheets.count > 1 { selectionBar }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 16)], spacing: 16) {
                     ForEach(Array(model.sheets.enumerated()), id: \.element.id) { i, s in
-                        SheetCard(model: model, sheet: s, index: i, count: model.bundle.liveMarkers.filter { $0.sheetId == s.id }.count,
+                        SheetCard(model: model, sheet: s, index: i, count: model.bundle.liveMarkers.filter { $0.sheetId == s.id }.quantitySum,
                                   selecting: selecting, selected: selected.contains(s.id),
                                   onOpen: {
                                       if selecting { toggle(s.id) } else { model.setActiveSheet(s.id); openPlan() }

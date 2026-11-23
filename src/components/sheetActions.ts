@@ -2,6 +2,7 @@
 // Sheet actions shared by the plan's sheet menu and Manage sheets: delete (asks first, one undo step, "Undo" on the
 // toast) and rename. Deleting keeps the existing soft delete: the sheet row gets `deleted: true` and syncs; its
 // devices stay stored but leave the takeoff with it, and Undo brings it all back.
+import { sumQty } from "@/lib/markerCount";
 import { tn, t } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
@@ -12,7 +13,7 @@ export async function deleteSheetsWithUndo(ids: string[], opts: { confirm?: bool
   const sheets = st.sheets.filter((s) => ids.includes(s.id) && !s.deleted);
   if (!sheets.length) return false;
   if (opts.confirm !== false) {
-    const devices = st.markers.filter((m) => sheets.some((s) => s.id === m.sheetId) && !m.deleted).length;
+    const devices = sumQty(st.markers.filter((m) => sheets.some((s) => s.id === m.sheetId) && !m.deleted));
     const q =
       sheets.length === 1
         ? devices

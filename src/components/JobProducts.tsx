@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { put } from "@/lib/db";
 import { formatMoney } from "@/lib/estimate";
+import { sumQty } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
 import { cableKey, productTitle, withProductChoice } from "@/lib/products";
 import { useEditor } from "@/lib/store";
@@ -48,7 +49,7 @@ export default function JobProducts({ takeoff, pricing }: { takeoff: Takeoff; pr
         icon: d.kind === "led" ? <span className="block h-1.5 w-5 rounded" style={{ background: d.color }} /> : <SymbolIcon type={d} size={22} />,
         fallback: noProduct(prices.get(d.id), d.unitPrice),
         per: "",
-        overrides: markers.filter((m) => m.deviceTypeId === d.id && m.productId).length,
+        overrides: sumQty(markers.filter((m) => m.deviceTypeId === d.id && m.productId)),
       })),
     ...Object.keys(total.wireFt)
       .filter((w) => total.wireFt[w] > 0 && w !== "Unspecified")

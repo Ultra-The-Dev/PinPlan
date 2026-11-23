@@ -57,8 +57,8 @@ public struct JobSummary: Hashable, Sendable {
         var s = JobSummary()
         s.sheets = b.sheets.filter { $0.deleted != true }.count
         let markers = b.markers.filter { $0.deleted != true }
-        s.devices = markers.count
-        s.tentative = markers.filter { $0.tentative }.count
+        s.devices = markers.quantitySum
+        s.tentative = markers.filter { $0.tentative }.quantitySum
         s.ledRuns = b.runs.filter { $0.deleted != true && ($0.kind == .led || $0.kind == .stair) }.count
         let photos = b.photos.filter { $0.deleted != true }
         let lists = b.checklists.filter { $0.deleted != true }

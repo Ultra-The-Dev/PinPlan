@@ -2,9 +2,12 @@
 // windows (Find similar, or by hand) to know how many alarm sensors to install; "Add sensors" then places them in one
 // step: a door contact on each door, a window contact on each window, or one glass-break detector per room that has
 // windows. Pure (no browser APIs): the plan card previews and places what `planSensors` returns, and the takeoff's
-// "Openings" summary comes from `openingsSummary`. Counts still come only from placed devices (CLAUDE.md).
+// "Openings" summary comes from `openingsSummary`. Counts still come only from placed devices (CLAUDE.md). A count pin
+// ("Add by count": Window ×12) is an opening that stands for that many: its contact is one count pin ×12 at the same
+// spot, and its windows join its room for the glass-break.
 // Mirrored in ios/PinPlanCore/Sources/PinPlanCore/AlarmSensors.swift (same rules, same tests).
 import { ALARM_SEED_IDS, OPENING_TYPE_IDS } from "./catalog";
+import { markerQty } from "./markerCount";
 import type { Takeoff, TakeoffBucket } from "./takeoff";
 import type { DeviceType, Marker } from "./types";
 
@@ -42,9 +45,11 @@ export interface Opening {
   x: number;
   y: number;
   room: string;
+  /** How many doors / windows this pin stands for (a count pin), absent / 1 for a normal pin. */
+  count?: number;
 }
 
-type PlacedMarker = Pick<Marker, "id" | "sheetId" | "deviceTypeId" | "x" | "y" | "room" | "deleted">;
+type PlacedMarker = Pick<Marker, "id" | "sheetId" | "deviceTypeId" | "x" | "y" | "room" | "deleted" | "count">;
 
 /** The doors and windows on one sheet, in placement order. */
 export function sheetOpenings(markers: PlacedMarker[], catalog: Pick<DeviceType, "id" | "name">[], sheetId: string): Opening[] {
@@ -53,7 +58,7 @@ export function sheetOpenings(markers: PlacedMarker[], catalog: Pick<DeviceType,
   for (const m of markers) {
     if (m.deleted || m.sheetId !== sheetId) continue;
     const kind = kinds.get(m.deviceTypeId) ?? null;
-    if (kind) out.push({ id: m.id, kind, x: m.x, y: m.y, room: (m.room ?? "").trim() });
+    if (kind) out.push({ id: m.id, kind, x: m.x, y: m.y, room: (m.room ?? "").trim(), count: markerQty(m) });
   }
   return out;
 }
@@ -85,13 +90,20 @@ export interface SensorPlacement {
   room: string;
   /** The door, the window, or the windows of the room (glass-break). */
   openingIds: string[];
+  /** Sensors this placement stands for: a contact for a count pin (Window ×12) is one count pin ×12; glass-breaks 1. */
+  count: number;
+}
+
+/** Doors / windows behind a list of openings (a count pin counts as its count). */
+export function openingCount(openings: Pick<Opening, "count">[]): number {
+  return openings.reduce((n, o) => n + (o.count ?? 1), 0);
 }
 
 export interface SensorPlan {
   placements: SensorPlacement[];
-  /** Sensors to place, per kind (only the kinds asked for). */
+  /** Sensors to place, per kind (only the kinds asked for); a count pin's contacts count as its count. */
   counts: Record<SensorKind, number>;
-  /** Openings (door / window) or rooms (glass) that already have that sensor, so nothing is placed for them. */
+  /** Openings (door / window, by count) or rooms (glass) that already have that sensor, so nothing is placed for them. */
   covered: Record<SensorKind, number>;
 }
 
@@ -127,12 +139,14 @@ export function planSensors(
     const have = live.filter((m) => m.deviceTypeId === typeId);
     for (const o of use) {
       if (o.kind !== kind) continue;
+      const n = o.count ?? 1;
+      // A sensor pin next to it (whatever its count) means this opening already has its sensors.
       if (have.some((m) => distPx(m, o) < 1.5 * off)) {
-        covered[kind] += 1;
+        covered[kind] += n;
         continue;
       }
-      placements.push({ kind, deviceTypeId: typeId, x: clamp01(o.x + dx), y: clamp01(o.y - dy), room: o.room, openingIds: [o.id] });
-      counts[kind] += 1;
+      placements.push({ kind, deviceTypeId: typeId, x: clamp01(o.x + dx), y: clamp01(o.y - dy), room: o.room, openingIds: [o.id], count: n });
+      counts[kind] += n;
     }
   }
 
@@ -151,7 +165,7 @@ export function planSensors(
         covered.glass += 1;
         continue;
       }
-      placements.push({ kind: "glass", deviceTypeId: typeId, x: at.x, y: at.y, room: g.room, openingIds: g.windows.map((w) => w.id) });
+      placements.push({ kind: "glass", deviceTypeId: typeId, x: at.x, y: at.y, room: g.room, openingIds: g.windows.map((w) => w.id), count: 1 });
       counts.glass += 1;
     }
   }

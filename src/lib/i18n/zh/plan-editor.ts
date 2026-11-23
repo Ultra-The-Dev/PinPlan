@@ -812,6 +812,22 @@ const planEditor: Dictionary = {
   "{n} device on them goes with them.": { other: "其上的 {n} 个设备也会一并删除。" },
   "Deleted {n} sheet": { other: "已删除 {n} 张图页" },
   "{n} floor name read from the plan — check it below.": { other: "已从平面图读取 {n} 个楼层名称——请在下方核对。" },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "已添加 {name} ×{n}。把标记拖到需要的位置。",
+  "Add by count": "按数量添加",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "太多了，不想逐个标注？一个标记代表全部，在各处都按这个数量计算。",
+  "How many": "数量多少",
+  "Room (optional)": "房间（可选）",
+  "Add {name} ×{n}": "添加 {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "它会出现在当前图纸视图的中间。拖到需要的位置即可。",
+  "One less": "减一",
+  "One more": "加一",
+  "Count": "数量",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "此标记在工程量、估价单和导出中按 {n} 个计算。",
+  "Several of these here? Set how many: one pin counts as all of them.": "这里有好几个？填写数量：一个标记就能全部计入。",
+  "Add by count: one pin for many doors, windows or any device": "按数量添加：一个标记代表多扇门、多扇窗或任意设备",
+  "By count": "按数量",
+  "Add by count (doors, windows…)": "按数量添加（门、窗…）",
 };
 
 export default planEditor;

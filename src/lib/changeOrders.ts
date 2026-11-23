@@ -6,6 +6,7 @@ import type { BillableChange } from "./documents";
 import { money } from "./estimate";
 import { msg, t } from "./i18n";
 import { productIdFor, productTitle } from "./products";
+import { markerQty } from "./markerCount";
 import type {
   AppSettings,
   ChangeOrder,
@@ -102,7 +103,7 @@ export function laborHoursLine(hours: number, pricing: CoPricing, description = 
  * line each when labor is separate. Devices whose type is gone from the catalog are skipped.
  */
 export function linesFromMarkers(
-  markers: Pick<Marker, "id" | "deviceTypeId" | "productId" | "deleted">[],
+  markers: Pick<Marker, "id" | "deviceTypeId" | "productId" | "deleted" | "count">[],
   catalog: DeviceType[],
   products: Product[],
   pricing: CoPricing,
@@ -119,7 +120,7 @@ export function linesFromMarkers(
     const p = pid ? (products.find((x) => x.id === pid) ?? null) : null;
     const key = `${d.id}|${p?.id ?? ""}`;
     const g = groups.get(key) ?? { d, p, qty: 0 };
-    g.qty++;
+    g.qty += markerQty(m);
     groups.set(key, g);
   }
   const sorted = [...groups.values()].sort((a, b) => a.d.sort - b.d.sort || a.d.name.localeCompare(b.d.name) || (a.p ? productTitle(a.p) : "").localeCompare(b.p ? productTitle(b.p) : ""));

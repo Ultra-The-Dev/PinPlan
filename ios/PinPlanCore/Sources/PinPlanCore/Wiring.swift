@@ -52,24 +52,29 @@ public enum Wiring {
             let device = p.map { "\($0.title) (\(t?.name ?? m.deviceTypeId))" } ?? (t?.name ?? m.deviceTypeId)
             var perType: [String: Int] = [:]
             for c in cables { perType[c, default: 0] += 1 }
-            var seen: [String: Int] = [:]
-            for cable in cables {
-                let i = seen[cable, default: 0]
-                seen[cable] = i + 1
-                let suffix = perType[cable]! > 1 ? "-" + String(UnicodeScalar(UInt8(65 + i))) : ""
-                var port = ""
-                if let closet {
-                    let prefix = cable == "Cat6" ? "PP" : (portPrefix[cable] ?? String(cable.filter { $0.isLetter || $0.isNumber }.prefix(3)).uppercased())
-                    let key = closet.id + "|" + prefix
-                    let n = counters[key, default: 0] + 1
-                    counters[key] = n
-                    port = prefix == "PP"
-                        ? "PP\((n + panelPorts - 1) / panelPorts)-\(String(format: "%02d", (n - 1) % panelPorts + 1))"
-                        : "\(prefix)-\(String(format: "%02d", n))"
+            // A count pin (×12) gets a row, a port and a label per device: "WC-1-03.1" … "WC-1-03.12".
+            let qty = m.quantity
+            for k in 1...qty {
+                let base = qty > 1 ? "\(m.label).\(k)" : m.label
+                var seen: [String: Int] = [:]
+                for cable in cables {
+                    let i = seen[cable, default: 0]
+                    seen[cable] = i + 1
+                    let suffix = perType[cable]! > 1 ? "-" + String(UnicodeScalar(UInt8(65 + i))) : ""
+                    var port = ""
+                    if let closet {
+                        let prefix = cable == "Cat6" ? "PP" : (portPrefix[cable] ?? String(cable.filter { $0.isLetter || $0.isNumber }.prefix(3)).uppercased())
+                        let key = closet.id + "|" + prefix
+                        let n = counters[key, default: 0] + 1
+                        counters[key] = n
+                        port = prefix == "PP"
+                            ? "PP\((n + panelPorts - 1) / panelPorts)-\(String(format: "%02d", (n - 1) % panelPorts + 1))"
+                            : "\(prefix)-\(String(format: "%02d", n))"
+                    }
+                    rows.append(PortRow(closetId: closet?.id, closetName: closet?.name ?? "No closet", port: port, cable: cable, markerId: m.id,
+                                        label: base + suffix, device: device, room: m.room, floor: sheets.first { $0.id == m.sheetId }?.name ?? "",
+                                        lengthFt: len, tentative: m.tentative))
                 }
-                rows.append(PortRow(closetId: closet?.id, closetName: closet?.name ?? "No closet", port: port, cable: cable, markerId: m.id,
-                                    label: m.label + suffix, device: device, room: m.room, floor: sheets.first { $0.id == m.sheetId }?.name ?? "",
-                                    lengthFt: len, tentative: m.tentative))
             }
         }
         return rows

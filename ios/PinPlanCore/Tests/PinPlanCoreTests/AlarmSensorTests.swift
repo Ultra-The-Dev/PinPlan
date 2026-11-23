@@ -117,6 +117,41 @@ final class AlarmSensorTests: XCTestCase {
         XCTAssertEqual(A.missingTypes(cat.filter { $0.id != "door-contact" }, kinds: [.door, .window]), [.door])
     }
 
+    // Count pins (Add by count), as in tests/alarmSensors.test.ts.
+    func testCountPinGetsOneContactCountPin() {
+        let os = [A.Opening(id: "d", kind: .door, x: 0.1, y: 0.5, count: 3), A.Opening(id: "w", kind: .window, x: 0.2, y: 0.2, room: "Den", count: 12)]
+        let p = A.plan(openings: os, existing: [], sheetId: "s1", width: 1000, height: 500, pxPerFt: 10, kinds: [.door, .window])
+        XCTAssertEqual(p.count(.door), 3)
+        XCTAssertEqual(p.count(.window), 12)
+        XCTAssertEqual(p.placements.map(\.deviceTypeId), ["door-contact", "window-contact"])
+        XCTAssertEqual(p.placements.map(\.count), [3, 12])
+        XCTAssertEqual(p.placements[1].room, "Den")
+        XCTAssertEqual(p.placements[1].x, 0.2 + dx, accuracy: 1e-9)
+    }
+
+    func testCountPinWindowsShareTheRoomGlassBreak() {
+        let os = [A.Opening(id: "w", kind: .window, x: 0.2, y: 0.2, room: "Den", count: 12), A.Opening(id: "w2", kind: .window, x: 0.6, y: 0.6, room: "den")]
+        let p = A.plan(openings: os, existing: [], sheetId: "s1", width: 1000, height: 500, pxPerFt: 10, kinds: [.glass])
+        XCTAssertEqual(p.count(.glass), 1)
+        XCTAssertEqual(p.placements.map(\.openingIds), [["w", "w2"]])
+        XCTAssertEqual(p.placements.map(\.count), [1])
+    }
+
+    func testSensorNextToCountPinCoversAllOfIt() {
+        let os = [A.Opening(id: "w", kind: .window, x: 0.2, y: 0.2, count: 12)]
+        let p = A.plan(openings: os, existing: [A.Placed(mk("c", "window-contact", 0.21, 0.2))], sheetId: "s1", width: 1000, height: 500, pxPerFt: 10, kinds: [.window])
+        XCTAssertTrue(p.placements.isEmpty)
+        XCTAssertEqual(p.covered[.window], 12)
+    }
+
+    func testSheetOpeningsCarryTheCount() {
+        var w = mk("a", "gen-window", 0.1, 0.1)
+        w.count = 12
+        let os = A.sheetOpenings(markers: [w, mk("b", "gen-door", 0.2, 0.2)], catalog: Catalog.seed() + Trades.builtInAdditions(catalog: Catalog.seed()), sheetId: "s1")
+        XCTAssertEqual(os.map(\.count), [12, 1])
+        XCTAssertEqual(A.openingCount(os), 13)
+    }
+
     func testTakeoffOpenings() {
         var catalog = Catalog.seed() + Trades.builtInAdditions(catalog: Catalog.seed())
         var mine = catalog[0]

@@ -16,6 +16,8 @@ struct PlanEditorView: View {
     @State private var showReader = false
     @State private var showBrowser = false
     @State private var showLayers = false
+    /// Add by count: one pin for many of a device (12 windows), in the middle of the view.
+    @State private var showByCount = false
     @State private var fullScreen = false
     @State private var viewport = PlanViewportController()
     @State private var showMinimap = false
@@ -113,7 +115,7 @@ struct PlanEditorView: View {
         return containerWidth - Self.paletteWidth - 360 >= Self.minCanvasWidth
     }
 
-    private func markerCount(_ sheetId: String) -> Int { model.bundle.liveMarkers.filter { $0.sheetId == sheetId }.count }
+    private func markerCount(_ sheetId: String) -> Int { model.bundle.liveMarkers.filter { $0.sheetId == sheetId }.quantitySum }
 
     private func step(_ delta: Int) {
         if model.goToSheet(delta: delta) { Haptics.select() } else { Haptics.limit() }
@@ -312,6 +314,7 @@ struct PlanEditorView: View {
             .sheet(isPresented: $model.showManagePlans) { ManagePlansSheet(model: model) }
             .sheet(item: $model.pending) { p in PendingInputSheet(model: model, pending: p) }
             .sheet(isPresented: $scaleInput) { if let s = model.activeSheet { ScaleSheet(model: model, sheet: s) } }
+            .sheet(isPresented: $showByCount) { if let s = model.activeSheet { AddByCountSheet(model: model, sheet: s, controller: viewport) } }
             .sheet(isPresented: $showScan) { if let s = model.activeSheet { ScanSheet(model: model, sheet: s) } }
     }
 
@@ -433,6 +436,9 @@ struct PlanEditorView: View {
             Button { model.use(.measure) } label: { Label("Measure distance", systemImage: "ruler.fill") }
             Button { FindSimilarUI.shared.show(model: model) } label: { Label("Find similar", systemImage: "square.on.square.dashed") }
                 .accessibilityIdentifier("find-similar-menu")
+            // Many doors, windows or any device as one pin with a count ("×12").
+            Button { showByCount = true } label: { Label("Add by count…", systemImage: "number.square") }
+                .accessibilityIdentifier("add-by-count-menu")
             // Once the plan has doors or windows: alarm sensors on them (Find similar's Add sensors).
             if let sheet = model.activeSheet, !FindSimilarUI.shared.openings(model, sheet: sheet).isEmpty {
                 Button { FindSimilarUI.shared.openSensors(model: model) } label: { Label("Add alarm sensors", systemImage: "checkmark.shield") }
@@ -584,7 +590,7 @@ struct CountsPanel: View {
                         DisclosureGroup {
                             let ms = model.bundle.liveMarkers.filter { $0.sheetId == sheet?.id && $0.deviceTypeId == t.id }.sorted { $0.label < $1.label }
                             ForEach(ms) { m in
-                                Button { model.focusOn(.marker(m.id)) } label: { Text(m.label + (m.tentative ? " ?" : "") + (m.room.isEmpty ? "" : " · \(m.room)")) }
+                                Button { model.focusOn(.marker(m.id)) } label: { Text(m.pinLabel + (m.tentative ? " ?" : "") + (m.room.isEmpty ? "" : " · \(m.room)")) }
                             }
                         } label: {
                             HStack {

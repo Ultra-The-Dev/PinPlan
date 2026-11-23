@@ -77,7 +77,8 @@ public enum ProductAssignment {
         for m in b.liveMarkers where liveSheets.contains(m.sheetId) {
             guard let pid = productId(for: m, project: b.project, products: products) else { continue }
             var e = out[m.deviceTypeId, default: [:]][pid] ?? (0, 0)
-            if m.tentative { e.tentative += 1 } else { e.confirmed += 1 }
+            let q = Double(m.quantity)
+            if m.tentative { e.tentative += q } else { e.confirmed += q }
             out[m.deviceTypeId, default: [:]][pid] = e
         }
         for d in catalog where d.kind == .led {

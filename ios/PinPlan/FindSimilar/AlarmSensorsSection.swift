@@ -26,11 +26,13 @@ struct AlarmSensorsSection: View {
     var body: some View {
         let ui = FindSimilarUI.shared
         let openings = ui.openings(model, sheet: sheet)
-        let doors = openings.filter { $0.kind == .door }.count
+        // Count pins (Window ×12) count as their count.
+        let doors: Int = AlarmSensors.openingCount(openings.filter { $0.kind == .door })
+        let windows: Int = AlarmSensors.openingCount(openings.filter { $0.kind == .window })
         let all = ui.sensorPlan(model, sheet: sheet, kinds: Set(AlarmSensors.SensorKind.allCases))
         let plan = ui.sensorPlan(model, sheet: sheet)
         let missing = AlarmSensors.missingTypes(model.app.catalog)
-        let n = plan.placements.count
+        let n: Int = plan.placements.reduce(0) { $0 + $1.count }
         VStack(alignment: .leading, spacing: 8) {
             Label("Add alarm sensors", systemImage: "checkmark.shield").font(.subheadline.weight(.semibold))
             if openings.isEmpty {
@@ -41,7 +43,7 @@ struct AlarmSensorsSection: View {
                     .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("Doors: \(doors) · Windows: \(openings.count - doors)")
+                Text("Doors: \(doors) · Windows: \(windows)")
                     .font(.caption).monospacedDigit().foregroundStyle(Color.secondary)
                     .accessibilityIdentifier("alarm-openings")
                 ForEach(options) { o in

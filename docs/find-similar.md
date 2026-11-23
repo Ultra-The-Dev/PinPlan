@@ -76,6 +76,39 @@ saved before this get the alarm items and Door / Window on each device that open
 back), written like the seed catalog (not queued for sync, dated 1970, so the company's copy on the server always
 wins). No database change.
 
+## Count without pinning (Add by count)
+
+When there are too many doors or windows to pin one by one (or Find similar can't read a scan), one pin can stand for
+all of them: a **count pin**. `markers.count` (2…9999; null = one device, migration
+`20261125003000_marker_count.sql`), `Marker.count` on the web and in `PinPlanCore`.
+
+**Where.** Edit mode: toolbar **By count** (phones: **More → Add by count**; iPhone and iPad: **Tools (⋯) → Add by
+count…**). Pick the type (Door and Window first, then any device), type how many (− / + or the keypad), optionally a
+room; **Add Window ×12** drops ONE pin in the middle of the view (stepping aside from a pin already there,
+`countPinSpot`) and selects it, so it can be dragged. The device card has **Count** to turn any pin into a count pin or
+change the number (1 = a normal pin). Duplicate copies the count.
+
+**On the plan** it is a normal device symbol (letters and trade colour) with a dark **×12** pill at its lower right,
+also in PDF exports and the client proposal image (`drawCountBadge`).
+
+**Counts.** Every count of devices goes through `markerQty` (`src/lib/markerCount.ts`; Swift `Marker.quantity`), so a
+count pin is still a placed device ("counts come only from placed markers"):
+
+- `computeTakeoff` (and with it the Takeoff tab, Openings, CSV, estimate, quotes, Billdu, order list) counts it as N,
+  tentative too; `productSplit`, quote lines grouped by room / floor (`docFromEstimate`), change-order lines from the
+  plan, the job summary, floor counts, the palette badge, layer counts, sheet cards and job cards do the same.
+- **Alarm sensors**: a door ×N gets one door contact ×N at the usual spot, a window ×N one window contact ×N; for
+  glass-breaks it is windows in its room (one glass-break per room, as before). A sensor pin next to a count pin
+  covers all of it, whatever the sensor's own count. "Place N sensors" and the toast count devices, not pins.
+- **Port schedule / cable labels**: one row, port and label per device it stands for: `WC-1-03.1` … `WC-1-03.12`
+  (each sensor needs its own zone or jack), so terminations in the order list count N too.
+- **Wire runs**: drawing and auto home runs treat a count pin as ONE pin with one home run, and its cable is counted
+  once in the takeoff. Add the extra cable by typing a length on the run (or use normal pins where each cable matters).
+- **Panel schedule**: devices and load (VA) × N; labels show "WIN-1-03 ×12".
+- **Install progress**: one status per pin (the whole group is roughed / installed together), counted N times in
+  totals and percentages; `installedQuantities` × N.
+- Lists of pins (crew device schedule, optional items, floor-count chips, change-order picker) show "LABEL ×N".
+
 ## How matching works
 
 `src/lib/findSimilar/match.worker.ts` (a Web Worker, so the plan stays responsive) with the pure helpers in

@@ -305,6 +305,9 @@ const dict: Dictionary = {
   "The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done.": "A aba Tarefas (no celular, na barra inferior): tudo o que há para fazer nesta obra. Abra uma tarefa para ver o local na planta, adicionar uma foto e concluí-la.",
   "Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online.": "Fotos tem uma aba própria. Tirar foto salva nesta obra com a data e o local. Sem sinal? Ela é enviada quando a internet voltar.",
   "Tap Add task for something to do on this job. Pick its sheet, and the device if it's about one.": "Toque em Adicionar tarefa para algo a fazer nesta obra. Escolha a folha e, se for sobre um dispositivo, o dispositivo.",
+  // Add by count
+  "Or add them by count": "Ou adicione por quantidade",
+  "Too many to pin one by one? Tap By count (on a phone: More › Add by count), pick Door or Window, type how many and a room if you like. One pin marked ×12 counts as 12 everywhere, alarm sensors included. Change the number later in the device's Count.": "Muitas para marcar uma por uma? Toque em Por quantidade (no celular: Mais › Adicionar por quantidade), escolha Porta ou Janela, digite quantas e, se quiser, o cômodo. Um marcador com ×12 conta como 12 em tudo, inclusive nos sensores de alarme. Depois você pode mudar o número em Quantidade do dispositivo.",
 };
 
 export default dict;

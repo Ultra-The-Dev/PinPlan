@@ -7,6 +7,7 @@ import { estimateLineId, newestOverride } from "./estimate";
 import { estimateHomeRunFt, homeRunPoints, polylineFt } from "./geometry";
 import { t } from "./i18n";
 import { nextLabel } from "./labels";
+import { normalizeCount } from "./markerCount";
 import { claimPlanInput } from "./planOverlays";
 import { rotateSheetMeasurements } from "./measurements";
 import { markerCables } from "./products";
@@ -276,6 +277,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!before) continue;
       const patch = patchFn(before);
       const after = { ...before, ...patch };
+      if ("count" in patch) after.count = normalizeCount(after.count);
       if (JSON.stringify(after) === JSON.stringify(before)) continue;
       changes.push({ table: "markers", before, after });
       if ("closetId" in patch || "wireType" in patch || "wires" in patch || "tentative" in patch) {
@@ -423,6 +425,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       updatedAt: nowIso(),
       ...extra,
     };
+    if (m.count !== undefined) m.count = normalizeCount(m.count);
     await get().commit([{ table: "markers", before: null, after: m }]);
     return m;
   },
@@ -457,6 +460,7 @@ export const useEditor = create<EditorState>((set, get) => ({
         updatedAt: nowIso(),
         ...extra,
       };
+      if (m.count !== undefined) m.count = normalizeCount(m.count);
       markers.push(m);
       out.push(m);
     }
@@ -467,6 +471,8 @@ export const useEditor = create<EditorState>((set, get) => ({
     const before = get().markers.find((m) => m.id === id);
     if (!before) return;
     const after = { ...before, ...patch };
+    // A count pin is 2…9999 devices; 1 (or nothing) is a normal pin.
+    if ("count" in patch) after.count = normalizeCount(after.count);
     const changes: Change[] = [{ table: "markers", before, after }];
     // Keep an attached home-run line in sync when the device moves or changes closet/wire.
     if ("x" in patch || "y" in patch || "closetId" in patch || "wireType" in patch || "wires" in patch || "tentative" in patch) {

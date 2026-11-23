@@ -1,5 +1,6 @@
 // Pure mappers between local (camelCase, Dexie) rows and Supabase (snake_case, Postgres) rows.
 import { INACTIVE_MESSAGE } from "./billingLogic";
+import { normalizeCount } from "./markerCount";
 import type { SyncTable } from "./db";
 
 export interface TableSpec {
@@ -134,6 +135,7 @@ export const TABLES: Record<SyncTable, TableSpec> = {
       notes: "notes",
       photoId: "photo_id",
       install: "install",
+      count: "count",
     },
   },
   runs: {
@@ -515,6 +517,8 @@ export function toRemote(table: SyncTable, row: Record<string, unknown>): Record
   if (table === "planMarkups" && !Array.isArray(out.points)) out.points = [];
   if (table === "salesDocs") for (const [k, v] of Object.entries(DOC_DEFAULTS)) if (out[k] == null) out[k] = v;
   if (table === "salesPayments" && out.amount == null) out.amount = 0;
+  // markers.count: null or 2…9999 (the database checks it); a normal pin sends null so a cleared count clears there too.
+  if (table === "markers") out.count = normalizeCount(out.count);
   if (table === "jobTemplates") {
     if (out.payload == null || typeof out.payload !== "object") out.payload = { version: 1, project: {}, checklists: [], estimateLines: [] };
     // The database sets created_by itself; anything that isn't a user id would fail the uuid column.

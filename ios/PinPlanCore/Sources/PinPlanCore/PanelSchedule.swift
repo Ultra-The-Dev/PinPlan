@@ -96,7 +96,9 @@ public enum PanelSchedule {
                 let ms = gMarkers[key] ?? [], rs = gRuns[key] ?? []
                 let i = info[key] ?? CircuitInfo()
                 let specs = ms.map { Trades.deviceSpec(types[$0.deviceTypeId]) }
-                let va = specs.reduce(0) { $0 + $1.va }
+                // A count pin's load counts once per device it stands for.
+                var va = 0.0
+                for (j, sp) in specs.enumerated() { va += sp.va * Double(ms[j].quantity) }
                 let volts = i.volts ?? (specs.contains { $0.volts >= 208 } ? 240 : 120)
                 let poles = i.poles.map { Int($0) } ?? (volts >= 208 ? 2 : 1)
                 let guess = specs.compactMap(\.breakerA).max()
@@ -104,7 +106,8 @@ public enum PanelSchedule {
                 var typeCounts: [(String, Int)] = []
                 for m in ms {
                     let n = types[m.deviceTypeId]?.name ?? m.deviceTypeId
-                    if let j = typeCounts.firstIndex(where: { $0.0 == n }) { typeCounts[j].1 += 1 } else { typeCounts.append((n, 1)) }
+                    let q = m.quantity
+                    if let j = typeCounts.firstIndex(where: { $0.0 == n }) { typeCounts[j].1 += q } else { typeCounts.append((n, q)) }
                 }
                 let cables = rs.flatMap(\.cables).filter { !$0.isEmpty && $0 != "Unspecified" }
                 let wire = mostCommon(cables) ?? mostCommon(ms.map(\.wireType).filter { !$0.isEmpty }) ?? breaker.map { Trades.wireForBreaker($0, volts: volts) } ?? ""
@@ -115,7 +118,7 @@ public enum PanelSchedule {
                     number: number[key] ?? "", breakerA: breaker, volts: volts, poles: poles,
                     description: desc.isEmpty ? rooms.joined(separator: ", ") : desc,
                     devicesText: typeCounts.map { "\($0.1) × \($0.0)" }.joined(separator: ", "),
-                    devices: ms.count, labels: ms.map(\.label).sorted(by: natural), wire: wire,
+                    devices: ms.quantitySum, labels: ms.map(\.pinLabel).sorted(by: natural), wire: wire,
                     wireFt: lens.isEmpty ? nil : (lens.reduce(0, +) * 10).rounded() / 10, va: va, runIds: rs.map(\.id),
                     tentative: ms.isEmpty ? rs.allSatisfy { $0.tentative == true } : ms.allSatisfy(\.tentative),
                     breakerGuessed: i.breakerA == nil && guess != nil))

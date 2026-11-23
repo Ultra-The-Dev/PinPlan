@@ -5,6 +5,7 @@ import { bundleOffsets, offsetPolyline, polylineMidpoint, runLengthFt } from "./
 import { runCables } from "./products";
 import { drawSymbol, iconFor, wireColor } from "./symbols";
 import { drawMarkupsOnCanvas, exportableMarkups } from "./markups";
+import { markerQty } from "./markerCount";
 import type { Closet, DeviceType, Layer, Marker, PlanMarkup, Run, Sheet } from "./types";
 
 export interface RenderOptions {
@@ -123,7 +124,7 @@ export async function renderSheet(
     if (m.sheetId !== sheet.id || m.deleted) continue;
     const t = types.get(m.deviceTypeId);
     if (!t || !show(t.category)) continue;
-    drawSymbol(ctx, t.shape, m.x * W, m.y * H, r, t.color, t.symbol, { icon: iconFor(t), tentative: m.tentative, label: opts.labels ? m.label : undefined });
+    drawSymbol(ctx, t.shape, m.x * W, m.y * H, r, t.color, t.symbol, { icon: iconFor(t), tentative: m.tentative, label: opts.labels ? m.label : undefined, count: markerQty(m) });
   }
   if (opts.markups?.length) drawMarkupsOnCanvas(ctx, exportableMarkups(opts.markups, sheet.id), W, H);
   return c;

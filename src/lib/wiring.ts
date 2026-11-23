@@ -3,6 +3,7 @@
 import { runLengthFt } from "./geometry";
 import { cableChoices, markerCables, productIdFor, productSplit, productTitle, runCables } from "./products";
 import { computeTakeoff, toCsv } from "./takeoff";
+import { markerQty } from "./markerCount";
 import type { Closet, DeviceType, Marker, Product, Project, Run, Sheet } from "./types";
 
 export interface WiringInput {
@@ -56,6 +57,7 @@ const natural = (a: string, b: string) => a.localeCompare(b, undefined, { numeri
 /**
  * Every cable from a device to its closet, with a port. Ports are numbered per closet in floor order, then device label,
  * so the schedule reads in a natural order. (Numbers shift if devices are added later — print labels once the plan is final.)
+ * A count pin (×12) gets a row, a port and a label per device it stands for: "WC-1-03.1" … "WC-1-03.12".
  */
 export function portSchedule(data: WiringInput, catalog: DeviceType[], products: Product[] = []): PortRow[] {
   const sheets = live(data.sheets).sort((a, b) => a.order - b.order);
@@ -80,33 +82,37 @@ export function portSchedule(data: WiringInput, catalog: DeviceType[], products:
     const device = p ? `${productTitle(p)} (${t?.name ?? m.deviceTypeId})` : (t?.name ?? m.deviceTypeId);
     const perType = new Map<string, number>();
     for (const c of cables) perType.set(c, (perType.get(c) ?? 0) + 1);
-    const seen = new Map<string, number>();
-    for (const cable of cables) {
-      const i = seen.get(cable) ?? 0;
-      seen.set(cable, i + 1);
-      const suffix = perType.get(cable)! > 1 ? `-${String.fromCharCode(65 + i)}` : "";
-      let port = "";
-      if (closet) {
-        const prefix = cable === "Cat6" ? "PP" : (PORT_PREFIX[cable] ?? cable.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase());
-        const key = `${closet.id}|${prefix}`;
-        const n = (counters.get(key) ?? 0) + 1;
-        counters.set(key, n);
-        port = prefix === "PP" ? `PP${Math.ceil(n / PANEL_PORTS)}-${String(((n - 1) % PANEL_PORTS) + 1).padStart(2, "0")}` : `${prefix}-${String(n).padStart(2, "0")}`;
+    const qty = markerQty(m);
+    for (let k = 1; k <= qty; k++) {
+      const base = qty > 1 ? `${m.label}.${k}` : m.label;
+      const seen = new Map<string, number>();
+      for (const cable of cables) {
+        const i = seen.get(cable) ?? 0;
+        seen.set(cable, i + 1);
+        const suffix = perType.get(cable)! > 1 ? `-${String.fromCharCode(65 + i)}` : "";
+        let port = "";
+        if (closet) {
+          const prefix = cable === "Cat6" ? "PP" : (PORT_PREFIX[cable] ?? cable.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase());
+          const key = `${closet.id}|${prefix}`;
+          const n = (counters.get(key) ?? 0) + 1;
+          counters.set(key, n);
+          port = prefix === "PP" ? `PP${Math.ceil(n / PANEL_PORTS)}-${String(((n - 1) % PANEL_PORTS) + 1).padStart(2, "0")}` : `${prefix}-${String(n).padStart(2, "0")}`;
+        }
+        rows.push({
+          closetId: closet?.id ?? null,
+          closetName: closet?.name ?? "No closet",
+          port,
+          cable,
+          markerId: m.id,
+          label: base + suffix,
+          deviceLabel: m.label,
+          device,
+          room: m.room,
+          floor: sheets.find((s) => s.id === m.sheetId)?.name ?? "",
+          lengthFt: len,
+          tentative: m.tentative,
+        });
       }
-      rows.push({
-        closetId: closet?.id ?? null,
-        closetName: closet?.name ?? "No closet",
-        port,
-        cable,
-        markerId: m.id,
-        label: m.label + suffix,
-        deviceLabel: m.label,
-        device,
-        room: m.room,
-        floor: sheets.find((s) => s.id === m.sheetId)?.name ?? "",
-        lengthFt: len,
-        tentative: m.tentative,
-      });
     }
   }
   return rows;

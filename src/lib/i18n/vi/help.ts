@@ -305,6 +305,9 @@ const dict: Dictionary = {
   "The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done.": "Tab Việc (trên điện thoại ở thanh dưới cùng): mọi thứ cần làm ở công trình này. Mở một việc để xem vị trí trên bản vẽ, thêm ảnh và đánh dấu xong.",
   "Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online.": "Ảnh có tab riêng. Chụp ảnh lưu ảnh vào công trình này kèm ngày và địa điểm. Không có sóng? Ảnh sẽ tải lên khi có mạng lại.",
   "Tap Add task for something to do on this job. Pick its sheet, and the device if it's about one.": "Chạm Thêm việc để thêm việc cần làm ở công trình này. Chọn tờ, và chọn thiết bị nếu việc liên quan đến một thiết bị.",
+  // Add by count
+  "Or add them by count": "Hoặc thêm theo số lượng",
+  "Too many to pin one by one? Tap By count (on a phone: More › Add by count), pick Door or Window, type how many and a room if you like. One pin marked ×12 counts as 12 everywhere, alarm sensors included. Change the number later in the device's Count.": "Quá nhiều để ghim từng cái? Chạm Theo số lượng (trên điện thoại: Thêm › Thêm theo số lượng), chọn Cửa đi hoặc Cửa sổ, nhập số lượng và phòng nếu muốn. Một ghim có ×12 được tính là 12 ở mọi nơi, kể cả cảm biến báo động. Sau này có thể đổi số trong mục Số lượng của thiết bị.",
 };
 
 export default dict;

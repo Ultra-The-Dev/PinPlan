@@ -6,6 +6,7 @@
 import { msg } from "./i18n/msg";
 import { categoryOf } from "./catalog";
 import { tradeCategory } from "./trades";
+import { markerQty, sumQty } from "./markerCount";
 import type { Closet, DeviceType, InstallState, InstallStatus, Marker, Run, RunKind, Sheet, TradeId } from "./types";
 
 /** Display order, left to right ("issue" sits apart: it's a flag, not a step). */
@@ -192,19 +193,22 @@ export function progressMarkers(markers: Marker[], catalog: DeviceType[]): Marke
 /** Runs that count toward progress: every run that isn't tentative or deleted. */
 export const progressRuns = (runs: Run[]) => runs.filter((r) => markable({ tentative: !!r.tentative, deleted: r.deleted }));
 
+/** A device's status once per device it stands for: a count pin (×12) has one status and counts 12 times. */
+const weighted = (ms: Marker[]): InstallStatus[] => ms.flatMap((m) => Array<InstallStatus>(markerQty(m)).fill(statusOf(m)));
+
 /** Totals for a set of devices (the toolbar counter). */
 export function progressTotals(markers: Marker[], catalog: DeviceType[]): ProgressCounts {
-  return tally(progressMarkers(markers, catalog).map(statusOf));
+  return tally(weighted(progressMarkers(markers, catalog)));
 }
 
 /** Devices at `status` or further along (issue: exactly issue), for the walk-mode counter ("3/40 installed"). */
 export function countAtLeast(markers: Marker[], catalog: DeviceType[], status: InstallStatus): { n: number; total: number } {
   const ms = progressMarkers(markers, catalog);
-  const n = ms.filter((m) => {
+  const n = sumQty(ms.filter((m) => {
     const s = statusOf(m);
     return status === "issue" ? s === "issue" : RANK[s] >= RANK[status];
-  }).length;
-  return { n, total: ms.length };
+  }));
+  return { n, total: sumQty(ms) };
 }
 
 /**
@@ -245,7 +249,7 @@ export function progress(
   };
   for (const m of ms) {
     const k = keyFor(m);
-    if (k) group(k.key, k.name, k.sort).dev.push(statusOf(m));
+    if (k) group(k.key, k.name, k.sort).dev.push(...weighted([m]));
   }
   for (const r of rs) {
     const k = keyFor(r);
@@ -285,7 +289,7 @@ export function issues(markers: Marker[], runs: Run[]): InstallIssue[] {
  */
 export function installedQuantities(markers: Marker[], catalog: DeviceType[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const m of progressMarkers(markers, catalog)) if (isInstalled(statusOf(m))) out[m.deviceTypeId] = (out[m.deviceTypeId] ?? 0) + 1;
+  for (const m of progressMarkers(markers, catalog)) if (isInstalled(statusOf(m))) out[m.deviceTypeId] = (out[m.deviceTypeId] ?? 0) + markerQty(m);
   return out;
 }
 

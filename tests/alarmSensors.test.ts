@@ -21,7 +21,7 @@ import { builtInAdditions, tradePack, typeVisible } from "@/lib/trades";
 import type { DeviceType, Marker, Sheet } from "@/lib/types";
 
 const SHEET = { id: "s1", width: 1000, height: 500, pxPerFt: 10 };
-const op = (id: string, kind: "door" | "window", x: number, y: number, room = ""): Opening => ({ id, kind, x, y, room });
+const op = (id: string, kind: "door" | "window", x: number, y: number, room = "", count = 1): Opening => ({ id, kind, x, y, room, count });
 const mk = (id: string, deviceTypeId: string, x: number, y: number, room = "", sheetId = "s1"): Marker => ({
   id, projectId: "p1", sheetId, deviceTypeId, x, y, label: id, room, mount: "wall", wireType: "None", tentative: false, notes: "", createdAt: "", updatedAt: "",
 });
@@ -140,6 +140,39 @@ describe("where sensors go", () => {
     expect(missingSensorTypes(cat)).toEqual([]);
     expect(missingSensorTypes(cat.map((d) => (d.id === "glass-break" ? { ...d, archived: true } : d)))).toEqual(["glass"]);
     expect(missingSensorTypes(cat.filter((d) => d.id !== "door-contact"), ["door", "window"])).toEqual(["door"]);
+  });
+});
+
+describe("count pins (Add by count)", () => {
+  it("a door ×N gets one door contact ×N at the same spot; a window ×N one window contact ×N", () => {
+    const p = planSensors([op("d", "door", 0.1, 0.5, "", 3), op("w", "window", 0.2, 0.2, "Den", 12)], [], SHEET, { kinds: ["door", "window"] });
+    expect(p.counts).toEqual({ door: 3, window: 12, glass: 0 });
+    expect(p.placements.map((x) => [x.deviceTypeId, x.count, x.room])).toEqual([
+      ["door-contact", 3, ""],
+      ["window-contact", 12, "Den"],
+    ]);
+    expect(p.placements[1].x).toBeCloseTo(0.2 + DX, 9);
+  });
+
+  it("a window count pin is windows in its room: still one glass-break per room", () => {
+    const p = planSensors([op("w", "window", 0.2, 0.2, "Den", 12), op("w2", "window", 0.6, 0.6, "den")], [], SHEET, { kinds: ["glass"] });
+    expect(p.counts).toEqual({ door: 0, window: 0, glass: 1 });
+    expect(p.placements.map((x) => [x.openingIds, x.count])).toEqual([[["w", "w2"], 1]]);
+  });
+
+  it("a sensor pin next to a count pin covers all of it (whatever its own count)", () => {
+    const p = planSensors([op("w", "window", 0.2, 0.2, "", 12)], [mk("c", "window-contact", 0.21, 0.2)], SHEET, { kinds: ["window"] });
+    expect(p.placements).toEqual([]);
+    expect(p.covered.window).toBe(12);
+  });
+
+  it("sheetOpenings carries the count; the takeoff's Openings count it", () => {
+    const catalog = [{ id: "gen-door", name: "Door" }, { id: "gen-window", name: "Window" }];
+    const markers = [{ ...mk("a", "gen-window", 0.1, 0.1), count: 12 }, mk("b", "gen-door", 0.2, 0.2)];
+    expect(sheetOpenings(markers, catalog, "s1").map((o) => o.count)).toEqual([12, 1]);
+    const sheets = [{ id: "s1", projectId: "p1", name: "1st Fl", order: 0, imageId: "i", width: 1000, height: 500 } as Sheet];
+    const s = openingsSummary(computeTakeoff({ sheets, markers, runs: [], closets: [] }), catalog);
+    expect(s.total).toMatchObject({ doors: 1, windows: 12 });
   });
 });
 

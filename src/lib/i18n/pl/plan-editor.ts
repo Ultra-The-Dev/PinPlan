@@ -917,6 +917,22 @@ const dict: Dictionary = {
   "{n} device on them goes with them.": { one: "Razem z nimi zniknie {n} urządzenie.", few: "Razem z nimi znikną {n} urządzenia.", many: "Razem z nimi zniknie {n} urządzeń." },
   "Deleted {n} sheet": { one: "Usunięto {n} arkusz", few: "Usunięto {n} arkusze", many: "Usunięto {n} arkuszy" },
   "{n} floor name read from the plan — check it below.": { one: "{n} nazwę piętra odczytano z planu — sprawdź poniżej.", few: "{n} nazwy pięter odczytano z planu — sprawdź poniżej.", many: "{n} nazw pięter odczytano z planu — sprawdź poniżej." },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "Dodano {name} ×{n}. Przeciągnij pinezkę, gdzie chcesz.",
+  "Add by count": "Dodaj ilościowo",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "Za dużo, żeby wstawiać po jednym? Jedna pinezka zastępuje wszystkie i wszędzie liczy się jako ta ilość.",
+  "How many": "Ile",
+  "Room (optional)": "Pomieszczenie (opcjonalnie)",
+  "Add {name} ×{n}": "Dodaj {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "Pojawi się na środku widoku planu. Przeciągnij ją, gdzie chcesz.",
+  "One less": "O jeden mniej",
+  "One more": "O jeden więcej",
+  "Count": "Ilość",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "Ta pinezka liczy się jako {n} w przedmiarze, wycenie i eksportach.",
+  "Several of these here? Set how many: one pin counts as all of them.": "Kilka takich tutaj? Podaj ile: jedna pinezka policzy wszystkie.",
+  "Add by count: one pin for many doors, windows or any device": "Dodaj ilościowo: jedna pinezka dla wielu drzwi, okien lub dowolnych urządzeń",
+  "By count": "Ilościowo",
+  "Add by count (doors, windows…)": "Dodaj ilościowo (drzwi, okna…)",
 };
 
 export default dict;

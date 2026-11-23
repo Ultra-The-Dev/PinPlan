@@ -6,6 +6,7 @@ import { lineProductId, money, type ComputedLine, type Estimate } from "./estima
 import { runLengthFt } from "./geometry";
 import { cableTypeFromKey, productIdFor, runCables } from "./products";
 import { GROUP_LABELS, type ProposalLine, type ProposalSnapshot } from "./proposal";
+import { markerQty } from "./markerCount";
 import type { Closet, DeviceType, DocGrouping, DocLine, DocTaxRate, DocumentSettings, Marker, Product, Project, Run, SalesDoc, Sheet } from "./types";
 
 export interface QuoteBuildOptions {
@@ -74,7 +75,7 @@ export function quoteLinesFromEstimate(est: Estimate, job: JobData, opts: QuoteB
   };
   const markerUnit = (m: Marker): Unit => ({
     group: opts.grouping === "floor" ? floorName.get(m.sheetId)! : roomLabel(m),
-    weight: 1,
+    weight: markerQty(m),
     room: m.room?.trim() || "",
     label: m.label,
     floor: floorName.get(m.sheetId),

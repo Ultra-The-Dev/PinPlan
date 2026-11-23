@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { planCandidates } from "@/lib/changeOrders";
 import { db } from "@/lib/db";
 import { useT } from "@/lib/i18n";
+import { pinLabel } from "@/lib/markerCount";
 import { supabaseConfigured } from "@/lib/supabase";
 import { useSyncStatus } from "@/lib/sync";
 import type { ChangeOrder, DeviceType, Marker, Project, Sheet } from "@/lib/types";
@@ -137,7 +138,7 @@ export default function AddFromPlanDialog(props: {
                           <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={sel.has(i.marker.id)} onChange={(e) => toggle([i.marker.id], e.target.checked)} />
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium">
-                              {i.marker.label || typeName(i.marker.deviceTypeId)} <span className="font-normal text-slate-500">· {typeName(i.marker.deviceTypeId)}</span>
+                              {(i.marker.label ? pinLabel(i.marker) : "") || typeName(i.marker.deviceTypeId)} <span className="font-normal text-slate-500">· {typeName(i.marker.deviceTypeId)}</span>
                             </div>
                             {i.marker.room && <div className="truncate text-xs text-slate-500">{i.marker.room}</div>}
                           </div>

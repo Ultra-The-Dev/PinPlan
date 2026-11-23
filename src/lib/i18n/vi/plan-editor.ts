@@ -844,6 +844,22 @@ const dict: Dictionary = {
   "{n} device on them goes with them.": { other: "{n} thiết bị trên đó cũng bị xóa theo." },
   "Deleted {n} sheet": { other: "Đã xóa {n} tờ" },
   "{n} floor name read from the plan — check it below.": { other: "Đã đọc {n} tên tầng từ bản vẽ — hãy kiểm tra bên dưới." },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "Đã thêm {name} ×{n}. Kéo ghim tới chỗ bạn muốn.",
+  "Add by count": "Thêm theo số lượng",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "Quá nhiều để ghim từng cái? Một ghim đại diện cho tất cả và được tính đúng số lượng đó ở mọi nơi.",
+  "How many": "Bao nhiêu",
+  "Room (optional)": "Phòng (không bắt buộc)",
+  "Add {name} ×{n}": "Thêm {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "Ghim nằm ở giữa khung nhìn bản vẽ. Kéo tới chỗ bạn muốn.",
+  "One less": "Bớt một",
+  "One more": "Thêm một",
+  "Count": "Số lượng",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "Ghim này được tính là {n} trong bóc khối lượng, dự toán và tệp xuất.",
+  "Several of these here? Set how many: one pin counts as all of them.": "Có nhiều cái như vậy ở đây? Nhập số lượng: một ghim tính hết.",
+  "Add by count: one pin for many doors, windows or any device": "Thêm theo số lượng: một ghim cho nhiều cửa đi, cửa sổ hoặc thiết bị bất kỳ",
+  "By count": "Theo số lượng",
+  "Add by count (doors, windows…)": "Thêm theo số lượng (cửa đi, cửa sổ…)",
 };
 
 export default dict;

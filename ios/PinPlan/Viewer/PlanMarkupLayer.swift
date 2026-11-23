@@ -128,6 +128,7 @@ struct PlanPainter {
             if let camera, photoMarkers.contains(m.id) {
                 ctx.draw(camera, at: CGPoint(x: p.x - symbolSize * 0.3, y: p.y - symbolSize * 0.3), anchor: .center)
             }
+            if m.quantity > 1 { drawCountBadge(&ctx, count: m.quantity, at: p) }
         }
         guard model.showLabels, all.count <= PlanMarkerMetrics.maxLabels else { return }
         for (m, p, _) in all where !m.label.isEmpty {
@@ -138,6 +139,23 @@ struct PlanPainter {
             ctx.fill(Path(roundedRect: box, cornerRadius: 3), with: .color(Color.white.opacity(0.85)))
             ctx.draw(text, at: center, anchor: .center)
         }
+    }
+
+    /// The "×12" pill of a count pin ("Add by count"), to the lower right of its symbol: white on dark ink with a
+    /// white outline, like the web (symbols.ts drawCountBadge).
+    private func drawCountBadge(_ ctx: inout GraphicsContext, count: Int, at p: CGPoint) {
+        let fontSize: CGFloat = max(8, symbolSize * 0.3)
+        let text: GraphicsContext.ResolvedText = ctx.resolve(Text(verbatim: "×\(count)").font(.system(size: fontSize, weight: .bold)).foregroundColor(Color.white))
+        let sz: CGSize = text.measure(in: CGSize(width: 200, height: 40))
+        let h: CGFloat = sz.height + 2
+        let w: CGFloat = max(h, sz.width + 8)
+        let left: CGFloat = p.x + symbolSize * 0.12
+        let top: CGFloat = p.y + symbolSize * 0.1
+        let box = CGRect(x: left, y: top, width: w, height: h)
+        let pill = Path(roundedRect: box, cornerRadius: h / 2)
+        ctx.fill(pill, with: .color(Color(white: 0.09)))
+        ctx.stroke(pill, with: .color(Color.white), lineWidth: 1.5)
+        ctx.draw(text, at: CGPoint(x: box.midX, y: box.midY), anchor: .center)
     }
 
     // MARK: runs

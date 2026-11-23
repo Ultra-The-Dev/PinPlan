@@ -886,6 +886,22 @@ const dict: Dictionary = {
   "{n} device on them goes with them.": { one: "También se va {n} dispositivo que hay en ellas.", other: "También se van los {n} dispositivos que hay en ellas." },
   "Deleted {n} sheet": { one: "Se eliminó {n} hoja", other: "Se eliminaron {n} hojas" },
   "{n} floor name read from the plan — check it below.": { one: "{n} nombre de piso leído del plano: revísalo abajo.", other: "{n} nombres de piso leídos del plano: revísalos abajo." },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "Se agregó {name} ×{n}. Arrastra el marcador donde quieras.",
+  "Add by count": "Agregar por cantidad",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "¿Demasiados para marcar uno por uno? Un solo marcador los representa a todos y cuenta como esa cantidad en todas partes.",
+  "How many": "Cuántos",
+  "Room (optional)": "Cuarto (opcional)",
+  "Add {name} ×{n}": "Agregar {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "Se coloca en el centro de la vista del plano. Arrástralo donde quieras.",
+  "One less": "Uno menos",
+  "One more": "Uno más",
+  "Count": "Cantidad",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "Este marcador cuenta como {n} en el cómputo, el presupuesto y las exportaciones.",
+  "Several of these here? Set how many: one pin counts as all of them.": "¿Hay varios aquí? Indica cuántos: un marcador los cuenta a todos.",
+  "Add by count: one pin for many doors, windows or any device": "Agregar por cantidad: un marcador para muchas puertas, ventanas o cualquier dispositivo",
+  "By count": "Por cantidad",
+  "Add by count (doors, windows…)": "Agregar por cantidad (puertas, ventanas…)",
 };
 
 export default dict;

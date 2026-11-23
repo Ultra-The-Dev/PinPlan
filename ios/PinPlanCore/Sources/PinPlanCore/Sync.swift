@@ -68,7 +68,7 @@ public enum SyncMap {
             ("sheetId", "sheet_id"), ("deviceTypeId", "device_type_id"), ("x", "x"), ("y", "y"), ("label", "label"), ("room", "room"),
             ("mount", "mount"), ("wireType", "wire_type"), ("wires", "wires"), ("productId", "product_id"), ("closetId", "closet_id"),
             ("circuit", "circuit"), ("tentative", "tentative"), ("notes", "notes"), ("photoId", "photo_id"),
-            ("install", "install"),
+            ("install", "install"), ("count", "count"),
         ]),
         .runs: TableSpec(remote: "runs", conflict: "id", columns: child + [
             ("sheetId", "sheet_id"), ("kind", "kind"), ("deviceTypeId", "device_type_id"), ("points", "points"), ("measuredFt", "measured_ft"),
@@ -227,6 +227,11 @@ public enum SyncMap {
             if let v = row[local], !(v is NSNull) { out[remote] = v } else { out[remote] = boolDefaults.contains(local) ? false : NSNull() }
         }
         if t == .projectFinance, !(out["billdu_docs"] is [Any]) { out["billdu_docs"] = [Any]() }
+        // markers.count: null (a normal pin) or 2…9999, which the database checks; a cleared count clears there too.
+        if t == .markers {
+            let n: Int? = (out["count"] as? NSNumber)?.intValue
+            if let c = Marker.normalizeCount(n) { out["count"] = c } else { out["count"] = NSNull() }
+        }
         if t == .deviceTypePrices || t == .productPrices {
             for k in ["unit_price", "labor_price"] where out[k] is NSNull { out[k] = 0 }
         }

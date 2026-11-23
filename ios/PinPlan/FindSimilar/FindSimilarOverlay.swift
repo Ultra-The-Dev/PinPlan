@@ -73,15 +73,16 @@ enum FindSimilarOverlays {
 
 extension EditorModel {
     /// Several devices of any types as one undo step (Add sensors). A blank room takes the room printed on the plan
-    /// where the device lands. Returns how many were added (0 when the job is read-only).
-    func addMarkers(_ items: [(type: DeviceType, x: Double, y: Double, room: String)], sheetId: String) -> Int {
+    /// where the device lands; `count` > 1 makes a count pin (a window ×12 gets one window contact ×12). Returns how
+    /// many devices were added, count pins counting as their count (0 when the job is read-only).
+    func addMarkers(_ items: [(type: DeviceType, x: Double, y: Double, room: String, count: Int)], sheetId: String) -> Int {
         let details = planDetails[sheetId] ?? []
         var n = 0
         let ok = edit { b in
             for it in items {
                 let room = it.room.isEmpty ? (PlanReader.room(atX: it.x, y: it.y, details: details) ?? "") : it.room
-                _ = b.addMarker(type: it.type, sheetId: sheetId, x: it.x, y: it.y, room: room)
-                n += 1
+                let m: Marker = b.addMarker(type: it.type, sheetId: sheetId, x: it.x, y: it.y, room: room, count: it.count)
+                n += m.quantity
             }
         }
         return ok ? n : 0

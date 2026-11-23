@@ -7,7 +7,7 @@
  * when the database is behind. Bump it (and redefine schema_version() in that migration) when code starts depending on
  * a newer migration.
  */
-export const REQUIRED_SCHEMA_VERSION = "20261125002100_online_payments";
+export const REQUIRED_SCHEMA_VERSION = "20261125003000_marker_count";
 
 /** What a paid production deployment can't run without. */
 export const REQUIRED_PRODUCTION_VARS = [

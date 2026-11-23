@@ -3,7 +3,8 @@ import Foundation
 // Alarm sensors from openings (docs/find-similar.md, "Alarm sensors from openings"): after counting doors and windows,
 // "Add sensors" places a door contact on each door, a window contact on each window and / or one glass-break per room
 // with windows, in one step. Pure; the same rules and cases as src/lib/alarmSensors.ts (tests/alarmSensors.test.ts ↔
-// AlarmSensorTests.swift). Counts still come only from placed devices.
+// AlarmSensorTests.swift). Counts still come only from placed devices. A count pin (Window ×12) is an opening that
+// stands for that many: its contact is one count pin ×12 at the same spot; its windows join its room's glass-break.
 public enum AlarmSensors {
     public enum OpeningKind: String, Sendable { case door, window }
 
@@ -47,10 +48,15 @@ public enum AlarmSensors {
         public var x: Double
         public var y: Double
         public var room: String
-        public init(id: String, kind: OpeningKind, x: Double, y: Double, room: String = "") {
-            self.id = id; self.kind = kind; self.x = x; self.y = y; self.room = room
+        /// How many doors / windows this pin stands for (a count pin); 1 for a normal pin.
+        public var count: Int
+        public init(id: String, kind: OpeningKind, x: Double, y: Double, room: String = "", count: Int = 1) {
+            self.id = id; self.kind = kind; self.x = x; self.y = y; self.room = room; self.count = count
         }
     }
+
+    /// Doors / windows behind a list of openings (a count pin counts as its count).
+    public static func openingCount(_ openings: [Opening]) -> Int { openings.reduce(0) { $0 + $1.count } }
 
     /// The doors and windows on one sheet, in placement order.
     public static func sheetOpenings(markers: [Marker], catalog: [DeviceType], sheetId: String) -> [Opening] {
@@ -58,7 +64,7 @@ public enum AlarmSensors {
         for d in catalog { kinds[d.id] = openingKind(d) }
         return markers.compactMap { m in
             guard m.deleted != true, m.sheetId == sheetId, let k = kinds[m.deviceTypeId] ?? nil else { return nil }
-            return Opening(id: m.id, kind: k, x: m.x, y: m.y, room: m.room.trimmingCharacters(in: .whitespaces))
+            return Opening(id: m.id, kind: k, x: m.x, y: m.y, room: m.room.trimmingCharacters(in: .whitespaces), count: m.quantity)
         }
     }
 
@@ -82,6 +88,8 @@ public enum AlarmSensors {
         public var room: String
         /// The door, the window, or the windows of the room (glass-break).
         public var openingIds: [String]
+        /// Sensors this placement stands for: a count pin's contact is one count pin ×N; glass-breaks 1.
+        public var count: Int = 1
     }
 
     public struct Plan: Equatable, Sendable {
@@ -122,9 +130,10 @@ public enum AlarmSensors {
         for kind in [SensorKind.door, .window] where kinds.contains(kind) {
             let have = live.filter { $0.deviceTypeId == kind.typeId }
             for o in use where o.kind.rawValue == kind.rawValue {
-                if have.contains(where: { dist($0.x, $0.y, o.x, o.y) < 1.5 * off }) { out.covered[kind, default: 0] += 1; continue }
-                out.placements.append(Placement(kind: kind, deviceTypeId: kind.typeId, x: clamp01(o.x + dx), y: clamp01(o.y - dy), room: o.room, openingIds: [o.id]))
-                out.counts[kind, default: 0] += 1
+                // A sensor pin next to it (whatever its count) means this opening already has its sensors.
+                if have.contains(where: { dist($0.x, $0.y, o.x, o.y) < 1.5 * off }) { out.covered[kind, default: 0] += o.count; continue }
+                out.placements.append(Placement(kind: kind, deviceTypeId: kind.typeId, x: clamp01(o.x + dx), y: clamp01(o.y - dy), room: o.room, openingIds: [o.id], count: o.count))
+                out.counts[kind, default: 0] += o.count
             }
         }
 

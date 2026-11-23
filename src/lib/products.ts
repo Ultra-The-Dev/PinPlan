@@ -4,6 +4,7 @@ import { WIRE_TYPES } from "./catalog";
 import { ALL_WIRE_TYPES } from "./trades";
 import { parseCsv } from "./catalogCsv";
 import { toCsv, type Takeoff } from "./takeoff";
+import { markerQty } from "./markerCount";
 import type { DeviceType, Marker, Product, Project, Run } from "./types";
 
 // ---------------- cables ----------------
@@ -112,8 +113,8 @@ export function productSplit(
     if (!pid) continue;
     const byType = (out[m.deviceTypeId] ??= {});
     const e = (byType[pid] ??= { confirmed: 0, tentative: 0 });
-    if (m.tentative) e.tentative++;
-    else e.confirmed++;
+    if (m.tentative) e.tentative += markerQty(m);
+    else e.confirmed += markerQty(m);
   }
   for (const d of catalog) {
     if (d.kind !== "led") continue;

@@ -305,6 +305,9 @@ const dict: Dictionary = {
   "The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done.": "“任务”标签（手机上在底部栏）：此项目要做的一切。打开任务可查看它在图纸上的位置、添加照片并标记完成。",
   "Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online.": "照片有自己的标签。“拍照”会将照片连同日期和地点保存到此项目。没有信号？恢复联网后会自动上传。",
   "Tap Add task for something to do on this job. Pick its sheet, and the device if it's about one.": "点按“添加任务”为此项目添加待办事项。选择所在图页；如果与某个设备有关，也选择该设备。",
+  // Add by count
+  "Or add them by count": "或者按数量添加",
+  "Too many to pin one by one? Tap By count (on a phone: More › Add by count), pick Door or Window, type how many and a room if you like. One pin marked ×12 counts as 12 everywhere, alarm sensors included. Change the number later in the device's Count.": "太多了，不想逐个标注？点按“按数量”（手机上：更多 › 按数量添加），选择门或窗，输入数量，需要的话再填房间。标有 ×12 的一个标记在各处都按 12 个计算，包括报警传感器。之后可在设备的“数量”中修改。",
 };
 
 export default dict;

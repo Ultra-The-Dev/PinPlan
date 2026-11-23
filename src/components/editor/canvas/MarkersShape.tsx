@@ -5,6 +5,7 @@
 import type Konva from "konva";
 import { Shape } from "react-konva";
 import { SELECT_HALO, SELECT_HALO_FILL, SELECT_INK } from "@/lib/canvasColors";
+import { drawCountBadge } from "@/lib/symbols";
 import type { PlanViewport } from "@/lib/planViewport";
 import type { Shape as SymbolShape } from "@/lib/types";
 import { MARKER_R, markerSprite, spriteRes } from "./markerSprites";
@@ -23,6 +24,8 @@ export interface MarkerItem {
   photos: number;
   selected: boolean;
   dim: boolean;
+  /** A count pin ("Add by count"): how many devices it stands for, shown as a "×12" pill. 1 for a normal pin. */
+  count?: number;
 }
 
 export interface MarkerDrag {
@@ -62,7 +65,7 @@ export default function MarkersShape({ items, viewport, showLabels, drag }: { it
       if (sx < -margin || sy < -margin || sx > w + margin || sy > h + margin) continue;
       drawOne(ctx, m, sx, sy, k, res);
       drawn++;
-      if (showLabels && m.label) labels.push({ x: sx, y: sy + (MARKER_R + 3) * k, text: m.label, dim: m.dim });
+      if (showLabels && m.label) labels.push({ x: sx, y: sy + (MARKER_R + (m.count && m.count > 1 ? 7 : 3)) * k, text: m.label, dim: m.dim });
     }
     if (labels.length) {
       ctx.font = font;
@@ -137,5 +140,6 @@ function drawOne(ctx: CanvasRenderingContext2D, m: MarkerItem, sx: number, sy: n
     ctx.fillStyle = "#0f172a";
     ctx.fill();
   }
+  if (m.count && m.count > 1) drawCountBadge(ctx, sx, sy, MARKER_R * k, m.count);
   if (m.dim) ctx.globalAlpha = 1;
 }

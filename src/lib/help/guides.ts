@@ -135,6 +135,10 @@ export const GUIDES: HelpGuide[] = [
       },
       { title: msg("Check and accept"), text: msg("Suggestions don't count until you accept them. Tap a wrong one to reject it, then Accept all. Do the same for windows.") },
       {
+        title: msg("Or add them by count"),
+        text: msg("Too many to pin one by one? Tap By count (on a phone: More › Add by count), pick Door or Window, type how many and a room if you like. One pin marked ×12 counts as 12 everywhere, alarm sensors included. Change the number later in the device's Count."),
+      },
+      {
         title: msg("Add alarm sensors"),
         text: msg("Tap Sensors (or Add alarm sensors on the card). Choose door contacts, window contacts and glass-break detectors, tap a door or window to leave it out, then Place sensors."),
         shot: { src: "/help/sensors.webp", alt: msg("Add alarm sensors with door and window contacts shown on the plan"), device: "desktop" },

@@ -376,7 +376,7 @@ private struct QuickActionsBar: View {
             }
             button(String(localized: "Duplicate"), "plus.square.on.square") {
                 guard let t = app.type(marker.deviceTypeId) else { return }
-                model.edit { $0.addMarker(type: t, sheetId: marker.sheetId, x: marker.x + 0.015, y: marker.y + 0.015, room: marker.room, tentative: marker.tentative) }
+                model.edit { $0.addMarker(type: t, sheetId: marker.sheetId, x: marker.x + 0.015, y: marker.y + 0.015, room: marker.room, tentative: marker.tentative, count: marker.count) }
             }
             button(String(localized: "More"), "hand.tap") { model.use(.place(marker.deviceTypeId)) }
             button(String(localized: "Delete"), "trash", role: .destructive) {
@@ -443,6 +443,7 @@ private struct MarkerAccessibilityLayer: View {
 extension MarkerAccessibilityLayer {
     func label(_ m: Marker, name: String, photos: Bool) -> String {
         var parts = ["\(name) \(m.label)"]
+        if m.quantity > 1 { parts.append(String(localized: "counts as \(m.quantity)")) }
         if m.tentative { parts.append("optional") }
         if !m.room.isEmpty { parts.append(m.room) }
         if photos { parts.append(String(localized: "has photos")) }

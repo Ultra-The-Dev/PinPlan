@@ -225,6 +225,8 @@ export interface Marker {
   closetId?: string | null;
   /** Electrical: the panel circuit number this device is on (e.g. "12"). Its panel is closetId. */
   circuit?: string | null;
+  /** A count pin: this one pin stands for this many devices of its type (2…9999, "Add by count"). Absent / null = 1. */
+  count?: number | null;
   tentative: boolean;
   notes: string;
   photoId?: string | null;

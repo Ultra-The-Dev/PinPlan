@@ -98,11 +98,11 @@ struct TakeoffView: View {
                 }
                 let tentative = model.bundle.liveMarkers.filter(\.tentative)
                 if !tentative.isEmpty {
-                    Text("Optional items (\(tentative.count))").font(.headline)
+                    Text("Optional items (\(tentative.quantitySum))").font(.headline)
                     ForEach(tentative) { m in
                         Button { model.focusOn(.marker(m.id)) } label: {
                             HStack {
-                                Text(m.label).bold()
+                                Text(m.pinLabel).bold()
                                 Text(app.type(m.deviceTypeId)?.name ?? "").foregroundStyle(.secondary)
                                 Spacer()
                                 Text(model.sheets.first { $0.id == m.sheetId }?.name ?? "").font(.caption).foregroundStyle(.secondary)

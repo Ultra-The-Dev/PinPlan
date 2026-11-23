@@ -22,7 +22,7 @@ struct BulkInspectorView: View {
                         DeviceSymbol(type: app.type(t), size: 24)
                         Text(app.type(t)?.name ?? t)
                         Spacer()
-                        Text("× \(ms.filter { $0.deviceTypeId == t }.count)").foregroundStyle(.secondary).monospacedDigit()
+                        Text("× \(ms.filter { $0.deviceTypeId == t }.quantitySum)").foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
                 Toggle("Tap devices to add or remove", isOn: Binding(get: { model.multiMode }, set: { model.multiMode = $0 }))

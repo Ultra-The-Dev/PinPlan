@@ -11,6 +11,7 @@ import { can } from "@/lib/teamLogic";
 import { toast } from "@/lib/toast";
 import { useTrades } from "@/lib/useTrades";
 import { TemplateSheet, ToggleRow } from "./ui";
+import { sumQty } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
 
 function SaveTemplateSheet({ onClose }: { onClose: () => void }) {
@@ -133,7 +134,7 @@ function DuplicateSheet({ onClose }: { onClose: () => void }) {
       title={t("Duplicate job")}
       subtitle={t("Copies {sheets}, {devices}, {runs}, closets and calibration. Photos, logs, documents, quotes and invoices stay here.", {
         sheets: t.tn("{n} plan sheet", "{n} plan sheets", sheets.length),
-        devices: t.tn("{n} device", "{n} devices", markers.length),
+        devices: t.tn("{n} device", "{n} devices", sumQty(markers)),
         runs: t.tn("{n} run", "{n} runs", runs.length),
       })}
       onClose={onClose}

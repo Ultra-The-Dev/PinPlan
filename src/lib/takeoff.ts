@@ -1,10 +1,11 @@
 import { closetMeta } from "./catalog";
 import { csvCell } from "./csv";
+import { markerQty } from "./markerCount";
 import { runLengthFt } from "./geometry";
 import { runCables } from "./products";
 import type { Closet, ClosetKind, DeviceType, Marker, Run, Sheet } from "./types";
 
-/** Quantities for one floor (sheet) or for the whole project. Built only from placed markers/runs. */
+/** Quantities for one floor (sheet) or for the whole project. Built only from placed markers/runs (a count pin counts as its count). */
 export interface TakeoffBucket {
   /** All placed markers per device type (includes tentative). */
   counts: Record<string, number>;
@@ -83,8 +84,10 @@ export function computeTakeoff({ sheets, markers, runs, closets }: TakeoffInput)
   for (const m of live(markers)) {
     const f = bySheet.get(m.sheetId);
     if (!f) continue;
-    add(f.counts, m.deviceTypeId, 1);
-    if (m.tentative) add(f.tentative, m.deviceTypeId, 1);
+    // A count pin ("Add by count") stands for `count` devices of its type.
+    const n = markerQty(m);
+    add(f.counts, m.deviceTypeId, n);
+    if (m.tentative) add(f.tentative, m.deviceTypeId, n);
   }
 
   for (const r of live(runs)) {

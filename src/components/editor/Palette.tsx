@@ -2,6 +2,7 @@
 import { ChevronDown, DoorOpen, Search, Spline, X } from "lucide-react";
 import { useState } from "react";
 import { categoryOf } from "@/lib/catalog";
+import { sumQty } from "@/lib/markerCount";
 import { msg, useT } from "@/lib/i18n";
 import { productTitle } from "@/lib/products";
 import { useEditor, type Tool } from "@/lib/store";
@@ -22,7 +23,7 @@ export default function Palette() {
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const active = (x: Tool) => JSON.stringify(x) === JSON.stringify(tool);
-  const countOnSheet = (id: string) => markers.filter((m) => m.sheetId === activeSheetId && m.deviceTypeId === id).length;
+  const countOnSheet = (id: string) => sumQty(markers.filter((m) => m.sheetId === activeSheetId && m.deviceTypeId === id));
   const runsOnSheet = (id: string) => runs.filter((r) => r.sheetId === activeSheetId && r.deviceTypeId === id).length;
   const match = (name: string) => !q || name.toLowerCase().includes(q.toLowerCase());
   // The company's trades decide the sections, their names, the closet kinds and what a run is called.

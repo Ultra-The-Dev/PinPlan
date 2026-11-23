@@ -1,5 +1,6 @@
 // What the plan viewer shows: layer toggles (the company's trade categories + wiring) and display filters (device type,
 // status, room, "only this type"). Display only — counts, takeoff and exports always use every placed device. Pure.
+import { markerQty } from "./markerCount";
 import type { Closet, Layer, Marker, Run } from "./types";
 
 export type PlanStatusFilter = "all" | "firm" | "tentative";
@@ -69,14 +70,14 @@ export function closetVisibility(c: Pick<Closet, "kind">, category: Layer, hidde
 
 /** Items per layer on one sheet (devices by their category, runs on wiring / lighting, closets by kind's category). */
 export function layerCounts(
-  markers: Pick<Marker, "deviceTypeId">[],
+  markers: Pick<Marker, "deviceTypeId" | "count">[],
   runs: Pick<Run, "kind">[],
   categoryOfType: (typeId: string) => Layer,
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const m of markers) {
     const l = categoryOfType(m.deviceTypeId);
-    out[l] = (out[l] ?? 0) + 1;
+    out[l] = (out[l] ?? 0) + markerQty(m);
   }
   for (const r of runs) {
     const l: Layer = r.kind === "wire" ? "wiring" : "lighting";

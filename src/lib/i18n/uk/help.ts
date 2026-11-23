@@ -305,6 +305,9 @@ const dict: Dictionary = {
   "The Tasks tab (on phones, in the bar at the bottom): everything to do on this job. Open a task to see its spot on the plan, add a photo, mark it done.": "Вкладка «Завдання» (на телефоні — на панелі внизу): усе, що треба зробити на об'єкті. Відкрийте завдання, щоб побачити його місце на плані, додати фото й закрити його.",
   "Photos is a tab of its own. Take photo saves it to this job with the date and place. No signal? It uploads when you're back online.": "Для фото є окрема вкладка. «Зробити фото» зберігає знімок в об'єкт з датою й місцем. Немає зв'язку? Вивантажиться, коли мережа з'явиться.",
   "Tap Add task for something to do on this job. Pick its sheet, and the device if it's about one.": "Натисніть «Додати завдання», щоб доручити щось на цьому об'єкті. Виберіть аркуш і, якщо завдання про пристрій, сам пристрій.",
+  // Add by count
+  "Or add them by count": "Або додайте їх кількістю",
+  "Too many to pin one by one? Tap By count (on a phone: More › Add by count), pick Door or Window, type how many and a room if you like. One pin marked ×12 counts as 12 everywhere, alarm sensors included. Change the number later in the device's Count.": "Забагато, щоб ставити по одній? Натисніть «Кількістю» (на телефоні: Ще › Додати кількістю), виберіть Двері або Вікно, введіть кількість і, якщо потрібно, приміщення. Одна мітка з ×12 усюди рахується як 12, разом із датчиками охорони. Число можна змінити згодом у полі «Кількість» пристрою.",
 };
 
 export default dict;

@@ -908,6 +908,22 @@ const planEditor: Dictionary = {
   "{n} device on them goes with them.": { one: "Вместе с ними удалится {n} устройство.", few: "Вместе с ними удалятся {n} устройства.", many: "Вместе с ними удалятся {n} устройств." },
   "Deleted {n} sheet": { one: "Удалён {n} лист", few: "Удалено {n} листа", many: "Удалено {n} листов" },
   "{n} floor name read from the plan — check it below.": { one: "{n} название этажа прочитано с плана — проверьте ниже.", few: "{n} названия этажей прочитаны с плана — проверьте ниже.", many: "{n} названий этажей прочитано с плана — проверьте ниже." },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "Добавлено: {name} ×{n}. Перетащите метку куда нужно.",
+  "Add by count": "Добавить количеством",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "Слишком много, чтобы ставить по одной? Одна метка заменяет их все и везде считается как это количество.",
+  "How many": "Сколько",
+  "Room (optional)": "Помещение (необязательно)",
+  "Add {name} ×{n}": "Добавить {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "Метка появится в центре видимой части плана. Перетащите её куда нужно.",
+  "One less": "На один меньше",
+  "One more": "На один больше",
+  "Count": "Количество",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "Эта метка считается как {n} в подсчёте, смете и экспорте.",
+  "Several of these here? Set how many: one pin counts as all of them.": "Здесь несколько таких? Укажите сколько: одна метка посчитает их все.",
+  "Add by count: one pin for many doors, windows or any device": "Добавить количеством: одна метка для многих дверей, окон или любых устройств",
+  "By count": "Количеством",
+  "Add by count (doors, windows…)": "Добавить количеством (двери, окна…)",
 };
 
 export default planEditor;

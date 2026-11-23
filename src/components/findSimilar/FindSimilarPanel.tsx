@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight, FileText, Loader2, ScanSearch, Shield
 import { useEffect, useId, useMemo, useRef } from "react";
 import { openingKind, sheetOpenings } from "@/lib/alarmSensors";
 import { msg, useT } from "@/lib/i18n";
+import { markerQty } from "@/lib/markerCount";
 import type { PlanViewport } from "@/lib/planViewport";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
@@ -52,7 +53,7 @@ export default function FindSimilarPanel({ sheet, viewport }: { sheet: Sheet; vi
   const summary = useMemo(() => {
     const ids = new Set(types.filter((d) => /\b(doors?|windows?)\b/i.test(d.name) || d.id === st.typeId).map((d) => d.id));
     const n = new Map<string, number>();
-    for (const m of markers) if (!m.deleted && m.sheetId === sheet.id && ids.has(m.deviceTypeId)) n.set(m.deviceTypeId, (n.get(m.deviceTypeId) ?? 0) + 1);
+    for (const m of markers) if (!m.deleted && m.sheetId === sheet.id && ids.has(m.deviceTypeId)) n.set(m.deviceTypeId, (n.get(m.deviceTypeId) ?? 0) + markerQty(m));
     return types.filter((d) => ids.has(d.id) && (n.get(d.id) || d.id === st.typeId)).map((d) => ({ id: d.id, name: d.name, n: n.get(d.id) ?? 0 }));
   }, [types, markers, sheet.id, st.typeId]);
 

@@ -3,6 +3,7 @@
 // a device table with who/when/test results, and a cover summary. Never shows prices.
 import { downloadBlob, slug } from "@/lib/download";
 import { STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, issues, markable, progress, progressMarkers, progressRuns, statusOf, testText, workflowOf } from "@/lib/installProgress";
+import { pinLabel, sumQty } from "@/lib/markerCount";
 import { renderSheet } from "@/lib/renderSheet";
 import type { Closet, DeviceType, InstallStatus, Marker, Project, Run, Sheet, TradeId } from "@/lib/types";
 
@@ -102,7 +103,7 @@ export async function exportAsBuiltPdf(data: Data, opts: { trades?: TradeId[]; b
       .map((m) => {
         const s = statusOf(m);
         const wf = workflowOf(m, data.catalog, opts.trades);
-        return { label: m.label, type: types.get(m.deviceTypeId)?.name ?? "", room: m.room || "", status: s, statusText: s === "planned" ? "Not started" : wf.labels[s], by: m.install?.by ?? "", date: fmt(m.install?.at), test: testText(m.install?.test) };
+        return { label: pinLabel(m), type: types.get(m.deviceTypeId)?.name ?? "", room: m.room || "", status: s, statusText: s === "planned" ? "Not started" : wf.labels[s], by: m.install?.by ?? "", date: fmt(m.install?.at), test: testText(m.install?.test) };
       });
     const runRows = trackedRuns
       .filter((x) => x.sheetId === sheet.id && x.kind === "wire")
@@ -115,7 +116,7 @@ export async function exportAsBuiltPdf(data: Data, opts: { trades?: TradeId[]; b
     pages.push({ name: sheet.name, imageDataUrl, row, rows: [...rows, ...runRows] });
   }
   opts.onProgress?.("Building PDF…");
-  const all = { counts: Object.fromEntries(STATUS_ORDER.map((s) => [s, tracked.filter((m) => statusOf(m) === s).length])) as Record<InstallStatus, number>, total: tracked.length };
+  const all = { counts: Object.fromEntries(STATUS_ORDER.map((s) => [s, sumQty(tracked.filter((m) => statusOf(m) === s))])) as Record<InstallStatus, number>, total: sumQty(tracked) };
   const done = all.counts.tested + all.counts.verified;
   const blob = await renderAsBuiltPdf({
     title: data.project.address || "Project",

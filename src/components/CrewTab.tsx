@@ -2,6 +2,7 @@
 import { Cable, Download, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "@/lib/toast";
+import { pinLabel } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
 import PanelSchedule from "./PanelSchedule";
 import PortSchedule from "./PortSchedule";
@@ -57,7 +58,7 @@ export default function CrewTab() {
 
   function csv() {
     const rows: (string | number)[][] = [["Floor", "Label", "Device", "Room", "Mount", "Wire", "Home run to", "Cable ft", "Tentative", "Notes"]];
-    for (const { m, len } of schedule) rows.push([sheetName(m.sheetId), m.label, deviceName(m), m.room, m.mount, cableSummary(markerCables(m)), closetName(m.closetId), len ?? "", m.tentative ? "yes" : "", m.notes]);
+    for (const { m, len } of schedule) rows.push([sheetName(m.sheetId), pinLabel(m), deviceName(m), m.room, m.mount, cableSummary(markerCables(m)), closetName(m.closetId), len ?? "", m.tentative ? "yes" : "", m.notes]);
     downloadText(toCsv(rows), `${slug(project!.address)}-home-runs.csv`);
   }
 
@@ -149,7 +150,7 @@ export default function CrewTab() {
                 <tr key={m.id}>
                   <td>{sheetName(m.sheetId)}</td>
                   <td className="font-medium">
-                    {m.label}
+                    {pinLabel(m)}
                     {m.tentative && <span className="ml-1 text-amber-700">?</span>}
                   </td>
                   <td>{deviceName(m)}</td>

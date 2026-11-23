@@ -5,7 +5,7 @@
 // plan shows where each sensor will go (FindSimilarLayer.tsx). Placing is one undo step (useEditor.addMarkers).
 import { Check, ShieldCheck, X } from "lucide-react";
 import { useMemo } from "react";
-import { missingSensorTypes, sheetOpenings, type SensorKind } from "@/lib/alarmSensors";
+import { missingSensorTypes, openingCount, sheetOpenings, type SensorKind } from "@/lib/alarmSensors";
 import { msg, useT } from "@/lib/i18n";
 import { useEditor } from "@/lib/store";
 import type { Sheet } from "@/lib/types";
@@ -28,10 +28,11 @@ export default function AlarmSensorsSection({ sheet }: { sheet: Sheet }) {
   const plan = useMemo(() => (sensors ? sensorPlan(sensors, markers, catalog, sheet) : null), [sensors, markers, catalog, sheet]);
   if (!sensors || !plan || !all) return null;
 
-  const doors = openings.filter((o) => o.kind === "door").length;
-  const windows = openings.length - doors;
+  // Count pins (Window ×12) count as their count.
+  const doors = openingCount(openings.filter((o) => o.kind === "door"));
+  const windows = openingCount(openings.filter((o) => o.kind === "window"));
   const missing = missingSensorTypes(catalog);
-  const n = plan.placements.length;
+  const n = plan.placements.reduce((s, p) => s + p.count, 0);
   const parts = [
     plan.counts.door ? t.tn("{n} door contact", "{n} door contacts", plan.counts.door) : null,
     plan.counts.window ? t.tn("{n} window contact", "{n} window contacts", plan.counts.window) : null,

@@ -110,12 +110,14 @@ public struct PlanFilter: Codable, Hashable, Sendable {
         var c = Counts()
         for m in markers {
             let cat = category(m.deviceTypeId)
-            if let cat { c.byLayer[Layer(rawValue: cat.rawValue) ?? .general, default: 0] += 1 }
-            c.byType[m.deviceTypeId, default: 0] += 1
-            if !m.room.isEmpty { c.byRoom[m.room, default: 0] += 1 }
-            if m.tentative { c.tentative += 1 }
-            c.total += 1
-            if shows(m, category: cat) { c.shown += 1 }
+            // A count pin counts as its count.
+            let q = m.quantity
+            if let cat { c.byLayer[Layer(rawValue: cat.rawValue) ?? .general, default: 0] += q }
+            c.byType[m.deviceTypeId, default: 0] += q
+            if !m.room.isEmpty { c.byRoom[m.room, default: 0] += q }
+            if m.tentative { c.tentative += q }
+            c.total += q
+            if shows(m, category: cat) { c.shown += q }
         }
         c.wires = runs.filter { $0.kind == .wire }.count
         c.byLayer[.wiring, default: 0] += c.wires

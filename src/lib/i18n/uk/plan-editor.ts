@@ -912,6 +912,22 @@ const dict: Dictionary = {
   "{n} device on them goes with them.": { one: "Разом з ними зникне {n} пристрій.", few: "Разом з ними зникнуть {n} пристрої.", many: "Разом з ними зникнуть {n} пристроїв." },
   "Deleted {n} sheet": { one: "Видалено {n} аркуш", few: "Видалено {n} аркуші", many: "Видалено {n} аркушів" },
   "{n} floor name read from the plan — check it below.": { one: "{n} назву поверху прочитано з плану — перевірте нижче.", few: "{n} назви поверхів прочитано з плану — перевірте нижче.", many: "{n} назв поверхів прочитано з плану — перевірте нижче." },
+  // Add by count (count pins)
+  "Added {name} ×{n}. Drag the pin where you like.": "Додано: {name} ×{n}. Перетягніть мітку куди потрібно.",
+  "Add by count": "Додати кількістю",
+  "Too many to pin one by one? One pin stands for all of them and counts as that many everywhere.": "Забагато, щоб ставити по одній? Одна мітка замінює їх усі й усюди рахується як ця кількість.",
+  "How many": "Скільки",
+  "Room (optional)": "Приміщення (необов'язково)",
+  "Add {name} ×{n}": "Додати {name} ×{n}",
+  "It goes in the middle of the plan view. Drag it where you like.": "Мітка з'явиться в центрі видимої частини плану. Перетягніть її куди потрібно.",
+  "One less": "На один менше",
+  "One more": "На один більше",
+  "Count": "Кількість",
+  "This pin counts as {n} in the takeoff, estimate and exports.": "Ця мітка рахується як {n} у підрахунку, кошторисі та експорті.",
+  "Several of these here? Set how many: one pin counts as all of them.": "Тут кілька таких? Вкажіть скільки: одна мітка порахує їх усі.",
+  "Add by count: one pin for many doors, windows or any device": "Додати кількістю: одна мітка для багатьох дверей, вікон або будь-яких пристроїв",
+  "By count": "Кількістю",
+  "Add by count (doors, windows…)": "Додати кількістю (двері, вікна…)",
 };
 
 export default dict;

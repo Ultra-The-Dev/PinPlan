@@ -19,6 +19,31 @@ struct InspectorView: View {
     }
 }
 
+/// The device card's Count: turn any pin into a count pin ("×12") or change the number; 1 is a normal pin.
+private struct MarkerCountSection: View {
+    let quantity: Int
+    let onChange: (Int) -> Void
+    @State private var value: Int = 1
+
+    var body: some View {
+        Section {
+            CountStepperField(value: $value, live: false)
+                .accessibilityIdentifier("marker-count")
+        } header: {
+            Text("Count").textCase(nil)
+        } footer: {
+            if quantity > 1 {
+                Text("This pin counts as \(quantity) in the takeoff, estimate and exports.")
+            } else {
+                Text("Several of these here? Set how many: one pin counts as all of them.")
+            }
+        }
+        .onAppear { value = quantity }
+        .onChange(of: quantity) { _, q in if q != value { value = q } }
+        .onChange(of: value) { _, v in if v != quantity { onChange(v) } }
+    }
+}
+
 private struct MarkerForm: View {
     @Environment(AppModel.self) private var app
     let model: EditorModel
@@ -35,7 +60,7 @@ private struct MarkerForm: View {
             HStack(spacing: 12) {
                 DeviceSymbol(type: type, size: 40, tentative: marker.tentative)
                 VStack(alignment: .leading) {
-                    Text(marker.label).font(.headline)
+                    Text(marker.pinLabel).font(.headline)
                     Text([type?.name, marker.room.isEmpty ? nil : marker.room].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -57,6 +82,7 @@ private struct MarkerForm: View {
             }
             .tint(.orange)
         }
+        MarkerCountSection(quantity: marker.quantity) { n in update { $0.count = Marker.normalizeCount(n) } }
         Section {
             LabeledContent("Label") { CommitField(title: String(localized: "Label"), value: marker.label) { v in update { $0.label = v } }.multilineTextAlignment(.trailing) }
             LabeledContent("Room") { CommitField(title: String(localized: "Room"), value: marker.room, prompt: String(localized: "e.g. Kitchen")) { v in update { $0.room = v } }.multilineTextAlignment(.trailing) }
@@ -212,7 +238,7 @@ private struct ClosetForm: View {
             Picker("Kind", selection: Binding(get: { closet.kind }, set: { v in model.edit { $0.updateCloset(closet.id, pricing: model.pricing) { $0.kind = v } } })) {
                 ForEach(kindChoices, id: \.id) { Text($0.name).tag($0.id) }
             }
-            LabeledContent("Devices home-run here", value: "\(model.bundle.liveMarkers.filter { $0.closetId == closet.id }.count)")
+            LabeledContent("Devices home-run here", value: "\(model.bundle.liveMarkers.filter { $0.closetId == closet.id }.quantitySum)")
         }
         Section {
             Button(role: .destructive) { model.deleteSelection() } label: { Label("Delete closet", systemImage: "trash") }

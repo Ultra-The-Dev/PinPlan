@@ -377,7 +377,7 @@ private struct ProjectCard: View {
                 if let labels = p.labels, !labels.isEmpty {
                     Text(labels.joined(separator: " · ")).font(.caption.weight(.semibold)).foregroundStyle(Color.pencil).lineLimit(1)
                 }
-                Text(summary(sheets: bundle.liveSheets.count, devices: bundle.liveMarkers.count, led: led, photos: bundle.livePhotos.count))
+                Text(summary(sheets: bundle.liveSheets.count, devices: bundle.liveMarkers.quantitySum, led: led, photos: bundle.livePhotos.count))
                     .font(.footnote).foregroundStyle(.secondary).monospacedDigit().padding(.top, 6)
             }
             .padding(14)

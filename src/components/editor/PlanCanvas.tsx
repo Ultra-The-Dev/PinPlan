@@ -14,6 +14,7 @@ import { PlanGestures, type GestureHandlers, type TapInfo } from "@/lib/planGest
 import { MOUSE_HIT, TOUCH_HIT, hitTestPlan, type HitInput, type PlanHit } from "@/lib/planHit";
 import { usePlanOverlays, type PlanOverlay, type PlanOverlayContext, type PlanTapEvent } from "@/lib/planOverlays";
 import { CONSTANT_SIZE, type PlanViewport } from "@/lib/planViewport";
+import { markerQty } from "@/lib/markerCount";
 import { useEditor } from "@/lib/store";
 import { usePhotoPins } from "../photos/photoPinsUi";
 import { iconFor } from "@/lib/symbols";
@@ -179,6 +180,7 @@ export default function PlanCanvas({ sheet, draft, fitKey, showLabels, onTapImag
         tentative: !!m.tentative,
         label: m.label,
         photos: photoCount.get(m.id) ?? 0,
+        count: markerQty(m),
         selected: multi.length ? multi.includes(m.id) : selection?.id === m.id,
         dim: v === "dim",
       });

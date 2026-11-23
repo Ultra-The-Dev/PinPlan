@@ -12,11 +12,13 @@ public extension ProjectBundle {
     }
 
     @discardableResult
-    mutating func addMarker(type: DeviceType, sheetId: String, x: Double, y: Double, room: String = "", tentative: Bool = false) -> Marker {
-        let m = Marker(projectId: project.id, sheetId: sheetId, deviceTypeId: type.id, x: clamp01(x), y: clamp01(y),
+    /// `count`: a count pin ("Add by count") standing for that many devices (2…9999); nil or 1 is a normal pin.
+    mutating func addMarker(type: DeviceType, sheetId: String, x: Double, y: Double, room: String = "", tentative: Bool = false, count: Int? = nil) -> Marker {
+        var m = Marker(projectId: project.id, sheetId: sheetId, deviceTypeId: type.id, x: clamp01(x), y: clamp01(y),
                        label: Labels.next(abbrev: type.abbrev, sheetId: sheetId, sheets: liveSheets, markers: liveMarkers),
                        room: room.trimmingCharacters(in: .whitespaces), mount: type.defaultMount, wireType: type.defaultWire,
                        closetId: defaultCloset(for: sheetId)?.id, tentative: tentative)
+        m.count = Marker.normalizeCount(count)
         markers.append(m)
         touchProject()
         return m
@@ -26,6 +28,7 @@ public extension ProjectBundle {
         guard let i = markers.firstIndex(where: { $0.id == id }) else { return }
         change(&markers[i])
         markers[i].x = clamp01(markers[i].x); markers[i].y = clamp01(markers[i].y)
+        markers[i].count = Marker.normalizeCount(markers[i].count)
         markers[i].updatedAt = isoNow()
         // Keep an attached home-run line in sync.
         if let ri = runs.firstIndex(where: { $0.kind == .wire && $0.markerId == id && $0.deleted != true }) {

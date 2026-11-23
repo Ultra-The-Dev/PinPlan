@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { db, ensureSeeded, newId, nowIso, put, remove } from "@/lib/db";
 import { importBackup } from "@/lib/backup";
+import { sumQty } from "@/lib/markerCount";
 import { fmtDate, useT } from "@/lib/i18n";
 import { useSyncStatus } from "@/lib/sync";
 import { jobHref } from "@/lib/tabRoutes";
@@ -45,7 +46,7 @@ async function fetchRows(): Promise<Row[]> {
         ...p,
         billduDocs: p.billduDocs ?? [],
         sheetCount: sheets.length,
-        markerCount: markers.length,
+        markerCount: sumQty(markers),
         ledFt: Math.round(ledFt),
         photoCount: photos.length,
         // Cover: the first plan sheet, else the newest job photo.

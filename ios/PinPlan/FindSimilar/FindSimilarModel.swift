@@ -353,8 +353,10 @@ extension FindSimilarUI {
     @discardableResult
     func placeSensors(model: EditorModel, sheet: Sheet) -> Int {
         let plan = sensorPlan(model, sheet: sheet)
-        let items: [(type: DeviceType, x: Double, y: Double, room: String)] = plan.placements.compactMap { p in
-            model.app.type(p.deviceTypeId).map { (type: $0, x: p.x, y: p.y, room: p.room) }
+        var items: [(type: DeviceType, x: Double, y: Double, room: String, count: Int)] = []
+        for p in plan.placements {
+            guard let t = model.app.type(p.deviceTypeId) else { continue }
+            items.append((type: t, x: p.x, y: p.y, room: p.room, count: p.count))
         }
         guard !items.isEmpty else { return 0 }
         let n = model.addMarkers(items, sheetId: sheet.id)

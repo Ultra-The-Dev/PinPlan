@@ -10,6 +10,7 @@ import { useSheetLinks } from "@/lib/sheetLinks";
 import { useEditor } from "@/lib/store";
 import { useRole } from "@/lib/team";
 import { toast } from "@/lib/toast";
+import { sumQty } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
 import { tourAnchor } from "@/lib/tour/anchors";
 import { useSheetImage } from "@/lib/useImage";
@@ -285,7 +286,7 @@ export default function SheetsTab({ onOpenSheet }: { onOpenSheet: () => void }) 
               key={s.id}
               sheet={s}
               index={i}
-              count={markers.filter((m) => m.sheetId === s.id).length}
+              count={sumQty(markers.filter((m) => m.sheetId === s.id))}
               runCount={runs.filter((r) => r.sheetId === s.id && r.kind !== "wire").length}
               first={i === 0}
               last={i === sheets.length - 1}
