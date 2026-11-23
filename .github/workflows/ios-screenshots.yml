@@ -54,15 +54,15 @@ jobs:
                           "billing:--cloud-test http://127.0.0.1:54399 --billing-banner" "billingjob:--cloud-test http://127.0.0.1:54399 --billing-banner trial --demo --tab job" \
                           "deleteaccount:--cloud-test http://127.0.0.1:54399 --delete-account"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
-              t 20 xcrun simctl terminate "$UDID" com.pinplan.app
-              t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
+              t 20 xcrun simctl terminate "$UDID" app.northpin.ios
+              t 60 xcrun simctl launch "$UDID" app.northpin.ios --no-tips $ARGS
               sleep 9
               t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done
             if [ "$NAME" = ipad ]; then
               echo "== publish a photo report from the app (stand-in cloud)"
-              t 20 xcrun simctl terminate "$UDID" com.pinplan.app
-              t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips --cloud-test http://127.0.0.1:54399 --demo --tab photos --photo-report --auto-publish
+              t 20 xcrun simctl terminate "$UDID" app.northpin.ios
+              t 60 xcrun simctl launch "$UDID" app.northpin.ios --no-tips --cloud-test http://127.0.0.1:54399 --demo --tab photos --photo-report --auto-publish
               sleep 45
               t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-publish.png"
               grep -E "AUTH|UPLOAD .*reports|PHOTO_REPORT|  photo" shots/mock-supabase.log || echo "no photo report received"

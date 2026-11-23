@@ -94,7 +94,7 @@ jobs:
           for L in en "$SECOND_LANG"; do
             echo "== $L"
             # A fresh install each time, so the demo job starts without the devices the last run accepted.
-            perl -e 'alarm 60; exec @ARGV' xcrun simctl uninstall "$UDID" com.pinplan.app || true
+            perl -e 'alarm 60; exec @ARGV' xcrun simctl uninstall "$UDID" app.northpin.ios || true
             # TEST_RUNNER_ variables reach the test process without the prefix (SHOT_LANG, SHOT_DIR).
             TEST_RUNNER_SHOT_LANG="$L" TEST_RUNNER_SHOT_DIR="$PWD/shots" perl -e 'alarm 1200; exec @ARGV' \
               xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -destination "id=$UDID" -derivedDataPath build \
@@ -198,7 +198,7 @@ jobs:
               echo "-- $SLUG $L $STYLE"
               t 30 xcrun simctl ui "$UDID" appearance "$STYLE"
               # A fresh install each time: the demo job starts as drawn, with no remembered view or mode.
-              t 60 xcrun simctl uninstall "$UDID" com.pinplan.app
+              t 60 xcrun simctl uninstall "$UDID" app.northpin.ios
               TEST_RUNNER_SHOT_LANG="$L" TEST_RUNNER_SHOT_STYLE="$STYLE" TEST_RUNNER_SHOT_DEVICE="$SLUG" \
               TEST_RUNNER_SHOT_DIR="$PWD/layout-shots/$SLUG" perl -e 'alarm 1500; exec @ARGV' \
                 xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -destination "id=$UDID" -derivedDataPath build \
@@ -290,7 +290,7 @@ jobs:
             for L in en "$SECOND_LANG"; do
               echo "-- $SLUG $L"
               # A fresh install each time: the first-run prompt shows and the demo job starts as drawn.
-              t 60 xcrun simctl uninstall "$UDID" com.pinplan.app
+              t 60 xcrun simctl uninstall "$UDID" app.northpin.ios
               TEST_RUNNER_SHOT_LANG="$L" TEST_RUNNER_SHOT_DEVICE="$SLUG" TEST_RUNNER_SHOT_DIR="$PWD/tutorial-shots/$SLUG" \
               perl -e 'alarm 1800; exec @ARGV' \
                 xcodebuild -project PinPlan.xcodeproj -scheme PinPlanUITests -destination "id=$UDID" -derivedDataPath build \

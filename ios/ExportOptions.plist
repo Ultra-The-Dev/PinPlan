@@ -16,7 +16,8 @@
 	<true/>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
+	<!-- Internal testers only (your own App Store Connect team): these builds can never go to the public. -->
 	<key>testFlightInternalTestingOnly</key>
-	<false/>
+	<true/>
 </dict>
 </plist>

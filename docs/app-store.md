@@ -45,7 +45,7 @@ profile. Account deletion is in the app too (see below).
 | Subtitle (30 chars) | Takeoff, estimates, field work |
 | Primary category | Business |
 | Secondary category | Productivity |
-| Bundle ID | `com.pinplan.app` |
+| Bundle ID | `app.northpin.ios` |
 | SKU | `pinplan-ios` |
 | Age rating | 4+ (no objectionable content; no unrestricted web access; no user-to-public sharing) |
 | Copyright | `<© 2026 Your Company LLC>` |
@@ -155,7 +155,7 @@ encryption. No export documentation is needed.
 
 One-time setup:
 
-1. Apple Developer Program membership; create the app record in App Store Connect with bundle ID `com.pinplan.app`.
+1. Apple Developer Program membership; create the app record in App Store Connect with bundle ID `app.northpin.ios`.
 2. App Store Connect → Users and Access → Integrations → App Store Connect API: create a key with the **App Manager**
    role and download the `.p8` file (it can only be downloaded once).
 3. GitHub → Settings → Secrets and variables → Actions:

@@ -70,7 +70,7 @@ jobs:
             t 300 xcrun simctl bootstatus "$UDID" -b
             t 30 xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
             t 180 xcrun simctl install "$UDID" "$APP"
-            DATA=$(xcrun simctl get_app_container "$UDID" com.pinplan.app data)
+            DATA=$(xcrun simctl get_app_container "$UDID" app.northpin.ios data)
             mkdir -p "$DATA/Documents"
             cp real/* "$DATA/Documents/"
             for screen in "photo-review:--demo --tab sheets --scan-file=twin-photo.jpg" \
@@ -82,8 +82,8 @@ jobs:
                           "reeves-reader:--import-file=reeves-a101.pdf --tab plan --reader" \
                           "johnson-sheets:--import-file=johnson-a101.pdf --tab sheets"; do
               KEY="${screen%%:*}"; ARGS="${screen#*:}"
-              t 20 xcrun simctl terminate "$UDID" com.pinplan.app
-              t 60 xcrun simctl launch "$UDID" com.pinplan.app --no-tips $ARGS
+              t 20 xcrun simctl terminate "$UDID" app.northpin.ios
+              t 60 xcrun simctl launch "$UDID" app.northpin.ios --no-tips $ARGS
               sleep 25
               t 30 xcrun simctl io "$UDID" screenshot "shots/$NAME-$KEY.png"
             done

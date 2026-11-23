@@ -37,7 +37,7 @@ paid mailboxes) is about $170–$250 a month. Nothing in the app needs it on day
 ## 1. Decisions (no cost)
 
 1. **R: Product name.** Keep PinPlan or rename. The name goes into the domain, the email sender, the Stripe statement
-   descriptor, the App Store name, the bundle id (`com.pinplan.app` today) and the Terms. Do a trademark search
+   descriptor, the App Store name, the bundle id (`app.northpin.ios` today) and the Terms. Do a trademark search
    (USPTO) and check that the domain and the App Store name are free before buying anything.
 2. **R: Prices.** `src/lib/plans.ts` shows placeholders: $49 a month including 3 users, plus $15 a month for each extra
    user, in USD. Whatever you choose, the Stripe prices (step 6.2) must match `plans.ts` exactly. Ask the developer to

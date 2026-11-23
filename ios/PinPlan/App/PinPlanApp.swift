@@ -27,6 +27,8 @@ struct PinPlanApp: App {
             }
                 .environment(app)
                 .onOpenURL { url in app.receive(url) }
+                // A newer TestFlight build? (AppUpdate.swift; again each time the app comes back, at most every 6 h.)
+                .task { await AppUpdate.shared.check(serverURL: app.settings.serverURL) }
                 .tint(.brand)
                 .textCase(nil)   // section headers in sentence case, not ALL CAPS
                 .sheet(item: $app.pendingRestore, onDismiss: {
@@ -41,7 +43,14 @@ struct PinPlanApp: App {
                 // client names and prices never show in the snapshot.
                 .overlay { if scenePhase != .active { PrivacyCoverView() } }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { PrivacyCover.hide(); app.loadIfWaiting(force: true) } else { PrivacyCover.show() }
+                    if phase == .active {
+                        PrivacyCover.hide()
+                        app.loadIfWaiting(force: true)
+                        let server = app.settings.serverURL
+                        Task { await AppUpdate.shared.check(serverURL: server) }
+                    } else {
+                        PrivacyCover.show()
+                    }
                 }
         }
     }

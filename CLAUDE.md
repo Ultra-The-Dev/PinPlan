@@ -62,4 +62,6 @@ Full spec: `PLAN.md`. See also `AGENTS.md` (Next.js 16 — read `node_modules/ne
   `scripts/help-screens.mjs`); tours point at `data-tour` anchors registered in `src/lib/tour/anchors.ts` (a missing
   anchor never blocks); text in `src/lib/i18n/<lang>/help.ts`. Never on client pages. iOS has its own offline tutorial (`ios/PinPlan/Tutorial/`,
   model in `PinPlanCore/Tutorials.swift`, anchors via `.tutorialAnchor("…")`, runs on the demo job).
+- **iOS releases** (`docs/testflight.md`): `ios-testflight.yml` uploads internal-only TestFlight builds (bundle ID
+  `app.northpin.ios`, build number = run number); the app's update banner reads `/api/ios/latest`.
 - Tailwind v4 with component classes in `src/app/globals.css` (`btn`, `input`, `card`, `tab`, `tbl`, `label`).

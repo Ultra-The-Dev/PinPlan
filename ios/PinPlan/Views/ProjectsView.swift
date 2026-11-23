@@ -108,6 +108,8 @@ struct ProjectsView: View {
                 // The one first-run prompt: the welcome walkthrough and tour, or Help & tutorials.
                 HelpTipBanner(onStart: { welcome = WelcomeRequest(page: 0) }, onOpen: openHelp)
                     .padding(.horizontal, 16).padding(.top, 8)
+                // A newer TestFlight build is ready (AppUpdate.swift).
+                AppUpdateBanner().padding(.horizontal, 16).padding(.top, 8)
                 if app.projects.isEmpty {
                     EmptyProjects(office: office, onNew: { showNew = true }, onDemo: openDemo).padding(.top, 60)
                 } else {
