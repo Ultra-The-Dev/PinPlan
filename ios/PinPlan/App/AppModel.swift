@@ -16,6 +16,8 @@ final class AppModel {
     let cloud = CloudSync()
     /// The project open in the editor, so synced changes show up there.
     @ObservationIgnored weak var openEditor: EditorModel?
+    /// The settings as last written, so a save that changed nothing keeps its time (`AppSettings.updatedAt`).
+    @ObservationIgnored private var savedSettings: AppSettings?
 
     /// True while the app was started with the device locked (iOS can pre-launch apps): Store files are written
     /// complete-unless-open, so they can't be read yet. Nothing is loaded, saved or synced until the device is
@@ -49,6 +51,7 @@ final class AppModel {
         // Fill blank business fields: founder defaults only on devices that had settings before neutral defaults
         // existed; new installs start neutral (the founder's team still gets its own via `business`, from billing).
         settings.business = settings.business.withDefaults(founder: settings.business.brandDefaults != BusinessSettings.neutralMarker)
+        savedSettings = settings
         cloud.attach(self)
     }
 
@@ -113,6 +116,7 @@ final class AppModel {
         products = []
         settings = store.loadSettings()
         settings.business = settings.business.withDefaults(founder: false)
+        savedSettings = settings
     }
 
     var pricing: PricingSettings { settings.pricing }
@@ -253,7 +257,34 @@ final class AppModel {
         cloud.kick()
     }
 
-    func saveSettings() { store.saveSettings(settings) }
+    /// Write the settings. A save that changed something is dated now (the company's cloud copy and this one compare
+    /// those times; screens save when they close, so an unchanged save keeps the old time).
+    func saveSettings() {
+        var unchanged: AppSettings = settings
+        unchanged.updatedAt = savedSettings?.updatedAt
+        let changed: Bool = savedSettings == nil || unchanged != savedSettings
+        if changed { settings.updatedAt = isoNow() }
+        savedSettings = settings
+        store.saveSettings(settings)
+        if changed { cloud.kick() }
+    }
+
+    /// Write settings that came from the company's cloud copy (or were cleared for another account): keeps the time
+    /// of this device's own last change.
+    func replaceSettingsFromCloud(_ s: AppSettings) {
+        settings = s
+        savedSettings = s
+        store.saveSettings(s)
+    }
+
+    /// Another account's company setup was left on this device: back to a fresh install's (device choices stay).
+    func forgetCompanySetup() {
+        var s: AppSettings = settings
+        s.forgetCompanySetup()
+        s.business = s.business.withDefaults(founder: false)
+        replaceSettingsFromCloud(s)
+        InstallSettings.reset()
+    }
 
     // MARK: trades
 

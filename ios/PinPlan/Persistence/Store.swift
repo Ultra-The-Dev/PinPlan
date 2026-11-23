@@ -18,6 +18,9 @@ struct AppSettings: Codable, Equatable {
     var trades: [String]? = nil
     /// Company form templates (same JSON as the web app's settings `formTemplates`). Optional so older settings still decode.
     var formTemplates: [FormTemplate]? = nil
+    /// When these settings last changed on this device (AppModel.saveSettings), so the company's cloud copy and this
+    /// one can tell which is newer. Nil on settings saved before it existed.
+    var updatedAt: String? = nil
 
     /// The Northpin server this build ships with: the `PINPLAN_SERVER_URL` build setting, written into the Info.plist as
     /// `PinPlanServerURL`. Empty when the build didn't set one (a developer build without a server).
@@ -30,6 +33,48 @@ struct AppSettings: Codable, Equatable {
     /// True while the app talks to the server it was built with (nothing changed under Advanced).
     var usesBuiltInServer: Bool {
         serverURL.trimmingCharacters(in: .whitespaces) == Self.builtInServerURL && accessCode.isEmpty
+    }
+}
+
+extension AppSettings {
+    /// The parts of these settings that belong to the company (synced through company_settings / document_settings).
+    func companyPrefs(installPhotoRequired: [InstallStatus]) -> CompanyPrefsValues {
+        CompanyPrefsValues(business: business, pricing: pricing, billduDocType: billduDocType, checklistTemplates: checklistTemplates,
+                           formTemplates: formTemplates, installPhotoRequired: installPhotoRequired, trades: trades)
+    }
+
+    /// Put in the sections that came from the company's copy (install photo rules live in InstallSettings).
+    mutating func apply(_ v: CompanyPrefsValues, sections: Set<PrefKey>) {
+        if sections.contains(.branding) {
+            business = BrandingPrefs(business: v.business).applied(to: business)
+        }
+        if sections.contains(.takeoff) {
+            pricing.wireSlackPct = v.pricing.wireSlackPct
+            pricing.wireDropFt = v.pricing.wireDropFt
+            pricing.floorHeightFt = v.pricing.floorHeightFt
+        }
+        if sections.contains(.pricing) {
+            pricing.markupPct = v.pricing.markupPct
+            pricing.taxPct = v.pricing.taxPct
+            pricing.laborMode = v.pricing.laborMode
+            pricing.wirePrices = v.pricing.wirePrices
+            pricing.includeTentative = v.pricing.includeTentative
+            pricing.currency = v.pricing.currency
+        }
+        if sections.contains(.billduDocType) { billduDocType = v.billduDocType }
+        if sections.contains(.checklistTemplates) { checklistTemplates = v.checklistTemplates }
+        if sections.contains(.formTemplates) { formTemplates = v.formTemplates }
+        if sections.contains(.trades) { trades = v.trades }
+    }
+
+    /// The company's setup back to a fresh install's (another account's must not show, or be sent into this account's
+    /// company). The server address and access code are this device's and stay.
+    mutating func forgetCompanySetup() {
+        var fresh = AppSettings()
+        fresh.business.brandDefaults = BusinessSettings.neutralMarker
+        fresh.serverURL = serverURL
+        fresh.accessCode = accessCode
+        self = fresh
     }
 }
 

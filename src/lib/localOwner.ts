@@ -1,7 +1,10 @@
 "use client";
 // Which account the jobs on this device belong to. A different person signing in on the same browser must never
 // inherit (or upload into their own company) the previous account's jobs: sync pauses and asks first.
-import { db } from "./db";
+import { withoutCompanySetup } from "./companyPreferences";
+import { db, ensureSeeded } from "./db";
+import { DEFAULT_TRADES } from "./trades";
+import { useTradeStore } from "./useTrades";
 
 const KEY = "pinplan.localOwner";
 
@@ -117,8 +120,38 @@ export async function checkLocalOwner(userId: string, email: string | null): Pro
   // Read before awaiting: loading the new account's team rewrites the team cache.
   const stored = readLocalOwner() ?? inferLocalOwner(userId);
   const decision = ownerDecision(stored, userId, await hasLocalData());
+  // Nothing of the previous account's is left but its company setup (settings, price list, templates): that must not
+  // show here, or go up into this account's company. Its own setup comes down with the sync.
+  if (decision === "claim" && stored && stored.userId !== userId) await forgetCompanySetup(userId);
   if (decision !== "ask") writeLocalOwner({ userId, email });
   return decision;
+}
+
+/** localStorage keys that hold a company's setup or numbering on this device. */
+export const COMPANY_KEYS = ["pinplan.trades", "pinplan.exportFormat", "pinplan.exportAccounts", "pinplan.companySettings", "pinplan.companyPreferences"];
+
+/** Put the company-level settings, the price list and job templates back to a fresh install's (device choices stay).
+ *  `userId`'s pull watermarks go too (nothing of theirs is left here), so all of their company's rows come down again. */
+export async function forgetCompanySetup(userId: string): Promise<void> {
+  try {
+    const d = db();
+    await d.transaction("rw", [d.settings, d.deviceTypes, d.products, d.jobTemplates, d.syncRefused], async () => {
+      const s = await d.settings.get("app");
+      if (s) await d.settings.put(withoutCompanySetup(s));
+      await Promise.all([d.deviceTypes.clear(), d.products.clear(), d.jobTemplates.clear(), d.syncRefused.clear()]);
+    });
+    await ensureSeeded();
+  } catch {
+    /* IndexedDB unavailable */
+  }
+  try {
+    const watermarks = `pinplan.sync.pull.${userId}.`;
+    for (const k of Object.keys(localStorage)) if (COMPANY_KEYS.includes(k) || k.startsWith("pinplan.docnum.") || k.startsWith(watermarks)) localStorage.removeItem(k);
+  } catch {
+    /* storage unavailable */
+  }
+  useTradeStore.setState({ trades: [...DEFAULT_TRADES], loaded: false });
+  if (typeof window !== "undefined") for (const e of ["pinplan:company-settings", "pinplan:catalog", "pinplan:trades", "pinplan:doc-settings"]) window.dispatchEvent(new Event(e));
 }
 
 /** Keep the previous account's jobs and let this account sync them (only when the person chose to). */

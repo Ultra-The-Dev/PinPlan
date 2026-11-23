@@ -351,12 +351,13 @@ export async function saveSettings(s: AppSettings) {
 }
 
 /** Store this device's copy of the company invoicing settings (see docSettings.ts). */
-export async function saveDocumentSettings(doc: DocumentSettings): Promise<void> {
+export async function saveDocumentSettings(doc: DocumentSettings, opts: { fromCloud?: boolean } = {}): Promise<void> {
   await ensureSeeded();
   const d = db();
   await d.transaction("rw", d.settings, async () => {
     const s = (await d.settings.get("app")) ?? DEFAULT_SETTINGS;
-    await d.settings.put({ ...s, documents: doc, updatedAt: nowIso() });
+    // The company's copy coming down keeps the settings' save time (it isn't a change made here; companyPreferences.ts).
+    await d.settings.put({ ...s, documents: doc, updatedAt: opts.fromCloud ? s.updatedAt : nowIso() });
   });
 }
 

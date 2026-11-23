@@ -77,4 +77,51 @@ reset role;
 
 select pg_temp.check(pg_temp.fails($q$insert into public.company_settings (owner_id, phone) values ('00000000-0000-0000-0000-000000000cc3', repeat('9', 61))$q$), 'lengths are capped');
 
+-- ---------- preferences: merged section by section, newest wins; prices stay with the office ----------
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc1');
+update public.company_settings set preferences = '{"checklistTemplates": {"value": [{"id": "t1"}], "updatedAt": "2026-11-20T10:00:00.000Z"}, "branding": {"value": {"tagline": "A"}, "updatedAt": "2026-11-20T10:00:00.000Z"}}'
+  where owner_id = public.my_billing_owner();
+select pg_temp.check((select preferences -> 'checklistTemplates' -> 'value' -> 0 ->> 'id' from public.company_settings) = 't1', 'owner saves preferences');
+select pg_temp.check((select business_name from public.company_settings) = 'Settings Co', 'saving preferences leaves the business details');
+
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc3');
+update public.company_settings set preferences = '{"branding": {"value": {"tagline": "B"}, "updatedAt": "2026-11-21T10:00:00.000Z"}, "formTemplates": {"value": [], "updatedAt": "2026-11-21T10:00:00.000Z"}}'
+  where owner_id = public.my_billing_owner();
+select pg_temp.check((select preferences -> 'branding' -> 'value' ->> 'tagline' from public.company_settings) = 'B', 'a newer section replaces the older one');
+select pg_temp.check((select preferences ? 'checklistTemplates' from public.company_settings), 'sections a write leaves out stay');
+select pg_temp.check((select preferences ? 'formTemplates' from public.company_settings), 'a new section is added');
+update public.company_settings set preferences = '{"branding": {"value": {"tagline": "Old"}, "updatedAt": "2026-11-19T10:00:00.000Z"}, "junk": 5, "bad": {"value": 1, "updatedAt": "not a time"}}'
+  where owner_id = public.my_billing_owner();
+select pg_temp.check((select preferences -> 'branding' -> 'value' ->> 'tagline' from public.company_settings) = 'B', 'an older section never wins');
+select pg_temp.check((select not (preferences ? 'junk') and not (preferences ? 'bad') from public.company_settings), 'anything that is not a section is dropped');
+-- An app from before this column upserts the whole row without it: the preferences stay.
+insert into public.company_settings (owner_id, business_name, updated_at) values (public.my_billing_owner(), 'Settings Co', now())
+  on conflict (owner_id) do update set business_name = excluded.business_name, updated_at = excluded.updated_at;
+select pg_temp.check((select preferences -> 'branding' -> 'value' ->> 'tagline' from public.company_settings) = 'B', 'an older app''s save keeps the preferences');
+
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc2');
+select pg_temp.check((select preferences -> 'branding' -> 'value' ->> 'tagline' from public.company_settings) = 'B', 'tech reads the shared preferences');
+update public.company_settings set preferences = '{"branding": {"value": {"tagline": "Tech"}, "updatedAt": "2030-01-01T00:00:00.000Z"}}';
+select pg_temp.check((select preferences -> 'branding' -> 'value' ->> 'tagline' from public.company_settings) = 'B', 'tech cannot change the preferences');
+
+-- Office-only preferences (pricing) live on document_settings.
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc1');
+insert into public.document_settings (owner_id, config, updated_at) values (public.my_billing_owner(), '{}', '1970-01-01T00:00:00Z')
+  on conflict (owner_id) do nothing;
+update public.document_settings set preferences = '{"pricing": {"value": {"markupPct": 25}, "updatedAt": "2026-11-21T10:00:00.000Z"}}'
+  where owner_id = public.my_billing_owner();
+select pg_temp.check((select (preferences -> 'pricing' -> 'value' ->> 'markupPct')::int from public.document_settings) = 25, 'owner saves pricing');
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc3');
+select pg_temp.check((select (preferences -> 'pricing' -> 'value' ->> 'markupPct')::int from public.document_settings) = 25, 'admin reads pricing');
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc2');
+select pg_temp.check((select count(*) from public.document_settings) = 0, 'tech cannot read pricing');
+update public.document_settings set preferences = '{"pricing": {"value": {"markupPct": 0}, "updatedAt": "2030-01-01T00:00:00.000Z"}}';
+reset role;
+select pg_temp.check((select (preferences -> 'pricing' -> 'value' ->> 'markupPct')::int from public.document_settings where owner_id = '00000000-0000-0000-0000-000000000cc1') = 25, 'tech cannot change pricing');
+set role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-000000000cc4');
+select pg_temp.check((select count(*) from public.document_settings where owner_id = '00000000-0000-0000-0000-000000000cc1') = 0, 'outsider cannot read another company''s pricing');
+reset role;
+
 select 'COMPANY SETTINGS TESTS PASSED';

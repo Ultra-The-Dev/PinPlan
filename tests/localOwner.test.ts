@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db, put } from "@/lib/db";
+import { db, getSettings, put, saveDocumentSettings, saveSettings } from "@/lib/db";
 import { adoptLocalData, checkLocalOwner, hasLocalData, heldSignIn, ownerDecision, readLocalOwner, removeLocalData, writeLocalOwner } from "@/lib/localOwner";
 
 // localStorage for the node test environment.
@@ -115,5 +115,68 @@ describe("checkLocalOwner", () => {
     expect(readLocalOwner()?.userId).toBe("b");
     await db().open();
     expect(await db().projects.count()).toBe(0);
+  });
+});
+
+describe("another account's company setup on a shared device", () => {
+  it("is put back to a fresh install's when the next account claims the device", async () => {
+    writeLocalOwner({ userId: "a", email: "a@example.com" });
+    const s = await getSettings();
+    await saveSettings({ ...s, business: { ...s.business, name: "A Co", phone: "555", tagline: "A's tagline" }, pricing: { ...s.pricing, markupPct: 33 }, billduDocType: "invoice", installPhotoRequired: ["tested"] });
+    await db().deviceTypes.put({ ...(await db().deviceTypes.toArray())[0], id: "a-custom", name: "A's own", unitPrice: 999 });
+    storage.setItem("pinplan.trades", JSON.stringify(["electrical"]));
+    storage.setItem("pinplan.docnum.invoice.0", "42");
+    storage.setItem("pinplan.lang", "ru");
+    // A signed out keeping data, but had no jobs: B claims the device.
+    expect(await checkLocalOwner("b", "b@example.com")).toBe("claim");
+    const after = await getSettings();
+    expect(after.business.name).toBe("");
+    expect(after.business.tagline).toBe("");
+    expect(after.pricing.markupPct).toBe(0);
+    expect(after.billduDocType).toBe("estimate");
+    expect(after.installPhotoRequired).toBeUndefined();
+    expect(await db().deviceTypes.get("a-custom")).toBeUndefined();
+    expect(await db().deviceTypes.count()).toBeGreaterThan(0);
+    expect(storage.getItem("pinplan.trades")).toBeNull();
+    expect(storage.getItem("pinplan.docnum.invoice.0")).toBeNull();
+    // Device choices stay.
+    expect(storage.getItem("pinplan.lang")).toBe("ru");
+  });
+
+  it("B, then A, then B again: B's whole company comes down again (its pull watermarks go with the cleared catalog)", async () => {
+    writeLocalOwner({ userId: "b", email: null });
+    storage.setItem("pinplan.sync.pull.b.device_types", ts);
+    storage.setItem("pinplan.sync.pull.a.device_types", ts);
+    expect(await checkLocalOwner("a", null)).toBe("claim");
+    expect(storage.getItem("pinplan.sync.pull.a.device_types")).toBeNull();
+    storage.setItem("pinplan.sync.pull.a.device_types", ts);
+    expect(await checkLocalOwner("b", null)).toBe("claim");
+    expect(storage.getItem("pinplan.sync.pull.b.device_types")).toBeNull();
+  });
+
+  it("the company's copy coming down keeps the settings' save time; a change made here moves it", async () => {
+    const s = await getSettings();
+    await saveSettings(s);
+    const at = (await db().settings.get("app"))!.updatedAt;
+    await new Promise((r) => setTimeout(r, 5));
+    await saveDocumentSettings({ ...s.documents!, updatedAt: ts }, { fromCloud: true });
+    expect((await db().settings.get("app"))!.updatedAt).toBe(at);
+    await saveDocumentSettings({ ...s.documents!, updatedAt: ts });
+    expect((await db().settings.get("app"))!.updatedAt).not.toBe(at);
+  });
+
+  it("the same account signing back in keeps its setup", async () => {
+    writeLocalOwner({ userId: "a", email: null });
+    const s = await getSettings();
+    await saveSettings({ ...s, business: { ...s.business, name: "A Co" } });
+    expect(await checkLocalOwner("a", null)).toBe("same");
+    expect((await getSettings()).business.name).toBe("A Co");
+  });
+
+  it("a first sign-in on a device used without an account keeps what was set up there", async () => {
+    const s = await getSettings();
+    await saveSettings({ ...s, business: { ...s.business, name: "Local Co" } });
+    expect(await checkLocalOwner("a", null)).toBe("claim");
+    expect((await getSettings()).business.name).toBe("Local Co");
   });
 });

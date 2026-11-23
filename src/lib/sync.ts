@@ -45,6 +45,7 @@ import {
 } from "./syncMap";
 import { markupsToPush } from "./markups";
 import type { JobLog, PlanMarkup, Sheet } from "./types";
+import { pullCompanyPreferences } from "./companyPreferences";
 import { pullCompanySettings } from "./companySettings";
 import { pullDocSettings } from "./docSettings";
 import { clearLocalData, finishPendingCompany } from "./onboarding";
@@ -784,7 +785,7 @@ export function keepPreviousAccountData(): void {
 /** Per-user keys that never outlive a sign-in (an invite or company sign-up waiting for this person, their company's
  *  settings marks, billing cache, recently opened jobs…). `pinplan.team` and `pinplan.localOwner` stay: they say whose
  *  jobs are on this device (the owner check on the next sign-in), and pull watermarks are per user id. */
-export const SIGN_OUT_KEYS = ["pinplan.pendingInvite", "pinplan.pendingCompany", "pinplan.companySettings", "pinplan.soloBilling", RECENT_JOBS_KEY, "pinplan.author", "pinplan.errorReports", "pinplan.exportAccounts"];
+export const SIGN_OUT_KEYS = ["pinplan.pendingInvite", "pinplan.pendingCompany", "pinplan.companySettings", "pinplan.companyPreferences", "pinplan.soloBilling", RECENT_JOBS_KEY, "pinplan.author", "pinplan.errorReports", "pinplan.exportAccounts"];
 
 function clearSignedInKeys(): void {
   try {
@@ -915,6 +916,8 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
     if (useTeam.getState().role !== "tech") await pullDocSettings().catch(() => undefined);
     // The company's name, phone, logo and quote terms (every member reads them; the office's edits go up from here too).
     await pullCompanySettings().catch(() => undefined);
+    // The rest of the company's setup (pricing, templates, branding, install photo rules…), section by section.
+    await pullCompanyPreferences().catch(() => undefined);
     if (pushError) throw pushError;
     failures = 0;
     nextAttemptAt = 0;

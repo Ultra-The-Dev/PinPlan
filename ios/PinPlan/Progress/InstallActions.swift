@@ -54,15 +54,33 @@ final class ProgressUI {
     }
 }
 
-/// Company setting: statuses that need a proof photo (this device; default "installed", like the web app).
+/// Company setting: statuses that need a proof photo (default "installed", like the web app). Kept on this device and
+/// synced with the company's copy (CloudSync.syncCompanySetup, section "installPhotoRequired").
 enum InstallSettings {
     static let key = "pinplan.installPhotoRequired"
+    /// When it was last changed on this device (for newest-wins against the company's copy).
+    static let savedAtKey = "pinplan.installPhotoRequired.savedAt"
     static var photoRequired: [InstallStatus] {
         get {
             guard let raw = UserDefaults.standard.array(forKey: key) as? [String] else { return InstallProgress.defaultPhotoRequired }
             return raw.compactMap { InstallStatus(rawValue: $0) }
         }
-        set { UserDefaults.standard.set(newValue.map(\.rawValue), forKey: key) }
+        set {
+            UserDefaults.standard.set(newValue.map(\.rawValue), forKey: key)
+            UserDefaults.standard.set(isoNow(), forKey: savedAtKey)
+        }
+    }
+    static var savedAt: String? { UserDefaults.standard.string(forKey: savedAtKey) }
+
+    /// The company's copy came down: store it without dating it as a change made here.
+    static func storeFromCloud(_ list: [InstallStatus]) {
+        UserDefaults.standard.set(list.map(\.rawValue), forKey: key)
+    }
+
+    /// Back to the default (another account's setting must not carry over).
+    static func reset() {
+        UserDefaults.standard.removeObject(forKey: key)
+        UserDefaults.standard.removeObject(forKey: savedAtKey)
     }
 }
 

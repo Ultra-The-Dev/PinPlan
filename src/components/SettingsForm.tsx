@@ -63,11 +63,15 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
     const onCompany = () =>
       void getSettings().then((x) => {
         const saved = origRef.current ? (JSON.parse(origRef.current) as AppSettings) : null;
+        // Also pricing and the rest of the company's setup (companyPreferences.ts), each part only when not being edited.
+        const keys = ["business", "pricing", "billduDocType", "installPhotoRequired"] as const;
         setS((cur) => {
           if (!cur || !saved) return x;
-          return JSON.stringify(cur.business) === JSON.stringify(saved.business) ? { ...cur, business: x.business } : cur;
+          const next = { ...cur };
+          for (const k of keys) if (JSON.stringify(cur[k]) === JSON.stringify(saved[k])) Object.assign(next, { [k]: x[k] });
+          return next;
         });
-        setOrig((o) => (o ? JSON.stringify({ ...JSON.parse(o), business: x.business }) : JSON.stringify(x)));
+        setOrig((o) => (o ? JSON.stringify({ ...JSON.parse(o), ...Object.fromEntries(keys.map((k) => [k, x[k]])) }) : JSON.stringify(x)));
       });
     load();
     window.addEventListener(TRADES_EVENT, load);

@@ -242,6 +242,26 @@ struct SupabaseClient {
         try await send(request("/rest/v1/\(table)", query: query, token: token))
     }
 
+    /// Insert a row unless one with the same key exists (then nothing changes).
+    func insertIfMissing(_ table: String, conflict: String, row: [String: Any], token: String) async throws {
+        var r = request("/rest/v1/\(table)", query: "on_conflict=\(conflict)", method: "POST", token: token)
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue("resolution=ignore-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
+        r.httpBody = try JSONSerialization.data(withJSONObject: [row])
+        _ = try await send(r)
+    }
+
+    /// Update rows and return how many were changed (row security can leave none).
+    func updateCounting(_ table: String, filter: String, values: [String: Any], select: String, token: String) async throws -> Int {
+        var r = request("/rest/v1/\(table)", query: filter + "&select=" + select, method: "PATCH", token: token)
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        r.httpBody = try JSONSerialization.data(withJSONObject: values)
+        let data: Data = try await send(r)
+        let rows: [Any] = (try? JSONSerialization.jsonObject(with: data)) as? [Any] ?? []
+        return rows.count
+    }
+
     func insert(_ table: String, row: [String: Any], token: String) async throws -> Data {
         var r = request("/rest/v1/\(table)", method: "POST", token: token)
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -552,6 +572,8 @@ final class CloudSync {
         soloBilling = nil
         soloUserId = nil
         UserDefaults.standard.removeObject(forKey: Self.soloKey)
+        UserDefaults.standard.removeObject(forKey: Self.companyDetailsMarkKey)
+        UserDefaults.standard.removeObject(forKey: Self.companyPrefsMarkKey)
         clearPendingInvite()
         hideLockedJobs()
     }
@@ -656,6 +678,11 @@ final class CloudSync {
             if AccountSwitch.isOtherAccount(dataOwner: owner, signingIn: uid, otherAccountLedgers: others, ownLedger: ownFile) {
                 AccountSwitch.keepWithoutSending(app.catalog, products: app.products, in: &ledger)
                 saveLedger()
+                // The other account's business details, prices and templates must not show here or go up into this
+                // account's company: back to a fresh install's, then this account's come down.
+                app.forgetCompanySetup()
+                UserDefaults.standard.removeObject(forKey: Self.companyDetailsMarkKey)
+                UserDefaults.standard.removeObject(forKey: Self.companyPrefsMarkKey)
             }
             defaults.set(uid, forKey: Self.dataOwnerKey)
             defaults.set(session?.email, forKey: Self.dataOwnerEmailKey)
@@ -674,6 +701,10 @@ final class CloudSync {
         after.bundles = [:]
         app.applySync(from: before, to: after)
         UserDefaults.standard.removeObject(forKey: Self.jobsLockedKey)
+        // The other account's business details, prices and templates go too; this account's come down.
+        app.forgetCompanySetup()
+        UserDefaults.standard.removeObject(forKey: Self.companyDetailsMarkKey)
+        UserDefaults.standard.removeObject(forKey: Self.companyPrefsMarkKey)
         ledger = AccountSwitch.freshLedger(for: uid, keeping: app.catalog, products: app.products)
         imagePaths = [:]
         saveLedger()
@@ -762,6 +793,9 @@ final class CloudSync {
             if !blocked { readOnlyUntil = nil }
             readOnly = blocked
             let (pulled, pullError) = try await pull(app: app, client: client, token: token)
+            // The company's business details, pricing, templates and other setup (newest change wins, part by part).
+            // Before the files, so a new device gets the setup even when a file fails.
+            await syncCompanySetup(app: app, client: client, token: token, mayPush: !blocked)
             try await images(app: app, client: client, token: token, uploads: !blocked)
             saveLedger()
             pendingChanges = blocked ? countPending(app) : 0
@@ -1266,7 +1300,12 @@ extension CloudSync {
         let key = "\(Self.teamTradesSeenKey).\(t.id)"
         let seen = UserDefaults.standard.stringArray(forKey: key)
         if let next = Team.tradesToAdopt(team: t.trades, seen: seen, local: app.trades) {
+            // The team's trades coming down are not a change made here: keep the settings' save time.
+            let savedAt: String? = app.settings.updatedAt
             app.setTrades(next, addPacks: can(.editCatalog))
+            var s: AppSettings = app.settings
+            s.updatedAt = savedAt
+            app.replaceSettingsFromCloud(s)
         }
         if let tr = t.trades, !tr.isEmpty { UserDefaults.standard.set(tr, forKey: key) }
     }
@@ -1663,5 +1702,173 @@ extension CloudSync {
         teamLoadedAt = nil
         clearPendingInvite()
         setConfig(url: "", anonKey: "")
+    }
+}
+
+// MARK: - company setup
+
+/// The company's setup in the cloud (PinPlanCore/CompanySetup.swift; the web app's companySettings.ts and
+/// companyPreferences.ts): business details in company_settings' columns, the rest in preference sections. Everyone on
+/// the team reads; technicians never send; prices are only read and sent by the office.
+extension CloudSync {
+    static let companyDetailsMarkKey = "pinplan.companySettings"
+    static let companyPrefsMarkKey = "pinplan.companyPreferences"
+
+    private static func readMark<T: Decodable>(_ type: T.Type, key: String) -> T? {
+        guard let d = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: d)
+    }
+
+    private static func writeMark<T: Encodable>(_ value: T, key: String) {
+        if let d = try? JSONEncoder().encode(value) { UserDefaults.standard.set(d, forKey: key) }
+    }
+
+    private func companyOwner(client: SupabaseClient, token: String) async throws -> String {
+        let data: Data = try await client.rpc("my_billing_owner", params: [:], token: token)
+        let value: Any = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        guard let id = value as? String, !id.isEmpty else { throw SupabaseClient.Failure(message: "No company") }
+        return id
+    }
+
+    private func firstRow(_ table: String, columns: String, client: SupabaseClient, token: String) async throws -> [String: Any]? {
+        let data: Data = try await client.select(table, query: "select=" + columns, token: token)
+        let rows: [[String: Any]] = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
+        return rows.first
+    }
+
+    /// Bring this device and the company's copy in step. Quiet when offline or a migration behind.
+    func syncCompanySetup(app: AppModel, client: SupabaseClient, token: String, mayPush: Bool) async {
+        // The role decides what may be sent: wait until it is known for this account.
+        guard teamKnown, let userId = session?.userId else { return }
+        // Plan by role; while the company is read-only (lapsed billing) nothing is sent, and those parts wait.
+        let canWrite: Bool = role != .tech
+        let detailColumns = "business_name,phone,email,website,address,terms,logo,logo_image_id,updated_at"
+        var row: [String: Any]?
+        var hasPreferences = true
+        do {
+            row = try await firstRow("company_settings", columns: detailColumns + ",preferences", client: client, token: token)
+        } catch let e as SupabaseClient.Failure where Self.missingColumn(e) != nil {
+            // The cloud database is a migration behind: the business details still sync.
+            hasPreferences = false
+            do { row = try await firstRow("company_settings", columns: detailColumns, client: client, token: token) } catch { return }
+        } catch {
+            return
+        }
+        let rowExists: Bool = row != nil
+        await syncCompanyDetails(app: app, row: row, userId: userId, canWrite: canWrite, mayPush: mayPush, client: client, token: token)
+        guard hasPreferences else { return }
+        // Office sections: only the office reads them (and only once the invoicing settings row exists).
+        var office: [String: Any]?
+        if role != .tech {
+            let officeRow: [String: Any]? = try? await firstRow("document_settings", columns: "preferences", client: client, token: token)
+            if let officeRow { office = officeRow["preferences"] as? [String: Any] ?? [:] }
+        }
+        var shared: [String: Any]?
+        if let row { shared = row["preferences"] as? [String: Any] ?? [:] }
+        await syncCompanyPrefs(app: app, shared: shared, office: office, rowExists: rowExists, userId: userId, canWrite: canWrite,
+                               mayPush: mayPush, client: client, token: token)
+    }
+
+    private func syncCompanyDetails(app: AppModel, row: [String: Any]?, userId: String, canWrite: Bool, mayPush: Bool,
+                                    client: SupabaseClient, token: String) async {
+        let founder: Bool = app.settings.business.brandDefaults != BusinessSettings.neutralMarker
+        var mark: CompanyDetailsMark? = Self.readMark(CompanyDetailsMark.self, key: Self.companyDetailsMarkKey)
+        if mark?.userId != userId { mark = nil }
+        // The company's details as this device would show them (blank fields filled like the settings are on launch).
+        var remote: CompanyDetails?
+        if let row {
+            let fromRow = CompanyDetails(row: row)
+            let filled: BusinessSettings = fromRow.applied(to: app.settings.business).withDefaults(founder: founder)
+            var details = CompanyDetails(business: filled)
+            details.logoImageId = fromRow.logoImageId
+            remote = details
+        }
+        // This app doesn't set a logo image id: carry the company's along so it isn't seen as a change.
+        var local = CompanyDetails(business: app.settings.business)
+        local.logoImageId = remote?.logoImageId ?? mark?.values.logoImageId
+        let remoteAt: String? = row?["updated_at"] as? String
+        let action: CompanySyncAction = CompanySync.detailsAction(local: local, localSavedAt: app.settings.updatedAt, mark: mark,
+                                                                  remote: remote, remoteUpdatedAt: remoteAt, canWrite: canWrite)
+        switch action {
+        case .push:
+            guard mayPush else { return }
+            let at: String = app.settings.updatedAt ?? isoNow()
+            do {
+                let owner: String = try await companyOwner(client: client, token: token)
+                let values: [String: Any] = local.row(ownerId: owner, updatedAt: at)
+                try await client.upsert("company_settings", conflict: "owner_id", rows: [values], token: token)
+                Self.writeMark(CompanyDetailsMark(userId: userId, updatedAt: at, values: local.forMark), key: Self.companyDetailsMarkKey)
+            } catch {
+                // Tried again on the next sync.
+            }
+        case .pull:
+            guard let remote, let remoteAt else { return }
+            var s: AppSettings = app.settings
+            s.business = remote.applied(to: s.business)
+            if s != app.settings { app.replaceSettingsFromCloud(s) }
+            Self.writeMark(CompanyDetailsMark(userId: userId, updatedAt: remoteAt, values: remote.forMark), key: Self.companyDetailsMarkKey)
+        case .none:
+            if let remote, let remoteAt {
+                Self.writeMark(CompanyDetailsMark(userId: userId, updatedAt: remoteAt, values: remote.forMark), key: Self.companyDetailsMarkKey)
+            }
+        }
+    }
+
+    private func syncCompanyPrefs(app: AppModel, shared: [String: Any]?, office: [String: Any]?, rowExists: Bool, userId: String,
+                                  canWrite: Bool, mayPush: Bool, client: SupabaseClient, token: String) async {
+        let founder: Bool = app.settings.business.brandDefaults != BusinessSettings.neutralMarker
+        let local: CompanyPrefsValues = app.settings.companyPrefs(installPhotoRequired: InstallSettings.photoRequired)
+        let previous: CompanyPrefsMark? = Self.readMark(CompanyPrefsMark.self, key: Self.companyPrefsMarkKey)
+        var savedAt: [PrefKey: String] = [:]
+        if let at = InstallSettings.savedAt { savedAt[.installPhotoRequired] = at }
+        var plan: CompanyPrefsPlan = CompanyPrefs.plan(local: local, localSavedAt: app.settings.updatedAt, savedAt: savedAt, mark: previous,
+                                                       userId: userId, shared: shared, office: office, canWrite: canWrite, trades: !onTeam)
+        if !plan.pulled.isEmpty {
+            var s: AppSettings = app.settings
+            s.apply(plan.values, sections: plan.pulled)
+            // Blank branding shows the defaults; keep the record in the form the settings take on launch.
+            s.business = s.business.withDefaults(founder: founder)
+            let brandingKey: String = PrefKey.branding.rawValue
+            if plan.pulled.contains(.branding), let entry = plan.mark.sections[brandingKey] {
+                let filled: CompanyPrefsValues = s.companyPrefs(installPhotoRequired: local.installPhotoRequired)
+                let hash: String = CompanyPrefs.fingerprint(CompanyPrefs.json(.branding, filled))
+                plan.mark.sections[brandingKey] = CompanyPrefsMark.Entry(updatedAt: entry.updatedAt, hash: hash)
+            }
+            if s != app.settings { app.replaceSettingsFromCloud(s) }
+            if plan.pulled.contains(.installPhotoRequired) { InstallSettings.storeFromCloud(plan.values.installPhotoRequired) }
+        }
+        var failed: [String] = []
+        if !mayPush {
+            failed = Array(plan.pushShared.keys) + Array(plan.pushOffice.keys)
+        } else if !plan.pushShared.isEmpty || !plan.pushOffice.isEmpty {
+            do {
+                let owner: String = try await companyOwner(client: client, token: token)
+                let filter: String = "owner_id=eq." + owner
+                if !plan.pushShared.isEmpty {
+                    // A new row is dated 1970, so its blank business details never win over a real save.
+                    if !rowExists {
+                        let seed: [String: Any] = ["owner_id": owner, "updated_at": "1970-01-01T00:00:00.000Z"]
+                        try await client.insertIfMissing("company_settings", conflict: "owner_id", row: seed, token: token)
+                    }
+                    let values: [String: Any] = ["preferences": plan.pushShared]
+                    let n: Int = try await client.updateCounting("company_settings", filter: filter, values: values, select: "owner_id", token: token)
+                    if n == 0 { failed += Array(plan.pushShared.keys) }
+                }
+                if !plan.pushOffice.isEmpty {
+                    let values: [String: Any] = ["preferences": plan.pushOffice]
+                    let n: Int = try await client.updateCounting("document_settings", filter: filter, values: values, select: "owner_id", token: token)
+                    if n == 0 { failed += Array(plan.pushOffice.keys) }
+                }
+            } catch {
+                failed = Array(plan.pushShared.keys) + Array(plan.pushOffice.keys)
+            }
+        }
+        // What didn't go up is tried again next time.
+        var before: [String: CompanyPrefsMark.Entry] = [:]
+        if let previous, previous.userId == userId { before = previous.sections }
+        for key in failed {
+            plan.mark.sections[key] = before[key]
+        }
+        Self.writeMark(plan.mark, key: Self.companyPrefsMarkKey)
     }
 }

@@ -44,7 +44,7 @@ describe("schema version", () => {
     expect(schemaStatus("20261121020000_ops")).toBe("behind");
     // The access guards (invites, catalog, storage, proposals) are needed by this code.
     expect(schemaStatus("20261124100800_ops_hardening")).toBe("behind");
-    expect(REQUIRED_SCHEMA_VERSION).toBe("20261125003000_marker_count");
+    expect(REQUIRED_SCHEMA_VERSION).toBe("20261125004000_company_preferences");
     expect(schemaStatus(null)).toBe("behind"); // function missing: migration not run
     expect(schemaStatus(undefined)).toBe("unknown");
     expect(schemaStatus([])).toBe("unknown");

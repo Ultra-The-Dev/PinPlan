@@ -78,15 +78,16 @@ async function syncFromTeam(teamId: string) {
   if (!t) return;
   const cur = await loadTrades();
   if (JSON.stringify(cur) === JSON.stringify(t)) return;
-  await storeLocal(t);
+  await storeLocal(t, true);
 }
 
-async function storeLocal(t: TradeId[]) {
+/** `fromCloud`: the team's trades coming down keep the settings' save time (not a change made here). */
+async function storeLocal(t: TradeId[], fromCloud = false) {
   await ensureSeeded();
   const d = db();
   await d.transaction("rw", d.settings, async () => {
     const s = (await d.settings.get("app")) as AppSettings | undefined;
-    if (s) await d.settings.put({ ...s, trades: t, updatedAt: nowIso() });
+    if (s) await d.settings.put({ ...s, trades: t, updatedAt: fromCloud ? s.updatedAt : nowIso() });
   });
   useTradeStore.setState({ trades: t, loaded: true });
   writeCache(t);

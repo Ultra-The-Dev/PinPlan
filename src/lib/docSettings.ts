@@ -17,8 +17,8 @@ export async function getDocSettings(): Promise<DocumentSettings> {
   return normalizeDocSettings(s.documents ?? null, s.pricing?.currency);
 }
 
-async function writeLocal(doc: DocumentSettings) {
-  await saveDocumentSettings(doc);
+async function writeLocal(doc: DocumentSettings, fromCloud = false) {
+  await saveDocumentSettings(doc, { fromCloud });
   if (typeof window !== "undefined") window.dispatchEvent(new Event(DOC_SETTINGS_EVENT));
 }
 
@@ -89,7 +89,7 @@ export async function pullDocSettings(): Promise<void> {
     await saveDocSettings(remote);
     return;
   }
-  if (!local?.updatedAt || Date.parse(remoteAt) > Date.parse(local.updatedAt)) await writeLocal({ ...remote, updatedAt: remoteAt });
+  if (!local?.updatedAt || Date.parse(remoteAt) > Date.parse(local.updatedAt)) await writeLocal({ ...remote, updatedAt: remoteAt }, true);
 }
 
 export interface Numbering {

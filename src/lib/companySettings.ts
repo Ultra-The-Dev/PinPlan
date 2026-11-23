@@ -9,6 +9,7 @@
 // Business): this device remembers what it last synced, and anything different is a local change made at the
 // settings' updatedAt.
 import { db, getSettings, nowIso, saveSettings } from "./db";
+import { readLocalOwner } from "./localOwner";
 import { getSupabase } from "./supabase";
 import { useTeam } from "./team";
 import type { AppSettings, BusinessSettings } from "./types";
@@ -160,8 +161,16 @@ async function push(sb: NonNullable<ReturnType<typeof getSupabase>>, userId: str
   writeMark({ userId, updatedAt: at, values: c });
 }
 
-async function applyLocal(s: AppSettings, c: CompanySettings) {
-  await saveSettings({ ...s, business: businessWithCompany(s.business, c) });
+async function applyLocal(s: AppSettings, c: CompanySettings, fromCloud = false) {
+  if (fromCloud) {
+    // The company's copy coming down is not a change made here: the settings keep their save time, which the
+    // company preferences compare (companyPreferences.ts).
+    const d = db();
+    await d.transaction("rw", d.settings, async () => {
+      const stored = await d.settings.get("app");
+      if (stored) await d.settings.put({ ...stored, business: businessWithCompany(stored.business, c) });
+    });
+  } else await saveSettings({ ...s, business: businessWithCompany(s.business, c) });
   if (typeof window !== "undefined") window.dispatchEvent(new Event(COMPANY_SETTINGS_EVENT));
 }
 
@@ -202,6 +211,9 @@ export function pullCompanySettings(): Promise<void> {
   pulling ??= (async () => {
     const me = await signedIn();
     if (!me) return;
+    // Only once this device's data is known to be this account's (sync's owner check): another account's details
+    // left here must never go up into this company.
+    if (readLocalOwner()?.userId !== me.userId) return;
     const { data, error } = await me.sb.from("company_settings").select("*").maybeSingle();
     if (error) return; // offline or the table isn't there yet
     const s = await getSettings();
@@ -212,7 +224,7 @@ export function pullCompanySettings(): Promise<void> {
     const action = companySyncAction({ local, localSavedAt: stored?.updatedAt ?? null, mark, remote, canWrite: canWrite() });
     if (action === "push") await push(me.sb, me.userId, local, stored?.updatedAt ?? nowIso());
     else if (action === "pull" && remote) {
-      await applyLocal(s, remote.values);
+      await applyLocal(s, remote.values, true);
       writeMark({ userId: me.userId, updatedAt: remote.updatedAt, values: remote.values });
     } else if (remote) writeMark({ userId: me.userId, updatedAt: remote.updatedAt, values: remote.values });
   })()
