@@ -204,22 +204,38 @@ export const nowIso = () => new Date().toISOString();
 
 type Row = { id: string; updatedAt?: string };
 
+/**
+ * The time an edit is stamped with: now, but always after the copy it replaces (`prev`, the row as stored here). Last
+ * write wins by `updatedAt` on every device and on the server, so with this device's clock behind (by hours, say) an
+ * edit of a row someone else saved would otherwise look older than that row: the server keeps its copy and the edit
+ * is lost without a word.
+ */
+export function editStamp(prev: string | undefined, now = nowIso()): string {
+  const p = Date.parse(prev ?? "");
+  return Number.isFinite(p) && p >= Date.parse(now) ? new Date(p + 1).toISOString() : now;
+}
+
 /** Write a row locally and queue it for sync. All app writes go through here. */
 export async function put<T extends Row>(table: SyncTable, row: T): Promise<T> {
-  const r = { ...row, updatedAt: nowIso() };
   const d = db();
+  const now = nowIso();
+  let r = { ...row, updatedAt: now };
   await d.transaction("rw", d.table(table), d.syncQueue, async () => {
+    const prev = (await d.table(table).get(row.id)) as Row | undefined;
+    r = { ...r, updatedAt: editStamp(prev?.updatedAt, now) };
     await d.table(table).put(r);
-    await d.syncQueue.add({ table, rowId: r.id, queuedAt: r.updatedAt });
+    await d.syncQueue.add({ table, rowId: r.id, queuedAt: now });
   });
   return r;
 }
 
 export async function putMany<T extends Row>(table: SyncTable, rows: T[]): Promise<T[]> {
   const ts = nowIso();
-  const rs = rows.map((r) => ({ ...r, updatedAt: ts }));
+  let rs = rows.map((r) => ({ ...r, updatedAt: ts }));
   const d = db();
   await d.transaction("rw", d.table(table), d.syncQueue, async () => {
+    const prev = (await d.table(table).bulkGet(rows.map((r) => r.id))) as (Row | undefined)[];
+    rs = rs.map((r, i) => ({ ...r, updatedAt: editStamp(prev[i]?.updatedAt, ts) }));
     await d.table(table).bulkPut(rs);
     await d.syncQueue.bulkAdd(rs.map((r) => ({ table, rowId: r.id, queuedAt: ts })));
   });

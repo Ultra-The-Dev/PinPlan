@@ -381,11 +381,22 @@ public struct SyncLedger: Codable, Sendable, Equatable {
             if hashes[k] == nil || rehashed.contains(r.table) {
                 next[k] = (r.json["updatedAt"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? now
             } else {
-                next[k] = now
+                next[k] = Self.editedAfter(r.json["updatedAt"] as? String, now: now)
             }
         }
         dirtyAt = next
         hashVersion = Self.currentHashVersion
+    }
+
+    /// The time of an edit seen `now`: never earlier than the copy it changed (`own`, the row's stored time). With this
+    /// device's clock behind (by hours, say), `now` would look older than another device's copy it edited: the server
+    /// keeps the newer copy, and the web app takes only a strictly newer one, so the edit would be lost.
+    static func editedAfter(_ own: String?, now: String) -> String {
+        guard let o = own, !o.isEmpty else { return now }
+        let ownAt: Date = SyncMap.date(SyncMap.normalizeTimestamp(o))
+        if ownAt == .distantPast || ownAt < SyncMap.date(now) { return now }
+        // 1.5 ms so the millisecond text is past `own` whichever way it rounds.
+        return SyncPaging.iso(ownAt.addingTimeInterval(0.0015))
     }
 
     /// The edit time of a row: the later of its own `updatedAt` and when this device saw it change. `fallback` only when

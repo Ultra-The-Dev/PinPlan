@@ -46,6 +46,9 @@ struct PinPlanApp: App {
                     if phase == .active {
                         PrivacyCover.hide()
                         app.loadIfWaiting(force: true)
+                        // Back from the background: catch up with the team now (the sync loop may be most of a minute
+                        // away), and send an edit made just before the app was put away (its sync was suspended).
+                        app.cloud.kick()
                         let server = app.settings.serverURL
                         Task { await AppUpdate.shared.check(serverURL: server) }
                     } else {

@@ -9,6 +9,7 @@
 // columns (never '*'), and the catalog is the billing owner's only.
 // Cost: only visible tabs tick, one tab syncs at a time, the team/billing is re-read every few minutes, and the sweep
 // for files that never arrived runs only after a pull changed something.
+import Dexie from "dexie";
 import { billingAllowsWork, isSubscriptionInactive } from "./billingLogic";
 import { db, recentJobs, RECENT_JOBS_KEY, type RefusedChange, type SyncItem, type SyncTable } from "./db";
 import { reportError } from "./errorReporting";
@@ -113,6 +114,39 @@ async function compactQueue() {
 type Client = NonNullable<ReturnType<typeof getSupabase>>;
 type DbError = { code?: string | null; message: string };
 
+/** The person signed out, or another account signed in, while a sync was running: it stops before its next request. */
+class AccountChanged extends Error {
+  constructor() {
+    super("Signed out during sync");
+  }
+}
+
+/**
+ * The Supabase client for one sync run as `userId`. The client is shared and sends whoever is signed in *now*: without
+ * this, a sync still running when the person signs out and someone else signs in would send the first account's queued
+ * rows (a job made offline becomes the new account's) and write the new account's rows into this device's data.
+ * Every request first checks that the same account is still signed in.
+ */
+export function forAccount(sb: Client, userId: string): Client {
+  const check = () => {
+    if (useSyncStatus.getState().userId !== userId) throw new AccountChanged();
+  };
+  const storage = new Proxy(sb.storage, {
+    get(target, prop, recv) {
+      if (prop === "from") return (...args: Parameters<Client["storage"]["from"]>) => (check(), target.from(...args));
+      return Reflect.get(target, prop, recv);
+    },
+  });
+  return new Proxy(sb, {
+    get(target, prop, recv) {
+      if (prop === "from") return (...args: Parameters<Client["from"]>) => (check(), target.from(...args));
+      if (prop === "rpc") return (...args: Parameters<Client["rpc"]>) => (check(), target.rpc(...args));
+      if (prop === "storage") return storage;
+      return Reflect.get(target, prop, recv);
+    },
+  });
+}
+
 interface PullResult {
   tables: Set<SyncTable>;
   projectIds: Set<string>;
@@ -120,8 +154,7 @@ interface PullResult {
 
 // ---------------- push ----------------
 
-async function push(changed: PullResult): Promise<void> {
-  const sb = getSupabase()!;
+async function push(sb: Client, changed: PullResult): Promise<void> {
   const snapshot = await db().syncQueue.orderBy("seq").toArray();
   if (!snapshot.length) return;
   const latest = dedupeQueue(snapshot);
@@ -399,7 +432,8 @@ async function pushImage(sb: Client, imageId: string, owners: Map<string, ImageO
       if (e2) return "failed";
     }
     return "done";
-  } catch {
+  } catch (e) {
+    if (e instanceof AccountChanged) throw e;
     return "failed";
   }
 }
@@ -473,6 +507,13 @@ function localFromRemote(table: SyncTable, raw: Record<string, unknown>, have: R
   return local;
 }
 
+/** Whether two timestamps name the same moment (formats differ: the server's "+00:00", this device's "Z"). */
+function sameTime(a: unknown, b: unknown): boolean {
+  const x = Date.parse(String(a ?? ""));
+  const y = Date.parse(String(b ?? ""));
+  return Number.isFinite(x) && Number.isFinite(y) ? x === y : a === b;
+}
+
 /** One page of a pull, naming its columns; a column the cloud database doesn't have yet is left out and asked again. */
 async function selectPage(sb: Client, table: SyncTable, cur: { since: string; skip: number }) {
   const spec = TABLES[table];
@@ -494,8 +535,7 @@ async function selectPage(sb: Client, table: SyncTable, cur: { since: string; sk
   }
 }
 
-async function pull(userId: string, changed: PullResult): Promise<void> {
-  const sb = getSupabase()!;
+async function pull(sb: Client, userId: string, changed: PullResult): Promise<void> {
   const changedTables = changed.tables;
   const projectIds = changed.projectIds;
   const filesNeeded: FileNeeded[] = [];
@@ -523,12 +563,20 @@ async function pull(userId: string, changed: PullResult): Promise<void> {
       const tbl = db().table(table);
       const writes: Record<string, unknown>[] = [];
       // Read and write in one transaction so a local edit made meanwhile isn't overwritten by an older remote row.
-      await db().transaction("rw", tbl, async () => {
-        const existing = (await tbl.bulkGet(mine.map((r) => r.id as string))) as (Record<string, unknown> | undefined)[];
+      const d = db();
+      await d.transaction("rw", tbl, d.syncQueue, d.syncRefused, async () => {
+        const ids = mine.map((r) => r.id as string);
+        const existing = (await tbl.bulkGet(ids)) as (Record<string, unknown> | undefined)[];
+        // Rows with a change of this device's still on its way (queued or set aside): last write wins. Any other row is
+        // the server's copy as it was last time, so a different server copy is newer whatever the clocks say (a device
+        // clock hours ahead stamped this row later than the server keeps it, and every later edit would be ignored).
+        const unsent = new Set((await d.syncQueue.where("rowId").anyOf(ids).toArray()).filter((q) => q.table === table).map((q) => q.rowId));
+        for (const r of await d.syncRefused.bulkGet(ids.map((id) => refusedKey(table, id)))) if (r) unsent.add(r.rowId);
         mine.forEach((raw, i) => {
           const have = existing[i];
           const local = localFromRemote(table, raw, have);
-          if (!remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) {
+          const serverMoved = !!have && !unsent.has(ids[i]) && !sameTime(have.updatedAt, local.updatedAt);
+          if (!serverMoved && !remoteWins(have as { updatedAt?: string } | undefined, local as { updatedAt?: string })) {
             // The server numbered a document this device issued: take the number even if the device's copy looks newer.
             const merged = table === "salesDocs" ? mergeServerNumber(have, local) : null;
             if (merged) writes.push(merged);
@@ -612,7 +660,8 @@ async function pullPrices(sb: Client, userId: string, ps: PriceSpec, owner: stri
       const queued = new Set((await d.syncQueue.where("rowId").anyOf(ids).toArray()).filter((q) => q.table === ps.parent).map((q) => q.rowId));
       rows.forEach((raw, i) => {
         const merged = mergePriceRow(ps, existing[i], raw, { pending: queued.has(ids[i]), billingOwner: owner });
-        if (merged) writes.push(merged);
+        // The newest price rows are read again on every sync (the lookback): only a real change is written and announced.
+        if (merged && JSON.stringify(merged) !== JSON.stringify(existing[i])) writes.push(merged);
       });
       if (writes.length) await tbl.bulkPut(writes);
     });
@@ -708,6 +757,7 @@ async function downloadFiles(sb: Client, files: FileNeeded[], changed: PullResul
         changed.projectIds.add(f.sheetProject);
       }
     } catch (e) {
+      if (e instanceof AccountChanged) throw e;
       if (isQuotaError(e)) {
         full = true;
         break;
@@ -890,6 +940,7 @@ async function withSyncLock(wait: boolean, fn: () => Promise<void>): Promise<voi
 }
 
 async function syncOnce(userId: string, force: boolean): Promise<void> {
+  const sb = forAccount(getSupabase()!, userId);
   setStatus({ syncing: true });
   markRun();
   // Missing columns/tables are remembered for a while (no failing request every tick); a forced sync looks again.
@@ -910,8 +961,9 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
     let pushError: unknown = null;
     if (!readOnly) {
       try {
-        await push(changed);
+        await push(sb, changed);
       } catch (e) {
+        if (e instanceof AccountChanged) throw e;
         if (isSubscriptionInactive(e instanceof Error ? e.message : String(e))) {
           readOnly = true;
           readOnlyUntil = Date.now() + READ_ONLY_RETRY_MS;
@@ -920,7 +972,7 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
     }
     if (!readOnly) readOnlyUntil = 0;
     // Always fetch what others changed, even when sending failed.
-    await pull(userId, changed);
+    await pull(sb, userId, changed);
     // Company invoicing settings (numbering, terms, taxes…) are shared by the office: keep this device's copy current.
     if (useTeam.getState().role !== "tech") await pullDocSettings().catch(() => undefined);
     // The company's name, phone, logo and quote terms (every member reads them; the office's edits go up from here too).
@@ -937,6 +989,8 @@ async function syncOnce(userId: string, force: boolean): Promise<void> {
     }
     setStatus({ lastSyncAt: new Date().toISOString(), error: warning ?? (storageFull ? STORAGE_FULL_MESSAGE : null), readOnly });
   } catch (e) {
+    // Not a failure: the next sign-in starts its own sync.
+    if (e instanceof AccountChanged) return;
     failures += 1;
     nextAttemptAt = Date.now() + Math.min(5 * 60_000, 5_000 * 2 ** failures);
     setStatus({ error: e instanceof Error ? e.message : String(e), readOnly });
@@ -996,9 +1050,19 @@ export function startSync(): () => void {
   };
   const onOffline = () => setStatus({ online: false });
   const onVisible = () => {
-    // Coming back: catch up. Going away: send what's waiting now (hidden tabs don't tick).
-    if (document.visibilityState === "visible" || useSyncStatus.getState().pending > 0) void runSync();
+    // Coming back: catch up. Going away: send what's waiting now (hidden tabs don't tick), counted afresh.
+    if (document.visibilityState === "visible") void runSync();
+    else void refreshPending().then(() => (useSyncStatus.getState().pending > 0 ? runSync() : undefined));
   };
+  // The pending count follows every change to the queue (this tab's or another's), not just each sync: the badge
+  // must not say "Synced", nor sign-out skip its warning, while an edit made seconds ago is still on this device only.
+  let pendingTimer: number | undefined;
+  const onStorage = (parts: Record<string, unknown>) => {
+    if (!Object.keys(parts).some((k) => k.includes("/syncQueue/") || k.includes("/syncRefused/"))) return;
+    window.clearTimeout(pendingTimer);
+    pendingTimer = window.setTimeout(() => void refreshPending(), 250);
+  };
+  Dexie.on("storagemutated", onStorage);
   window.addEventListener("online", onOnline);
   window.addEventListener("offline", onOffline);
   document.addEventListener("visibilitychange", onVisible);
@@ -1059,6 +1123,8 @@ export function startSync(): () => void {
     window.removeEventListener("online", onOnline);
     window.removeEventListener("offline", onOffline);
     document.removeEventListener("visibilitychange", onVisible);
+    Dexie.on("storagemutated").unsubscribe(onStorage);
+    window.clearTimeout(pendingTimer);
     window.clearInterval(timer);
     channel?.removeEventListener("message", onMessage);
     channel?.close();

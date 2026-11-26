@@ -244,6 +244,26 @@ final class SyncPricesTests: XCTestCase {
         XCTAssertTrue(ledger.dirtyAt.isEmpty)
     }
 
+    func testAnEditOnADeviceWhoseClockIsBehindStillLooksNewerThanTheCopyItChanged() {
+        var s = SyncState(bundles: [job()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        // Another device saved the job at 10:00 (server time); this device has that copy.
+        s.bundles["p1"]!.project.updatedAt = "2026-11-15T10:00:00.000Z"
+        s.markSynced(s.rows(), ledger: &ledger)
+        // Edited here, without stamping the row, while this device's clock says 07:00.
+        s.bundles["p1"]!.project.notes = "gate code 1234"
+        ledger.noteDirty(s.changes(since: ledger), now: "2026-11-15T07:00:00.000Z")
+        let row = s.changes(since: ledger).first { $0.table == .projects }!
+        let sent = ledger.editTime(row, fallback: "2026-11-15T07:00:00.000Z")
+        XCTAssertGreaterThan(SyncMap.date(sent), SyncMap.date("2026-11-15T10:00:00.000Z"), "goes up newer than the copy it changed: \(sent)")
+        XCTAssertLessThan(SyncMap.date(sent), SyncMap.date("2026-11-15T10:00:01.000Z"))
+        // With the clock right, the edit time is simply now.
+        XCTAssertEqual(SyncLedger.editedAfter("2026-11-15T10:00:00.000Z", now: "2026-11-15T11:00:00.000Z"), "2026-11-15T11:00:00.000Z")
+        XCTAssertEqual(SyncLedger.editedAfter(nil, now: "2026-11-15T11:00:00.000Z"), "2026-11-15T11:00:00.000Z")
+        // The server's own format is read too.
+        XCTAssertGreaterThan(SyncMap.date(SyncLedger.editedAfter("2026-11-15 10:00:00+00", now: "2026-11-15T07:00:00.000Z")), SyncMap.date("2026-11-15T10:00:00.000Z"))
+    }
+
     func testRowsThatOnlyLookChangedAfterTheUpdateKeepTheirOwnTime() throws {
         // A ledger from before prices were split: its fingerprints include the prices, so every job looks changed once.
         let s = SyncState(bundles: [job()], catalog: [type()], products: [])

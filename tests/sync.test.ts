@@ -23,6 +23,11 @@ const fake = vi.hoisted(() => ({
   rpc: new Map<string, unknown>(),
   /** Makes rpc calls never answer (a stalled connection). */
   hangRpc: false,
+  /** The server's stale-write guard (20261125000100): an older updated_at is ignored and the server's row re-stamped a
+   *  little newer; a stamp more than 5 minutes ahead of the server clock (`clock`) is cut back. */
+  staleGuard: false,
+  /** Called as each upsert starts (before it is applied). */
+  onUpsert: null as null | ((table: string) => void),
 }));
 
 vi.mock("@/lib/supabase", () => {
@@ -86,11 +91,22 @@ vi.mock("@/lib/supabase", () => {
             const no: Refusal = fake.refuse?.(name, r) ?? null;
             if (no) return { error: { code: no.code, message: no.message }, status: no.status ?? 400 };
           }
+          fake.onUpsert?.(name);
           fake.upserts.push({ table: name, ids: payload.map((r) => String(r.id)) });
           const at = tick();
           // Keyed by the conflict columns, like the table's unique key.
           const keyOf = (r: Row) => (opts?.onConflict ? opts.onConflict.split(",").map((c) => String(r[c])).join("|") : String(r.id));
-          for (const r of payload) table(name).set(keyOf(r), { ...r, synced_at: at });
+          for (const r of payload) {
+            const old = table(name).get(keyOf(r));
+            let next: Row = { ...r, synced_at: at };
+            if (fake.staleGuard && typeof r.updated_at === "string") {
+              const horizon = fake.clock + 5 * 60_000;
+              if (Date.parse(r.updated_at) > horizon) next.updated_at = new Date(horizon).toISOString();
+              const oldAt = old ? Date.parse(String(old.updated_at)) : NaN;
+              if (old && Date.parse(String(next.updated_at)) < oldAt && oldAt <= horizon) next = { ...old, updated_at: new Date(Math.max(fake.clock, oldAt + 1)).toISOString(), synced_at: at };
+            }
+            table(name).set(keyOf(r), next);
+          }
           return { error: null, status: 201 };
         },
         update(patch: Row) {
@@ -121,7 +137,11 @@ vi.mock("@/lib/supabase", () => {
         },
       }),
     },
-    auth: { signOut: async () => ({ error: null }) },
+    auth: {
+      signOut: async () => ({ error: null }),
+      getSession: async () => ({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+    },
   };
   return { supabaseConfigured: true, getSupabase: () => client, PLANS_BUCKET: "plans" };
 });
@@ -141,7 +161,7 @@ vi.mock("@/lib/team", async (importOriginal) => {
 
 import { fingerprint, SECTIONS, stableJson } from "@/lib/companyPreferences";
 import { db, ensureSeeded, noteJobOpened, put, saveImage, saveSettings } from "@/lib/db";
-import { __resetSyncForTests, __setSyncTimeLimitForTests, __syncForTests, discardRefused, retryRefused, signOut, useSyncStatus } from "@/lib/sync";
+import { __resetSyncForTests, __setSyncTimeLimitForTests, __syncForTests, discardRefused, retryRefused, signOut, startSync, useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import type { JobForm, Marker, Project, Sheet } from "@/lib/types";
 
@@ -186,6 +206,8 @@ beforeEach(async () => {
   fake.files.clear();
   fake.rpc.clear();
   fake.hangRpc = false;
+  fake.staleGuard = false;
+  fake.onUpsert = null;
   storage.clear();
   pullCompany.calls = 0;
   pullCompany.fail = false;
@@ -585,6 +607,129 @@ describe("sign out", () => {
       expect(reload).toHaveBeenCalled();
       await db().open();
       expect(await db().projects.count()).toBe(0);
+    } finally {
+      delete win.window;
+    }
+  });
+});
+
+describe("two devices and wrong clocks (the server keeps the newer copy)", () => {
+  /** Another device's copy of marker m1 on the server, saved at `at` (server time). */
+  const serverMarker = (label: string, at: string) => ({ id: "m1", project_id: "p1", sheet_id: "s1", device_type_id: "cam-indoor", x: 0.5, y: 0.5, label, created_at: ts, updated_at: at, deleted: false, synced_at: new Date((fake.clock += 1000)).toISOString() });
+
+  beforeEach(() => {
+    fake.staleGuard = true;
+  });
+
+  it("an edit made on a device whose clock is hours behind still wins over the copy it edited", async () => {
+    // Server time is ~10:00; another device saved m1 at 10:00.
+    fake.tables.set("markers", new Map([["m1", serverMarker("THEIRS", "2026-11-19T10:00:00.000Z")]]));
+    await __syncForTests("u1");
+    expect(await db().markers.get("m1")).toMatchObject({ label: "THEIRS" });
+    // This device's clock says 07:00 (three hours slow). The person renames the device here, after seeing THEIRS.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-19T07:00:00.000Z"));
+      const m = (await db().markers.get("m1"))!;
+      await put("markers", { ...m, label: "MINE" });
+      await __syncForTests("u1");
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(remote("markers").get("m1")).toMatchObject({ label: "MINE" });
+    expect(await db().markers.get("m1")).toMatchObject({ label: "MINE" });
+  });
+
+  it("a device whose clock is hours ahead still takes everyone's later edits", async () => {
+    await put("markers", marker("m1", "FIRST"));
+    await __syncForTests("u1");
+    // This device's clock says 13:00 (three hours fast): its edit goes up, and the server cuts its stamp back.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-19T13:00:00.000Z"));
+      const m = (await db().markers.get("m1"))!;
+      await put("markers", { ...m, label: "MINE" });
+      await __syncForTests("u1");
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(remote("markers").get("m1")).toMatchObject({ label: "MINE" });
+    // Half an hour later (server time) the office renames it.
+    fake.clock += 30 * 60_000;
+    remote("markers").set("m1", serverMarker("OFFICE", new Date(fake.clock).toISOString()));
+    await __syncForTests("u1");
+    expect(await db().markers.get("m1")).toMatchObject({ label: "OFFICE" });
+  });
+
+  it("an edit still waiting to go up isn't replaced by an older server copy", async () => {
+    fake.tables.set("markers", new Map([["m1", serverMarker("THEIRS", "2026-11-19T09:00:00.000Z")]]));
+    await __syncForTests("u1");
+    const m = (await db().markers.get("m1"))!;
+    await put("markers", { ...m, label: "MINE" });
+    // Pushing fails (the connection drops), the pull still runs: the queued edit stays.
+    fake.refuse = (t) => (t === "markers" ? { message: "Failed to fetch" } : null);
+    await __syncForTests("u1");
+    expect(await db().markers.get("m1")).toMatchObject({ label: "MINE" });
+    expect((await queue()).some((q) => q.rowId === "m1")).toBe(true);
+  });
+});
+
+describe("signing out while a sync runs", () => {
+  it("stops before its next request: nothing more goes up or comes down under the next account", async () => {
+    await put("projects", { ...project, id: "p-offline", address: "made offline" });
+    let calls = 0;
+    // The first upsert is under way when the person signs out and someone else signs in on this tab.
+    fake.onUpsert = () => {
+      if (++calls === 1) useSyncStatus.setState({ userId: "u2", email: "other@example.com" });
+    };
+    await __syncForTests("u1");
+    expect(fake.upserts.map((u) => u.table)).toEqual(["projects"]);
+    // The sheet stays queued for its own account; the other account's jobs never reached this device's data.
+    expect((await queue()).some((q) => q.table === "sheets")).toBe(true);
+    expect(await db().projects.get("p-remote")).toBeUndefined();
+    // Not an error to show or report.
+    expect(useSyncStatus.getState().error).toBeNull();
+  });
+});
+
+describe("pending count", () => {
+  it("follows every write to the queue, not just each sync (sign-out warns about an edit made seconds ago)", async () => {
+    const win = globalThis as { window?: unknown; document?: unknown };
+    win.window = { addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => undefined, dispatchEvent: () => true };
+    win.document = { addEventListener: () => undefined, removeEventListener: () => undefined, visibilityState: "visible", hidden: false };
+    const stop = startSync();
+    try {
+      await new Promise((r) => setTimeout(r, 300));
+      useSyncStatus.setState({ pending: 0 });
+      await put("markers", marker("m-just-now"));
+      await expect.poll(() => useSyncStatus.getState().pending, { timeout: 2000 }).toBeGreaterThan(0);
+    } finally {
+      stop();
+      delete win.window;
+      delete win.document;
+    }
+  });
+});
+
+describe("quiet syncs", () => {
+  it("rows read again (the pull's lookback) change nothing once this device has the server's copy", async () => {
+    fake.staleGuard = true;
+    fake.rpc.set("my_billing_owner", "boss");
+    useTeam.setState({ role: "owner" });
+    fake.tables.set("device_types", new Map([["boss|dt1", remoteCamera("boss", { updated_at: "2026-11-19 09:00:00+00" })]]));
+    fake.tables.set("device_type_prices", new Map([["boss|dt1", { owner_id: "boss", device_type_id: "dt1", unit_price: 300, labor_price: 90, billdu_product_id: 12, updated_at: ts, synced_at: "2026-11-19T09:30:00.000Z" }]]));
+    fake.tables.set("project_finance", new Map([["p-remote", { project_id: "p-remote", pricing: { markupPct: 25 }, billdu_docs: [], billdu_client_id: 4, updated_at: ts, synced_at: "2026-11-19T09:30:00.000Z" }]]));
+    fake.tables.set("markers", new Map([["m1", { id: "m1", project_id: "p1", sheet_id: "s1", device_type_id: "cam-indoor", x: 0.5, y: 0.5, label: "A", created_at: ts, updated_at: "2026-11-19 09:10:00.123456+00", deleted: false, synced_at: "2026-11-19T09:30:00.000Z" }]]));
+    const win = globalThis as { window?: unknown };
+    const events: unknown[] = [];
+    win.window = { dispatchEvent: (e: { detail?: unknown }) => events.push(e.detail) };
+    try {
+      await __syncForTests("u1");
+      expect(events.length).toBe(1);
+      expect(await db().markers.get("m1")).toMatchObject({ label: "A" });
+      await __syncForTests("u1");
+      await __syncForTests("u1");
+      expect(events).toEqual([events[0]]);
     } finally {
       delete win.window;
     }
