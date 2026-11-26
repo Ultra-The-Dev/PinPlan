@@ -5,6 +5,11 @@
   PDF download. Any console error or uncaught page error fails it.
 - `a11y.spec.ts` runs an axe scan of `/welcome`, `/pricing`, `/login` and `/signup`. Critical violations fail the
   test. Everything else is attached to the report as a to-do list.
+- `a11y-app.spec.ts` runs axe on the signed-in app (sample job: job tabs, plan with the sheet browser and a device card
+  open, the new-quote dialog and quote editor, Settings) at desktop and phone size. Serious and critical violations fail.
+- `keyboard.spec.ts` drives the app with keys only: "By count" places devices, the device card's count changes, Escape
+  closes the card with focus back on the plan, then a price and a quote. Also: dialogs keep Tab inside, close on
+  Escape and hand focus back to the button that opened them.
 - `mobile.spec.ts` opens the key pages on phones (iPhone SE, iPhone 13, Pixel 7) and tablets (iPad Mini, iPad Pro 11
   landscape) with touch: no sideways page scroll, main actions at least 44×44 px (counting the touch hit area of
   `.btn`, `.tab` and `.tap`), text fields at 16px or more (iOS zooms into smaller ones), and the plan's controls.

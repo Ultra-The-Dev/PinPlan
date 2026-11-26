@@ -41,6 +41,7 @@ import { EmailDialog, PaymentDialog, type EmailKind } from "./DocDialogs";
 import DocView from "./DocView";
 import LineEditor from "./LineEditor";
 import { KindChip, Menu, Modal, parseAmount, StatusChip } from "./ui";
+import BaseModal from "../ui/Modal";
 import { fmtPct, roundPct } from "@/lib/percent";
 
 export interface EditorActions {
@@ -733,8 +734,8 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-slate-900/40 p-2 backdrop-blur-[2px] sm:p-6" onClick={() => setPreview(false)}>
-          <div className="mx-auto max-w-3xl" onClick={(e) => e.stopPropagation()}>
+        <BaseModal onClose={() => setPreview(false)} label={t("Preview")} className="fixed inset-0 z-50 overflow-auto bg-slate-900/40 p-2 backdrop-blur-[2px] sm:p-6">
+          <div className="mx-auto max-w-3xl">
             <div className="mb-2 flex justify-end">
               <button className="btn btn-sm" onClick={() => setPreview(false)}>
                 <X /> {t("Close preview")}
@@ -744,7 +745,7 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
               <DocView snap={snap} live={{ status: draft.status, number: draft.number, amountPaid: draft.amountPaid, balanceDue: draft.balanceDue, paidAt: draft.paidAt }} payLink={pay} />
             </div>
           </div>
-        </div>
+        </BaseModal>
       )}
 
       {dialog === "payment" && (

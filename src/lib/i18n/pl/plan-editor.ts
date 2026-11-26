@@ -200,7 +200,7 @@ const dict: Dictionary = {
   Calibrated: "Skalibrowany",
   "Previous sheet": "Poprzedni arkusz",
   "Previous sheet ([)": "Poprzedni arkusz ([)",
-  "Sheet {n} of {count}: {name}. Open sheet browser": "Arkusz {n} z {count}: {name}. Otwórz listę arkuszy",
+  "Open sheet browser": "Otwórz listę arkuszy",
   "of {count}": "z {count}",
   "No scale set": "Skala nieustawiona",
   "Next sheet": "Następny arkusz",
@@ -267,7 +267,6 @@ const dict: Dictionary = {
   "Find a sheet by name or number": "Znajdź arkusz po nazwie lub numerze",
   "Find a sheet": "Znajdź arkusz",
   "Recently viewed": "Ostatnio oglądane",
-  "Sheet {n}: {name}": "Arkusz {n}: {name}",
   "{n} device": { one: "{n} urządzenie", few: "{n} urządzenia", many: "{n} urządzeń", other: "{n} urządzenia" },
   "{n} device, no scale": {
     one: "{n} urządzenie, bez skali",

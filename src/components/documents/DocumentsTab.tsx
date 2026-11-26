@@ -190,7 +190,7 @@ export default function DocumentsTab() {
   const billQuote = b.quote && b.leftToBill && b.leftToBill > 0 ? b.quote : null;
   const firstBill = !!billQuote && !invoicesFromQuote(billQuote.id, all).length;
   const settingsLink = (
-    <Link href="/settings#invoicing" className="font-medium text-brand-600 hover:underline">
+    <Link href="/settings#invoicing" className="font-medium text-brand-700 hover:underline">
       {t("Invoicing settings")}
     </Link>
   );

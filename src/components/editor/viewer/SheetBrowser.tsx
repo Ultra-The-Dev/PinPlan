@@ -89,7 +89,6 @@ export default function SheetBrowser(props: {
                   className={`group block w-full overflow-hidden rounded-xl text-left ring-1 transition ${s.id === activeId ? "ring-2 ring-brand-500" : "ring-slate-200 hover:ring-slate-300"}`}
                   onClick={() => props.onPick(s.id)}
                   aria-current={s.id === activeId ? "page" : undefined}
-                  aria-label={t("Sheet {n}: {name}", { n: i + 1, name: s.name })}
                 >
                   <Thumb sheet={s} className="aspect-[4/3]" />
                   <span className="flex items-start gap-2 border-t border-slate-100 bg-white p-2">

@@ -128,7 +128,7 @@ export default function JobHealth() {
         }`;
         const inner = (icon: React.ReactNode) => (
           <>
-            <span className="text-xs font-semibold tracking-wide uppercase opacity-70">{t("Next step")}</span>
+            <span className="text-xs font-semibold tracking-wide uppercase">{t("Next step")}</span>
             <span className="min-w-0 flex-1 truncate">{t(s.next.text)}</span>
             {icon}
           </>

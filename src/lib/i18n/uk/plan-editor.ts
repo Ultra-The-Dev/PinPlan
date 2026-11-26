@@ -196,7 +196,7 @@ const dict: Dictionary = {
   Calibrated: "Відкалібровано",
   "Previous sheet": "Попередній аркуш",
   "Previous sheet ([)": "Попередній аркуш ([)",
-  "Sheet {n} of {count}: {name}. Open sheet browser": "Аркуш {n} з {count}: {name}. Відкрити список аркушів",
+  "Open sheet browser": "Відкрити список аркушів",
   "of {count}": "з {count}",
   "No scale set": "Масштаб не задано",
   "Next sheet": "Наступний аркуш",
@@ -263,7 +263,6 @@ const dict: Dictionary = {
   "Find a sheet by name or number": "Знайти аркуш за назвою або номером",
   "Find a sheet": "Знайти аркуш",
   "Recently viewed": "Нещодавно переглянуті",
-  "Sheet {n}: {name}": "Аркуш {n}: {name}",
   "{n} device": { one: "{n} пристрій", few: "{n} пристрої", many: "{n} пристроїв", other: "{n} пристрою" },
   "{n} device, no scale": {
     one: "{n} пристрій, без масштабу",

@@ -58,7 +58,6 @@ export default function SheetPill({ sheet, index, count, onOpen, onStep, compact
           cancel();
           onMenu();
         }}
-        aria-label={t("Sheet {n} of {count}: {name}. Open sheet browser", { n: index + 1, count, name: sheet.name })}
         data-testid="sheet-pill"
         data-sheet-menu-anchor
       >
@@ -70,6 +69,8 @@ export default function SheetPill({ sheet, index, count, onOpen, onStep, compact
           <span className="block truncate text-sm leading-tight font-semibold text-slate-900">{sheet.name}</span>
           <span className={`block truncate text-[11px] leading-tight ${scale ? "text-slate-500" : "text-amber-700"}`}>{scale ?? t("No scale set")}</span>
         </span>
+        {/* The accessible name is the visible text plus this (WCAG 2.5.3: voice users say what they see). */}
+        <span className="sr-only">{t("Open sheet browser")}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
       </button>
       {onMenu && (

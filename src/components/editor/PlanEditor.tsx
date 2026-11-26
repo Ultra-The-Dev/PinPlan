@@ -1,5 +1,6 @@
 "use client";
 import { Cable, ChevronDown, PanelLeftClose, PanelLeftOpen, Plus, Search, Sparkles, Undo2, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { markerQty, pinLabel } from "@/lib/markerCount";
 import { useT } from "@/lib/i18n";
@@ -20,8 +21,6 @@ import { useTrades } from "@/lib/useTrades";
 import type { Layer as LayerId } from "@/lib/types";
 import { useViewer } from "@/lib/viewerStore";
 import Dialog, { type DialogField } from "../Dialog";
-import ScanPanel from "../ScanPanel";
-import SheetsTab from "../SheetsTab";
 import { useMeasureUi } from "../measure/measureUi";
 import AddByCountDialog from "./AddByCountDialog";
 import Inspector from "./Inspector";
@@ -44,6 +43,10 @@ import { AI_ENABLED } from "@/lib/features";
 import { openSensors, useFindSimilar } from "../findSimilar/findSimilarStore";
 import { sheetOpenings } from "@/lib/alarmSensors";
 import { tourAnchor } from "@/lib/tour/anchors";
+
+// Loaded when opened: Manage sheets (PDF import, page picker, OCR) and the AI scan panel (off unless AI is on).
+const SheetsTab = dynamic(() => import("../SheetsTab"), { ssr: false, loading: () => null });
+const ScanPanel = dynamic(() => import("../ScanPanel"), { ssr: false, loading: () => null });
 
 type Pending =
   | { kind: "calibrate"; points: number[] }
@@ -93,7 +96,9 @@ export default function PlanEditor() {
   // The toolbar's place depends on the plan area's own width (the device menu and side panel take room too).
   const [planWidth, setPlanWidth] = useState(0);
   const ro = useRef<ResizeObserver | null>(null);
+  const planEl = useRef<HTMLDivElement | null>(null);
   const planRef = useCallback((el: HTMLDivElement | null) => {
+    planEl.current = el;
     ro.current?.disconnect();
     if (!el) return;
     ro.current = new ResizeObserver(() => setPlanWidth(el.clientWidth));
@@ -289,6 +294,8 @@ export default function PlanEditor() {
       } else if (e.key === "Escape") {
         if (draft.length) setDraft([]);
         else if (tool.kind !== "select") setTool({ kind: "select" });
+        // Then the device card (its Close button, for keyboard users wherever focus is in the editor).
+        else if (useEditor.getState().selection) useEditor.getState().select(null);
         else if (fullscreen) toggleFullscreen(false);
       } else if (plain && (e.key === "+" || e.key === "=")) {
         vp.zoomBy(1.5);
@@ -345,6 +352,21 @@ export default function PlanEditor() {
 
   const takeoff = useMemo(() => computeTakeoff({ sheets: st.sheets, markers: st.markers, runs: st.runs, closets: st.closets }), [st.sheets, st.markers, st.runs, st.closets]);
   const floor = takeoff.floors.find((f) => f.sheetId === sheet?.id);
+
+  // The side panel changed with focus inside it (Esc or Close on the device card, a device picked in the floor count):
+  // the browser drops focus onto the page, so a keyboard user would start again from the top. Put it on the device card
+  // that replaced it, or on the plan when the panel closed.
+  const sidePanel = selection ? `${selection.table}:${selection.id}` : (panel ?? "");
+  const lastSidePanel = useRef(sidePanel);
+  const asideEl = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (lastSidePanel.current === sidePanel) return;
+    lastSidePanel.current = sidePanel;
+    const a = document.activeElement;
+    if ((a && a !== document.body) || modalOpen()) return;
+    if (selection && asideEl.current) asideEl.current.focus({ preventScroll: true });
+    else planEl.current?.focus({ preventScroll: true });
+  }, [sidePanel, selection]);
 
   if (!sheet) return null;
 
@@ -572,7 +594,7 @@ export default function PlanEditor() {
 
       <div
         ref={planRef}
-        className="relative min-w-0 flex-1 outline-none"
+        className="relative min-w-0 flex-1 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500"
         tabIndex={-1}
         // Pressing the plan gives it focus, so ⌘+ / ⌘− zoom the plan (not the page) and stray keys stay with the editor.
         onPointerDown={(e) => {
@@ -742,7 +764,7 @@ export default function PlanEditor() {
 
       {/* Right panel */}
       {rightPanel && (
-        <aside className={`scroll-thin w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white ${wide ? "" : "animate-in absolute inset-y-0 right-0 z-30 shadow-pop"}`}>
+        <aside ref={asideEl} tabIndex={-1} className={`scroll-thin w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500 ${wide ? "" : "animate-in absolute inset-y-0 right-0 z-30 shadow-pop"}`}>
           {rightPanel === "inspect" ? (
             <Inspector />
           ) : AI_ENABLED && rightPanel === "scan" ? (

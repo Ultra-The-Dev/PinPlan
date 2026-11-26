@@ -17,6 +17,7 @@ import { SHEET_THUMB } from "@/lib/thumbs";
 import { useThumbUrl } from "@/lib/useImage";
 import type { Project, ProjectStatus } from "@/lib/types";
 import JobsViewToggle from "./nav/JobsViewToggle";
+import Modal from "./ui/Modal";
 import { useTemplateStart } from "./templates/TemplatePicker";
 import { startTour } from "./tour/startTour";
 import { tourAnchor } from "@/lib/tour/anchors";
@@ -103,6 +104,8 @@ export default function ProjectsList() {
       updatedAt: nowIso(),
     };
     await put("projects", p);
+    // Close the form first: the template's "skipped" sheet can't show over an open modal (everything outside it is inert).
+    setCreating(false);
     await template.applyThenOpen(p, () => router.push(jobHref(p.id, "plan", { manage: "1" })));
   }
 
@@ -181,11 +184,12 @@ export default function ProjectsList() {
       )}
 
       {creating && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:items-center" onClick={() => setCreating(false)}>
-          <form onSubmit={create} onClick={(e) => e.stopPropagation()} className="card animate-in grid max-h-[calc(100dvh-2rem)] w-full max-w-lg gap-4 overflow-y-auto overscroll-contain p-5 shadow-pop sm:grid-cols-2 sm:p-6">
+        // A real modal: Escape and the dimmed area close it, Tab stays inside, focus goes back to "New job" after.
+        <Modal onClose={() => setCreating(false)} labelledBy="new-job-title">
+          <form onSubmit={create} className="card animate-in grid max-h-[calc(100dvh-2rem)] w-full max-w-lg gap-4 overflow-y-auto overscroll-contain p-5 shadow-pop sm:grid-cols-2 sm:p-6">
             <div className="flex items-start sm:col-span-2">
               <div className="flex-1">
-                <h2 className="text-lg font-semibold">{t("New job")}</h2>
+                <h2 id="new-job-title" className="text-lg font-semibold">{t("New job")}</h2>
                 <p className="text-sm text-slate-500">{t("Next you'll upload the plan set.")}</p>
               </div>
               <button type="button" className="btn btn-sm btn-icon btn-ghost" onClick={() => setCreating(false)} aria-label={t("Close")}>
@@ -218,7 +222,7 @@ export default function ProjectsList() {
               </button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
 
       {template.dialog}

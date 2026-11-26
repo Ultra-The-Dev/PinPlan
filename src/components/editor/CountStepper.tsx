@@ -63,7 +63,14 @@ export default function CountStepper(props: {
         }}
         onFocus={(e) => e.target.select()}
         onBlur={() => commit(text)}
-        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        // Enter takes the number. In a form it then submits as usual ("Add by count" places the pin). Outside one (the
+        // device card) a touch screen's keypad closes as before; with a keyboard, focus stays here rather than dropping
+        // onto the page.
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          commit(text);
+          if (!e.currentTarget.form && window.matchMedia?.("(pointer: coarse)").matches) e.currentTarget.blur();
+        }}
         data-testid={props.testId}
       />
       <button type="button" className="btn btn-icon pointer-coarse:h-11 pointer-coarse:w-11" onClick={() => step(1)} disabled={props.value >= MAX_MARKER_COUNT} aria-label={t("One more")}>

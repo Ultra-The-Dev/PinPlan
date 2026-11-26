@@ -96,11 +96,20 @@ export default function DocSettingsPanel() {
             </datalist>
           </label>
           <div className="text-sm">
-            <span className="label">{t("Number format")}</span>
-            <input className="input font-mono" value={k.format} onChange={(e) => setK({ format: e.target.value })} aria-invalid={!!numberFormatProblem(k.format)} />
-            <p className={`mt-1 text-xs ${numberFormatProblem(k.format) ? "text-red-600" : "text-slate-500"}`}>
+            <label className="label" htmlFor={`doc-format-${kind}`}>
+              {t("Number format")}
+            </label>
+            <input
+              id={`doc-format-${kind}`}
+              className="input font-mono"
+              value={k.format}
+              onChange={(e) => setK({ format: e.target.value })}
+              aria-invalid={!!numberFormatProblem(k.format)}
+              aria-describedby={`doc-format-${kind}-hint`}
+            />
+            <p id={`doc-format-${kind}-hint`} className={`mt-1 text-xs ${numberFormatProblem(k.format) ? "text-red-600" : "text-slate-500"}`}>
               {numberFormatProblem(k.format) ? (
-                t(numberFormatProblem(k.format)!)
+                <span role="alert">{t(numberFormatProblem(k.format)!)}</span>
               ) : (
                 <>
                   {t("Next:")} <strong className="font-mono">{formatDocNumber(k.format, next ?? 1, today())}</strong> · {t("tokens")} {"{YYYY} {YY} {MM} {0000} {#}"}

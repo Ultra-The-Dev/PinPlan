@@ -75,10 +75,16 @@ export default function Modal(props: {
   useIsoLayoutEffect(() => {
     const dlg = ref.current;
     if (!dlg) return;
-    // An input with React's autoFocus is already focused by now; showModal() would move focus to the first button.
+    // The <dialog> mounts open but not yet modal (the `open` attribute below): a closed dialog can't take focus, and
+    // React's autoFocus runs before this effect. So a field with autoFocus is focused by now; keep it, then reopen the
+    // dialog as a modal (showModal() moves focus to the first button, so `pre` gets it back below).
     const active = document.activeElement;
     const pre = active instanceof HTMLElement && active !== dlg && dlg.contains(active) ? active : null;
     try {
+      if (dlg.open) {
+        if (typeof dlg.close === "function") dlg.close();
+        else dlg.removeAttribute("open");
+      }
       if (!dlg.open) {
         if (typeof dlg.showModal === "function") dlg.showModal();
         else dlg.setAttribute("open", "");
@@ -137,6 +143,7 @@ export default function Modal(props: {
       aria-describedby={props.describedBy}
       role={props.alert ? "alertdialog" : undefined}
       aria-modal="true"
+      open
       tabIndex={-1}
       // A transparent full-screen box: the panel inside keeps its own card classes.
       className="m-0 h-full max-h-none w-full max-w-none overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"

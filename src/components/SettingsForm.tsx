@@ -85,7 +85,8 @@ export default function SettingsForm({ connectedApps }: { connectedApps?: React.
   const t = useT();
   // Technicians don't see prices, the business branding or connected apps (office work).
   const office = can(useRole(), "prices");
-  if (!s) return <p className="p-6 text-slate-500">{t("Loading…")}</p>;
+  // A screen tall while loading: the sections below (Connected apps) start out of view instead of jumping down.
+  if (!s) return <p className="min-h-dvh p-6 text-slate-500">{t("Loading…")}</p>;
   const b = s.business;
   const p = s.pricing;
   const setB = (k: keyof typeof b, v: string) => setS({ ...s, business: { ...b, [k]: v } });

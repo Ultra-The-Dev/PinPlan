@@ -234,7 +234,7 @@ function Row(props: { on: boolean; name: string; count?: number | string; color?
         {props.count != null && <span className="text-xs text-slate-400 tabular-nums">{props.count}</span>}
       </button>
       {props.onOnly && (
-        <button className="rounded-md px-1.5 py-1 text-[11px] font-medium text-brand-600 hover:bg-brand-50" onClick={props.onOnly}>
+        <button className="rounded-md px-1.5 py-1 text-[11px] font-medium text-brand-700 hover:bg-brand-50" onClick={props.onOnly}>
           {t("Only")}
         </button>
       )}

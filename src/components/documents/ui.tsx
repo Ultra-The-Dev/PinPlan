@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { STATUS_LABEL } from "@/lib/documents";
 import { msg, useT } from "@/lib/i18n";
 import type { DocDisplayStatus, DocKind } from "@/lib/types";
+import BaseModal from "../ui/Modal";
 
 
 export function StatusChip({ status }: { status: DocDisplayStatus }) {
@@ -91,27 +92,26 @@ export function Menu({ label, icon, items, align = "right", className = "btn" }:
   );
 }
 
-/** A modal panel (bottom sheet on phones). */
+/**
+ * A modal panel (bottom sheet on phones), on the app's Modal: focus moves into it and stays there, Escape and the dimmed
+ * area close it, and focus goes back to the button that opened it.
+ */
 export function Modal({ title, description, onClose, children, wide }: { title: string; description?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const t = useT();
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", k);
-    return () => document.removeEventListener("keydown", k);
-  }, [onClose]);
+  const id = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`card animate-in max-h-[92vh] w-full overflow-auto rounded-b-none p-5 shadow-pop sm:rounded-b-2xl ${wide ? "sm:max-w-2xl" : "sm:max-w-md"}`}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <BaseModal onClose={onClose} labelledBy={`${id}-title`} describedBy={description ? `${id}-desc` : undefined} className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
+      <div className={`card animate-in max-h-[92vh] w-full overflow-auto rounded-b-none p-5 shadow-pop sm:rounded-b-2xl ${wide ? "sm:max-w-2xl" : "sm:max-w-md"}`}>
         <div className="mb-4 flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold">{title}</h2>
-            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+            <h2 id={`${id}-title`} className="text-base font-semibold">
+              {title}
+            </h2>
+            {description && (
+              <p id={`${id}-desc`} className="mt-1 text-sm text-slate-500">
+                {description}
+              </p>
+            )}
           </div>
           <button type="button" className="btn btn-sm btn-icon btn-ghost -mt-1 -mr-1" onClick={onClose} aria-label={t("Close")}>
             <X />
@@ -119,7 +119,7 @@ export function Modal({ title, description, onClose, children, wide }: { title: 
         </div>
         {children}
       </div>
-    </div>
+    </BaseModal>
   );
 }
 

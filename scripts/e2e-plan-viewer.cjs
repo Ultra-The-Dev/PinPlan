@@ -350,7 +350,7 @@ const markerScreen = (page, id) =>
   await page.getByTestId("sheet-browser").waitFor();
   await sleep(1500);
   await page.screenshot({ path: `${OUT}/desktop-3-sheet-browser.png` });
-  await page.getByRole("button", { name: /^Sheet 3:/ }).click();
+  await page.getByTestId("sheet-browser").getByRole("listitem").nth(2).getByRole("button").click();
   await waitPlan(page);
   check("sheet browser switches sheets and closes", (await state(page)).active === s.sheets[2] && !(await page.getByTestId("sheet-browser").count()));
 
@@ -585,7 +585,7 @@ const markerScreen = (page, id) =>
   await page.getByTestId("sheet-browser").waitFor();
   await sleep(1200);
   await page.screenshot({ path: `${OUT}/phone-3-sheet-browser.png` });
-  await page.getByRole("button", { name: /^Sheet 5:/ }).click();
+  await page.getByTestId("sheet-browser").getByRole("listitem").nth(4).getByRole("button").click();
   await waitPlan(page);
   await page.getByTestId("layers-button").click();
   await page.getByTestId("layers-panel").waitFor();

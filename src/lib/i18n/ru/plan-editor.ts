@@ -196,7 +196,7 @@ const planEditor: Dictionary = {
   Calibrated: "Откалиброван",
   "Previous sheet": "Предыдущий лист",
   "Previous sheet ([)": "Предыдущий лист ([)",
-  "Sheet {n} of {count}: {name}. Open sheet browser": "Лист {n} из {count}: {name}. Открыть список листов",
+  "Open sheet browser": "Открыть список листов",
   "of {count}": "из {count}",
   "No scale set": "Масштаб не задан",
   "Next sheet": "Следующий лист",
@@ -263,7 +263,6 @@ const planEditor: Dictionary = {
   "Find a sheet by name or number": "Найти лист по названию или номеру",
   "Find a sheet": "Найти лист",
   "Recently viewed": "Недавно просмотренные",
-  "Sheet {n}: {name}": "Лист {n}: {name}",
   "{n} device": { one: "{n} устройство", few: "{n} устройства", many: "{n} устройств", other: "{n} устройства" },
   "{n} device, no scale": {
     one: "{n} устройство, без масштаба",
