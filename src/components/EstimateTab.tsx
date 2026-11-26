@@ -192,7 +192,7 @@ export default function EstimateTab() {
         }),
       });
       const j = await r.json().catch(() => ({ error: t("Server returned {status}", { status: r.status }) }));
-      if (!r.ok) throw new Error(j.error || t("Billdu request failed ({status})", { status: r.status }));
+      if (!r.ok) throw new Error(j.error ? t(j.error) : t("Billdu request failed ({status})", { status: r.status }));
       const ref: BillduDocRef = {
         id: j.doc.id,
         type: docType,
@@ -251,7 +251,7 @@ export default function EstimateTab() {
         body: JSON.stringify({ deviceTypes: live, taxPct: pricing!.taxPct, laborMode: pricing!.laborMode, markupPct: pricing!.markupPct }),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || t("Product sync failed"));
+      if (!r.ok) throw new Error(j.error ? t(j.error) : t("Product sync failed"));
       const created = j.created as Record<string, number>;
       for (const d of live) if (created[d.id]) await put("deviceTypes", { ...d, billduProductId: created[d.id] });
       await reloadCatalog();

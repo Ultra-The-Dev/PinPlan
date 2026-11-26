@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   const token = bearer(req);
   if (!auth.userId || !token) return json({ error: "Sign in to email clients.", code: "sign_in_required" }, 401);
 
-  let body: { documentId?: unknown; token?: unknown; to?: unknown; kind?: unknown; message?: unknown };
+  let body: { documentId?: unknown; token?: unknown; to?: unknown; kind?: unknown; message?: unknown; today?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
   const guard = await reserveSend(auth.userId, kind, to);
   if (!guard.ok) return guard.response;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = senderToday(body.today);
   // A free trial can't send links in its own words: not in the message, the title, the number or the names (the client link is
   // ours and checked), and no pay button at all.
   const clean = (s: string | null | undefined) => (s && guard.trial ? stripLinks(s) : (s ?? undefined));
@@ -142,4 +142,20 @@ export async function POST(req: Request) {
   await finishSend(guard, sent);
   if (!sent.ok) return sendFailure(sent);
   return json({ ok: true });
+}
+
+/**
+ * The sender's own calendar day (the app sends its local YYYY-MM-DD), so an invoice due today isn't called past due
+ * in the evening in the Americas, when the UTC date has already moved on. Only the wording depends on it, but a day
+ * more than one away from UTC's is ignored. Without one: the day it is in UTC-12, where a date ends last, so nothing
+ * is "past due" anywhere it's still the due date.
+ */
+function senderToday(given: unknown, now = Date.now()): string {
+  const utc = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  if (typeof given === "string" && /^\d{4}-\d{2}-\d{2}$/.test(given)) {
+    const ms = Date.parse(`${given}T00:00:00Z`);
+    const base = Date.parse(`${utc(now)}T00:00:00Z`);
+    if (Number.isFinite(ms) && Math.abs(ms - base) <= 86_400_000) return given;
+  }
+  return utc(now - 12 * 3_600_000);
 }

@@ -210,7 +210,8 @@ export default function DocEditor({ doc, payments, allDocs, settings, business, 
     const res = await apiFetch("/api/documents/email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documentId: d.id, token: d.shareToken, to: r.to, kind: r.kind, message: r.message }),
+      // Our calendar day: the server words a reminder "past due" only once the due date has passed here.
+      body: JSON.stringify({ documentId: d.id, token: d.shareToken, to: r.to, kind: r.kind, message: r.message, today: today() }),
     });
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) throw new Error(j.error || t("Couldn't send the email ({status}).", { status: res.status }));

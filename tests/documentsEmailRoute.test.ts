@@ -197,6 +197,42 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(calls).toHaveLength(0);
   });
 
+  describe("a reminder on the due date itself, in the evening in the Americas (already the next day in UTC)", () => {
+    // Nov 25, 6 pm in California = Nov 26, 02:00 UTC. The invoice is due Nov 25.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-26T02:00:00Z"));
+    });
+    afterEach(() => vi.useRealTimers());
+    const reminder = (today?: string) => post({ ...good, kind: "reminder", message: "", ...(today ? { today } : {}) });
+
+    it("isn't “past due” on the sender's due date", async () => {
+      setDocument(snapshot, { ...docRow, due_date: "2026-11-25" });
+      expect((await (await load())(reminder("2026-11-25"))).status).toBe(200);
+      expect(sent().subject).toBe("Reminder: Invoice INV-2026-0007 from Sample Electric is due Nov 25, 2026");
+      expect(sent().text).not.toContain("past due");
+    });
+
+    it("is past due once the sender's day is after it", async () => {
+      setDocument(snapshot, { ...docRow, due_date: "2026-11-25" });
+      expect((await (await load())(reminder("2026-11-26"))).status).toBe(200);
+      expect(sent().subject).toBe("Past due: Invoice INV-2026-0007 from Sample Electric");
+    });
+
+    it("without the sender's day (or a far-off one), only once the date has ended everywhere", async () => {
+      setDocument(snapshot, { ...docRow, due_date: "2026-11-25" });
+      expect((await (await load())(reminder())).status).toBe(200);
+      expect(sent().subject).not.toMatch(/^Past due/);
+      calls = [];
+      expect((await (await load())(reminder("2027-01-01"))).status).toBe(200);
+      expect(sent().subject).not.toMatch(/^Past due/);
+      calls = [];
+      setDocument(snapshot, { ...docRow, due_date: "2026-11-24" });
+      expect((await (await load())(reminder())).status).toBe(200);
+      expect(sent().subject).toMatch(/^Past due/);
+    });
+  });
+
   it("errors are fixed messages: nothing from the database or Resend leaks through", async () => {
     setDocument();
     routes[RESERVE] = () => Response.json({ message: "relation secret_table does not exist" }, { status: 500 });

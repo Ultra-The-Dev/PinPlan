@@ -214,7 +214,7 @@ function ChecklistCard({ c, photos, focusItem, onTicked }: { c: Checklist; photo
                       {i.done && i.doneAt && (
                         <span>
                           ✓ {i.doneBy ? `${i.doneBy}, ` : ""}
-                          {new Date(i.doneAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                          {fmtDate(i.doneAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                         </span>
                       )}
                     </div>

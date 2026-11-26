@@ -1,7 +1,7 @@
 // Tasks pinned on the plan (Fieldwire-style punch / issues). Pure: no browser, database or React, so the web screens,
 // the PDF and the tests share it; the iPad app mirrors it in PinPlanCore (Tasks.swift, same fixtures in TaskTests.swift).
 // Tasks never affect the takeoff or the estimate, and never carry prices.
-import { msg } from "./i18n/msg";
+import { msg, t, tn } from "./i18n";
 import { taskBucket, type TaskBucket } from "./fieldDocs";
 import { TONE_HEX } from "./statusStyle";
 import type { TeamRole } from "./teamLogic";
@@ -487,22 +487,76 @@ export function statusCounts(tasks: PlanTask[]): Record<TaskStatus, number> {
   return out;
 }
 
-/** A history line in words: "Mike changed status Open → Completed". */
+/** The field names history lines store (FIELD_NAMES), as keys to show them in the app's language. */
+const FIELD_LABELS: Record<string, string> = {
+  title: msg("title"),
+  description: msg("description"),
+  "due date": msg("due date"),
+  "start date": msg("start date"),
+  priority: msg("priority"),
+  category: msg("category"),
+  room: msg("room"),
+  tags: msg("tags"),
+  watchers: msg("watchers"),
+  device: msg("device"),
+};
+
+/**
+ * The English history text stored on an event (photo, checklist and pin changes, "copied from #3"…) in the app's
+ * language. Stored text is kept as it is (the iPad writes the same words); text it doesn't recognise is shown as is.
+ */
+function storedEventText(text: string): string {
+  const fixed: Record<string, string> = {
+    "made it from a photo comment": msg("made it from a photo comment"),
+    "placed on the plan": msg("placed on the plan"),
+    "removed from the plan": msg("removed from the plan"),
+    "moved the pin": msg("moved the pin"),
+    "Reordered photos": msg("Reordered photos"),
+    "Edited the checklist": msg("Edited the checklist"),
+    edited: msg("edited"),
+  };
+  if (fixed[text]) return t(fixed[text]);
+  const copied = /^copied from #(\d+)$/.exec(text);
+  if (copied) return t("copied from #{n}", { n: copied[1] });
+  // "Checked “Rack labeled”, Added 2 items": parts joined by ", " (an item's own text may hold a comma).
+  const PARTS: [RegExp, (m: RegExpExecArray) => string][] = [
+    [/^Added (\d+) photos?(?=, |$)/, (m) => tn("Added {n} photo", "Added {n} photos", Number(m[1]))],
+    [/^Removed (\d+) photos?(?=, |$)/, (m) => tn("Removed {n} photo", "Removed {n} photos", Number(m[1]))],
+    [/^Checked (\d+) items(?=, |$)/, (m) => tn("Checked {n} item", "Checked {n} items", Number(m[1]))],
+    [/^Unchecked (\d+) items(?=, |$)/, (m) => tn("Unchecked {n} item", "Unchecked {n} items", Number(m[1]))],
+    [/^Added (\d+) items?(?=, |$)/, (m) => tn("Added {n} item", "Added {n} items", Number(m[1]))],
+    [/^Removed (\d+) items?(?=, |$)/, (m) => tn("Removed {n} item", "Removed {n} items", Number(m[1]))],
+    [/^Checked “(.*?)”(?=, |$)/, (m) => t("Checked “{item}”", { item: m[1] })],
+    [/^Unchecked “(.*?)”(?=, |$)/, (m) => t("Unchecked “{item}”", { item: m[1] })],
+  ];
+  const out: string[] = [];
+  let rest = text;
+  while (rest) {
+    const hit = PARTS.map(([re, fn]) => ({ m: re.exec(rest), fn })).find((x) => x.m);
+    if (!hit?.m) return text;
+    out.push(hit.fn(hit.m));
+    rest = rest.slice(hit.m[0].length).replace(/^, /, "");
+  }
+  return out.length ? out.join(", ") : text;
+}
+
+/** A history line in words, in the app's language: "Mike changed status Open → Completed". */
 export function eventText(e: TaskEvent): string {
+  const field = (name: string | undefined) => (name && FIELD_LABELS[name] ? t(FIELD_LABELS[name]) : (name ?? ""));
   switch (e.kind) {
     case "created":
-      return e.text || "created the task";
+      return e.text ? storedEventText(e.text) : t("created the task");
     case "comment":
       return e.text ?? "";
     case "status":
-      return `changed status ${statusInfo(e.from).label} → ${statusInfo(e.to).label}`;
+      return t("changed status {from} → {to}", { from: t(statusInfo(e.from).label), to: t(statusInfo(e.to).label) });
     case "assign":
-      return e.to ? `assigned ${e.to}` : `unassigned ${e.from || ""}`.trim();
+      return e.to ? t("assigned {name}", { name: e.to }) : e.from ? t("unassigned {name}", { name: e.from }) : t("unassigned");
     case "field":
-      if (e.from === undefined && e.to === undefined) return e.text ?? "edited";
-      return e.to ? `set ${e.text} to ${e.to}` : `cleared ${e.text}`;
+      if (e.from === undefined && e.to === undefined) return e.text ? storedEventText(e.text) : t("edited");
+      return e.to ? t("set {field} to {value}", { field: field(e.text), value: e.to }) : t("cleared {field}", { field: field(e.text) });
     default:
-      return e.text ?? "";
+      return e.text ? storedEventText(e.text) : "";
   }
 }
 

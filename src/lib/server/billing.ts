@@ -4,7 +4,6 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 import {
   customerId,
-  daysLeft,
   extraSeats,
   grantsAccess,
   hasBasePrice,
@@ -321,10 +320,12 @@ export interface InvoiceLike {
  * or concurrent webhooks send one email. Never throws (an email problem must not make Stripe retry the event).
  */
 export async function notifyPaymentFailed(cfg: BillingConfig, team: TeamRow, invoice: InvoiceLike, appUrl: string | null): Promise<"sent" | "already_sent" | "skipped" | "failed"> {
+  let claimed = 0;
+  const release = (inv: string) => patchTeam(cfg, team.id, { payment_failed_invoice_id: null }, `payment_failed_invoice_id=eq.${inv}`).catch(() => 0);
   try {
     if (!invoice.id || !appUrl || !emailConfigured()) return "skipped";
     const inv = encodeURIComponent(invoice.id);
-    const claimed = await patchTeam(cfg, team.id, { payment_failed_invoice_id: invoice.id }, `or=(payment_failed_invoice_id.is.null,payment_failed_invoice_id.neq.${inv})`);
+    claimed = await patchTeam(cfg, team.id, { payment_failed_invoice_id: invoice.id }, `or=(payment_failed_invoice_id.is.null,payment_failed_invoice_id.neq.${inv})`);
     if (!claimed) return "already_sent";
     const to = await billingContact(cfg, team);
     if (!to) return "skipped";
@@ -340,10 +341,12 @@ export async function notifyPaymentFailed(cfg: BillingConfig, team: TeamRow, inv
     if (sent.ok) return "sent";
     console.warn(`[billing] payment failed email for team ${team.id} not sent: ${sent.code}`);
     // Let a later retry of the event try again.
-    await patchTeam(cfg, team.id, { payment_failed_invoice_id: null }, `payment_failed_invoice_id=eq.${inv}`).catch(() => 0);
+    await release(inv);
     return "failed";
   } catch (e) {
     console.warn(`[billing] payment failed email for team ${team.id} not sent:`, (e as Error)?.message);
+    // Claimed but not sent (the contact couldn't be read, say): give it back too.
+    if (claimed && invoice.id) await release(encodeURIComponent(invoice.id));
     return "failed";
   }
 }
@@ -389,15 +392,19 @@ export async function sendTrialReminder(cfg: BillingConfig, team: TrialTeam, app
   if (team[col]) return "already_sent";
   const stamp = now.toISOString();
   const marks: TeamEmailMarks = oneDay ? { trial_reminder_1d_at: stamp, ...(team.trial_reminder_3d_at ? {} : { trial_reminder_3d_at: stamp }) } : { trial_reminder_3d_at: stamp };
+  const undo: TeamEmailMarks = Object.fromEntries(Object.keys(marks).map((k) => [k, null]));
+  let claimed = false;
   try {
-    const claimed = await patchTeam(cfg, team.id, marks, `${col}=is.null&stripe_subscription_id=is.null`);
+    claimed = (await patchTeam(cfg, team.id, marks, `${col}=is.null&stripe_subscription_id=is.null`)) > 0;
     if (!claimed) return "already_sent";
     const to = await billingContact(cfg, team);
     if (!to) return "skipped";
     const content = trialEndingEmail({
       name: to.name,
       companyName: team.name,
-      daysLeft: daysLeft(team.trial_ends_at, now),
+      // On the same (UTC) calendar as the date printed next to it: a trial ending at 16:00 UTC, reminded at 15:17,
+      // ends "today (Nov 26)", not "tomorrow (Nov 26)".
+      daysLeft: utcCalendarDaysUntil(team.trial_ends_at, now),
       endsAt: team.trial_ends_at,
       planName: PLANS[0].name,
       billingUrl: `${appUrl}/settings#billing`,
@@ -405,13 +412,22 @@ export async function sendTrialReminder(cfg: BillingConfig, team: TrialTeam, app
     const sent = await sendEmail({ to: to.email, ...content, idempotencyKey: `pinplan-trial-${oneDay ? "1d" : "3d"}-${team.id}`, tags: { kind: oneDay ? "trial_1d" : "trial_3d" } });
     if (sent.ok) return "sent";
     console.warn(`[billing] trial reminder for team ${team.id} not sent: ${sent.code}`);
-    const undo: TeamEmailMarks = Object.fromEntries(Object.keys(marks).map((k) => [k, null]));
     await patchTeam(cfg, team.id, undo, `${col}=eq.${encodeURIComponent(stamp)}`).catch(() => 0);
     return "failed";
   } catch (e) {
     console.warn(`[billing] trial reminder for team ${team.id} not sent:`, (e as Error)?.message);
+    // Claimed but not sent (the owner's address couldn't be read, say): give it back for the next run.
+    if (claimed) await patchTeam(cfg, team.id, undo, `${col}=eq.${encodeURIComponent(stamp)}`).catch(() => 0);
     return "failed";
   }
+}
+
+/** Whole UTC calendar days from `now` to `iso` (0 = later today, 1 = tomorrow), as the emails print dates in UTC. */
+export function utcCalendarDaysUntil(iso: string, now: Date): number {
+  const end = new Date(iso);
+  if (Number.isNaN(end.getTime())) return 0;
+  const day = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return Math.max(0, Math.round((day(end) - day(now)) / 86_400_000));
 }
 
 // ---------- scheduled jobs ----------

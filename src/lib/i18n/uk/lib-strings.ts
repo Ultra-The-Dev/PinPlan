@@ -540,6 +540,25 @@ const dict: Dictionary = {
   "Couldn't reach Stripe. Try again in a minute.": "Не вдалося зв’язатися зі Stripe. Спробуйте за хвилину.",
   "Couldn't check online payments. Try again in a minute.": "Не вдалося перевірити онлайн-оплату. Спробуйте за хвилину.",
   "Connect Stripe first.": "Спершу під’єднайте Stripe.",
+  // Billdu server messages (src/app/api/billdu/*, src/lib/billdu/route-helpers.ts, src/lib/server/billduCreds.ts)
+  "Could not load the Billdu status.": "Не вдалося завантажити стан Billdu.",
+  "Request failed": "Запит не виконано",
+  "Connection failed": "Не вдалося підключитися",
+  "Billdu didn't accept your API key and secret. Check them in Settings → Connected apps → Billdu.": "Billdu не прийняв ваш API-ключ і секрет. Перевірте їх у розділі Налаштування → Підключені застосунки → Billdu.",
+  "Billdu is busy right now. Try again in a minute.": "Billdu зараз перевантажений. Спробуйте за хвилину.",
+  "Something went wrong talking to Billdu. Try again in a minute.": "Щось пішло не так під час обміну з Billdu. Спробуйте за хвилину.",
+  "Something went wrong with your Billdu connection. Try again in a minute.": "Щось не так із підключенням до Billdu. Спробуйте за хвилину.",
+  "The project needs a client name before sending to Billdu.": "Перш ніж надсилати в Billdu, вкажіть клієнта об'єкта.",
+  "There are no included estimate lines to send.": "Немає увімкнених рядків кошторису для надсилання.",
+  "Billdu and prices are handled by the office. Ask an admin on your team.": "Billdu і ціни — справа офісу. Зверніться до адміністратора вашої команди.",
+  "Couldn't load your Billdu connection. Try again in a minute.": "Не вдалося завантажити підключення до Billdu. Спробуйте за хвилину.",
+  "Couldn't save your Billdu connection. Try again in a minute.": "Не вдалося зберегти підключення до Billdu. Спробуйте за хвилину.",
+  "Couldn't disconnect Billdu. Try again in a minute.": "Не вдалося відключити Billdu. Спробуйте за хвилину.",
+  "Both API key and API secret are required.": "Потрібні і API-ключ, і API-секрет.",
+  "Could not verify your session.": "Не вдалося перевірити ваш сеанс.",
+  "Could not check your team role. Try again in a minute.": "Не вдалося перевірити вашу роль у команді. Спробуйте за хвилину.",
+  "Billdu can't be connected on this server right now. Contact support.": "Billdu зараз не можна підключити на цьому сервері. Зверніться до підтримки.",
+  "Billdu isn't connected for your company. Add your Billdu API key and secret in Settings → Connected apps → Billdu.": "Billdu не підключено для вашої компанії. Додайте API-ключ і секрет Billdu у розділі Налаштування → Підключені застосунки → Billdu.",
 };
 
 export default dict;

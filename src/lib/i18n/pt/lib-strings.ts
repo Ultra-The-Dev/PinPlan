@@ -529,6 +529,25 @@ const dict: Dictionary = {
   "Couldn't reach Stripe. Try again in a minute.": "Não foi possível falar com o Stripe. Tente de novo em um minuto.",
   "Couldn't check online payments. Try again in a minute.": "Não foi possível verificar os pagamentos on-line. Tente de novo em um minuto.",
   "Connect Stripe first.": "Conecte o Stripe primeiro.",
+  // Billdu server messages (src/app/api/billdu/*, src/lib/billdu/route-helpers.ts, src/lib/server/billduCreds.ts)
+  "Could not load the Billdu status.": "Não foi possível carregar o status do Billdu.",
+  "Request failed": "A solicitação falhou",
+  "Connection failed": "Não foi possível conectar",
+  "Billdu didn't accept your API key and secret. Check them in Settings → Connected apps → Billdu.": "O Billdu não aceitou sua chave e segredo de API. Confira em Configurações → Apps conectados → Billdu.",
+  "Billdu is busy right now. Try again in a minute.": "O Billdu está ocupado agora. Tente de novo em um minuto.",
+  "Something went wrong talking to Billdu. Try again in a minute.": "Algo deu errado na comunicação com o Billdu. Tente de novo em um minuto.",
+  "Something went wrong with your Billdu connection. Try again in a minute.": "Algo deu errado com sua conexão com o Billdu. Tente de novo em um minuto.",
+  "The project needs a client name before sending to Billdu.": "A obra precisa de um nome de cliente antes de enviar ao Billdu.",
+  "There are no included estimate lines to send.": "Não há linhas do orçamento incluídas para enviar.",
+  "Billdu and prices are handled by the office. Ask an admin on your team.": "O Billdu e os preços ficam com o escritório. Peça a um administrador da sua equipe.",
+  "Couldn't load your Billdu connection. Try again in a minute.": "Não foi possível carregar sua conexão com o Billdu. Tente de novo em um minuto.",
+  "Couldn't save your Billdu connection. Try again in a minute.": "Não foi possível salvar sua conexão com o Billdu. Tente de novo em um minuto.",
+  "Couldn't disconnect Billdu. Try again in a minute.": "Não foi possível desconectar o Billdu. Tente de novo em um minuto.",
+  "Both API key and API secret are required.": "A chave e o segredo de API são obrigatórios.",
+  "Could not verify your session.": "Não foi possível verificar sua sessão.",
+  "Could not check your team role. Try again in a minute.": "Não foi possível verificar sua função na equipe. Tente de novo em um minuto.",
+  "Billdu can't be connected on this server right now. Contact support.": "O Billdu não pode ser conectado neste servidor agora. Fale com o suporte.",
+  "Billdu isn't connected for your company. Add your Billdu API key and secret in Settings → Connected apps → Billdu.": "O Billdu não está conectado para sua empresa. Adicione a chave e o segredo de API do Billdu em Configurações → Apps conectados → Billdu.",
 };
 
 export default dict;

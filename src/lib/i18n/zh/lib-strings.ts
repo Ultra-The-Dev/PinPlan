@@ -511,6 +511,25 @@ const dict: Dictionary = {
   "Couldn't reach Stripe. Try again in a minute.": "无法连接 Stripe。请一分钟后重试。",
   "Couldn't check online payments. Try again in a minute.": "无法检查在线支付。请一分钟后重试。",
   "Connect Stripe first.": "请先连接 Stripe。",
+  // Billdu server messages (src/app/api/billdu/*, src/lib/billdu/route-helpers.ts, src/lib/server/billduCreds.ts)
+  "Could not load the Billdu status.": "无法加载 Billdu 状态。",
+  "Request failed": "请求失败",
+  "Connection failed": "连接失败",
+  "Billdu didn't accept your API key and secret. Check them in Settings → Connected apps → Billdu.": "Billdu 未接受你的 API 密钥和密码。请在 设置 → 已连接的应用 → Billdu 中检查。",
+  "Billdu is busy right now. Try again in a minute.": "Billdu 现在很忙。请一分钟后再试。",
+  "Something went wrong talking to Billdu. Try again in a minute.": "与 Billdu 通信时出了问题。请一分钟后再试。",
+  "Something went wrong with your Billdu connection. Try again in a minute.": "你的 Billdu 连接出了问题。请一分钟后再试。",
+  "The project needs a client name before sending to Billdu.": "发送到 Billdu 之前，项目需要填写客户名称。",
+  "There are no included estimate lines to send.": "没有可发送的已包含估算行。",
+  "Billdu and prices are handled by the office. Ask an admin on your team.": "Billdu 和价格由办公室负责。请联系团队管理员。",
+  "Couldn't load your Billdu connection. Try again in a minute.": "无法加载你的 Billdu 连接。请一分钟后再试。",
+  "Couldn't save your Billdu connection. Try again in a minute.": "无法保存你的 Billdu 连接。请一分钟后再试。",
+  "Couldn't disconnect Billdu. Try again in a minute.": "无法断开 Billdu。请一分钟后再试。",
+  "Both API key and API secret are required.": "API 密钥和 API 密码都必须填写。",
+  "Could not verify your session.": "无法验证你的会话。",
+  "Could not check your team role. Try again in a minute.": "无法检查你在团队中的角色。请一分钟后再试。",
+  "Billdu can't be connected on this server right now. Contact support.": "此服务器目前无法连接 Billdu。请联系支持。",
+  "Billdu isn't connected for your company. Add your Billdu API key and secret in Settings → Connected apps → Billdu.": "你的公司尚未连接 Billdu。请在 设置 → 已连接的应用 → Billdu 中添加 Billdu API 密钥和密码。",
 };
 
 export default dict;

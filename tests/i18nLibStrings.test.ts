@@ -96,6 +96,46 @@ describe("src/lib text in Russian", () => {
     expect(useToasts.getState().toasts[0].action).toEqual({ label: "Тариф и оплата", href: "/settings#billing" });
   });
 
+  it("“Overdue” reads right for a task (feminine) and an invoice (masculine) alike: the neuter «Просрочено»", async () => {
+    const { t } = await import("@/lib/i18n");
+    expect(t("Overdue")).toBe("Просрочено");
+  });
+
+  it("a task's history reads in the app's language; the stored English text is unchanged", async () => {
+    const { applyTaskChange, eventText, newTask } = await import("@/lib/tasks");
+    const at = "2026-11-19T12:00:00Z";
+    let task = newTask({ id: "t1", projectId: "p1", number: 1, title: "Mount the keypad" }, "Mike", at);
+    task = applyTaskChange(task, { status: "done", due: "2026-11-25", assignee: "Ann", photoIds: ["a", "b"], x: 0.5, y: 0.5, sheetId: "s1" }, "Mike", at);
+    task = applyTaskChange(task, { checklist: [{ id: "c1", text: "Rack, labeled", done: true }] }, "Mike", at);
+    task = applyTaskChange(task, { assignee: null }, "Mike", at);
+    const lines = (task.activity ?? []).map(eventText);
+    expect(lines).toEqual([
+      "создал(а) задачу",
+      "сменил(а) статус: Открыто → Выполнена",
+      "изменил(а) «срок»: 2026-11-25",
+      "назначил(а): Ann",
+      "Добавлено 2 фото",
+      "поставил(а) на план",
+      "Добавлен 1 пункт",
+      "снял(а) исполнителя: Ann",
+    ]);
+    // What is stored stays English (the PDF and the iPad read it).
+    expect(task.activity?.map((e) => e.text).filter(Boolean)).toEqual(["due date", "Added 2 photos", "placed on the plan", "Added 1 item"]);
+    expect(eventText({ id: "e", at, by: "Mike", kind: "checklist", text: "Checked “Rack, labeled”, Removed 3 items" })).toBe("Отмечено «Rack, labeled», Удалено 3 пункта");
+    expect(eventText({ id: "e", at, by: "Mike", kind: "checklist", text: "something an older version wrote" })).toBe("something an older version wrote");
+    setLocale("en", { remember: false });
+    expect(lines.length && (task.activity ?? []).map(eventText)).toEqual([
+      "created the task",
+      "changed status Open → Completed",
+      "set due date to 2026-11-25",
+      "assigned Ann",
+      "Added 2 photos",
+      "placed on the plan",
+      "Added 1 item",
+      "unassigned Ann",
+    ]);
+  });
+
   it("every lib-strings plural has the Russian forms", () => {
     for (const v of Object.values(RU_AREAS["lib-strings"] ?? {})) if (typeof v === "object") expect(Object.keys(v)).toEqual(expect.arrayContaining(["one", "few", "many"]));
   });

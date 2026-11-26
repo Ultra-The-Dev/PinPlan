@@ -23,6 +23,7 @@ describe("trial reminders cron", () => {
   let enforce: boolean;
   let emails: { to: string[]; subject: string; key: string | null }[];
   let resendStatus: number;
+  let membersStatus: number;
 
   const team = (id: string, daysLeft: number, p: Partial<Team> = {}): Team => ({
     id,
@@ -46,7 +47,11 @@ describe("trial reminders cron", () => {
     enforce = true;
     emails = [];
     resendStatus = 200;
+    membersStatus = 200;
     teams = [];
+    // A fixed clock (only Date: fetch and its timeouts run as usual): the daily run at 15:17 UTC.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-26T15:17:00Z"));
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SB);
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
     vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
@@ -73,6 +78,7 @@ describe("trial reminders cron", () => {
         if (headers.get("authorization") !== "Bearer service-key") return new Response("no", { status: 401 });
         if (url.startsWith(`${SB}/rest/v1/billing_settings`)) return Response.json([{ enforce }]);
         if (url.startsWith(`${SB}/rest/v1/team_members?team_id=`)) {
+          if (membersStatus !== 200) return new Response("down", { status: membersStatus });
           const id = /team_id=eq\.([^&]+)/.exec(url)![1];
           return Response.json([{ email: `owner@${id}.test`, name: "Olive" }]);
         }
@@ -94,6 +100,11 @@ describe("trial reminders cron", () => {
             if (m[2] === "is.null" && t[m[1]] != null) return Response.json([]);
             if (m[3] && t[m[1]] !== m[3]) return Response.json([]);
           }
+          // The payment-failed claim (or=(…is.null,…neq.<id>)) and its release (=eq.<id>).
+          const pf = /or=\(payment_failed_invoice_id\.is\.null,payment_failed_invoice_id\.neq\.([^)]+)\)/.exec(url);
+          if (pf && t.payment_failed_invoice_id === pf[1]) return Response.json([]);
+          const pr = /payment_failed_invoice_id=eq\.([^&]+)/.exec(url);
+          if (pr && t.payment_failed_invoice_id !== pr[1]) return Response.json([]);
           Object.assign(t, JSON.parse(String(init!.body)));
           return Response.json([{ id }]);
         }
@@ -102,6 +113,7 @@ describe("trial reminders cron", () => {
     );
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -141,6 +153,41 @@ describe("trial reminders cron", () => {
     expect(teams[0].trial_reminder_3d_at).toBeNull();
     resendStatus = 200;
     expect(await (await run()).json()).toMatchObject({ sent: 1 });
+  });
+
+  it("says “today” for a trial that ends later on the day of the run, as the date next to it says", async () => {
+    // Ends at 16:00 UTC the same day, 43 minutes after the run (the 3-day reminder went out earlier).
+    teams = [team("a", 0, { trial_ends_at: "2026-11-26T16:00:00.000Z", trial_reminder_3d_at: "2026-11-24T15:17:00.000Z" })];
+    expect(await (await run()).json()).toMatchObject({ sent: 1 });
+    expect(emails[0]).toMatchObject({ key: "pinplan-trial-1d-a", subject: "Your Northpin trial ends today" });
+    // Early tomorrow (UTC) is "tomorrow"; two calendar days out is "in 2 days", whatever the hours.
+    teams = [team("b", 0, { trial_ends_at: "2026-11-27T02:00:00.000Z" }), team("c", 0, { trial_ends_at: "2026-11-28T16:00:00.000Z" })];
+    await run();
+    expect(emails.find((e) => e.key === "pinplan-trial-1d-b")!.subject).toBe("Your Northpin trial ends tomorrow");
+    expect(emails.find((e) => e.key === "pinplan-trial-3d-c")!.subject).toBe("Your Northpin trial ends in 2 days");
+  });
+
+  it("gives the reminder back when the owner's address can't be read after the claim", async () => {
+    teams = [team("a", 2.5)];
+    membersStatus = 503;
+    expect(await (await run()).json()).toMatchObject({ sent: 0, results: { failed: 1 } });
+    expect(teams[0].trial_reminder_3d_at).toBeNull();
+    membersStatus = 200;
+    expect(await (await run()).json()).toMatchObject({ sent: 1 });
+  });
+
+  it("payment failed: an unreadable contact gives the invoice back for the next event", async () => {
+    teams = [team("a", 2.5, { payment_failed_invoice_id: null })];
+    const { billingConfig, notifyPaymentFailed } = await import("@/lib/server/billing");
+    const c = billingConfig();
+    if (!c.ok) throw new Error("billing config");
+    const inv = { id: "in_1", amount_due: 4900 };
+    membersStatus = 503;
+    expect(await notifyPaymentFailed(c.config, teams[0] as never, inv, "https://app.example.com")).toBe("failed");
+    expect(teams[0].payment_failed_invoice_id).toBeNull();
+    membersStatus = 200;
+    expect(await notifyPaymentFailed(c.config, teams[0] as never, inv, "https://app.example.com")).toBe("sent");
+    expect(await notifyPaymentFailed(c.config, teams[0] as never, inv, "https://app.example.com")).toBe("already_sent");
   });
 
   it("sends nothing while billing isn't enforced, or without email set up", async () => {

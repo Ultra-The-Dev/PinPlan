@@ -514,6 +514,25 @@ const libStrings: Dictionary = {
   "Couldn't reach Stripe. Try again in a minute.": "Không kết nối được với Stripe. Hãy thử lại sau một phút.",
   "Couldn't check online payments. Try again in a minute.": "Không kiểm tra được thanh toán trực tuyến. Hãy thử lại sau một phút.",
   "Connect Stripe first.": "Hãy kết nối Stripe trước.",
+  // Billdu server messages (src/app/api/billdu/*, src/lib/billdu/route-helpers.ts, src/lib/server/billduCreds.ts)
+  "Could not load the Billdu status.": "Không tải được trạng thái Billdu.",
+  "Request failed": "Yêu cầu thất bại",
+  "Connection failed": "Kết nối thất bại",
+  "Billdu didn't accept your API key and secret. Check them in Settings → Connected apps → Billdu.": "Billdu không chấp nhận khóa API và mã bí mật của bạn. Hãy kiểm tra trong Cài đặt → Ứng dụng đã kết nối → Billdu.",
+  "Billdu is busy right now. Try again in a minute.": "Billdu đang bận. Hãy thử lại sau một phút.",
+  "Something went wrong talking to Billdu. Try again in a minute.": "Đã xảy ra lỗi khi trao đổi với Billdu. Hãy thử lại sau một phút.",
+  "Something went wrong with your Billdu connection. Try again in a minute.": "Kết nối Billdu của bạn gặp sự cố. Hãy thử lại sau một phút.",
+  "The project needs a client name before sending to Billdu.": "Công trình cần tên khách hàng trước khi gửi sang Billdu.",
+  "There are no included estimate lines to send.": "Không có dòng dự toán nào được chọn để gửi.",
+  "Billdu and prices are handled by the office. Ask an admin on your team.": "Billdu và giá do văn phòng phụ trách. Hãy nhờ quản trị viên trong nhóm.",
+  "Couldn't load your Billdu connection. Try again in a minute.": "Không tải được kết nối Billdu của bạn. Hãy thử lại sau một phút.",
+  "Couldn't save your Billdu connection. Try again in a minute.": "Không lưu được kết nối Billdu của bạn. Hãy thử lại sau một phút.",
+  "Couldn't disconnect Billdu. Try again in a minute.": "Không ngắt kết nối được Billdu. Hãy thử lại sau một phút.",
+  "Both API key and API secret are required.": "Cần cả khóa API và mã bí mật API.",
+  "Could not verify your session.": "Không xác minh được phiên đăng nhập của bạn.",
+  "Could not check your team role. Try again in a minute.": "Không kiểm tra được vai trò của bạn trong nhóm. Hãy thử lại sau một phút.",
+  "Billdu can't be connected on this server right now. Contact support.": "Hiện không thể kết nối Billdu trên máy chủ này. Hãy liên hệ hỗ trợ.",
+  "Billdu isn't connected for your company. Add your Billdu API key and secret in Settings → Connected apps → Billdu.": "Billdu chưa được kết nối cho công ty bạn. Hãy thêm khóa API và mã bí mật Billdu trong Cài đặt → Ứng dụng đã kết nối → Billdu.",
 };
 
 export default libStrings;

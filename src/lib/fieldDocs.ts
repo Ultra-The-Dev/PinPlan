@@ -252,7 +252,7 @@ export function localDay(iso: string): string {
 
 export type TaskBucket = "overdue" | "today" | "week" | "later" | "none";
 export const TASK_BUCKETS: { id: TaskBucket; name: string }[] = [
-  // Not msg(): the dictionary's "Overdue" is the invoice status («Просрочен»), wrong for a list of tasks.
+  // Not msg(): shown with t() like the rest; "Overdue" reads right for tasks and invoices alike (ru «Просрочено»).
   { id: "overdue", name: "Overdue" },
   { id: "today", name: msg("Today") },
   { id: "week", name: msg("Next 7 days") },

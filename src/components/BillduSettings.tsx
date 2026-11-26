@@ -1,7 +1,7 @@
 "use client";
 // Settings → Billdu: connect this company's own Billdu account (owner/admin; technicians never see this section).
 import { apiFetch } from "@/lib/api";
-import { fmtDate, msg, useT } from "@/lib/i18n";
+import { fmtDate, msg, t as tr, useT } from "@/lib/i18n";
 import { getSupabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { getSettings, saveSettings } from "@/lib/db";
@@ -40,8 +40,9 @@ interface Status {
 async function loadStatus(): Promise<Status> {
   const r = await apiFetch("/api/billdu/credentials", { cache: "no-store" });
   const j = await r.json();
-  if (r.status === 401 || r.status === 403) return { configured: false, source: null, keyHint: null, locked: j.error ?? "Sign in first." };
-  if (!r.ok) throw new Error(j.error || "Could not load the Billdu status.");
+  // The server answers in English: its known messages are shown in the app's language (lib-strings).
+  if (r.status === 401 || r.status === 403) return { configured: false, source: null, keyHint: null, locked: tr(j.error ?? "Sign in first.") };
+  if (!r.ok) throw new Error(tr(j.error || "Could not load the Billdu status."));
   return j as Status;
 }
 
@@ -88,7 +89,7 @@ export default function BillduSettings() {
     try {
       const r = await apiFetch(path, { ...init, headers: { "Content-Type": "application/json" } });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Request failed");
+      if (!r.ok) throw new Error(t(j.error || "Request failed"));
       setStatus(j as Status);
       // Money screens show Billdu only while it's connected.
       billduChanged();
@@ -135,7 +136,7 @@ export default function BillduSettings() {
     try {
       const r = await apiFetch("/api/billdu/test", { method: "POST" });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Connection failed");
+      if (!r.ok) throw new Error(t(j.error || "Connection failed"));
       setNote({ ok: true, text: j.canRead ? t("Connected. Reading data back from Billdu works.") : t("Connected, but Billdu returned no readable data.") });
     } catch (err) {
       setNote({ ok: false, text: (err as Error).message });
