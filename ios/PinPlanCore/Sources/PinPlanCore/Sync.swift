@@ -198,9 +198,20 @@ public enum SyncMap {
         return id.utf8.allSatisfy { c in (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 45 || c == 95 }
     }
 
+    /// A price override's id as the web app (and this app) gives it: "<job id>:<line key>", e.g. "p1:dev:wap". Estimate
+    /// lines live inside their job's file, so the id is never a file name or path: a safe job id, then a key of 1 to 200
+    /// printable characters.
+    public static func isEstimateLineId(_ id: String, projectId: String?) -> Bool {
+        guard let p = projectId, isSafeId(p), id.hasPrefix(p + ":") else { return false }
+        let key = id.unicodeScalars.dropFirst(p.unicodeScalars.count + 1)
+        guard (1...200).contains(key.count) else { return false }
+        return key.allSatisfy { (s: Unicode.Scalar) -> Bool in s.value >= 32 && s.value != 127 && s != "\\" }
+    }
+
     /// Whether a pulled row may be merged: its id (and its job's id, when it has one) are safe.
     public static func isSafeRow(_ t: SyncTable, _ remote: [String: Any]) -> Bool {
-        guard let id = remote[specs[t]!.idColumn] as? String, isSafeId(id) else { return false }
+        guard let id = remote[specs[t]!.idColumn] as? String else { return false }
+        if !isSafeId(id) && !(t == .estimateLines && isEstimateLineId(id, projectId: remote["project_id"] as? String)) { return false }
         if let pid = remote["project_id"], !(pid is NSNull) {
             guard let p = pid as? String, isSafeId(p) else { return false }
         }

@@ -105,18 +105,33 @@ export async function voidDoc(doc: SalesDoc) {
 
 const localKey = (kind: DocKind, period: number) => `pinplan.docnum.${kind}.${period}`;
 
+/** The first number from `start` on that no document on this device has yet (a lost or unreadable counter never
+ *  gives a number twice). Returns the counter value used and the number. */
+export function freeLocalNumber(format: string, start: number, day: string, used: Set<string>): { n: number; number: string } {
+  let n = Math.max(1, Math.floor(start) || 1);
+  let number = formatDocNumber(format, n, day);
+  for (let guard = 0; used.has(number) && guard < 100_000; guard++) number = formatDocNumber(format, ++n, day);
+  return { n, number };
+}
+
 /** Without cloud sync (a single device), numbers come from a counter on this device. */
-function takeLocalNumber(kind: DocKind, s: DocumentSettings, day: string): string {
+async function takeLocalNumber(kind: DocKind, s: DocumentSettings, day: string): Promise<string> {
   const k = s.kinds[kind];
   const period = k.yearlyReset ? Number(day.slice(0, 4)) : 0;
-  let n = 1;
+  let start = 1;
   try {
-    n = Math.max(1, Number(localStorage.getItem(localKey(kind, period))) || 1);
+    start = Math.max(1, Number(localStorage.getItem(localKey(kind, period))) || 1);
+  } catch {
+    /* storage unavailable */
+  }
+  const used = new Set((await db().salesDocs.filter((d) => d.kind === kind && !!d.number).toArray()).map((d) => d.number as string));
+  const { n, number } = freeLocalNumber(k.format, start, day, used);
+  try {
     localStorage.setItem(localKey(kind, period), String(n + 1));
   } catch {
     /* storage unavailable */
   }
-  return formatDocNumber(k.format, n, day);
+  return number;
 }
 
 /** Next number on this device (local-only mode), for Settings. */
@@ -146,7 +161,7 @@ export async function issueDoc(doc: SalesDoc, s: DocumentSettings): Promise<Sale
   if (doc.status !== "draft") return doc;
   const day = doc.issueDate || today();
   const next: SalesDoc = { ...doc, status: "sent", issueDate: day };
-  if (!supabaseConfigured && !next.number) next.number = takeLocalNumber(doc.kind, s, day);
+  if (!supabaseConfigured && !next.number) next.number = await takeLocalNumber(doc.kind, s, day);
   const saved = await saveDoc(next);
   if (supabaseConfigured) await syncAndReload();
   return (await db().salesDocs.get(saved.id)) ?? saved;

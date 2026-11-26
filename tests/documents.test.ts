@@ -354,6 +354,19 @@ describe("estimate → quote", () => {
     expect(sum(lines)).toBe(e.subtotal);
   });
 
+  it("line details count devices, not pins: a ×12 count pin reads as 12", () => {
+    const s = data.sheets[0];
+    const base = { projectId: s.projectId, sheetId: s.id, deviceTypeId: "cam-indoor", y: 0.5, mount: "wall" as const, wireType: "None", tentative: false, notes: "", createdAt: NOW, updatedAt: NOW };
+    const markers = [{ ...base, id: "wa", x: 0.2, room: "Den", label: "C-1", count: 12 }, { ...base, id: "wb", x: 0.4, room: "Den", label: "C-2" }, { ...base, id: "wc", x: 0.6, room: "Hall", label: "C-3" }];
+    const priced = catalog.map((d) => (d.id === "cam-indoor" ? { ...d, unitPrice: 10, laborPrice: 0 } : d));
+    const j = { ...job, sheets: [s], markers, runs: [], closets: [], catalog: priced };
+    const e = buildEstimate(computeTakeoff({ sheets: [s], markers, runs: [], closets: [] }), priced, pricing, []);
+    const details = (grouping: "floor" | "room" | "category") => quoteLinesFromEstimate(e, j, { ...opts, grouping }, S).filter((l) => l.key === "dev:cam-indoor").map((l) => l.details);
+    expect(details("floor")).toEqual(["Den (13), Hall"]);
+    expect(details("category")).toEqual(["Den (13), Hall"]);
+    expect(details("room")).toEqual(["C-1 ×12, C-2", "C-3"]);
+  });
+
   it("by floor: one section per floor in sheet order, with the floor's quantities", () => {
     const lines = quoteLinesFromEstimate(est, job, { ...opts, grouping: "floor" }, S);
     const heads = lines.filter((l) => l.kind === "section").map((l) => l.description);

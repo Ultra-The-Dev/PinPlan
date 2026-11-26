@@ -177,13 +177,17 @@ public extension ProjectBundle {
     }
 
     /// Estimate override helpers.
+    /// Edits the row the estimate uses for the key (the newest: EstimateBuilder.latestOverrides). A new override gets the
+    /// id "<project>:<key>", the same on every device and in the web app, so two devices overriding one line write one row.
     mutating func upsertEstimateLine(key: String, _ change: (inout EstimateLine) -> Void) {
-        if let i = estimateLines.firstIndex(where: { $0.key == key && $0.deleted != true }) {
+        let current: EstimateLine? = EstimateBuilder.latestOverrides(estimateLines)[key]
+        if let cur = current, let i = estimateLines.firstIndex(where: { $0.id == cur.id && $0.deleted != true }) {
             change(&estimateLines[i]); estimateLines[i].updatedAt = isoNow()
         } else {
-            var l = EstimateLine(projectId: project.id, key: key)
+            var l = EstimateLine(id: "\(project.id):\(key)", projectId: project.id, key: key)
             change(&l)
-            estimateLines.append(l)
+            // A reset override (deleted) with that id comes back as this one.
+            if let i = estimateLines.firstIndex(where: { $0.id == l.id }) { estimateLines[i] = l } else { estimateLines.append(l) }
         }
         touchProject()
     }

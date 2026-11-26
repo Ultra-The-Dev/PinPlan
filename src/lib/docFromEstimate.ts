@@ -6,7 +6,7 @@ import { lineProductId, money, type ComputedLine, type Estimate } from "./estima
 import { runLengthFt } from "./geometry";
 import { cableTypeFromKey, productIdFor, runCables } from "./products";
 import { GROUP_LABELS, type ProposalLine, type ProposalSnapshot } from "./proposal";
-import { markerQty } from "./markerCount";
+import { markerQty, pinLabel } from "./markerCount";
 import type { Closet, DeviceType, DocGrouping, DocLine, DocTaxRate, DocumentSettings, Marker, Product, Project, Run, SalesDoc, Sheet } from "./types";
 
 export interface QuoteBuildOptions {
@@ -77,7 +77,7 @@ export function quoteLinesFromEstimate(est: Estimate, job: JobData, opts: QuoteB
     group: opts.grouping === "floor" ? floorName.get(m.sheetId)! : roomLabel(m),
     weight: markerQty(m),
     room: m.room?.trim() || "",
-    label: m.label,
+    label: pinLabel(m),
     floor: floorName.get(m.sheetId),
   });
 
@@ -214,7 +214,8 @@ function describe(units: Unit[], grouping: DocGrouping): string | null {
     const m = new Map<string, number>();
     for (const u of units) {
       const k = keyOf(u)?.trim();
-      if (k) m.set(k, (m.get(k) ?? 0) + (u.label != null ? 1 : 0));
+      // Devices, not pins: a count pin (×12) counts 12.
+      if (k) m.set(k, (m.get(k) ?? 0) + (u.label != null ? u.weight : 0));
     }
     return [...m.entries()];
   };
@@ -227,7 +228,7 @@ function describe(units: Unit[], grouping: DocGrouping): string | null {
     return rooms.length ? rooms.map(([r, n]) => (n > 1 ? `${r} (${n})` : r)).join(", ") : null;
   }
   const floors = new Map<string, number>();
-  for (const u of units) if (u.floor) floors.set(u.floor, (floors.get(u.floor) ?? 0) + (u.label != null ? 1 : 0));
+  for (const u of units) if (u.floor) floors.set(u.floor, (floors.get(u.floor) ?? 0) + (u.label != null ? u.weight : 0));
   if (floors.size < 2) {
     const rooms = count((u) => u.room);
     return rooms.length ? rooms.map(([r, n]) => (n > 1 ? `${r} (${n})` : r)).join(", ") : null;

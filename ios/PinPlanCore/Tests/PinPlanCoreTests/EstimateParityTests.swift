@@ -75,6 +75,56 @@ final class EstimateParityTests: XCTestCase {
         XCTAssertEqual(e.lines.filter { $0.group == .custom }.map(\.key), ["custom:ipad-early", "custom:web", "custom:ipad-late"])
     }
 
+    /// Same cases as the web's tests/estimateOverrides.test.ts: two rows for one key (older builds gave every override a
+    /// random id) → the newest by updatedAt wins wherever it sits, a charge is listed once, deleted rows never count.
+    func testNewestOverrideRowPerKeyWins() {
+        func row(_ id: String, _ key: String, _ at: String, price: Double? = nil, qty: Double? = nil, desc: String? = nil, sort: Double? = nil, deleted: Bool? = nil) -> EstimateLine {
+            var l = EstimateLine(id: id, projectId: "p", key: key)
+            l.updatedAt = at; l.unitPrice = price; l.qty = qty; l.description = desc; l.sort = sort; l.deleted = deleted
+            return l
+        }
+        var total = TakeoffBucket()
+        total.counts = ["wap": 2]
+        let t = Takeoff(floors: [], total: total)
+        let newer = [row("a", "dev:wap", "2026-11-16T00:00:00.000Z", price: 99.99), row("c", "custom:trip", "2026-11-16T00:00:00Z", price: 45, qty: 1, desc: "Trip", sort: 1)]
+        let older = [row("a-old", "dev:wap", "2026-11-15T00:00:00.000Z", price: 1), row("c-old", "custom:trip", "2026-11-15T00:00:00.000Z", price: 1000, qty: 1, desc: "Old trip", sort: 1)]
+        for list in [older + newer, newer + older] {
+            let e = EstimateBuilder.build(takeoff: t, catalog: Catalog.seed(), pricing: Catalog.defaultPricing, overrides: list)
+            XCTAssertEqual(e.lines.first { $0.key == "dev:wap" }?.unitPrice, 99.99)
+            XCTAssertEqual(e.lines.filter { $0.key == "custom:trip" }.map(\.total), [45])
+        }
+        let gone = [row("a", "dev:wap", "2026-11-16T00:00:00.000Z", price: 99.99), row("a2", "dev:wap", "2026-11-17T00:00:00.000Z", price: 5, deleted: true)]
+        XCTAssertEqual(EstimateBuilder.latestOverrides(gone)["dev:wap"]?.id, "a")
+        let tie = [row("y1", "k", "2026-11-16T00:00:00.000Z"), row("y2", "k", "2026-11-16T00:00:00.000Z")]
+        XCTAssertEqual(EstimateBuilder.latestOverrides(tie)["k"]?.id, "y2")
+        // A removed newest row hides the charge, even when an older row for it isn't removed.
+        var removed = row("c2", "custom:trip", "2026-11-17T00:00:00.000Z", price: 45, qty: 1, desc: "Trip", sort: 1)
+        removed.removed = true
+        let e2 = EstimateBuilder.build(takeoff: t, catalog: Catalog.seed(), pricing: Catalog.defaultPricing, overrides: older + [removed])
+        XCTAssertTrue(e2.lines.filter { $0.key == "custom:trip" }.isEmpty)
+    }
+
+    func testEditingAnOverrideEditsTheRowTheEstimateShows() {
+        var b = ProjectBundle(project: Project(clientName: "C", address: "A"))
+        var old = EstimateLine(id: "old", projectId: b.project.id, key: "dev:wap")
+        old.updatedAt = "2026-11-15T00:00:00.000Z"; old.unitPrice = 1
+        var new = EstimateLine(id: "new", projectId: b.project.id, key: "dev:wap")
+        new.updatedAt = "2026-11-16T00:00:00.000Z"; new.unitPrice = 2
+        b.estimateLines = [new, old]
+        b.upsertEstimateLine(key: "dev:wap") { $0.unitPrice = 3 }
+        XCTAssertEqual(EstimateBuilder.latestOverrides(b.estimateLines)["dev:wap"]?.unitPrice, 3)
+        XCTAssertEqual(b.estimateLines.first { $0.id == "new" }?.unitPrice, 3)
+        // A new override gets the id the web app gives it; after a reset, overriding again reuses that row.
+        b.upsertEstimateLine(key: "opt:cam-indoor") { $0.include = true }
+        XCTAssertEqual(b.estimateLines.filter { $0.key == "opt:cam-indoor" }.map(\.id), ["\(b.project.id):opt:cam-indoor"])
+        b.resetEstimateLine(key: "opt:cam-indoor")
+        b.upsertEstimateLine(key: "opt:cam-indoor") { $0.include = false }
+        let rows = b.estimateLines.filter { $0.key == "opt:cam-indoor" }
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.deleted, nil)
+        XCTAssertEqual(rows.first?.include, false)
+    }
+
     func testDeletedProductsStayOffTheMaterialList() {
         var b = ProjectBundle(project: Project(clientName: "C", address: "A"))
         var gone = Product(id: "c-old", deviceTypeId: "wire:Cat6", brand: "Old", model: "Cable", sku: "OLD", unitPrice: 0.5)

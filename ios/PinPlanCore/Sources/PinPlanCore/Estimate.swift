@@ -42,6 +42,17 @@ private func money(_ v: Double) -> Double { Money.round(v) }
 public enum EstimateBuilder {
     /// - products / split: when the job picks products (brand + model) for device types, their quantities get their own
     ///   lines at the product's price; whatever has no product stays on the device type's line.
+    /// One override per line key: the newest by updatedAt (deleted rows don't count; on a tie the later row in the list
+    /// wins). Older builds gave every override a random id, so a key can have several rows. Same as the web's latestOverrides.
+    public static func latestOverrides(_ overrides: [EstimateLine]) -> [String: EstimateLine] {
+        var byKey: [String: EstimateLine] = [:]
+        for o in overrides where o.deleted != true {
+            if let cur = byKey[o.key], SyncMap.date(o.updatedAt) < SyncMap.date(cur.updatedAt) { continue }
+            byKey[o.key] = o
+        }
+        return byKey
+    }
+
     public static func build(takeoff: Takeoff, catalog: [DeviceType], pricing: PricingSettings, overrides: [EstimateLine] = [],
                              products: [Product] = [], split: [String: [String: (confirmed: Double, tentative: Double)]] = [:],
                              cableChoices: [String: String] = [:]) -> Estimate {
@@ -123,8 +134,7 @@ public enum EstimateBuilder {
             }
         }
 
-        let live = overrides.filter { $0.deleted != true }
-        let byKey = Dictionary(live.map { ($0.key, $0) }, uniquingKeysWith: { _, b in b })
+        let byKey = latestOverrides(overrides)
         var lines: [ComputedLine] = []
         for var l in base {
             let o = byKey[l.key]
@@ -140,7 +150,7 @@ public enum EstimateBuilder {
             lines.append(l)
         }
         // Added charges in the order they were added (sort stamp, then id) — same as the web app.
-        let custom = live.sorted { a, b in
+        let custom = byKey.values.sorted { a, b in
             let sa: Double = Money.chargeOrder(a.sort), sb: Double = Money.chargeOrder(b.sort)
             return sa != sb ? sa < sb : a.id < b.id
         }

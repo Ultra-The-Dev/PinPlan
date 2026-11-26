@@ -120,3 +120,12 @@ describe("after a pull", () => {
     expect((await db().salesDocs.get("inv-1"))?.balanceDue).toBe(1000);
   });
 });
+
+describe("numbers without cloud sync", () => {
+  it("never hands out a number a document on this device already has (lost or unreadable counter)", () => {
+    const used = new Set(["INV-2026-0001", "INV-2026-0002", "INV-2026-0004"]);
+    expect(docActions.freeLocalNumber("INV-{YYYY}-{0000}", 1, "2026-03-01", used)).toEqual({ n: 3, number: "INV-2026-0003" });
+    expect(docActions.freeLocalNumber("INV-{YYYY}-{0000}", 4, "2026-03-01", used)).toEqual({ n: 5, number: "INV-2026-0005" });
+    expect(docActions.freeLocalNumber("Q-{0000}", 7, "2026-03-01", used)).toEqual({ n: 7, number: "Q-0007" });
+  });
+});

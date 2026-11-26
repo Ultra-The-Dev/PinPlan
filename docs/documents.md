@@ -193,7 +193,9 @@ returns `{kind: {next, preview}}` for Settings.
   `options.changeOrderAmount` (what they added after tax, left out of later remaining-balance deductions). "Bill this
   change" on an approved change order makes an invoice for it alone (`invoiceFromChanges`). Not on an invoice with a
   document discount (it would spread over the changes): those are billed on their own.
-- **Invoice → credit note** (`creditNoteFor`): its lines, to edit down; once issued it reduces the invoice balance.
+- **Invoice → credit note** (`creditNoteFor`): its lines, to edit down; once issued it reduces the invoice balance. An
+  invoice with deductions (a final invoice less its deposit) gets one untaxed "Credit against INV-…" line for its own
+  total instead, so the credit never starts above what that invoice billed.
 - **Duplicate**: a fresh draft (no number, link, answer or payments).
 
 ## Client link

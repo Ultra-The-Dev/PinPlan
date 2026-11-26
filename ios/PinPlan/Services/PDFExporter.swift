@@ -241,7 +241,7 @@ enum PDFExporter {
             var y = max(by, 110) + 12
             let half = (R - L - 10) / 2
             for (i, (label, main, sub)) in [("PREPARED FOR", p.clientName, [p.clientEmail, p.clientPhone].compactMap { $0 }.joined(separator: "  ")),
-                                             ("JOB SITE", p.address, "Floors: \(bundle.liveSheets.count)   Devices: \(bundle.liveMarkers.filter { !$0.tentative }.count)")].enumerated() {
+                                             ("JOB SITE", p.address, "Floors: \(bundle.liveSheets.count)   Devices: \(bundle.liveMarkers.filter { !$0.tentative }.quantitySum)")].enumerated() {
                 let bx = L + CGFloat(i) * (half + 10)
                 ctx.setFillColor(UIColor(white: 0.97, alpha: 1).cgColor)
                 ctx.addPath(UIBezierPath(roundedRect: CGRect(x: bx, y: y, width: half, height: 58), cornerRadius: 6).cgPath); ctx.fillPath()

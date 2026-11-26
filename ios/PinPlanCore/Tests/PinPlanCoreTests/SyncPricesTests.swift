@@ -183,6 +183,32 @@ final class SyncPricesTests: XCTestCase {
         XCTAssertEqual(s.bundles.count, 1)
     }
 
+    /// The web app gives a price override the id "<job id>:<line key>" (estimateLineId), the same on every device. Those
+    /// rows must reach the iPad (they are never file names here); anything else unsafe is still refused.
+    func testWebEstimateOverrideIdsArePulled() {
+        var s = SyncState(bundles: [job()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        var o = EstimateLine(id: "p1:dev:wap", projectId: "p1", key: "dev:wap")
+        o.unitPrice = 99.99
+        o.updatedAt = "2026-11-20T10:00:00.000Z"
+        let remote = SyncMap.toRemote(.estimateLines, SyncState.json(o).0)
+        XCTAssertEqual(s.merge(.estimateLines, remote: remote, ledger: &ledger), .applied)
+        XCTAssertEqual(s.bundles["p1"]?.estimateLines.first { $0.id == "p1:dev:wap" }?.unitPrice, 99.99)
+        var charge = remote
+        charge["id"] = "p1:custom:abc@cam-indoor+cam-outdoor"
+        charge["key"] = "custom:abc@cam-indoor+cam-outdoor"
+        XCTAssertEqual(s.merge(.estimateLines, remote: charge, ledger: &ledger), .applied)
+        for (id, pid) in [("p2:dev:wap", "p1"), ("../x", "p1"), ("p1:", "p1"), ("p1:dev\nwap", "p1"), ("x:dev:wap", "x/../p1")] {
+            var bad = remote
+            bad["id"] = id
+            bad["project_id"] = pid
+            XCTAssertEqual(s.merge(.estimateLines, remote: bad, ledger: &ledger), .refused, id)
+        }
+        var marker = SyncMap.toRemote(.markers, SyncState.json(Marker(id: "p1:m", projectId: "p1", sheetId: "s1", deviceTypeId: "tv", x: 0, y: 0, label: "TV")).0)
+        marker["project_id"] = "p1"
+        XCTAssertEqual(s.merge(.markers, remote: marker, ledger: &ledger), .refused, "only price overrides take this form")
+    }
+
     // MARK: edit times
 
     func testRowsGoUpWithTheirEditTimeNotThePushTime() {

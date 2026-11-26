@@ -246,11 +246,12 @@ export function documentTotals(doc: TotalsInput): DocTotals {
   return { subtotal, discountTotal, feeTotal, taxLines, taxTotal, grossTotal, deductionTotal, total, deposit, optionalTotal, sections: sections.filter((s) => s.id !== null || s.total !== 0), lineNet };
 }
 
-/** A % of, or a fixed amount up to, `of` (never negative, never more than `of` when `of` is positive). */
+/** A % of, or a fixed amount up to, `of`: never negative and never more than `of` (0 when `of` is 0 or less, so a
+ *  discount on a document with nothing counted yet can't make its total negative). */
 export function adjustAmount(a: Adjust | null | undefined, of: number): number {
-  if (!a || !a.value || !Number.isFinite(a.value)) return 0;
+  if (!a || !a.value || !Number.isFinite(a.value) || !(of > 0)) return 0;
   if (a.type === "pct") return money((of * Math.min(100, Math.max(0, a.value))) / 100);
-  return money(of > 0 ? Math.min(Math.max(0, a.value), of) : Math.max(0, a.value));
+  return money(Math.min(Math.max(0, a.value), of));
 }
 
 // ---------------------------------------------------------------- payments and status
@@ -843,9 +844,18 @@ export function jobBilling(docs: SalesDoc[], approvedChanges = 0): JobBilling {
   return { quote, contract, billed, paid: Math.max(0, paid), unpaid, leftToBill: contract == null ? null : Math.max(0, money(contract - billed)) };
 }
 
-/** A credit note against an invoice: its lines, to edit down to what is being credited. */
+/**
+ * A credit note against an invoice: its lines, to edit down to what is being credited. An invoice with amounts taken
+ * off (a final invoice less its deposit) gets one untaxed line for its own total instead: its lines are the whole job,
+ * so copying them without the deductions would credit more than the invoice was for.
+ */
 export function creditNoteFor(invoice: SalesDoc, input: { id: string; now: string; day: string; settings: DocumentSettings }): SalesDoc {
   const s = input.settings;
+  const { deductionTotal, total } = documentTotals(invoice);
+  const deducted = deductionTotal !== 0;
+  const lines: DocLine[] = deducted
+    ? [{ id: lineId(), kind: "item", description: `Credit against ${invoice.number ?? "invoice"}`, qty: 1, unit: "each", unitPrice: Math.max(0, total), taxable: false }]
+    : invoice.lines.filter((l) => !l.optional).map((l) => ({ ...l, id: lineId() }));
   return withTotals({
     ...duplicateDocument(invoice, { ...input, kind: "credit_note" }),
     title: null,
@@ -859,7 +869,8 @@ export function creditNoteFor(invoice: SalesDoc, input: { id: string; now: strin
     notes: invoice.number ? `Credit against invoice ${invoice.number}.` : s.kinds.credit_note.notes,
     terms: s.kinds.credit_note.terms,
     footer: s.kinds.credit_note.footer,
-    lines: invoice.lines.filter((l) => !l.optional).map((l) => ({ ...l, id: lineId() })),
+    lines,
+    ...(deducted ? { discount: null, fees: [] } : {}),
   });
 }
 
