@@ -45,7 +45,7 @@ jobs:
       IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: |
           # App Store Connect rejects uploads built with a beta or RC Xcode, so pick the newest release one.
@@ -129,7 +129,7 @@ jobs:
       - name: Remove the key
         if: always()
         run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: testflight-logs

@@ -18,7 +18,7 @@ jobs:
   core-tests:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - name: PinPlanCore tests
@@ -28,7 +28,7 @@ jobs:
   build-app:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - name: Install XcodeGen
@@ -54,7 +54,7 @@ jobs:
           grep -q "BUILD SUCCEEDED" release.log
       - name: Upload build log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-build-log
           path: |

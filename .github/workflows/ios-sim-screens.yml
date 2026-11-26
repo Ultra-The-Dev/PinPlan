@@ -55,7 +55,7 @@ jobs:
     env:
       SECOND_LANG: ${{ inputs.second_language || 'es' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
@@ -106,7 +106,7 @@ jobs:
               || echo "warning: no attachments exported for $L"
           done
           ls -laR shots
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-sim-screens
@@ -114,7 +114,7 @@ jobs:
             ios/shots
             ios/test-*.log
             ios/build.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-sim-screens-xcresult
@@ -129,7 +129,7 @@ jobs:
       DEVICES: ${{ inputs.devices || 'iPhone SE (3rd generation),iPhone 16,iPad Pro 13-inch (M4)' }}
       VARIANTS: ${{ inputs.layout_variants || 'en,pl,en-dark' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
@@ -210,7 +210,7 @@ jobs:
             t 120 xcrun simctl shutdown "$UDID"
           done 3< sims.txt
           ls -laR layout-shots | head -400
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-layout-screens
@@ -218,7 +218,7 @@ jobs:
             ios/layout-shots
             ios/layout-*.log
             ios/build.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-layout-screens-xcresult
@@ -233,7 +233,7 @@ jobs:
       DEVICES: ${{ inputs.tutorial_devices || 'iPhone 16,iPad Pro 13-inch (M4)' }}
       SECOND_LANG: ${{ inputs.second_language || 'es' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Xcode 26
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
       - run: brew install xcodegen
@@ -302,7 +302,7 @@ jobs:
             t 120 xcrun simctl shutdown "$UDID"
           done 3< sims.txt
           ls -laR tutorial-shots | head -300
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-tutorial-screens
@@ -310,7 +310,7 @@ jobs:
             ios/tutorial-shots
             ios/tutorial-*.log
             ios/build.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ios-tutorial-screens-xcresult
