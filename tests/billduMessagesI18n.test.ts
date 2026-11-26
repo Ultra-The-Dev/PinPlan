@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BillduError } from "@/lib/billdu/client";
 import { credsErrorResponse, handleError } from "@/lib/billdu/route-helpers";
 import { NOT_CONNECTED } from "@/lib/server/billduCreds";
+import { ALREADY_SENDING, CLAIM_FAILED } from "@/lib/server/billduClaims";
+import { PLAN_REQUIRED_MESSAGE } from "@/lib/server/planGate";
 import { loadDictionary } from "@/lib/i18n/dictionaries";
 import { LOCALES } from "@/lib/i18n/locales";
 
@@ -27,6 +29,9 @@ describe("Billdu server messages are translated", () => {
       "Couldn't load your Billdu connection. Try again in a minute.",
       "Couldn't save your Billdu connection. Try again in a minute.",
       "Couldn't disconnect Billdu. Try again in a minute.",
+      ALREADY_SENDING,
+      CLAIM_FAILED,
+      PLAN_REQUIRED_MESSAGE,
     ];
     for (const { code } of LOCALES) {
       if (code === "en") continue;

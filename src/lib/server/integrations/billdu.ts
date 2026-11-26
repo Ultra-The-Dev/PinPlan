@@ -4,7 +4,15 @@ import { BillduClient, BillduError, type BillduClientRecord } from "@/lib/billdu
 import { billduUnit, clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, type BillduItem } from "@/lib/billdu/mapping";
 import { effectiveCreds } from "../billduCreds";
 import { remoteLines } from "./payload";
+import type { SalesDoc } from "@/lib/types";
 import { IntegrationError, type Provider, type ProviderContext } from "./types";
+
+/** Billdu takes issued invoices only, and can't void one from here. */
+function refuses(doc: SalesDoc): IntegrationError | null {
+  if (doc.kind !== "invoice") return new IntegrationError("Billdu takes invoices only. Record credit notes in Billdu.", 400, "unsupported");
+  if (doc.status === "void") return new IntegrationError("Void it in Billdu too: Northpin can't void Billdu documents.", 400, "unsupported");
+  return null;
+}
 
 async function billduClient(ctx: ProviderContext): Promise<BillduClient> {
   const loaded = await effectiveCreds(ctx.caller);
@@ -64,9 +72,11 @@ export const billdu: Provider = {
     });
   },
 
+  refuses,
+
   async pushInvoice(ctx, { doc, customerId, link }) {
-    if (doc.kind !== "invoice") throw new IntegrationError("Billdu takes invoices only. Record credit notes in Billdu.", 400, "unsupported");
-    if (doc.status === "void") throw new IntegrationError("Void it in Billdu too: Northpin can't void Billdu documents.", 400, "unsupported");
+    const refusal = refuses(doc);
+    if (refusal) throw refusal;
     const c = await billduClient(ctx);
     // Tax, discounts and deductions are their own items (tax 0 on every line), so Billdu's total matches ours.
     const items: BillduItem[] = remoteLines(doc).map((l) => ({

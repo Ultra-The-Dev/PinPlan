@@ -85,6 +85,53 @@ final class SyncTests: XCTestCase {
         XCTAssertTrue(state.removedProjects(since: ledger).isEmpty)
     }
 
+    func testAJobDeleteGoesUpWithTheTimeItWasDeletedNotThePushTime() {
+        var state = SyncState(bundles: [sample()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        let own: String? = state.bundles["p1"]!.project.updatedAt
+        // Deleted here at 09:00 (offline); the next syncs (noteDirty) keep that time; it goes up at 18:00.
+        ledger.noteRemoved(projectId: "p1", own: own, now: "2099-11-15T09:00:00.000Z")
+        state.bundles["p1"] = nil
+        let removed: [String] = state.removedProjects(since: ledger)
+        ledger.noteDirty(state.changes(since: ledger), now: "2099-11-15T12:00:00.000Z", removedProjects: removed)
+        ledger.noteDirty(state.changes(since: ledger), now: "2099-11-15T18:00:00.000Z", removedProjects: removed)
+        XCTAssertEqual(ledger.deleteTime(projectId: "p1", fallback: "2099-11-15T18:00:00.000Z"), "2099-11-15T09:00:00.000Z")
+        // A delete that wasn't noted (an app version from before) gets the first time a sync saw it.
+        var other = SyncLedger()
+        other.hashes[SyncLedger.key(.projects, "p2")] = "h"
+        other.noteDirty([], now: "2099-11-15T10:00:00.000Z", removedProjects: ["p2"])
+        other.noteDirty([], now: "2099-11-15T11:00:00.000Z", removedProjects: ["p2"])
+        XCTAssertEqual(other.deleteTime(projectId: "p2", fallback: "x"), "2099-11-15T10:00:00.000Z")
+        // A job that never went up isn't noted.
+        var fresh = SyncLedger()
+        fresh.noteRemoved(projectId: "p3", own: nil, now: "2099-11-15T09:00:00.000Z")
+        XCTAssertTrue(fresh.dirtyAt.isEmpty)
+    }
+
+    func testADeleteTheServerKeptBringsTheWholeJobBack() {
+        var state = SyncState(bundles: [sample()], catalog: [], products: [])
+        var ledger = SyncLedger()
+        state.markSynced(state.rows(), ledger: &ledger)
+        ledger.watermarks = ["markers": "2026-11-15T10:00:00.000Z", "projects": "2026-11-15T10:00:00.000Z"]
+        ledger.noteRemoved(projectId: "p1", own: nil, now: "2026-11-15T09:00:00.000Z")
+        // Deleted on the server: done, nothing else to fetch.
+        var a = ledger
+        XCTAssertEqual(a.finishRemoval(projectId: "p1", returned: [["id": "p1", "deleted": true]]), .deleted)
+        XCTAssertNil(a.hashes[SyncLedger.key(.projects, "p1")])
+        XCTAssertNil(a.dirtyAt[SyncLedger.key(.projects, "p1")])
+        XCTAssertFalse(a.watermarks.isEmpty)
+        // Not visible to this account (nothing returned): stop sending it, as before.
+        var b = ledger
+        XCTAssertEqual(b.finishRemoval(projectId: "p1", returned: []), .deleted)
+        XCTAssertFalse(b.watermarks.isEmpty)
+        // Changed elsewhere after the delete here: the server keeps its newer copy; pull everything again.
+        var c = ledger
+        XCTAssertEqual(c.finishRemoval(projectId: "p1", returned: [["id": "p1", "deleted": false]]), .keptOnServer)
+        XCTAssertTrue(c.watermarks.isEmpty)
+        XCTAssertNil(c.hashes[SyncLedger.key(.projects, "p1")])
+    }
+
     func testRemoteDeletionOnlyForgetsThatJob() {
         var other = sample()
         other.project.id = "p10"

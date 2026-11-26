@@ -1,6 +1,8 @@
 # Online invoice payments (Stripe Connect)
 
 A company connects its own Stripe account once (**Settings → Quotes & invoices → Online payments**, owner or admin).
+Connecting needs an active plan or a running trial (402 `plan_required` otherwise); an account already connected keeps
+taking payments when the plan lapses.
 From then on every finalized invoice's client link (`/d?t=…`) shows **Pay $X by card** (and, if the office turns it on,
 US bank account / ACH for USD invoices). The client pays on Stripe's hosted Checkout page; no card data touches
 Northpin. When Stripe confirms the payment, the server records it on the invoice exactly like a payment typed in with

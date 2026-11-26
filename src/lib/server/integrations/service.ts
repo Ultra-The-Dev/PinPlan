@@ -128,6 +128,9 @@ export async function pushDocument(provider: Provider, ic: IntegrationCaller, ct
     const key = idempotencyKey([owner.kind, owner.id, provider.id, localType, doc.id, hash, stableJson(ctx.settings), link?.remoteId, link?.syncToken]);
     let out;
     try {
+      // A document the provider won't take is refused before the customer is sent (no client is made for nothing).
+      const refusal = provider.refuses?.(doc);
+      if (refusal) throw refusal;
       out = await provider.pushInvoice(ctx, { doc, customerId: isVoid ? "" : await customerId(), link, idempotencyKey: key });
     } catch (e) {
       await saveLink(owner, provider.id, { localType, localId: doc.id, lastError: errMessage(e) }, false).catch(() => undefined);

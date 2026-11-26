@@ -372,9 +372,15 @@ public struct SyncLedger: Codable, Sendable, Equatable {
     /// noted keep their time; rows no longer changed are forgotten. A row that only looks changed because it was never
     /// synced, or because the fingerprints changed in an update, isn't an edit made now: it keeps its own `updatedAt`
     /// (so it can't beat a newer edit made elsewhere).
-    public mutating func noteDirty(_ rows: [SyncState.Row], now: String) {
+    /// `removedProjects` (`SyncState.removedProjects(since:)`): jobs deleted here and not yet deleted on the server. They
+    /// keep the time noted when they were deleted (`noteRemoved`), or get `now` when none was noted.
+    public mutating func noteDirty(_ rows: [SyncState.Row], now: String, removedProjects: [String] = []) {
         let rehashed: Set<SyncTable> = hashVersion < Self.currentHashVersion ? [.projects, .deviceTypes, .products] : []
         var next: [String: String] = [:]
+        for id in removedProjects {
+            let k = Self.key(.projects, id)
+            next[k] = dirtyAt[k] ?? now
+        }
         for r in rows {
             let k = Self.key(r.table, r.id)
             if let seen = dirtyAt[k] { next[k] = seen; continue }
@@ -410,6 +416,37 @@ public struct SyncLedger: Codable, Sendable, Equatable {
         case let (nil, s?): return s
         default: return fallback
         }
+    }
+
+    /// A job deleted on this device at `now` (its stored copy dated `own`). Only a job synced before is noted: one that
+    /// never went up has nothing to delete on the server. The delete goes up with this time, not the time of the push,
+    /// like the web app's delete (the server keeps whichever change is newer).
+    public mutating func noteRemoved(projectId: String, own: String?, now: String) {
+        let k = Self.key(.projects, projectId)
+        guard hashes[k] != nil else { return }
+        dirtyAt[k] = Self.editedAfter(own, now: now)
+    }
+
+    /// When the job `projectId` was deleted here (`fallback`, the push time, when that wasn't noted).
+    public func deleteTime(projectId: String, fallback: String) -> String {
+        dirtyAt[Self.key(.projects, projectId)] ?? fallback
+    }
+
+    public enum RemovalOutcome: Equatable { case deleted, keptOnServer }
+
+    /// The server answered the delete of `projectId` with `returned` (the job's row after the update: `deleted`; none
+    /// when this account can't see it). Either way this device stops sending the delete. When the server kept its copy
+    /// (it was changed elsewhere after the delete here: the newer change wins) the pull watermarks are forgotten, so the
+    /// next pull brings the whole job back (its sheets, devices…), not just the job row.
+    @discardableResult
+    public mutating func finishRemoval(projectId: String, returned: [[String: Any]]) -> RemovalOutcome {
+        let k = Self.key(.projects, projectId)
+        hashes.removeValue(forKey: k)
+        dirtyAt.removeValue(forKey: k)
+        let row: [String: Any]? = returned.first { ($0["id"] as? String) == projectId } ?? returned.first
+        guard let row, let deleted = row["deleted"] as? Bool, !deleted else { return .deleted }
+        watermarks = [:]
+        return .keptOnServer
     }
 
     private enum CodingKeys: String, CodingKey { case hashes, watermarks, uploadedImages, userId, teamId, retry, dirtyAt, hashVersion }

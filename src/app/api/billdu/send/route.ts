@@ -4,6 +4,7 @@ import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "@/lib/
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
 import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
+import { claimDone, definitelyRefused, releaseClaim, takeClaim, type ClaimKey } from "@/lib/server/billduClaims";
 import type { Project } from "@/lib/types";
 
 interface SendBody {
@@ -76,6 +77,18 @@ export async function POST(req: Request) {
 
   const client = await getClientOrError(auth.caller);
   if (client instanceof Response) return client;
+
+  // One send of this job's document at a time; a resend updates the document an earlier send made (billduClaims.ts).
+  const partial = deposit != null && deposit < 100;
+  const projectId = typeof body.project.id === "string" && body.project.id.length >= 1 && body.project.id.length <= 200 ? body.project.id : null;
+  const key: ClaimKey | null =
+    projectId && auth.caller.mode !== "single_company" ? { owner: auth.caller.owner.id, projectId, docType: partial ? `${body.docType}_deposit` : body.docType } : null;
+  const taken = await takeClaim(key);
+  if (!taken.ok) return taken.response;
+  const claim = taken.claim;
+  const existingDocId = body.existingDocId ?? (partial ? null : (claim?.billduDocId ?? null));
+
+  let documentCalled = false;
   try {
     const clientId = await findOrCreateClient(client, body.project);
     const plansUrl = typeof body.plansUrl === "string" && body.plansUrl.length < 1000 ? body.plansUrl : null;
@@ -83,9 +96,10 @@ export async function POST(req: Request) {
     // Update the document already sent for this job (same number, new items). If it was deleted in Billdu, make a new one.
     let updated = false;
     let doc: Awaited<ReturnType<typeof client.createDocument>> | null = null;
-    if (body.existingDocId) {
+    documentCalled = true;
+    if (existingDocId) {
       try {
-        doc = await client.updateDocument(body.existingDocId, documentUpdate(payload));
+        doc = await client.updateDocument(existingDocId, documentUpdate(payload));
         updated = true;
       } catch (e) {
         const status = (e as { status?: number }).status;
@@ -93,11 +107,13 @@ export async function POST(req: Request) {
       }
     }
     if (!updated) doc = await client.createDocument(payload);
+    const docId = updated ? Number(existingDocId) : Number(doc?.id);
+    if (Number.isSafeInteger(docId) && docId > 0) await claimDone(claim, docId);
     const amount = itemsTotal(items);
     return Response.json({
       clientId,
       doc: {
-        id: updated ? Number(body.existingDocId) : Number(doc?.id),
+        id: docId,
         type: body.docType,
         serial: (doc?.serial_number as string | undefined) ?? null,
         amount,
@@ -106,6 +122,9 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
+    // Billdu refused, or the send failed before the document call: a retry may start at once. Otherwise (a timeout,
+    // Billdu down) the document may exist: the claim stays until it is 2 minutes old.
+    if (!documentCalled || definitelyRefused(e)) await releaseClaim(claim);
     return handleError(e, auth.caller);
   }
 }

@@ -251,6 +251,17 @@ struct SupabaseClient {
         _ = try await send(r)
     }
 
+    /// Update rows and return them as stored afterwards (`select`: the columns wanted; row security can leave none).
+    func updateReturning(_ table: String, filter: String, values: [String: Any], select: String, token: String) async throws -> [[String: Any]] {
+        var r = request("/rest/v1/\(table)", query: filter + "&select=" + select, method: "PATCH", token: token)
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        r.httpBody = try JSONSerialization.data(withJSONObject: values)
+        let data: Data = try await send(r)
+        let rows: [[String: Any]] = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
+        return rows
+    }
+
     /// Update rows and return how many were changed (row security can leave none).
     func updateCounting(_ table: String, filter: String, values: [String: Any], select: String, token: String) async throws -> Int {
         var r = request("/rest/v1/\(table)", query: filter + "&select=" + select, method: "PATCH", token: token)
@@ -747,7 +758,17 @@ final class CloudSync {
     private func noteEdits() {
         guard let app, signedIn, accountSwitch == nil else { return }
         let before = ledger.dirtyAt
-        ledger.noteDirty(state(app).changes(since: ledger), now: isoNow())
+        let s = state(app)
+        let removed: [String] = s.removedProjects(since: ledger)
+        ledger.noteDirty(s.changes(since: ledger), now: isoNow(), removedProjects: removed)
+        if ledger.dirtyAt != before { saveLedger() }
+    }
+
+    /// A job deleted on this device: note the time now, so the delete goes up with it (not the time of the push).
+    func noteDeleted(_ b: ProjectBundle) {
+        guard signedIn, accountSwitch == nil else { return }
+        let before = ledger.dirtyAt
+        ledger.noteRemoved(projectId: b.project.id, own: b.project.updatedAt, now: isoNow())
         if ledger.dirtyAt != before { saveLedger() }
     }
 
@@ -975,8 +996,11 @@ final class CloudSync {
         let removed = s.removedProjects(since: ledger)
         for id in removed {
             do {
-                try await client.patch("projects", filter: "id=eq.\(id)", values: ["deleted": true, "updated_at": now], token: token)
-                ledger.hashes.removeValue(forKey: SyncLedger.key(.projects, id))
+                // Sent with the time it was deleted here. The server keeps its copy when that changed later elsewhere
+                // (the newer change wins): the job then comes back whole on the next pull.
+                let at: String = ledger.deleteTime(projectId: id, fallback: now)
+                let rows: [[String: Any]] = try await client.updateReturning("projects", filter: "id=eq.\(id)", values: ["deleted": true, "updated_at": at], select: "id,deleted", token: token)
+                ledger.finishRemoval(projectId: id, returned: rows)
                 sent += 1
             } catch let e as SupabaseClient.Failure where BillingLogic.isSubscriptionInactive(e.message) {
                 throw e

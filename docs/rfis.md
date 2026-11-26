@@ -86,6 +86,7 @@ Soft deletes (`deleted`). Unknown fields must be ignored when decoding (iOS: dec
 | photoIds, documentIds | photo_ids, document_ids | jsonb string[]? | job photos / job documents |
 | answer, answeredBy, answeredAt | answer, answered_by, answered_at | text?, text?, timestamptz? | |
 | shareToken | share_token | text? | unique (partial unique index); synced |
+| (server only) | share_expires_at | timestamptz? | when the `/q` link stops working: set by the database a year after it is shared or sent again; `/api/rfis/public` answers 404 after it |
 | sentAt, closedAt | sent_at, closed_at | timestamptz? | |
 | createdBy | created_by | text? | display name; never shown on the public page |
 | sender | sender | jsonb? | `{company, contact, phone, email, website, logo, brandColor}` frozen at send (logo only if ≤ 300 KB, data:/https) |

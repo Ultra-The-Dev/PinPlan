@@ -128,6 +128,8 @@ export interface Provider {
   disconnect(ctx: ProviderContext): Promise<void>;
   test(ctx: ProviderContext): Promise<{ ok: boolean; message: string; meta?: Record<string, unknown> }>;
   pushCustomer(ctx: ProviderContext, client: DocClient, link: Link | null): Promise<PushOutcome>;
+  /** Why this provider won't take the document (checked before anything, the customer included, is sent), or null. */
+  refuses?(doc: SalesDoc): IntegrationError | null;
   /**
    * Create or update an issued invoice / credit note (never a draft), or void it remotely when it is void here.
    * `idempotencyKey` is stable for the same content, so a retried request is not applied twice.

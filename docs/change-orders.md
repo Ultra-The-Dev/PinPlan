@@ -38,6 +38,7 @@ iPad app, must tolerate unknown and missing keys):
 | `photoIds`, `rfiId`, `sheetIds`, `markerIds` | jsonb / text | evidence; soft links (no foreign keys). `photoIds` are `Photo.id`s. |
 | `shareToken` | `share_token` (unique) | client link token (20+ chars, same generator as proposals) |
 | `publicView` | `public_view` jsonb | what the link shows, frozen when sent (`publicCoView`) |
+| (server only) | `share_expires_at` timestamptz | when the link stops working: set by the database a year after the link is shared or sent again (`20261126001000_audit_hardening.sql`); `/api/change-orders/public` treats an expired link as unknown (404) |
 | `sentAt`, `respondedAt` | timestamptz | |
 | `approvedName`, `signatureImageId`, `clientComment` | text | the answer. The signature PNG is stored like every job file: storage bucket `plans`, path `<projectId>/<signatureImageId>`, and pulled into the local `images` table by sync. |
 | `createdBy`, `createdAt`, `updatedAt`, `deleted` | | soft deletes, last write wins |

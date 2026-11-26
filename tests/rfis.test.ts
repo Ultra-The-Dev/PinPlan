@@ -349,6 +349,18 @@ describe("api/rfis/public", () => {
     }
   });
 
+  it("an expired link looks like an unknown one (GET and POST); a live or unset expiry still works", async () => {
+    const { GET, POST } = await import("@/app/api/rfis/public/route");
+    current = row({ share_expires_at: new Date(Date.now() - 60_000).toISOString() });
+    expect((await GET(get(TOKEN))).status).toBe(404);
+    expect((await POST(post({ t: TOKEN, answer: "Yes", name: "Pat" }))).status).toBe(404);
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+    current = row({ share_expires_at: new Date(Date.now() + 86_400_000).toISOString() });
+    expect((await GET(get(TOKEN, "3.3.3.3"))).status).toBe(200);
+    current = row({ share_expires_at: null });
+    expect((await GET(get(TOKEN, "3.3.3.4"))).status).toBe(200);
+  });
+
   it("answering sets the answer, status answered, ball with us and bumps updated_at", async () => {
     const { POST } = await import("@/app/api/rfis/public/route");
     const r = await POST(post({ t: TOKEN, answer: "  Yes, IC-rated  ", name: "Pat Rivera" }));

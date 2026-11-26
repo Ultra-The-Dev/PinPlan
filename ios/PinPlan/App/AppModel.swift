@@ -244,6 +244,7 @@ final class AppModel {
     }
 
     func delete(_ b: ProjectBundle) {
+        cloud.noteDeleted(b)   // the delete goes up with this time, like the web app's
         store.deleteProject(b)
         projects.removeAll { $0.project.id == b.project.id }
         cloud.kick()

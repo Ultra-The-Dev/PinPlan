@@ -439,6 +439,17 @@ describe("public change order route", () => {
     expect((await GET(new Request(`http://localhost/api/change-orders/public?t=${TOKEN}`))).status).toBe(404);
   });
 
+  it("an expired link looks like an unknown one: nothing to read, nothing to answer", async () => {
+    const { GET, POST } = await import("@/app/api/change-orders/public/route");
+    row.share_expires_at = new Date(Date.now() - 60_000).toISOString();
+    expect((await GET(new Request(`http://localhost/api/change-orders/public?t=${TOKEN}`))).status).toBe(404);
+    expect((await POST(post({ t: TOKEN, decision: "reject", name: "Pat", comment: "no" }, "9.9.9.9"))).status).toBe(404);
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+    expect(calls[0].url).toContain("share_expires_at");
+    row.share_expires_at = new Date(Date.now() + 86_400_000).toISOString();
+    expect((await GET(new Request(`http://localhost/api/change-orders/public?t=${TOKEN}`))).status).toBe(200);
+  });
+
   it("approve uploads the signature and sets status, name, date and signature id", async () => {
     const { POST } = await import("@/app/api/change-orders/public/route");
     const r = await POST(post({ t: TOKEN, decision: "approve", name: " Pat Client ", signature: pngDataUrl(2000), comment: "Go ahead" }));

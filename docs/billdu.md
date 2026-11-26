@@ -73,3 +73,13 @@ For multi-company use the app should, when the user is signed in to their PinPla
   `403 { code: "office_only" }` (technicians) and `401 { code: "sign_in_required" }` (expired session);
 - for its connection check, call `GET /api/billdu/credentials` with the bearer and show `configured` (the
   `billdu` flag in `/api/health` describes the server-wide credentials only).
+
+## One send at a time (`billdu_send_claims`)
+
+`POST /api/billdu/send` takes a claim per company, job and document type (`20261126001000_audit_hardening.sql`,
+service role only; `src/lib/server/billduClaims.ts`) before it calls Billdu. A second send of the same document while
+the first is under way (less than 2 minutes, no document yet) gets `409 { code: "already_sending" }`. The id of the
+document Billdu returns is kept, so a resend without `existingDocId` (a lost answer, a double click, another device)
+updates that document instead of making another; an `existingDocId` sent by the app wins. A definite refusal from
+Billdu (4xx) lets the claim go at once; after a timeout or a 5xx it stays until it is 2 minutes old. Deposit documents
+are new each time: their claim (`<type>_deposit`) only keeps two sends apart.

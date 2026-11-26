@@ -17,6 +17,7 @@ import { notifyRfiAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
 import { publicRfiView, SHARE_TOKEN_RE, transition, type PublicRfiPhoto, type PublicRfiPlan } from "@/lib/rfis";
 import { toLocal, toRemote } from "@/lib/syncMap";
+import { linkExpired } from "@/lib/server/linkExpiry";
 import type { Rfi } from "@/lib/types";
 
 const HOUR = 60 * 60 * 1000;
@@ -41,7 +42,9 @@ async function rows<T>(path: string): Promise<T[]> {
 /** The live RFI behind a token (raw database row), or null. */
 async function findByToken(token: string): Promise<Record<string, unknown> | null> {
   const list = await rows<Record<string, unknown>>(`/rest/v1/rfis?share_token=eq.${encodeURIComponent(token)}&deleted=is.false&select=*&limit=1`);
-  return list[0] ?? null;
+  const row = list[0] ?? null;
+  // An expired link (share_expires_at, set by the database a year after the link was shared or last sent) is unknown.
+  return row && !linkExpired(row.share_expires_at) ? row : null;
 }
 
 /** Signed download URLs for storage paths in the plans bucket (same order; null where signing failed). */

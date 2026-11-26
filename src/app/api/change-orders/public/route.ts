@@ -9,7 +9,8 @@
 // signature PNG is stored like every job file (plans bucket, <project>/<image id>), so the office devices pull it.
 // After an answer the office is emailed once (src/app/api/notify/answers.ts); a failed email never fails the answer.
 // Answers are limited per IP and per link in memory and, when the database has answer_rate_hit, across every server.
-// The answer body is read with a size limit (readBody.ts). Photo links are signed only for `<project>/<plain image
+// The answer body is read with a size limit (readBody.ts). A link stops working at share_expires_at (a year after it was
+// shared or last sent, set by the database): it then looks like an unknown link. Photo links are signed only for `<project>/<plain image
 // name>` (storagePath.ts): the frozen view is written by the job's members, so its image ids aren't trusted.
 import { randomBytes } from "node:crypto";
 import { connection } from "next/server";
@@ -19,6 +20,7 @@ import { jobImagePath } from "@/lib/server/storagePath";
 import { durableLimited, keyHash } from "@/lib/server/sendGuard";
 import { notifyChangeOrderAnswer } from "@/app/api/notify/answers";
 import { serviceConfigured, serviceFetch, supabaseUrl } from "@/lib/server/supabaseAdmin";
+import { linkExpired } from "@/lib/server/linkExpiry";
 import type { PublicCoResponse } from "@/lib/changeOrders";
 import type { ChangeOrderPublicView, ChangeOrderStatus } from "@/lib/types";
 
@@ -50,6 +52,8 @@ interface CoRow {
   approved_name: string | null;
   client_comment: string | null;
   updated_at?: string | null;
+  /** When the link stops working (set by the database when the link is shared or sent again). */
+  share_expires_at?: string | null;
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -58,10 +62,12 @@ const fail = (error: string, status: number) => json({ error }, status);
 
 async function findByToken(token: string): Promise<CoRow | null> {
   const r = await serviceFetch(
-    `/rest/v1/change_orders?share_token=eq.${encodeURIComponent(token)}&select=id,project_id,status,deleted,public_view,responded_at,approved_name,client_comment,updated_at&limit=1`,
+    `/rest/v1/change_orders?share_token=eq.${encodeURIComponent(token)}&select=id,project_id,status,deleted,public_view,responded_at,approved_name,client_comment,updated_at,share_expires_at&limit=1`,
   );
   if (!r.ok) throw new Error(`lookup failed (${r.status})`);
-  return ((await r.json()) as CoRow[])[0] ?? null;
+  const row = ((await r.json()) as CoRow[])[0] ?? null;
+  // An expired link is the same as an unknown one (to read and to answer).
+  return row && !linkExpired(row.share_expires_at) ? row : null;
 }
 
 /** Short-lived links to the photos the office attached (they live in the private plans bucket). */

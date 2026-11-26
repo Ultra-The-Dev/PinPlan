@@ -307,3 +307,139 @@ describe("secret encryption with key ids and rotation", () => {
     expect(() => decrypt("garbage", "aad")).toThrow();
   });
 });
+
+// ---------- one send at a time, and a resend updates the document it made (billdu_send_claims) ----------
+
+describe("Billdu send claims", () => {
+  const SB = "http://sb.test";
+  let claims: Map<string, { started_at: string; billdu_doc_id: number | null }>;
+  let billduCalls: string[];
+  let createStatus: number;
+  let nextDoc: number;
+
+  beforeEach(() => {
+    claims = new Map();
+    billduCalls = [];
+    createStatus = 201;
+    nextDoc = 900;
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SB);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "svc");
+    vi.stubEnv("PINPLAN_ENCRYPTION_KEY", "test-encryption-key");
+    vi.stubEnv("PINPLAN_FOUNDER_TEAM_ID", "t-1");
+    vi.stubEnv("BILLDU_API_KEY", KEY);
+    vi.stubEnv("BILLDU_API_SECRET", SECRET);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(String(input instanceof Request ? input.url : input));
+        const method = (init?.method ?? "GET").toUpperCase();
+        const auth = new Headers(init?.headers).get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+        if (url.origin !== SB) {
+          billduCalls.push(`${method} ${url.pathname}`);
+          if (url.pathname.startsWith("/clients/")) return Response.json({ id: 7, fullname: "Demo Client" });
+          if (method === "PATCH" && url.pathname.startsWith("/documents/")) return Response.json({ id: Number(url.pathname.split("/")[2]) });
+          if (method === "POST" && url.pathname.startsWith("/documents")) {
+            if (createStatus >= 400) return Response.json({ error: "no" }, { status: createStatus });
+            return Response.json({ id: nextDoc++, serial_number: "EST1" }, { status: 201 });
+          }
+          return Response.json({ items: [] });
+        }
+        if (url.pathname === "/auth/v1/user") return auth === "tok-owner" ? Response.json({ id: "owner" }) : Response.json({}, { status: 401 });
+        if (url.pathname === "/rest/v1/team_members") return Response.json([{ role: "owner", team_id: "t-1", teams: { name: "Co" } }]);
+        if (url.pathname === "/rest/v1/rpc/team_can_write") return Response.json(true);
+        if (url.pathname === "/rest/v1/rpc/rate_limit_hit") return Response.json({ ok: true, remaining: 10, retry_after: 0 });
+        if (url.pathname === "/rest/v1/rpc/billdu_send_claim") {
+          if (auth !== "svc") return Response.json({ message: "permission denied" }, { status: 401 });
+          const k = `${body.p_owner}|${body.p_project}|${body.p_doc_type}`;
+          const c = claims.get(k);
+          if (c && c.billdu_doc_id == null && Date.now() - Date.parse(c.started_at) < 120_000) return Response.json({ ok: false });
+          const started = new Date().toISOString();
+          claims.set(k, { started_at: started, billdu_doc_id: c?.billdu_doc_id ?? null });
+          return Response.json({ ok: true, billdu_doc_id: c?.billdu_doc_id ?? null, started_at: started });
+        }
+        if (url.pathname === "/rest/v1/billdu_send_claims") {
+          const eq = (n: string) => (url.searchParams.get(n) ?? "").replace(/^eq\./, "");
+          const k = `${eq("owner_id")}|${eq("project_id")}|${eq("doc_type")}`;
+          const c = claims.get(k);
+          if (method === "PATCH" && c) c.billdu_doc_id = body.billdu_doc_id;
+          if (method === "DELETE" && c && c.billdu_doc_id == null && (!url.searchParams.get("started_at") || eq("started_at") === c.started_at)) claims.delete(k);
+          return new Response(null, { status: 204 });
+        }
+        if (url.pathname.startsWith("/rest/v1/team_secrets")) return Response.json([]);
+        return Response.json({ message: "not found" }, { status: 404 });
+      }),
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  const send = async (extra: Record<string, unknown> = {}) => {
+    const { POST } = await import("@/app/api/billdu/send/route");
+    return POST(
+      new Request("http://localhost/api/billdu/send", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer tok-owner" },
+        body: JSON.stringify({ project: { ...project, billduClientId: 7 }, docType: "estimate", lines, taxPct: 0, currency: "USD", ...extra }),
+      }),
+    );
+  };
+
+  it("a resend without the document id (lost answer, second device) updates the document the first send made", async () => {
+    const first = await send();
+    expect(first.status).toBe(200);
+    expect((await first.json()).doc).toMatchObject({ id: 900, updated: false });
+    expect(claims.get("t-1|p1|estimate")?.billdu_doc_id).toBe(900);
+    billduCalls = [];
+    const again = await send();
+    expect(again.status).toBe(200);
+    expect((await again.json()).doc).toMatchObject({ id: 900, updated: true });
+    expect(billduCalls).toContain("PATCH /documents/900");
+    expect(billduCalls.some((c) => c.startsWith("POST /documents"))).toBe(false);
+  });
+
+  it("refuses a second send while the first is under way (409), without calling Billdu", async () => {
+    claims.set("t-1|p1|estimate", { started_at: new Date().toISOString(), billdu_doc_id: null });
+    const r = await send();
+    expect(r.status).toBe(409);
+    expect(await r.json()).toMatchObject({ code: "already_sending" });
+    expect(billduCalls).toEqual([]);
+    // A claim older than 2 minutes (a send that died) is taken over.
+    claims.set("t-1|p1|estimate", { started_at: new Date(Date.now() - 3 * 60_000).toISOString(), billdu_doc_id: null });
+    expect((await send()).status).toBe(200);
+  });
+
+  it("lets go of the claim when Billdu refuses, keeps it when Billdu may have made the document", async () => {
+    createStatus = 422;
+    expect((await send()).status).toBe(502);
+    expect(claims.has("t-1|p1|estimate")).toBe(false);
+    createStatus = 503;
+    expect((await send()).status).toBe(502);
+    expect(claims.get("t-1|p1|estimate")).toMatchObject({ billdu_doc_id: null });
+    expect((await send()).status).toBe(409);
+  });
+
+  it("deposit documents are new each time: the claim's document is never reused, and the claim is let go", async () => {
+    claims.set("t-1|p1|invoice", { started_at: new Date().toISOString(), billdu_doc_id: 555 });
+    const r = await send({ docType: "invoice", depositPct: 30 });
+    expect(r.status).toBe(200);
+    expect((await r.json()).doc).toMatchObject({ id: 900, updated: false, percent: 30 });
+    expect(billduCalls.some((c) => c.startsWith("PATCH"))).toBe(false);
+    expect(claims.has("t-1|p1|invoice_deposit")).toBe(false);
+    expect(claims.get("t-1|p1|invoice")?.billdu_doc_id).toBe(555);
+  });
+
+  it("the document id sent by the app wins over the claim's", async () => {
+    claims.set("t-1|p1|estimate", { started_at: new Date().toISOString(), billdu_doc_id: 555 });
+    const r = await send({ existingDocId: 42 });
+    expect((await r.json()).doc).toMatchObject({ id: 42, updated: true });
+    expect(billduCalls).toContain("PATCH /documents/42");
+    expect(claims.get("t-1|p1|estimate")?.billdu_doc_id).toBe(42);
+  });
+});

@@ -12,6 +12,7 @@ import type Stripe from "stripe";
 import { originOf } from "@/lib/server/billing";
 import { requireUser } from "@/lib/server/auth";
 import { accountPatch, paymentsConfig, paymentsFailure, paymentsOffice, payError, payJson, serviceDb, statusOf, stripeFor, type AccountPatch, type PaymentsConfig } from "@/lib/server/onlinePayments";
+import { requirePaidOrTrial } from "@/lib/server/planGate";
 import { durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { readJsonLimited } from "@/lib/server/readBody";
 
@@ -76,6 +77,10 @@ export async function POST(request: Request) {
     const stripe = stripeFor(c.config);
 
     if (body.action === "connect") {
+      // Connecting is new work for the company: a lapsed company (trial over, subscription ended) can't start it. Only
+      // connecting: an account already connected keeps taking its clients' payments (checkout, confirm, webhook).
+      const gate = await requirePaidOrTrial(request, w.userId);
+      if (gate) return gate;
       const origin = originOf(request);
       if (!origin) return payError("Online payments need the app's address on this server: set PINPLAN_APP_URL.", "app_url_missing", 501);
       let row = await db.accountByOwner(w.owner);
