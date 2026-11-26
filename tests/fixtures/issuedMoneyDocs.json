@@ -1,0 +1,283 @@
+{
+ "coInvoice": {
+  "lines": [
+   {
+    "id": "lmwxykv127ti",
+    "kind": "section",
+    "description": "CO-001 \u2014 Change 1",
+    "qty": 0,
+    "unitPrice": 0,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv128a6",
+    "kind": "item",
+    "description": "Extra",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 1.07,
+    "taxable": true,
+    "taxIds": [
+     "co-tax-8_875"
+    ]
+   },
+   {
+    "id": "lmwxykv129tp",
+    "kind": "section",
+    "description": "CO-002 \u2014 Change 2",
+    "qty": 0,
+    "unitPrice": 0,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv12aol",
+    "kind": "item",
+    "description": "Extra",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 1.11,
+    "taxable": true,
+    "taxIds": [
+     "co-tax-8_875"
+    ]
+   },
+   {
+    "id": "lmwxykv12bfg",
+    "kind": "section",
+    "description": "CO-003 \u2014 Change 3",
+    "qty": 0,
+    "unitPrice": 0,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv12cqs",
+    "kind": "item",
+    "description": "Extra",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 10.05,
+    "taxable": true,
+    "taxIds": [
+     "co-tax-8_875"
+    ]
+   }
+  ],
+  "taxes": [
+   {
+    "id": "co-tax-8_875",
+    "name": "Sales tax",
+    "rate": 8.875
+   }
+  ],
+  "fees": [],
+  "discount": null,
+  "deductions": null,
+  "options": {
+   "changeOrderIds": [
+    "c1",
+    "c2",
+    "c3"
+   ],
+   "changeOrderAmount": 13.32
+  },
+  "total": 13.32,
+  "taxTotal": 1.09
+ },
+ "finalWithChanges": {
+  "lines": [
+   {
+    "id": "lmwxykv2ticf",
+    "kind": "item",
+    "description": "Cameras",
+    "qty": 4,
+    "unitPrice": 412.37,
+    "taxable": true,
+    "taxIds": [
+     "st",
+     "co"
+    ]
+   },
+   {
+    "id": "lmwxykv2tjpt",
+    "kind": "item",
+    "description": "Labor",
+    "qty": 7,
+    "unitPrice": 95.5,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv2tl8t",
+    "kind": "section",
+    "description": "CO-004 \u2014 Change 4",
+    "qty": 0,
+    "unitPrice": 0,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv2tmd8",
+    "kind": "item",
+    "description": "Extra",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 333.33,
+    "taxable": true,
+    "taxIds": [
+     "co-tax-7"
+    ]
+   },
+   {
+    "id": "lmwxykv2tnex",
+    "kind": "section",
+    "description": "CO-005 \u2014 Change 5",
+    "qty": 0,
+    "unitPrice": 0,
+    "taxable": false
+   },
+   {
+    "id": "lmwxykv2to7z",
+    "kind": "item",
+    "description": "Extra",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 99.99,
+    "taxable": true,
+    "taxIds": [
+     "co-tax-8_875"
+    ]
+   }
+  ],
+  "taxes": [
+   {
+    "id": "st",
+    "name": "State",
+    "rate": 6.25
+   },
+   {
+    "id": "co",
+    "name": "County",
+    "rate": 2.625
+   },
+   {
+    "id": "co-tax-7",
+    "name": "Sales tax 7%",
+    "rate": 7
+   },
+   {
+    "id": "co-tax-8_875",
+    "name": "Sales tax 8.875%",
+    "rate": 8.875
+   }
+  ],
+  "fees": [
+   {
+    "id": "f",
+    "label": "Permit",
+    "amount": 125.55,
+    "taxable": true
+   }
+  ],
+  "discount": null,
+  "deductions": [
+   {
+    "id": "lmwxykv2tkkr",
+    "label": "Less INV-1 (deposit)",
+    "amount": 1040.42
+   }
+  ],
+  "options": {
+   "requireSignature": false,
+   "changeOrderIds": [
+    "c4",
+    "c5"
+   ],
+   "changeOrderAmount": 485.46
+  },
+  "total": 2046.1,
+  "taxTotal": 209.67,
+  "taxAmounts": [
+   110.94,
+   46.59,
+   32.12,
+   20.02
+  ]
+ },
+ "finalNoChanges": {
+  "lines": [
+   {
+    "id": "lmwxykv2urbw",
+    "kind": "item",
+    "description": "Cameras",
+    "qty": 4,
+    "unitPrice": 412.37,
+    "taxable": true
+   },
+   {
+    "id": "lmwxykv2usyl",
+    "kind": "item",
+    "description": "Labor",
+    "qty": 7,
+    "unitPrice": 95.5,
+    "taxable": false
+   }
+  ],
+  "taxes": [
+   {
+    "id": "st",
+    "name": "State",
+    "rate": 6.25
+   },
+   {
+    "id": "co",
+    "name": "County",
+    "rate": 2.625
+   }
+  ],
+  "fees": [
+   {
+    "id": "f",
+    "label": "Permit",
+    "amount": 125.55,
+    "taxable": true
+   }
+  ],
+  "deductions": [
+   {
+    "id": "lmwxykv2uthv",
+    "label": "Less INV-1 (deposit)",
+    "amount": 1040.42
+   }
+  ],
+  "total": 1560.64,
+  "taxTotal": 157.53
+ },
+ "creditNote": {
+  "lines": [
+   {
+    "id": "lmwxykv2uuv9",
+    "kind": "item",
+    "description": "Credit against INV-2",
+    "qty": 1,
+    "unit": "each",
+    "unitPrice": 1560.64,
+    "taxable": false
+   }
+  ],
+  "taxes": [
+   {
+    "id": "st",
+    "name": "State",
+    "rate": 6.25
+   },
+   {
+    "id": "co",
+    "name": "County",
+    "rate": 2.625
+   }
+  ],
+  "fees": [],
+  "discount": null,
+  "deductions": [],
+  "total": 1560.64,
+  "taxTotal": 0
+ }
+}

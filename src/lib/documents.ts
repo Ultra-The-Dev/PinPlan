@@ -230,10 +230,12 @@ export function documentTotals(doc: TotalsInput): DocTotals {
     let base = 0;
     for (const l of doc.lines ?? []) {
       if (!isItem(l) || l.optional || !l.taxable) continue;
-      if (l.taxIds && !l.taxIds.includes(t.id)) continue;
+      // A change order's own tax takes only the lines tied to it by id (a line with no taxIds gets the invoice's taxes).
+      if (l.taxIds ? !l.taxIds.includes(t.id) : !!t.changeOrderId) continue;
       base += lineNet[l.id] * keep;
     }
-    for (const f of fees) if (f.taxable) base += money(f.amount);
+    // A change order's own tax covers only its lines (absent on older documents, which re-total as before).
+    if (!t.changeOrderId) for (const f of fees) if (f.taxable) base += money(f.amount);
     base = money(base);
     return { ...t, base, amount: money((base * (Number(t.rate) || 0)) / 100) };
   });
@@ -636,8 +638,9 @@ export function canAddChangeOrders(doc: Pick<SalesDoc, "lines" | "taxes" | "disc
 
 /**
  * Add approved change orders to an invoice, one section each ("CO-002 — Extra cameras"), and record their ids so each
- * is billed once. Each change keeps its own tax rate: lines are tied to a tax of that rate (added when the invoice has
- * none). Throws on an invoice with a discount (canAddChangeOrders): bill the changes on their own invoice instead.
+ * is billed once. Each taxed change order gets its own tax line at its rate ("Sales tax — CO-002"), so the invoice adds
+ * exactly the change orders' approved totals. Throws on an invoice with a discount (canAddChangeOrders): bill the
+ * changes on their own invoice instead.
  */
 export function addChangeOrders(doc: SalesDoc, changes: BillableChange[]): SalesDoc {
   const already = new Set(doc.options?.changeOrderIds ?? []);
@@ -645,24 +648,32 @@ export function addChangeOrders(doc: SalesDoc, changes: BillableChange[]): Sales
   if (!todo.length) return doc;
   if (!canAddChangeOrders(doc)) throw new Error(t("This invoice has a discount, so change orders can't go on it. Bill them on their own invoice (Change orders → Bill this change)."));
   const before = documentTotals(doc);
-  let taxes = [...doc.taxes];
+  const own = doc.taxes;
+  let taxes = [...own];
   let lines = [...doc.lines];
-  const taxFor = (rate: number): string[] | null => {
-    if (!(rate > 0)) return null;
-    // One tax of the same rate on the invoice: use it. Several (e.g. state + county) that add up to it: use them all.
-    const same = taxes.find((t) => t.rate === rate);
-    if (same) return [same.id];
-    if (taxes.length > 1 && money(taxes.reduce((s, t) => s + t.rate, 0)) === money(rate)) return taxes.map((t) => t.id);
-    // A new rate: keep the existing lines on the taxes they had, then add this one.
-    const ids = taxes.map((t) => t.id);
-    lines = lines.map((l) => (isItem(l) && l.taxable && !l.taxIds ? { ...l, taxIds: ids } : l));
-    const t = { id: `co-tax-${String(rate).replace(/\W/g, "_")}`, name: taxes.length ? `Sales tax ${rate}%` : "Sales tax", rate };
-    taxes = [...taxes, t];
-    return [t.id];
+  let pinned = false;
+  // Each change order gets a tax of its own (worked out on its lines alone, fees left out), so the invoice charges
+  // exactly the tax the client approved on it: sharing one tax with the quote's lines or another change order rounds
+  // their combined base once and can land a cent off (and "Left to bill" never reaches 0.00).
+  const taxFor = (c: BillableChange): string[] | null => {
+    const rate = Number(c.taxPct) || 0;
+    if (!(rate > 0) || !c.lines.some((l) => l.taxable)) return null;
+    // Keep the invoice's own lines on the taxes they had before any change-order tax joins them.
+    if (!pinned) {
+      const ids = own.map((t) => t.id);
+      lines = lines.map((l) => (isItem(l) && l.taxable && !l.taxIds ? { ...l, taxIds: ids } : l));
+      pinned = true;
+    }
+    const plain = own.filter((t) => !t.changeOrderId);
+    const same = plain.length === 1 && plain[0].rate === rate ? plain[0].name : "";
+    let id = `co-tax-${c.id}`;
+    while (taxes.some((t) => t.id === id)) id = `${id}-${lineId()}`;
+    taxes = [...taxes, { id, name: `${same || "Sales tax"} — ${c.code}`, rate, changeOrderId: c.id }];
+    return [id];
   };
   for (const c of todo) {
     lines.push({ id: lineId(), kind: "section", description: `${c.code} — ${c.title || "Change order"}`, qty: 0, unitPrice: 0, taxable: false });
-    const ids = taxFor(c.taxPct);
+    const ids = taxFor(c);
     for (const l of c.lines) lines.push({ id: lineId(), kind: "item", description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, taxable: !!ids && l.taxable, taxIds: ids && l.taxable ? ids : null });
   }
   const next = withTotals({ ...doc, lines, taxes, options: { ...(doc.options ?? {}), changeOrderIds: [...already, ...todo.map((c) => c.id)] } });
@@ -762,7 +773,15 @@ function invoiceFromQuoteOnly(quote: SalesDoc, how: InvoiceMode, input: { id: st
     const deductions = prior
       .map((p) => ({ id: lineId(), label: `Less ${p.number ?? "earlier invoice"}${p.invoiceType && p.invoiceType !== "standard" ? ` (${p.invoiceType})` : ""}`, amount: money(p.total - (p.options?.changeOrderAmount ?? 0)) }))
       .filter((d) => d.amount !== 0);
-    return withTotals({ ...base, lines, deductions, invoiceType: prior.length ? "final" : "standard" });
+    // Never below zero (as the dialog shows it): when more was billed than the quote comes to, the newest deductions
+    // are cut down to what is left. Change orders added after this still bill in full.
+    let over = money(deductions.reduce((s, d) => s + d.amount, 0) - Math.max(0, documentTotals({ ...base, lines, deductions: [] }).grossTotal));
+    for (let i = deductions.length - 1; i >= 0 && over > 0; i--) {
+      const cut = Math.min(over, Math.max(0, deductions[i].amount));
+      deductions[i] = { ...deductions[i], amount: money(deductions[i].amount - cut) };
+      over = money(over - cut);
+    }
+    return withTotals({ ...base, lines, deductions: deductions.filter((d) => d.amount !== 0), invoiceType: prior.length ? "final" : "standard" });
   }
   return withTotals({ ...base, lines, deductions: [] });
 }
@@ -845,17 +864,72 @@ export function jobBilling(docs: SalesDoc[], approvedChanges = 0): JobBilling {
 }
 
 /**
+ * The lines of a credit note for an invoice with amounts taken off (a final invoice less its deposit): what that
+ * invoice owes, split the way its own amounts are taxed. One line per tax treatment (the invoice's net amounts after
+ * discount, fees included, grouped by the taxes they carry), each scaled by total ÷ total before deductions, on the
+ * invoice's own taxes: the credit's tax is real tax at the invoice's rates (accounting exports reverse it as tax) and it
+ * comes to exactly the invoice's total. A cent of rounding goes on the untaxed part (or its own line when there is none).
+ */
+function deductedCreditLines(invoice: SalesDoc, t: DocTotals, name: string): DocLine[] {
+  const line = (description: string, amount: number, taxIds: string[]): DocLine => ({ id: lineId(), kind: "item", description, qty: 1, unit: "each", unitPrice: amount, taxable: taxIds.length > 0, taxIds });
+  if (!(t.total > 0) || !(t.grossTotal > 0)) return [line(`Credit against ${name}`, Math.max(0, t.total), [])];
+  const taxes = invoice.taxes ?? [];
+  const keep = t.subtotal > 0 ? (t.subtotal - t.discountTotal) / t.subtotal : 1;
+  const groups = new Map<string, { ids: string[]; amount: number }>();
+  const add = (ids: string[], amount: number) => {
+    const k = ids.join("|");
+    const g = groups.get(k) ?? { ids, amount: 0 };
+    g.amount += amount;
+    groups.set(k, g);
+  };
+  for (const l of invoice.lines ?? []) {
+    if (!isItem(l) || l.optional) continue;
+    add(l.taxable ? taxes.filter((x) => (l.taxIds ? l.taxIds.includes(x.id) : !x.changeOrderId)).map((x) => x.id) : [], (t.lineNet[l.id] ?? 0) * keep);
+  }
+  for (const f of invoice.fees ?? []) if (f && Number.isFinite(f.amount)) add(f.taxable ? taxes.filter((x) => !x.changeOrderId).map((x) => x.id) : [], money(f.amount));
+  const share = t.total / t.grossTotal;
+  const parts = [...groups.values()].map((g) => ({ ids: g.ids, amount: money(g.amount * share) })).filter((g) => g.amount !== 0);
+  const several = parts.length > 1;
+  const label = (ids: string[]) => {
+    if (!several) return `Credit against ${name}`;
+    if (!ids.length) return `Credit against ${name} — not taxed`;
+    return `Credit against ${name} — taxed (${ids.map((id) => taxes.find((x) => x.id === id)?.name || "Tax").join(", ")})`;
+  };
+  const lines = parts.map((p) => line(label(p.ids), p.amount, p.ids));
+  const totalOf = (ls: DocLine[]) => documentTotals({ lines: ls, taxes }).total;
+  let diff = money(t.total - totalOf(lines));
+  if (diff === 0) return lines;
+  // Rounding: the untaxed part takes the cent(s) …
+  const untaxed = lines.find((l) => !l.taxable);
+  if (untaxed && untaxed.unitPrice + diff >= 0) {
+    untaxed.unitPrice = money(untaxed.unitPrice + diff);
+    return lines;
+  }
+  // … or the largest taxed part, when a cent or two there lands on the total exactly …
+  const big = lines.filter((l) => l.taxable).sort((a, b) => b.unitPrice - a.unitPrice)[0];
+  if (big) {
+    const was = big.unitPrice;
+    for (const k of [1, -1, 2, -2, 3, -3]) {
+      big.unitPrice = money(was + (Math.sign(diff) * k) / 100);
+      if (money(t.total - totalOf(lines)) === 0) return lines;
+    }
+    big.unitPrice = was;
+    diff = money(t.total - totalOf(lines));
+  }
+  // … or an untaxed rounding line of its own.
+  return [...lines, line("Rounding", diff, [])];
+}
+
+/**
  * A credit note against an invoice: its lines, to edit down to what is being credited. An invoice with amounts taken
- * off (a final invoice less its deposit) gets one untaxed line for its own total instead: its lines are the whole job,
- * so copying them without the deductions would credit more than the invoice was for.
+ * off (a final invoice less its deposit) gets what it owes split by tax treatment instead (deductedCreditLines): its
+ * lines are the whole job, so copying them without the deductions would credit more than the invoice was for.
  */
 export function creditNoteFor(invoice: SalesDoc, input: { id: string; now: string; day: string; settings: DocumentSettings }): SalesDoc {
   const s = input.settings;
-  const { deductionTotal, total } = documentTotals(invoice);
-  const deducted = deductionTotal !== 0;
-  const lines: DocLine[] = deducted
-    ? [{ id: lineId(), kind: "item", description: `Credit against ${invoice.number ?? "invoice"}`, qty: 1, unit: "each", unitPrice: Math.max(0, total), taxable: false }]
-    : invoice.lines.filter((l) => !l.optional).map((l) => ({ ...l, id: lineId() }));
+  const totals = documentTotals(invoice);
+  const deducted = totals.deductionTotal !== 0;
+  const lines: DocLine[] = deducted ? deductedCreditLines(invoice, totals, invoice.number ?? "invoice") : invoice.lines.filter((l) => !l.optional).map((l) => ({ ...l, id: lineId() }));
   return withTotals({
     ...duplicateDocument(invoice, { ...input, kind: "credit_note" }),
     title: null,

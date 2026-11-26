@@ -39,7 +39,7 @@ the web app, the database and the iPad app (which mirrors it). Code: `src/lib/do
 | `client` | jsonb | `DocClient` `{name, company?, email?, phone?, billingAddress?, siteAddress?}` (snapshot, not a link) |
 | `lines` | jsonb | `DocLine[]` (below) |
 | `discount` | jsonb? | `Adjust` `{type: "pct"|"fixed", value}` — before tax |
-| `taxes` | jsonb | `DocTaxRate[]` `{id, name, rate}` (rate in %, e.g. 8.875) |
+| `taxes` | jsonb | `DocTaxRate[]` `{id, name, rate, changeOrderId?}` (rate in %, e.g. 8.875; `changeOrderId`: a billed change order's own tax, below) |
 | `fees` | jsonb? | `DocFee[]` `{id, label, amount, taxable?}` (shipping, permits) |
 | `deposit` | jsonb? | `Adjust` — deposit asked for (quotes: on acceptance) |
 | `deductions` | jsonb? | `DocFee[]` — final invoices: amounts already invoiced, taken off **after** tax |
@@ -128,7 +128,8 @@ the app (duplicate it to change it).
    amount;
 4. `fees` added; taxable fees join the tax base;
 5. each tax: `base` = Σ (net × (1 − discount share)) of taxable items that the tax applies to (+ taxable fees),
-   `amount = money(base × rate / 100)`;
+   `amount = money(base × rate / 100)`. A change order's own tax (`changeOrderId` set) takes only the lines whose
+   `taxIds` name it, and no fees;
 6. `grossTotal = subtotal − discount + fees + Σ taxes`; `total = grossTotal − Σ deductions`;
 7. `deposit` = % of total or fixed.
 
@@ -184,18 +185,29 @@ returns `{kind: {next, preview}}` for Settings.
   pct % of the quote total, taxes included), `amount` (one untaxed line for a set amount, "Custom amount"), `lines`
   (chosen lines, with their headings), `final` ("Remaining balance": all lines, with the quote's discount, fees and
   taxes, plus `deductions` for each earlier non-void invoice from the quote, less any change orders billed on it).
-  Deposit + progress + final add up to the quote total to the cent. The dialog shows Deposit · Remaining balance ·
+  Deposit + progress + final add up to the quote total to the cent. Never negative: when more was billed than the
+  quote comes to, the newest deductions are cut down so the quote part is 0.00 (change orders on it still bill in
+  full), as the dialog's preview shows. The dialog shows Deposit · Remaining balance ·
   Custom amount, with Progress (%) and Selected lines under "More options".
 - **Approved change orders** (`addChangeOrders`, `billableChanges` in changeOrders.ts): "Include approved change
   orders" (on by default for the remaining balance) adds each approved, not-yet-billed change order as its own section
-  ("CO-002 — Extra cameras") at the client's prices, each tied to a tax of its own rate. The invoice records
+  ("CO-002 — Extra cameras") at the client's prices. Each taxed change order gets a tax line of its own at its rate
+  ("Sales tax — CO-002", `changeOrderId` set; fees stay out of its base), so the invoice adds exactly the change
+  orders' approved totals and "Left to bill" reaches 0.00 (one tax shared by several change orders, or with the
+  quote's lines, rounds their combined base once and could be a cent off). The invoice's own taxable lines are pinned
+  to the taxes they had (`taxIds`). A state + county split on the quote is not reused: the change order's tax is the
+  one rate it was approved at. Invoices issued before this keep their shared tax lines and totals. The invoice records
   `options.changeOrderIds` (so each change order is billed once: `billedChangeOrderIds` over non-void invoices) and
   `options.changeOrderAmount` (what they added after tax, left out of later remaining-balance deductions). "Bill this
   change" on an approved change order makes an invoice for it alone (`invoiceFromChanges`). Not on an invoice with a
   document discount (it would spread over the changes): those are billed on their own.
 - **Invoice → credit note** (`creditNoteFor`): its lines, to edit down; once issued it reduces the invoice balance. An
-  invoice with deductions (a final invoice less its deposit) gets one untaxed "Credit against INV-…" line for its own
-  total instead, so the credit never starts above what that invoice billed.
+  invoice with deductions (a final invoice less its deposit) gets what that invoice owes instead, split by tax
+  treatment: one "Credit against INV-…" line per group of the invoice's net amounts (after discount, fees included)
+  that carry the same taxes, each scaled by total ÷ total before deductions, on the invoice's own taxes. So the
+  credit's tax is tax at the invoice's rates (exports reverse it on the tax item / account) and the credit comes to
+  exactly the invoice's total; a cent of rounding goes on the untaxed part, or (rarely) a "Rounding" line. Credit notes
+  issued before this (one untaxed line) keep their totals.
 - **Duplicate**: a fresh draft (no number, link, answer or payments).
 
 ## Client link

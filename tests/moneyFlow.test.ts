@@ -162,8 +162,9 @@ describe("approved change orders on invoices", () => {
     expect(fin.options?.changeOrderIds).toEqual(["co-1", "co-2"]);
     expect(fin.total).toBe(money(quote.total + changes[0].total + changes[1].total));
     expect(fin.options?.changeOrderAmount).toBe(money(changes[0].total + changes[1].total));
-    // CO-002 is untaxed labor, so no 7% tax is charged on it; CO-001 shares the quote's 8.875%.
-    expect(fin.taxes.map((t) => t.rate)).toEqual([8.875, 7]);
+    // CO-001 has a tax line of its own at its 8.875% (so it bills exactly its approved total); CO-002 is untaxed labor,
+    // so no 7% tax is added for it.
+    expect(fin.taxes.map((t) => [t.name, t.rate])).toEqual([["Sales tax", 8.875], ["Sales tax — CO-001", 8.875]]);
     expect(billedChangeOrderIds([fin])).toEqual(new Set(["co-1", "co-2"]));
     expect(billedChangeOrderIds([{ ...fin, status: "void" }])).toEqual(new Set());
   });

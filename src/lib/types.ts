@@ -559,6 +559,11 @@ export interface DocTaxRate {
   name: string;
   /** Percent, e.g. 8.875. */
   rate: number;
+  /**
+   * Set on the tax a billed change order brings onto an invoice (addChangeOrders): only the lines tied to it count,
+   * fees never join its base. Absent on every other tax (and on documents made before it existed).
+   */
+  changeOrderId?: string | null;
 }
 
 export interface DocLine {
