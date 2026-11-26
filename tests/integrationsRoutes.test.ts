@@ -20,15 +20,27 @@ const USER_TABLES = new Set(["sales_documents", "sales_document_payments"]);
 
 function fakeDb() {
   const tables: Record<string, Row[]> = { integration_connections: [], integration_links: [], integration_events: [], integration_oauth_states: [], sales_documents: [], sales_document_payments: [] };
-  const users: Record<string, string> = { "tok-owner": "u-owner", "tok-tech": "u-tech", "tok-lapsed": "u-lapsed", "tok-solo": "u-solo" };
+  const users: Record<string, string> = {
+    "tok-owner": "u-owner",
+    "tok-tech": "u-tech",
+    "tok-lapsed": "u-lapsed",
+    "tok-solo": "u-solo",
+    "tok-solo-lapsed": "u-solo-lapsed",
+    "tok-prelaunch": "u-prelaunch",
+  };
+  /** public.team_can_write(owner) as the database answers it (its own rules: billing_enforced, solo trials). */
+  const canWrite: Record<string, boolean> = { "u-lapsed": false, "u-solo-lapsed": false, "u-prelaunch": true };
   const members: Row[] = [
     { user_id: "u-owner", role: "owner", team_id: "00000000-0000-0000-0000-0000000000a1" },
     { user_id: "u-tech", role: "tech", team_id: "00000000-0000-0000-0000-0000000000a1" },
     { user_id: "u-lapsed", role: "owner", team_id: "00000000-0000-0000-0000-0000000000a2" },
+    { user_id: "u-prelaunch", role: "owner", team_id: "00000000-0000-0000-0000-0000000000a3" },
   ];
   const teams: Row[] = [
     { id: "00000000-0000-0000-0000-0000000000a1", name: "Test Co", plan_status: "trialing", trial_ends_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
     { id: "00000000-0000-0000-0000-0000000000a2", name: "Lapsed Co", plan_status: "canceled", trial_ends_at: null },
+    // Its trial date has passed, but billing isn't enforced yet: the database still lets it work.
+    { id: "00000000-0000-0000-0000-0000000000a3", name: "Early Co", plan_status: "trialing", trial_ends_at: new Date(Date.now() - 2 * 86400_000).toISOString() },
   ];
   let seq = 1;
   const match = (row: Row, q: URLSearchParams) => {
@@ -53,6 +65,10 @@ function fakeDb() {
     const name = url.pathname.replace("/rest/v1/", "");
     const q = url.searchParams;
     if (name === "rpc/prune_integration_rows") return new Response(null, { status: 204 });
+    if (name === "rpc/team_can_write") {
+      const owner = String((init.body ? JSON.parse(String(init.body)) : {}).owner);
+      return Response.json(canWrite[owner] ?? true);
+    }
     if (name === "rpc/my_billing_owner") {
       const id = users[(headers.get("authorization") ?? "").replace(/^Bearer /, "")];
       return id ? Response.json(`owner-of-${id}`) : new Response("{}", { status: 401 });
@@ -352,6 +368,21 @@ describe("access", () => {
       expect((await res.json()).code).toBe("subscription_inactive");
     }
     expect((await r.disconnect(req("/api/integrations/quickbooks/disconnect", "tok-lapsed", { method: "POST" }), ctx("quickbooks"))).status).toBe(200);
+  });
+
+  it("the subscription check is the database's own (team_can_write): a lapsed solo account is refused too", async () => {
+    const r = await routes();
+    for (const [fn, path] of [[r.connect, "connect"], [r.test, "test"], [r.push, "push"]] as const) {
+      const res = await fn(req(`/api/integrations/quickbooks/${path}`, "tok-solo-lapsed", pushBody(invoice())), ctx("quickbooks"));
+      expect(res.status, path).toBe(402);
+      expect((await res.json()).code).toBe("subscription_inactive");
+    }
+  });
+
+  it("before billing is enforced, a team whose trial date passed can still connect (as the database allows)", async () => {
+    const r = await routes();
+    const res = await r.connect(req("/api/integrations/quickbooks/connect", "tok-prelaunch", { method: "POST" }), ctx("quickbooks"));
+    expect(res.status).toBe(200);
   });
 
   it("providers without keys are off (501, names the missing settings) and unknown ones are 404", async () => {

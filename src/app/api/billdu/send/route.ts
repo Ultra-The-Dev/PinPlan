@@ -1,6 +1,6 @@
 import { resolveBillduCaller } from "@/lib/server/billduCreds";
 import { requirePaidOrTrial } from "@/lib/server/planGate";
-import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { type BillduClient, type BillduClientRecord } from "@/lib/billdu/client";
 import { clientMatches, clientPayload, documentPayload, documentUpdate, itemsTotal, linesToItems, type SendLine } from "@/lib/billdu/mapping";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
@@ -51,7 +51,7 @@ async function findOrCreateClient(client: BillduClient, p: SendBody["project"]):
 export async function POST(req: Request) {
   const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
-  const limited = await durableRateLimit(`billdu-send:${auth.caller.userId ? `u:${auth.caller.userId}` : `ip:${clientIp(req)}`}`, SEND_LIMIT);
+  const limited = await durableRateLimit(`billdu-send:${auth.caller.userId ? `u:${auth.caller.userId}` : `ip:${clientIpKey(req)}`}`, SEND_LIMIT);
   if (!limited.ok) return tooManyRequests(limited, `Too many sends to Billdu. Try again in ${waitText(limited.retryAfter)}.`);
   const gate = await requirePaidOrTrial(req, auth.caller.userId);
   if (gate) return gate;
@@ -67,6 +67,9 @@ export async function POST(req: Request) {
   if (body.lines.length > MAX_LINES) return jsonError(`A document can have at most ${MAX_LINES} lines.`, 413, { code: "too_many_items" });
   const deposit = body.depositPct ?? null;
   if (deposit != null && (deposit <= 0 || deposit > 100)) return jsonError("Deposit % must be between 0 and 100", 400);
+  // These go into the path of the request to Billdu (/documents/<id>, /clients/<id>): whole numbers only.
+  const billduId = (v: unknown) => v == null || (typeof v === "number" && Number.isSafeInteger(v) && v >= 0);
+  if (!billduId(body.existingDocId) || !billduId(body.project.billduClientId)) return jsonError("existingDocId and billduClientId must be whole numbers", 400);
 
   const items = linesToItems(body.lines, body.taxPct ?? 0, { depositPct: deposit, address: body.project.address });
   if (!items.length) return jsonError("There are no included estimate lines to send.", 400);

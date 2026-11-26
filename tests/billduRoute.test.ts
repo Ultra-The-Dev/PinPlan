@@ -112,6 +112,14 @@ describe("POST /api/billdu/send", () => {
     expect(log.map((l) => `${l.method} ${l.path}`)).toEqual(expect.arrayContaining(["PATCH /documents/404", expect.stringMatching(/^POST \/documents\/?$/)]));
   });
 
+  it("Billdu ids from the request must be whole numbers: a path can't be smuggled into the request to Billdu", async () => {
+    const bad = await send({ project, docType: "estimate", lines, taxPct: 0, currency: "USD", existingDocId: "../clients/5" });
+    expect(bad.status).toBe(400);
+    const badClient = await send({ project: { ...project, billduClientId: "../products/3" }, docType: "estimate", lines, taxPct: 0, currency: "USD" });
+    expect(badClient.status).toBe(400);
+    expect(log).toEqual([]);
+  });
+
   it("puts the marked-up plans link in the document note", async () => {
     await send({ project, docType: "estimate", lines, taxPct: 0, currency: "USD", plansUrl: "https://x.supabase.co/storage/v1/object/public/proposals/u/billdu/p1/marked-up-plans.pdf" });
     const doc = log.find((l) => l.path.startsWith("/documents"))!;

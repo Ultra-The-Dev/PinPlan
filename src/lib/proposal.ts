@@ -53,7 +53,7 @@ export const GROUP_LABELS: Record<ComputedLine["group"], string> = {
   custom: "Additional work",
 };
 
-/** Random link token (URL-safe, ~143 bits). */
+/** Random link token (URL-safe): 18 random letters from 56 (about 104 bits; b % 56 is slightly uneven) and a time suffix. */
 export function newToken(): string {
   const bytes = new Uint8Array(18);
   crypto.getRandomValues(bytes);

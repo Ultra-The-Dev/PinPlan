@@ -157,6 +157,14 @@ describe("POST /api/documents/email (limits on)", () => {
     expect(sent().text).toContain("[link removed]");
   });
 
+  it("a free trial can't put a link in the document number (its numbering format is the company's own text)", async () => {
+    reserve = { ...reserve, trial: true, cap: 20 };
+    setDocument(snapshot, { ...docRow, number: "Pay at evil-pay.com/now 0007" });
+    expect((await (await load())(post({ ...good, message: "" }))).status).toBe(200);
+    expect(JSON.stringify(sent())).not.toMatch(/evil-pay\.com/);
+    expect(sent().subject).toContain("[link removed]");
+  });
+
   it("refusals come back as they are and nothing is sent", async () => {
     setDocument();
     for (const [answer, status] of [

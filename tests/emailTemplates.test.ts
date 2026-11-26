@@ -188,6 +188,11 @@ describe("links in client mail", () => {
     expect(stripLinks("bit.ly/abc")).toBe("[link removed]");
     expect(stripLinks("write to billing@evil.example")).toBe("write to [link removed]");
     expect(stripLinks("HXXP://x.example")).toBe("[link removed]");
+    // Endings missing from the list of common ones: any domain with a path, and two-letter country endings.
+    expect(stripLinks("log in at evil.it/login")).toBe("log in at [link removed]");
+    expect(stripLinks("see pay.example.dk now")).toBe("see [link removed] now");
+    expect(stripLinks("open invoice.zip or invoice.mov")).toBe("open [link removed] or [link removed]");
+    expect(stripLinks("go to secure.payments/x")).toBe("go to [link removed]");
     const normal = "Thanks for the work.See you Monday, e.g. at 8. Total is 3.5 hours.";
     expect(stripLinks(normal)).toBe(normal);
   });

@@ -13,7 +13,7 @@
 import { normalizeAccounts, DEFAULT_ACCOUNTS } from "@/lib/accountingExport";
 import { effectiveCreds } from "../billduCreds";
 import { appOrigin, appOriginMissing } from "../email";
-import { clientIp, durableRateLimit, tooManyRequests, waitText } from "../rateLimit";
+import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "../rateLimit";
 import { jsonError, resolveIntegrationCaller, type IntegrationCaller } from "./caller";
 import { loadServerDocument } from "./documents";
 import { getProvider, PROVIDERS, providerSummaries } from "./registry";
@@ -42,7 +42,7 @@ const CONNECT_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 /** Counted in the shared store (every server instance), per signed-in user. */
 async function limit(request: Request, ic: IntegrationCaller, what: string, rule: { limit: number; windowMs: number }, message: string): Promise<Response | null> {
-  const r = await durableRateLimit(`integrations-${what}:${ic.userId ?? clientIp(request)}`, rule);
+  const r = await durableRateLimit(`integrations-${what}:${ic.userId ?? clientIpKey(request)}`, rule);
   return r.ok ? null : tooManyRequests(r, `${message} Try again in ${waitText(r.retryAfter)}.`);
 }
 

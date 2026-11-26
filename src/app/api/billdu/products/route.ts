@@ -1,6 +1,6 @@
 import { resolveBillduCaller } from "@/lib/server/billduCreds";
 import { requirePaidOrTrial } from "@/lib/server/planGate";
-import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { getClientOrError, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import { BillduError } from "@/lib/billdu/client";
 import { billduUnit } from "@/lib/billdu/mapping";
@@ -24,7 +24,7 @@ interface ProductIn {
 export async function POST(req: Request) {
   const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
-  const limited = await durableRateLimit(`billdu-products:${auth.caller.userId ? `u:${auth.caller.userId}` : `ip:${clientIp(req)}`}`, PRODUCTS_LIMIT);
+  const limited = await durableRateLimit(`billdu-products:${auth.caller.userId ? `u:${auth.caller.userId}` : `ip:${clientIpKey(req)}`}`, PRODUCTS_LIMIT);
   if (!limited.ok) return tooManyRequests(limited, `Too many product uploads. Try again in ${waitText(limited.retryAfter)}.`);
   const gate = await requirePaidOrTrial(req, auth.caller.userId);
   if (gate) return gate;

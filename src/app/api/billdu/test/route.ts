@@ -1,6 +1,6 @@
 import { effectiveCreds, NOT_CONNECTED, recordTest, resolveBillduCaller } from "@/lib/server/billduCreds";
 import { requirePaidOrTrial } from "@/lib/server/planGate";
-import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { credsErrorResponse, handleError, jsonError } from "@/lib/billdu/route-helpers";
 import { BillduClient, BillduError, extractList } from "@/lib/billdu/client";
 
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const auth = await resolveBillduCaller(request);
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
-  const limited = await durableRateLimit(`billdu-test:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(request)}`}`, TEST_LIMIT);
+  const limited = await durableRateLimit(`billdu-test:${caller.userId ? `u:${caller.userId}` : `ip:${clientIpKey(request)}`}`, TEST_LIMIT);
   if (!limited.ok) return tooManyRequests(limited, `Too many connection tests. Try again in ${waitText(limited.retryAfter)}.`);
   const gate = await requirePaidOrTrial(request, caller.userId);
   if (gate) return gate;

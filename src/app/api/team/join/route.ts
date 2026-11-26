@@ -23,7 +23,7 @@
 import { connection } from "next/server";
 import { joinUrl, normalizeCode } from "@/lib/teamLogic";
 import { appOrigin, validEmail } from "@/lib/server/email";
-import { clientIp, durableRateLimit, waitText } from "@/lib/server/rateLimit";
+import { clientIp, clientIpKey, durableRateLimit, waitText } from "@/lib/server/rateLimit";
 import { finishSend, reserveSend } from "@/lib/server/sendGuard";
 
 const supabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
@@ -125,7 +125,8 @@ export async function POST(req: Request) {
 
   const ip = clientIp(req);
   for (const [key, max] of [
-    [`join-ip:${ip}`, MAX_PER_IP],
+    // IPv6 on its /64 (one customer line), so new addresses on the same line share the count.
+    [`join-ip:${clientIpKey(req)}`, MAX_PER_IP],
     [`join-code:${code}`, MAX_PER_CODE],
   ] as const) {
     const r = await durableRateLimit(key, { limit: max, windowMs: WINDOW_MS });

@@ -66,6 +66,10 @@ const LINK_REMOVED = "[link removed]";
 // Bare domains ("evil.com/login", "bit.ly/x") on common and abused endings; "full.Thanks" typed without a space stays.
 const BARE_DOMAIN =
   /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com|net|org|info|biz|io|co|us|ca|uk|eu|de|fr|au|nz|in|me|ly|app|dev|xyz|link|site|online|shop|store|page|top|click|live|pro|ru|cn|tk|gq|ml|ga|cf|ai|so|to|gl|gd|cc|ws|sh|gg|tv|ms|be|im|li|lu|cx)\b(?::\d+)?(?:\/\S*)?/gi;
+/** Any domain followed by a path ("evil.it/login", "secure.payments/x"): whatever its ending, it reads as a link. */
+const PATH_DOMAIN = /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,24}(?::\d+)?\/\S*/gi;
+/** Two-letter country endings and a few new ones mail apps also turn into links ("pay.example.dk", "invoice.zip"). */
+const CC_DOMAIN = /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[a-z]{2}|zip|mov|info|xyz|club|online|website|space|fun|icu|buzz|rest|cam)\b(?![.\w])/gi;
 /**
  * Free-trial companies can't put links in the message to their client (a free account must not be a way to mail
  * strangers a phishing link). Removes web addresses, bare domains and email addresses.
@@ -75,7 +79,9 @@ export function stripLinks(s: string): string {
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, LINK_REMOVED)
     .replace(/\bwww\.\S+/gi, LINK_REMOVED)
     .replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}\b/gi, LINK_REMOVED)
-    .replace(BARE_DOMAIN, LINK_REMOVED);
+    .replace(BARE_DOMAIN, LINK_REMOVED)
+    .replace(PATH_DOMAIN, LINK_REMOVED)
+    .replace(CC_DOMAIN, LINK_REMOVED);
 }
 
 /** Only https links (a pay-online link must never be plain http); null otherwise. */

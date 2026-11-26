@@ -109,14 +109,15 @@ export async function POST(req: Request) {
   if (!guard.ok) return guard.response;
 
   const today = new Date().toISOString().slice(0, 10);
-  // A free trial can't send links in its own words: not in the message, the title or the names (the client link is
+  // A free trial can't send links in its own words: not in the message, the title, the number or the names (the client link is
   // ours and checked), and no pay button at all.
   const clean = (s: string | null | undefined) => (s && guard.trial ? stripLinks(s) : (s ?? undefined));
   const content = documentEmail({
     kind,
     docKind: doc.kind,
     title: clean(snap.title) ?? "",
-    number: doc.number ?? snap.number,
+    // The number is built from the company's own numbering format (Settings › Documents), so it is their text too.
+    number: clean(doc.number ?? snap.number) ?? null,
     companyName: clean(companyName),
     clientName: clean(doc.client?.name ?? snap.client?.name),
     total: doc.total,

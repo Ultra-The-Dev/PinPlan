@@ -12,7 +12,7 @@ import {
   type BillduCaller,
 } from "@/lib/server/billduCreds";
 import { requirePaidOrTrial } from "@/lib/server/planGate";
-import { clientIp, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
+import { clientIpKey, durableRateLimit, tooManyRequests, waitText } from "@/lib/server/rateLimit";
 import { deleteBillduCreds, encryptionReady, keyHint, loadBillduCreds, saveBillduCreds, storageKind } from "@/lib/server/secrets";
 import { credsErrorResponse, jsonError } from "@/lib/billdu/route-helpers";
 
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   const auth = await resolveBillduCaller(req);
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
-  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(req)}`}`, SAVE_LIMIT);
+  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIpKey(req)}`}`, SAVE_LIMIT);
   if (!limited.ok) return tooManyRequests(limited, `Too many changes. Try again in ${waitText(limited.retryAfter)}.`);
   const gate = await requirePaidOrTrial(req, caller.userId);
   if (gate) return gate;
@@ -114,7 +114,7 @@ export async function DELETE(request: Request) {
   if (!auth.ok) return auth.response;
   const caller = auth.caller;
   const target = new URL(request.url).searchParams.get("target");
-  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIp(request)}`}`, SAVE_LIMIT);
+  const limited = await durableRateLimit(`billdu-save:${caller.userId ? `u:${caller.userId}` : `ip:${clientIpKey(request)}`}`, SAVE_LIMIT);
   if (!limited.ok) return tooManyRequests(limited, `Too many changes. Try again in ${waitText(limited.retryAfter)}.`);
   try {
     if (target === "server" || caller.mode === "single_company") {

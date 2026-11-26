@@ -261,6 +261,13 @@ describe("POST /api/team/join", () => {
     expect(counts.has("join-ip:1.1.1.1")).toBe(false);
   });
 
+  it("counts an IPv6 caller on its /64, so changing the address within one line doesn't reset the limit", async () => {
+    const { POST } = await import("@/app/api/team/join/route");
+    for (const ip of ["2001:db8:1:2::1", "2001:db8:1:2:aaaa::9"])
+      await POST(new Request("http://localhost/api/team/join", { method: "POST", headers: { "cf-connecting-ip": ip }, body: JSON.stringify(good) }));
+    expect(counts.get("join-ip:2001:db8:1:2::/64")).toBe(2);
+  });
+
   it("falls back to counting in memory when the shared store is missing", async () => {
     const original = vi.mocked(fetch).getMockImplementation()!;
     vi.mocked(fetch).mockImplementation(async (input, init) => (String(input).endsWith("/rpc/rate_limit_hit") ? new Response("missing", { status: 404 }) : original(input, init)));
