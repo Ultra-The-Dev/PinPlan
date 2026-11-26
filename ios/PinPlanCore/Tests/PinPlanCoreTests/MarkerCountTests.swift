@@ -103,4 +103,13 @@ final class MarkerCountTests: XCTestCase {
         let json = SyncState.json(mk("w", "gen-window", "s1", count: 7)).0
         XCTAssertEqual(SyncMap.toRemote(.markers, json)["count"] as? Int, 7)
     }
+
+    // Audit: a job whose sheet list names one sheet twice (a hand-edited backup) used to stop the app on the takeoff.
+    func testASheetListedTwiceIsCountedOnce() {
+        var b = bundle([mk("a", "wap", "s1"), mk("b", "wap", "s2", count: 3)])
+        b.sheets.append(b.sheets[0])
+        let t = TakeoffCalculator.compute(b)
+        XCTAssertEqual(t.floors.map(\.sheetId), ["s1", "s2"])
+        XCTAssertEqual(t.total.counts["wap"], 4)
+    }
 }

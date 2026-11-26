@@ -42,7 +42,7 @@ struct SettingsView: View {
             Section {
                 NavigationLink { TradeSettingsView() } label: {
                     LabeledContent {
-                        Text(app.trades.map { Trades.pack($0).short }.joined(separator: " + "))
+                        Text(app.trades.map { tr(Trades.pack($0).short) }.joined(separator: " + "))
                     } label: { Label("Trades", systemImage: "wrench.and.screwdriver") }
                 }
                 NavigationLink { BusinessSettingsView() } label: {

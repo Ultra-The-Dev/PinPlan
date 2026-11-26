@@ -216,7 +216,7 @@ struct PhotoDetails: View {
                     Text("Before").foregroundStyle(.secondary)
                     HStack {
                         Button(p.beforeId.flatMap(model.photo).map { String(localized: "Linked (\(shortDate($0.takenAt)))") } ?? String(localized: "This is an after photo of…")) { pickingBefore = true }
-                        if p.beforeId != nil { Button { model.updateRows([p.id], in: \.photos) { $0.beforeId = nil } } label: { Image(systemName: "xmark.circle.fill") }.foregroundStyle(.secondary) }
+                        if p.beforeId != nil { Button { model.updateRows([p.id], in: \.photos) { $0.beforeId = nil } } label: { Image(systemName: "xmark.circle.fill") }.foregroundStyle(.secondary).accessibilityLabel("Remove") }
                     }
                 }
             }
@@ -246,7 +246,7 @@ struct PhotoDetails: View {
                             Button { tasking = c } label: { Label("Make task", systemImage: "plus.square.on.square") }
                                 .font(.caption.weight(.semibold))
                         }
-                        Button { model.removeRows([c.id], in: \.photoComments) } label: { Image(systemName: "trash") }.font(.caption).foregroundStyle(.secondary)
+                        Button { model.removeRows([c.id], in: \.photoComments) } label: { Image(systemName: "trash") }.font(.caption).foregroundStyle(.secondary).accessibilityLabel("Delete comment")
                     }
                     Text(c.text).font(.subheadline)
                 }

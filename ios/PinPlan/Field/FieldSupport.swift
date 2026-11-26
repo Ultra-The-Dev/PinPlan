@@ -123,7 +123,8 @@ enum PhotoImport {
     }
 
     /// Resize (longest side 2560), save as JPEG and build the Photo row. EXIF time/GPS win over "now"/the device's position.
-    @MainActor
+    /// Not tied to the main actor: decoding, resizing and encoding a camera photo takes a moment, so a batch from the
+    /// library runs off the main thread (PhotoAddMenu).
     static func make(data: Data, projectId: String, author: String, location: CLLocation?, store: Store) -> Photo? {
         guard let img = UIImage(data: data) else { return nil }
         let ex = exif(data)
@@ -133,7 +134,6 @@ enum PhotoImport {
         return make(image: img, exif: ex, projectId: projectId, author: author, location: recent ? location : nil, store: store)
     }
 
-    @MainActor
     static func make(image img: UIImage, exif: Exif = Exif(), projectId: String, author: String, location: CLLocation?, store: Store) -> Photo? {
         let k = min(1, 2560 / max(img.size.width, img.size.height))
         let size = CGSize(width: (img.size.width * k).rounded(), height: (img.size.height * k).rounded())

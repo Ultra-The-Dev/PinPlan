@@ -43,7 +43,10 @@ private func r1(_ v: Double) -> Double { (v * 10).rounded() / 10 }
 
 public enum TakeoffCalculator {
     public static func compute(_ b: ProjectBundle) -> Takeoff {
-        let sheets = b.liveSheets
+        // A sheet id listed twice (a hand-edited or damaged backup) is counted once: building the buckets from
+        // duplicate keys would stop the app.
+        var seenSheets: Set<String> = []
+        let sheets: [Sheet] = b.liveSheets.filter { seenSheets.insert($0.id).inserted }
         var buckets: [String: TakeoffBucket] = Dictionary(uniqueKeysWithValues: sheets.map { ($0.id, TakeoffBucket()) })
         var zones: [String: Set<String>] = Dictionary(uniqueKeysWithValues: sheets.map { ($0.id, Set<String>()) })
 

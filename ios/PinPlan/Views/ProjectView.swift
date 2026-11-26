@@ -123,7 +123,8 @@ struct ProjectView: View {
                                     }
                                     .pickerStyle(.segmented)
                                 }
-                                .frame(maxWidth: 700)
+                                // Room for the words in longer languages (Vietnamese, Spanish) on a large iPad.
+                                .frame(maxWidth: 900)
                                 .tutorialAnchor("job-sections")
                             }
                         }

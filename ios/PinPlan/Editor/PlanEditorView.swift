@@ -164,14 +164,19 @@ struct PlanEditorView: View {
     private var trailingControls: some View {
         let stacked = canvasHeight == 0 || overlayControlsHeight + 12 + viewerControlsHeight <= controlsRoom
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 12)) : AnyLayout(HStackLayout(alignment: .bottom, spacing: 10))
+        // A phone in landscape: the column of viewer buttons would reach over the View/Edit switch and the action bar
+        // (and take their taps), so the buttons go in a row. Decided from the canvas height alone, so it can't flip.
+        let zoomButtons: Bool = regular || voiceOver
+        let columnHeight: CGFloat = ViewerControls.columnHeight(zoomButtons: zoomButtons)
+        let flat: Bool = !regular && canvasHeight > 0 && columnHeight > controlsRoom
         return layout {
             if let sheet = model.activeSheet {
                 PlanOverlayControlsHost(model: model, sheet: sheet, controller: viewport)
                     .measureHeight { overlayControlsHeight = $0 }
                     .scrollable(if: !stacked && overlayControlsHeight > controlsRoom, maxHeight: controlsRoom)
             }
-            ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: regular || voiceOver,
-                           showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen)
+            ViewerControls(controller: viewport, filtering: model.filter.isFiltering, zoomButtons: zoomButtons,
+                           showLayers: $showLayers, showMinimap: $showMinimap, fullScreen: $fullScreen, horizontal: flat)
                 .measureHeight { viewerControlsHeight = $0 }
                 .popover(isPresented: $showLayers) { layersPanel }
         }

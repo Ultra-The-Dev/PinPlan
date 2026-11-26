@@ -71,7 +71,7 @@ struct PanelContainer<Content: View>: View {
                 content
                     .navigationTitle(title)
                     .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button { onClose() } label: { Image(systemName: "xmark") } } }
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button { onClose() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close") } }
             }
         } else {
             VStack(spacing: 0) {

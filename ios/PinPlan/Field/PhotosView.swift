@@ -66,10 +66,17 @@ struct PhotoAddMenu<LabelView: View>: View {
             Task { @MainActor in
                 // Library photos carry their own GPS; ask for ours only as a fallback.
                 let loc = await LocationOnce.shared.current()
+                let projectId: String = model.bundle.project.id
+                let author: String = FieldAuthor.name(app)
+                let store: Store = app.store
                 var added: [Photo] = []
                 for item in items {
-                    guard let data = try? await item.loadTransferable(type: Data.self),
-                          var p = PhotoImport.make(data: data, projectId: model.bundle.project.id, author: FieldAuthor.name(app), location: loc, store: app.store) else { continue }
+                    guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+                    // Decode, resize and encode off the main thread: up to 50 photos at a time would freeze the screen.
+                    let made: Photo? = await Task.detached(priority: .userInitiated) { () -> Photo? in
+                        PhotoImport.make(data: data, projectId: projectId, author: author, location: loc, store: store)
+                    }.value
+                    guard var p = made else { continue }
                     extra(&p)
                     added.append(p)
                 }
@@ -160,6 +167,7 @@ struct PhotosView: View {
                     Toggle(isOn: $stampLocation) { Label("Stamp location", systemImage: "location") }
                     Button { nameDraft = FieldAuthor.name(app); askName = true } label: { Label("Your name: \(FieldAuthor.name(app))", systemImage: "person") }
                 } label: { Image(systemName: "ellipsis.circle") }
+                .accessibilityLabel("More")
                 // While narrowed to a device, new photos are linked to it.
                 PhotoAddMenu(model: model, extra: { p in
                     if let m = device { p.markerId = m.id; p.sheetId = m.sheetId; if !m.room.isEmpty { p.room = m.room } }

@@ -53,6 +53,9 @@ struct PinPlanApp: App {
                         Task { await AppUpdate.shared.check(serverURL: server) }
                     } else {
                         PrivacyCover.show()
+                        // A settings screen saves when it closes: an app put away (and maybe ended by iOS) with one open
+                        // would lose its changes, and they'd never be sent. Saved now; closing it later changes nothing.
+                        if phase == .background, !app.waitingForUnlock, app.hasUnsavedCompanySettings { app.saveSettings() }
                     }
                 }
         }

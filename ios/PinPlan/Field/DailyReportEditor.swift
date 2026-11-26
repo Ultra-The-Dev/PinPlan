@@ -605,11 +605,11 @@ struct WeeklyHoursView: View {
             List {
                 Section {
                     HStack {
-                        Button { start = DailyReportLogic.addDays(w.days[0], -7) } label: { Image(systemName: "chevron.left") }.buttonStyle(.borderless)
+                        Button { start = DailyReportLogic.addDays(w.days[0], -7) } label: { Image(systemName: "chevron.left") }.buttonStyle(.borderless).accessibilityLabel("Previous week")
                         Spacer()
                         Text("\(dayTitle(w.days[0])) – \(dayTitle(w.days[6]))").font(.subheadline)
                         Spacer()
-                        Button { start = DailyReportLogic.addDays(w.days[0], 7) } label: { Image(systemName: "chevron.right") }.buttonStyle(.borderless)
+                        Button { start = DailyReportLogic.addDays(w.days[0], 7) } label: { Image(systemName: "chevron.right") }.buttonStyle(.borderless).accessibilityLabel("Next week")
                     }
                 }
                 if w.rows.isEmpty {

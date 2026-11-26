@@ -218,6 +218,7 @@ private struct TaskDetailForm: View {
             HStack {
                 TextField("Add an item (paste several lines)", text: $newItem, axis: .vertical).onSubmit { addItems() }
                 Button { addItems() } label: { Image(systemName: "plus.circle.fill").font(.title2) }
+                    .accessibilityLabel("Add")
                     .disabled(newItem.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         } header: {
@@ -279,6 +280,7 @@ private struct TaskDetailForm: View {
                     model.commentOnTask(task.id, comment)
                     comment = ""
                 } label: { Image(systemName: "paperplane.fill").font(.title3) }
+                .accessibilityLabel("Send")
                 .disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             ForEach(Array((task.activity ?? []).reversed())) { e in eventRow(e) }

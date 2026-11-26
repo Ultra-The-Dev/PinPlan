@@ -127,7 +127,7 @@ struct NumberControl: View {
         let n: Double? = Forms.number(value)
         HStack(spacing: 8) {
             if editable && !compact {
-                Button { step(-1, n) } label: { Image(systemName: "minus").frame(width: 32, height: 32) }.buttonStyle(.bordered)
+                Button { step(-1, n) } label: { Image(systemName: "minus").frame(width: 32, height: 32) }.buttonStyle(.bordered).accessibilityLabel("One less")
             }
             CommitField(title: field.label, value: displayed, keyboard: .decimalPad) { text in
                 let t = text.trimmingCharacters(in: .whitespaces)
@@ -138,7 +138,7 @@ struct NumberControl: View {
             .font(compact ? Font.body : Font.title3.monospacedDigit())
             if let u = field.unit, !u.isEmpty { Text(u).foregroundStyle(.secondary) }
             if editable && !compact {
-                Button { step(1, n) } label: { Image(systemName: "plus").frame(width: 32, height: 32) }.buttonStyle(.bordered)
+                Button { step(1, n) } label: { Image(systemName: "plus").frame(width: 32, height: 32) }.buttonStyle(.bordered).accessibilityLabel("One more")
             }
         }
     }
@@ -337,6 +337,7 @@ struct TableControl: View {
                             onChange(next)
                         } label: { Image(systemName: "trash") }
                             .buttonStyle(.borderless)
+                            .accessibilityLabel("Delete")
                     }
                 }
                 ForEach(cols) { c in

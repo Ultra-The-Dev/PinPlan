@@ -221,7 +221,8 @@ final class Store: @unchecked Sendable {
     func saveImageData(_ data: Data, id: String = newId(), image: UIImage? = nil) -> String? {
         guard let url = imageURL(id) else { return nil }
         do { try data.write(to: url, options: Self.writeOptions) } catch { return nil }
-        if let image { imageCache.setObject(image, forKey: id as NSString, cost: data.count) } else { imageCache.removeObject(forKey: id as NSString) }
+        // The cost is the decoded image's memory, not the file's (a 2560 px photo is ~1 MB as JPEG but ~20 MB in memory).
+        if let image { imageCache.setObject(image, forKey: id as NSString, cost: Self.memoryCost(image)) } else { imageCache.removeObject(forKey: id as NSString) }
         return id
     }
 
@@ -229,8 +230,15 @@ final class Store: @unchecked Sendable {
         guard let url = imageURL(id) else { return nil }
         if let img = imageCache.object(forKey: id as NSString) { return img }
         guard let img = UIImage(contentsOfFile: url.path) else { return nil }
-        imageCache.setObject(img, forKey: id as NSString, cost: Int(img.size.width * img.size.height * 4))
+        imageCache.setObject(img, forKey: id as NSString, cost: Self.memoryCost(img))
         return img
+    }
+
+    /// Bytes a decoded image takes (4 per pixel).
+    static func memoryCost(_ image: UIImage) -> Int {
+        let scale: CGFloat = image.scale
+        let pixels: CGFloat = image.size.width * scale * image.size.height * scale
+        return Int(pixels * 4)
     }
 
     func imageData(_ id: String) -> Data? { imageURL(id).flatMap { try? Data(contentsOf: $0) } }

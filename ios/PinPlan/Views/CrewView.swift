@@ -10,7 +10,7 @@ struct CrewView: View {
     @State private var busy = false
 
     var body: some View {
-        let order = Dictionary(uniqueKeysWithValues: model.sheets.map { ($0.id, $0.order) })
+        let order: [String: Int] = Dictionary(model.sheets.map { ($0.id, $0.order) }, uniquingKeysWith: { first, _ in first })
         let rows = model.bundle.liveMarkers.filter { app.type($0.deviceTypeId)?.kind == .device }
             .sorted { (order[$0.sheetId] ?? 0, $0.label) < (order[$1.sheetId] ?? 0, $1.label) }
         let tot = model.takeoff.total

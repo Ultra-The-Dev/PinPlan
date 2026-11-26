@@ -258,19 +258,37 @@ struct SheetsView: View {
 
     private func addImages(_ images: [UIImage], names: [String]) {
         guard !images.isEmpty else { return }
-        var order = nextOrder
-        var added: [Sheet] = []
-        for (i, raw) in images.enumerated() {
-            let img = PlanImporter.normalized(raw)
-            guard let id = app.store.saveImage(img, quality: 0.92) else { continue }
-            let px = img.pixelSize
-            let name = names.indices.contains(i) && !names[i].isEmpty ? names[i] : "Sheet \(order + 1)"
-            added.append(Sheet(projectId: model.bundle.project.id, name: name, pageNumber: i + 1, order: order, imageId: id, width: px.width, height: px.height))
-            order += 1
+        let start: Int = nextOrder
+        let projectId: String = model.bundle.project.id
+        let store: Store = app.store
+        busy = String(localized: "Adding…")
+        // Resizing and encoding a 4800 px page takes a moment each: off the main thread, so the screen keeps moving.
+        Task.detached(priority: .userInitiated) {
+            var order: Int = start
+            var added: [Sheet] = []
+            for (i, raw) in images.enumerated() {
+                let img: UIImage = PlanImporter.normalized(raw)
+                guard let id = store.saveImage(img, quality: 0.92) else { continue }
+                let px = img.pixelSize
+                let given: String = names.indices.contains(i) ? names[i] : ""
+                let name: String = given.isEmpty ? "Sheet \(order + 1)" : given
+                added.append(Sheet(projectId: projectId, name: name, pageNumber: i + 1, order: order, imageId: id, width: px.width, height: px.height))
+                order += 1
+            }
+            let made: [Sheet] = added
+            await MainActor.run {
+                busy = nil
+                // Numbered after what is there now (a PDF may have been added meanwhile).
+                let base: Int = nextOrder
+                var sheets: [Sheet] = made
+                for i in sheets.indices { sheets[i].order = base + i }
+                model.edit { $0.sheets += sheets }
+                if model.activeSheetId == nil { model.activeSheetId = sheets.first?.id }
+                model.say(String(localized: "Added \(sheets.count) sheets — set the scale on each by drawing a line over a known dimension"))
+                // PDFs waiting behind this import (their picker doesn't open while busy).
+                nextPDF()
+            }
         }
-        model.edit { $0.sheets += added }
-        if model.activeSheetId == nil { model.activeSheetId = added.first?.id }
-        model.say(String(localized: "Added \(added.count) sheets — set the scale on each by drawing a line over a known dimension"))
     }
 
     private func rotate(_ s: Sheet) {
@@ -333,12 +351,12 @@ private struct SheetCard: View {
                 .font(.headline)
                 .textFieldStyle(.roundedBorder)
                 HStack(spacing: 6) {
-                    Chip(text: "\(count) devices")
+                    Chip(text: String(localized: "\(count) devices"))
                     Chip(text: sheet.pxPerFt != nil ? (sheet.scaleLabel ?? String(localized: "Scale set")) : String(localized: "No scale"), tint: sheet.pxPerFt != nil ? .green : .secondary)
                 }
                 HStack {
-                    Button { onMove(-1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0)
-                    Button { onMove(1) } label: { Image(systemName: "arrow.down") }.disabled(index == model.sheets.count - 1)
+                    Button { onMove(-1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0).accessibilityLabel("Move up")
+                    Button { onMove(1) } label: { Image(systemName: "arrow.down") }.disabled(index == model.sheets.count - 1).accessibilityLabel("Move down")
                     Button(action: onRotate) { Label("Rotate", systemImage: "rotate.right") }
                     Spacer()
                     Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }

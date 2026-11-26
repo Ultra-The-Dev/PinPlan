@@ -143,8 +143,8 @@ private struct PageCard: View {
             .pickerStyle(.segmented)
             .onChange(of: page.mode) { _, _ in reprocess() }
             HStack {
-                Button { page.rotation = (page.rotation + 3) % 4; reprocess() } label: { Image(systemName: "rotate.left") }
-                Button { page.rotation = (page.rotation + 1) % 4; reprocess() } label: { Image(systemName: "rotate.right") }
+                Button { page.rotation = (page.rotation + 3) % 4; reprocess() } label: { Image(systemName: "rotate.left") }.accessibilityLabel("Rotate left")
+                Button { page.rotation = (page.rotation + 1) % 4; reprocess() } label: { Image(systemName: "rotate.right") }.accessibilityLabel("Rotate right")
                 Button(action: onCorners) { Label("Corners", systemImage: "crop") }
                 Spacer()
                 Button(role: .destructive, action: onRemove) { Image(systemName: "trash") }

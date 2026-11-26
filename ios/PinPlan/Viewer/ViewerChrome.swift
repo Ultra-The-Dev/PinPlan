@@ -153,17 +153,26 @@ struct ViewerControls: View {
     @Binding var showLayers: Bool
     @Binding var showMinimap: Bool
     @Binding var fullScreen: Bool
+    /// One row instead of a column: a phone in landscape has no room for the column (it would cover the top bar).
+    var horizontal = false
+
+    /// The column's height (buttons and dividers), for deciding whether it fits.
+    static func columnHeight(zoomButtons: Bool) -> CGFloat {
+        let buttons: CGFloat = zoomButtons ? 6 : 4
+        return buttons * 44 + 3
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let layout: AnyLayout = horizontal ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
+        return layout {
             control(icon: "square.3.layers.3d", label: String(localized: "Layers and filters"), on: filtering) { showLayers = true }
-            Divider().frame(width: 44)
+            separator
             control(icon: showMinimap ? "map.fill" : "map", label: showMinimap ? String(localized: "Hide minimap") : String(localized: "Show minimap"), on: showMinimap) { showMinimap.toggle() }
-            Divider().frame(width: 44)
+            separator
             if zoomButtons {
                 control(icon: "plus.magnifyingglass", label: String(localized: "Zoom in")) { controller.zoom(by: 1.6) }
                 control(icon: "minus.magnifyingglass", label: String(localized: "Zoom out")) { controller.zoom(by: 1 / 1.6) }
-                Divider().frame(width: 44)
+                separator
             }
             control(icon: "viewfinder", label: String(localized: "Whole sheet")) { controller.fit() }
             control(icon: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
@@ -174,6 +183,11 @@ struct ViewerControls: View {
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+    }
+
+    @ViewBuilder
+    private var separator: some View {
+        if horizontal { Divider().frame(height: 28) } else { Divider().frame(width: 44) }
     }
 
     private func control(icon: String, label: String, on: Bool = false, action: @escaping () -> Void) -> some View {

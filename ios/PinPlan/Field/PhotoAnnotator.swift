@@ -105,7 +105,7 @@ struct PhotoAnnotator: View {
                                 if width == w { Label([String(localized: "Thin"), String(localized: "Medium"), String(localized: "Thick")][i], systemImage: "checkmark") } else { Text([String(localized: "Thin"), String(localized: "Medium"), String(localized: "Thick")][i]) }
                             }
                         }
-                    } label: { Image(systemName: "lineweight") }
+                    } label: { Image(systemName: "lineweight") }.accessibilityLabel("Line width")
                 }
             }
             .alert("Text", isPresented: Binding(get: { textAt != nil }, set: { if !$0 { textAt = nil } })) {

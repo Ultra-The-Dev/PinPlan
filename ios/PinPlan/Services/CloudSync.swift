@@ -1779,6 +1779,8 @@ extension CloudSync {
 
     private func syncCompanyDetails(app: AppModel, row: [String: Any]?, userId: String, canWrite: Bool, mayPush: Bool,
                                     client: SupabaseClient, token: String) async {
+        // Checked again after the read above: a settings screen may have been opened and changed while it waited.
+        guard !app.hasUnsavedCompanySettings else { return }
         let founder: Bool = app.settings.business.brandDefaults != BusinessSettings.neutralMarker
         var mark: CompanyDetailsMark? = Self.readMark(CompanyDetailsMark.self, key: Self.companyDetailsMarkKey)
         if mark?.userId != userId { mark = nil }
@@ -1824,6 +1826,8 @@ extension CloudSync {
 
     private func syncCompanyPrefs(app: AppModel, shared: [String: Any]?, office: [String: Any]?, rowExists: Bool, userId: String,
                                   canWrite: Bool, mayPush: Bool, client: SupabaseClient, token: String) async {
+        // Checked again after the reads above (see syncCompanySetup).
+        guard !app.hasUnsavedCompanySettings else { return }
         let founder: Bool = app.settings.business.brandDefaults != BusinessSettings.neutralMarker
         let local: CompanyPrefsValues = app.settings.companyPrefs(installPhotoRequired: InstallSettings.photoRequired)
         let previous: CompanyPrefsMark? = Self.readMark(CompanyPrefsMark.self, key: Self.companyPrefsMarkKey)

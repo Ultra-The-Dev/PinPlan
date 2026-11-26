@@ -50,8 +50,8 @@ struct TradeSettingsView: View {
                     .foregroundStyle(on ? Color(hex: p.color) : Color.secondary)
                     .font(.title3)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(p.name).foregroundStyle(Color.primary)
-                    Text(p.examples).font(.caption).foregroundStyle(.secondary)
+                    Text(tr(p.name)).foregroundStyle(Color.primary)
+                    Text(tr(p.examples)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if primary { Text("Primary").font(.caption.bold()).foregroundStyle(.secondary) }
