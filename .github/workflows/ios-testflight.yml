@@ -19,9 +19,8 @@ on:
   workflow_dispatch:
   push:
     tags: ["ios-v*"]
-    # Automatic uploads on every app change are paused during the full audit (re-enable by restoring):
-    # branches: ["claude/quirky-clarke-gjz5h1"]
-    # paths: ["ios/**", ".github/workflows/ios-testflight.yml"]
+    branches: ["claude/quirky-clarke-gjz5h1"]
+    paths: ["ios/**", ".github/workflows/ios-testflight.yml"]
 
 permissions:
   contents: read
