@@ -572,8 +572,9 @@ final class CloudSync {
         soloBilling = nil
         soloUserId = nil
         UserDefaults.standard.removeObject(forKey: Self.soloKey)
-        UserDefaults.standard.removeObject(forKey: Self.companyDetailsMarkKey)
-        UserDefaults.standard.removeObject(forKey: Self.companyPrefsMarkKey)
+        // The company setup's sync records stay: they name their account (another one never reads them, and an
+        // account switch removes them), and without them a change made here before the session ended would be
+        // overwritten by the company's copy when the same person signs back in.
         clearPendingInvite()
         hideLockedJobs()
     }
@@ -1300,12 +1301,16 @@ extension CloudSync {
         let key = "\(Self.teamTradesSeenKey).\(t.id)"
         let seen = UserDefaults.standard.stringArray(forKey: key)
         if let next = Team.tradesToAdopt(team: t.trades, seen: seen, local: app.trades) {
-            // The team's trades coming down are not a change made here: keep the settings' save time.
+            // The team's trades coming down are not a change made here: keep the settings' save time (unless a
+            // settings screen had changes of its own, which setTrades has just saved: those keep their new time).
             let savedAt: String? = app.settings.updatedAt
+            let unsaved: Bool = app.hasUnsavedCompanySettings
             app.setTrades(next, addPacks: can(.editCatalog))
-            var s: AppSettings = app.settings
-            s.updatedAt = savedAt
-            app.replaceSettingsFromCloud(s)
+            if !unsaved {
+                var s: AppSettings = app.settings
+                s.updatedAt = savedAt
+                app.replaceSettingsFromCloud(s)
+            }
         }
         if let tr = t.trades, !tr.isEmpty { UserDefaults.standard.set(tr, forKey: key) }
     }
@@ -1740,6 +1745,9 @@ extension CloudSync {
     func syncCompanySetup(app: AppModel, client: SupabaseClient, token: String, mayPush: Bool) async {
         // The role decides what may be sent: wait until it is known for this account.
         guard teamKnown, let userId = session?.userId else { return }
+        // A settings screen is open with changes it saves when it closes (its save starts another sync): taking the
+        // company's copy now would either overwrite them or file them as already saved, so they'd never be sent.
+        guard !app.hasUnsavedCompanySettings else { return }
         // Plan by role; while the company is read-only (lapsed billing) nothing is sent, and those parts wait.
         let canWrite: Bool = role != .tech
         let detailColumns = "business_name,phone,email,website,address,terms,logo,logo_image_id,updated_at"

@@ -19,7 +19,7 @@ import { DEFAULT_PHOTO_REQUIRED, isInstallStatus } from "./installProgress";
 import { readLocalOwner } from "./localOwner";
 import { getSupabase } from "./supabase";
 import { useTeam } from "./team";
-import { normalizeTrades } from "./trades";
+import { normalizeTrades, TRADE_PACKS } from "./trades";
 import { TRADES_EVENT, useTradeStore } from "./useTrades";
 import type { AppSettings, PricingSettings } from "./types";
 
@@ -41,6 +41,10 @@ const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object"
 const str = (v: unknown, max = 500) => (typeof v === "string" ? v.slice(0, max) : "");
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const pricingOf = (s: AppSettings): PricingSettings => ({ ...DEFAULT_SETTINGS.pricing, ...s.pricing, wirePrices: { ...DEFAULT_SETTINGS.pricing.wirePrices, ...s.pricing?.wirePrices } });
+const pricingSection = (s: AppSettings) => {
+  const p = pricingOf(s);
+  return { markupPct: p.markupPct, taxPct: p.taxPct, laborMode: p.laborMode, wirePrices: p.wirePrices, includeTentative: p.includeTentative, currency: p.currency };
+};
 
 const BRANDING_FIELDS = ["tagline", "brandColor", "accentColor", "serviceArea"] as const;
 const TAKEOFF_FIELDS = ["wireSlackPct", "wireDropFt", "floorHeightFt"] as const;
@@ -107,10 +111,7 @@ export const SECTIONS: SectionDef[] = [
   {
     key: "pricing",
     scope: "office",
-    read: (s) => {
-      const p = pricingOf(s);
-      return { markupPct: p.markupPct, taxPct: p.taxPct, laborMode: p.laborMode, wirePrices: p.wirePrices, includeTentative: p.includeTentative, currency: p.currency };
-    },
+    read: (s) => pricingSection(s),
     apply: (s, v) => {
       const o = obj(v);
       const p = pricingOf(s);
@@ -127,6 +128,15 @@ export const SECTIONS: SectionDef[] = [
           currency: currency || p.currency,
         },
       };
+    },
+    // A trade's starting wire prices (added when a trade is switched on, e.g. a team's trades on a new device) are
+    // still a fresh install's prices: they must not seed the company's copy over the office's real ones.
+    isDefault: (v) => {
+      const o = obj(v);
+      const d: Record<string, unknown> = pricingSection(DEFAULT_SETTINGS);
+      if (["markupPct", "taxPct", "laborMode", "includeTentative", "currency"].some((k) => o[k] !== d[k])) return false;
+      const dw = obj(d.wirePrices);
+      return Object.entries(obj(o.wirePrices)).every(([w, p]) => p === dw[w] || TRADE_PACKS.some((t) => t.wireTypes.includes(w) && p === (t.wirePrices[w] ?? 0)));
     },
   },
   {
@@ -199,6 +209,9 @@ export function sectionAction(i: SectionInput): "push" | "pull" | "none" {
   if (!i.canWrite || !changedHere) return "pull";
   // First sync for this account on this device: the company's copy wins (what was here came from before).
   if (!i.mark) return "pull";
+  // The company's copy is still the one this device last synced: only this device changed it, so it goes up whatever
+  // the clocks say (a device whose clock ran ahead must not undo every later change; planPreferences dates it after).
+  if (Date.parse(i.mark.updatedAt) === Date.parse(i.remote.updatedAt)) return "push";
   const localAt = Date.parse(i.localSavedAt ?? "") || 0;
   return localAt > (Date.parse(i.remote.updatedAt) || 0) ? "push" : "pull";
 }
@@ -249,8 +262,10 @@ export function planPreferences(i: PrefPlanInput): PrefPlan {
     const action = sectionAction({ local, isDefault, localSavedAt: i.localSavedAt, mark: markOf[def.key] ?? null, remote, canWrite: i.canWrite });
     if (action === "push") {
       const target = def.scope === "office" ? plan.push.office : plan.push.shared;
-      target[def.key] = { value: def.read(i.settings), updatedAt: savedAt };
-      plan.mark.sections[def.key] = { updatedAt: savedAt, hash: fingerprint(local) };
+      // The database keeps a section only when it is newer than its copy there: date it after the copy it replaces.
+      const at = section && Date.parse(section.updatedAt) >= Date.parse(savedAt) ? new Date(Date.parse(section.updatedAt) + 1).toISOString() : savedAt;
+      target[def.key] = { value: def.read(i.settings), updatedAt: at };
+      plan.mark.sections[def.key] = { updatedAt: at, hash: fingerprint(local) };
     } else if (action === "pull" && section && remote) {
       plan.pull[def.key] = section.value;
       plan.mark.sections[def.key] = { updatedAt: section.updatedAt, hash: fingerprint(remote.local) };
@@ -264,6 +279,16 @@ export function applyPulled(s: AppSettings, pull: Partial<Record<PrefKey, unknow
   let next = s;
   for (const def of SECTIONS) if (def.key in pull) next = def.apply(next, pull[def.key]);
   return next;
+}
+
+/** Sections changed on this device since it last synced them (the next sync sends them). Sections never synced here
+ *  aren't counted: the first sync takes the company's copy of those anyway. */
+export function unsentSections(s: AppSettings, mark: PrefMark | null, userId: string): PrefKey[] {
+  if (!mark || mark.userId !== userId) return [];
+  return SECTIONS.filter((def) => {
+    const m = mark.sections[def.key];
+    return !!m && fingerprint(stableJson(def.read(s))) !== m.hash;
+  }).map((def) => def.key);
 }
 
 /** The company-level parts of the settings back to what a fresh install has (another account's setup must not show,
@@ -296,6 +321,14 @@ function readMark(userId: string): PrefMark | null {
     return null;
   }
 }
+/** Whether this device has company setup changes the cloud doesn't have yet (sign-out keeps the data then). */
+export async function hasUnsentPreferences(userId: string): Promise<boolean> {
+  const mark = readMark(userId);
+  if (!mark) return false;
+  const s = await db().settings.get("app");
+  return !!s && unsentSections(s, mark, userId).length > 0;
+}
+
 function writeMark(m: PrefMark) {
   try {
     localStorage.setItem(MARK_KEY, JSON.stringify(m));

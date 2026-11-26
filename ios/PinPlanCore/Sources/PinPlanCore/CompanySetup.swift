@@ -349,6 +349,19 @@ public enum CompanyPrefs {
             let pairs: [(String, String)] = [(b.tagline, d.tagline), (b.brandColor, d.brandColor), (b.accentColor, d.accentColor), (b.serviceArea, d.serviceArea)]
             return pairs.allSatisfy { $0.0.isEmpty || $0.0 == $0.1 }
         }
+        if key == .pricing {
+            // A trade's starting wire prices (added when the team's trades come down on a new device) are still a
+            // fresh install's prices: they must not seed the company's copy over the office's real ones.
+            let p = OfficePricing(v.pricing), d = OfficePricing(fresh.pricing)
+            if p.markupPct != d.markupPct || p.taxPct != d.taxPct || p.laborMode != d.laborMode
+                || p.includeTentative != d.includeTentative || p.currency != d.currency { return false }
+            for (w, price) in p.wirePrices {
+                if d.wirePrices[w] == price { continue }
+                let fromPack: Bool = Trades.packs.contains { $0.wireTypes.contains(w) && ($0.wirePrices[w] ?? 0) == price }
+                if !fromPack { return false }
+            }
+            return true
+        }
         return json(key, v) == json(key, fresh)
     }
 
@@ -369,10 +382,23 @@ public enum CompanyPrefs {
         let changedHere: Bool = mark.map { $0.hash != fingerprint(local) } ?? !isDefault
         guard remote != nil else { return canWrite && changedHere ? .push : .none }
         if !canWrite || !changedHere { return .pull }
-        if mark == nil { return .pull }
+        guard let mark else { return .pull }
         let localAt: Date = CompanySync.parseTime(localSavedAt) ?? .distantPast
         let remoteAt: Date = CompanySync.parseTime(remoteUpdatedAt) ?? .distantPast
+        // The company's copy is still the one this device last synced: only this device changed it, so it goes up
+        // whatever the clocks say (`plan` dates it after that copy).
+        if let markAt = CompanySync.parseTime(mark.updatedAt), markAt == remoteAt { return .push }
         return localAt > remoteAt ? .push : .pull
+    }
+
+    /// `at`, or just after `remoteAt` (by a millisecond or two) when `at` isn't newer (so the database's newer-wins merge keeps what is sent).
+    static func after(_ remoteAt: String?, _ at: String) -> String {
+        guard let r = CompanySync.parseTime(remoteAt) else { return at }
+        let mine: Date = CompanySync.parseTime(at) ?? .distantPast
+        if mine > r { return at }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: r.addingTimeInterval(0.0015))
     }
 
     /// A section as the cloud stores it ({"value": …, "updatedAt": …}), or nil.
@@ -405,9 +431,11 @@ public enum CompanyPrefs {
                              remote: remoteText, remoteUpdatedAt: found?.updatedAt, canWrite: canWrite)
             switch act {
             case .push:
-                let s: [String: Any] = ["value": value(key, local), "updatedAt": at]
+                // The database keeps a section only when it is newer than its copy there: date it after that copy.
+                let sendAt: String = after(found?.updatedAt, at)
+                let s: [String: Any] = ["value": value(key, local), "updatedAt": sendAt]
                 if key.office { plan.pushOffice[key.rawValue] = s } else { plan.pushShared[key.rawValue] = s }
-                plan.mark.sections[key.rawValue] = .init(updatedAt: at, hash: fingerprint(text))
+                plan.mark.sections[key.rawValue] = .init(updatedAt: sendAt, hash: fingerprint(text))
             case .pull:
                 guard let found, let remoteText else { continue }
                 plan.values = applying(key, raw: found.value, to: plan.values)

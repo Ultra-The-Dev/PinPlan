@@ -214,4 +214,36 @@ final class CompanySetupTests: XCTestCase {
                        ["billduDocType", "branding", "checklistTemplates", "formTemplates", "installPhotoRequired", "pricing", "takeoff", "trades"])
         XCTAssertEqual(PrefKey.allCases.filter(\.office).map(\.rawValue).sorted(), ["billduDocType", "pricing"])
     }
+
+    // MARK: audit: clock skew, trade-pack prices
+
+    func testAClockThatRanAheadDoesNotUndoALaterEdit() {
+        // Another device's clock was a day ahead: its prices went up dated t2. This device took them, then the
+        // office changes the markup here at this device's (correct) time t1.
+        var officeRow: [String: Any] = ["pricing": ["value": ["markupPct": 10], "updatedAt": t2]]
+        let first = CompanyPrefs.plan(local: fresh(), localSavedAt: t0, mark: nil, userId: "u", shared: [:], office: officeRow, canWrite: true, trades: false)
+        XCTAssertEqual(first.values.pricing.markupPct, 10)
+        var edited: CompanyPrefsValues = first.values
+        edited.pricing.markupPct = 35
+        let second = CompanyPrefs.plan(local: edited, localSavedAt: t1, mark: first.mark, userId: "u", shared: [:], office: officeRow, canWrite: true, trades: false)
+        XCTAssertTrue(second.pulled.isEmpty)
+        XCTAssertNotNil(second.pushOffice["pricing"])
+        officeRow = merge(officeRow, second.pushOffice)
+        let kept: [String: Any] = (officeRow["pricing"] as? [String: Any])?["value"] as? [String: Any] ?? [:]
+        XCTAssertEqual(kept["markupPct"] as? Double, 35)
+        let third = CompanyPrefs.plan(local: edited, localSavedAt: t1, mark: second.mark, userId: "u", shared: [:], office: officeRow, canWrite: true, trades: false)
+        XCTAssertTrue(third.pulled.isEmpty && third.pushOffice.isEmpty)
+    }
+
+    func testTradePackWirePricesDoNotSeedTheCompanysPrices() {
+        let pack: TradePack = Trades.pack(.electrical)
+        var v = fresh()
+        for (w, p) in pack.wirePrices where v.pricing.wirePrices[w] == nil { v.pricing.wirePrices[w] = p }
+        let plan = CompanyPrefs.plan(local: v, localSavedAt: nil, mark: nil, userId: "u", shared: [:], office: [:], canWrite: true, trades: false)
+        XCTAssertNil(plan.pushOffice["pricing"])
+        var real = v
+        real.pricing.markupPct = 12
+        let up = CompanyPrefs.plan(local: real, localSavedAt: t0, mark: nil, userId: "u", shared: [:], office: [:], canWrite: true, trades: false)
+        XCTAssertNotNil(up.pushOffice["pricing"])
+    }
 }

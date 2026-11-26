@@ -45,8 +45,8 @@ import {
 } from "./syncMap";
 import { markupsToPush } from "./markups";
 import type { JobLog, PlanMarkup, Sheet } from "./types";
-import { pullCompanyPreferences } from "./companyPreferences";
-import { pullCompanySettings } from "./companySettings";
+import { hasUnsentPreferences, pullCompanyPreferences } from "./companyPreferences";
+import { hasUnsentCompanyDetails, pullCompanySettings } from "./companySettings";
 import { pullDocSettings } from "./docSettings";
 import { clearLocalData, finishPendingCompany } from "./onboarding";
 import { finishPendingInvite, loadTeam, loadTeamIfStale, TEAM_MAX_AGE_MS, useTeam } from "./team";
@@ -782,10 +782,13 @@ export function keepPreviousAccountData(): void {
   void runSync(true);
 }
 
-/** Per-user keys that never outlive a sign-in (an invite or company sign-up waiting for this person, their company's
- *  settings marks, billing cache, recently opened jobs…). `pinplan.team` and `pinplan.localOwner` stay: they say whose
- *  jobs are on this device (the owner check on the next sign-in), and pull watermarks are per user id. */
-export const SIGN_OUT_KEYS = ["pinplan.pendingInvite", "pinplan.pendingCompany", "pinplan.companySettings", "pinplan.companyPreferences", "pinplan.soloBilling", RECENT_JOBS_KEY, "pinplan.author", "pinplan.errorReports", "pinplan.exportAccounts"];
+/** Per-user keys that never outlive a sign-in (an invite or company sign-up waiting for this person, billing cache,
+ *  recently opened jobs…). `pinplan.team` and `pinplan.localOwner` stay: they say whose jobs are on this device (the
+ *  owner check on the next sign-in), and pull watermarks are per user id. So do the company settings' sync marks
+ *  (`pinplan.companySettings`, `pinplan.companyPreferences`): they name their account, and without them a change made
+ *  here before signing out would be overwritten by the company's copy when the same person signs back in. Another
+ *  account never reads them (and forgetCompanySetup removes them). */
+export const SIGN_OUT_KEYS = ["pinplan.pendingInvite", "pinplan.pendingCompany", "pinplan.soloBilling", RECENT_JOBS_KEY, "pinplan.author", "pinplan.errorReports", "pinplan.exportAccounts"];
 
 function clearSignedInKeys(): void {
   try {
@@ -795,11 +798,17 @@ function clearSignedInKeys(): void {
   }
 }
 
-/** Changes on this device the cloud doesn't have yet (queued or refused). */
-async function unsyncedCount(): Promise<number> {
+/** Changes on this device the cloud doesn't have yet (queued or refused rows, and company settings changed here since
+ *  they last synced: those aren't queued). */
+async function unsyncedCount(userId: string | null): Promise<number> {
   try {
-    const [queued, refused] = await Promise.all([db().syncQueue.count(), db().syncRefused.count()]);
-    return queued + refused;
+    const [queued, refused, details, prefs] = await Promise.all([
+      db().syncQueue.count(),
+      db().syncRefused.count(),
+      userId ? hasUnsentCompanyDetails(userId) : false,
+      userId ? hasUnsentPreferences(userId) : false,
+    ]);
+    return queued + refused + (details ? 1 : 0) + (prefs ? 1 : 0);
   } catch {
     return 1; // can't tell: keep the data
   }
@@ -810,7 +819,7 @@ async function unsyncedCount(): Promise<number> {
  * are removed when everything here is already in the cloud, and kept when changes still wait to sync.
  */
 export async function signOut(opts: { removeData?: boolean } = {}): Promise<void> {
-  const removeData = opts.removeData ?? (await unsyncedCount()) === 0;
+  const removeData = opts.removeData ?? (await unsyncedCount(useSyncStatus.getState().userId)) === 0;
   await getSupabase()?.auth.signOut();
   billingOwnerCache = null;
   clearSignedInKeys();

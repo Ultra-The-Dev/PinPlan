@@ -52,6 +52,16 @@ describe("where Add by count puts the pin", () => {
     expect(p.x).toBeCloseTo(0.52, 9);
     expect(p.y).toBeCloseTo(0.42, 9);
   });
+  it("steps aside by the step it is given (a pin's width on screen at this zoom), so the pin under it stays visible", () => {
+    // Zoomed out, 0.02 of the sheet is less than a pin wide: the second pin covered the first and its ×N.
+    const p = countPinSpot({ x: 0.5, y: 0.4 }, [{ x: 0.5, y: 0.4 }], 0.06);
+    expect(p.x).toBeCloseTo(0.56, 9);
+    expect(p.y).toBeCloseTo(0.46, 9);
+    // A pin a little off the middle (within half a step) still counts as "there".
+    expect(countPinSpot({ x: 0.5, y: 0.4 }, [{ x: 0.51, y: 0.41 }], 0.06).x).toBeCloseTo(0.56, 9);
+    // Nonsense steps fall back to the old 0.02.
+    expect(countPinSpot({ x: 0.5, y: 0.4 }, [{ x: 0.5, y: 0.4 }], NaN).x).toBeCloseTo(0.52, 9);
+  });
 });
 
 describe("takeoff counts a count pin as its count", () => {

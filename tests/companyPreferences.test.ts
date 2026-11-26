@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "@/lib/catalog";
-import { applyPulled, fingerprint, SECTIONS, planPreferences, sectionAction, sectionFrom, stableJson, withoutCompanySetup, type PrefMark, type PrefPlanInput, type PrefSection } from "@/lib/companyPreferences";
+import { TRADE_PACKS } from "@/lib/trades";
+import { applyPulled, fingerprint, SECTIONS, planPreferences, sectionAction, sectionFrom, stableJson, unsentSections, withoutCompanySetup, type PrefMark, type PrefPlanInput, type PrefSection } from "@/lib/companyPreferences";
 import type { AppSettings } from "@/lib/types";
 
 const T0 = "2026-11-20T10:00:00.000Z";
@@ -217,5 +218,68 @@ describe("sections", () => {
   it("have the same names and homes as the iPhone app's (PinPlanCore PrefKey)", () => {
     expect(SECTIONS.map((s) => s.key).sort()).toEqual(["billduDocType", "branding", "checklistTemplates", "formTemplates", "installPhotoRequired", "pricing", "takeoff", "trades"]);
     expect(SECTIONS.filter((s) => s.scope === "office").map((s) => s.key).sort()).toEqual(["billduDocType", "pricing"]);
+  });
+});
+
+describe("audit: clock skew, trade-pack prices, unsent changes", () => {
+  const plan = (p: Partial<PrefPlanInput>) => planPreferences({ settings: base(), localSavedAt: T0, mark: null, userId: "u1", shared: {}, office: {}, canWrite: true, trades: true, ...p });
+
+  it("a device whose clock ran ahead doesn't undo a later edit made elsewhere (the company's copy is the one this device last saw)", () => {
+    // Device B's clock is a day ahead: its pricing went up dated T2. Device A took it (mark = T2), then the office
+    // edits the markup on A, at A's correct time T1 (< T2).
+    const cloud = { shared: {} as Record<string, PrefSection>, office: { pricing: { value: { markupPct: 10 }, updatedAt: T2 } } as Record<string, PrefSection> };
+    const first = plan({ office: cloud.office });
+    let a = applyPulled(base(), first.pull);
+    expect(a.pricing.markupPct).toBe(10);
+    a = withPricing(a, { markupPct: 35 }, T1);
+    const p = plan({ settings: a, localSavedAt: T1, mark: first.mark, office: cloud.office });
+    expect(p.pull).toEqual({});
+    expect(p.push.office.pricing).toBeTruthy();
+    // Dated after the copy it replaces, so the database's merge keeps it.
+    cloud.office = serverMerge(cloud.office, p.push.office);
+    expect((cloud.office.pricing.value as { markupPct: number }).markupPct).toBe(35);
+    // And the next sync on A sees nothing to do.
+    const again = plan({ settings: a, localSavedAt: T1, mark: p.mark, office: cloud.office });
+    expect(again.pull).toEqual({});
+    expect(again.push.office).toEqual({});
+  });
+
+  it("a real conflict (changed in both places since this device last synced) is still newest-wins", () => {
+    const office = { pricing: { value: { markupPct: 40 }, updatedAt: T2 } };
+    const mark: PrefMark = { userId: "u1", sections: { pricing: { updatedAt: T0, hash: fingerprint(stableJson(SECTIONS.find((d) => d.key === "pricing")!.read(base()))) } } };
+    const p = plan({ settings: withPricing(base(), { markupPct: 35 }, T1), localSavedAt: T1, mark, office });
+    expect(Object.keys(p.pull)).toEqual(["pricing"]);
+  });
+
+  it("a fresh device whose team's trades added their starting wire prices doesn't seed the company's prices", () => {
+    const pack = TRADE_PACKS.find((t) => t.id === "electrical")!;
+    const s = withPricing(base(), { wirePrices: { ...base().pricing.wirePrices, ...pack.wirePrices } });
+    expect(plan({ settings: s }).push.office.pricing).toBeUndefined();
+    // …but a real price change does go up.
+    expect(plan({ settings: withPricing(s, { wirePrices: { ...s.pricing.wirePrices, [pack.wireTypes[0]]: 9.99 } }) }).push.office.pricing).toBeTruthy();
+    expect(plan({ settings: withPricing(s, { markupPct: 12 }) }).push.office.pricing).toBeTruthy();
+  });
+
+  it("rollout: the office's real prices survive a fresh team device (with pack prices) syncing first", () => {
+    const pack = TRADE_PACKS.find((t) => t.id === "fire")!;
+    const cloud = { shared: {} as Record<string, PrefSection>, office: {} as Record<string, PrefSection> };
+    const fresh = withPricing(base(), { wirePrices: { ...base().pricing.wirePrices, ...pack.wirePrices } });
+    const pf = plan({ settings: fresh, localSavedAt: null, office: cloud.office, shared: cloud.shared });
+    cloud.office = serverMerge(cloud.office, pf.push.office);
+    const real = withPricing(base(), { markupPct: 30, taxPct: 8 });
+    const pr = plan({ settings: real, office: cloud.office, shared: cloud.shared });
+    expect(pr.pull.pricing).toBeUndefined();
+    cloud.office = serverMerge(cloud.office, pr.push.office);
+    expect((cloud.office.pricing.value as { markupPct: number }).markupPct).toBe(30);
+  });
+
+  it("unsentSections: only sections changed here since this device last synced them", () => {
+    const s = withPricing(base(), { markupPct: 20 });
+    const synced = plan({ settings: s });
+    expect(unsentSections(s, synced.mark, "u1")).toEqual([]);
+    const edited = withPricing(s, { markupPct: 22 }, T1);
+    expect(unsentSections(edited, synced.mark, "u1")).toEqual(["pricing"]);
+    expect(unsentSections(edited, synced.mark, "someone-else")).toEqual([]);
+    expect(unsentSections(edited, null, "u1")).toEqual([]);
   });
 });

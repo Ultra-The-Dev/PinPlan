@@ -137,6 +137,14 @@ function writeMark(m: CompanySyncMark) {
   }
 }
 
+/** Whether the business details were changed on this device since it last synced them (sign-out keeps the data then). */
+export async function hasUnsentCompanyDetails(userId: string): Promise<boolean> {
+  const mark = readMark(userId);
+  if (!mark) return false;
+  const local = companyFromBusiness((await getSettings()).business);
+  return COMPANY_FIELDS.some((k) => local[k] !== mark.values[k]);
+}
+
 /** The company's details as this device has them. */
 export async function getCompanySettings(): Promise<CompanySettings> {
   return companyFromBusiness((await getSettings()).business);

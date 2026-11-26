@@ -269,6 +269,14 @@ final class AppModel {
         if changed { cloud.kick() }
     }
 
+    /// The company's parts of the settings (business details, prices, templates…) were changed on a screen that hasn't
+    /// saved them yet (settings screens edit `settings` directly and save when they close).
+    var hasUnsavedCompanySettings: Bool {
+        guard let saved = savedSettings else { return false }
+        let photos: [InstallStatus] = InstallSettings.photoRequired
+        return settings.companyPrefs(installPhotoRequired: photos) != saved.companyPrefs(installPhotoRequired: photos)
+    }
+
     /// Write settings that came from the company's cloud copy (or were cleared for another account): keeps the time
     /// of this device's own last change.
     func replaceSettingsFromCloud(_ s: AppSettings) {

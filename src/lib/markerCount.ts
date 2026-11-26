@@ -33,12 +33,16 @@ export function pinLabel(m: Pick<Marker, "label" | "count">): string {
   return n > 1 ? `${m.label} ×${n}` : m.label;
 }
 
-/** Where the new pin goes: the middle of the view, nudged so it doesn't sit on another pin there. */
-export function countPinSpot(center: { x: number; y: number }, taken: { x: number; y: number }[]): { x: number; y: number } {
+/** Where the new pin goes: the middle of the view, nudged so it doesn't sit on another pin there. `step` (sheet-relative)
+ *  is how far each nudge goes: about a pin's width on screen at the current zoom, so the pin under it (and its ×N)
+ *  stays visible; 0.02 when the caller can't tell. */
+export function countPinSpot(center: { x: number; y: number }, taken: { x: number; y: number }[], step = 0.02): { x: number; y: number } {
   const c = { x: Math.min(0.97, Math.max(0.03, center.x)), y: Math.min(0.97, Math.max(0.03, center.y)) };
+  const s = Number.isFinite(step) && step > 0 ? Math.min(0.1, step) : 0.02;
+  const near = s * 0.4;
   for (let i = 0; i < 12; i++) {
-    const p = { x: Math.min(0.97, c.x + i * 0.02), y: Math.min(0.97, c.y + i * 0.02) };
-    if (!taken.some((m) => Math.abs(m.x - p.x) < 0.008 && Math.abs(m.y - p.y) < 0.008)) return p;
+    const p = { x: Math.min(0.97, c.x + i * s), y: Math.min(0.97, c.y + i * s) };
+    if (!taken.some((m) => Math.abs(m.x - p.x) < near && Math.abs(m.y - p.y) < near)) return p;
   }
   return c;
 }

@@ -127,7 +127,8 @@ vi.mock("@/lib/supabase", () => {
 });
 vi.mock("@/lib/docSettings", () => ({ pullDocSettings: async () => undefined }));
 const pullCompany = vi.hoisted(() => ({ calls: 0, fail: false }));
-vi.mock("@/lib/companySettings", () => ({
+vi.mock("@/lib/companySettings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/companySettings")>()),
   pullCompanySettings: async () => {
     pullCompany.calls += 1;
     if (pullCompany.fail) throw new Error("company_settings unavailable");
@@ -138,7 +139,8 @@ vi.mock("@/lib/team", async (importOriginal) => {
   return { ...mod, loadTeamIfStale: async () => mod.useTeam.getState() };
 });
 
-import { db, noteJobOpened, put, saveImage } from "@/lib/db";
+import { fingerprint, SECTIONS, stableJson } from "@/lib/companyPreferences";
+import { db, ensureSeeded, noteJobOpened, put, saveImage, saveSettings } from "@/lib/db";
 import { __resetSyncForTests, __setSyncTimeLimitForTests, __syncForTests, discardRefused, retryRefused, signOut, useSyncStatus } from "@/lib/sync";
 import { useTeam } from "@/lib/team";
 import type { JobForm, Marker, Project, Sheet } from "@/lib/types";
@@ -545,6 +547,29 @@ describe("sign out", () => {
       expect(storage.has("pinplan.pendingInvite")).toBe(false);
       expect(storage.has("pinplan.recentJobs")).toBe(false);
       expect(storage.get("pinplan.team")).toBe("{}");
+    } finally {
+      delete win.window;
+    }
+  });
+
+  it("keeps the data (and its record of what synced) when company settings changed here haven't gone up yet", async () => {
+    await __syncForTests("u1");
+    expect(await queue()).toEqual([]);
+    // This device last synced pricing as the defaults; the markup has been changed here since (offline).
+    await ensureSeeded();
+    const s = (await db().settings.get("app"))!;
+    const pricing = SECTIONS.find((d) => d.key === "pricing")!;
+    const mark = { userId: "u1", sections: { pricing: { updatedAt: "2026-11-19T09:00:00.000Z", hash: fingerprint(stableJson(pricing.read(s))) } } };
+    storage.set("pinplan.companyPreferences", JSON.stringify(mark));
+    await saveSettings({ ...s, pricing: { ...s.pricing, markupPct: 37 } });
+    const reload = vi.fn();
+    win.window = { location: { reload } };
+    try {
+      await signOut();
+      expect(reload).not.toHaveBeenCalled();
+      expect((await db().settings.get("app"))?.pricing.markupPct).toBe(37);
+      // Still there for the same person's next sign-in, so the change is sent rather than overwritten.
+      expect(storage.get("pinplan.companyPreferences")).toBe(JSON.stringify(mark));
     } finally {
       delete win.window;
     }

@@ -51,9 +51,12 @@ export default function AddByCountDialog({ viewport, onClose }: { viewport: Plan
 
   const place = async () => {
     if (!type) return;
-    const center = viewport.screenToRel(viewport.center());
+    const mid = viewport.center();
+    const center = viewport.screenToRel(mid);
     const taken = markers.filter((m) => m.sheetId === activeSheetId && !m.deleted);
-    const at = countPinSpot(center, taken);
+    // Step aside by about a pin and its ×N on screen (40 px), whatever the zoom.
+    const step = Math.abs(viewport.screenToRel({ x: mid.x + 40, y: mid.y }).x - center.x);
+    const at = countPinSpot(center, taken, step);
     const m = await addMarker(type.id, at.x, at.y, { count: normalizeCount(count), room: room.trim() });
     if (!m) return;
     try {
